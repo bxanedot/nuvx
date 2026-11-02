@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
 import androidx.compose.runtime.*
@@ -34,7 +35,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val ready = player
             if (ready != null) NuvxApp(app.router, app.store, ready, app.lyrics,
-                watch = packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH))
+                watch = packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH),
+                reduceMotion = reducedMotion(contentResolver),
+                onBackHandler = { enabled, onBack -> BackHandler(enabled, onBack) })
             else MaterialTheme { Surface { Text(if (connectionError) "Could not connect to playback. Reopen nuvx to retry." else "Connecting to nuvx…") } }
         }
     }
