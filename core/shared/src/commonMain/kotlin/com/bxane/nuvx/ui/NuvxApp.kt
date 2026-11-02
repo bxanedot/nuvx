@@ -43,7 +43,11 @@ private val Tabs = listOf(Tab("Home", NuvxIcons.Home), Tab("Explore", NuvxIcons.
 private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue") }
 
 @Composable
-fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LrcLib, watch: Boolean, reduceMotion: Boolean = false) {
+fun NuvxApp(
+    router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LrcLib, watch: Boolean, reduceMotion: Boolean = false,
+    /** Platform back integration (Android passes BackHandler). Called every composition with whether back has somewhere to go. */
+    onBackHandler: (@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit)? = null,
+) {
     val state by player.state.collectAsState()
     var welcomed by remember { mutableStateOf(store.get("welcomeSeen") == "true") }
     // shortcut: the room and history live as long as this composition (an Android activity recreation restarts them); move to the app graph when that matters.
@@ -57,6 +61,16 @@ fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyr
     var searchQuery by remember { mutableStateOf<String?>(null) }
     var page by remember { mutableStateOf<Page?>(null) }
     var sheet by remember { mutableStateOf(false) }
+    // Back unwinds one layer at a time: player sheet, sub-page, search, then a non-Home tab returns to Home.
+    val canGoBack = welcomed && !watch && (sheet || page != null || searching || tab != 0)
+    onBackHandler?.invoke(canGoBack) {
+        when {
+            sheet -> sheet = false
+            page != null -> page = null
+            searching -> searching = false
+            else -> tab = 0
+        }
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(primary = NuvxColors.Accent, background = NuvxColors.Background, surface = NuvxColors.Card, onSurface = NuvxColors.Text)) {
         Surface(Modifier.fillMaxSize(), color = NuvxColors.Background) {
