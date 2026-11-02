@@ -1,0 +1,12 @@
+local.properties
+.gradle/
+build/
+.kotlin/
+*.iml
+.idea/
+*.keystore
+*.jks
+.env*
+.vercel/
+.wrangler/
+node_modules/

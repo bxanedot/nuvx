@@ -1,0 +1,13 @@
+# Blockers and Honest Limitations
+
+| # | Area | Status | Detail / next step |
+|---|---|---|---|
+| 1 | eXcor streams | **Refused by YouTube** | Live test, 2026-11-02: `Sign in to confirm you're not a bot`. eXcor doesn't mint PO tokens; that is the host's job (`TokenProvider`). eXcor search and radio work. With fallback on, the router routes streams to InnerTubeX. |
+| 2 | iOS / iPadOS | Not buildable on this host | The dev machine runs Windows 11. Kotlin/Native iOS and xtool need macOS or Linux, plus an Apple developer account for signing. |
+| 3 | macOS packages | Need a macOS runner | Planned for CI on `macos-latest`. Signing and notarisation need Apple credentials (none configured). |
+| 4 | rynx | Repository not found | `bxanedot/rynx` doesn't resolve on GitHub. Nothing has been integrated. |
+| 5 | rynxRPC | No LICENSE file | The repo is owned by bxane but has no licence. Add one before distributing it. |
+| 6 | Convx | Ambiguous | Several repos share the name. The closest is `cosmictaserdev-creator/Convx`, a GPL-3.0 YT Music player. It has not been confirmed as the intended one, so none of its code is used. |
+| 7 | SF Symbols / GlyphStudio | Licence restriction | Apple's SF Symbols licence doesn't allow use on non-Apple platforms. Nuvx uses bxane's own brand icons and original or Apache-licensed UI glyphs instead. |
+| 8 | Dolby Atmos | Not offered | No licensed decoder or Atmos source path. The app must never show an Atmos toggle. |
+| 9 | Cloudflare / Vercel / DNS | No credentials yet | The Worker and website can be built and tested locally. Deploying needs the account owner to log in. |

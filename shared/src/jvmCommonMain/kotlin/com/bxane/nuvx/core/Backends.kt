@@ -1,0 +1,106 @@
+package com.bxane.nuvx.core
+
+import com.excor.Excor
+import com.excor.ExcorYouTubeMusicItem
+import com.excor.ExcorYouTubeMusicItemType
+import com.excor.excorDefaultHost
+import com.metrolist.innertubex.InnerTube
+import com.metrolist.innertubex.cipher.PlayerConfigRepository
+import com.metrolist.innertubex.cipher.RemotePlayerConfigStore
+import com.metrolist.innertubex.cipher.YouTubeCipherService
+import com.metrolist.innertubex.extraction.AudioQuality
+import com.metrolist.innertubex.extraction.ContentHints
+import com.metrolist.innertubex.extraction.InnerTubeExtractor
+import com.metrolist.innertubex.extraction.YtConfigParserImpl
+import com.metrolist.innertubex.models.YouTubeClient
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.isSuccess
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
+
+fun nuvxHttpClient() = HttpClient(OkHttp) {
+    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = true }) }
+    install(HttpTimeout) { connectTimeoutMillis = 10_000; requestTimeoutMillis = 30_000; socketTimeoutMillis = 30_000 }
+}
+
+/** Default engine. Catalogue calls go through InnerTubeX's WEB_REMIX client; streams through its extractor. */
+class InnerTubeXBackend(http: HttpClient = nuvxHttpClient()) : MusicBackend {
+    override val id = BackendId.INNERTUBEX
+    private val innerTube = InnerTube(http)
+    private val extractor by lazy {
+        val config = RemotePlayerConfigStore(httpClient = http, repository = PlayerConfigRepository.disabled())
+        val cipher = YouTubeCipherService(http, config)
+        InnerTubeExtractor(
+            configParser = YtConfigParserImpl(http, innerTube, config, cipherService = cipher),
+            cipherService = cipher,
+            innerTube = innerTube,
+        )
+    }
+
+    override suspend fun search(query: String) =
+        YtmJson.parseSearch(innerTube.search(YouTubeClient.WEB_REMIX, query = query).text("search"))
+
+    override suspend fun radio(seedVideoId: String, continuation: String?) = YtmJson.parseRadio(
+        innerTube.next(YouTubeClient.WEB_REMIX, videoId = seedVideoId, playlistId = "RDAMVM$seedVideoId", continuation = continuation)
+            .text("radio"),
+    )
+
+    override suspend fun stream(videoId: String): AudioStream? =
+        extractor.extract(videoId, ContentHints(wantVideo = false), audioQuality = AudioQuality.HIGH)?.let {
+            AudioStream(it.videoId, it.audioUrl, it.headers, it.mimeType, it.bitrate?.div(1000), it.loudnessDb, id)
+        }
+
+    private suspend fun HttpResponse.text(op: String): String {
+        if (!status.isSuccess()) throw BackendFailure(id, op, IllegalStateException("HTTP ${status.value}"))
+        return bodyAsText()
+    }
+}
+
+/** Alternative engine, selectable in Settings. */
+class ExcorBackend(private val excor: Excor = Excor(excorDefaultHost())) : MusicBackend {
+    override val id = BackendId.EXCOR
+
+    override suspend fun search(query: String): SearchResults {
+        val page = excor.musicSearch(query) ?: throw BackendFailure(id, "search", null)
+        val tracks = page.items.filter { it.videoId != null && it.type in PLAYABLE }.map { it.toTrack() }
+        val collections = page.items.mapNotNull { item ->
+            val kind = when (item.type) {
+                ExcorYouTubeMusicItemType.ALBUM -> Collection.Kind.ALBUM
+                ExcorYouTubeMusicItemType.ARTIST -> Collection.Kind.ARTIST
+                ExcorYouTubeMusicItemType.PLAYLIST -> Collection.Kind.PLAYLIST
+                else -> return@mapNotNull null
+            }
+            Collection(kind, item.browseId ?: return@mapNotNull null, item.title, item.subtitle, item.art())
+        }
+        return SearchResults(tracks.distinctBy { it.videoId }, collections.distinctBy { it.browseId })
+    }
+
+    override suspend fun radio(seedVideoId: String, continuation: String?): RadioPage {
+        val queue = excor.musicRadio(videoId = seedVideoId, continuation = continuation) ?: throw BackendFailure(id, "radio", null)
+        return RadioPage(queue.tracks.filter { it.videoId != null }.map { it.toTrack() }, queue.continuation)
+    }
+
+    override suspend fun stream(videoId: String): AudioStream? =
+        excor.extract(videoId, maxKbps = 320)?.let {
+            AudioStream(it.videoId, it.url, excor.headersFor(it.url) ?: it.headers, it.mimeType, it.kbps, it.loudnessDb, id)
+        }
+
+    private fun ExcorYouTubeMusicItem.toTrack() =
+        Track(videoId!!, title, artists.map { it.name }, album, durationSeconds?.times(1000), art())
+
+    private fun ExcorYouTubeMusicItem.art() = thumbnails.lastOrNull()?.url
+
+    private companion object {
+        val PLAYABLE = setOf(ExcorYouTubeMusicItemType.SONG, ExcorYouTubeMusicItemType.VIDEO)
+    }
+}
+
+fun defaultBackends(): Map<BackendId, MusicBackend> = mapOf(
+    BackendId.INNERTUBEX to InnerTubeXBackend(),
+    BackendId.EXCOR to ExcorBackend(),
+)
