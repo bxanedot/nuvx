@@ -1,5 +1,7 @@
 # Nuvx Listen Together
 
+**Live:** https://nuvx-listen.bxane.workers.dev (deployed 2026-11-02; e2e test passes against it).
+
 A Cloudflare Worker with one Durable Object per room. Rooms sync **track IDs and playback state only**, never audio: each device streams through its own engine.
 
 ## API
@@ -35,4 +37,8 @@ npm run check            # bundle + binding check without deploying
 
 ## Deploy
 
-This needs the owner's Cloudflare login (`npx wrangler login`) or a `CLOUDFLARE_API_TOKEN` secret in CI. To use `listen.nuvx.lol`, add nuvx.lol to that Cloudflare account and uncomment `routes` in `wrangler.toml`.
+`npx wrangler login`, then `npm run deploy` (or a `CLOUDFLARE_API_TOKEN` secret in CI). The worker is `nuvx-listen` on the `bxane` workers.dev subdomain. It is separate from the `nuvx` worker on the same account, which serves a copy of the website.
+
+nuvx.lol is hosted on Vercel, so `listen.nuvx.lol` would need a CNAME at Vercel DNS pointing to the worker plus a Cloudflare custom domain, which only works for zones on Cloudflare. Clients use the workers.dev URL until that changes.
+
+The `CREATE_LIMIT` binding is Cloudflare's approximate limiter. In a live burst of 30, about 7 requests passed before it returned 429.
