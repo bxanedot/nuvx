@@ -12,7 +12,11 @@ enum class SearchFilter(val label: String, val params: String?) {
     ALL("All", null),
     SONGS("Songs", "EgWKAQIIAWoMEA4QChADEAQQCRAF"),
     VIDEOS("Videos", "EgWKAQIQAWoMEA4QChADEAQQCRAF"),
+    ALBUMS("Albums", "EgWKAQIYAWoMEA4QChADEAQQCRAF"),
 }
+
+/** An album page: header details plus its playable tracks in order. */
+data class Album(val browseId: String, val title: String, val artist: String?, val year: String?, val artworkUrl: String?, val tracks: List<Track>)
 
 enum class BackendId(val label: String) { INNERTUBEX("InnerTubeX"), EXCOR("eXcor") }
 
@@ -22,6 +26,8 @@ interface MusicBackend {
     suspend fun search(query: String, filter: SearchFilter = SearchFilter.ALL): SearchResults
     suspend fun radio(seedVideoId: String, continuation: String? = null): RadioPage
     suspend fun stream(videoId: String): AudioStream?
+    /** Engines without album pages keep this default, so the router falls back to one that has them. */
+    suspend fun album(browseId: String): Album = throw BackendFailure(id, "album", UnsupportedOperationException("${id.label} has no album pages"))
 }
 
 class BackendFailure(val backend: BackendId, val operation: String, cause: Throwable?) :
@@ -57,6 +63,8 @@ class BackendRouter(
 
     suspend fun search(query: String, filter: SearchFilter = SearchFilter.ALL) =
         route("search", { it.tracks.isEmpty() && it.collections.isEmpty() }) { it.search(query, filter) }
+
+    suspend fun album(browseId: String) = route("album", { it.tracks.isEmpty() }) { it.album(browseId) }
 
     suspend fun radio(seed: String, continuation: String? = null) = route("radio", { it.tracks.isEmpty() }) { it.radio(seed, continuation) }
 

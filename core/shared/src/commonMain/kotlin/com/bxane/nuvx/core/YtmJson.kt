@@ -41,6 +41,28 @@ object YtmJson {
         return SearchResults(tracks.distinctBy { it.videoId }, collections.distinctBy { it.browseId })
     }
 
+    /** Album page: tracks carry no artwork or (usually) artist of their own, so both come from the header. */
+    fun parseAlbum(browseId: String, body: String): Album {
+        val root = json.parseToJsonElement(body)
+        val header = root.findAll("musicResponsiveHeaderRenderer").firstOrNull()
+        val title = header?.obj("title").runs().joinToString("") { it.str("text").orEmpty() }.ifBlank { "Album" }
+        val artist = header?.obj("straplineTextOne").runs().joinToString("") { it.str("text").orEmpty() }.ifBlank { null }
+        val year = header?.obj("subtitle").runs().mapNotNull { it.str("text") }.lastOrNull { y -> y.length == 4 && y.all(Char::isDigit) }
+        val art = header?.findThumb()
+        val tracks = root.findAll("musicResponsiveListItemRenderer").mapNotNull { row ->
+            val id = row.obj("playlistItemData")?.str("videoId") ?: return@mapNotNull null
+            val cols = row.arr("flexColumns").map { it.obj("musicResponsiveListItemFlexColumnRenderer")?.obj("text") }
+            val name = cols.getOrNull(0).runs().firstOrNull()?.str("text") ?: return@mapNotNull null
+            val rowArtists = cols.getOrNull(1).runs().artists()
+            val length = row.arr("fixedColumns").firstNotNullOfOrNull { it.obj("musicResponsiveListItemFixedColumnRenderer")?.obj("text").runs().firstOrNull()?.str("text")?.let(::parseClock) }
+            Track(id, name, rowArtists.ifEmpty { listOfNotNull(artist) }, title, length, art)
+        }
+        return Album(browseId, title, artist, year, art, tracks.distinctBy { it.videoId })
+    }
+
+    private fun JsonElement.findThumb(): String? =
+        findAll("musicThumbnailRenderer").firstNotNullOfOrNull { it.obj("thumbnail").bestThumb() }
+
     fun parseRadio(body: String): RadioPage {
         val root = json.parseToJsonElement(body)
         val tracks = root.findAll("playlistPanelVideoRenderer").mapNotNull { r ->

@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.core.*
+import com.bxane.nuvx.core.Collection
 import kotlinx.coroutines.CancellationException
 
 /** Space the floating mini player + tab bar cover, so the last items stay reachable. */
@@ -163,11 +164,12 @@ private val Moods = listOf(
         trailing?.invoke()
     }
 
-@Composable fun SearchScreen(router: BackendRouter, player: NuvxPlayer, history: History, initialQuery: String?, onAccount: () -> Unit) {
+@Composable fun SearchScreen(router: BackendRouter, player: NuvxPlayer, history: History, initialQuery: String?, onAlbum: (Collection) -> Unit, onAccount: () -> Unit) {
     var query by remember(initialQuery) { mutableStateOf(initialQuery.orEmpty()) }
     var submitted by remember(initialQuery) { mutableStateOf(initialQuery) }
     var filter by remember { mutableStateOf(SearchFilter.ALL) }
     var results by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var albums by remember { mutableStateOf<List<Collection>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val recents by history.searches.collectAsState()
@@ -175,8 +177,13 @@ private val Moods = listOf(
     LaunchedEffect(Unit) { if (initialQuery == null) runCatching { focus.requestFocus() } }
     LaunchedEffect(submitted, filter) {
         val q = submitted ?: return@LaunchedEffect
-        busy = true; error = null; results = emptyList()
-        try { results = router.search(q, filter).tracks; history.searched(q); if (results.isEmpty()) error = "No ${if (filter == SearchFilter.VIDEOS) "videos" else "songs"} found for \"$q\"." }
+        busy = true; error = null; results = emptyList(); albums = emptyList()
+        try {
+            val found = router.search(q, filter)
+            if (filter == SearchFilter.ALBUMS) albums = found.collections.filter { it.kind == Collection.Kind.ALBUM } else results = found.tracks
+            history.searched(q)
+            if (results.isEmpty() && albums.isEmpty()) error = "Nothing found for \"$q\"."
+        }
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { error = "Search isn't available right now. Check your connection, or try the other engine in Settings." }
         finally { busy = false }
@@ -212,6 +219,7 @@ private val Moods = listOf(
             }
             error?.let { item { Text(it, color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp)) } }
             itemsIndexed(results) { i, t -> TrackRow(t) { player.playQueue(results, i) } }
+            items(albums) { a -> AlbumRow(a) { onAlbum(a) } }
         }
     }
 }
@@ -242,3 +250,53 @@ private val Moods = listOf(
             }
         }
     }
+
+@Composable private fun AlbumRow(album: Collection, onClick: () -> Unit) =
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        CoverArt(album.artworkUrl, album.title, Modifier.size(64.dp))
+        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+            Text(album.title, color = NuvxColors.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            album.subtitle?.let { Text(it, color = NuvxColors.Secondary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+        Icon(NuvxIcons.Chevron, null, Modifier.size(16.dp), tint = NuvxColors.Tertiary)
+    }
+
+@Composable private fun CoverArt(url: String?, title: String, modifier: Modifier) =
+    Box(modifier.clip(RoundedCornerShape(10.dp)).background(NuvxColors.Card)) {
+        if (url != null) coil3.compose.AsyncImage(url, "Cover of $title", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+    }
+
+/** Album page: big cover, title, artist and year, Play, then the numbered track list. */
+@Composable fun AlbumPage(router: BackendRouter, player: NuvxPlayer, state: PlayerState, ref: Collection) {
+    var album by remember(ref.browseId) { mutableStateOf<Album?>(null) }
+    var failed by remember(ref.browseId) { mutableStateOf(false) }
+    LaunchedEffect(ref.browseId) {
+        try { album = router.album(ref.browseId) } catch (e: CancellationException) { throw e } catch (_: Exception) { failed = true }
+    }
+    val a = album
+    LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
+        item {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                CoverArt(a?.artworkUrl ?: ref.artworkUrl, ref.title, Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f))
+                Text(a?.title ?: ref.title, color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 18.dp))
+                Text(listOfNotNull(a?.artist, a?.year).joinToString(" · ").ifEmpty { ref.subtitle.orEmpty() }, color = NuvxColors.Accent, fontSize = 17.sp)
+                if (a != null && a.tracks.isNotEmpty()) Row(Modifier.padding(vertical = 18.dp).clip(CircleShape).background(Color.White).clickable { player.playQueue(a.tracks, 0) }
+                    .semantics { role = Role.Button }.padding(horizontal = 32.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(NuvxIcons.Play, null, Modifier.size(20.dp), tint = Color.Black)
+                    Text("  Play", color = Color.Black, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        when {
+            failed -> item { Text("This album could not be loaded. Check your connection and try again.", color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp)) }
+            a == null -> item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(20.dp), color = NuvxColors.Accent, trackColor = Color.White.copy(0.1f)) }
+            else -> itemsIndexed(a.tracks) { i, t ->
+                Row(Modifier.fillMaxWidth().clickable { player.playQueue(a.tracks, i) }.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${i + 1}", color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.width(32.dp))
+                    Text(t.title, color = if (state.current?.videoId == t.videoId) NuvxColors.Accent else NuvxColors.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    t.durationMs?.let { Text(clock(it), color = NuvxColors.Secondary, fontSize = 14.sp) }
+                }
+            }
+        }
+    }
+}

@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.core.*
+import com.bxane.nuvx.core.Collection
 
 private val Tabs = listOf(Tab("Home", NuvxIcons.Home), Tab("Explore", NuvxIcons.Explore), Tab("Library", NuvxIcons.Library))
 private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue"), LIKED("Liked songs") }
@@ -61,11 +62,13 @@ fun NuvxApp(
     var searchQuery by remember { mutableStateOf<String?>(null) }
     var page by remember { mutableStateOf<Page?>(null) }
     var sheet by remember { mutableStateOf(false) }
+    var album by remember { mutableStateOf<Collection?>(null) }
     // Back unwinds one layer at a time: player sheet, sub-page, search, then a non-Home tab returns to Home.
-    val canGoBack = welcomed && !watch && (sheet || page != null || searching || tab != 0)
+    val canGoBack = welcomed && !watch && (sheet || album != null || page != null || searching || tab != 0)
     onBackHandler?.invoke(canGoBack) {
         when {
             sheet -> sheet = false
+            album != null -> album = null
             page != null -> page = null
             searching -> searching = false
             else -> tab = 0
@@ -79,14 +82,15 @@ fun NuvxApp(
                 !welcomed -> Welcome { store.put("welcomeSeen", "true"); welcomed = true }
                 else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                     val wide = maxWidth >= 840.dp
-                    val select = { i: Int -> tab = i; searching = false; page = null }
-                    val openSearch = { q: String? -> searchQuery = q; searching = true; page = null }
+                    val select = { i: Int -> tab = i; searching = false; page = null; album = null }
+                    val openSearch = { q: String? -> searchQuery = q; searching = true; page = null; album = null }
                     val openPage = { p: Page -> page = p }
                     Row(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f).fillMaxHeight().safeDrawingPadding()) {
                             val content = Modifier.align(Alignment.TopCenter).fillMaxSize().then(if (wide) Modifier.widthIn(max = 1100.dp) else Modifier)
                             Box(content) {
                                 when {
+                                    album != null -> AlbumShell({ album = null }) { AlbumPage(router, player, state, album!!) }
                                     page != null -> SubPage(page!!, { page = null }) {
                                         when (page!!) {
                                             Page.TOGETHER -> TogetherPage(together, store)
@@ -95,7 +99,7 @@ fun NuvxApp(
                                             Page.LIKED -> LikedPage(history, state, player)
                                         }
                                     }
-                                    searching -> SearchScreen(router, player, history, searchQuery) { openPage(Page.SETTINGS) }
+                                    searching -> SearchScreen(router, player, history, searchQuery, { album = it }) { openPage(Page.SETTINGS) }
                                     tab == 0 -> HomeScreen(history, router, player, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
                                     tab == 1 -> ExploreScreen({ openSearch(it) }) { openPage(Page.SETTINGS) }
                                     else -> LibraryScreen(history, state, player, { openPage(Page.QUEUE) }, { openPage(Page.LIKED) }, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
@@ -260,4 +264,13 @@ private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
     else androidx.compose.foundation.lazy.LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
         items(liked.size) { i -> TrackRow(liked[i], active = state.current?.videoId == liked[i].videoId) { player.playQueue(liked, i) } }
     }
+}
+
+@Composable private fun AlbumShell(onBack: () -> Unit, body: @Composable () -> Unit) = Column(Modifier.fillMaxSize()) {
+    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Box(Modifier.size(44.dp).glass().clickable(onClick = onBack).semantics { contentDescription = "Back"; role = Role.Button }, contentAlignment = Alignment.Center) {
+            Icon(NuvxIcons.Chevron, null, Modifier.size(20.dp).graphicsLayerMirror(), tint = NuvxColors.Text)
+        }
+    }
+    Box(Modifier.weight(1f)) { body() }
 }
