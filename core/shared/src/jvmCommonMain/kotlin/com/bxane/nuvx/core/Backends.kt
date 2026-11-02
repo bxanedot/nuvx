@@ -20,8 +20,8 @@ actual fun nuvxHttpClient() = HttpClient(OkHttp) {
 class ExcorBackend(private val excor: Excor = Excor(excorDefaultHost())) : MusicBackend {
     override val id = BackendId.EXCOR
 
-    override suspend fun search(query: String): SearchResults {
-        val page = excor.musicSearch(query) ?: throw BackendFailure(id, "search", null)
+    override suspend fun search(query: String, filter: SearchFilter): SearchResults {
+        val page = excor.musicSearch(query, filterParams = filter.params) ?: throw BackendFailure(id, "search", null)
         val tracks = page.items.filter { it.videoId != null && it.type in PLAYABLE }.map { it.toTrack() }
         val collections = page.items.mapNotNull { item ->
             val kind = when (item.type) {

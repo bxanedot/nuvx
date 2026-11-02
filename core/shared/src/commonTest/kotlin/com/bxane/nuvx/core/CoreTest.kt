@@ -51,7 +51,7 @@ class YtmJsonTest {
 class BackendRouterTest {
     private class Fake(override val id: BackendId, val fail: Boolean) : MusicBackend {
         var calls = 0
-        override suspend fun search(query: String): SearchResults {
+        override suspend fun search(query: String, filter: SearchFilter): SearchResults {
             calls++
             if (fail) error("down")
             return SearchResults(listOf(Track(id.name, query)), emptyList())

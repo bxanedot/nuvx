@@ -28,8 +28,8 @@ class InnerTubeXBackend(http: HttpClient = nuvxHttpClient()) : MusicBackend {
         )
     }
 
-    override suspend fun search(query: String) =
-        YtmJson.parseSearch(innerTube.search(YouTubeClient.WEB_REMIX, query = query).text("search"))
+    override suspend fun search(query: String, filter: SearchFilter) =
+        YtmJson.parseSearch(innerTube.search(YouTubeClient.WEB_REMIX, query = query, params = filter.params).text("search"))
 
     override suspend fun radio(seedVideoId: String, continuation: String?) = YtmJson.parseRadio(
         innerTube.next(YouTubeClient.WEB_REMIX, videoId = seedVideoId, playlistId = "RDAMVM$seedVideoId", continuation = continuation)

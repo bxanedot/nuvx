@@ -7,12 +7,19 @@ import kotlinx.coroutines.flow.update
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.TimeSource
 
+/** YouTube Music's own search filter tokens (the `params` its web client sends for each chip). */
+enum class SearchFilter(val label: String, val params: String?) {
+    ALL("All", null),
+    SONGS("Songs", "EgWKAQIIAWoMEA4QChADEAQQCRAF"),
+    VIDEOS("Videos", "EgWKAQIQAWoMEA4QChADEAQQCRAF"),
+}
+
 enum class BackendId(val label: String) { INNERTUBEX("InnerTubeX"), EXCOR("eXcor") }
 
 /** One YouTube Music engine. Every call returns null or throws when the engine cannot answer; none fabricates results. */
 interface MusicBackend {
     val id: BackendId
-    suspend fun search(query: String): SearchResults
+    suspend fun search(query: String, filter: SearchFilter = SearchFilter.ALL): SearchResults
     suspend fun radio(seedVideoId: String, continuation: String? = null): RadioPage
     suspend fun stream(videoId: String): AudioStream?
 }
@@ -48,7 +55,8 @@ class BackendRouter(
 
     fun setFallback(enabled: Boolean) { _fallback.value = enabled }
 
-    suspend fun search(query: String) = route("search", { it.tracks.isEmpty() && it.collections.isEmpty() }) { it.search(query) }
+    suspend fun search(query: String, filter: SearchFilter = SearchFilter.ALL) =
+        route("search", { it.tracks.isEmpty() && it.collections.isEmpty() }) { it.search(query, filter) }
 
     suspend fun radio(seed: String, continuation: String? = null) = route("radio", { it.tracks.isEmpty() }) { it.radio(seed, continuation) }
 

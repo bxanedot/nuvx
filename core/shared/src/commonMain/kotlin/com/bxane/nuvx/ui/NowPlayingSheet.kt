@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -81,14 +82,15 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     )
     var mode by remember { mutableStateOf(SheetMode.ARTWORK) }
     var lyrics by remember { mutableStateOf<Lyrics?>(null) }
-    var source by remember { mutableStateOf<String?>(null) }
+    var source by remember { mutableStateOf<SourcedLyrics?>(null) }
+    val uri = LocalUriHandler.current
     var status by remember { mutableStateOf("") }
     LaunchedEffect(track?.videoId) {
         lyrics = null
         source = null
         if (track == null) return@LaunchedEffect
         status = "Finding lyrics…"
-        try { val found = library.find(track); lyrics = found?.lyrics; source = found?.source; if (found == null) status = "No lyrics for this song" }
+        try { val found = library.find(track); lyrics = found?.lyrics; source = found; if (found == null) status = "No lyrics for this song" }
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { status = "Lyrics couldn't be loaded" }
     }
@@ -106,7 +108,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             Text(if (mode == SheetMode.QUEUE) "Playing next" else "Playing from your queue", color = Color.White.copy(0.75f), fontSize = 12.sp,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), textAlign = TextAlign.Center)
             if (mode != SheetMode.ARTWORK) CompactHeader(track, actions)
-            if (mode == SheetMode.LYRICS) source?.let { Text("Lyrics from $it", color = Color.White.copy(0.5f), fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
+            if (mode == SheetMode.LYRICS) source?.let { s ->
+                Text("Lyrics from ${s.source}" + if (s.link != null) " ↗" else "", color = Color.White.copy(0.55f), fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 4.dp).then(if (s.link != null) Modifier.clickable { uri.openUri(s.link) }.semantics { role = Role.Button } else Modifier))
+            }
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (mode) {

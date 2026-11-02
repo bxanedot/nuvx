@@ -8,7 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,7 +32,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -57,7 +62,7 @@ val BottomChromePadding = 170.dp
     var picks by remember { mutableStateOf<List<Track>>(emptyList()) }
     LaunchedEffect(seed?.videoId) {
         picks = emptyList()
-        if (seed != null) try { picks = router.radio(seed.videoId).tracks.filter { it.videoId != seed.videoId }.take(20) }
+        if (seed != null) try { picks = router.radio(seed.videoId).tracks.filter { it.videoId != seed.videoId }.take(30) }
         catch (e: CancellationException) { throw e } catch (_: Exception) { /* picks stay empty; the shelf hides */ }
     }
     LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
@@ -82,7 +87,11 @@ val BottomChromePadding = 170.dp
         if (picks.isNotEmpty()) {
             item { SectionHeader("Picked for you") }
             item { Text("Because you played ${seed?.title}", color = NuvxColors.Secondary, fontSize = 14.sp, modifier = Modifier.padding(start = 20.dp, bottom = 10.dp, top = 0.dp)) }
-            item { Shelf(picks, size = 200.dp) { player.playQueue(picks, it) } }
+            item { Shelf(picks.take(6), size = 200.dp) { player.playQueue(picks, it) } }
+            if (picks.size > 6) {
+                item { SectionHeader("Quick picks") }
+                item { QuickPicks(picks.drop(6)) { i -> player.playQueue(picks, i + 6) } }
+            }
         }
     }
 }
@@ -157,16 +166,17 @@ private val Moods = listOf(
 @Composable fun SearchScreen(router: BackendRouter, player: NuvxPlayer, history: History, initialQuery: String?, onAccount: () -> Unit) {
     var query by remember(initialQuery) { mutableStateOf(initialQuery.orEmpty()) }
     var submitted by remember(initialQuery) { mutableStateOf(initialQuery) }
+    var filter by remember { mutableStateOf(SearchFilter.ALL) }
     var results by remember { mutableStateOf<List<Track>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val recents by history.searches.collectAsState()
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { if (initialQuery == null) runCatching { focus.requestFocus() } }
-    LaunchedEffect(submitted) {
+    LaunchedEffect(submitted, filter) {
         val q = submitted ?: return@LaunchedEffect
         busy = true; error = null; results = emptyList()
-        try { results = router.search(q).tracks; history.searched(q); if (results.isEmpty()) error = "No songs found for \"$q\"." }
+        try { results = router.search(q, filter).tracks; history.searched(q); if (results.isEmpty()) error = "No ${if (filter == SearchFilter.VIDEOS) "videos" else "songs"} found for \"$q\"." }
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { error = "Search isn't available right now. Check your connection, or try the other engine in Settings." }
         finally { busy = false }
@@ -185,6 +195,7 @@ private val Moods = listOf(
             }
             GlassIconButton(NuvxIcons.Person, "Settings and about", onClick = onAccount)
         }
+        FilterChips(filter) { filter = it }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 20.dp), color = NuvxColors.Accent, trackColor = Color.White.copy(0.1f))
         LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
             if (submitted == null) {
@@ -204,3 +215,30 @@ private val Moods = listOf(
         }
     }
 }
+
+/** Segmented glass control; the selected filter sits in a lighter inner pill. */
+@Composable private fun FilterChips(selected: SearchFilter, onSelect: (SearchFilter) -> Unit) =
+    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp).fillMaxWidth().height(40.dp).glass(RoundedCornerShape(20.dp)).padding(4.dp)) {
+        SearchFilter.entries.forEach { f ->
+            val active = f == selected
+            Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(if (active) Color.White.copy(0.16f) else Color.Transparent)
+                .clickable { onSelect(f) }.semantics { this.selected = active; role = Role.Tab }, contentAlignment = Alignment.Center) {
+                Text(f.label, color = if (active) NuvxColors.Text else NuvxColors.Secondary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+
+/** Compact song rows, four deep, scrolling sideways in pages. */
+@Composable private fun QuickPicks(tracks: List<Track>, onPlay: (Int) -> Unit) =
+    LazyHorizontalGrid(GridCells.Fixed(4), Modifier.height(272.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp)) {
+        itemsIndexed(tracks, key = { i, t -> "$i-${t.videoId}" }) { i, t ->
+            Row(Modifier.width(320.dp).height(68.dp).clip(RoundedCornerShape(12.dp)).clickable { onPlay(i) }.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                ArtworkTile(t, Modifier.size(52.dp))
+                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    Text(t.title, color = NuvxColors.Text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(t.artistLine, color = NuvxColors.Secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }

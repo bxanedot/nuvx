@@ -11,7 +11,7 @@ class StreamResolutionTest {
     private fun router(url: String, headers: Map<String, String> = emptyMap()): BackendRouter {
         val backend = object : MusicBackend {
             override val id = BackendId.INNERTUBEX
-            override suspend fun search(query: String) = SearchResults(emptyList(), emptyList())
+            override suspend fun search(query: String, filter: SearchFilter) = SearchResults(emptyList(), emptyList())
             override suspend fun radio(seedVideoId: String, continuation: String?) = RadioPage(emptyList(), null)
             override suspend fun stream(videoId: String) = AudioStream(videoId, url, headers, "audio/webm", 128, null, id)
         }

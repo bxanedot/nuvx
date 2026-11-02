@@ -58,10 +58,12 @@ object Lrc {
 interface LyricsProvider {
     /** Shown to the user as the lyrics credit. */
     val name: String
+    /** Where the credit links to; set it when a provider's terms ask for a link wherever its lyrics appear. */
+    val homepage: String? get() = null
     suspend fun find(track: Track, offsetMs: Long = 0): Lyrics?
 }
 
-data class SourcedLyrics(val lyrics: Lyrics, val source: String)
+data class SourcedLyrics(val lyrics: Lyrics, val source: String, val link: String? = null)
 
 /** Asks [providers] in order. Timed lyrics win over plain text from an earlier provider; a failing provider is skipped. */
 class LyricsChain(private val providers: List<LyricsProvider>) {
@@ -69,8 +71,8 @@ class LyricsChain(private val providers: List<LyricsProvider>) {
         var fallback: SourcedLyrics? = null
         for (p in providers) {
             val found = try { p.find(track, offsetMs) } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (_: Exception) { null } ?: continue
-            if (found is Lyrics.Synced || found == Lyrics.Instrumental) return SourcedLyrics(found, p.name)
-            if (fallback == null) fallback = SourcedLyrics(found, p.name)
+            if (found is Lyrics.Synced || found == Lyrics.Instrumental) return SourcedLyrics(found, p.name, p.homepage)
+            if (fallback == null) fallback = SourcedLyrics(found, p.name, p.homepage)
         }
         return fallback
     }
@@ -79,6 +81,7 @@ class LyricsChain(private val providers: List<LyricsProvider>) {
 /** LRCLIB (https://lrclib.net) — free, keyless; asks clients to identify themselves via User-Agent. */
 class LrcLib(private val http: HttpClient) : LyricsProvider {
     override val name = "LRCLIB"
+    override val homepage = "https://lrclib.net"
 
     @Serializable
     private class Hit(val instrumental: Boolean = false, val plainLyrics: String? = null, val syncedLyrics: String? = null, val duration: Double? = null)

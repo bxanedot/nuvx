@@ -49,7 +49,7 @@ class RadioStationTest {
 
     private class Station : MusicBackend {
         override val id = BackendId.INNERTUBEX
-        override suspend fun search(query: String) = SearchResults(emptyList(), emptyList())
+        override suspend fun search(query: String, filter: SearchFilter) = SearchResults(emptyList(), emptyList())
         override suspend fun stream(videoId: String): AudioStream? = null
         override suspend fun radio(seedVideoId: String, continuation: String?): RadioPage {
             // Page 2 repeats a track from page 1 and the seed; both must be dropped.
