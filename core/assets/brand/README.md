@@ -1,10 +1,16 @@
 # nuvx brand assets
 
-Original artwork supplied by bxane in `rynxsvg.rar` and `liquidicons.rar` on 2026-11-02. All 30 archived files are preserved byte for byte. `SHA256SUMS` records their hashes. The files are product artwork, not instructions or executable dependencies.
+bxane's nuvx mark. It is monochrome and has no background. There are two variants (more will be added later):
 
-Archive SHA-256:
+| File | Use |
+|---|---|
+| `mark/nuvx_mark_white.svg` / `.png` | **Default on every device**: the app, Android launcher (phone, TV, Wear, on black), desktop icons, dark surfaces |
+| `mark/nuvx_mark_black.svg` / `.png` | Light surfaces: the light website theme, documents, README in light mode |
 
-- `rynxsvg.rar`: `0bc24ee0c80cbe8398a2795f061b1028fa6a5fa9f8a5128ff68a77f465fd4cb7`
-- `liquidicons.rar`: `a206e448e0768838d22e73dc90c79cb254442c1b08ee69c2160c32a02648aaba`
+- The SVGs are vector outlines traced from bxane's supplied artwork (`source/nuvx_mark_source.png`). A raster check against the source gives 97% pixel overlap; the differences are edge anti-aliasing only.
+- The SVGs use a 1024×1024 canvas with the mark centred, spanning 880 units. The PNGs are 1024px renders of the same path with a transparent background.
+- In-app, `ui/Brand.kt` draws the same path as a Compose `ImageVector` (no bitmap), and Android's adaptive icon (`res/drawable/nuvx_mark.xml`) scales it into the 66dp safe zone on a black background.
+- `core/scripts/prepare-windows.ps1` packages the white PNG into the Windows ICO.
+- `SHA256SUMS` lists the hashes of every file here.
 
-Silver white (`flat/01_silver_white`) is the default icon on every device (bxane, 2026-11-02). Shared Compose UI renders the original SVG paths and gradients as an ImageVector, avoiding a 4096px bitmap allocation on watches. Android's adaptive icon (phone, TV, Wear) uses the same paths and gradients on black, scaled into the launcher safe area. `core/scripts/prepare-windows.ps1` packages the original PNG into a 256px Windows ICO. All other colourways and liquid renders remain available here.
+The earlier lightning-bolt colourways were retired on 2026-11-03 at bxane's request. They remain in git history.

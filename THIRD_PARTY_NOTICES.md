@@ -24,7 +24,7 @@ Licence texts: GPL-3.0 at https://www.gnu.org/licenses/gpl-3.0.txt; Apache-2.0 a
 
 ## Original nuvx assets
 
-The nuvx lightning mark, in all its colourways and liquid renders, was created by bxane and is used with permission.
+The nuvx mark (white and black variants, traced to vector from bxane's artwork) was created by bxane and is used with permission.
 
 ## External research references (not integrated)
 

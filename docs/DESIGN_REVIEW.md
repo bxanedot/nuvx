@@ -33,7 +33,7 @@ Reviewed on 2026-11-03. Scope: the shared Compose TV shell, local-library screen
 
 ## Summary
 
-**Good.** The screens keep music content central on a quiet black canvas, with bxane's silver-white mark and blue accent providing the nuvx identity. The TV shell keeps navigation separate from content, and the local-library route explains why audio access is needed. This assessment is based on source review and headless API 36 emulator screenshots, not physical-device testing.
+**Good.** The screens keep music content central on a quiet black canvas, with bxane's white mark and blue accent providing the nuvx identity. The TV shell keeps navigation separate from content, and the local-library route explains why audio access is needed. This assessment is based on source review and headless API 36 emulator screenshots, not physical-device testing.
 
 ## What works
 

@@ -151,7 +151,7 @@ fun NuvxApp(
 private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
 
 @Composable private fun Welcome(onDone: () -> Unit) = Column(Modifier.safeDrawingPadding().fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
-    Image(NuvxMark, "nuvx — bxane's lightning mark", Modifier.size(96.dp), contentScale = ContentScale.Fit)
+    Image(NuvxMark, "nuvx — bxane's mark", Modifier.size(96.dp), contentScale = ContentScale.Fit)
     Spacer(Modifier.height(28.dp))
     Text("Your next favourite.", color = NuvxColors.Text, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp)
     Text("Music, with room to listen.", color = NuvxColors.Accent, fontSize = 20.sp, modifier = Modifier.padding(vertical = 12.dp))

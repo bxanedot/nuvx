@@ -1,6 +1,6 @@
 # nuvx
 
-<img src="core/assets/brand/flat/01_silver_white.svg" width="96" alt="nuvx lightning mark by bxane" />
+<picture><source media="(prefers-color-scheme: dark)" srcset="core/assets/brand/mark/nuvx_mark_white.svg"><img src="core/assets/brand/mark/nuvx_mark_black.svg" width="96" alt="nuvx mark by bxane"></picture>
 
 A multiplatform YouTube Music client, built with Kotlin Multiplatform and Compose Multiplatform.
 

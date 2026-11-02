@@ -17,7 +17,7 @@ Copy-Item -Path (Join-Path $runtimeRoot 'vlc-3.0.24/*') -Destination $resources 
 
 # Native ICO packaging of bxane's supplied mark; no replacement artwork.
 Add-Type -AssemblyName System.Drawing
-$source = [System.Drawing.Image]::FromFile((Join-Path $projectRoot 'core/assets/brand/flat/01_silver_white.png'))
+$source = [System.Drawing.Image]::FromFile((Join-Path $projectRoot 'core/assets/brand/mark/nuvx_mark_white.png'))
 $bitmap = [System.Drawing.Bitmap]::new(256,256)
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
