@@ -13,6 +13,10 @@ const json = (body: unknown, status = 200) =>
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    // Visiting the bare address in a browser should say what this is, not look broken.
+    if (req.method === "GET" && url.pathname === "/") {
+      return json({ ok: true, service: "Nuvx Listen Together", about: "This server syncs Listen Together rooms for the Nuvx app. Open Nuvx and use the Together tab.", website: "https://nuvx.lol" });
+    }
     if (req.method === "POST" && url.pathname === "/rooms") {
       const ip = req.headers.get("cf-connecting-ip") ?? "local";
       if (!(await env.CREATE_LIMIT.limit({ key: ip })).success) return json({ error: "rate limited" }, 429);
