@@ -95,7 +95,7 @@ class BetterLyrics(private val http: HttpClient) : LyricsProvider {
     }
 }
 
-/** Not registered until Nuvx has an approved lyrics license and its official API credentials. */
+/** Not registered until nuvx has an approved lyrics license and its official API credentials. */
 internal object MusixmatchDisabled : LyricsProvider {
     override val name = "Musixmatch"
     override val homepage = "https://developer.musixmatch.com/"

@@ -11,6 +11,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,13 +60,19 @@ fun Modifier.glass(shape: Shape = CircleShape) = this
         action?.invoke()
     }
 
+/** Visible keyboard/D-pad focus: a white ring, so TV remotes and keyboards can see where they are. Must precede the clickable. */
+@Composable fun Modifier.focusRing(shape: Shape = CircleShape): Modifier {
+    var focused by remember { mutableStateOf(false) }
+    return onFocusChanged { focused = it.isFocused }.border(if (focused) 2.5.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
+}
+
 @Composable fun GlassIconButton(icon: ImageVector, label: String, size: Dp = 48.dp, onClick: () -> Unit) =
-    Box(Modifier.size(size).glass().clickable(onClick = onClick).semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
+    Box(Modifier.size(size).glass().focusRing().clickable(onClick = onClick).semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
         Icon(icon, null, Modifier.size(size * 0.46f), tint = NuvxColors.Text)
     }
 
 @Composable fun PlainIconButton(icon: ImageVector, label: String, size: Dp, enabled: Boolean = true, onClick: () -> Unit) =
-    Box(Modifier.size(size).clip(CircleShape).clickable(enabled = enabled, onClick = onClick).semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
+    Box(Modifier.size(size).clip(CircleShape).focusRing().clickable(enabled = enabled, onClick = onClick).semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
         Icon(icon, null, Modifier.size(size * 0.62f), tint = if (enabled) NuvxColors.Text else Color.White.copy(alpha = 0.3f))
     }
 
