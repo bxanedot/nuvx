@@ -19,15 +19,16 @@ fun main() = application {
     }
     val router = remember { BackendRouter(defaultBackends()).bindTo(store) }
     val player = remember { runCatching { DesktopPlayer(router) }.getOrNull() }
+    val localLibrary = remember { DesktopLocalMusic() }
     val http = remember { nuvxHttpClient() }
     val lyrics = remember { LyricsChain(defaultLyricsProviders(http)) }
     val reduceMotion = remember {
         desktopReducedMotion(System.getProperty("nuvx.reduceMotion"),
             Toolkit.getDefaultToolkit().getDesktopProperty("win.clientAreaAnimation") as? Boolean)
     }
-    DisposableEffect(Unit) { onDispose { player?.close(); http.close() } }
+    DisposableEffect(Unit) { onDispose { player?.close(); localLibrary.close(); http.close() } }
     Window(onCloseRequest = ::exitApplication, title = "nuvx", state = rememberWindowState(width = 1180.dp, height = 780.dp)) {
-        if (player != null) NuvxApp(router, store, player, lyrics, watch = false, reduceMotion = reduceMotion)
+        if (player != null) NuvxApp(router, store, player, lyrics, watch = false, reduceMotion = reduceMotion, localLibrary = localLibrary)
         else MaterialTheme { Surface { Text("nuvx needs VLC 3 to play audio. Install VLC for your system, or set NUVX_VLC_HOME to its portable folder, then reopen nuvx.") } }
     }
 }

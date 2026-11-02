@@ -66,7 +66,10 @@ class BackendRouter(
 
     suspend fun album(browseId: String) = route("album", { it.tracks.isEmpty() }) { it.album(browseId) }
 
-    suspend fun radio(seed: String, continuation: String? = null) = route("radio", { it.tracks.isEmpty() }) { it.radio(seed, continuation) }
+    suspend fun radio(seed: String, continuation: String? = null): RadioPage {
+        if (seed.startsWith("local:")) return RadioPage(emptyList(), null)
+        return route("radio", { it.tracks.isEmpty() }) { it.radio(seed, continuation) }
+    }
 
     suspend fun stream(videoId: String): AudioStream? = runCatching { route("stream", { it == null }) { it.stream(videoId) } }
         .getOrElse { if (it is CancellationException) throw it else null }

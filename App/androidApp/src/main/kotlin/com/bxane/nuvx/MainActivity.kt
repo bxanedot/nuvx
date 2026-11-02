@@ -4,10 +4,12 @@ import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.material3.*
 import androidx.core.content.ContextCompat
@@ -33,9 +35,19 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
         val app = application as NuvxApplication
         setContent {
+            var localLibraryForPermission by remember { mutableStateOf<AndroidLocalMusic?>(null) }
+            val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+                localLibraryForPermission?.onPermissionResult(it)
+            }
+            val localLibrary = remember(permissionLauncher) {
+                AndroidLocalMusic(this@MainActivity, permissionLauncher::launch).also { localLibraryForPermission = it }
+            }
+            DisposableEffect(localLibrary) { onDispose { localLibrary.close() } }
             val ready = player
             if (ready != null) NuvxApp(app.router, app.store, ready, app.lyrics,
                 watch = packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH),
+                tv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
+                localLibrary = localLibrary,
                 reduceMotion = reducedMotion(contentResolver),
                 onBackHandler = { enabled, onBack -> BackHandler(enabled, onBack) })
             else MaterialTheme { Surface { Text(if (connectionError) "Could not connect to playback. Reopen nuvx to retry." else "Connecting to nuvx…") } }

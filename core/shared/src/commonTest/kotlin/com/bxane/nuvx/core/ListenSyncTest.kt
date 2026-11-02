@@ -29,6 +29,7 @@ class ListenSyncTest {
         assertEquals(SyncAction.None, ListenSync.decide(local(id, 12_000), playing, 4_000), "within 2 s is left alone")
         assertEquals(SyncAction.None, ListenSync.decide(local(id, 0, buffering = true), playing, 4_000), "no corrections while loading")
         assertEquals(SyncAction.None, ListenSync.decide(local(id), SharedPlayback(), 4_000), "nothing shared yet")
+        assertEquals(SyncAction.SetPlaying(false), ListenSync.decide(local(id), SharedPlayback(), 4_000, trackWasCleared = true), "host stopped sharing")
     }
 
     @Test fun hostPublishesOnlyMeaningfulChanges() {
@@ -37,5 +38,14 @@ class ListenSyncTest {
         assertTrue(ListenSync.hostShouldPublish(playing, local(id, 60_000), 3_500), "seek")
         assertTrue(ListenSync.hostShouldPublish(playing, local(id, 12_500, isPlaying = false), 3_500), "pause")
         assertTrue(ListenSync.hostShouldPublish(playing, local("aaaaaaaaaaa"), 3_500), "new track")
+    }
+
+    @Test fun localTracksNeverEnterSharedPlayback() {
+        val localTrack = Track("local:opaque-id", "On-device song", listOf("Local artist"), localUri = "content://private/123")
+        val localState = PlayerState(listOf(localTrack), 0, isPlaying = true, durationMs = 90_000)
+        assertFalse(ListenSync.hostShouldPublish(null, localState, 1_000))
+        assertTrue(ListenSync.hostShouldPublish(playing, localState, 1_000), "clear a previously shared remote track")
+        assertEquals(SyncAction.SetPlaying(false), ListenSync.decide(local(id, isPlaying = true), SharedPlayback(positionMs = 0, playing = false), 1_000, trackWasCleared = true))
+        assertEquals(SyncAction.None, ListenSync.decide(local(null), SharedPlayback("local:opaque-id", playing = true), 1_000))
     }
 }

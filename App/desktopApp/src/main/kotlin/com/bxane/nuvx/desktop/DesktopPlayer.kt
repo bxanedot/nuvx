@@ -10,6 +10,20 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory
 import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil
 import uk.co.caprica.vlcj.player.base.State
 import java.io.File
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Path
+
+internal fun Track.localPlaybackUri(): String? {
+    if (!isLocal) {
+        require(localUri == null) { "Remote tracks cannot use local media URIs" }
+        return null
+    }
+    val uri = requireNotNull(localUri) { "Local track URI is missing" }
+    val parsed = URI(uri)
+    require(parsed.scheme == "file" && Files.isRegularFile(Path.of(parsed))) { "Local track file is unavailable" }
+    return uri
+}
 
 internal class DesktopPlayer(private val router: BackendRouter) : NuvxPlayer, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Swing)
@@ -55,9 +69,15 @@ internal class DesktopPlayer(private val router: BackendRouter) : NuvxPlayer, Au
         mutableState.value = state.value.copy(isPlaying = false, buffering = true, positionMs = 0, durationMs = 0, error = null)
         loading = scope.launch {
             try {
-                val stream = withContext(Dispatchers.IO) { withTimeout(45_000) { router.resolveAudio(track.videoId) } }
-                ensureActive()
-                check(native.media().play(proxy.register(stream)))
+                val localUri = track.localPlaybackUri()
+                if (localUri != null) {
+                    ensureActive()
+                    check(native.media().play(localUri))
+                } else {
+                    val stream = withContext(Dispatchers.IO) { withTimeout(45_000) { router.resolveAudio(track.videoId) } }
+                    ensureActive()
+                    check(native.media().play(proxy.register(stream)))
+                }
                 mutableState.value = state.value.copy(buffering = true)
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { mutableState.value = state.value.copy(buffering = false, error = "Could not play this track. Check your connection or streaming engine.") }

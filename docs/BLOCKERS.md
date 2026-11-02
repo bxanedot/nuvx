@@ -11,6 +11,7 @@
 | 7 | SF Symbols / GlyphStudio | Licence restriction | Apple's SF Symbols licence doesn't allow use on non-Apple platforms. nuvx uses bxane's own brand icons and original or Apache-licensed UI glyphs instead. |
 | 8 | Dolby Atmos | Not offered | No licensed decoder or Atmos source path. The app must never show an Atmos toggle. |
 | 9 | Custom domain for Listen Together | Using workers.dev | The worker is live at https://nuvx-listen.bxane.workers.dev. nuvx.lol is on Vercel, not Cloudflare, so `listen.nuvx.lol` isn't set up. |
+| 10 | Local library runtime verification | Partially verified | Android/TV/desktop entry points are wired. The API 36 TV emulator confirmed the permission prompt appears after opening the local library. A granted MediaStore scan, real local playback, and desktop chooser/audio playback still need runtime verification. |
 
 ## Continuation limitations
 

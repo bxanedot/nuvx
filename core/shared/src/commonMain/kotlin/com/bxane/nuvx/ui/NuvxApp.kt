@@ -41,11 +41,12 @@ import com.bxane.nuvx.core.*
 import com.bxane.nuvx.core.Collection
 
 private val Tabs = listOf(Tab("Home", NuvxIcons.Home), Tab("Explore", NuvxIcons.Explore), Tab("Library", NuvxIcons.Library))
-private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue"), LIKED("Liked songs") }
+private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue"), LIKED("Liked songs"), LOCAL_LIBRARY("On this device") }
 
 @Composable
 fun NuvxApp(
-    router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LyricsChain, watch: Boolean, reduceMotion: Boolean = false,
+    router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LyricsChain, watch: Boolean, reduceMotion: Boolean = false, tv: Boolean = false,
+    localLibrary: LocalMusicLibrary? = null,
     /** Platform back integration (Android passes BackHandler). Called every composition with whether back has somewhere to go. */
     onBackHandler: (@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit)? = null,
 ) {
@@ -64,8 +65,8 @@ fun NuvxApp(
     var sheet by remember { mutableStateOf(false) }
     var album by remember { mutableStateOf<Collection?>(null) }
     // Back unwinds one layer at a time: player sheet, sub-page, search, then a non-Home tab returns to Home.
-    val canGoBack = welcomed && !watch && (sheet || album != null || page != null || searching || tab != 0)
-    onBackHandler?.invoke(canGoBack) {
+    val canGoBack = welcomed && !watch && !tv && (sheet || album != null || page != null || searching || tab != 0)
+    if (!tv) onBackHandler?.invoke(canGoBack) {
         when {
             sheet -> sheet = false
             album != null -> album = null
@@ -80,6 +81,15 @@ fun NuvxApp(
             when {
                 watch -> WatchApp(router, store, player)
                 !welcomed -> Welcome { store.put("welcomeSeen", "true"); welcomed = true }
+                tv -> TvShell(router, history, state, player, lyrics, localLibrary, reduceMotion, onBackHandler) { tvPage ->
+                    when (tvPage) {
+                        TvSubpage.TOGETHER -> TogetherPage(together, store)
+                        TvSubpage.SETTINGS -> SettingsPage(router, store)
+                        TvSubpage.QUEUE -> QueuePage(state, player)
+                        TvSubpage.LIKED -> LikedPage(history, state, player)
+                        TvSubpage.LOCAL_LIBRARY -> if (localLibrary != null) LocalLibraryScreen(localLibrary, player) else Unit
+                    }
+                }
                 else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                     val wide = maxWidth >= 840.dp
                     val select = { i: Int -> tab = i; searching = false; page = null; album = null }
@@ -97,12 +107,18 @@ fun NuvxApp(
                                             Page.SETTINGS -> SettingsPage(router, store)
                                             Page.QUEUE -> QueuePage(state, player)
                                             Page.LIKED -> LikedPage(history, state, player)
+                                            Page.LOCAL_LIBRARY -> if (localLibrary != null) LocalLibraryScreen(localLibrary, player) else Unit
                                         }
                                     }
                                     searching -> SearchScreen(router, player, history, searchQuery, { album = it }) { openPage(Page.SETTINGS) }
                                     tab == 0 -> HomeScreen(history, router, player, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
                                     tab == 1 -> ExploreScreen({ openSearch(it) }) { openPage(Page.SETTINGS) }
-                                    else -> LibraryScreen(history, state, player, { openPage(Page.QUEUE) }, { openPage(Page.LIKED) }, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
+                                    else -> LibraryScreen(
+                                        history, state, player,
+                                        onQueue = { openPage(Page.QUEUE) }, onLiked = { openPage(Page.LIKED) },
+                                        onTogether = { openPage(Page.TOGETHER) }, onAccount = { openPage(Page.SETTINGS) },
+                                        onLocalLibrary = if (localLibrary != null) ({ openPage(Page.LOCAL_LIBRARY) }) else null,
+                                    )
                                 }
                             }
                             Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

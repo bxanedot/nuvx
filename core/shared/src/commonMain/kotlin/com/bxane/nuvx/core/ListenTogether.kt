@@ -90,9 +90,11 @@ object ListenSync {
     fun expected(p: SharedPlayback, serverNow: Long) = if (p.playing) p.positionMs + (serverNow - p.updatedAt).coerceAtLeast(0) else p.positionMs
 
     /** Guests only follow; one step per call keeps each correction observable before the next. */
-    fun decide(local: PlayerState, p: SharedPlayback?, serverNow: Long): SyncAction {
-        val id = p?.trackId ?: return SyncAction.None
-        val target = expected(p, serverNow)
+    fun decide(local: PlayerState, p: SharedPlayback?, serverNow: Long, trackWasCleared: Boolean = false): SyncAction {
+        val playback = p ?: return SyncAction.None
+        val id = playback.trackId ?: return if (trackWasCleared && local.isPlaying) SyncAction.SetPlaying(false) else SyncAction.None
+        if (id.startsWith("local:")) return SyncAction.None
+        val target = expected(playback, serverNow)
         if (local.current?.videoId != id) {
             val art = "https://i.ytimg.com/vi/$id/hqdefault.jpg"
             return SyncAction.Load(Track(id, p.title ?: "Shared track", p.artists, artworkUrl = art), target)
@@ -105,7 +107,7 @@ object ListenSync {
 
     /** Hosts publish on track or play-state changes, and on position jumps a listener would notice (seeks). */
     fun hostShouldPublish(last: SharedPlayback?, local: PlayerState, serverNow: Long): Boolean {
-        val current = local.current ?: return last?.trackId != null
+        val current = local.current?.takeUnless(Track::isLocal) ?: return last?.trackId != null
         if (last == null || last.trackId != current.videoId || last.playing != local.isPlaying) return true
         return abs(expected(last, serverNow) - local.positionMs) > DRIFT_MS
     }
@@ -173,6 +175,7 @@ class ListenTogether(
             }
         }
         var published: SharedPlayback? = null
+        val receivedPlaybackUpdate = MutableStateFlow(false)
         val sync = launch {
             while (true) {
                 delay(1_000)
@@ -180,20 +183,20 @@ class ListenTogether(
                 val local = player.state.value
                 if (ui.isHost) {
                     if (ListenSync.hostShouldPublish(published, local, serverNow())) {
-                        val t = local.current
-                        published = SharedPlayback(t?.videoId, local.positionMs, local.isPlaying, serverNow(), t?.title, t?.artists.orEmpty())
+                        val t = local.current?.takeUnless(Track::isLocal)
+                        published = SharedPlayback(t?.videoId, if (t == null) 0 else local.positionMs, t != null && local.isPlaying, serverNow(), t?.title, t?.artists.orEmpty())
                         // Built by hand: the worker rejects `null` for optional fields, which must be absent instead.
                         val out = buildJsonObject {
                             put("t", "state")
                             put("trackId", t?.videoId)
-                            put("positionMs", local.positionMs.coerceAtLeast(0))
-                            put("playing", local.isPlaying)
+                            put("positionMs", if (t == null) 0 else local.positionMs.coerceAtLeast(0))
+                            put("playing", t != null && local.isPlaying)
                             t?.title?.let { put("title", it.take(200)) }
                             t?.artists?.takeIf { it.isNotEmpty() }?.let { a -> put("artists", JsonArray(a.take(10).map { JsonPrimitive(it.take(100)) })) }
                         }
                         send(Frame.Text(out.toString()))
                     }
-                } else when (val a = ListenSync.decide(local, ui.playback, serverNow())) {
+                } else when (val a = ListenSync.decide(local, ui.playback, serverNow(), receivedPlaybackUpdate.value && ui.playback?.trackId == null)) {
                     is SyncAction.Load -> { player.playQueue(listOf(a.track), 0); player.seekTo(a.positionMs) }
                     is SyncAction.SetPlaying -> player.togglePlay()
                     is SyncAction.Seek -> player.seekTo(a.positionMs)
@@ -207,7 +210,7 @@ class ListenTogether(
                 when (msg.t) {
                     "welcome" -> _ui.update { it.copy(you = msg.you, host = msg.room?.host, members = msg.room?.members.orEmpty(), playback = msg.room?.playback, connecting = false, error = null) }
                     "members" -> _ui.update { it.copy(host = msg.host, members = msg.members.orEmpty()) }
-                    "state" -> _ui.update { it.copy(playback = msg.playback) }
+                    "state" -> { receivedPlaybackUpdate.value = true; _ui.update { it.copy(playback = msg.playback) } }
                     "pong" -> {
                         val now = Clock.System.now().toEpochMilliseconds()
                         val rtt = now - (msg.c ?: continue)

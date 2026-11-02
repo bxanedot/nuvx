@@ -1,6 +1,7 @@
 package com.bxane.nuvx
 
 import android.net.Uri
+import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -26,7 +27,8 @@ class AndroidPlayer(private val controller: Player) : NuvxPlayer, AutoCloseable 
         val tracks = (0 until controller.mediaItemCount).map { i ->
             val item = controller.getMediaItemAt(i)
             val meta = item.mediaMetadata
-            Track(item.mediaId, meta.title?.toString().orEmpty(), listOfNotNull(meta.artist?.toString()), meta.albumTitle?.toString(), artworkUrl = meta.artworkUri?.toString())
+            val extras = meta.extras?.keySet()?.associateWith { meta.extras?.getString(it).orEmpty() }.orEmpty()
+            trackFromMetadata(item.mediaId, meta.title?.toString().orEmpty(), meta.artist?.toString(), meta.albumTitle?.toString(), meta.artworkUri?.toString(), extras)
         }
         mutableState.value = PlayerState(tracks, if (tracks.isEmpty()) -1 else controller.currentMediaItemIndex,
             controller.isPlaying, controller.playbackState == Player.STATE_BUFFERING,
@@ -35,9 +37,11 @@ class AndroidPlayer(private val controller: Player) : NuvxPlayer, AutoCloseable 
     }
 
     private fun Track.toMediaItem(): MediaItem = MediaItem.Builder().setMediaId(videoId)
-        .setUri("nuvx://track/$videoId")
+        .setUri(localUri ?: "nuvx://track/$videoId")
         .setMediaMetadata(MediaMetadata.Builder().setTitle(title).setArtist(artistLine).setAlbumTitle(album)
-            .setArtworkUri(artworkUrl?.let(Uri::parse)).build()).build()
+            .setArtworkUri(artworkUrl?.let(Uri::parse))
+            .setExtras(Bundle().apply { toMetadataExtras().forEach { (key, value) -> putString(key, value) } })
+            .build()).build()
 
     override fun playQueue(tracks: List<Track>, startIndex: Int) {
         if (tracks.isEmpty() || startIndex !in tracks.indices) return
