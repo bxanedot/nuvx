@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -28,7 +30,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -45,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.bxane.nuvx.core.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 private val Dim = Color.White.copy(alpha = 0.38f)
@@ -53,8 +58,27 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
-fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, reduceMotion: Boolean, onClose: () -> Unit) {
+fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, history: History, router: BackendRouter, reduceMotion: Boolean, onClose: () -> Unit) {
     val track = state.current
+    val liked by history.liked.collectAsState()
+    val scope = rememberCoroutineScope()
+    var notice by remember { mutableStateOf<String?>(null) }
+    val actions = TrackActions(
+        liked = track != null && liked.any { it.videoId == track.videoId },
+        onLike = { track?.let(history::toggleLike) },
+        onRadio = {
+            track?.let { seed ->
+                scope.launch {
+                    notice = "Starting radio…"
+                    notice = try {
+                        val page = router.radio(seed.videoId)
+                        player.playQueue(listOf(seed) + page.tracks.filter { it.videoId != seed.videoId }, 0)
+                        null
+                    } catch (e: CancellationException) { throw e } catch (_: Exception) { "Radio isn't available right now." }
+                }
+            }
+        },
+    )
     var mode by remember { mutableStateOf(SheetMode.ARTWORK) }
     var lyrics by remember { mutableStateOf<Lyrics?>(null) }
     var status by remember { mutableStateOf("") }
@@ -79,10 +103,11 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, red
             }
             Text(if (mode == SheetMode.QUEUE) "Playing next" else "Playing from your queue", color = Color.White.copy(0.75f), fontSize = 12.sp,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), textAlign = TextAlign.Center)
-            if (mode != SheetMode.ARTWORK) CompactHeader(track)
+            if (mode != SheetMode.ARTWORK) CompactHeader(track, actions)
+            notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (mode) {
-                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs) { mode = SheetMode.LYRICS }
+                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions) { mode = SheetMode.LYRICS }
                     SheetMode.LYRICS -> when (val l = lyrics) {
                         is Lyrics.Synced -> SyncedLyrics(l, state.positionMs, reduceMotion) { player.seekTo(it) }
                         is Lyrics.Plain -> LazyColumn(contentPadding = PaddingValues(vertical = 24.dp)) {
@@ -119,23 +144,23 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, red
         Icon(icon, null, Modifier.size(24.dp), tint = Color.White.copy(if (active) 1f else 0.7f))
     }
 
-@Composable private fun CompactHeader(track: Track?) = Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+@Composable private fun CompactHeader(track: Track?, actions: TrackActions) = Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
     ArtworkTile(track, Modifier.size(56.dp))
     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
         Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
-    RoundChip(NuvxIcons.More, "More options")
+    TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
     ArtworkTile(track, Modifier.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)))
     Row(Modifier.fillMaxWidth().padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        RoundChip(NuvxIcons.More, "More options")
+        TrackChips(track != null, actions)
     }
     val preview = (lyrics as? Lyrics.Synced)?.let { l -> l.lines.getOrNull(l.lineAt(positionMs).coerceAtLeast(0))?.text }
     if (!preview.isNullOrBlank()) Row(Modifier.fillMaxWidth().padding(top = 14.dp).clickable(onClick = openLyrics), verticalAlignment = Alignment.CenterVertically) {
@@ -148,10 +173,27 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, red
     Text(text, color = Color.White.copy(0.6f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
 }
 
-// shortcut: the more-menu has no actions yet (like/add-to-playlist need a library), so it is shown disabled, not as a dead button.
-@Composable private fun RoundChip(icon: ImageVector, label: String) {
-    Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(0.16f)).semantics { contentDescription = "$label, coming soon" }, contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(20.dp), tint = Color.White.copy(0.5f))
+private class TrackActions(val liked: Boolean, val onLike: () -> Unit, val onRadio: () -> Unit)
+
+/** Round like chip and a more chip with a menu. Likes are on-device until account sync exists. */
+@Composable private fun TrackChips(enabled: Boolean, a: TrackActions) {
+    var menu by remember { mutableStateOf(false) }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        RoundChip(if (a.liked) NuvxIcons.HeartFilled else NuvxIcons.Heart, if (a.liked) "Remove from liked songs" else "Like", enabled, a.onLike)
+        Box {
+            RoundChip(NuvxIcons.More, "More options", enabled) { menu = true }
+            DropdownMenu(menu, { menu = false }, containerColor = Color(0xFF232327)) {
+                DropdownMenuItem({ Text("Start radio from this song") }, { menu = false; a.onRadio() })
+                DropdownMenuItem({ Text(if (a.liked) "Remove from liked songs" else "Add to liked songs") }, { menu = false; a.onLike() })
+            }
+        }
+    }
+}
+
+@Composable private fun RoundChip(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(0.16f)).clickable(enabled = enabled, onClick = onClick)
+        .semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
+        Icon(icon, null, Modifier.size(20.dp), tint = Color.White.copy(if (enabled) 1f else 0.4f))
     }
 }
 

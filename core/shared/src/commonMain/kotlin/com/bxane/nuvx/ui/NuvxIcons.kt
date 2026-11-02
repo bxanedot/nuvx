@@ -42,6 +42,7 @@ object NuvxIcons {
     val Chevron = icon("Chevron") { stroke { moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f) } }
     val Close = icon("Close") { stroke { moveTo(6f, 6f); lineTo(18f, 18f); moveTo(18f, 6f); lineTo(6f, 18f) } }
     val Heart = icon("Heart") { stroke { moveTo(12f, 20f); curveTo(5f, 15f, 2.5f, 11.5f, 4f, 8f); curveTo(5.5f, 4.5f, 10f, 4.5f, 12f, 8f); curveTo(14f, 4.5f, 18.5f, 4.5f, 20f, 8f); curveTo(21.5f, 11.5f, 19f, 15f, 12f, 20f); close() } }
+    val HeartFilled = icon("HeartFilled") { fill { moveTo(12f, 20f); curveTo(5f, 15f, 2.5f, 11.5f, 4f, 8f); curveTo(5.5f, 4.5f, 10f, 4.5f, 12f, 8f); curveTo(14f, 4.5f, 18.5f, 4.5f, 20f, 8f); curveTo(21.5f, 11.5f, 19f, 15f, 12f, 20f); close() } }
     val Together = icon("Together") { fill { circle(8.5f, 8f, 3.2f); circle(16f, 9f, 2.7f); moveTo(2.5f, 19f); quadTo(2.5f, 13.5f, 8.5f, 13.5f); quadTo(14.5f, 13.5f, 14.5f, 19f); close(); moveTo(15.5f, 19f); quadTo(15.5f, 15.5f, 14f, 14f); quadTo(21.5f, 12.5f, 21.5f, 19f); close() } }
     val Settings = icon("Settings") { stroke { circle(12f, 12f, 3f); circle(12f, 12f, 8f) } }
 }

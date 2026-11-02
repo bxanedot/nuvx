@@ -25,6 +25,15 @@ class HistoryTest {
         assertEquals(emptyList(), History(store).searches.value)
     }
 
+    @Test fun likesToggleAndPersist() {
+        val store = MapStore()
+        History(store).apply { toggleLike(Track("a", "A")); toggleLike(Track("b", "B")); toggleLike(Track("a", "A")) }
+        val reloaded = History(store)
+        assertEquals(listOf("b"), reloaded.liked.value.map { it.videoId })
+        assertEquals(true, reloaded.isLiked("b"))
+        assertEquals(false, reloaded.isLiked("a"))
+    }
+
     @Test fun corruptStorageIsIgnored() {
         val store = MapStore().apply { map["history.played"] = "{not json" }
         assertEquals(emptyList(), History(store).played.value)

@@ -15,6 +15,9 @@ class History(private val store: KeyValueStore) {
 
     private val _played = MutableStateFlow(load("history.played", trackList))
     val played: StateFlow<List<Track>> = _played.asStateFlow()
+    private val _liked = MutableStateFlow(load("history.liked", trackList))
+    /** On-device likes, newest first. */
+    val liked: StateFlow<List<Track>> = _liked.asStateFlow()
     private val _searches = MutableStateFlow(load("history.searches", stringList))
     val searches: StateFlow<List<String>> = _searches.asStateFlow()
 
@@ -22,6 +25,13 @@ class History(private val store: KeyValueStore) {
         if (_played.value.firstOrNull()?.videoId == track.videoId) return
         _played.value = (listOf(track) + _played.value.filter { it.videoId != track.videoId }).take(MAX_TRACKS)
         store.put("history.played", json.encodeToString(trackList, _played.value))
+    }
+
+    fun isLiked(videoId: String) = _liked.value.any { it.videoId == videoId }
+
+    fun toggleLike(track: Track) {
+        _liked.value = if (isLiked(track.videoId)) _liked.value.filter { it.videoId != track.videoId } else listOf(track) + _liked.value
+        store.put("history.liked", json.encodeToString(trackList, _liked.value))
     }
 
     fun searched(query: String) {

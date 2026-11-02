@@ -119,8 +119,9 @@ private val Moods = listOf(
         }
     }
 
-@Composable fun LibraryScreen(history: History, state: PlayerState, player: NuvxPlayer, onQueue: () -> Unit, onTogether: () -> Unit, onAccount: () -> Unit) {
+@Composable fun LibraryScreen(history: History, state: PlayerState, player: NuvxPlayer, onQueue: () -> Unit, onLiked: () -> Unit, onTogether: () -> Unit, onAccount: () -> Unit) {
     val played by history.played.collectAsState()
+    val liked by history.liked.collectAsState()
     LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
         item { TopBar(onAccount) }
         item { LargeTitle("Library", Modifier.padding(bottom = 12.dp)) }
@@ -132,6 +133,7 @@ private val Moods = listOf(
                 Text(if (played.size == 1) "SONG PLAYED ON THIS DEVICE" else "SONGS PLAYED ON THIS DEVICE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp)
             }
         }
+        item { NavRow(NuvxIcons.HeartFilled, "Liked songs", if (liked.isEmpty()) "None yet" else "${liked.size} songs", onLiked) }
         item { NavRow(NuvxIcons.Queue, "Queue", if (state.queue.isEmpty()) "Empty" else "${state.queue.size} songs", onQueue) }
         item { NavRow(NuvxIcons.Together, "Listen Together", "Rooms with friends", onTogether) }
         item { NavRow(NuvxIcons.Settings, "Settings & About", null, onAccount) }

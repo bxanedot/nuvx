@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.core.*
 
 private val Tabs = listOf(Tab("Home", NuvxIcons.Home), Tab("Explore", NuvxIcons.Explore), Tab("Library", NuvxIcons.Library))
-private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue") }
+private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue"), LIKED("Liked songs") }
 
 @Composable
 fun NuvxApp(
@@ -92,12 +92,13 @@ fun NuvxApp(
                                             Page.TOGETHER -> TogetherPage(together, store)
                                             Page.SETTINGS -> SettingsPage(router, store)
                                             Page.QUEUE -> QueuePage(state, player)
+                                            Page.LIKED -> LikedPage(history, state, player)
                                         }
                                     }
                                     searching -> SearchScreen(router, player, history, searchQuery) { openPage(Page.SETTINGS) }
                                     tab == 0 -> HomeScreen(history, router, player, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
                                     tab == 1 -> ExploreScreen({ openSearch(it) }) { openPage(Page.SETTINGS) }
-                                    else -> LibraryScreen(history, state, player, { openPage(Page.QUEUE) }, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
+                                    else -> LibraryScreen(history, state, player, { openPage(Page.QUEUE) }, { openPage(Page.LIKED) }, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
                                 }
                             }
                             Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -109,7 +110,7 @@ fun NuvxApp(
                     AnimatedVisibility(sheet && state.current != null,
                         enter = if (reduceMotion) fadeIn() else slideInVertically(tween(320)) { it },
                         exit = if (reduceMotion) fadeOut() else slideOutVertically(tween(260)) { it }) {
-                        NowPlayingSheet(player, state, lyrics, reduceMotion) { sheet = false }
+                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion) { sheet = false }
                     }
                 }
             }
@@ -250,5 +251,13 @@ private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
             PillButton("Leave room", true, primary = false, Modifier.padding(top = 12.dp)) { together.leave() }
         }
         ui.error?.let { Text(it, color = Color(0xFFFF6B6B), fontSize = 15.sp) }
+    }
+}
+
+@Composable private fun LikedPage(history: History, state: PlayerState, player: NuvxPlayer) {
+    val liked by history.liked.collectAsState()
+    if (liked.isEmpty()) Text("Songs you like show up here. Tap ♡ on the player to like one.", color = NuvxColors.Secondary, fontSize = 16.sp, modifier = Modifier.padding(20.dp))
+    else androidx.compose.foundation.lazy.LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
+        items(liked.size) { i -> TrackRow(liked[i], active = state.current?.videoId == liked[i].videoId) { player.playQueue(liked, i) } }
     }
 }
