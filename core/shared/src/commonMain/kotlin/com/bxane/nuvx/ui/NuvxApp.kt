@@ -44,7 +44,7 @@ private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTIN
 
 @Composable
 fun NuvxApp(
-    router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LrcLib, watch: Boolean, reduceMotion: Boolean = false,
+    router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LyricsChain, watch: Boolean, reduceMotion: Boolean = false,
     /** Platform back integration (Android passes BackHandler). Called every composition with whether back has somewhere to go. */
     onBackHandler: (@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit)? = null,
 ) {

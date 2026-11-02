@@ -12,5 +12,5 @@ class NuvxApplication : Application() {
         }
     }
     val router by lazy { BackendRouter(defaultBackends()).bindTo(store) }
-    val lyrics by lazy { LrcLib(nuvxHttpClient()) }
+    val lyrics by lazy { LyricsChain(defaultLyricsProviders(nuvxHttpClient())) }
 }

@@ -54,13 +54,37 @@ object Lrc {
     }
 }
 
+/** One lyrics source. Returns null when it has nothing for [track]; may throw on network errors (the chain skips it). */
+interface LyricsProvider {
+    /** Shown to the user as the lyrics credit. */
+    val name: String
+    suspend fun find(track: Track, offsetMs: Long = 0): Lyrics?
+}
+
+data class SourcedLyrics(val lyrics: Lyrics, val source: String)
+
+/** Asks [providers] in order. Timed lyrics win over plain text from an earlier provider; a failing provider is skipped. */
+class LyricsChain(private val providers: List<LyricsProvider>) {
+    suspend fun find(track: Track, offsetMs: Long = 0): SourcedLyrics? {
+        var fallback: SourcedLyrics? = null
+        for (p in providers) {
+            val found = try { p.find(track, offsetMs) } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (_: Exception) { null } ?: continue
+            if (found is Lyrics.Synced || found == Lyrics.Instrumental) return SourcedLyrics(found, p.name)
+            if (fallback == null) fallback = SourcedLyrics(found, p.name)
+        }
+        return fallback
+    }
+}
+
 /** LRCLIB (https://lrclib.net) — free, keyless; asks clients to identify themselves via User-Agent. */
-class LrcLib(private val http: HttpClient) {
+class LrcLib(private val http: HttpClient) : LyricsProvider {
+    override val name = "LRCLIB"
+
     @Serializable
     private class Hit(val instrumental: Boolean = false, val plainLyrics: String? = null, val syncedLyrics: String? = null, val duration: Double? = null)
 
     /** Exact match first; YouTube titles often carry extras ("/ B-side", "(Official Video)"), so fall back to a cleaned search. */
-    suspend fun find(track: Track, offsetMs: Long = 0): Lyrics? {
+    override suspend fun find(track: Track, offsetMs: Long): Lyrics? {
         val artist = track.artists.firstOrNull().orEmpty()
         val exact = http.get("https://lrclib.net/api/get") {
             header("User-Agent", UA)

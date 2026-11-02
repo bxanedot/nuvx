@@ -20,7 +20,7 @@ fun main() = application {
     val router = remember { BackendRouter(defaultBackends()).bindTo(store) }
     val player = remember { runCatching { DesktopPlayer(router) }.getOrNull() }
     val http = remember { nuvxHttpClient() }
-    val lyrics = remember { LrcLib(http) }
+    val lyrics = remember { LyricsChain(defaultLyricsProviders(http)) }
     val reduceMotion = remember {
         desktopReducedMotion(System.getProperty("nuvx.reduceMotion"),
             Toolkit.getDefaultToolkit().getDesktopProperty("win.clientAreaAnimation") as? Boolean)

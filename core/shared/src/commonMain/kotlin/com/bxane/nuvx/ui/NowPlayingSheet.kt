@@ -58,7 +58,7 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
-fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, history: History, router: BackendRouter, reduceMotion: Boolean, onClose: () -> Unit) {
+fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onClose: () -> Unit) {
     val track = state.current
     val liked by history.liked.collectAsState()
     val scope = rememberCoroutineScope()
@@ -81,12 +81,14 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, his
     )
     var mode by remember { mutableStateOf(SheetMode.ARTWORK) }
     var lyrics by remember { mutableStateOf<Lyrics?>(null) }
+    var source by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf("") }
     LaunchedEffect(track?.videoId) {
         lyrics = null
+        source = null
         if (track == null) return@LaunchedEffect
         status = "Finding lyrics…"
-        try { lyrics = library.find(track); if (lyrics == null) status = "No lyrics for this song" }
+        try { val found = library.find(track); lyrics = found?.lyrics; source = found?.source; if (found == null) status = "No lyrics for this song" }
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { status = "Lyrics couldn't be loaded" }
     }
@@ -104,6 +106,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LrcLib, his
             Text(if (mode == SheetMode.QUEUE) "Playing next" else "Playing from your queue", color = Color.White.copy(0.75f), fontSize = 12.sp,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), textAlign = TextAlign.Center)
             if (mode != SheetMode.ARTWORK) CompactHeader(track, actions)
+            if (mode == SheetMode.LYRICS) source?.let { Text("Lyrics from $it", color = Color.White.copy(0.5f), fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (mode) {
