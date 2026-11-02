@@ -7,6 +7,7 @@ import androidx.compose.ui.window.*
 import com.bxane.nuvx.core.*
 import com.bxane.nuvx.ui.NuvxApp
 import java.util.prefs.Preferences
+import java.awt.Toolkit
 
 fun main() = application {
     val store = remember {
@@ -20,9 +21,13 @@ fun main() = application {
     val player = remember { runCatching { DesktopPlayer(router) }.getOrNull() }
     val http = remember { nuvxHttpClient() }
     val lyrics = remember { LrcLib(http) }
+    val reduceMotion = remember {
+        desktopReducedMotion(System.getProperty("nuvx.reduceMotion"),
+            Toolkit.getDefaultToolkit().getDesktopProperty("win.clientAreaAnimation") as? Boolean)
+    }
     DisposableEffect(Unit) { onDispose { player?.close(); http.close() } }
     Window(onCloseRequest = ::exitApplication, title = "nuvx", state = rememberWindowState(width = 1180.dp, height = 780.dp)) {
-        if (player != null) NuvxApp(router, store, player, lyrics, watch = false)
+        if (player != null) NuvxApp(router, store, player, lyrics, watch = false, reduceMotion = reduceMotion)
         else MaterialTheme { Surface { Text("nuvx needs VLC 3 to play audio. Install VLC for your system, or set NUVX_VLC_HOME to its portable folder, then reopen nuvx.") } }
     }
 }
