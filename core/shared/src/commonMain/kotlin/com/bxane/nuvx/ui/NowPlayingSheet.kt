@@ -85,12 +85,15 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     var source by remember { mutableStateOf<SourcedLyrics?>(null) }
     val uri = LocalUriHandler.current
     var status by remember { mutableStateOf("") }
-    LaunchedEffect(track?.videoId) {
+    // Match lyrics against the length of the version actually playing; platform players may not carry it in metadata.
+    val lookupDuration = track?.durationMs ?: state.durationMs.takeIf { it > 0 }
+    LaunchedEffect(track?.videoId, lookupDuration != null) {
         lyrics = null
         source = null
         if (track == null) return@LaunchedEffect
         status = "Finding lyrics…"
-        try { val found = library.find(track); lyrics = found?.lyrics; source = found; if (found == null) status = "No lyrics for this song" }
+        if (lookupDuration == null) return@LaunchedEffect // re-runs once the player reports the length
+        try { val found = library.find(track.copy(durationMs = lookupDuration)); lyrics = found?.lyrics; source = found; if (found == null) status = "No lyrics for this song" }
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { status = "Lyrics couldn't be loaded" }
     }
