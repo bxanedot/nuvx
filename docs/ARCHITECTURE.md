@@ -1,11 +1,14 @@
 # Architecture
 
 ```
-shared/ (KMP: android + jvm "desktop"; iOS planned)
+core/shared/ (KMP: android + jvm "desktop"; iOS planned)
   commonMain   core/Models, core/MusicBackend (+BackendRouter, BackendHealth), core/YtmJson (InnerTube JSON → models)
   jvmCommonMain core/Backends: InnerTubeXBackend (default), ExcorBackend; nuvxHttpClient()
-androidApp/   Android application: Media3 playback service (planned)
-desktopApp/   Compose Desktop application (planned)
+App/androidApp/   Android application (mobile, TV, Wear): Media3 playback service
+App/desktopApp/   Compose Desktop application with VLC playback
+core/worker/     Listen Together Cloudflare Worker
+core/scripts/    platform preparation scripts
+core/assets/     bxane's original brand assets
 ```
 
 - **Engine switch.** `BackendRouter.select(id)` changes which `MusicBackend` the next call goes to. Tests prove that switching changes the engine actually called. `setFallback(true)` retries a failed or empty call on the other engine, and `health` records each engine's last real outcome so Settings can show it.

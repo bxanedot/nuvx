@@ -2,9 +2,9 @@ name: Listen Together worker
 
 on:
   push:
-    paths: ["worker/**", ".github/workflows/listen-worker.yml"]
+    paths: ["core/worker/**", ".github/workflows/listen-worker.yml"]
   pull_request:
-    paths: ["worker/**", ".github/workflows/listen-worker.yml"]
+    paths: ["core/worker/**", ".github/workflows/listen-worker.yml"]
 
 permissions:
   contents: read
@@ -14,14 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: worker
+        working-directory: core/worker
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: worker/package-lock.json
+          cache-dependency-path: core/worker/package-lock.json
       - run: npm ci
       - run: npm test
       - run: npm run check

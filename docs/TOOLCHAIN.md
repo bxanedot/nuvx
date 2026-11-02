@@ -45,7 +45,7 @@ Desktop: vlcj 4.12.1 / vlcj-natives 4.12.0 from https://repo.maven.apache.org/ma
 Windows commands:
 
 ```powershell
-./scripts/prepare-windows.ps1
+./core/scripts/prepare-windows.ps1
 ./gradlew.bat :shared:desktopTest :androidApp:testMobileDebugUnitTest :androidApp:assembleDebug :androidApp:bundleRelease :androidApp:lint :desktopApp:test :desktopApp:createDistributable :desktopApp:packageMsi
 $env:NUVX_VLC_HOME='<portable VLC folder>'
 $env:NUVX_DESKTOP_LIVE='1'

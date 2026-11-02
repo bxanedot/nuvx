@@ -36,7 +36,7 @@ jobs:
       - name: Prepare Windows decoder and brand icon
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/prepare-windows.ps1
+        run: ./core/scripts/prepare-windows.ps1
       - name: Tests, Android variants, and desktop application image
         run: bash ./gradlew :shared:desktopTest :androidApp:testMobileDebugUnitTest :androidApp:assembleDebug :androidApp:bundleRelease :androidApp:lint :desktopApp:test :desktopApp:createDistributable
       - name: Compile iOS shared framework
@@ -46,15 +46,15 @@ jobs:
         with:
           name: nuvx-${{ runner.os }}
           path: |
-            androidApp/build/outputs/apk/**/debug/*.apk
-            androidApp/build/outputs/bundle/*Release/*.aab
-            desktopApp/build/compose/binaries/main/app/
-            shared/build/bin/ios*/releaseFramework/
+            App/androidApp/build/outputs/apk/**/debug/*.apk
+            App/androidApp/build/outputs/bundle/*Release/*.aab
+            App/desktopApp/build/compose/binaries/main/app/
+            core/shared/build/bin/ios*/releaseFramework/
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: reports-${{ runner.os }}
           path: |
-            shared/build/reports/
-            androidApp/build/reports/
-            desktopApp/build/reports/
+            core/shared/build/reports/
+            App/androidApp/build/reports/
+            App/desktopApp/build/reports/

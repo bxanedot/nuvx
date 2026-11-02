@@ -28,3 +28,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "nuvx"
 include(":shared", ":androidApp", ":desktopApp")
+project(":shared").projectDir = file("core/shared")
+project(":androidApp").projectDir = file("App/androidApp")
+project(":desktopApp").projectDir = file("App/desktopApp")

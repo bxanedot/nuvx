@@ -14,7 +14,7 @@ Requested targets: Windows, Linux, macOS; Android mobile/tablet, TV and Wear OS;
 
 ## Architecture boundary
 
-`shared/commonMain` contains domain contracts, router, catalogue parser, primary InnerTubeX adapter, lyrics, radio and reusable Compose UI. `jvmCommonMain` supplies the OkHttp HTTP actual and eXcor's JVM/Android adapter. `iosMain` supplies the Darwin HTTP actual. `NuvxPlayer` and `KeyValueStore` keep native playback and persistence outside common code. The iOS alternative-engine adapter is still pending, not silently simulated.
+`core/shared/commonMain` contains domain contracts, router, catalogue parser, primary InnerTubeX adapter, lyrics, radio and reusable Compose UI. `jvmCommonMain` supplies the OkHttp HTTP actual and eXcor's JVM/Android adapter. `iosMain` supplies the Darwin HTTP actual. `NuvxPlayer` and `KeyValueStore` keep native playback and persistence outside common code. The iOS alternative-engine adapter is still pending, not silently simulated.
 
 Android flavours use the same application ID (`com.bxane.nuvx`) for their different device categories. Desktop code is shared across the three desktop operating systems, with a platform-native VLC library required. Windows preparation downloads the checksum-pinned official portable runtime; Linux/macOS runtime bundling remains release work.
 

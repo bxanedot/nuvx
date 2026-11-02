@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $PSScriptRoot
-$buildRoot = Join-Path $projectRoot 'desktopApp/build'
+$projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$buildRoot = Join-Path $projectRoot 'App/desktopApp/build'
 $runtimeRoot = Join-Path $buildRoot 'vlc'
 $resources = Join-Path $buildRoot 'native-resources/windows/vlc'
 $icons = Join-Path $buildRoot 'native-icons'
@@ -17,7 +17,7 @@ Copy-Item -Path (Join-Path $runtimeRoot 'vlc-3.0.24/*') -Destination $resources 
 
 # Native ICO packaging of bxane's supplied mark; no replacement artwork.
 Add-Type -AssemblyName System.Drawing
-$source = [System.Drawing.Image]::FromFile((Join-Path $projectRoot 'assets/brand/flat/03_electric_blue.png'))
+$source = [System.Drawing.Image]::FromFile((Join-Path $projectRoot 'core/assets/brand/flat/03_electric_blue.png'))
 $bitmap = [System.Drawing.Bitmap]::new(256,256)
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
