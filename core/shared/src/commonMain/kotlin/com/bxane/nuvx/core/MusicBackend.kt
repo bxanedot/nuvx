@@ -13,9 +13,10 @@ enum class SearchFilter(val label: String, val params: String?) {
     SONGS("Songs", "EgWKAQIIAWoMEA4QChADEAQQCRAF"),
     VIDEOS("Videos", "EgWKAQIQAWoMEA4QChADEAQQCRAF"),
     ALBUMS("Albums", "EgWKAQIYAWoMEA4QChADEAQQCRAF"),
+    PLAYLISTS("Playlists", "EgeKAQQoAEABagwQDhAKEAMQBBAJEAU%3D"),
 }
 
-/** An album page: header details plus its playable tracks in order. */
+/** An album or playlist page (same browse shape): header details plus its playable tracks in order. */
 data class Album(val browseId: String, val title: String, val artist: String?, val year: String?, val artworkUrl: String?, val tracks: List<Track>)
 
 enum class BackendId(val label: String) { INNERTUBEX("InnerTubeX"), EXCOR("eXcor") }

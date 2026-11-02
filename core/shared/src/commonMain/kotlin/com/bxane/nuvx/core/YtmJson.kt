@@ -41,21 +41,29 @@ object YtmJson {
         return SearchResults(tracks.distinctBy { it.videoId }, collections.distinctBy { it.browseId })
     }
 
-    /** Album page: tracks carry no artwork or (usually) artist of their own, so both come from the header. */
+    /**
+     * Album or playlist page. Album rows carry no artwork or (usually) artist of their own, so those come from the header;
+     * playlist rows have their own artist, album and artwork, which win.
+     * shortcut: first page only (about 70 rows on long playlists); follow `continuations` when someone needs the rest.
+     */
     fun parseAlbum(browseId: String, body: String): Album {
         val root = json.parseToJsonElement(body)
         val header = root.findAll("musicResponsiveHeaderRenderer").firstOrNull()
         val title = header?.obj("title").runs().joinToString("") { it.str("text").orEmpty() }.ifBlank { "Album" }
         val artist = header?.obj("straplineTextOne").runs().joinToString("") { it.str("text").orEmpty() }.ifBlank { null }
-        val year = header?.obj("subtitle").runs().mapNotNull { it.str("text") }.lastOrNull { y -> y.length == 4 && y.all(Char::isDigit) }
+        val subtitle = header?.obj("subtitle").runs().mapNotNull { it.str("text") }.orEmpty()
+        val year = subtitle.lastOrNull { y -> y.length == 4 && y.all(Char::isDigit) }
+        val isPlaylist = subtitle.firstOrNull()?.trim().equals("Playlist", ignoreCase = true)
         val art = header?.findThumb()
         val tracks = root.findAll("musicResponsiveListItemRenderer").mapNotNull { row ->
             val id = row.obj("playlistItemData")?.str("videoId") ?: return@mapNotNull null
             val cols = row.arr("flexColumns").map { it.obj("musicResponsiveListItemFlexColumnRenderer")?.obj("text") }
             val name = cols.getOrNull(0).runs().firstOrNull()?.str("text") ?: return@mapNotNull null
-            val rowArtists = cols.getOrNull(1).runs().artists()
+            val rowArtists = cols.drop(1).flatMap { it.runs() }.artists()
+            val rowAlbum = cols.drop(1).flatMap { it.runs() }.album()
+            val rowArt = row.obj("thumbnail")?.obj("musicThumbnailRenderer")?.obj("thumbnail").bestThumb()
             val length = row.arr("fixedColumns").firstNotNullOfOrNull { it.obj("musicResponsiveListItemFixedColumnRenderer")?.obj("text").runs().firstOrNull()?.str("text")?.let(::parseClock) }
-            Track(id, name, rowArtists.ifEmpty { listOfNotNull(artist) }, title, length, art)
+            Track(id, name, rowArtists.ifEmpty { listOfNotNull(artist) }, rowAlbum ?: title.takeUnless { isPlaylist }, length, rowArt ?: art)
         }
         return Album(browseId, title, artist, year, art, tracks.distinctBy { it.videoId })
     }

@@ -3,6 +3,8 @@ package com.bxane.nuvx.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -181,7 +183,11 @@ private val Moods = listOf(
         busy = true; error = null; results = emptyList(); albums = emptyList()
         try {
             val found = router.search(q, filter)
-            if (filter == SearchFilter.ALBUMS) albums = found.collections.filter { it.kind == Collection.Kind.ALBUM } else results = found.tracks
+            when (filter) {
+                SearchFilter.ALBUMS -> albums = found.collections.filter { it.kind == Collection.Kind.ALBUM }
+                SearchFilter.PLAYLISTS -> albums = found.collections.filter { it.kind == Collection.Kind.PLAYLIST }
+                else -> results = found.tracks
+            }
             history.searched(q)
             if (results.isEmpty() && albums.isEmpty()) error = "Nothing found for \"$q\"."
         }
@@ -227,11 +233,13 @@ private val Moods = listOf(
 
 /** Segmented glass control; the selected filter sits in a lighter inner pill. */
 @Composable private fun FilterChips(selected: SearchFilter, onSelect: (SearchFilter) -> Unit) =
-    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp).fillMaxWidth().heightIn(min = 40.dp).height(IntrinsicSize.Min).glass(RoundedCornerShape(20.dp)).padding(4.dp)) {
+    // Scrolls sideways so five filters still fit on narrow phones and at large font sizes.
+    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp).fillMaxWidth().heightIn(min = 40.dp).height(IntrinsicSize.Min).glass(RoundedCornerShape(20.dp))
+        .horizontalScroll(rememberScrollState()).padding(4.dp)) {
         SearchFilter.entries.forEach { f ->
             val active = f == selected
-            Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(if (active) Color.White.copy(0.16f) else Color.Transparent)
-                .clickable { onSelect(f) }.semantics { this.selected = active; role = Role.Tab }, contentAlignment = Alignment.Center) {
+            Box(Modifier.widthIn(min = 72.dp).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(if (active) Color.White.copy(0.16f) else Color.Transparent)
+                .focusRing(RoundedCornerShape(16.dp)).clickable { onSelect(f) }.semantics { this.selected = active; role = Role.Tab }.padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
                 Text(f.label, color = if (active) NuvxColors.Text else NuvxColors.Secondary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
