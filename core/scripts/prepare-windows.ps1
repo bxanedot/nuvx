@@ -35,4 +35,4 @@ try {
 } finally { $writer.Dispose(); $png.Dispose(); $graphics.Dispose(); $bitmap.Dispose(); $source.Dispose() }
 $icon = [System.Drawing.Icon]::new($iconPath)
 try { if ($icon.Width -ne 256 -or $icon.Height -ne 256) { throw 'Invalid generated icon' } } finally { $icon.Dispose() }
-Write-Output 'Verified VLC 3.0.24 runtime and generated Nuvx Windows icon.'
+Write-Output 'Verified VLC 3.0.24 runtime and generated nuvx Windows icon.'

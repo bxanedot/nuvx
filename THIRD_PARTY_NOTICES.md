@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party component that Nuvx distributes. Each component's own licence text ships with its artifact, and full licence texts are linked below.
+nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party component that nuvx distributes. Each component's own licence text ships with its artifact, and full licence texts are linked below.
 
 ## Integrated dependencies
 
@@ -22,13 +22,13 @@ Nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party com
 
 Licence texts: GPL-3.0 at https://www.gnu.org/licenses/gpl-3.0.txt; Apache-2.0 at https://www.apache.org/licenses/LICENSE-2.0.txt.
 
-## Original Nuvx assets
+## Original nuvx assets
 
-The Nuvx lightning mark, in all its colourways and liquid renders, was created by bxane and is used with permission.
+The nuvx lightning mark, in all its colourways and liquid renders, was created by bxane and is used with permission.
 
 ## External research references (not integrated)
 
-These projects were looked at only for publicly observable product features. **Nuvx contains none of their code, assets or dependencies.**
+These projects were looked at only for publicly observable product features. **nuvx contains none of their code, assets or dependencies.**
 
 | Project | Licence | URL |
 |---|---|---|

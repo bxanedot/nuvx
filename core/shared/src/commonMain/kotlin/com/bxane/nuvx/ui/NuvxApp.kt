@@ -107,7 +107,7 @@ fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyr
 @Composable private fun Sidebar(tab: Int, searching: Boolean, onSelect: (Int) -> Unit, onSearch: () -> Unit) =
     Column(Modifier.width(240.dp).fillMaxHeight().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.padding(start = 8.dp, bottom = 20.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(NuvxMark, "Nuvx", Modifier.size(36.dp))
+            Image(NuvxMark, "nuvx", Modifier.size(36.dp))
             Text("nuvx", color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 10.dp))
         }
         SidebarItem(Tab("Search", NuvxIcons.Search), searching, onSearch)
@@ -134,7 +134,7 @@ fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyr
 private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
 
 @Composable private fun Welcome(onDone: () -> Unit) = Column(Modifier.safeDrawingPadding().fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
-    Image(NuvxMark, "Nuvx — bxane's lightning mark", Modifier.size(96.dp), contentScale = ContentScale.Fit)
+    Image(NuvxMark, "nuvx — bxane's lightning mark", Modifier.size(96.dp), contentScale = ContentScale.Fit)
     Spacer(Modifier.height(28.dp))
     Text("Your next favourite.", color = NuvxColors.Text, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp)
     Text("Music, with room to listen.", color = NuvxColors.Accent, fontSize = 20.sp, modifier = Modifier.padding(vertical = 12.dp))
@@ -181,12 +181,12 @@ private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(NuvxMark, null, Modifier.size(56.dp))
             Column(Modifier.padding(start = 14.dp)) {
-                Text("Nuvx", color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("nuvx", color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Text("Developed and led by bxane. Brand icons supplied by bxane.", color = NuvxColors.Secondary, fontSize = 14.sp)
             }
         }
         Column(Modifier.clip(RoundedCornerShape(18.dp)).background(NuvxColors.Card)) {
-            listOf("Official Nuvx website" to "https://nuvx.lol", "Developer portfolio" to "https://bxane.lol",
+            listOf("Official nuvx website" to "https://nuvx.lol", "Developer portfolio" to "https://bxane.lol",
                 "Alternative developer portfolio" to "https://guns.lol/bxane", "Community Discord" to "https://discord.gg/h4Wsu824Uf",
                 "Contact bxane" to "mailto:bxanee@gmail.com", "Source code and licences" to "https://github.com/bxanedot/nuvx").forEach { (label, url) ->
                 Row(Modifier.fillMaxWidth().clickable { uri.openUri(url) }.padding(16.dp).semantics { role = Role.Button }, verticalAlignment = Alignment.CenterVertically) {

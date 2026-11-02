@@ -27,9 +27,9 @@ compose.desktop {
         nativeDistributions {
             appResourcesRootDir.set(layout.buildDirectory.dir("native-resources"))
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
-            packageName = "Nuvx"
+            packageName = "nuvx"
             packageVersion = "0.1.0"
-            description = "Nuvx music client"
+            description = "nuvx music client"
             vendor = "bxane"
             modules("jdk.httpserver", "java.net.http", "java.prefs", "jdk.unsupported")
             windows { iconFile.set(layout.buildDirectory.file("native-icons/nuvx.ico")) }

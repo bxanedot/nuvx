@@ -36,8 +36,8 @@ internal fun WatchApp(router: BackendRouter, store: KeyValueStore, player: NuvxP
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             if (page == "home") {
-                Image(NuvxMark, "Nuvx", Modifier.size(36.dp))
-                Text("Nuvx", style = MaterialTheme.typography.titleLarge)
+                Image(NuvxMark, "nuvx", Modifier.size(36.dp))
+                Text("nuvx", style = MaterialTheme.typography.titleLarge)
             } else TextButton(onClick = { page = "home" }) { Text("Back") }
         }
         when (page) {

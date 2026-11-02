@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             val ready = player
             if (ready != null) NuvxApp(app.router, app.store, ready, app.lyrics,
                 watch = packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH))
-            else MaterialTheme { Surface { Text(if (connectionError) "Could not connect to playback. Reopen Nuvx to retry." else "Connecting to Nuvx…") } }
+            else MaterialTheme { Surface { Text(if (connectionError) "Could not connect to playback. Reopen nuvx to retry." else "Connecting to nuvx…") } }
         }
     }
 

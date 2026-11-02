@@ -19,7 +19,7 @@ class StreamResolutionTest {
     }
 
     @Test fun keepsStreamHeadersAndSignedQuery() = runTest {
-        val headers = mapOf("User-Agent" to "Nuvx", "Referer" to "https://music.youtube.com/")
+        val headers = mapOf("User-Agent" to "nuvx", "Referer" to "https://music.youtube.com/")
         val stream = router("https://r1.googlevideo.com/videoplayback?sig=abc", headers).resolveAudio(id)
         assertEquals("https://r1.googlevideo.com/videoplayback?sig=abc", stream.url)
         assertSame(headers, stream.headers)

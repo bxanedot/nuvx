@@ -28,7 +28,7 @@ Versions were checked against the official release feeds on 2026-11-02: Maven Ce
 # 1. Publish eXcor locally. iOS targets can't compile on Windows, so publish only the JVM/Android/metadata publications.
 git clone https://github.com/bxanedot/eXcor && cd eXcor
 ./gradlew publishAndroidPublicationToMavenLocal publishJvmPublicationToMavenLocal publishKotlinMultiplatformPublicationToMavenLocal
-# 2. Build Nuvx. Gradle auto-provisions JDK 27 through foojay; if it is already installed, point Gradle at it:
+# 2. Build nuvx. Gradle auto-provisions JDK 27 through foojay; if it is already installed, point Gradle at it:
 ./gradlew -Porg.gradle.java.installations.paths=<path-to-jdk-27> :shared:desktopTest
 ```
 

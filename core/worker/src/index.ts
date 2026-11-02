@@ -15,7 +15,7 @@ export default {
     const url = new URL(req.url);
     // Visiting the bare address in a browser should say what this is, not look broken.
     if (req.method === "GET" && url.pathname === "/") {
-      return json({ ok: true, service: "Nuvx Listen Together", about: "This server syncs Listen Together rooms for the Nuvx app. Open Nuvx and use the Together tab.", website: "https://nuvx.lol" });
+      return json({ ok: true, service: "nuvx Listen Together", about: "This server syncs Listen Together rooms for the nuvx app. Open nuvx and use the Together tab.", website: "https://nuvx.lol" });
     }
     if (req.method === "POST" && url.pathname === "/rooms") {
       const ip = req.headers.get("cf-connecting-ip") ?? "local";

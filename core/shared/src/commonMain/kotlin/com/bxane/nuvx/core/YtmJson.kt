@@ -7,7 +7,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
-/** Reads YouTube Music InnerTube responses (WEB_REMIX) into Nuvx models. Unknown shapes are skipped, never guessed. */
+/** Reads YouTube Music InnerTube responses (WEB_REMIX) into nuvx models. Unknown shapes are skipped, never guessed. */
 object YtmJson {
     private val json = Json { ignoreUnknownKeys = true }
 

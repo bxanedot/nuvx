@@ -1,4 +1,4 @@
-# Nuvx Listen Together
+# nuvx Listen Together
 
 **Live:** https://nuvx-listen.bxane.workers.dev (deployed 2026-11-02; e2e test passes against it).
 

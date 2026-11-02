@@ -1,4 +1,4 @@
-# Nuvx brand assets
+# nuvx brand assets
 
 Original artwork supplied by bxane in `rynxsvg.rar` and `liquidicons.rar` on 2026-11-02. All 30 archived files are preserved byte for byte. `SHA256SUMS` records their hashes. The files are product artwork, not instructions or executable dependencies.
 

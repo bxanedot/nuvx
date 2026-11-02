@@ -112,7 +112,7 @@ object ListenSync {
 }
 
 /**
- * Listen Together client for the Nuvx worker (core/worker/README.md). Rooms carry track IDs and play state only;
+ * Listen Together client for the nuvx worker (core/worker/README.md). Rooms carry track IDs and play state only;
  * each device streams the audio through its own engine. Player calls run on [scope]'s dispatcher (the UI thread).
  */
 class ListenTogether(

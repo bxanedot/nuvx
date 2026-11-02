@@ -21,8 +21,8 @@ fun main() = application {
     val http = remember { nuvxHttpClient() }
     val lyrics = remember { LrcLib(http) }
     DisposableEffect(Unit) { onDispose { player?.close(); http.close() } }
-    Window(onCloseRequest = ::exitApplication, title = "Nuvx", state = rememberWindowState(width = 1180.dp, height = 780.dp)) {
+    Window(onCloseRequest = ::exitApplication, title = "nuvx", state = rememberWindowState(width = 1180.dp, height = 780.dp)) {
         if (player != null) NuvxApp(router, store, player, lyrics, watch = false)
-        else MaterialTheme { Surface { Text("Nuvx needs VLC 3 to play audio. Install VLC for your system, or set NUVX_VLC_HOME to its portable folder, then reopen Nuvx.") } }
+        else MaterialTheme { Surface { Text("nuvx needs VLC 3 to play audio. Install VLC for your system, or set NUVX_VLC_HOME to its portable folder, then reopen nuvx.") } }
     }
 }

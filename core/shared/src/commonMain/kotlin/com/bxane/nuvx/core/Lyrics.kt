@@ -86,7 +86,7 @@ class LrcLib(private val http: HttpClient) {
     }
 
     companion object {
-        private const val UA = "Nuvx (https://nuvx.lol)"
+        private const val UA = "nuvx (https://nuvx.lol)"
         private val extras = Regex("""\s*[(\[][^)\]]*(official|video|audio|lyric|visuali[sz]er|remaster|hq|hd|4k|explicit|clean)[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
 
         /** "One More Time / Aerodynamic (Official Video) [HQ]" → "One More Time". */

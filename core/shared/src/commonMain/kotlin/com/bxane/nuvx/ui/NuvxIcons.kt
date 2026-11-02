@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-/** Nuvx's own minimal 24×24 icon set. Filled shapes for tabs/transport, 2px strokes for utility glyphs. */
+/** nuvx's own minimal 24×24 icon set. Filled shapes for tabs/transport, 2px strokes for utility glyphs. */
 object NuvxIcons {
     private fun icon(name: String, block: ImageVector.Builder.() -> Unit) =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply(block).build()

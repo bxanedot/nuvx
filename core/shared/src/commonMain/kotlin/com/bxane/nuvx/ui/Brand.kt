@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.dp
 
 // bxane's original 01_silver_white.svg paths (the default mark on every device) and bounding-box gradients, rendered without a 4096px bitmap allocation.
 internal val NuvxMark: ImageVector by lazy {
-    ImageVector.Builder("Nuvx", 1024.dp, 1024.dp, 1024f, 1024f).apply {
+    ImageVector.Builder("nuvx", 1024.dp, 1024.dp, 1024f, 1024f).apply {
         addPath(
             pathData = PathParser().parsePathString("M694,101 L340,338 C301,365 283,390 283,430 L283,520 C283,571 313,608 381,609 L525,608 L470,561 C444,540 436,519 450,489 C456,476 468,460 481,440 Z").toNodes(),
             fill = Brush.linearGradient(listOf(Color(0xFFFFFFFF), Color(0xFFBFC7D3)), Offset(283f, 101f), Offset(694f, 609f)),

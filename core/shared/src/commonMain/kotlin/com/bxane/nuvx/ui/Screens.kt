@@ -61,7 +61,7 @@ val BottomChromePadding = 170.dp
         catch (e: CancellationException) { throw e } catch (_: Exception) { /* picks stay empty; the shelf hides */ }
     }
     LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
-        item { TopBar(onAccount) { Image(NuvxMark, "Nuvx", Modifier.size(44.dp)) } }
+        item { TopBar(onAccount) { Image(NuvxMark, "nuvx", Modifier.size(44.dp)) } }
         item {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp))
                 .background(Brush.linearGradient(listOf(Color(0xFF1B4FD8), Color(0xFF6A2BD9), Color(0xFFC0367A)))).clickable(onClick = onTogether).padding(24.dp)) {
