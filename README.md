@@ -1,8 +1,12 @@
 # Nuvx
 
+<img src="assets/brand/flat/03_electric_blue.svg" width="96" alt="Nuvx lightning mark by bxane" />
+
 A multiplatform YouTube Music client, built with Kotlin Multiplatform and Compose Multiplatform.
 
 > **Status: early development.** Nothing has been released yet. [docs/PROGRESS.md](docs/PROGRESS.md) lists what works and what has been verified, and [docs/BLOCKERS.md](docs/BLOCKERS.md) lists what doesn't work yet.
+
+Targets: Windows, Linux, macOS; Android mobile/tablet, TV and Wear OS; iPhone/iPad. [Platform verification](docs/PLATFORMS.md) distinguishes built applications from unfinished targets. No IPA is available yet.
 
 ## Links
 
@@ -28,8 +32,16 @@ You need JDK 25 to run Gradle and JDK 27 for the shared desktop target (eXcor sh
 
 ```bash
 ./gradlew :shared:desktopTest          # offline unit tests
+./gradlew :androidApp:assembleDebug :androidApp:bundleRelease :androidApp:lint
+./gradlew :androidApp:testMobileDebugUnitTest :desktopApp:test
 NUVX_LIVE=1 ./gradlew :shared:desktopTest --tests '*LiveBackendTest*'   # hits YouTube Music
 ```
+
+## Application packages
+
+Android APK/AAB outputs are separated into mobile, tv and wear flavours. Release AABs are unsigned.
+
+For Windows, run `./scripts/prepare-windows.ps1`, then `./gradlew.bat :desktopApp:createDistributable`. The preparation script verifies and bundles official VLC 3.0.24, its notices and bxane's icon. Linux/macOS need VLC 3 installed, or `NUVX_VLC_HOME` pointing to its native library folder; runtime bundling remains release work. Run from source with `./gradlew :desktopApp:run`. Native desktop tests are opt-in with `NUVX_DESKTOP_LIVE=1` and a discoverable VLC 3 installation.
 
 ## License
 

@@ -27,4 +27,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "nuvx"
-include(":shared")
+include(":shared", ":androidApp", ":desktopApp")

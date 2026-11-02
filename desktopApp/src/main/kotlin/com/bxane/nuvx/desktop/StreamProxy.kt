@@ -1,0 +1,58 @@
+package com.bxane.nuvx.desktop
+
+import com.bxane.nuvx.core.AudioStream
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.time.Duration
+import java.util.UUID
+import java.util.concurrent.Executors
+
+/** VLC gets a private loopback URL; source credentials and signed addresses never enter native player options. */
+internal class StreamProxy : AutoCloseable {
+    private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build()
+    private val executor = Executors.newFixedThreadPool(4) { task -> Thread(task, "nuvx-media").apply { isDaemon = true } }
+    private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+    @Volatile private var active: Pair<String, AudioStream>? = null
+
+    init {
+        server.executor = executor
+        server.createContext("/") { exchange ->
+            val current = active
+            if (current == null || exchange.requestURI.toString() != current.first) {
+                exchange.sendResponseHeaders(404, -1); exchange.close()
+            } else if (exchange.requestMethod !in setOf("GET", "HEAD")) {
+                exchange.sendResponseHeaders(405, -1); exchange.close()
+            } else {
+                try {
+                    val request = HttpRequest.newBuilder(URI(current.second.url)).timeout(Duration.ofSeconds(45))
+                    current.second.headers.forEach { (key, value) -> request.setHeader(key, value) }
+                    exchange.requestHeaders.getFirst("Range")?.let { request.setHeader("Range", it) }
+                    val response = http.send(request.method(exchange.requestMethod, HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofInputStream())
+                    response.body().use { body ->
+                        for (key in listOf("Content-Type", "Content-Range", "Accept-Ranges", "Content-Length")) {
+                            response.headers().firstValue(key).ifPresent { exchange.responseHeaders.set(key, it) }
+                        }
+                        val length = response.headers().firstValueAsLong("Content-Length").orElse(0)
+                        exchange.sendResponseHeaders(response.statusCode(), if (exchange.requestMethod == "HEAD") -1 else length)
+                        if (exchange.requestMethod != "HEAD") exchange.responseBody.use { body.copyTo(it) }
+                    }
+                } catch (_: Exception) {
+                    // A decoder may close a range early while seeking. Never print credential-bearing request exceptions.
+                    runCatching { exchange.sendResponseHeaders(502, -1) }
+                } finally { exchange.close() }
+            }
+        }
+        server.start()
+    }
+
+    fun register(stream: AudioStream): String {
+        val path = "/${UUID.randomUUID()}"
+        active = path to stream
+        return "http://127.0.0.1:${server.address.port}$path"
+    }
+    override fun close() { active = null; server.stop(0); executor.shutdownNow(); http.close() }
+}

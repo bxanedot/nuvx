@@ -11,3 +11,11 @@
 | 7 | SF Symbols / GlyphStudio | Licence restriction | Apple's SF Symbols licence doesn't allow use on non-Apple platforms. Nuvx uses bxane's own brand icons and original or Apache-licensed UI glyphs instead. |
 | 8 | Dolby Atmos | Not offered | No licensed decoder or Atmos source path. The app must never show an Atmos toggle. |
 | 9 | Cloudflare / Vercel / DNS | No credentials yet | The Worker and website can be built and tested locally. Deploying needs the account owner to log in. |
+
+## Continuation limitations
+
+- iOS framework targets and networking exist, but the native player/app/IPA remain unfinished and unverified on this Windows host.
+- Windows app image/MSI build and native player smoke test passed. Automatic approval review rejected packaged EXE launch with "blocked by policy". No bypass attempted; launcher and installer execution remain unverified.
+- Linux/macOS builds and VLC runtime bundling remain host-specific release work.
+- Android AABs are unsigned. Store accounts/signing, policy review and physical device tests remain required.
+- Cross-platform CI was added and YAML-parsed, but has not run remotely.

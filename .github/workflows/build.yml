@@ -1,0 +1,62 @@
+name: Build and test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  applications:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Install compile SDK
+        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
+      - name: Build pinned alternative engine outside application checkout
+        run: |
+          git init "$RUNNER_TEMP/excor"
+          git -C "$RUNNER_TEMP/excor" remote add origin https://github.com/bxanedot/eXcor.git
+          git -C "$RUNNER_TEMP/excor" fetch --depth 1 origin 170e81f1caf92b8cbd637340a50e6ebe686906d5
+          git -C "$RUNNER_TEMP/excor" checkout --detach FETCH_HEAD
+          cd "$RUNNER_TEMP/excor"
+          bash ./gradlew publishAndroidPublicationToMavenLocal publishJvmPublicationToMavenLocal publishKotlinMultiplatformPublicationToMavenLocal
+      - name: Prepare Windows decoder and brand icon
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/prepare-windows.ps1
+      - name: Tests, Android variants, and desktop application image
+        run: bash ./gradlew :shared:desktopTest :androidApp:testMobileDebugUnitTest :androidApp:assembleDebug :androidApp:bundleRelease :androidApp:lint :desktopApp:test :desktopApp:createDistributable
+      - name: Compile iOS shared framework
+        if: runner.os == 'macOS'
+        run: bash ./gradlew :shared:linkReleaseFrameworkIosArm64 :shared:linkReleaseFrameworkIosSimulatorArm64
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nuvx-${{ runner.os }}
+          path: |
+            androidApp/build/outputs/apk/**/debug/*.apk
+            androidApp/build/outputs/bundle/*Release/*.aab
+            desktopApp/build/compose/binaries/main/app/
+            shared/build/bin/ios*/releaseFramework/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: reports-${{ runner.os }}
+          path: |
+            shared/build/reports/
+            androidApp/build/reports/
+            desktopApp/build/reports/
