@@ -1,13 +1,19 @@
 package com.bxane.nuvx.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,77 +22,81 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.core.*
-import kotlinx.coroutines.CancellationException
 
-private val Blue = Color(0xFF67ACFF)
-private val Background = Color(0xFF0C1019)
-private enum class Screen(val label: String) { SEARCH("Search"), QUEUE("Queue"), PLAYER("Playing"), TOGETHER("Together"), SETTINGS("Settings") }
+private val Tabs = listOf(Tab("Home", NuvxIcons.Home), Tab("Explore", NuvxIcons.Explore), Tab("Library", NuvxIcons.Library))
+private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue") }
 
 @Composable
-fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LrcLib, watch: Boolean) {
+fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LrcLib, watch: Boolean, reduceMotion: Boolean = false) {
     val state by player.state.collectAsState()
-    var screen by remember { mutableStateOf(Screen.SEARCH) }
     var welcomed by remember { mutableStateOf(store.get("welcomeSeen") == "true") }
-    // shortcut: the room lives as long as this composition (an Android activity recreation leaves it), move it to the app graph when rooms must survive that.
+    // shortcut: the room and history live as long as this composition (an Android activity recreation restarts them); move to the app graph when that matters.
     val scope = rememberCoroutineScope()
     val together = remember(player) { ListenTogether(player, scope) }
-    MaterialTheme(colorScheme = darkColorScheme(primary = Blue, background = Background, surface = Color(0xFF151C29), onSurface = Color(0xFFEAF0FA))) {
-        Surface(Modifier.fillMaxSize(), color = Background) {
-            if (watch) {
-                WatchApp(router, store, player)
-            } else if (!welcomed) {
-                Column(Modifier.safeDrawingPadding().fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
-                    Brand(96)
-                    Spacer(Modifier.height(24.dp))
-                    Text("Your next favourite.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Text("Music, with room to listen.", color = Blue, modifier = Modifier.padding(vertical = 16.dp))
-                    Text("Search YouTube Music and play available tracks as a guest. No Google account is connected. Streaming availability depends on the service and your region.")
-                    Button(onClick = { store.put("welcomeSeen", "true"); welcomed = true }, modifier = Modifier.padding(top = 32.dp)) { Text("Start listening") }
-                }
-            } else BoxWithConstraints(Modifier.safeDrawingPadding().fillMaxSize()) {
-                val wide = maxWidth >= 840.dp
-                Row(Modifier.fillMaxSize()) {
-                    if (wide) Column(Modifier.width(200.dp).fillMaxHeight().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Brand(56)
-                        Text("nuvx", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Screen.entries.forEach { item ->
-                            TextButton(onClick = { screen = item }, modifier = Modifier.fillMaxWidth()) { Text(if (screen == item) "• ${item.label}" else item.label) }
-                        }
-                    }
-                    Column(Modifier.weight(1f).fillMaxHeight()) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (!wide) Brand(40)
-                            Text(screen.label, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = if (wide) 0.dp else 12.dp))
-                        }
-                        Box(Modifier.weight(1f).fillMaxWidth()) {
-                            when (screen) {
-                                Screen.SEARCH -> Search(router, player)
-                                Screen.QUEUE -> TrackList(state.queue, "Your queue is empty. Find something in Search.", onPlay = player::skipTo, onQueue = { player.enqueue(listOf(it)) })
-                                Screen.PLAYER -> NowPlaying(player, state, lyrics)
-                                Screen.TOGETHER -> Together(together, store)
-                                Screen.SETTINGS -> Settings(router, store)
-                            }
-                        }
-                        if (state.current != null && screen != Screen.PLAYER) MiniPlayer(state, player) { screen = Screen.PLAYER }
-                        if (!wide) Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(vertical = 4.dp)) {
-                            Screen.entries.forEach { item ->
-                                TextButton(onClick = { screen = item }, modifier = Modifier.weight(1f)) {
-                                    Text(item.label, color = if (item == screen) Blue else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+    val history = remember(store) { History(store) }
+    LaunchedEffect(state.current?.videoId) { state.current?.let(history::played) }
+
+    var tab by remember { mutableIntStateOf(0) }
+    var searching by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf<String?>(null) }
+    var page by remember { mutableStateOf<Page?>(null) }
+    var sheet by remember { mutableStateOf(false) }
+
+    MaterialTheme(colorScheme = darkColorScheme(primary = NuvxColors.Accent, background = NuvxColors.Background, surface = NuvxColors.Card, onSurface = NuvxColors.Text)) {
+        Surface(Modifier.fillMaxSize(), color = NuvxColors.Background) {
+            when {
+                watch -> WatchApp(router, store, player)
+                !welcomed -> Welcome { store.put("welcomeSeen", "true"); welcomed = true }
+                else -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val wide = maxWidth >= 840.dp
+                    val select = { i: Int -> tab = i; searching = false; page = null }
+                    val openSearch = { q: String? -> searchQuery = q; searching = true; page = null }
+                    val openPage = { p: Page -> page = p }
+                    Row(Modifier.fillMaxSize()) {
+                        if (wide) Sidebar(tab, searching, select) { openSearch(null) }
+                        Box(Modifier.weight(1f).fillMaxHeight().safeDrawingPadding()) {
+                            val content = Modifier.fillMaxSize().then(if (wide) Modifier.widthIn(max = 1100.dp) else Modifier)
+                            Box(content) {
+                                when {
+                                    page != null -> SubPage(page!!, { page = null }) {
+                                        when (page!!) {
+                                            Page.TOGETHER -> TogetherPage(together, store)
+                                            Page.SETTINGS -> SettingsPage(router, store)
+                                            Page.QUEUE -> QueuePage(state, player)
+                                        }
+                                    }
+                                    searching -> SearchScreen(router, player, history, searchQuery) { openPage(Page.SETTINGS) }
+                                    tab == 0 -> HomeScreen(history, router, player, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
+                                    tab == 1 -> ExploreScreen({ openSearch(it) }) { openPage(Page.SETTINGS) }
+                                    else -> LibraryScreen(history, state, player, { openPage(Page.QUEUE) }, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
                                 }
                             }
+                            Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 720.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true })
+                                if (!wide) TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) })
+                            }
                         }
+                    }
+                    AnimatedVisibility(sheet && state.current != null,
+                        enter = if (reduceMotion) fadeIn() else slideInVertically(tween(320)) { it },
+                        exit = if (reduceMotion) fadeOut() else slideOutVertically(tween(260)) { it }) {
+                        NowPlayingSheet(player, state, lyrics, reduceMotion) { sheet = false }
                     }
                 }
             }
@@ -94,190 +104,155 @@ fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyr
     }
 }
 
-@Composable private fun Brand(size: Int) {
-    Image(NuvxMark, "Nuvx — bxane's lightning mark", Modifier.size(size.dp), contentScale = ContentScale.Fit)
+@Composable private fun Sidebar(tab: Int, searching: Boolean, onSelect: (Int) -> Unit, onSearch: () -> Unit) =
+    Column(Modifier.width(240.dp).fillMaxHeight().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.padding(start = 8.dp, bottom = 20.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Image(NuvxMark, "Nuvx", Modifier.size(36.dp))
+            Text("nuvx", color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 10.dp))
+        }
+        SidebarItem(Tab("Search", NuvxIcons.Search), searching, onSearch)
+        Tabs.forEachIndexed { i, t -> SidebarItem(t, !searching && tab == i) { onSelect(i) } }
+    }
+
+@Composable private fun SidebarItem(tab: Tab, active: Boolean, onClick: () -> Unit) =
+    Row(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(24.dp)).background(if (active) Color.White.copy(0.14f) else Color.Transparent)
+        .clickable(onClick = onClick).semantics { selected = active; role = Role.Tab }.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(tab.icon, null, Modifier.size(22.dp), tint = if (active) NuvxColors.Text else NuvxColors.Secondary)
+        Text(tab.label, color = if (active) NuvxColors.Text else NuvxColors.Secondary, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 14.dp))
+    }
+
+@Composable private fun SubPage(page: Page, onBack: () -> Unit, body: @Composable () -> Unit) = Column(Modifier.fillMaxSize()) {
+    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(44.dp).glass().clickable(onClick = onBack).semantics { contentDescription = "Back"; role = Role.Button }, contentAlignment = Alignment.Center) {
+            Icon(NuvxIcons.Chevron, null, Modifier.size(20.dp).graphicsLayerMirror(), tint = NuvxColors.Text)
+        }
+    }
+    LargeTitle(page.title, Modifier.padding(bottom = 8.dp))
+    Box(Modifier.weight(1f)) { body() }
 }
 
-@Composable private fun Search(router: BackendRouter, player: NuvxPlayer) {
-    var query by remember { mutableStateOf("") }
-    var submitted by remember { mutableStateOf("") }
-    var request by remember { mutableIntStateOf(0) }
-    var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var searched by remember { mutableStateOf(false) }
-    LaunchedEffect(request) {
-        if (submitted.isBlank()) return@LaunchedEffect
-        busy = true; error = null; tracks = emptyList()
-        try { tracks = router.search(submitted).tracks; searched = true }
-        catch (e: CancellationException) { throw e }
-        catch (_: Exception) { error = "Search is unavailable. Check your connection or try the other engine in Settings." }
-        finally { busy = false }
-    }
-    val submit = { if (query.isNotBlank()) { submitted = query.trim(); request++ }; Unit }
-    Column {
-        Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(query, { query = it }, Modifier.weight(1f), label = { Text("Songs, artists, moods") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { submit() }))
-            Button(onClick = submit, enabled = query.isNotBlank()) { Text("Find") }
-        }
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(20.dp))
-        if (error != null) Text(error!!, Modifier.padding(20.dp), color = MaterialTheme.colorScheme.error)
-        TrackList(tracks, if (searched) "No playable tracks found. Try another search." else "Find your frequency.\nSearch for a song or an artist to begin.",
-            onPlay = { player.playQueue(tracks, it) }, onQueue = { player.enqueue(listOf(it)) })
-    }
-}
+private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
 
-@Composable private fun TrackList(tracks: List<Track>, empty: String, onPlay: (Int) -> Unit, onQueue: (Track) -> Unit) {
-    if (tracks.isEmpty()) {
-        Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Brand(80); Spacer(Modifier.height(20.dp)); Text(empty, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    } else LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        itemsIndexed(tracks) { index, track ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { onPlay(index) }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Artwork(track, Modifier.size(56.dp))
-                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                    Text(track.title, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                    Text(track.artistLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                TextButton(onClick = { onQueue(track) }) { Text("+ Queue") }
-            }
-        }
+@Composable private fun Welcome(onDone: () -> Unit) = Column(Modifier.safeDrawingPadding().fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
+    Image(NuvxMark, "Nuvx — bxane's lightning mark", Modifier.size(96.dp), contentScale = ContentScale.Fit)
+    Spacer(Modifier.height(28.dp))
+    Text("Your next favourite.", color = NuvxColors.Text, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp)
+    Text("Music, with room to listen.", color = NuvxColors.Accent, fontSize = 20.sp, modifier = Modifier.padding(vertical = 12.dp))
+    Text("Search YouTube Music and play available songs as a guest. No Google account is connected. Availability depends on the service and your region.", color = NuvxColors.Secondary, fontSize = 16.sp)
+    Box(Modifier.padding(top = 32.dp).clip(CircleShape).background(Color.White).clickable(onClick = onDone).padding(horizontal = 28.dp, vertical = 14.dp)
+        .semantics { role = Role.Button }) {
+        Text("Start listening", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
     }
 }
 
-@Composable private fun Artwork(track: Track?, modifier: Modifier) {
-    Box(modifier.clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(Color(0xFF173D63), Color(0xFF3D2464)))), contentAlignment = Alignment.Center) {
-        if (track?.artworkUrl != null) AsyncImage(track.artworkUrl, "Artwork for ${track.title}", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else Brand(40)
+@Composable private fun QueuePage(state: PlayerState, player: NuvxPlayer) =
+    if (state.queue.isEmpty()) Text("Your queue is empty. Play something from Search or Home.", color = NuvxColors.Secondary, fontSize = 16.sp, modifier = Modifier.padding(20.dp))
+    else androidx.compose.foundation.lazy.LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
+        items(state.queue.size) { i -> TrackRow(state.queue[i], active = i == state.index) { player.skipTo(i) } }
     }
-}
 
-@Composable private fun MiniPlayer(state: PlayerState, player: NuvxPlayer, open: () -> Unit) {
-    Surface(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Artwork(state.current, Modifier.size(48.dp).clickable(onClick = open))
-            Column(Modifier.weight(1f).clickable(onClick = open).padding(horizontal = 12.dp)) {
-                Text(state.current?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(if (state.buffering) "Loading audio…" else state.current?.artistLine.orEmpty(), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            TextButton(onClick = player::togglePlay) { Text(if (state.isPlaying) "Pause" else "Play") }
-        }
-    }
-}
-
-@Composable private fun NowPlaying(player: NuvxPlayer, state: PlayerState, library: LrcLib) {
-    val track = state.current
-    var lyrics by remember { mutableStateOf<Lyrics?>(null) }
-    var lyricsStatus by remember { mutableStateOf("Lyrics unavailable") }
-    LaunchedEffect(track?.videoId) {
-        lyrics = null
-        if (track != null) {
-            lyricsStatus = "Finding lyrics…"
-            try { lyrics = library.find(track); lyricsStatus = "No lyrics found for this track" }
-            catch (e: CancellationException) { throw e }
-            catch (_: Exception) { lyricsStatus = "Lyrics could not be loaded" }
-        }
-    }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Artwork(track, Modifier.sizeIn(maxWidth = 340.dp).fillMaxWidth().aspectRatio(1f))
-        Spacer(Modifier.height(24.dp))
-        Text(track?.title ?: "Nothing playing yet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(track?.artistLine.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Slider(value = state.positionMs.toFloat().coerceIn(0f, state.durationMs.coerceAtLeast(1).toFloat()), onValueChange = { player.seekTo(it.toLong()) },
-            valueRange = 0f..state.durationMs.coerceAtLeast(1).toFloat(), enabled = state.durationMs > 0)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(time(state.positionMs)); Text(time(state.durationMs)) }
-        Row(Modifier.padding(vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedButton(onClick = player::previous, enabled = track != null) { Text("Previous") }
-            Button(onClick = player::togglePlay, enabled = track != null) { Text(if (state.isPlaying) "Pause" else "Play") }
-            OutlinedButton(onClick = player::next, enabled = state.index < state.queue.lastIndex) { Text("Next") }
-        }
-        if (state.buffering) CircularProgressIndicator(Modifier.size(24.dp))
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        HorizontalDivider(Modifier.padding(vertical = 16.dp))
-        when (val text = lyrics) {
-            is Lyrics.Plain -> Text(text.text, style = MaterialTheme.typography.bodyLarge)
-            is Lyrics.Synced -> {
-                val active = text.lineAt(state.positionMs)
-                text.lines.forEachIndexed { index, line ->
-                    Text(line.text, color = if (index == active) Blue else MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.titleLarge, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
-                }
-            }
-            Lyrics.Instrumental -> Text("Instrumental")
-            null -> Text(lyricsStatus, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-private fun time(ms: Long): String = "${ms / 60_000}:${(ms / 1000 % 60).toString().padStart(2, '0')}"
-
-@Composable private fun Settings(router: BackendRouter, store: KeyValueStore) {
+@Composable private fun SettingsPage(router: BackendRouter, store: KeyValueStore) {
     val selected by router.selected.collectAsState()
     val fallback by router.fallback.collectAsState()
     val health by router.health.collectAsState()
     val uri = LocalUriHandler.current
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Streaming engine", style = MaterialTheme.typography.titleLarge)
-        router.available.forEach { backend ->
-            Row(Modifier.fillMaxWidth().clickable { router.choose(backend, store) }, verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected == backend, onClick = { router.choose(backend, store) })
-                Column {
-                    Text(backend.label + if (backend == BackendId.INNERTUBEX) " · Default" else " · Alternative")
-                    Text(health[backend]?.let { "${it.operation}: ${if (it.ok) "available" else "unavailable"} · ${it.latencyMs} ms" } ?: "Not checked this session", style = MaterialTheme.typography.bodySmall)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = BottomChromePadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("STREAMING ENGINE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 8.dp))
+        Column(Modifier.clip(RoundedCornerShape(18.dp)).background(NuvxColors.Card)) {
+            router.available.forEach { backend ->
+                Row(Modifier.fillMaxWidth().clickable { router.choose(backend, store) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(backend.label + if (backend == BackendId.INNERTUBEX) " · Default" else " · Alternative", color = NuvxColors.Text, fontSize = 17.sp)
+                        Text(health[backend]?.let { "${it.operation}: ${if (it.ok) "available" else "unavailable"} · ${it.latencyMs} ms" } ?: "Not checked this session", color = NuvxColors.Secondary, fontSize = 13.sp)
+                    }
+                    RadioButton(selected == backend, onClick = { router.choose(backend, store) })
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Automatic fallback", color = NuvxColors.Text, fontSize = 17.sp)
+                    Text("Try the other engine when a request fails.", color = NuvxColors.Secondary, fontSize = 13.sp)
+                }
+                Switch(fallback, onCheckedChange = { router.chooseFallback(it, store) })
+            }
+        }
+        Text("The selected engine applies to new requests. eXcor streams may be refused by the service; fallback can use InnerTubeX.", color = NuvxColors.Secondary, fontSize = 13.sp)
+        Text("ABOUT", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 20.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(NuvxMark, null, Modifier.size(56.dp))
+            Column(Modifier.padding(start = 14.dp)) {
+                Text("Nuvx", color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("Developed and led by bxane. Brand icons supplied by bxane.", color = NuvxColors.Secondary, fontSize = 14.sp)
+            }
+        }
+        Column(Modifier.clip(RoundedCornerShape(18.dp)).background(NuvxColors.Card)) {
+            listOf("Official Nuvx website" to "https://nuvx.lol", "Developer portfolio" to "https://bxane.lol",
+                "Alternative developer portfolio" to "https://guns.lol/bxane", "Community Discord" to "https://discord.gg/h4Wsu824Uf",
+                "Contact bxane" to "mailto:bxanee@gmail.com", "Source code and licences" to "https://github.com/bxanedot/nuvx").forEach { (label, url) ->
+                Row(Modifier.fillMaxWidth().clickable { uri.openUri(url) }.padding(16.dp).semantics { role = Role.Button }, verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, color = NuvxColors.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                    Icon(NuvxIcons.Chevron, null, Modifier.size(16.dp), tint = NuvxColors.Tertiary)
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text("Automatic fallback"); Text("Try the other engine when a request fails.", style = MaterialTheme.typography.bodySmall) }
-            Switch(fallback, onCheckedChange = { router.chooseFallback(it, store) })
-        }
-        Text("The selected engine applies to new requests. eXcor streams may be refused by the service; fallback can use InnerTubeX.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        HorizontalDivider(Modifier.padding(vertical = 12.dp))
-        Brand(64)
-        Text("Nuvx", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Developed and led by bxane. Brand icons supplied by bxane.")
-        listOf("Official Nuvx website" to "https://nuvx.lol", "Developer portfolio" to "https://bxane.lol",
-            "Alternative developer portfolio" to "https://guns.lol/bxane", "Community Discord" to "https://discord.gg/h4Wsu824Uf",
-            "Contact bxane" to "mailto:bxanee@gmail.com", "Source code and licences" to "https://github.com/bxanedot/nuvx").forEach { (label, url) ->
-            TextButton(onClick = { uri.openUri(url) }) { Text(label) }
-        }
-        Text("Early development · GPL-3.0-only\nInnerTubeX · GPL-3.0\neXcor · Apache-2.0\nNo Google account connected.", style = MaterialTheme.typography.bodySmall)
+        Text("Early development · GPL-3.0-only\nInnerTubeX · GPL-3.0\neXcor · Apache-2.0\nNo Google account connected.", color = NuvxColors.Secondary, fontSize = 13.sp)
     }
 }
 
-@Composable private fun Together(together: ListenTogether, store: KeyValueStore) {
+@Composable private fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier, ime: ImeAction = ImeAction.Done, onIme: () -> Unit = {}) =
+    Box(modifier.height(52.dp).clip(RoundedCornerShape(16.dp)).background(NuvxColors.Card).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+        if (value.isEmpty()) Text(placeholder, color = NuvxColors.Tertiary, fontSize = 17.sp)
+        BasicTextField(value, onChange, Modifier.fillMaxWidth().semantics { contentDescription = placeholder }, singleLine = true,
+            textStyle = TextStyle(color = NuvxColors.Text, fontSize = 17.sp), cursorBrush = SolidColor(NuvxColors.Accent),
+            keyboardOptions = KeyboardOptions(imeAction = ime), keyboardActions = KeyboardActions(onAny = { onIme() }))
+    }
+
+@Composable private fun PillButton(text: String, enabled: Boolean, primary: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) =
+    Box(modifier.height(52.dp).clip(CircleShape).background(if (primary) Color.White.copy(if (enabled) 1f else 0.4f) else NuvxColors.Card)
+        .clickable(enabled = enabled, onClick = onClick).semantics { role = Role.Button }.padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+        Text(text, color = if (primary) Color.Black else NuvxColors.Text.copy(if (enabled) 1f else 0.4f), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+    }
+
+@Composable private fun TogetherPage(together: ListenTogether, store: KeyValueStore) {
     val ui by together.ui.collectAsState()
     var name by remember { mutableStateOf(store.get("listenName") ?: "") }
     var code by remember { mutableStateOf("") }
     val displayName = name.trim().ifEmpty { "Listener" }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = BottomChromePadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (!ui.inRoom) {
-            Text("Listen together", style = MaterialTheme.typography.titleLarge)
-            Text("Start a room and share its code. Everyone hears the same song at the same moment, each streaming on their own device.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedTextField(name, { name = it.take(32); store.put("listenName", name) }, Modifier.fillMaxWidth(), label = { Text("Your name") }, singleLine = true)
-            Button(onClick = { together.create(displayName) }, enabled = !ui.connecting, modifier = Modifier.fillMaxWidth()) { Text("Start a room") }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(code, { code = it.uppercase().filter(Char::isLetterOrDigit).take(6) }, Modifier.weight(1f), label = { Text("Room code") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (code.length == 6) together.join(code, displayName) }))
-                OutlinedButton(onClick = { together.join(code, displayName) }, enabled = code.length == 6 && !ui.connecting) { Text("Join") }
+            Text("Start a room and share its code. Everyone hears the same song at the same moment, each streaming on their own device.", color = NuvxColors.Secondary, fontSize = 16.sp)
+            Field(name, { name = it.take(32); store.put("listenName", name) }, "Your name", Modifier.fillMaxWidth())
+            PillButton("Start a room", !ui.connecting, primary = true, Modifier.fillMaxWidth()) { together.create(displayName) }
+            Text("OR JOIN ONE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Field(code, { code = it.uppercase().filter(Char::isLetterOrDigit).take(6) }, "Room code", Modifier.weight(1f), ImeAction.Go) { if (code.length == 6) together.join(code, displayName) }
+                PillButton("Join", code.length == 6 && !ui.connecting, primary = false) { together.join(code, displayName) }
             }
-            if (ui.connecting) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (ui.connecting) LinearProgressIndicator(Modifier.fillMaxWidth(), color = NuvxColors.Accent, trackColor = Color.White.copy(0.1f))
         } else {
-            Text("Room", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(ui.code.orEmpty(), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = Blue,
-                modifier = Modifier.semantics { contentDescription = "Room code ${ui.code.orEmpty().toList().joinToString(" ")}" })
-            Text(if (ui.isHost) "You're the host. What you play, everyone hears." else "Following ${ui.members.firstOrNull { it.id == ui.host }?.name ?: "the host"}. The host controls playback.")
-            ui.playback?.takeIf { it.trackId != null }?.let { Text("Now: ${it.title ?: "Shared track"}" + it.artists.takeIf { a -> a.isNotEmpty() }?.joinToString(", ", " · ").orEmpty(), fontWeight = FontWeight.Medium) }
-            HorizontalDivider()
-            Text("${ui.members.size} listening", style = MaterialTheme.typography.titleMedium)
-            ui.members.forEach { m ->
-                Text(m.name + (if (m.id == ui.host) " · Host" else "") + (if (m.id == ui.you) " (you)" else ""))
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(NuvxColors.Card).padding(20.dp)) {
+                Text("ROOM CODE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp)
+                Text(ui.code.orEmpty(), color = NuvxColors.Accent, fontSize = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp,
+                    modifier = Modifier.semantics { contentDescription = "Room code ${ui.code.orEmpty().toList().joinToString(" ")}" })
+                Text(if (ui.isHost) "You're the host. What you play, everyone hears." else "Following ${ui.members.firstOrNull { it.id == ui.host }?.name ?: "the host"}. The host controls playback.",
+                    color = NuvxColors.Text, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
+                ui.playback?.takeIf { it.trackId != null }?.let {
+                    Text("Now: ${it.title ?: "Shared track"}" + it.artists.takeIf { a -> a.isNotEmpty() }?.joinToString(", ", " · ").orEmpty(),
+                        color = NuvxColors.Secondary, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+                }
             }
-            OutlinedButton(onClick = together::leave) { Text("Leave room") }
+            SectionHeader("${ui.members.size} listening", Modifier.padding(start = 0.dp))
+            ui.members.forEach { m ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(NuvxColors.Card), contentAlignment = Alignment.Center) {
+                        Text(m.name.take(1).uppercase(), color = NuvxColors.Text, fontWeight = FontWeight.Bold)
+                    }
+                    Text(m.name + (if (m.id == ui.you) " (you)" else ""), color = NuvxColors.Text, fontSize = 17.sp, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                    if (m.id == ui.host) Text("Host", color = NuvxColors.Accent, fontSize = 14.sp)
+                }
+            }
+            PillButton("Leave room", true, primary = false, Modifier.padding(top = 12.dp)) { together.leave() }
         }
-        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        ui.error?.let { Text(it, color = Color(0xFFFF6B6B), fontSize = 15.sp) }
     }
 }

@@ -57,23 +57,47 @@ object Lrc {
 /** LRCLIB (https://lrclib.net) — free, keyless; asks clients to identify themselves via User-Agent. */
 class LrcLib(private val http: HttpClient) {
     @Serializable
-    private class Hit(val instrumental: Boolean = false, val plainLyrics: String? = null, val syncedLyrics: String? = null)
+    private class Hit(val instrumental: Boolean = false, val plainLyrics: String? = null, val syncedLyrics: String? = null, val duration: Double? = null)
 
+    /** Exact match first; YouTube titles often carry extras ("/ B-side", "(Official Video)"), so fall back to a cleaned search. */
     suspend fun find(track: Track, offsetMs: Long = 0): Lyrics? {
-        val response = http.get("https://lrclib.net/api/get") {
-            header("User-Agent", "Nuvx (https://nuvx.lol)")
+        val artist = track.artists.firstOrNull().orEmpty()
+        val exact = http.get("https://lrclib.net/api/get") {
+            header("User-Agent", UA)
             parameter("track_name", track.title)
-            parameter("artist_name", track.artists.firstOrNull().orEmpty())
+            parameter("artist_name", artist)
             track.album?.let { parameter("album_name", it) }
             track.durationMs?.let { parameter("duration", it / 1000) }
         }
-        if (response.status == HttpStatusCode.NotFound) return null
-        val hit = response.body<Hit>()
+        val hit = if (exact.status != HttpStatusCode.NotFound) exact.body<Hit>() else {
+            val candidates = http.get("https://lrclib.net/api/search") {
+                header("User-Agent", UA)
+                parameter("track_name", cleanTitle(track.title))
+                if (artist.isNotEmpty()) parameter("artist_name", artist)
+            }.body<List<Hit>>()
+            pick(candidates, track.durationMs) ?: return null
+        }
         return when {
             hit.instrumental -> Lyrics.Instrumental
             hit.syncedLyrics != null -> Lrc.parse(hit.syncedLyrics, offsetMs)
             hit.plainLyrics != null -> Lyrics.Plain(hit.plainLyrics)
             else -> null
+        }
+    }
+
+    companion object {
+        private const val UA = "Nuvx (https://nuvx.lol)"
+        private val extras = Regex("""\s*[(\[][^)\]]*(official|video|audio|lyric|visuali[sz]er|remaster|hq|hd|4k|explicit|clean)[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
+
+        /** "One More Time / Aerodynamic (Official Video) [HQ]" → "One More Time". */
+        internal fun cleanTitle(title: String) = extras.replace(title, "").substringBefore(" / ").trim().ifEmpty { title }
+
+        /** Synced lyrics within 3 s of our duration win; a wrong-length version would drift out of sync, so it isn't used for timing. */
+        private fun pick(hits: List<Hit>, durationMs: Long?): Hit? {
+            val fits = { h: Hit -> durationMs == null || h.duration == null || kotlin.math.abs(h.duration * 1000 - durationMs) <= 3_000 }
+            return hits.firstOrNull { it.syncedLyrics != null && fits(it) }
+                ?: hits.firstOrNull { it.instrumental && fits(it) }
+                ?: hits.firstOrNull { it.plainLyrics != null }?.let { Hit(plainLyrics = it.plainLyrics) }
         }
     }
 }

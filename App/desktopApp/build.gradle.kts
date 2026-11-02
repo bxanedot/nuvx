@@ -33,7 +33,7 @@ compose.desktop {
             vendor = "bxane"
             modules("jdk.httpserver", "java.net.http", "java.prefs", "jdk.unsupported")
             windows { iconFile.set(layout.buildDirectory.file("native-icons/nuvx.ico")) }
-            linux { packageName = "nuvx"; iconFile.set(rootProject.file("core/assets/brand/flat/03_electric_blue.png")) }
+            linux { packageName = "nuvx"; iconFile.set(rootProject.file("core/assets/brand/flat/01_silver_white.png")) }
             macOS { bundleID = "com.bxane.nuvx" }
         }
     }

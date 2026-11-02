@@ -26,6 +26,13 @@ class LrcTest {
     }
 
     @Test fun nonLrcIsNull() = assertNull(Lrc.parse("just text"))
+
+    @Test fun titleCleaningForLookup() {
+        assertEquals("One More Time", LrcLib.cleanTitle("One More Time / Aerodynamic"))
+        assertEquals("Song", LrcLib.cleanTitle("Song (Official Music Video) [HQ]"))
+        assertEquals("Song (feat. X)", LrcLib.cleanTitle("Song (feat. X) [Lyric Video]"))
+        assertEquals("(untitled)", LrcLib.cleanTitle("(untitled)"))
+    }
 }
 
 class RadioStationTest {
