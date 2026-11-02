@@ -1,0 +1,20 @@
+name = "nuvx-listen"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+# Room creation: 10 per minute per IP.
+[[ratelimits]]
+name = "CREATE_LIMIT"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+# Uncomment once nuvx.lol is on this Cloudflare account:
+# routes = [{ pattern = "listen.nuvx.lol", custom_domain = true }]
