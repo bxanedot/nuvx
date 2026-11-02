@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,13 +32,16 @@ import kotlinx.coroutines.CancellationException
 
 private val Blue = Color(0xFF67ACFF)
 private val Background = Color(0xFF0C1019)
-private enum class Screen(val label: String) { SEARCH("Search"), QUEUE("Queue"), PLAYER("Playing"), SETTINGS("Settings") }
+private enum class Screen(val label: String) { SEARCH("Search"), QUEUE("Queue"), PLAYER("Playing"), TOGETHER("Together"), SETTINGS("Settings") }
 
 @Composable
 fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyrics: LrcLib, watch: Boolean) {
     val state by player.state.collectAsState()
     var screen by remember { mutableStateOf(Screen.SEARCH) }
     var welcomed by remember { mutableStateOf(store.get("welcomeSeen") == "true") }
+    // shortcut: the room lives as long as this composition (an Android activity recreation leaves it), move it to the app graph when rooms must survive that.
+    val scope = rememberCoroutineScope()
+    val together = remember(player) { ListenTogether(player, scope) }
     MaterialTheme(colorScheme = darkColorScheme(primary = Blue, background = Background, surface = Color(0xFF151C29), onSurface = Color(0xFFEAF0FA))) {
         Surface(Modifier.fillMaxSize(), color = Background) {
             if (watch) {
@@ -70,6 +75,7 @@ fun NuvxApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, lyr
                                 Screen.SEARCH -> Search(router, player)
                                 Screen.QUEUE -> TrackList(state.queue, "Your queue is empty. Find something in Search.", onPlay = player::skipTo, onQueue = { player.enqueue(listOf(it)) })
                                 Screen.PLAYER -> NowPlaying(player, state, lyrics)
+                                Screen.TOGETHER -> Together(together, store)
                                 Screen.SETTINGS -> Settings(router, store)
                             }
                         }
@@ -238,5 +244,40 @@ private fun time(ms: Long): String = "${ms / 60_000}:${(ms / 1000 % 60).toString
             TextButton(onClick = { uri.openUri(url) }) { Text(label) }
         }
         Text("Early development · GPL-3.0-only\nInnerTubeX · GPL-3.0\neXcor · Apache-2.0\nNo Google account connected.", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable private fun Together(together: ListenTogether, store: KeyValueStore) {
+    val ui by together.ui.collectAsState()
+    var name by remember { mutableStateOf(store.get("listenName") ?: "") }
+    var code by remember { mutableStateOf("") }
+    val displayName = name.trim().ifEmpty { "Listener" }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (!ui.inRoom) {
+            Text("Listen together", style = MaterialTheme.typography.titleLarge)
+            Text("Start a room and share its code. Everyone hears the same song at the same moment, each streaming on their own device.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(name, { name = it.take(32); store.put("listenName", name) }, Modifier.fillMaxWidth(), label = { Text("Your name") }, singleLine = true)
+            Button(onClick = { together.create(displayName) }, enabled = !ui.connecting, modifier = Modifier.fillMaxWidth()) { Text("Start a room") }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(code, { code = it.uppercase().filter(Char::isLetterOrDigit).take(6) }, Modifier.weight(1f), label = { Text("Room code") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { if (code.length == 6) together.join(code, displayName) }))
+                OutlinedButton(onClick = { together.join(code, displayName) }, enabled = code.length == 6 && !ui.connecting) { Text("Join") }
+            }
+            if (ui.connecting) LinearProgressIndicator(Modifier.fillMaxWidth())
+        } else {
+            Text("Room", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(ui.code.orEmpty(), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = Blue,
+                modifier = Modifier.semantics { contentDescription = "Room code ${ui.code.orEmpty().toList().joinToString(" ")}" })
+            Text(if (ui.isHost) "You're the host. What you play, everyone hears." else "Following ${ui.members.firstOrNull { it.id == ui.host }?.name ?: "the host"}. The host controls playback.")
+            ui.playback?.takeIf { it.trackId != null }?.let { Text("Now: ${it.title ?: "Shared track"}" + it.artists.takeIf { a -> a.isNotEmpty() }?.joinToString(", ", " · ").orEmpty(), fontWeight = FontWeight.Medium) }
+            HorizontalDivider()
+            Text("${ui.members.size} listening", style = MaterialTheme.typography.titleMedium)
+            ui.members.forEach { m ->
+                Text(m.name + (if (m.id == ui.host) " · Host" else "") + (if (m.id == ui.you) " (you)" else ""))
+            }
+            OutlinedButton(onClick = together::leave) { Text("Leave room") }
+        }
+        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 }

@@ -41,6 +41,7 @@ kotlin {
             api(libs.ktor.core)
             implementation(libs.ktor.content.negotiation)
             implementation(libs.ktor.serialization.json)
+            implementation(libs.ktor.websockets)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

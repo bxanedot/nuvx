@@ -23,7 +23,17 @@ test("only the host may change playback; state is broadcast with server time", (
   const msg = JSON.stringify({ t: "state", trackId: ID, positionMs: 1000, playing: true, queue: [ID] });
   assert.deepEqual(handle(room, "b", msg, 5).reply, { t: "error", code: "not_host" });
   const out = handle(room, "a", msg, 5);
-  assert.deepEqual(out.broadcast, { t: "state", s: 5, playback: { trackId: ID, positionMs: 1000, playing: true, updatedAt: 5, queue: [ID] } });
+  assert.deepEqual(out.broadcast, { t: "state", s: 5, playback: { trackId: ID, positionMs: 1000, playing: true, updatedAt: 5, queue: [ID], title: undefined, artists: undefined } });
+});
+
+test("display text is optional and length-capped", () => {
+  const room = emptyRoom(0);
+  join(room, { id: "a", name: "A" }, 0);
+  const ok = handle(room, "a", JSON.stringify({ t: "state", trackId: ID, positionMs: 0, playing: true, title: "Song", artists: ["Band"] }), 1);
+  assert.equal((ok.broadcast as any).playback.title, "Song");
+  for (const bad of [{ title: "x".repeat(201) }, { artists: ["x".repeat(101)] }, { artists: Array(11).fill("a") }, { title: 5 }]) {
+    assert.deepEqual(handle(room, "a", JSON.stringify({ t: "state", trackId: ID, positionMs: 0, playing: true, ...bad }), 1).reply, { t: "error", code: "bad_message" });
+  }
 });
 
 test("rejects malformed input and anything that is not a YouTube video id", () => {

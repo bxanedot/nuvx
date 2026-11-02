@@ -2,12 +2,13 @@
 // Rooms sync track IDs and playback state only; every client streams audio from its own source.
 
 export type Member = { id: string; name: string };
-export type Playback = { trackId: string | null; positionMs: number; playing: boolean; updatedAt: number; queue: string[] };
+/** [title]/[artists] are display text only; clients derive artwork from [trackId], so the server never relays URLs. */
+export type Playback = { trackId: string | null; positionMs: number; playing: boolean; updatedAt: number; queue: string[]; title?: string; artists?: string[] };
 export type RoomState = { host: string | null; members: Member[]; playback: Playback };
 
 export type ClientMsg =
   | { t: "ping"; c: number }
-  | { t: "state"; trackId: string | null; positionMs: number; playing: boolean; queue?: string[] }
+  | { t: "state"; trackId: string | null; positionMs: number; playing: boolean; queue?: string[]; title?: string; artists?: string[] }
   | { t: "handoff"; to: string };
 
 export type ServerMsg =
@@ -62,6 +63,8 @@ export function handle(room: RoomState, from: string, raw: unknown, now: number)
     playing: msg.playing,
     updatedAt: now,
     queue: msg.queue ?? room.playback.queue,
+    title: msg.title,
+    artists: msg.artists,
   };
   return { broadcast: { t: "state", s: now, playback: room.playback } };
 }
@@ -93,8 +96,11 @@ function parse(raw: unknown): ClientMsg | null {
       const trackOk = m.trackId === null || (typeof m.trackId === "string" && VIDEO_ID.test(m.trackId));
       const queueOk = m.queue === undefined ||
         (Array.isArray(m.queue) && m.queue.length <= MAX_QUEUE && m.queue.every((q: unknown) => typeof q === "string" && VIDEO_ID.test(q)));
-      if (!trackOk || !queueOk || !num(m.positionMs) || typeof m.playing !== "boolean") return null;
-      return { t: "state", trackId: m.trackId, positionMs: m.positionMs, playing: m.playing, queue: m.queue };
+      const text = (v: unknown, max: number) => typeof v === "string" && v.length <= max;
+      const titleOk = m.title === undefined || text(m.title, 200);
+      const artistsOk = m.artists === undefined || (Array.isArray(m.artists) && m.artists.length <= 10 && m.artists.every((a: unknown) => text(a, 100)));
+      if (!trackOk || !queueOk || !titleOk || !artistsOk || !num(m.positionMs) || typeof m.playing !== "boolean") return null;
+      return { t: "state", trackId: m.trackId, positionMs: m.positionMs, playing: m.playing, queue: m.queue, title: m.title, artists: m.artists };
     }
     default:
       return null;
