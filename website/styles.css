@@ -15,3 +15,4 @@
 :root[data-theme=dark] .brand img,:root[data-theme=dark] .hero-logo,:root[data-theme=dark] .social-links img{filter:grayscale(1) brightness(0) invert(1)}
 .social-links img{filter:grayscale(1) contrast(1.35) brightness(.62)}
 :root[data-theme=dark] .social-links img{filter:grayscale(1) contrast(1.25) brightness(1.7)}
+:root[data-theme=dark] .social-links img[src*="guns-lol"],:root[data-theme=dark] .social-links img[src*="github"]{filter:grayscale(1) brightness(0) invert(1)}
