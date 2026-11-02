@@ -201,7 +201,7 @@ private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
 }
 
 @Composable private fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier, ime: ImeAction = ImeAction.Done, onIme: () -> Unit = {}) =
-    Box(modifier.height(52.dp).clip(RoundedCornerShape(16.dp)).background(NuvxColors.Card).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+    Box(modifier.heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(NuvxColors.Card).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
         if (value.isEmpty()) Text(placeholder, color = NuvxColors.Tertiary, fontSize = 17.sp)
         BasicTextField(value, onChange, Modifier.fillMaxWidth().semantics { contentDescription = placeholder }, singleLine = true,
             textStyle = TextStyle(color = NuvxColors.Text, fontSize = 17.sp), cursorBrush = SolidColor(NuvxColors.Accent),
@@ -209,7 +209,7 @@ private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
     }
 
 @Composable private fun PillButton(text: String, enabled: Boolean, primary: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) =
-    Box(modifier.height(52.dp).clip(CircleShape).background(if (primary) Color.White.copy(if (enabled) 1f else 0.4f) else NuvxColors.Card)
+    Box(modifier.heightIn(min = 52.dp).clip(CircleShape).background(if (primary) Color.White.copy(if (enabled) 1f else 0.4f) else NuvxColors.Card)
         .clickable(enabled = enabled, onClick = onClick).semantics { role = Role.Button }.padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
         Text(text, color = if (primary) Color.Black else NuvxColors.Text.copy(if (enabled) 1f else 0.4f), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }

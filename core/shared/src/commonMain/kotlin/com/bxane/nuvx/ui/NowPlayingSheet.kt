@@ -202,7 +202,7 @@ private class TrackActions(val liked: Boolean, val onLike: () -> Unit, val onRad
 }
 
 @Composable private fun RoundChip(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(0.16f)).clickable(enabled = enabled, onClick = onClick)
+    Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(0.16f)).clickable(enabled = enabled, onClick = onClick)
         .semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
         Icon(icon, null, Modifier.size(20.dp), tint = Color.White.copy(if (enabled) 1f else 0.4f))
     }

@@ -33,7 +33,7 @@ object NuvxColors {
     val Background = Color.Black
     val Text = Color.White
     val Secondary = Color.White.copy(alpha = 0.6f)
-    val Tertiary = Color.White.copy(alpha = 0.38f)
+    val Tertiary = Color.White.copy(alpha = 0.56f) // 5.9–6.5:1 on our surfaces; placeholders need 4.5:1
     val Card = Color(0xFF1A1A1C)
     val Accent = Color(0xFF67ACFF) // from bxane's electric-blue mark
 }
@@ -63,13 +63,13 @@ fun Modifier.glass(shape: Shape = CircleShape) = this
 
 @Composable fun PlainIconButton(icon: ImageVector, label: String, size: Dp, enabled: Boolean = true, onClick: () -> Unit) =
     Box(Modifier.size(size).clip(CircleShape).clickable(enabled = enabled, onClick = onClick).semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(size * 0.62f), tint = if (enabled) NuvxColors.Text else NuvxColors.Tertiary)
+        Icon(icon, null, Modifier.size(size * 0.62f), tint = if (enabled) NuvxColors.Text else Color.White.copy(alpha = 0.3f))
     }
 
 /** Floating pill: artwork · title/artist · play/pause · next. Tapping the text opens the full player. */
 @Composable fun MiniPlayerPill(state: PlayerState, onToggle: () -> Unit, onNext: () -> Unit, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val track = state.current ?: return
-    Row(modifier.fillMaxWidth().height(64.dp).glass(RoundedCornerShape(32.dp)).clickable(onClick = onOpen).padding(start = 10.dp, end = 8.dp),
+    Row(modifier.fillMaxWidth().heightIn(min = 64.dp).glass(RoundedCornerShape(32.dp)).clickable(onClick = onOpen).padding(start = 10.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         ArtworkTile(track, Modifier.size(width = 52.dp, height = 44.dp))
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -86,7 +86,7 @@ data class Tab(val label: String, val icon: ImageVector)
 /** Glass capsule of tabs with the selected one in a lighter inner pill, plus a separate round search button. */
 @Composable fun TabBar(tabs: List<Tab>, selectedIndex: Int, searchSelected: Boolean, onSelect: (Int) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.weight(1f).height(66.dp).glass(RoundedCornerShape(33.dp)).padding(5.dp)) {
+        Row(Modifier.weight(1f).heightIn(min = 66.dp).height(IntrinsicSize.Min).glass(RoundedCornerShape(33.dp)).padding(5.dp)) {
             tabs.forEachIndexed { i, tab ->
                 val active = i == selectedIndex && !searchSelected
                 val bg by animateColorAsState(if (active) Color.White.copy(alpha = 0.14f) else Color.Transparent)

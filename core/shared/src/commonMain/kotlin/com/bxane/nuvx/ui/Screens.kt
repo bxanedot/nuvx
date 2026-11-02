@@ -146,7 +146,7 @@ private val Moods = listOf(
         item { NavRow(NuvxIcons.HeartFilled, "Liked songs", if (liked.isEmpty()) "None yet" else "${liked.size} songs", onLiked) }
         item { NavRow(NuvxIcons.Queue, "Queue", if (state.queue.isEmpty()) "Empty" else "${state.queue.size} songs", onQueue) }
         item { NavRow(NuvxIcons.Together, "Listen Together", "Rooms with friends", onTogether) }
-        item { NavRow(NuvxIcons.Settings, "Settings & About", null, onAccount) }
+        item { NavRow(NuvxIcons.Settings, "Settings and about", null, onAccount) }
         if (played.isNotEmpty()) {
             item { SectionHeader("Recently played") }
             itemsIndexed(played) { i, t -> TrackRow(t, active = state.current?.videoId == t.videoId) { player.playQueue(played, i) } }
@@ -190,7 +190,7 @@ private val Moods = listOf(
     }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.weight(1f).height(48.dp).glass().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).heightIn(min = 48.dp).glass().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(NuvxIcons.Search, null, Modifier.size(20.dp), tint = NuvxColors.Secondary)
                 Box(Modifier.weight(1f).padding(start = 10.dp)) {
                     if (query.isEmpty()) Text("Artists, songs and more", color = NuvxColors.Tertiary, fontSize = 17.sp)
@@ -198,7 +198,7 @@ private val Moods = listOf(
                         textStyle = TextStyle(color = NuvxColors.Text, fontSize = 17.sp), cursorBrush = SolidColor(NuvxColors.Accent),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) submitted = query.trim() }))
                 }
-                if (query.isNotEmpty()) PlainIconButton(NuvxIcons.Close, "Clear search", 32.dp) { query = ""; submitted = null; results = emptyList(); error = null }
+                if (query.isNotEmpty()) PlainIconButton(NuvxIcons.Close, "Clear search", 44.dp) { query = ""; submitted = null; results = emptyList(); error = null }
             }
             GlassIconButton(NuvxIcons.Person, "Settings and about", onClick = onAccount)
         }
@@ -212,7 +212,7 @@ private val Moods = listOf(
                         Row(Modifier.fillMaxWidth().clickable { query = q; submitted = q }.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(NuvxIcons.Search, null, Modifier.size(18.dp), tint = NuvxColors.Secondary)
                             Text(q, color = NuvxColors.Text, fontSize = 17.sp, modifier = Modifier.weight(1f).padding(horizontal = 14.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            PlainIconButton(NuvxIcons.Close, "Remove $q from recent searches", 32.dp) { history.forgetSearch(q) }
+                            PlainIconButton(NuvxIcons.Close, "Remove $q from recent searches", 44.dp) { history.forgetSearch(q) }
                         }
                     }
                 } else item { Text("Find songs, artists and moods.", color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp)) }
@@ -226,7 +226,7 @@ private val Moods = listOf(
 
 /** Segmented glass control; the selected filter sits in a lighter inner pill. */
 @Composable private fun FilterChips(selected: SearchFilter, onSelect: (SearchFilter) -> Unit) =
-    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp).fillMaxWidth().height(40.dp).glass(RoundedCornerShape(20.dp)).padding(4.dp)) {
+    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp).fillMaxWidth().heightIn(min = 40.dp).height(IntrinsicSize.Min).glass(RoundedCornerShape(20.dp)).padding(4.dp)) {
         SearchFilter.entries.forEach { f ->
             val active = f == selected
             Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(if (active) Color.White.copy(0.16f) else Color.Transparent)
