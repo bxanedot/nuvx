@@ -11,7 +11,7 @@
 @media(prefers-reduced-motion:reduce){.sound-field span{animation:none}}
 .topbar{width:100%;max-width:none;margin-inline:0;padding-inline:max(32px,calc((100% - var(--measure))/2))}
 @media(max-width:620px){.topbar{padding-inline:18px}}
-.ticker{display:block;overflow:hidden;white-space:nowrap}.ticker-track{display:inline-flex;align-items:center;gap:18px;min-width:max-content;animation:ticker-right 28s linear infinite;animation-delay:-14s}.ticker-track b{font-weight:400;color:var(--line)}@keyframes ticker-right{from{transform:translateX(-50%) }to{transform:translateX(0)}}@media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+.ticker{display:block;overflow:hidden;white-space:nowrap}.ticker-track{display:inline-flex;align-items:center;gap:0;min-width:max-content;animation:ticker-right 28s linear infinite;animation-delay:-14s}.ticker-track>*{margin-right:18px}.ticker-track b{font-weight:400;color:var(--line)}@keyframes ticker-right{from{transform:translateX(-50%)}to{transform:translateX(0)}}@media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
 
 .landing .hero .actions{flex-direction:column;align-items:center;gap:12px}.landing .hero .actions .button{width:min(100%,280px);justify-content:center;min-height:50px}
 .brand img,.hero-logo,.social-links img{filter:grayscale(1) brightness(0);transition:filter .3s ease}
