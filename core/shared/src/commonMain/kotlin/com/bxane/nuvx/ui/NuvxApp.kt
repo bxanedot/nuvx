@@ -83,9 +83,8 @@ fun NuvxApp(
                     val openSearch = { q: String? -> searchQuery = q; searching = true; page = null }
                     val openPage = { p: Page -> page = p }
                     Row(Modifier.fillMaxSize()) {
-                        if (wide) Sidebar(tab, searching, select) { openSearch(null) }
                         Box(Modifier.weight(1f).fillMaxHeight().safeDrawingPadding()) {
-                            val content = Modifier.fillMaxSize().then(if (wide) Modifier.widthIn(max = 1100.dp) else Modifier)
+                            val content = Modifier.align(Alignment.TopCenter).fillMaxSize().then(if (wide) Modifier.widthIn(max = 1100.dp) else Modifier)
                             Box(content) {
                                 when {
                                     page != null -> SubPage(page!!, { page = null }) {
@@ -101,9 +100,9 @@ fun NuvxApp(
                                     else -> LibraryScreen(history, state, player, { openPage(Page.QUEUE) }, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
                                 }
                             }
-                            Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 720.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true })
-                                if (!wide) TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) })
+                                TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) })
                             }
                         }
                     }
@@ -117,23 +116,6 @@ fun NuvxApp(
         }
     }
 }
-
-@Composable private fun Sidebar(tab: Int, searching: Boolean, onSelect: (Int) -> Unit, onSearch: () -> Unit) =
-    Column(Modifier.width(240.dp).fillMaxHeight().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(Modifier.padding(start = 8.dp, bottom = 20.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(NuvxMark, "nuvx", Modifier.size(36.dp))
-            Text("nuvx", color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 10.dp))
-        }
-        SidebarItem(Tab("Search", NuvxIcons.Search), searching, onSearch)
-        Tabs.forEachIndexed { i, t -> SidebarItem(t, !searching && tab == i) { onSelect(i) } }
-    }
-
-@Composable private fun SidebarItem(tab: Tab, active: Boolean, onClick: () -> Unit) =
-    Row(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(24.dp)).background(if (active) Color.White.copy(0.14f) else Color.Transparent)
-        .clickable(onClick = onClick).semantics { selected = active; role = Role.Tab }.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(tab.icon, null, Modifier.size(22.dp), tint = if (active) NuvxColors.Text else NuvxColors.Secondary)
-        Text(tab.label, color = if (active) NuvxColors.Text else NuvxColors.Secondary, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 14.dp))
-    }
 
 @Composable private fun SubPage(page: Page, onBack: () -> Unit, body: @Composable () -> Unit) = Column(Modifier.fillMaxSize()) {
     Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
