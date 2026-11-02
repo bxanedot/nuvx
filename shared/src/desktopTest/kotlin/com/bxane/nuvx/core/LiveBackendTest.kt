@@ -5,6 +5,7 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.runBlocking
+import org.junit.Assume.assumeTrue
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -18,7 +19,7 @@ class LiveBackendTest {
     @Test fun excor() = check(ExcorBackend())
 
     private fun check(backend: MusicBackend) = runBlocking {
-        if (!enabled) return@runBlocking
+        assumeTrue("Set NUVX_LIVE=1 to contact YouTube Music", enabled)
         val results = backend.search("daft punk around the world")
         println("${backend.id}: ${results.tracks.size} tracks, ${results.collections.size} collections; first=${results.tracks.firstOrNull()}")
         assertTrue(results.tracks.isNotEmpty(), "${backend.id} search returned no tracks")

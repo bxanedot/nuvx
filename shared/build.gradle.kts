@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
+
 kotlin {
     // eXcor's desktop artifact is JVM 26 bytecode, so the desktop target compiles on JDK 27 (see docs/TOOLCHAIN.md).
     jvmToolchain(27)
@@ -23,6 +24,10 @@ kotlin {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_26) }
     }
 
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework { baseName = "NuvxShared"; isStatic = true }
+    }
+
     applyDefaultHierarchyTemplate()
 
     sourceSets {
@@ -33,7 +38,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.coroutines.core)
             implementation(libs.serialization.json)
-            implementation(libs.ktor.core)
+            api(libs.ktor.core)
             implementation(libs.ktor.content.negotiation)
             implementation(libs.ktor.serialization.json)
             implementation(libs.compose.runtime)
@@ -42,12 +47,13 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.coil.compose)
             implementation(libs.coil.ktor)
+            implementation(libs.innertubex)
         }
         jvmCommonMain.dependencies {
             implementation(libs.ktor.okhttp)
-            implementation(libs.innertubex)
             implementation(libs.excor)
         }
+        iosMain.dependencies { implementation(libs.ktor.darwin) }
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.coroutines.test)

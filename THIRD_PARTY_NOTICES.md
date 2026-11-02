@@ -16,6 +16,9 @@ Nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party com
 | Coil 3 | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil |
 | AndroidX Media3 | 1.11.1 | Apache-2.0 | https://github.com/androidx/media |
 | AndroidX Activity | 1.13.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
+| vlcj / vlcj-natives | 4.12.1 / 4.12.0 | GPL-3.0 | https://github.com/caprica/vlcj |
+| JNA (transitive, vlcj) | 5.16.0 | LGPL-2.1-or-later / Apache-2.0 | https://github.com/java-native-access/jna |
+| VLC Windows runtime (packaging download) | 3.0.24 | GPL-2.0-or-later; components retain their own licences | https://www.videolan.org/vlc/ |
 
 Licence texts: GPL-3.0 at https://www.gnu.org/licenses/gpl-3.0.txt; Apache-2.0 at https://www.apache.org/licenses/LICENSE-2.0.txt.
 

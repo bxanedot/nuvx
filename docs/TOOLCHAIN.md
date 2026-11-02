@@ -37,3 +37,21 @@ git clone https://github.com/bxanedot/eXcor && cd eXcor
 ## Known limits
 - iOS: Kotlin/Native iOS targets and xtool need macOS or Linux. Windows can't build them (see BLOCKERS.md).
 - Once eXcor publishes an LTS-compatible JVM artifact, move the desktop target back to JDK 25 / `jvmTarget=25`.
+
+## Application continuation (2026-11-02)
+
+Desktop: vlcj 4.12.1 / vlcj-natives 4.12.0 from https://repo.maven.apache.org/maven2/uk/co/caprica/vlcj/maven-metadata.xml. VLC 3.0.24 from https://download.videolan.org/pub/videolan/vlc/3.0.24/win64/; the preparation script verifies SHA-256 fcf30850371ad10c9373cc4f0f4501e7dee49e3e9ae9f20c72fb2661a1ca6323 and retains original licence files.
+
+Windows commands:
+
+```powershell
+./scripts/prepare-windows.ps1
+./gradlew.bat :shared:desktopTest :androidApp:testMobileDebugUnitTest :androidApp:assembleDebug :androidApp:bundleRelease :androidApp:lint :desktopApp:test :desktopApp:createDistributable :desktopApp:packageMsi
+$env:NUVX_VLC_HOME='<portable VLC folder>'
+$env:NUVX_DESKTOP_LIVE='1'
+./gradlew.bat :desktopApp:test --tests '*DesktopPlaybackSmokeTest*' --rerun-tasks
+```
+
+The live desktop test exercises real search/decoding/pause/seek. It needs network and VLC and is skipped by default. AABs have no release signing configuration. The MSI and bundled runtime built on Windows; packaged-app launch was blocked by automatic approval review and installer execution is not verified.
+
+CI pins eXcor source 170e81f1caf92b8cbd637340a50e6ebe686906d5, building it outside the app checkout. Action tags and SHAs were checked using upstream GitHub release/ref APIs on 2026-11-02. The new workflow has not run remotely. Existing warnings include Gradle DSL deprecations, an upstream lifecycle lint-registry incompatibility, and disabled iOS simulator tests on Windows; these are not suppressed or counted as successful native verification.
