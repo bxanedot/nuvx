@@ -13,3 +13,5 @@
 .landing .hero .actions{flex-direction:column;align-items:center;gap:12px}.landing .hero .actions .button{width:min(100%,280px);justify-content:center;min-height:50px}
 .brand img,.hero-logo,.social-links img{filter:grayscale(1) brightness(0);transition:filter .3s ease}
 :root[data-theme=dark] .brand img,:root[data-theme=dark] .hero-logo,:root[data-theme=dark] .social-links img{filter:grayscale(1) brightness(0) invert(1)}
+.social-links img{filter:grayscale(1) contrast(1.35) brightness(.62)}
+:root[data-theme=dark] .social-links img{filter:grayscale(1) contrast(1.25) brightness(1.7)}
