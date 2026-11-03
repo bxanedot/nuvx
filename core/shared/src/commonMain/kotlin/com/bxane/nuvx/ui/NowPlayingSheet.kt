@@ -226,7 +226,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     else ArtworkTile(track, artMorph.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp)), 1080)
     Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (bleedGap != null) 19.sp else 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = if (bleedGap != null) FontWeight.SemiBold else FontWeight.Bold, fontSize = if (bleedGap != null) 19.sp else 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.linkTo(actions.openAlbum, "Open album"))
             Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.linkTo(actions.openArtist, "Open artist"))
