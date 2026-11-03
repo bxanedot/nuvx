@@ -110,7 +110,8 @@ fun NuvxApp(
             when {
                 watch -> WatchApp(router, store, player)
                 !welcomed -> Welcome { store.put("welcomeSeen", "true"); welcomed = true }
-                tv -> TvShell(router, history, state, player, lyrics, localLibrary, reduceMotion, onBackHandler, sleep) { tvPage ->
+                tv -> TvShell(router, history, state, player, lyrics, localLibrary, reduceMotion, onBackHandler, sleep,
+                    canvases?.let { c -> canvasVideo?.let { v -> c to v } }) { tvPage ->
                     when (tvPage) {
                         TvSubpage.TOGETHER -> TogetherPage(together, store)
                         TvSubpage.SETTINGS -> SettingsPage(router, store)

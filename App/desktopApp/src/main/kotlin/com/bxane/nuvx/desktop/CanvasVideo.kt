@@ -14,13 +14,26 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat
+import com.bxane.nuvx.core.canvasFile
 import java.awt.image.BufferedImage
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.awt.image.DataBufferInt
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 @Composable
 internal fun CanvasVideo(url: String, modifier: Modifier = Modifier) {
+    // Downloaded once and looped from disk (see canvasFile); the still cover shows until it is ready.
+    val local by produceState<String?>(null, url) {
+        value = withContext(Dispatchers.IO) { runCatching { canvasFile(url, File(System.getProperty("java.io.tmpdir"), "nuvx-canvas")).absolutePath }.getOrNull() }
+    }
+    local?.let { LoopingCanvas(it, modifier) }
+}
+
+@Composable
+private fun LoopingCanvas(url: String, modifier: Modifier) {
     val video = remember(url) { runCatching { CanvasRenderer(url) }.getOrNull() }
     DisposableEffect(video) { onDispose { video?.close() } }
     video?.frame?.let { Image(it, contentDescription = null, modifier = modifier, contentScale = ContentScale.Crop) }

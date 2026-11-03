@@ -1,9 +1,12 @@
 package com.bxane.nuvx
 
 import android.graphics.Matrix
+import android.net.Uri
 import android.view.TextureView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -14,6 +17,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
+import com.bxane.nuvx.core.canvasFile
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * A community canvas: the cover's looping video, silent and cropped to fill. It has its own player with the audio track
@@ -22,6 +29,16 @@ import androidx.media3.exoplayer.ExoPlayer
  */
 @Composable
 fun CanvasVideo(url: String, modifier: Modifier) {
+    val context = LocalContext.current
+    // Downloaded once and looped from the device (see canvasFile); the still cover shows until it is ready.
+    val local by produceState<String?>(null, url) {
+        value = withContext(Dispatchers.IO) { runCatching { Uri.fromFile(canvasFile(url, File(context.cacheDir, "canvas"))).toString() }.getOrNull() }
+    }
+    local?.let { LoopingVideo(it, modifier) }
+}
+
+@Composable
+private fun LoopingVideo(url: String, modifier: Modifier) {
     val context = LocalContext.current
     val video = remember(url) {
         ExoPlayer.Builder(context).build().apply {

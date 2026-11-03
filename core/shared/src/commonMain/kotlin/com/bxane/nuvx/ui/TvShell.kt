@@ -53,6 +53,7 @@ internal fun TvShell(
     reduceMotion: Boolean,
     onBackHandler: (@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit)?,
     sleep: SleepTimer? = null,
+    canvas: Pair<CommunityCanvas, @Composable (url: String, modifier: Modifier) -> Unit>? = null,
     pageContent: @Composable (TvSubpage) -> Unit,
 ) {
     var navigation by remember { mutableStateOf(TvNavigationState()) }
@@ -99,7 +100,7 @@ internal fun TvShell(
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.fillMaxSize().widthIn(max = 1440.dp)) {
                 when {
-                    navigation.destination == TvDestination.NOW_PLAYING -> NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, sleep = sleep,
+                    navigation.destination == TvDestination.NOW_PLAYING -> NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, sleep = sleep, canvas = canvas,
                         // Album/artist links from the player open over Search, so Back lands somewhere useful.
                         onOpen = { c -> currentCollection = c; navigation = navigation.copy(destination = TvDestination.SEARCH, albumOpen = true, subpage = null) }) {
                         navigation = navigation.back()
