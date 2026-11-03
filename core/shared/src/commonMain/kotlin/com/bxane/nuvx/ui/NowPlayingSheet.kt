@@ -242,8 +242,9 @@ private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
             val distance = if (active < 0) 2 else abs(i - active)
             val blur by animateFloatAsState(if (reduceMotion) 0f else (distance * 1.6f).coerceAtMost(6f), tween(400))
             val text = buildAnnotatedString {
-                if (i == active && line.words.isNotEmpty()) line.words.forEach { w ->
-                    withStyle(SpanStyle(color = if (w.startMs <= positionMs) Color.White else Dim)) { append(w.text) }
+                // Each word fills from dim to white across its own duration, so the highlight glides through the line.
+                if (i == active && line.words.isNotEmpty()) line.words.forEachIndexed { wi, w ->
+                    withStyle(SpanStyle(color = androidx.compose.ui.graphics.lerp(Dim, Color.White, l.wordProgress(i, wi, positionMs)))) { append(w.text) }
                 } else withStyle(SpanStyle(color = if (i == active) Color.White else Dim)) { append(line.text.ifBlank { "♪" }) }
             }
             Text(text, fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp,

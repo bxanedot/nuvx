@@ -19,6 +19,20 @@ sealed interface Lyrics {
     data class Synced(val lines: List<LyricLine>, val wordSynced: Boolean) : Lyrics {
         /** Index of the line at [positionMs], or -1 before the first line. */
         fun lineAt(positionMs: Long): Int = lines.indexOfLast { it.startMs <= positionMs }
+
+        /**
+         * How far word [word] of line [line] has been sung, 0..1, from its own source timestamp to the next word's
+         * (or the next line's for the last word; [LAST_WORD_MS] if there is no next line). Timing is never invented.
+         */
+        fun wordProgress(line: Int, word: Int, positionMs: Long): Float {
+            val words = lines.getOrNull(line)?.words ?: return 0f
+            val start = words.getOrNull(word)?.startMs ?: return 0f
+            val end = words.getOrNull(word + 1)?.startMs ?: lines.getOrNull(line + 1)?.startMs ?: (start + LAST_WORD_MS)
+            if (end <= start) return if (positionMs >= start) 1f else 0f
+            return ((positionMs - start).toFloat() / (end - start)).coerceIn(0f, 1f)
+        }
+
+        private companion object { const val LAST_WORD_MS = 600L }
     }
     data object Instrumental : Lyrics
 }
