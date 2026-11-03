@@ -147,10 +147,10 @@ fun NuvxApp(
                                     if (compact) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         val current = if (searching) Tab("Search", NuvxIcons.Search) else Tabs[tab]
                                         GlassIconButton(current.icon, "Show tabs, ${current.label} selected", size = 56.dp) { collapsed = false }
-                                        MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true }, Modifier.weight(1f))
+                                        MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true }, Modifier.weight(1f), onPrevious = player::previous)
                                         GlassIconButton(NuvxIcons.Search, "Search", size = 56.dp) { openSearch(null) }
                                     } else Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true })
+                                        MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true }, onPrevious = player::previous)
                                         TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) })
                                     }
                                 }

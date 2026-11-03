@@ -121,7 +121,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (mode) {
-                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions) { mode = SheetMode.LYRICS }
+                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous) { mode = SheetMode.LYRICS }
                     SheetMode.LYRICS -> when (val l = lyrics) {
                         is Lyrics.Synced -> SyncedLyrics(l, state.positionMs, reduceMotion) { player.seekTo(it) }
                         is Lyrics.Plain -> LazyColumn(contentPadding = PaddingValues(vertical = 24.dp)) {
@@ -169,8 +169,8 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-    ArtworkTile(track, Modifier.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)))
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+    ArtworkTile(track, Modifier.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp)))
     Row(Modifier.fillMaxWidth().padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,

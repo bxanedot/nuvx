@@ -17,7 +17,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -77,9 +80,10 @@ fun Modifier.glass(shape: Shape = CircleShape) = this
     }
 
 /** Floating pill: artwork · title/artist · play/pause · next. Tapping the text opens the full player. */
-@Composable fun MiniPlayerPill(state: PlayerState, onToggle: () -> Unit, onNext: () -> Unit, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+@Composable fun MiniPlayerPill(state: PlayerState, onToggle: () -> Unit, onNext: () -> Unit, onOpen: () -> Unit, modifier: Modifier = Modifier, onPrevious: () -> Unit = {}) {
     val track = state.current ?: return
-    Row(modifier.fillMaxWidth().heightIn(min = 64.dp).glass(RoundedCornerShape(32.dp)).clickable(onClick = onOpen).padding(start = 10.dp, end = 8.dp),
+    Row(modifier.fillMaxWidth().heightIn(min = 64.dp).trackSwipe(onNext = onNext, onPrevious = onPrevious, onUp = onOpen)
+        .glass(RoundedCornerShape(32.dp)).clickable(onClick = onOpen).padding(start = 10.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         ArtworkTile(track, Modifier.size(width = 52.dp, height = 44.dp))
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -125,3 +129,28 @@ data class Tab(val label: String, val icon: ImageVector)
         }
         Icon(NuvxIcons.Chevron, null, Modifier.size(18.dp), tint = NuvxColors.Tertiary)
     }
+
+/**
+ * Swipe left for the next track, right for the previous one, and optionally up (e.g. to open the player).
+ * The content follows the finger a little as feedback; buttons stay available for people who don't swipe.
+ */
+@Composable fun Modifier.trackSwipe(onNext: () -> Unit, onPrevious: () -> Unit, onUp: (() -> Unit)? = null): Modifier {
+    var dx by remember { mutableStateOf(0f) }
+    var dy by remember { mutableStateOf(0f) }
+    val threshold = with(androidx.compose.ui.platform.LocalDensity.current) { 64.dp.toPx() }
+    return this
+        .graphicsLayer { translationX = dx * 0.35f; translationY = minOf(0f, dy) * 0.2f }
+        .pointerInput(onNext, onPrevious, onUp) {
+            detectDragGestures(
+                onDragEnd = {
+                    when {
+                        kotlin.math.abs(dx) > kotlin.math.abs(dy) && dx < -threshold -> onNext()
+                        kotlin.math.abs(dx) > kotlin.math.abs(dy) && dx > threshold -> onPrevious()
+                        onUp != null && -dy > threshold && kotlin.math.abs(dy) > kotlin.math.abs(dx) -> onUp()
+                    }
+                    dx = 0f; dy = 0f
+                },
+                onDragCancel = { dx = 0f; dy = 0f },
+            ) { change, drag -> change.consume(); dx += drag.x; dy += drag.y }
+        }
+}
