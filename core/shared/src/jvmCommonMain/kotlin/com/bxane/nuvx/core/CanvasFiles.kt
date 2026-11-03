@@ -14,7 +14,8 @@ fun canvasFile(url: String, dir: File, keep: Int = 24, maxBytes: Long = 12L * 10
     val file = File(dir, url.substringAfterLast('/').filter { it.isLetterOrDigit() || it in "._-" }.ifEmpty { "canvas.mp4" })
     if (!file.isFile || now - file.lastModified() > maxAgeMs) {
         val part = File(dir, "${file.name}.part")
-        URL(url).openStream().use { input ->
+        // Time limits: without them a stalled connection blocks this IO thread forever (closing the player doesn't interrupt it).
+        URL(url).openConnection().apply { connectTimeout = 10_000; readTimeout = 20_000 }.getInputStream().use { input ->
             part.outputStream().use { out ->
                 val buffer = ByteArray(64 * 1024)
                 var total = 0L
