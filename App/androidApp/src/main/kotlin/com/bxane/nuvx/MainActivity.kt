@@ -49,7 +49,8 @@ class MainActivity : ComponentActivity() {
                 tv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
                 localLibrary = localLibrary,
                 reduceMotion = reducedMotion(contentResolver),
-                onBackHandler = { enabled, onBack -> BackHandler(enabled, onBack) })
+                onBackHandler = { enabled, onBack -> BackHandler(enabled, onBack) },
+                canvasVideo = { url, modifier -> CanvasVideo(url, modifier) })
             else MaterialTheme { Surface { Text(if (connectionError) "Could not connect to playback. Reopen nuvx to retry." else "Connecting to nuvx…") } }
         }
     }
