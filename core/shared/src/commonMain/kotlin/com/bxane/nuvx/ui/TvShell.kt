@@ -98,7 +98,9 @@ internal fun TvShell(
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.fillMaxSize().widthIn(max = 1440.dp)) {
                 when {
-                    navigation.destination == TvDestination.NOW_PLAYING -> NowPlayingSheet(player, state, lyrics, history, router, reduceMotion) {
+                    navigation.destination == TvDestination.NOW_PLAYING -> NowPlayingSheet(player, state, lyrics, history, router, reduceMotion,
+                        // Album/artist links from the player open over Search, so Back lands somewhere useful.
+                        onOpen = { c -> currentCollection = c; navigation = navigation.copy(destination = TvDestination.SEARCH, albumOpen = true, subpage = null) }) {
                         navigation = navigation.back()
                     }
                     navigation.albumOpen -> Column(Modifier.fillMaxSize()) {
