@@ -4,7 +4,7 @@
   "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
-    "test": "node --test test/room.test.ts",
+    "test": "node --test test/room.test.ts test/canvas.test.ts",
     "e2e": "node test/e2e.ts",
     "dev": "wrangler dev",
     "check": "wrangler deploy --dry-run --outdir dist",

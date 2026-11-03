@@ -1,9 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import { ROOM_CODE, cleanName, emptyRoom, handle, join, leave, roomCode, take, type Bucket, type Outcome, type RoomState } from "./room.ts";
+import { MAX_CANVAS_BYTES, commitCanvas, isMp4, samePasscode, videoIdFromLink } from "./canvas.ts";
 
 export interface Env {
   ROOMS: DurableObjectNamespace<Room>;
   CREATE_LIMIT: RateLimit;
+  CANVAS_LIMIT: RateLimit;
+  /** Secrets for canvas uploads (wrangler secret put); uploads are refused until both are set. */
+  CANVAS_PASSCODE?: string;
+  CANVAS_GITHUB_TOKEN?: string;
 }
 
 const IDLE_EXPIRY_MS = 30 * 60 * 1000;
@@ -24,6 +29,7 @@ export default {
       await env.ROOMS.get(env.ROOMS.idFromName(code)).create();
       return json({ code });
     }
+    if (req.method === "POST" && url.pathname === "/canvas") return uploadCanvas(req, env);
     const m = url.pathname.match(/^\/rooms\/([^/]+)\/ws$/);
     if (m && ROOM_CODE.test(m[1])) {
       if (req.headers.get("upgrade") !== "websocket") return json({ error: "expected websocket" }, 426);
@@ -32,6 +38,26 @@ export default {
     return json({ error: "not found" }, 404);
   },
 };
+
+/** POST /canvas from the canvas.nuvx.lol page: form fields link, passcode, video. */
+async function uploadCanvas(req: Request, env: Env): Promise<Response> {
+  if (!env.CANVAS_PASSCODE || !env.CANVAS_GITHUB_TOKEN) return json({ error: "Uploads are not set up yet." }, 503);
+  // Rate-limited before the passcode check, so guessing it is slow.
+  if (!(await env.CANVAS_LIMIT.limit({ key: req.headers.get("cf-connecting-ip") ?? "local" })).success) return json({ error: "Too many tries. Wait a minute." }, 429);
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_CANVAS_BYTES + 64 * 1024) return json({ error: "The video is over 10 MB." }, 413);
+  let form: FormData;
+  try { form = await req.formData(); } catch { return json({ error: "Send the form from canvas.nuvx.lol." }, 400); }
+  if (!samePasscode(String(form.get("passcode") ?? ""), env.CANVAS_PASSCODE)) return json({ error: "Wrong passcode." }, 403);
+  const id = videoIdFromLink(String(form.get("link") ?? ""));
+  if (!id) return json({ error: "That isn't a YouTube Music song link." }, 400);
+  const video = form.get("video");
+  if (!(video instanceof File)) return json({ error: "Choose a video." }, 400);
+  if (video.size > MAX_CANVAS_BYTES) return json({ error: "The video is over 10 MB." }, 413);
+  const bytes = new Uint8Array(await video.arrayBuffer());
+  if (!isMp4(bytes)) return json({ error: "The video must be an MP4." }, 415);
+  const status = await commitCanvas(id, bytes, env.CANVAS_GITHUB_TOKEN);
+  return status === 200 || status === 201 ? json({ ok: true, id, replaced: status === 200 }) : json({ error: `GitHub refused the upload (${status}).` }, 502);
+}
 
 type Attachment = { id: string; bucket: Bucket };
 

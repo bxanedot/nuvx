@@ -16,5 +16,11 @@ name = "CREATE_LIMIT"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
 
+# Canvas uploads: 5 per minute per IP (slows passcode guessing).
+[[ratelimits]]
+name = "CANVAS_LIMIT"
+namespace_id = "1002"
+simple = { limit = 5, period = 60 }
+
 # Uncomment once nuvx.lol is on this Cloudflare account:
 # routes = [{ pattern = "listen.nuvx.lol", custom_domain = true }]
