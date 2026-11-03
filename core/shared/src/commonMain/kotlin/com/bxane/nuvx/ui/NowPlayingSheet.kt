@@ -155,8 +155,14 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             }
             Transport(player, state)
             Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                ModeButton(NuvxIcons.Shuffle, "Shuffle up next", false, player::shuffleUpNext)
                 ModeButton(NuvxIcons.Lyrics, "Lyrics", mode == SheetMode.LYRICS) { mode = if (mode == SheetMode.LYRICS) SheetMode.ARTWORK else SheetMode.LYRICS }
                 ModeButton(NuvxIcons.Queue, "Queue", mode == SheetMode.QUEUE) { mode = if (mode == SheetMode.QUEUE) SheetMode.ARTWORK else SheetMode.QUEUE }
+                // Cycles off → all → one; the label says the current mode for screen readers.
+                ModeButton(if (state.repeat == RepeatMode.ONE) NuvxIcons.RepeatOne else NuvxIcons.Repeat,
+                    "Repeat " + when (state.repeat) { RepeatMode.OFF -> "off"; RepeatMode.ALL -> "all"; RepeatMode.ONE -> "one" }, state.repeat != RepeatMode.OFF) {
+                    player.setRepeat(RepeatMode.entries[(state.repeat.ordinal + 1) % RepeatMode.entries.size])
+                }
             }
         }
     }

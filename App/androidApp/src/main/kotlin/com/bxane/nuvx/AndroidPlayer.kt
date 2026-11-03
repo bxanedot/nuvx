@@ -33,7 +33,8 @@ class AndroidPlayer(private val controller: Player) : NuvxPlayer, AutoCloseable 
         mutableState.value = PlayerState(tracks, if (tracks.isEmpty()) -1 else controller.currentMediaItemIndex,
             controller.isPlaying, controller.playbackState == Player.STATE_BUFFERING,
             controller.currentPosition.coerceAtLeast(0), controller.duration.coerceAtLeast(0),
-            controller.playerError?.let { "Playback failed. Retry this track or choose another engine in Settings." })
+            controller.playerError?.let { "Playback failed. Retry this track or choose another engine in Settings." },
+            when (controller.repeatMode) { Player.REPEAT_MODE_ONE -> RepeatMode.ONE; Player.REPEAT_MODE_ALL -> RepeatMode.ALL; else -> RepeatMode.OFF })
     }
 
     private fun Track.toMediaItem(): MediaItem = MediaItem.Builder().setMediaId(videoId)
@@ -55,6 +56,17 @@ class AndroidPlayer(private val controller: Player) : NuvxPlayer, AutoCloseable 
         controller.addMediaItems(controller.currentMediaItemIndex + 1, tracks.map { it.toMediaItem() })
     }
     override fun move(from: Int, to: Int) { if (from in 0 until controller.mediaItemCount && to in 0 until controller.mediaItemCount) controller.moveMediaItem(from, to) }
+    override fun setRepeat(mode: RepeatMode) {
+        controller.repeatMode = when (mode) { RepeatMode.ONE -> Player.REPEAT_MODE_ONE; RepeatMode.ALL -> Player.REPEAT_MODE_ALL; RepeatMode.OFF -> Player.REPEAT_MODE_OFF }
+    }
+    override fun shuffleUpNext() {
+        val from = controller.currentMediaItemIndex + 1
+        val count = controller.mediaItemCount
+        if (count - from < 2) return
+        val upNext = (from until count).map { controller.getMediaItemAt(it) }.shuffled()
+        controller.removeMediaItems(from, count)
+        controller.addMediaItems(from, upNext)
+    }
     override fun remove(index: Int) { if (index in 0 until controller.mediaItemCount) controller.removeMediaItem(index) }
     override fun togglePlay() {
         if (controller.playbackState == Player.STATE_ENDED) { controller.seekToDefaultPosition(); controller.play() }

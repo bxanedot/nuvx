@@ -19,6 +19,23 @@ class QueueEditTest {
         assertNull(q.removing(5))
     }
 
+    @Test fun repeatDecidesWhatPlaysAfterTheEnd() {
+        assertEquals(2, q.afterEnd())
+        val last = q.copy(index = 2)
+        assertNull(last.afterEnd(), "repeat off stops at the end")
+        assertEquals(0, last.copy(repeat = RepeatMode.ALL).afterEnd())
+        assertEquals(2, last.copy(repeat = RepeatMode.ONE).afterEnd())
+        assertNull(PlayerState().afterEnd())
+    }
+
+    @Test fun shuffleKeepsPlayedAndCurrentTracks() {
+        val big = PlayerState("abcdefgh".map { Track(it.toString(), it.toString()) }, index = 2)
+        val s = big.shufflingUpNext(kotlin.random.Random(7))
+        assertEquals(listOf("a", "b", "c"), s.queue.take(3).map { it.videoId })
+        assertEquals(big.queue.drop(3).toSet(), s.queue.drop(3).toSet())
+        assertEquals(2, s.index)
+    }
+
     @Test fun movingKeepsThePlayingTrack() {
         assertEquals(listOf("b", "c", "a") to 0, ids(q.moving(0, 2)!!))
         assertEquals(listOf("c", "a", "b") to 2, ids(q.moving(2, 0)!!))

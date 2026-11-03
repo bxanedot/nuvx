@@ -50,7 +50,7 @@ internal class DesktopPlayer(private val router: BackendRouter) : NuvxPlayer, Au
                         positionMs = native.status().time().coerceAtLeast(0), durationMs = native.status().length().coerceAtLeast(0),
                         buffering = playback == State.BUFFERING || playback == State.OPENING,
                         error = if (playback == State.ERROR) "Playback failed. Retry or choose another engine." else state.value.error)
-                    if (playback == State.ENDED && state.value.index < state.value.queue.lastIndex) next()
+                    if (playback == State.ENDED) state.value.afterEnd()?.let { if (it == state.value.index) load() else skipTo(it) }
                 }
                 delay(500)
             }
@@ -100,7 +100,9 @@ internal class DesktopPlayer(private val router: BackendRouter) : NuvxPlayer, Au
         else native.controls().pause()
     }
     override fun seekTo(positionMs: Long) { native.controls().setTime(positionMs.coerceAtLeast(0)) }
-    override fun next() { skipTo(state.value.index + 1) }
+    override fun next() { val s = state.value; skipTo(if (s.repeat == RepeatMode.ALL && s.index == s.queue.lastIndex) 0 else s.index + 1) }
+    override fun setRepeat(mode: RepeatMode) { mutableState.value = state.value.copy(repeat = mode) }
+    override fun shuffleUpNext() { mutableState.value = state.value.shufflingUpNext() }
     override fun previous() { if (state.value.positionMs > 3000) seekTo(0) else skipTo((state.value.index - 1).coerceAtLeast(0)) }
     override fun skipTo(index: Int) { if (index in state.value.queue.indices) { mutableState.value = state.value.copy(index = index); load() } }
     override fun close() { scope.cancel(); native.controls().stop(); native.release(); factory.release(); proxy.close() }

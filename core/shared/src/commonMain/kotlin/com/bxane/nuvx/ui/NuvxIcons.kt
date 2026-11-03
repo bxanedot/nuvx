@@ -38,6 +38,9 @@ object NuvxIcons {
     val More = icon("More") { fill { circle(5.5f, 12f, 1.8f); circle(12f, 12f, 1.8f); circle(18.5f, 12f, 1.8f) } }
     val Person = icon("Person") { fill { circle(12f, 8f, 4f); moveTo(4f, 20f); quadTo(4f, 14f, 12f, 14f); quadTo(20f, 14f, 20f, 20f); close() } }
     val Lyrics = icon("Lyrics") { stroke { roundRect(3.5f, 4f, 17f, 13f, 3f); moveTo(8f, 17f); lineTo(8f, 20.5f); lineTo(12f, 17f); moveTo(8f, 9f); lineTo(16f, 9f); moveTo(8f, 12.5f); lineTo(13f, 12.5f) } }
+    val Shuffle = icon("Shuffle") { stroke { moveTo(3f, 7f); lineTo(7f, 7f); curveTo(12f, 7f, 12f, 17f, 17f, 17f); lineTo(20f, 17f); moveTo(3f, 17f); lineTo(7f, 17f); curveTo(12f, 17f, 12f, 7f, 17f, 7f); lineTo(20f, 7f); moveTo(17.5f, 4.5f); lineTo(20f, 7f); lineTo(17.5f, 9.5f); moveTo(17.5f, 14.5f); lineTo(20f, 17f); lineTo(17.5f, 19.5f) } }
+    val Repeat = icon("Repeat") { stroke { moveTo(4f, 11f); lineTo(4f, 9f); quadTo(4f, 7f, 6f, 7f); lineTo(19f, 7f); moveTo(16.5f, 4.5f); lineTo(19f, 7f); lineTo(16.5f, 9.5f); moveTo(20f, 13f); lineTo(20f, 15f); quadTo(20f, 17f, 18f, 17f); lineTo(5f, 17f); moveTo(7.5f, 14.5f); lineTo(5f, 17f); lineTo(7.5f, 19.5f) } }
+    val RepeatOne = icon("RepeatOne") { stroke { moveTo(4f, 11f); lineTo(4f, 9f); quadTo(4f, 7f, 6f, 7f); lineTo(19f, 7f); moveTo(16.5f, 4.5f); lineTo(19f, 7f); lineTo(16.5f, 9.5f); moveTo(20f, 13f); lineTo(20f, 15f); quadTo(20f, 17f, 18f, 17f); lineTo(5f, 17f); moveTo(7.5f, 14.5f); lineTo(5f, 17f); lineTo(7.5f, 19.5f); moveTo(11f, 10.5f); lineTo(12.5f, 9.5f); lineTo(12.5f, 14.5f) } }
     val Queue = icon("Queue") { stroke { moveTo(4f, 6f); lineTo(20f, 6f); moveTo(4f, 12f); lineTo(20f, 12f); moveTo(4f, 18f); lineTo(14f, 18f) } }
     val Chevron = icon("Chevron") { stroke { moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f) } }
     val Close = icon("Close") { stroke { moveTo(6f, 6f); lineTo(18f, 18f); moveTo(18f, 6f); lineTo(6f, 18f) } }

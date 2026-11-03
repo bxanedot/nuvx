@@ -10,6 +10,7 @@ data class PlayerState(
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val error: String? = null,
+    val repeat: RepeatMode = RepeatMode.OFF,
 ) {
     val current: Track? get() = queue.getOrNull(index)
 }
@@ -30,6 +31,10 @@ interface NuvxPlayer {
     fun remove(index: Int) {}
     /** Move a queued track; the playing track keeps playing. The default does nothing; platform players override it. */
     fun move(from: Int, to: Int) {}
+    /** Repeat nothing, the whole queue, or the current track. The default does nothing; platform players override it. */
+    fun setRepeat(mode: RepeatMode) {}
+    /** Shuffle the tracks after the current one, in place, so the queue shows the new order. */
+    fun shuffleUpNext() {}
 }
 
 /** Minimal persisted preferences; Android uses SharedPreferences, desktop java.util.prefs. */
@@ -74,3 +79,18 @@ fun PlayerState.moving(from: Int, to: Int): PlayerState? {
     }
     return copy(queue = moved, index = playing)
 }
+
+enum class RepeatMode { OFF, ALL, ONE }
+
+/** Index to play when the current track ends, honouring [PlayerState.repeat]; null means stop. */
+fun PlayerState.afterEnd(): Int? = when {
+    current == null -> null
+    repeat == RepeatMode.ONE -> index
+    index < queue.lastIndex -> index + 1
+    repeat == RepeatMode.ALL -> 0
+    else -> null
+}
+
+/** Queue with everything after the current track shuffled; the current track and history stay put. */
+fun PlayerState.shufflingUpNext(random: kotlin.random.Random = kotlin.random.Random): PlayerState =
+    copy(queue = queue.take(index + 1) + queue.drop(index + 1).shuffled(random))
