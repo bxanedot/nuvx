@@ -6,17 +6,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.*
 import com.bxane.nuvx.core.*
 import com.bxane.nuvx.ui.NuvxApp
-import java.util.prefs.Preferences
 import java.awt.Toolkit
 
 fun main() = application {
-    val store = remember {
-        val preferences = Preferences.userRoot().node("com/bxane/nuvx")
-        object : KeyValueStore {
-            override fun get(key: String): String? = preferences.get(key, null)
-            override fun put(key: String, value: String?) { if (value == null) preferences.remove(key) else preferences.put(key, value) }
-        }
-    }
+    val store = remember { FileStore.default() }
     val router = remember { BackendRouter(defaultBackends()).bindTo(store) }
     val player = remember { runCatching { DesktopPlayer(router) }.getOrNull() }
     val localLibrary = remember { DesktopLocalMusic() }
