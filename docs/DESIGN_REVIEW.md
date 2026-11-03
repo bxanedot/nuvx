@@ -56,3 +56,20 @@ Reviewed on 2026-11-03. Scope: the shared Compose TV shell, local-library screen
 - The reviewed TV UI is Compose Multiplatform running on Android TV; Apple's extracted guidelines are used as general principles, not as a claim of tvOS behavior.
 - The desktop folder chooser is a native Swing directory chooser. It was unit-tested at the scanner boundary; the chooser and local audio output were not visually or acoustically exercised.
 - Watch UI was unchanged and outside this review's scope.
+
+# Design review: website brand mark (Codex, 2026-11-03)
+
+## Summary
+
+**Good.** The website uses the supplied nuvx swoosh mark as a quiet identifier beside the lowercase wordmark, with an enlarged instance in the hero. The mark has strong contrast in both themes; the compact horizontal silhouette remains recognizable when the favicon crops the unused canvas margins.
+
+## What works
+
+- The light theme uses the black mark on `#fcfcfa` (about **20.5:1** contrast); the dark theme uses the white mark on `#101114` (about **18.4:1**). Both exceed WCAG's 3:1 non-text contrast threshold. The theme-specific logo files avoid depending on color alone or a CSS recoloring filter.
+- The favicon SVG uses a tight viewBox around the supplied vector artwork. At 16px its mark occupies about 15 × 6px, keeping the main silhouette visible without adding a background or altering the artwork. This is suitable for a simple monochrome mark; browser UI may still display favicons at smaller effective sizes.
+- The logo appears in the site header and footer, with one larger hero instance. It does not displace page content or repeat throughout the documentation.
+- These are web design findings using Apple's general clarity and consistency guidance: `app-icons.md › Design` says to keep icons simple because fine details can be hard to discern at small sizes; `branding.md › Best practices` says to keep branding unobtrusive and avoid repeating logos without context.
+
+## Platform notes
+
+This review covers source assets, CSS theme selection, SVG geometry and computed color contrast. It did not verify favicon rendering in browser chrome or third-party social-card crawlers. The OG image is a static light-surface preview; it is not theme-dependent because social preview crawlers request one shared image.

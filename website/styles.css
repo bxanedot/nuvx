@@ -19,3 +19,5 @@
 .social-links img{filter:brightness(0)}
 .social-links img[src*="discord"]{content:url("/icons/discord-mark.svg")}
 :root[data-theme=dark] .social-links img{filter:brightness(0) invert(1)}
+
+:root[data-theme=dark] .brand img,:root[data-theme=dark] .hero-logo{content:url('/mark-white.svg');filter:none}
