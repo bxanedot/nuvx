@@ -145,8 +145,8 @@ private val Moods = listOf(
                 Text(if (played.size == 1) "SONG PLAYED ON THIS DEVICE" else "SONGS PLAYED ON THIS DEVICE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp)
             }
         }
-        item { NavRow(NuvxIcons.HeartFilled, "Liked songs", if (liked.isEmpty()) "None yet" else "${liked.size} songs", onLiked) }
-        item { NavRow(NuvxIcons.Queue, "Queue", if (state.queue.isEmpty()) "Empty" else "${state.queue.size} songs", onQueue) }
+        item { NavRow(NuvxIcons.HeartFilled, "Liked songs", if (liked.isEmpty()) "None yet" else songs(liked.size), onLiked) }
+        item { NavRow(NuvxIcons.Queue, "Queue", if (state.queue.isEmpty()) "Empty" else songs(state.queue.size), onQueue) }
         if (onLocalLibrary != null) item { NavRow(NuvxIcons.Library, "On this device", "Music stored here", onLocalLibrary) }
         item { NavRow(NuvxIcons.Together, "Listen Together", "Rooms with friends", onTogether) }
         item { NavRow(NuvxIcons.Settings, "Settings and about", null, onAccount) }
@@ -320,3 +320,5 @@ private val Moods = listOf(
         }
     }
 }
+
+internal fun songs(n: Int) = if (n == 1) "1 song" else "$n songs"
