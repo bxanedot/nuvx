@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -119,17 +120,30 @@ private val Moods = listOf(
     Mood("Sleep", "sleep music", Color(0xFF253A6B)), Mood("Commute", "road trip songs", Color(0xFFB0782A)),
 )
 
-@Composable fun ExploreScreen(onMood: (String) -> Unit, onAccount: () -> Unit) =
+/** Mood tiles: a colour band with real artwork (the mood's top song) fading in from the right; the colour alone if none loads. */
+@Composable fun ExploreScreen(onMood: (String) -> Unit, router: BackendRouter? = null, onAccount: () -> Unit) {
+    // shortcut: artwork is cached only while Explore is on screen; hoist to the app graph if re-fetching on return is noticeable.
+    val art = remember { mutableStateMapOf<String, String?>() }
     LazyVerticalGrid(GridCells.Adaptive(160.dp), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = BottomChromePadding),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) { Column { TopBar(onAccount); LargeTitle("Explore", Modifier.padding(bottom = 8.dp)) } }
         items(Moods) { m ->
-            Box(Modifier.aspectRatio(1.6f).clip(RoundedCornerShape(20.dp))
-                .background(Brush.linearGradient(listOf(m.colour, m.colour.copy(alpha = 0.55f)))).clickable { onMood(m.query) }.padding(14.dp)) {
-                Text(m.label, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            if (router != null) LaunchedEffect(m.query) {
+                if (m.query !in art) art[m.query] = try { router.search(m.query, SearchFilter.SONGS).tracks.mapNotNull { it.artworkUrl }.let { urls -> urls.firstOrNull { it !in art.values } ?: urls.firstOrNull() } }
+                    catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+            }
+            Box(Modifier.aspectRatio(1.6f).clip(RoundedCornerShape(20.dp)).background(m.colour).focusRing(RoundedCornerShape(20.dp))
+                .clickable(onClickLabel = "Search ${m.label}") { onMood(m.query) }) {
+                art[m.query]?.let { url ->
+                    coil3.compose.AsyncImage(url, null, Modifier.align(Alignment.CenterEnd).fillMaxHeight().aspectRatio(1f),
+                        contentScale = ContentScale.Crop)
+                    Box(Modifier.matchParentSize().background(Brush.horizontalGradient(0.35f to m.colour, 0.75f to m.colour.copy(alpha = 0.15f))))
+                }
+                Text(m.label, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(14.dp))
             }
         }
     }
+}
 
 @Composable fun LibraryScreen(history: History, state: PlayerState, player: NuvxPlayer, onQueue: () -> Unit, onLiked: () -> Unit, onTogether: () -> Unit, onAccount: () -> Unit, onLocalLibrary: (() -> Unit)? = null) {
     val played by history.played.collectAsState()

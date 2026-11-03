@@ -131,7 +131,7 @@ fun NuvxApp(
                                     }
                                     searching -> SearchScreen(router, player, history, searchQuery, open) { openPage(Page.SETTINGS) }
                                     tab == 0 -> HomeScreen(history, router, player, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
-                                    tab == 1 -> ExploreScreen({ openSearch(it) }) { openPage(Page.SETTINGS) }
+                                    tab == 1 -> ExploreScreen({ openSearch(it) }, router) { openPage(Page.SETTINGS) }
                                     else -> LibraryScreen(
                                         history, state, player,
                                         onQueue = { openPage(Page.QUEUE) }, onLiked = { openPage(Page.LIKED) },
