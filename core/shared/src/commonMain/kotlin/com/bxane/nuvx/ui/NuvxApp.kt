@@ -57,6 +57,8 @@ fun NuvxApp(
     localLibrary: LocalMusicLibrary? = null,
     /** Platform back integration (Android passes BackHandler). Called every composition with whether back has somewhere to go. */
     onBackHandler: (@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit)? = null,
+    /** Platform video for community canvases: a muted, looping, cropped video filling [Modifier]. Null hides canvases. */
+    canvasVideo: (@Composable (url: String, modifier: Modifier) -> Unit)? = null,
 ) {
     val state by player.state.collectAsState()
     var welcomed by remember { mutableStateOf(store.get("welcomeSeen") == "true") }
@@ -66,6 +68,7 @@ fun NuvxApp(
     val scope = rememberCoroutineScope()
     val together = remember(player) { ListenTogether(player, scope) }
     val sleep = remember(player) { SleepTimer(player, scope) }
+    val canvases = remember(canvasVideo != null) { if (canvasVideo != null) CommunityCanvas() else null }
     val history = remember(store) { History(store) }
     LaunchedEffect(state.current?.videoId) { state.current?.let(history::played) }
 
@@ -172,7 +175,8 @@ fun NuvxApp(
                     AnimatedVisibility(sheet && state.current != null,
                         enter = if (reduceMotion) fadeIn() else slideInVertically(spring(dampingRatio = 0.86f, stiffness = 380f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it },
                         exit = if (reduceMotion) fadeOut() else slideOutVertically(spring(stiffness = 520f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it }) {
-                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }, sleep = sleep, fullBleed = fullBleed, artScope = this) { sheet = false }
+                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }, sleep = sleep, fullBleed = fullBleed, artScope = this,
+                            canvas = canvases?.let { c -> canvasVideo?.let { v -> c to v } }) { sheet = false }
                     }
                 }
                 } }

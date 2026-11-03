@@ -65,8 +65,13 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
 fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, fullBleed: Boolean = true,
-    artScope: androidx.compose.animation.AnimatedVisibilityScope? = null, onClose: () -> Unit) {
+    artScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    canvas: Pair<CommunityCanvas, @Composable (url: String, modifier: Modifier) -> Unit>? = null, onClose: () -> Unit) {
     val artMorph = Modifier.morphArt(artScope)
+    // A community canvas plays over the cover when one exists for this song (never with reduced motion).
+    var canvasUrl by remember(state.current?.videoId) { mutableStateOf<String?>(null) }
+    if (canvas != null && !reduceMotion) LaunchedEffect(state.current?.videoId) { canvasUrl = state.current?.videoId?.let { canvas.first.find(it) } }
+    val canvasLayer: (@Composable () -> Unit)? = canvasUrl?.let { url -> canvas?.second?.let { video -> { video(url, Modifier.fillMaxSize()) } } }
     val track = state.current
     val liked by history.liked.collectAsState()
     val scope = rememberCoroutineScope()
@@ -137,6 +142,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                 drawRect(Brush.verticalGradient(0.72f to Color.Black, 1f to Color.Transparent), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
             }) {
             SharpArtwork(track!!.artworkUrl, "Artwork for ${track.title}", Modifier.fillMaxSize(), 1080)
+            canvasLayer?.invoke()
             // A light shade so the status bar, handle and "Playing from" caption stay readable over bright covers.
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(0.4f), 0.2f to Color.Transparent)))
         }
@@ -154,7 +160,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth().onPlaced { c -> root?.let { modeTop = it.localPositionOf(c, androidx.compose.ui.geometry.Offset.Zero).y } }) {
                 when (mode) {
-                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous, artMorph,
+                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous, artMorph, canvasLayer,
                         bleedGap = if (bleed) with(density) { (sheetWidth.toPx() * 1.1f - modeTop).coerceAtLeast(0f).toDp() } else null,
                         progress = if (bleed) ({ Progress(player, state) }) else null) { mode = SheetMode.LYRICS }
                     SheetMode.LYRICS -> when (val l = lyrics) {
@@ -220,10 +226,13 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
     // Full bleed: the artwork is drawn behind the sheet, so this space over it only carries the swipe gesture.
     if (bleedGap != null) Spacer(Modifier.height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
-    else ArtworkTile(track, artMorph.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp)), 1080)
+    else Box(artMorph.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp))) {
+        ArtworkTile(track, Modifier.fillMaxSize(), 1080)
+        canvasLayer?.invoke()
+    }
     Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = if (bleedGap != null) FontWeight.SemiBold else FontWeight.Bold, fontSize = if (bleedGap != null) 19.sp else 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
