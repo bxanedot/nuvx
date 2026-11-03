@@ -27,8 +27,8 @@ class CommunityCanvas(private val http: HttpClient = nuvxHttpClient(), private v
     }
 
     companion object {
-        // The repo's canvas/ folder, published to this subdomain by .github/workflows/canvas-pages.yml.
-        const val FOLDER = "https://canvas.nuvx.lol/"
+        // The repo's canvas/ folder straight from GitHub (public repo, HTTPS, byte ranges); canvas.nuvx.lol is the upload page.
+        const val FOLDER = "https://raw.githubusercontent.com/bxanedot/nuvx/main/canvas/"
         private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
     }
 }
