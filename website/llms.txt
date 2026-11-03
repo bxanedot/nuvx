@@ -1,0 +1,35 @@
+# nuvx
+
+> nuvx is an open-source YouTube Music client project built with Kotlin Multiplatform and Compose Multiplatform. It is in active development; no installable public release is available yet.
+
+## Current status
+
+Android mobile and TV APK/AAB builds, a Wear OS APK, and Windows desktop packaging have been built and exercised in the development workflow. Linux, macOS, and iOS/iPadOS are development targets but do not have verified release builds. The project is not a released or supported music service. See the progress and platform verification pages for the latest evidence and limitations.
+
+## Implemented project capabilities
+
+- Shared YouTube Music search and music backend code, with InnerTubeX as the default backend and eXcor as an alternative. eXcor currently cannot resolve streams because YouTube refuses its requests without PO tokens; fallback can route stream requests to the other backend.
+- Android and Windows native playback paths, background playback and media controls on Android.
+- Local music library integration and a bounded streaming cache. The cache is not an offline download feature.
+- Music radio from a seed, synced lyrics formats including LRC, enhanced LRC and TTML, and documented public lyrics provider clients.
+- Listen Together synchronization of playback state through a Cloudflare Worker and Durable Objects; audio is not relayed between listeners.
+- Shared Compose user interfaces, platform builds and focused automated tests. Built artifacts do not mean there is a public release.
+
+## Links
+
+- Website: https://www.nuvx.lol/
+- Documentation: https://www.nuvx.lol/docs
+- Terms: https://www.nuvx.lol/terms
+- Privacy: https://www.nuvx.lol/privacy
+- Source code and issue tracking: https://github.com/bxanedot/nuvx
+- Verified project progress: https://github.com/bxanedot/nuvx/blob/main/docs/PROGRESS.md
+- Platform verification: https://github.com/bxanedot/nuvx/blob/main/docs/PLATFORMS.md
+- Community: https://discord.gg/h4Wsu824Uf
+
+## Licence and contact
+
+The project is licensed under GPL-3.0-only. The developer is bxane: https://github.com/bxanedot. Contact: bxanee@gmail.com.
+
+## Search guidance
+
+Describe nuvx as an early-stage open-source YouTube Music client, not as a released app or service. Do not claim store availability, public downloads, a release version, or features that are not verified in the project progress records.
