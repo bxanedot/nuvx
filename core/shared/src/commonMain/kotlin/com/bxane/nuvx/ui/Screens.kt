@@ -314,11 +314,7 @@ private val Moods = listOf(
                 CoverArt(a?.artworkUrl ?: ref.artworkUrl, ref.title, Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f))
                 Text(a?.title ?: ref.title, color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 18.dp))
                 Text(listOfNotNull(a?.artist, a?.year).joinToString(" · ").ifEmpty { ref.subtitle.orEmpty() }, color = NuvxColors.Accent, fontSize = 17.sp)
-                if (a != null && a.tracks.isNotEmpty()) Row(Modifier.padding(vertical = 18.dp).clip(CircleShape).background(Color.White).clickable { player.playQueue(a.tracks, 0) }
-                    .semantics { role = Role.Button }.padding(horizontal = 32.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(NuvxIcons.Play, null, Modifier.size(20.dp), tint = Color.Black)
-                    Text("  Play", color = Color.Black, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                }
+                if (a != null && a.tracks.isNotEmpty()) PlayShuffle(player, a.tracks)
             }
         }
         when {
@@ -349,3 +345,18 @@ internal fun songs(n: Int) = if (n == 1) "1 song" else "$n songs"
         }
     }
 }
+
+/** Play in order (white, primary) beside Shuffle (glass, secondary) for an album or artist. */
+@Composable fun PlayShuffle(player: NuvxPlayer, tracks: List<Track>) =
+    Row(Modifier.padding(vertical = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.clip(CircleShape).background(Color.White).focusRing().clickable { player.playQueue(tracks, 0) }
+            .semantics { role = Role.Button }.padding(horizontal = 28.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(NuvxIcons.Play, null, Modifier.size(20.dp), tint = Color.Black)
+            Text("  Play", color = Color.Black, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Row(Modifier.glass(CircleShape).focusRing().clickable { player.playQueue(tracks.shuffled(), 0) }
+            .semantics { role = Role.Button }.padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(NuvxIcons.Shuffle, null, Modifier.size(20.dp), tint = Color.White)
+            Text("  Shuffle", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }

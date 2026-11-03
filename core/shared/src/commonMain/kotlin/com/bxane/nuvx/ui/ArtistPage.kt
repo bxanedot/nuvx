@@ -45,12 +45,7 @@ import kotlinx.coroutines.CancellationException
                     (a?.artworkUrl ?: ref.artworkUrl)?.let { AsyncImage(it, "Photo of ${ref.title}", Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
                 }
                 Text(a?.name ?: ref.title, color = NuvxColors.Text, fontSize = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 18.dp))
-                if (a != null && a.topSongs.isNotEmpty()) Row(Modifier.padding(vertical = 18.dp).clip(CircleShape).background(Color.White).focusRing()
-                    .clickable { player.playQueue(a.topSongs, 0) }.semantics { role = Role.Button }.padding(horizontal = 32.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Icon(NuvxIcons.Play, null, Modifier.size(20.dp), tint = Color.Black)
-                    Text("  Play", color = Color.Black, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                }
+                if (a != null && a.topSongs.isNotEmpty()) PlayShuffle(player, a.topSongs)
             }
         }
         when {
