@@ -16,6 +16,11 @@ name = "CREATE_LIMIT"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
 
+# Community canvases (uploaded from canvas.nuvx.lol).
+[[kv_namespaces]]
+binding = "CANVASES"
+id = "8d4b1b9c1d0746c0a6626671bbb46bf7"
+
 # Canvas uploads: 5 per minute per IP (slows passcode guessing).
 [[ratelimits]]
 name = "CANVAS_LIMIT"

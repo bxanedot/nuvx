@@ -1,14 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import { ROOM_CODE, cleanName, emptyRoom, handle, join, leave, roomCode, take, type Bucket, type Outcome, type RoomState } from "./room.ts";
-import { MAX_CANVAS_BYTES, commitCanvas, isMp4, samePasscode, videoIdFromLink } from "./canvas.ts";
+import { MAX_CANVAS_BYTES, isMp4, parseRange, samePasscode, videoIdFromLink } from "./canvas.ts";
 
 export interface Env {
   ROOMS: DurableObjectNamespace<Room>;
   CREATE_LIMIT: RateLimit;
   CANVAS_LIMIT: RateLimit;
-  /** Secrets for canvas uploads (wrangler secret put); uploads are refused until both are set. */
+  CANVASES: KVNamespace;
+  /** Upload passcode (a secret set in the Cloudflare dashboard); uploads are refused until it is set. */
   CANVAS_PASSCODE?: string;
-  CANVAS_GITHUB_TOKEN?: string;
 }
 
 const IDLE_EXPIRY_MS = 30 * 60 * 1000;
@@ -30,6 +30,8 @@ export default {
       return json({ code });
     }
     if (req.method === "POST" && url.pathname === "/canvas") return uploadCanvas(req, env);
+    const canvas = url.pathname.match(/^\/canvas\/([A-Za-z0-9_-]{11})\.mp4$/);
+    if (canvas && (req.method === "GET" || req.method === "HEAD")) return serveCanvas(req, env, canvas[1]);
     const m = url.pathname.match(/^\/rooms\/([^/]+)\/ws$/);
     if (m && ROOM_CODE.test(m[1])) {
       if (req.headers.get("upgrade") !== "websocket") return json({ error: "expected websocket" }, 426);
@@ -41,7 +43,7 @@ export default {
 
 /** POST /canvas from the canvas.nuvx.lol page: form fields link, passcode, video. */
 async function uploadCanvas(req: Request, env: Env): Promise<Response> {
-  if (!env.CANVAS_PASSCODE || !env.CANVAS_GITHUB_TOKEN) return json({ error: "Uploads are not set up yet." }, 503);
+  if (!env.CANVAS_PASSCODE) return json({ error: "Uploads are not set up yet." }, 503);
   // Rate-limited before the passcode check, so guessing it is slow.
   if (!(await env.CANVAS_LIMIT.limit({ key: req.headers.get("cf-connecting-ip") ?? "local" })).success) return json({ error: "Too many tries. Wait a minute." }, 429);
   if (Number(req.headers.get("content-length") ?? 0) > MAX_CANVAS_BYTES + 64 * 1024) return json({ error: "The video is over 10 MB." }, 413);
@@ -55,8 +57,23 @@ async function uploadCanvas(req: Request, env: Env): Promise<Response> {
   if (video.size > MAX_CANVAS_BYTES) return json({ error: "The video is over 10 MB." }, 413);
   const bytes = new Uint8Array(await video.arrayBuffer());
   if (!isMp4(bytes)) return json({ error: "The video must be an MP4." }, 415);
-  const status = await commitCanvas(id, bytes, env.CANVAS_GITHUB_TOKEN);
-  return status === 200 || status === 201 ? json({ ok: true, id, replaced: status === 200 }) : json({ error: `GitHub refused the upload (${status}).` }, 502);
+  const replaced = (await env.CANVASES.list({ prefix: `${id}.mp4` })).keys.length > 0;
+  await env.CANVASES.put(`${id}.mp4`, bytes);
+  return json({ ok: true, id, replaced });
+}
+
+/** GET/HEAD /canvas/<id>.mp4 for the app, with byte ranges so video players can seek. */
+async function serveCanvas(req: Request, env: Env, id: string): Promise<Response> {
+  // shortcut: every request reads KV (free plan: 100k reads a day); put caches.default in front if canvases get popular.
+  const bytes = await env.CANVASES.get(`${id}.mp4`, "arrayBuffer");
+  if (!bytes) return new Response(null, { status: 404, headers: { "access-control-allow-origin": "*" } });
+  const headers = { "content-type": "video/mp4", "accept-ranges": "bytes", "cache-control": "public, max-age=300", "access-control-allow-origin": "*" };
+  const range = parseRange(req.headers.get("range"), bytes.byteLength);
+  if (!range) return new Response(req.method === "HEAD" ? null : bytes, { headers: { ...headers, "content-length": String(bytes.byteLength) } });
+  const [start, end] = range;
+  return new Response(req.method === "HEAD" ? null : bytes.slice(start, end + 1), {
+    status: 206, headers: { ...headers, "content-range": `bytes ${start}-${end}/${bytes.byteLength}`, "content-length": String(end - start + 1) },
+  });
 }
 
 type Attachment = { id: string; bucket: Bucket };
