@@ -104,7 +104,11 @@ internal fun TvShell(
                     navigation.albumOpen -> Column(Modifier.fillMaxSize()) {
                         TvBackButton("Back to search") { navigation = navigation.back() }
                         Box(Modifier.weight(1f)) {
-                            currentCollection?.let { AlbumPage(router, player, state, it) }
+                            currentCollection?.let {
+                                // Artists get their own page; an album opened from it replaces the artist (Back returns to search).
+                                if (it.kind == Collection.Kind.ARTIST) ArtistPage(router, player, state, it) { next -> currentCollection = next }
+                                else AlbumPage(router, player, state, it)
+                            }
                                 ?: Text("Album unavailable.", color = NuvxColors.Secondary, modifier = Modifier.align(Alignment.Center))
                         }
                     }
@@ -116,7 +120,7 @@ internal fun TvShell(
                     navigation.destination == TvDestination.EXPLORE -> ExploreScreen({ query ->
                         searchQuery = query
                         navigation = navigation.copy(destination = TvDestination.SEARCH, albumOpen = false, subpage = null)
-                    }) { openPage(TvSubpage.SETTINGS) }
+                    }, router) { openPage(TvSubpage.SETTINGS) }
                     navigation.destination == TvDestination.LIBRARY -> LibraryScreen(
                         history, state, player,
                         { openPage(TvSubpage.QUEUE) }, { openPage(TvSubpage.LIKED) }, { openPage(TvSubpage.TOGETHER) }, { openPage(TvSubpage.SETTINGS) },
