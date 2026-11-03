@@ -74,7 +74,7 @@ import kotlinx.coroutines.CancellationException
     }
 }
 
-@Composable private fun CollectionCard(c: Collection, onClick: () -> Unit) =
+@Composable internal fun CollectionCard(c: Collection, onClick: () -> Unit) =
     Column(Modifier.width(150.dp).clip(RoundedCornerShape(12.dp)).focusRing(RoundedCornerShape(12.dp)).clickable(onClick = onClick)) {
         val shape = if (c.kind == Collection.Kind.ARTIST) CircleShape else RoundedCornerShape(14.dp)
         Box(Modifier.size(150.dp).clip(shape).background(NuvxColors.Card)) {

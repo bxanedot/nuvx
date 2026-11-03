@@ -173,6 +173,7 @@ private val Moods = listOf(
     var filter by remember { mutableStateOf(SearchFilter.ALL) }
     var results by remember { mutableStateOf<List<Track>>(emptyList()) }
     var albums by remember { mutableStateOf<List<Collection>>(emptyList()) }
+    var tops by remember { mutableStateOf<List<Collection>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val recents by history.searches.collectAsState()
@@ -180,14 +181,14 @@ private val Moods = listOf(
     LaunchedEffect(Unit) { if (initialQuery == null) runCatching { focus.requestFocus() } }
     LaunchedEffect(submitted, filter) {
         val q = submitted ?: return@LaunchedEffect
-        busy = true; error = null; results = emptyList(); albums = emptyList()
+        busy = true; error = null; results = emptyList(); albums = emptyList(); tops = emptyList()
         try {
             val found = router.search(q, filter)
             when (filter) {
                 SearchFilter.ALBUMS -> albums = found.collections.filter { it.kind == Collection.Kind.ALBUM }
                 SearchFilter.PLAYLISTS -> albums = found.collections.filter { it.kind == Collection.Kind.PLAYLIST }
                 SearchFilter.ARTISTS -> albums = found.collections.filter { it.kind == Collection.Kind.ARTIST }
-                else -> results = found.tracks
+                else -> { results = found.tracks; if (filter == SearchFilter.ALL) tops = found.collections.take(12) }
             }
             history.searched(q)
             if (results.isEmpty() && albums.isEmpty()) error = "Nothing found for \"$q\"."
@@ -226,6 +227,15 @@ private val Moods = listOf(
                 } else item { Text("Find songs, artists and moods.", color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp)) }
             }
             error?.let { item { Text(it, color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp)) } }
+            if (tops.isNotEmpty()) {
+                item { SectionHeader("Top results") }
+                item {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        items(tops, key = { it.browseId }) { c -> CollectionCard(c) { onOpen(c) } }
+                    }
+                }
+                if (results.isNotEmpty()) item { SectionHeader("Songs") }
+            }
             itemsIndexed(results) { i, t -> TrackRow(t) { player.playQueue(results, i) } }
             items(albums) { a -> AlbumRow(a) { onOpen(a) } }
         }
