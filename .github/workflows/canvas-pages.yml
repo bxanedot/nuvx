@@ -1,0 +1,31 @@
+name: Publish canvases
+# Publishes only the canvas/ folder (upload page + videos) to canvas.nuvx.lol; the rest of the repo is not published.
+on:
+  push:
+    branches: [main]
+    paths: ["canvas/**", ".github/workflows/canvas-pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: canvas-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: canvas
+      - id: deploy
+        uses: actions/deploy-pages@v5

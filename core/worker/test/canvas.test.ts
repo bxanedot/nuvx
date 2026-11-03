@@ -34,9 +34,9 @@ test("commit creates a new file, and replaces an existing one with its sha", asy
     return new Response("{}", { status: exists ? 200 : 201 });
   }) as typeof fetch;
   const bytes = new Uint8Array([1, 2, 3]);
-  assert.equal(await commitCanvas(ID, bytes, "t", fake(false)), 201);
+  assert.deepEqual(await commitCanvas(ID, bytes, "t", fake(false)), { status: 201 });
   assert.equal(calls[1].body.sha, undefined);
   assert.equal(calls[1].body.content, "AQID");
-  assert.equal(await commitCanvas(ID, bytes, "t", fake(true)), 200);
+  assert.deepEqual(await commitCanvas(ID, bytes, "t", fake(true)), { status: 200 });
   assert.equal(calls[3].body.sha, "abc");
 });

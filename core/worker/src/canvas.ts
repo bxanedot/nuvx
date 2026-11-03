@@ -1,9 +1,9 @@
 // Community canvas uploads: the canvas.nuvx.lol page posts a song link, a passcode and an MP4; the worker commits it to
-// github.com/bxanedot/nuvx-canvas as canvas/<videoId>.mp4, which GitHub Pages then serves to the app.
+// github.com/bxanedot/nuvx as canvas/<videoId>.mp4, which the canvas-pages workflow publishes to canvas.nuvx.lol.
 
 export const MAX_CANVAS_BYTES = 10 * 1024 * 1024;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
-const REPO_FILE = "https://api.github.com/repos/bxanedot/nuvx-canvas/contents/canvas/";
+const REPO_FILE = "https://api.github.com/repos/bxanedot/nuvx/contents/canvas/";
 
 /** The 11-character video id from a YouTube Music / YouTube link (watch?v=, youtu.be/…) or a bare id; null otherwise. */
 export function videoIdFromLink(link: string): string | null {
@@ -37,8 +37,8 @@ function base64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** Creates or replaces canvas/<id>.mp4 in the repo. Returns the GitHub status (200/201 on success). */
-export async function commitCanvas(id: string, bytes: Uint8Array, token: string, fetchFn: typeof fetch = fetch): Promise<number> {
+/** Creates or replaces canvas/<id>.mp4 in the repo. Returns GitHub's status (200/201 on success) and its message on failure. */
+export async function commitCanvas(id: string, bytes: Uint8Array, token: string, fetchFn: typeof fetch = fetch): Promise<{ status: number; message?: string }> {
   const headers = { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "nuvx-canvas-upload" };
   const existing = await fetchFn(`${REPO_FILE}${id}.mp4`, { headers });
   const sha = existing.ok ? ((await existing.json()) as { sha?: string }).sha : undefined;
@@ -47,5 +47,6 @@ export async function commitCanvas(id: string, bytes: Uint8Array, token: string,
     headers: { ...headers, "content-type": "application/json" },
     body: JSON.stringify({ message: `${sha ? "Replace" : "Add"} canvas ${id}`, content: base64(bytes), branch: "main", ...(sha ? { sha } : {}) }),
   });
-  return put.status;
+  if (put.ok) return { status: put.status };
+  return { status: put.status, message: ((await put.json().catch(() => ({}))) as { message?: string }).message };
 }

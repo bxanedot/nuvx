@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nuvx canvas</title>
+<meta name="description" content="Upload a community canvas: a short looping video that plays over a song's cover in nuvx.">
+<link rel="icon" href="https://nuvx.lol/mark-white.svg">
+<style>
+  :root { color-scheme: dark; --bg: #000; --card: #161618; --line: #2c2c30; --text: #fff; --dim: #9a9aa0; --accent: #5aa2ff; --bad: #ff6b6b; --good: #57d68d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 28px 16px 48px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  header img { width: 44px; height: auto; }
+  h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; }
+  p.lead { color: var(--dim); margin: 0 0 24px; }
+  label.field { display: block; font-weight: 600; margin: 18px 0 8px; }
+  input[type=url], input[type=password] { width: 100%; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; }
+  input:focus-visible, .drop:focus-within, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hint { color: var(--dim); font-size: 14px; margin-top: 6px; min-height: 20px; }
+  .hint.bad { color: var(--bad); }
+  .drop { display: grid; place-items: center; gap: 10px; text-align: center; min-height: 180px; padding: 20px; border: 2px dashed var(--line); border-radius: 20px; background: var(--card); cursor: pointer; }
+  .drop.over { border-color: var(--accent); background: #12233a; }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .drop video { width: 160px; height: 160px; object-fit: cover; border-radius: 14px; display: none; }
+  .drop strong { font-size: 18px; }
+  button { width: 100%; margin-top: 24px; padding: 15px; border: 0; border-radius: 999px; background: #fff; color: #000; font: 600 17px system-ui, sans-serif; cursor: pointer; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  #status { margin-top: 16px; min-height: 24px; }
+  #status.good { color: var(--good); } #status.bad { color: var(--bad); }
+  footer { margin-top: 40px; color: var(--dim); font-size: 14px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="https://nuvx.lol/mark-white.svg" alt=""><h1>nuvx canvas</h1></header>
+  <p class="lead">Add a looping video that plays over a song's cover in nuvx.</p>
+
+  <form id="form">
+    <label class="field" for="link">Song link</label>
+    <input id="link" name="link" type="url" inputmode="url" autocomplete="off" placeholder="https://music.youtube.com/watch?v=…" required>
+    <div id="linkHint" class="hint" aria-live="polite">In YouTube Music: Share → Copy link, then paste it here.</div>
+
+    <label class="field" for="video">Video</label>
+    <label class="drop" id="drop">
+      <input id="video" name="video" type="file" accept="video/mp4" required>
+      <video id="preview" muted loop playsinline autoplay></video>
+      <strong id="dropTitle">Drop an MP4 here</strong>
+      <span class="hint" id="dropHint">or tap to choose one · up to 10 MB, a few seconds that loop</span>
+    </label>
+
+    <label class="field" for="passcode">Upload passcode</label>
+    <input id="passcode" name="passcode" type="password" autocomplete="current-password" required>
+
+    <button id="send" type="submit" disabled>Upload canvas</button>
+    <div id="status" role="status" aria-live="polite"></div>
+  </form>
+
+  <footer>Only upload videos you have the right to share. Files are stored publicly in <a href="https://github.com/bxanedot/nuvx/tree/main/canvas">the nuvx repository</a>.</footer>
+</main>
+<script>
+  const UPLOAD = "https://nuvx-listen.bxane.workers.dev/canvas";
+  const MAX = 10 * 1024 * 1024;
+  const $ = (id) => document.getElementById(id);
+  const form = $("form"), link = $("link"), video = $("video"), drop = $("drop"), pass = $("passcode"), send = $("send"), status = $("status");
+  let file = null;
+
+  function idFrom(text) {
+    text = text.trim();
+    if (/^[A-Za-z0-9_-]{11}$/.test(text)) return text;
+    try {
+      const u = new URL(text), host = u.hostname.replace(/^www\./, "");
+      const id = host === "youtu.be" ? u.pathname.slice(1) : ["music.youtube.com", "youtube.com", "m.youtube.com"].includes(host) ? u.searchParams.get("v") : null;
+      return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+    } catch { return null; }
+  }
+  function refresh() {
+    const id = idFrom(link.value);
+    $("linkHint").textContent = link.value.trim() === "" ? "In YouTube Music: Share → Copy link, then paste it here." : id ? `Song id ${id} · saved as ${id}.mp4` : "That isn't a YouTube Music song link.";
+    $("linkHint").className = "hint" + (link.value.trim() && !id ? " bad" : "");
+    send.disabled = !(id && file && pass.value);
+  }
+  function choose(f) {
+    if (!f) return;
+    if (f.type && f.type !== "video/mp4") { $("dropHint").textContent = "That isn't an MP4."; file = null; return refresh(); }
+    if (f.size > MAX) { $("dropHint").textContent = `That's ${(f.size / 1048576).toFixed(1)} MB; the limit is 10 MB.`; file = null; return refresh(); }
+    file = f;
+    $("dropTitle").textContent = f.name;
+    $("dropHint").textContent = `${(f.size / 1048576).toFixed(1)} MB · tap to change`;
+    const p = $("preview"); p.src = URL.createObjectURL(f); p.style.display = "block";
+    refresh();
+  }
+  video.addEventListener("change", () => choose(video.files[0]));
+  ["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (ev) => choose(ev.dataTransfer.files[0]));
+  link.addEventListener("input", refresh);
+  pass.addEventListener("input", refresh);
+  try { pass.value = localStorage.getItem("nuvxCanvasPasscode") || ""; } catch {}
+  refresh();
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const id = idFrom(link.value);
+    if (!id || !file) return;
+    send.disabled = true; status.className = ""; status.textContent = "Uploading…";
+    const body = new FormData();
+    body.append("link", id); body.append("passcode", pass.value); body.append("video", file, `${id}.mp4`);
+    try {
+      const res = await fetch(UPLOAD, { method: "POST", body });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || `Upload failed (${res.status}).`);
+      try { localStorage.setItem("nuvxCanvasPasscode", pass.value); } catch {}
+      status.className = "good";
+      status.textContent = `${out.replaced ? "Replaced" : "Added"} the canvas for ${id}. It shows in nuvx within a few minutes.`;
+    } catch (e) {
+      status.className = "bad"; status.textContent = e.message;
+    } finally { refresh(); }
+  });
+</script>
+</body>
+</html>

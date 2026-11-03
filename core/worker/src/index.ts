@@ -55,8 +55,9 @@ async function uploadCanvas(req: Request, env: Env): Promise<Response> {
   if (video.size > MAX_CANVAS_BYTES) return json({ error: "The video is over 10 MB." }, 413);
   const bytes = new Uint8Array(await video.arrayBuffer());
   if (!isMp4(bytes)) return json({ error: "The video must be an MP4." }, 415);
-  const status = await commitCanvas(id, bytes, env.CANVAS_GITHUB_TOKEN);
-  return status === 200 || status === 201 ? json({ ok: true, id, replaced: status === 200 }) : json({ error: `GitHub refused the upload (${status}).` }, 502);
+  const { status, message } = await commitCanvas(id, bytes, env.CANVAS_GITHUB_TOKEN);
+  // GitHub's own reason (e.g. a missing token permission) is shown as is; it never contains the token.
+  return status === 200 || status === 201 ? json({ ok: true, id, replaced: status === 200 }) : json({ error: `GitHub refused the upload (${status}${message ? `: ${message}` : ""}).` }, 502);
 }
 
 type Attachment = { id: string; bucket: Bucket };

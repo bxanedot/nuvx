@@ -1,6 +1,8 @@
 name: Build and test
 on:
   push:
+    # Canvas uploads only add videos; they don't need the app build.
+    paths-ignore: ["canvas/**"]
   pull_request:
   workflow_dispatch:
 
