@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isMp4, parseRange, samePasscode, videoIdFromLink } from "../src/canvas.ts";
+import { commitCanvas, isMp4, samePasscode, videoIdFromLink } from "../src/canvas.ts";
 
 const ID = "9qnqYL0eNNI";
 
@@ -26,12 +26,17 @@ test("passcodes must match exactly and an unset passcode never matches", () => {
   assert.equal(samePasscode("", ""), false);
 });
 
-test("byte ranges for video players", () => {
-  assert.deepEqual(parseRange("bytes=0-99", 1000), [0, 99]);
-  assert.deepEqual(parseRange("bytes=900-", 1000), [900, 999]);
-  assert.deepEqual(parseRange("bytes=-100", 1000), [900, 999]);
-  assert.deepEqual(parseRange("bytes=0-5000", 1000), [0, 999]);
-  assert.equal(parseRange("bytes=1000-", 1000), null);
-  assert.equal(parseRange("bytes=0-1,5-9", 1000), null);
-  assert.equal(parseRange(null, 1000), null);
+test("commit creates a new file, and replaces an existing one with its sha", async () => {
+  const calls: { method: string; body?: any }[] = [];
+  const fake = (exists: boolean) => (async (_url: string, init?: RequestInit) => {
+    calls.push({ method: init?.method ?? "GET", body: init?.body ? JSON.parse(init.body as string) : undefined });
+    if (!init?.method) return new Response(exists ? JSON.stringify({ sha: "abc" }) : "{}", { status: exists ? 200 : 404 });
+    return new Response("{}", { status: exists ? 200 : 201 });
+  }) as typeof fetch;
+  const bytes = new Uint8Array([1, 2, 3]);
+  assert.equal(await commitCanvas(ID, bytes, "t", fake(false)), 201);
+  assert.equal(calls[1].body.sha, undefined);
+  assert.equal(calls[1].body.content, "AQID");
+  assert.equal(await commitCanvas(ID, bytes, "t", fake(true)), 200);
+  assert.equal(calls[3].body.sha, "abc");
 });

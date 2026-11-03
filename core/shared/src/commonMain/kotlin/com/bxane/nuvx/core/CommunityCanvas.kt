@@ -6,8 +6,8 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 
 /**
- * Community canvases: looping cover videos uploaded at canvas.nuvx.lol (paste the song link, drop the MP4) and stored
- * as `<YouTube video id>.mp4`. Exact ids, so there is no fuzzy name matching.
+ * Community canvases: looping cover videos dropped into one public folder, each named `<YouTube video id>.mp4`
+ * (GitHub's "Upload files" page takes them by drag and drop). Exact ids, so there is no fuzzy name matching.
  */
 class CommunityCanvas(private val http: HttpClient = nuvxHttpClient(), private val folder: String = FOLDER) {
     // Only definite answers (found / not there) are remembered; a network error is asked again next time.
@@ -27,8 +27,8 @@ class CommunityCanvas(private val http: HttpClient = nuvxHttpClient(), private v
     }
 
     companion object {
-        // Uploaded at canvas.nuvx.lol and served by the nuvx-listen worker (core/worker).
-        const val FOLDER = "https://nuvx-listen.bxane.workers.dev/canvas/"
+        // Served by GitHub Pages from github.com/bxanedot/nuvx-canvas (upload there); the subdomain is a CNAME in nuvx.lol DNS.
+        const val FOLDER = "https://canvas.nuvx.lol/canvas/"
         private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
     }
 }
