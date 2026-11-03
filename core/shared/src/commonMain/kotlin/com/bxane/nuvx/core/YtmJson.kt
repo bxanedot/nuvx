@@ -26,7 +26,7 @@ object YtmJson {
                 ?: item.obj("overlay")?.obj("musicItemThumbnailOverlayRenderer")?.obj("content")
                     ?.obj("musicPlayButtonRenderer")?.obj("playNavigationEndpoint")?.obj("watchEndpoint")?.str("videoId")
             if (browse == null && videoId != null) {
-                tracks += Track(videoId, title, meta.artists(), meta.album(), meta.durationMs(), art)
+                tracks += Track(videoId, title, meta.artists(), meta.album(), meta.durationMs(), art, artistId = meta.artistId(), albumId = meta.albumId())
             } else if (browse != null) {
                 val kind = when (browse.pageType()) {
                     "MUSIC_PAGE_TYPE_ALBUM" -> Collection.Kind.ALBUM
@@ -72,7 +72,10 @@ object YtmJson {
             val rowAlbum = cols.drop(1).flatMap { it.runs() }.album()
             val rowArt = row.obj("thumbnail")?.obj("musicThumbnailRenderer")?.obj("thumbnail").bestThumb()
             val length = row.arr("fixedColumns").firstNotNullOfOrNull { it.obj("musicResponsiveListItemFixedColumnRenderer")?.obj("text").runs().firstOrNull()?.str("text")?.let(::parseClock) }
-            Track(id, name, rowArtists.ifEmpty { listOfNotNull(artist) }, rowAlbum ?: title.takeUnless { isPlaylist }, length, rowArt ?: art)
+            val rowRuns = cols.drop(1).flatMap { it.runs() }
+            Track(id, name, rowArtists.ifEmpty { listOfNotNull(artist) }, rowAlbum ?: title.takeUnless { isPlaylist }, length, rowArt ?: art,
+                artistId = rowRuns.artistId() ?: header?.obj("straplineTextOne").runs().artistId(),
+                albumId = rowRuns.albumId() ?: browseId.takeUnless { isPlaylist })
         }
         return Album(browseId, title, artist, year, art, tracks.distinctBy { it.videoId })
     }
@@ -118,6 +121,8 @@ object YtmJson {
                 title = r.obj("title").runs().firstOrNull()?.str("text") ?: return@mapNotNull null,
                 artists = byline.artists(),
                 album = byline.album(),
+                artistId = byline.artistId(),
+                albumId = byline.albumId(),
                 durationMs = r.obj("lengthText").runs().firstOrNull()?.str("text")?.let(::parseClock),
                 artworkUrl = r.obj("thumbnail").bestThumb(),
             )
@@ -133,6 +138,11 @@ object YtmJson {
         if (parts.size !in 2..3 || parts.any { p -> p.isEmpty() || p.any { !it.isDigit() } }) return null
         return parts.fold(0L) { acc, p -> acc * 60 + p.toLong() } * 1000
     }
+
+    private fun List<JsonObject>.browseIdOf(pages: Set<String>) =
+        firstNotNullOfOrNull { r -> r.obj("navigationEndpoint")?.obj("browseEndpoint")?.takeIf { it.pageType() in pages }?.str("browseId") }
+    private fun List<JsonObject>.artistId() = browseIdOf(ARTIST_PAGES)
+    private fun List<JsonObject>.albumId() = browseIdOf(setOf("MUSIC_PAGE_TYPE_ALBUM"))
 
     private fun List<JsonObject>.artists() =
         filter { it.obj("navigationEndpoint")?.obj("browseEndpoint")?.pageType() in ARTIST_PAGES }.mapNotNull { it.str("text") }

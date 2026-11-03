@@ -28,7 +28,7 @@ class YtmJsonTest {
             """"navigationEndpoint":{"browseEndpoint":{"browseId":"UC1","browseEndpointContextSupportedConfigs":{"browseEndpointContextMusicConfig":{"pageType":"MUSIC_PAGE_TYPE_ARTIST"}}}},"menu":{"watchEndpoint":{"videoId":"radio"}},""",
         )
         val r = YtmJson.parseSearch("""{"contents":[$song,$artist]}""")
-        assertEquals(listOf(Track("abc123", "Around the World", listOf("Daft Punk"), "Homework", 429_000, "big")), r.tracks)
+        assertEquals(listOf(Track("abc123", "Around the World", listOf("Daft Punk"), "Homework", 429_000, "big", artistId = "X", albumId = "X")), r.tracks)
         assertEquals(listOf(Collection(Collection.Kind.ARTIST, "UC1", "Daft Punk", "Artist", "big")), r.collections)
     }
 
@@ -46,7 +46,7 @@ class YtmJsonTest {
             "longBylineText":{"runs":[${run("Artist A", "MUSIC_PAGE_TYPE_ARTIST")}]},"lengthText":{"runs":[{"text":"3:05"}]}}}],
             "continuations":[{"nextRadioContinuationData":{"continuation":"CONT"}}]}"""
         val page = YtmJson.parseRadio(body)
-        assertEquals(listOf(Track("v1", "One", listOf("Artist A"), null, 185_000, null)), page.tracks)
+        assertEquals(listOf(Track("v1", "One", listOf("Artist A"), null, 185_000, null, artistId = "X")), page.tracks)
         assertEquals("CONT", page.continuation)
     }
 

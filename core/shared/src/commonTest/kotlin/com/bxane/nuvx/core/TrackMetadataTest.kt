@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 
 class TrackMetadataTest {
     @Test fun metadataRoundTripKeepsArtistsAlbumDurationAndLocalUri() {
-        val original = Track("local:123", "Silver Comet", listOf("Artist One", "Artist Two"), "Night Drive", 123_456, localUri = "content://media/audio/123")
+        val original = Track("local:123", "Silver Comet", listOf("Artist One", "Artist Two"), "Night Drive", 123_456, localUri = "content://media/audio/123", artistId = "UC1", albumId = "MPRE1")
 
         assertEquals(
             original,

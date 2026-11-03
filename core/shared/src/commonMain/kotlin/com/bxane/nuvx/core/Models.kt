@@ -11,6 +11,9 @@ data class Track(
     val durationMs: Long? = null,
     val artworkUrl: String? = null,
     val localUri: String? = null,
+    /** YouTube Music browse IDs for the first credited artist and the album; null when the source gives no link. */
+    val artistId: String? = null,
+    val albumId: String? = null,
 ) {
     val artistLine: String get() = artists.joinToString(", ")
     val isLocal: Boolean get() = videoId.startsWith("local:")
@@ -23,6 +26,8 @@ fun Track.toMetadataExtras(): Map<String, String> = buildMap {
     album?.let { put("nuvx.album", it) }
     durationMs?.let { put("nuvx.durationMs", it.toString()) }
     localUri?.let { put("nuvx.localUri", it) }
+    artistId?.let { put("nuvx.artistId", it) }
+    albumId?.let { put("nuvx.albumId", it) }
 }
 
 fun trackFromMetadata(
@@ -42,6 +47,8 @@ fun trackFromMetadata(
         extras["nuvx.durationMs"]?.toLongOrNull(),
         artworkUrl,
         extras["nuvx.localUri"],
+        extras["nuvx.artistId"],
+        extras["nuvx.albumId"],
     )
 }
 

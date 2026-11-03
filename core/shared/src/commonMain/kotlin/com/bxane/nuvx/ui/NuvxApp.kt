@@ -135,7 +135,7 @@ fun NuvxApp(
                     AnimatedVisibility(sheet && state.current != null,
                         enter = if (reduceMotion) fadeIn() else slideInVertically(tween(320)) { it },
                         exit = if (reduceMotion) fadeOut() else slideOutVertically(tween(260)) { it }) {
-                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion) { sheet = false }
+                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }) { sheet = false }
                     }
                 }
             }

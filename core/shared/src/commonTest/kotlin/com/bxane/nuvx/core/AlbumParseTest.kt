@@ -24,7 +24,8 @@ class AlbumParseTest {
             "subtitle":{"runs":${runs("Playlist", " • ", "2022")}},
             "thumbnail":{"musicThumbnailRenderer":{"thumbnail":{"thumbnails":[{"url":"cover"}]}}}}},"contents":[$row,$plain]}"""
         val page = YtmJson.parseAlbum("VLPLx", body)
-        assertEquals(Track("p1", "Placeholder Song", listOf("Row Artist"), "Row Album", 161_000, "row-art"), page.tracks[0])
+        assertEquals(Track("p1", "Placeholder Song", listOf("Row Artist"), "Row Album", 161_000, "row-art", artistId = "UC1", albumId = "MPRE1"), page.tracks[0])
+        assertEquals(null, page.tracks[1].albumId, "a playlist is not an album")
         assertEquals(null, page.tracks[1].album, "a playlist title is not an album name")
         assertEquals("cover", page.tracks[1].artworkUrl)
     }
@@ -42,8 +43,8 @@ class AlbumParseTest {
         assertEquals("cover", album.artworkUrl)
         assertEquals(
             listOf(
-                Track("t1", "First", listOf("Test Band"), "Placeholder Album", 137_000, "cover"),
-                Track("t2", "Second", listOf("Test Band"), "Placeholder Album", 185_000, "cover"),
+                Track("t1", "First", listOf("Test Band"), "Placeholder Album", 137_000, "cover", albumId = "MPREb_x"),
+                Track("t2", "Second", listOf("Test Band"), "Placeholder Album", 185_000, "cover", albumId = "MPREb_x"),
             ),
             album.tracks,
         )

@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.bxane.nuvx.core.*
+import com.bxane.nuvx.core.Collection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -59,7 +60,7 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
-fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onClose: () -> Unit) {
+fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, onClose: () -> Unit) {
     val track = state.current
     val liked by history.liked.collectAsState()
     val scope = rememberCoroutineScope()
@@ -67,6 +68,8 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     val actions = TrackActions(
         liked = track != null && liked.any { it.videoId == track.videoId },
         onLike = { track?.let(history::toggleLike) },
+        openAlbum = track?.albumId?.let { id -> { onOpen(Collection(Collection.Kind.ALBUM, id, track.album ?: track.title, null, track.artworkUrl)) } },
+        openArtist = track?.artistId?.let { id -> { onOpen(Collection(Collection.Kind.ARTIST, id, track.artists.firstOrNull().orEmpty(), null, null)) } },
         onRadio = {
             track?.let { seed ->
                 scope.launch {
@@ -158,8 +161,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
 @Composable private fun CompactHeader(track: Track?, actions: TrackActions) = Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
     ArtworkTile(track, Modifier.size(56.dp))
     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-        Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.linkTo(actions.openAlbum, "Open album"))
+        Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.linkTo(actions.openArtist, "Open artist"))
     }
     TrackChips(track != null, actions)
 }
@@ -168,8 +173,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     ArtworkTile(track, Modifier.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)))
     Row(Modifier.fillMaxWidth().padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.linkTo(actions.openAlbum, "Open album"))
+            Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.linkTo(actions.openArtist, "Open artist"))
         }
         TrackChips(track != null, actions)
     }
@@ -184,7 +191,14 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     Text(text, color = Color.White.copy(0.6f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
 }
 
-private class TrackActions(val liked: Boolean, val onLike: () -> Unit, val onRadio: () -> Unit)
+private class TrackActions(
+    val liked: Boolean, val onLike: () -> Unit, val onRadio: () -> Unit,
+    /** Set only when the track carries a browse ID, so the title and artist are tappable exactly when there is somewhere to go. */
+    val openAlbum: (() -> Unit)? = null, val openArtist: (() -> Unit)? = null,
+)
+
+private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
+    if (open == null) this else clickable(onClickLabel = label, onClick = open)
 
 /** Round like chip and a more chip with a menu. Likes are on-device until account sync exists. */
 @Composable private fun TrackChips(enabled: Boolean, a: TrackActions) {
