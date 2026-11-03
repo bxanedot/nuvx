@@ -171,8 +171,8 @@ private val Moods = listOf(
     }
 }
 
-@Composable fun TrackRow(track: Track, active: Boolean = false, trailing: (@Composable () -> Unit)? = null, onClick: () -> Unit) =
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+@Composable fun TrackRow(track: Track, modifier: Modifier = Modifier, active: Boolean = false, trailing: (@Composable () -> Unit)? = null, onClick: () -> Unit) =
+    Row(modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         ArtworkTile(track, Modifier.size(52.dp))
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
             Text(track.title, color = if (active) NuvxColors.Accent else NuvxColors.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -18,6 +18,13 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.zIndex
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -152,5 +159,38 @@ data class Tab(val label: String, val icon: ImageVector)
                 },
                 onDragCancel = { dx = 0f; dy = 0f },
             ) { change, drag -> change.consume(); dx += drag.x; dy += drag.y }
+        }
+}
+
+/**
+ * Long-press a row and drag it to a new place in a list; screen readers get Move up / Move down actions instead.
+ * The row lifts and follows the finger; the move happens on release, by whole row heights.
+ */
+@Composable fun Modifier.reorderable(index: Int, lastIndex: Int, onMove: (from: Int, to: Int) -> Unit): Modifier {
+    var dy by remember { mutableStateOf(0f) }
+    var height by remember { mutableStateOf(1) }
+    val at by rememberUpdatedState(index)
+    val last by rememberUpdatedState(lastIndex)
+    val move by rememberUpdatedState(onMove)
+    return this
+        .onSizeChanged { height = it.height.coerceAtLeast(1) }
+        .zIndex(if (dy != 0f) 1f else 0f)
+        .graphicsLayer { translationY = dy; if (dy != 0f) { scaleX = 1.02f; scaleY = 1.02f; shadowElevation = 12f } }
+        .background(if (dy != 0f) NuvxColors.Card else Color.Transparent, RoundedCornerShape(12.dp))
+        .semantics {
+            customActions = listOfNotNull(
+                if (index > 0) CustomAccessibilityAction("Move up") { onMove(index, index - 1); true } else null,
+                if (index < lastIndex) CustomAccessibilityAction("Move down") { onMove(index, index + 1); true } else null,
+            )
+        }
+        .pointerInput(Unit) {
+            detectDragGesturesAfterLongPress(
+                onDragEnd = {
+                    val to = (at + kotlin.math.round(dy / height).toInt()).coerceIn(0, last)
+                    if (to != at) move(at, to)
+                    dy = 0f
+                },
+                onDragCancel = { dy = 0f },
+            ) { change, drag -> change.consume(); dy += drag.y }
         }
 }

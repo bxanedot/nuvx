@@ -89,6 +89,7 @@ internal class DesktopPlayer(private val router: BackendRouter) : NuvxPlayer, Au
         if (s.queue.isEmpty()) return playQueue(tracks, 0)
         mutableState.value = s.copy(queue = s.queue.take(s.index + 1) + tracks + s.queue.drop(s.index + 1))
     }
+    override fun move(from: Int, to: Int) { mutableState.value = state.value.moving(from, to) ?: return }
     override fun remove(index: Int) {
         val (next, reload) = state.value.removing(index) ?: return
         mutableState.value = next

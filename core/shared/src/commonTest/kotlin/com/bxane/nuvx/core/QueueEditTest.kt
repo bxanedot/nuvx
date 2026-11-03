@@ -18,4 +18,12 @@ class QueueEditTest {
         assertEquals(PlayerState() to true, only)
         assertNull(q.removing(5))
     }
+
+    @Test fun movingKeepsThePlayingTrack() {
+        assertEquals(listOf("b", "c", "a") to 0, ids(q.moving(0, 2)!!))
+        assertEquals(listOf("c", "a", "b") to 2, ids(q.moving(2, 0)!!))
+        assertEquals(listOf("a", "c", "b") to 2, ids(q.moving(1, 2)!!), "moving the playing track follows it")
+        assertEquals(listOf("b", "a", "c") to 0, ids(q.moving(0, 1)!!))
+        assertNull(q.moving(1, 1)); assertNull(q.moving(0, 3))
+    }
 }

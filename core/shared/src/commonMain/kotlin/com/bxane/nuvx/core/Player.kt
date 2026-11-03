@@ -28,6 +28,8 @@ interface NuvxPlayer {
     fun playNext(tracks: List<Track>) = enqueue(tracks)
     /** Remove a queued track. The default does nothing; platform players override it. */
     fun remove(index: Int) {}
+    /** Move a queued track; the playing track keeps playing. The default does nothing; platform players override it. */
+    fun move(from: Int, to: Int) {}
 }
 
 /** Minimal persisted preferences; Android uses SharedPreferences, desktop java.util.prefs. */
@@ -59,4 +61,16 @@ fun PlayerState.removing(index: Int): Pair<PlayerState, Boolean>? {
         rest.isEmpty() -> PlayerState() to true
         else -> copy(queue = rest, index = this.index.coerceAtMost(rest.lastIndex)) to true
     }
+}
+
+/** Queue after moving [from] to [to]; the playing track keeps playing wherever it ends up. Null for a no-op or bad index. */
+fun PlayerState.moving(from: Int, to: Int): PlayerState? {
+    if (from !in queue.indices || to !in queue.indices || from == to) return null
+    val moved = queue.toMutableList().apply { add(to, removeAt(from)) }
+    val playing = when (index) {
+        from -> to
+        in minOf(from, to)..maxOf(from, to) -> if (from < to) index - 1 else index + 1
+        else -> index
+    }
+    return copy(queue = moved, index = playing)
 }

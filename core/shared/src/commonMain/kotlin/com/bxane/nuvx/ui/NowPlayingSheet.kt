@@ -140,7 +140,8 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                     }
                     SheetMode.QUEUE -> LazyColumn(contentPadding = PaddingValues(vertical = 12.dp)) {
                         itemsIndexed(state.queue) { i, t ->
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { player.skipTo(i) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().reorderable(i, state.queue.lastIndex, player::move).clip(RoundedCornerShape(12.dp))
+                                .clickable { player.skipTo(i) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                 ArtworkTile(t, Modifier.size(48.dp))
                                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                                     Text(t.title, color = if (i == state.index) NuvxColors.Accent else Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

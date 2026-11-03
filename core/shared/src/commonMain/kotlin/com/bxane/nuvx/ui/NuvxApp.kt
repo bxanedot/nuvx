@@ -196,7 +196,7 @@ private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
     if (state.queue.isEmpty()) Text("Your queue is empty. Play something from Search or Home.", color = NuvxColors.Secondary, fontSize = 16.sp, modifier = Modifier.padding(20.dp))
     else androidx.compose.foundation.lazy.LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
         items(state.queue.size) { i ->
-            TrackRow(state.queue[i], active = i == state.index, trailing = if (i != state.index) ({ PlainIconButton(NuvxIcons.Close, "Remove ${state.queue[i].title} from the queue", 44.dp) { player.remove(i) } }) else null) { player.skipTo(i) }
+            TrackRow(state.queue[i], Modifier.reorderable(i, state.queue.lastIndex, player::move), active = i == state.index, trailing = if (i != state.index) ({ PlainIconButton(NuvxIcons.Close, "Remove ${state.queue[i].title} from the queue", 44.dp) { player.remove(i) } }) else null) { player.skipTo(i) }
         }
     }
 

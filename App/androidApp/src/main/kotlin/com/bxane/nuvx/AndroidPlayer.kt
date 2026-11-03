@@ -54,6 +54,7 @@ class AndroidPlayer(private val controller: Player) : NuvxPlayer, AutoCloseable 
         if (controller.mediaItemCount == 0) return playQueue(tracks, 0)
         controller.addMediaItems(controller.currentMediaItemIndex + 1, tracks.map { it.toMediaItem() })
     }
+    override fun move(from: Int, to: Int) { if (from in 0 until controller.mediaItemCount && to in 0 until controller.mediaItemCount) controller.moveMediaItem(from, to) }
     override fun remove(index: Int) { if (index in 0 until controller.mediaItemCount) controller.removeMediaItem(index) }
     override fun togglePlay() {
         if (controller.playbackState == Player.STATE_ENDED) { controller.seekToDefaultPosition(); controller.play() }
