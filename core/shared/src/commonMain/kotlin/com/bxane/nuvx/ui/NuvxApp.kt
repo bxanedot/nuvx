@@ -57,6 +57,7 @@ fun NuvxApp(
     // shortcut: the room and history live as long as this composition (an Android activity recreation restarts them); move to the app graph when that matters.
     val scope = rememberCoroutineScope()
     val together = remember(player) { ListenTogether(player, scope) }
+    val sleep = remember(player) { SleepTimer(player, scope) }
     val history = remember(store) { History(store) }
     LaunchedEffect(state.current?.videoId) { state.current?.let(history::played) }
 
@@ -98,7 +99,7 @@ fun NuvxApp(
             when {
                 watch -> WatchApp(router, store, player)
                 !welcomed -> Welcome { store.put("welcomeSeen", "true"); welcomed = true }
-                tv -> TvShell(router, history, state, player, lyrics, localLibrary, reduceMotion, onBackHandler) { tvPage ->
+                tv -> TvShell(router, history, state, player, lyrics, localLibrary, reduceMotion, onBackHandler, sleep) { tvPage ->
                     when (tvPage) {
                         TvSubpage.TOGETHER -> TogetherPage(together, store)
                         TvSubpage.SETTINGS -> SettingsPage(router, store)
@@ -160,7 +161,7 @@ fun NuvxApp(
                     AnimatedVisibility(sheet && state.current != null,
                         enter = if (reduceMotion) fadeIn() else slideInVertically(tween(320)) { it },
                         exit = if (reduceMotion) fadeOut() else slideOutVertically(tween(260)) { it }) {
-                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }) { sheet = false }
+                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }, sleep = sleep) { sheet = false }
                     }
                 }
             }

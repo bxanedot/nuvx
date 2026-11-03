@@ -61,12 +61,14 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
-fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, onClose: () -> Unit) {
+fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, onClose: () -> Unit) {
     val track = state.current
     val liked by history.liked.collectAsState()
     val scope = rememberCoroutineScope()
     var notice by remember { mutableStateOf<String?>(null) }
+    val sleepMode = sleep?.mode?.collectAsState()?.value
     val actions = TrackActions(
+        sleep = sleep, sleepMode = sleepMode,
         liked = track != null && liked.any { it.videoId == track.videoId },
         onLike = { track?.let(history::toggleLike) },
         openAlbum = track?.albumId?.let { id -> { onOpen(Collection(Collection.Kind.ALBUM, id, track.album ?: track.title, null, track.artworkUrl)) } },
@@ -211,6 +213,7 @@ private class TrackActions(
     val liked: Boolean, val onLike: () -> Unit, val onRadio: () -> Unit,
     /** Set only when the track carries a browse ID, so the title and artist are tappable exactly when there is somewhere to go. */
     val openAlbum: (() -> Unit)? = null, val openArtist: (() -> Unit)? = null,
+    val sleep: SleepTimer? = null, val sleepMode: SleepTimer.Mode? = null,
 )
 
 private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
@@ -219,6 +222,7 @@ private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
 /** Round like chip and a more chip with a menu. Likes are on-device until account sync exists. */
 @Composable private fun TrackChips(enabled: Boolean, a: TrackActions) {
     var menu by remember { mutableStateOf(false) }
+    var sleepMenu by remember { mutableStateOf(false) }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         RoundChip(if (a.liked) NuvxIcons.HeartFilled else NuvxIcons.Heart, if (a.liked) "Remove from liked songs" else "Like", enabled, a.onLike)
         Box {
@@ -226,9 +230,22 @@ private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
             DropdownMenu(menu, { menu = false }, containerColor = Color(0xFF232327)) {
                 DropdownMenuItem({ Text("Start radio from this song") }, { menu = false; a.onRadio() })
                 DropdownMenuItem({ Text(if (a.liked) "Remove from liked songs" else "Add to liked songs") }, { menu = false; a.onLike() })
+                if (a.sleep != null) DropdownMenuItem({ Text("Sleep timer" + sleepLabel(a.sleepMode)?.let { ": $it" }.orEmpty()) }, { menu = false; sleepMenu = true })
+            }
+            if (a.sleep != null) DropdownMenu(sleepMenu, { sleepMenu = false }, containerColor = Color(0xFF232327)) {
+                (listOf(15, 30, 45, 60).map { SleepTimer.Mode.After(it) } + SleepTimer.Mode.EndOfTrack).forEach { option ->
+                    DropdownMenuItem({ Text((if (option == a.sleepMode) "✓  " else "") + sleepLabel(option)!!.replaceFirstChar { it.uppercase() }) }, { sleepMenu = false; a.sleep.set(option) })
+                }
+                if (a.sleepMode != null) DropdownMenuItem({ Text("Turn off timer") }, { sleepMenu = false; a.sleep.set(null) })
             }
         }
     }
+}
+
+private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
+    null -> null
+    SleepTimer.Mode.EndOfTrack -> "end of track"
+    is SleepTimer.Mode.After -> if (mode.minutes % 60 == 0) "${mode.minutes / 60} hour" else "${mode.minutes} minutes"
 }
 
 @Composable private fun RoundChip(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
