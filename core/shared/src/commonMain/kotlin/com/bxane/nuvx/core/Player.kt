@@ -11,6 +11,8 @@ data class PlayerState(
     val durationMs: Long = 0,
     val error: String? = null,
     val repeat: RepeatMode = RepeatMode.OFF,
+    /** nuvx's own playback volume, 0..1 (not the device volume). */
+    val volume: Float = 1f,
 ) {
     val current: Track? get() = queue.getOrNull(index)
 }
@@ -35,6 +37,8 @@ interface NuvxPlayer {
     fun setRepeat(mode: RepeatMode) {}
     /** Shuffle the tracks after the current one, in place, so the queue shows the new order. */
     fun shuffleUpNext() {}
+    /** Playback volume 0..1. The default does nothing; platform players override it. */
+    fun setVolume(volume: Float) {}
 }
 
 /** Minimal persisted preferences; Android uses SharedPreferences, desktop java.util.prefs. */

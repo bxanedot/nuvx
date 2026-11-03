@@ -34,7 +34,8 @@ class AndroidPlayer(private val controller: Player) : NuvxPlayer, AutoCloseable 
             controller.isPlaying, controller.playbackState == Player.STATE_BUFFERING,
             controller.currentPosition.coerceAtLeast(0), controller.duration.coerceAtLeast(0),
             controller.playerError?.let { "Playback failed. Retry this track or choose another engine in Settings." },
-            when (controller.repeatMode) { Player.REPEAT_MODE_ONE -> RepeatMode.ONE; Player.REPEAT_MODE_ALL -> RepeatMode.ALL; else -> RepeatMode.OFF })
+            when (controller.repeatMode) { Player.REPEAT_MODE_ONE -> RepeatMode.ONE; Player.REPEAT_MODE_ALL -> RepeatMode.ALL; else -> RepeatMode.OFF },
+            controller.volume)
     }
 
     private fun Track.toMediaItem(): MediaItem = MediaItem.Builder().setMediaId(videoId)
@@ -59,6 +60,7 @@ class AndroidPlayer(private val controller: Player) : NuvxPlayer, AutoCloseable 
     override fun setRepeat(mode: RepeatMode) {
         controller.repeatMode = when (mode) { RepeatMode.ONE -> Player.REPEAT_MODE_ONE; RepeatMode.ALL -> Player.REPEAT_MODE_ALL; RepeatMode.OFF -> Player.REPEAT_MODE_OFF }
     }
+    override fun setVolume(volume: Float) { controller.volume = volume.coerceIn(0f, 1f) }
     override fun shuffleUpNext() {
         val from = controller.currentMediaItemIndex + 1
         val count = controller.mediaItemCount

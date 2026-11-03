@@ -42,7 +42,7 @@ import kotlinx.coroutines.CancellationException
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.size(200.dp).clip(CircleShape).background(NuvxColors.Card)) {
-                    (a?.artworkUrl ?: ref.artworkUrl)?.let { AsyncImage(it, "Photo of ${ref.title}", Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                    (a?.artworkUrl ?: ref.artworkUrl)?.let { SharpArtwork(it, "Photo of ${ref.title}", Modifier.fillMaxSize(), 1080) }
                 }
                 Text(a?.name ?: ref.title, color = NuvxColors.Text, fontSize = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 18.dp))
                 if (a != null && a.topSongs.isNotEmpty()) PlayShuffle(player, a.topSongs)
@@ -73,7 +73,7 @@ import kotlinx.coroutines.CancellationException
     Column(Modifier.width(150.dp).clip(RoundedCornerShape(12.dp)).focusRing(RoundedCornerShape(12.dp)).clickable(onClick = onClick)) {
         val shape = if (c.kind == Collection.Kind.ARTIST) CircleShape else RoundedCornerShape(14.dp)
         Box(Modifier.size(150.dp).clip(shape).background(NuvxColors.Card)) {
-            c.artworkUrl?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+            c.artworkUrl?.let { SharpArtwork(it, null, Modifier.fillMaxSize(), 544) }
         }
         Text(c.title, color = NuvxColors.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
         c.subtitle?.let { Text(it, color = NuvxColors.Secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }

@@ -102,6 +102,11 @@ internal class DesktopPlayer(private val router: BackendRouter) : NuvxPlayer, Au
     override fun seekTo(positionMs: Long) { native.controls().setTime(positionMs.coerceAtLeast(0)) }
     override fun next() { val s = state.value; skipTo(if (s.repeat == RepeatMode.ALL && s.index == s.queue.lastIndex) 0 else s.index + 1) }
     override fun setRepeat(mode: RepeatMode) { mutableState.value = state.value.copy(repeat = mode) }
+    override fun setVolume(volume: Float) {
+        val v = volume.coerceIn(0f, 1f)
+        native.audio().setVolume((v * 100).toInt())
+        mutableState.value = state.value.copy(volume = v)
+    }
     override fun shuffleUpNext() { mutableState.value = state.value.shufflingUpNext() }
     override fun previous() { if (state.value.positionMs > 3000) seekTo(0) else skipTo((state.value.index - 1).coerceAtLeast(0)) }
     override fun skipTo(index: Int) { if (index in state.value.queue.indices) { mutableState.value = state.value.copy(index = index); load() } }

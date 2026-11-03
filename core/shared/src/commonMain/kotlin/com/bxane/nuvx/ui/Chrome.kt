@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.core.PlayerState
+import com.bxane.nuvx.core.hiResArtwork
 
 object NuvxColors {
     val Background = Color.Black
@@ -193,4 +194,11 @@ data class Tab(val label: String, val icon: ImageVector)
                 onDragCancel = { dy = 0f },
             ) { change, drag -> change.consume(); dy += drag.y }
         }
+}
+
+/** Artwork at about [size] px; if that larger variant does not exist it falls back to the original URL. */
+@Composable fun SharpArtwork(url: String?, description: String?, modifier: Modifier, size: Int = 226) {
+    var failed by remember(url) { mutableStateOf(false) }
+    coil3.compose.AsyncImage(if (failed) url else hiResArtwork(url, size), description, modifier,
+        contentScale = androidx.compose.ui.layout.ContentScale.Crop, onError = { failed = true })
 }

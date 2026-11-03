@@ -54,6 +54,8 @@ fun NuvxApp(
 ) {
     val state by player.state.collectAsState()
     var welcomed by remember { mutableStateOf(store.get("welcomeSeen") == "true") }
+    // Full-bleed cover art in the player is the default; Settings can switch back to the square cover.
+    var fullBleed by remember { mutableStateOf(store.get("fullBleedArt") != "false") }
     // shortcut: the room and history live as long as this composition (an Android activity recreation restarts them); move to the app graph when that matters.
     val scope = rememberCoroutineScope()
     val together = remember(player) { ListenTogether(player, scope) }
@@ -124,7 +126,8 @@ fun NuvxApp(
                                         when (page!!) {
                                             Page.TOGETHER -> TogetherPage(together, store)
                                             Page.SETTINGS -> SettingsPage(router, store, { openPage(Page.TOGETHER) }, { openPage(Page.LIKED) },
-                                                if (localLibrary != null) ({ openPage(Page.LOCAL_LIBRARY) }) else null)
+                                                if (localLibrary != null) ({ openPage(Page.LOCAL_LIBRARY) }) else null,
+                                                fullBleed = fullBleed, onFullBleed = { fullBleed = !fullBleed; store.put("fullBleedArt", fullBleed.toString()) })
                                             Page.QUEUE -> QueuePage(state, player)
                                             Page.LIKED -> LikedPage(history, state, player)
                                             Page.LOCAL_LIBRARY -> if (localLibrary != null) LocalLibraryScreen(localLibrary, player) else Unit
@@ -161,7 +164,7 @@ fun NuvxApp(
                     AnimatedVisibility(sheet && state.current != null,
                         enter = if (reduceMotion) fadeIn() else slideInVertically(tween(320)) { it },
                         exit = if (reduceMotion) fadeOut() else slideOutVertically(tween(260)) { it }) {
-                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }, sleep = sleep) { sheet = false }
+                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }, sleep = sleep, fullBleed = fullBleed) { sheet = false }
                     }
                 }
             }
@@ -208,7 +211,8 @@ private class SettingRow(
 )
 
 /** Grouped settings: searchable rows in rounded cards with small-caps section labels, then the About links and a footer. */
-@Composable private fun SettingsPage(router: BackendRouter, store: KeyValueStore, onTogether: (() -> Unit)? = null, onLiked: (() -> Unit)? = null, onLocal: (() -> Unit)? = null) {
+@Composable private fun SettingsPage(router: BackendRouter, store: KeyValueStore, onTogether: (() -> Unit)? = null, onLiked: (() -> Unit)? = null, onLocal: (() -> Unit)? = null,
+    fullBleed: Boolean? = null, onFullBleed: () -> Unit = {}) {
     val selected by router.selected.collectAsState()
     val fallback by router.fallback.collectAsState()
     val health by router.health.collectAsState()
@@ -221,6 +225,9 @@ private class SettingRow(
             SettingRow(null, b.label + if (b == BackendId.INNERTUBEX) " (default)" else "", status(b), value = if (selected == b) "In use" else null,
                 onClick = { router.choose(b, store) })
         } + SettingRow(null, "Automatic fallback", "Try the other engine when a request fails", toggle = fallback, onClick = { router.chooseFallback(!fallback, store) }),
+        "APPEARANCE" to listOfNotNull(fullBleed?.let {
+            SettingRow(null, "Full-bleed cover art", "The cover fills the top of the player; off shows it as a square", toggle = it, onClick = onFullBleed)
+        }),
         "LIBRARY" to listOfNotNull(
             onLocal?.let { SettingRow(NuvxIcons.Library, "On this device", "Music files stored on this device", onClick = it) },
             onLiked?.let { SettingRow(NuvxIcons.HeartFilled, "Liked songs", "Saved on this device", onClick = it) },

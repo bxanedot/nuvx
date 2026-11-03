@@ -15,6 +15,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -61,7 +64,7 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
-fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, onClose: () -> Unit) {
+fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, fullBleed: Boolean = true, onClose: () -> Unit) {
     val track = state.current
     val liked by history.liked.collectAsState()
     val scope = rememberCoroutineScope()
@@ -109,7 +112,11 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     val offset by androidx.compose.animation.core.animateFloatAsState(drag,
         if (dragging || reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.spring(stiffness = 500f), label = "sheetDrag")
     val corner = if (offset > 1f) 28.dp else 0.dp
-    Box(Modifier.fillMaxSize().graphicsLayer { translationY = offset }.clip(RoundedCornerShape(topStart = corner, topEnd = corner))
+    // Where the mode area starts inside the sheet; full bleed uses it to put the title just where the artwork fades out.
+    var root by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+    var modeTop by remember { mutableFloatStateOf(0f) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxSize().graphicsLayer { translationY = offset }.onPlaced { root = it }.clip(RoundedCornerShape(topStart = corner, topEnd = corner))
         .background(Color.Black).pointerInput(Unit) {
         detectVerticalDragGestures(onDragStart = { dragging = true }, onDragCancel = { dragging = false; drag = 0f },
             onDragEnd = { dragging = false; if (drag > 180f) onClose() else drag = 0f }) { _, dy -> drag = (drag + dy).coerceAtLeast(0f) }
@@ -117,7 +124,21 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
         // The artwork itself, blurred and darkened, is the colour wash; no palette extraction needed.
         if (track?.artworkUrl != null) AsyncImage(track.artworkUrl, null, Modifier.fillMaxSize().blur(90.dp).alpha(0.75f), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(0.35f), Color.Black.copy(0.55f), Color.Black.copy(0.8f)))))
-        Column(Modifier.safeDrawingPadding().fillMaxSize().widthIn(max = 640.dp).align(Alignment.TopCenter).padding(horizontal = 24.dp)) {
+        // Phones show the artwork full bleed: edge to edge from the top, fading into the wash; wide screens keep the inset tile.
+        val sheetWidth = maxWidth
+        val bleed = fullBleed && mode == SheetMode.ARTWORK && maxWidth < 600.dp && track?.artworkUrl != null
+        if (bleed) Box(Modifier.fillMaxWidth().height(sheetWidth * 1.08f)
+            // The artwork's lower part dissolves into the wash (alpha mask), so there is no hard edge.
+            .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                drawRect(Brush.verticalGradient(0.72f to Color.Black, 1f to Color.Transparent), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+            }) {
+            SharpArtwork(track!!.artworkUrl, "Artwork for ${track.title}", Modifier.fillMaxSize(), 1080)
+            // A light shade so the status bar, handle and "Playing from" caption stay readable over bright covers.
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(0.4f), 0.2f to Color.Transparent)))
+        }
+        Column(Modifier.safeDrawingPadding().fillMaxSize().widthIn(max = 640.dp).align(Alignment.TopCenter).padding(horizontal = 28.dp)) {
             Box(Modifier.fillMaxWidth().padding(top = 10.dp).clickable(onClick = onClose).semantics { contentDescription = "Close player" }, contentAlignment = Alignment.Center) {
                 Box(Modifier.size(40.dp, 5.dp).clip(CircleShape).background(Color.White.copy(0.45f)))
             }
@@ -129,9 +150,11 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                     modifier = Modifier.padding(bottom = 4.dp).then(if (s.link != null) Modifier.clickable { uri.openUri(s.link) }.semantics { role = Role.Button } else Modifier))
             }
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+            Box(Modifier.weight(1f).fillMaxWidth().onPlaced { c -> root?.let { modeTop = it.localPositionOf(c, androidx.compose.ui.geometry.Offset.Zero).y } }) {
                 when (mode) {
-                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous) { mode = SheetMode.LYRICS }
+                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous,
+                        bleedGap = if (bleed) with(density) { (sheetWidth.toPx() * 1.1f - modeTop).coerceAtLeast(0f).toDp() } else null,
+                        progress = if (bleed) ({ Progress(player, state) }) else null) { mode = SheetMode.LYRICS }
                     SheetMode.LYRICS -> when (val l = lyrics) {
                         is Lyrics.Synced -> SyncedLyrics(l, state.positionMs, reduceMotion) { player.seekTo(it) }
                         is Lyrics.Plain -> LazyColumn(contentPadding = PaddingValues(vertical = 24.dp)) {
@@ -155,8 +178,16 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                     }
                 }
             }
-            Transport(player, state)
-            Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            // Full bleed keeps the progress bar up under the title (see ArtworkMode) and leaves the space above the controls.
+            Transport(player, state, showProgress = !bleed, large = bleed)
+            if (bleed) Row(Modifier.fillMaxWidth().padding(bottom = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(NuvxIcons.SpeakerLow, null, Modifier.size(18.dp), tint = Color.White.copy(0.6f))
+                Box(Modifier.weight(1f).padding(horizontal = 12.dp).semantics { contentDescription = "Volume" }) {
+                    ThinProgress((state.volume * 1000).toLong(), 1000) { player.setVolume(it / 1000f) }
+                }
+                Icon(NuvxIcons.SpeakerHigh, null, Modifier.size(20.dp), tint = Color.White.copy(0.6f))
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = if (bleed) 44.dp else 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 ModeButton(NuvxIcons.Shuffle, "Shuffle up next", false, player::shuffleUpNext)
                 ModeButton(NuvxIcons.Lyrics, "Lyrics", mode == SheetMode.LYRICS) { mode = if (mode == SheetMode.LYRICS) SheetMode.ARTWORK else SheetMode.LYRICS }
                 ModeButton(NuvxIcons.Queue, "Queue", mode == SheetMode.QUEUE) { mode = if (mode == SheetMode.QUEUE) SheetMode.ARTWORK else SheetMode.QUEUE }
@@ -187,22 +218,27 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-    ArtworkTile(track, Modifier.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp)))
-    Row(Modifier.fillMaxWidth().padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
+    // Full bleed: the artwork is drawn behind the sheet, so this space over it only carries the swipe gesture.
+    if (bleedGap != null) Spacer(Modifier.height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
+    else ArtworkTile(track, Modifier.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp)), 1080)
+    Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (bleedGap != null) 19.sp else 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.linkTo(actions.openAlbum, "Open album"))
             Text(track?.artistLine.orEmpty(), color = Color.White.copy(0.6f), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.linkTo(actions.openArtist, "Open artist"))
         }
-        TrackChips(track != null, actions)
+        TrackChips(track != null, actions, like = bleedGap == null, chip = if (bleedGap != null) 36.dp else 44.dp)
     }
     val preview = (lyrics as? Lyrics.Synced)?.let { l -> l.lines.getOrNull(l.lineAt(positionMs).coerceAtLeast(0))?.text }
-    if (!preview.isNullOrBlank()) Row(Modifier.fillMaxWidth().padding(top = 14.dp).clickable(onClick = openLyrics), verticalAlignment = Alignment.CenterVertically) {
-        Text(preview, color = Color.White.copy(0.85f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-        Icon(NuvxIcons.Chevron, "Open lyrics", Modifier.size(16.dp), tint = Color.White.copy(0.6f))
+    if (!preview.isNullOrBlank()) Row(Modifier.fillMaxWidth().padding(top = 22.dp).clickable(onClick = openLyrics), verticalAlignment = Alignment.CenterVertically) {
+        if (bleedGap != null) Icon(NuvxIcons.Note, null, Modifier.padding(end = 10.dp).size(18.dp), tint = Color.White.copy(0.7f))
+        Text(preview, color = Color.White.copy(if (bleedGap != null) 0.7f else 0.85f), fontSize = if (bleedGap != null) 17.sp else 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = if (bleedGap != null) Modifier.weight(1f, fill = false) else Modifier.weight(1f))
+        Icon(NuvxIcons.Chevron, "Open lyrics", Modifier.padding(start = 6.dp).size(16.dp), tint = Color.White.copy(0.6f))
     }
+    if (progress != null) { Spacer(Modifier.height(12.dp)); progress(); Spacer(Modifier.weight(1f)) }
 }
 
 @Composable private fun Centered(text: String) = Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -220,13 +256,13 @@ private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
     if (open == null) this else clickable(onClickLabel = label, onClick = open)
 
 /** Round like chip and a more chip with a menu. Likes are on-device until account sync exists. */
-@Composable private fun TrackChips(enabled: Boolean, a: TrackActions) {
+@Composable private fun TrackChips(enabled: Boolean, a: TrackActions, like: Boolean = true, chip: Dp = 44.dp) {
     var menu by remember { mutableStateOf(false) }
     var sleepMenu by remember { mutableStateOf(false) }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        RoundChip(if (a.liked) NuvxIcons.HeartFilled else NuvxIcons.Heart, if (a.liked) "Remove from liked songs" else "Like", enabled, a.onLike)
+        if (like) RoundChip(if (a.liked) NuvxIcons.HeartFilled else NuvxIcons.Heart, if (a.liked) "Remove from liked songs" else "Like", enabled, chip, a.onLike)
         Box {
-            RoundChip(NuvxIcons.More, "More options", enabled) { menu = true }
+            RoundChip(NuvxIcons.More, "More options", enabled, chip) { menu = true }
             DropdownMenu(menu, { menu = false }, containerColor = Color(0xFF232327)) {
                 DropdownMenuItem({ Text("Start radio from this song") }, { menu = false; a.onRadio() })
                 DropdownMenuItem({ Text(if (a.liked) "Remove from liked songs" else "Add to liked songs") }, { menu = false; a.onLike() })
@@ -248,16 +284,16 @@ private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
     is SleepTimer.Mode.After -> if (mode.minutes % 60 == 0) "${mode.minutes / 60} hour" else "${mode.minutes} minutes"
 }
 
-@Composable private fun RoundChip(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(0.16f)).clickable(enabled = enabled, onClick = onClick)
+@Composable private fun RoundChip(icon: ImageVector, label: String, enabled: Boolean, size: Dp = 44.dp, onClick: () -> Unit) {
+    Box(Modifier.size(size).clip(CircleShape).background(Color.White.copy(0.16f)).clickable(enabled = enabled, onClick = onClick)
         .semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
         Icon(icon, null, Modifier.size(20.dp), tint = Color.White.copy(if (enabled) 1f else 0.4f))
     }
 }
 
-@Composable fun ArtworkTile(track: Track?, modifier: Modifier) {
+@Composable fun ArtworkTile(track: Track?, modifier: Modifier, size: Int = 226) {
     Box(modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C2230)), contentAlignment = Alignment.Center) {
-        if (track?.artworkUrl != null) AsyncImage(track.artworkUrl, "Artwork for ${track.title}", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        if (track?.artworkUrl != null) SharpArtwork(track.artworkUrl, "Artwork for ${track.title}", Modifier.fillMaxSize(), size)
     }
 }
 
@@ -285,18 +321,21 @@ private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
     }
 }
 
-@Composable private fun Transport(player: NuvxPlayer, state: PlayerState) {
-    val duration = state.durationMs.coerceAtLeast(1)
+@Composable private fun Progress(player: NuvxPlayer, state: PlayerState) = Column {
+    ThinProgress(state.positionMs, state.durationMs, player::seekTo)
+    Row(Modifier.fillMaxWidth().offset(y = (-8).dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(clock(state.positionMs), color = Color.White.copy(0.6f), fontSize = 12.sp)
+        Text("-" + clock((state.durationMs - state.positionMs).coerceAtLeast(0)), color = Color.White.copy(0.6f), fontSize = 12.sp)
+    }
+}
+
+@Composable private fun Transport(player: NuvxPlayer, state: PlayerState, showProgress: Boolean = true, large: Boolean = false) {
     Column(Modifier.padding(bottom = 16.dp)) {
-        ThinProgress(state.positionMs, state.durationMs, player::seekTo)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(clock(state.positionMs), color = Color.White.copy(0.6f), fontSize = 12.sp)
-            Text("-" + clock((state.durationMs - state.positionMs).coerceAtLeast(0)), color = Color.White.copy(0.6f), fontSize = 12.sp)
-        }
+        if (showProgress) Progress(player, state)
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            PlainIconButton(NuvxIcons.Back, "Previous", 64.dp) { player.previous() }
-            PlainIconButton(if (state.isPlaying) NuvxIcons.Pause else NuvxIcons.Play, if (state.isPlaying) "Pause" else "Play", 80.dp) { player.togglePlay() }
-            PlainIconButton(NuvxIcons.Forward, "Next", 64.dp, enabled = state.index < state.queue.lastIndex) { player.next() }
+            PlainIconButton(NuvxIcons.Back, "Previous", if (large) 80.dp else 64.dp) { player.previous() }
+            PlainIconButton(if (state.isPlaying) NuvxIcons.Pause else NuvxIcons.Play, if (state.isPlaying) "Pause" else "Play", if (large) 96.dp else 80.dp) { player.togglePlay() }
+            PlainIconButton(NuvxIcons.Forward, "Next", if (large) 80.dp else 64.dp, enabled = state.index < state.queue.lastIndex) { player.next() }
         }
     }
 }

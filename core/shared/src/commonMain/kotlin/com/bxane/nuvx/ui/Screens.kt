@@ -104,7 +104,7 @@ val BottomChromePadding = 170.dp
     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         itemsIndexed(tracks, key = { i, t -> "$i-${t.videoId}" }) { i, t ->
             Column(Modifier.width(size).clickable { onPlay(i) }) {
-                ArtworkTile(t, Modifier.size(size).clip(RoundedCornerShape(18.dp)))
+                ArtworkTile(t, Modifier.size(size).clip(RoundedCornerShape(18.dp)), 544)
                 Text(t.title, color = NuvxColors.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
                 Text(t.artistLine, color = NuvxColors.Secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -135,8 +135,7 @@ private val Moods = listOf(
             Box(Modifier.aspectRatio(1.6f).clip(RoundedCornerShape(20.dp)).background(m.colour).focusRing(RoundedCornerShape(20.dp))
                 .clickable(onClickLabel = "Search ${m.label}") { onMood(m.query) }) {
                 art[m.query]?.let { url ->
-                    coil3.compose.AsyncImage(url, null, Modifier.align(Alignment.CenterEnd).fillMaxHeight().aspectRatio(1f),
-                        contentScale = ContentScale.Crop)
+                    SharpArtwork(url, null, Modifier.align(Alignment.CenterEnd).fillMaxHeight().aspectRatio(1f), 544)
                     Box(Modifier.matchParentSize().background(Brush.horizontalGradient(0.35f to m.colour, 0.75f to m.colour.copy(alpha = 0.15f))))
                 }
                 Text(m.label, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(14.dp))
@@ -295,9 +294,9 @@ private val Moods = listOf(
         Icon(NuvxIcons.Chevron, null, Modifier.size(16.dp), tint = NuvxColors.Tertiary)
     }
 
-@Composable private fun CoverArt(url: String?, title: String, modifier: Modifier) =
+@Composable private fun CoverArt(url: String?, title: String, modifier: Modifier, size: Int = 226) =
     Box(modifier.clip(RoundedCornerShape(10.dp)).background(NuvxColors.Card)) {
-        if (url != null) coil3.compose.AsyncImage(url, "Cover of $title", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        if (url != null) SharpArtwork(url, "Cover of $title", Modifier.fillMaxSize(), size)
     }
 
 /** Album page: big cover, title, artist and year, Play, then the numbered track list. */
@@ -311,7 +310,7 @@ private val Moods = listOf(
     LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                CoverArt(a?.artworkUrl ?: ref.artworkUrl, ref.title, Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f))
+                CoverArt(a?.artworkUrl ?: ref.artworkUrl, ref.title, Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f), 1080)
                 Text(a?.title ?: ref.title, color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 18.dp))
                 Text(listOfNotNull(a?.artist, a?.year).joinToString(" · ").ifEmpty { ref.subtitle.orEmpty() }, color = NuvxColors.Accent, fontSize = 17.sp)
                 if (a != null && a.tracks.isNotEmpty()) PlayShuffle(player, a.tracks)

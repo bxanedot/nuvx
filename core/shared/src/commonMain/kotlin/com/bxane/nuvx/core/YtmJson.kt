@@ -178,3 +178,15 @@ object YtmJson {
         return out
     }
 }
+
+/**
+ * The same artwork at about [size] px instead of the small list thumbnail: Google-hosted covers take the size in the URL,
+ * YouTube video thumbnails switch to their largest variant (which some videos lack, so callers keep the original as a fallback).
+ */
+fun hiResArtwork(url: String?, size: Int = 1080): String? = when {
+    url == null -> null
+    "googleusercontent.com" in url || "ggpht.com" in url ->
+        url.replace(Regex("=w\\d+-h\\d+"), "=w$size-h$size").replace(Regex("=s\\d+(?=-|$)"), "=s$size")
+    "i.ytimg.com/vi" in url -> url.replace(Regex("/[a-z0-9_]*default\\.jpg.*$"), if (size > 480) "/maxresdefault.jpg" else "/hqdefault.jpg")
+    else -> url
+}
