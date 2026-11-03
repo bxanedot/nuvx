@@ -24,6 +24,10 @@ interface NuvxPlayer {
     fun next()
     fun previous()
     fun skipTo(index: Int)
+    /** Insert right after the current track. Players that can't insert fall back to adding at the end. */
+    fun playNext(tracks: List<Track>) = enqueue(tracks)
+    /** Remove a queued track. The default does nothing; platform players override it. */
+    fun remove(index: Int) {}
 }
 
 /** Minimal persisted preferences; Android uses SharedPreferences, desktop java.util.prefs. */
@@ -41,3 +45,18 @@ fun BackendRouter.bindTo(store: KeyValueStore): BackendRouter = apply {
 fun BackendRouter.choose(id: BackendId, store: KeyValueStore) { select(id); store.put("engine", id.name) }
 
 fun BackendRouter.chooseFallback(enabled: Boolean, store: KeyValueStore) { setFallback(enabled); store.put("engineFallback", enabled.toString()) }
+
+/**
+ * Queue after removing [index]. Returns the new state and whether the playing track changed (so the player must load it).
+ * Removing the playing track moves on to the track that takes its place, or the new last one; removing the only track empties the queue.
+ */
+fun PlayerState.removing(index: Int): Pair<PlayerState, Boolean>? {
+    if (index !in queue.indices) return null
+    val rest = queue.filterIndexed { i, _ -> i != index }
+    return when {
+        index < this.index -> copy(queue = rest, index = this.index - 1) to false
+        index > this.index -> copy(queue = rest) to false
+        rest.isEmpty() -> PlayerState() to true
+        else -> copy(queue = rest, index = this.index.coerceAtMost(rest.lastIndex)) to true
+    }
+}

@@ -59,7 +59,7 @@ import kotlinx.coroutines.CancellationException
             else -> {
                 if (a.topSongs.isNotEmpty()) {
                     item { SectionHeader("Top songs") }
-                    itemsIndexed(a.topSongs) { i, t -> TrackRow(t, active = state.current?.videoId == t.videoId) { player.playQueue(a.topSongs, i) } }
+                    itemsIndexed(a.topSongs) { i, t -> TrackRow(t, active = state.current?.videoId == t.videoId, trailing = { TrackMenu(player, t) }) { player.playQueue(a.topSongs, i) } }
                 }
                 a.shelves.forEach { shelf ->
                     item { SectionHeader(shelf.title) }

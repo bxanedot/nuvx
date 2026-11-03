@@ -236,7 +236,7 @@ private val Moods = listOf(
                 }
                 if (results.isNotEmpty()) item { SectionHeader("Songs") }
             }
-            itemsIndexed(results) { i, t -> TrackRow(t) { player.playQueue(results, i) } }
+            itemsIndexed(results) { i, t -> TrackRow(t, trailing = { TrackMenu(player, t) }) { player.playQueue(results, i) } }
             items(albums) { a -> AlbumRow(a) { onOpen(a) } }
         }
     }
@@ -315,6 +315,7 @@ private val Moods = listOf(
                     Text("${i + 1}", color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.width(32.dp))
                     Text(t.title, color = if (state.current?.videoId == t.videoId) NuvxColors.Accent else NuvxColors.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     t.durationMs?.let { Text(clock(it), color = NuvxColors.Secondary, fontSize = 14.sp) }
+                    TrackMenu(player, t)
                 }
             }
         }
@@ -322,3 +323,15 @@ private val Moods = listOf(
 }
 
 internal fun songs(n: Int) = if (n == 1) "1 song" else "$n songs"
+
+/** More menu on a song row: insert it after the current song, or add it to the end of the queue. */
+@Composable fun TrackMenu(player: NuvxPlayer, track: Track) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        PlainIconButton(NuvxIcons.More, "More options for ${track.title}", 44.dp) { open = true }
+        androidx.compose.material3.DropdownMenu(open, { open = false }, containerColor = Color(0xFF232327)) {
+            androidx.compose.material3.DropdownMenuItem({ Text("Play next") }, { open = false; player.playNext(listOf(track)) })
+            androidx.compose.material3.DropdownMenuItem({ Text("Add to queue") }, { open = false; player.enqueue(listOf(track)) })
+        }
+    }
+}

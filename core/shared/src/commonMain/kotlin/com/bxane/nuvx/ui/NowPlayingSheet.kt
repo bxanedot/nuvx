@@ -138,6 +138,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                                     Text(t.title, color = if (i == state.index) NuvxColors.Accent else Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(t.artistLine, color = Color.White.copy(0.6f), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
+                                if (i != state.index) PlainIconButton(NuvxIcons.Close, "Remove ${t.title} from the queue", 44.dp) { player.remove(i) }
                             }
                         }
                     }
