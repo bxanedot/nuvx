@@ -109,7 +109,8 @@ fun NuvxApp(
                                     page != null -> SubPage(page!!, { page = null }) {
                                         when (page!!) {
                                             Page.TOGETHER -> TogetherPage(together, store)
-                                            Page.SETTINGS -> SettingsPage(router, store)
+                                            Page.SETTINGS -> SettingsPage(router, store, { openPage(Page.TOGETHER) }, { openPage(Page.LIKED) },
+                                                if (localLibrary != null) ({ openPage(Page.LOCAL_LIBRARY) }) else null)
                                             Page.QUEUE -> QueuePage(state, player)
                                             Page.LIKED -> LikedPage(history, state, player)
                                             Page.LOCAL_LIBRARY -> if (localLibrary != null) LocalLibraryScreen(localLibrary, player) else Unit
@@ -173,53 +174,74 @@ private fun Modifier.graphicsLayerMirror() = this.then(Modifier.scale(-1f, 1f))
         items(state.queue.size) { i -> TrackRow(state.queue[i], active = i == state.index) { player.skipTo(i) } }
     }
 
-@Composable private fun SettingsPage(router: BackendRouter, store: KeyValueStore) {
+/** One settings row: icon, label, optional subtitle, and a trailing value, switch or chevron. */
+private class SettingRow(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector?, val label: String, val subtitle: String? = null,
+    val value: String? = null, val toggle: Boolean? = null, val onClick: (() -> Unit)? = null,
+)
+
+/** Grouped settings: searchable rows in rounded cards with small-caps section labels, then the About links and a footer. */
+@Composable private fun SettingsPage(router: BackendRouter, store: KeyValueStore, onTogether: (() -> Unit)? = null, onLiked: (() -> Unit)? = null, onLocal: (() -> Unit)? = null) {
     val selected by router.selected.collectAsState()
     val fallback by router.fallback.collectAsState()
     val health by router.health.collectAsState()
     val uri = LocalUriHandler.current
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = BottomChromePadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("STREAMING ENGINE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 8.dp))
-        Column(Modifier.clip(RoundedCornerShape(18.dp)).background(NuvxColors.Card)) {
-            router.available.forEach { backend ->
-                Row(Modifier.fillMaxWidth().clickable { router.choose(backend, store) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(backend.label + if (backend == BackendId.INNERTUBEX) " · Default" else " · Alternative", color = NuvxColors.Text, fontSize = 17.sp)
-                        Text(health[backend]?.let { "${it.operation}: ${if (it.ok) "available" else "unavailable"} · ${it.latencyMs} ms" } ?: "Not checked this session", color = NuvxColors.Secondary, fontSize = 13.sp)
-                    }
-                    RadioButton(selected == backend, onClick = { router.choose(backend, store) })
-                }
-            }
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Automatic fallback", color = NuvxColors.Text, fontSize = 17.sp)
-                    Text("Try the other engine when a request fails.", color = NuvxColors.Secondary, fontSize = 13.sp)
-                }
-                Switch(fallback, onCheckedChange = { router.chooseFallback(it, store) })
-            }
-        }
-        Text("The selected engine applies to new requests. eXcor streams may be refused by the service; fallback can use InnerTubeX.", color = NuvxColors.Secondary, fontSize = 13.sp)
-        Text("ABOUT", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 20.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(NuvxMark, null, Modifier.size(56.dp))
-            Column(Modifier.padding(start = 14.dp)) {
-                Text("nuvx", color = NuvxColors.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("Developed and led by bxane. Brand icons supplied by bxane.", color = NuvxColors.Secondary, fontSize = 14.sp)
-            }
-        }
-        Column(Modifier.clip(RoundedCornerShape(18.dp)).background(NuvxColors.Card)) {
-            listOf("Official nuvx website" to "https://nuvx.lol", "Developer portfolio" to "https://bxane.lol",
-                "Alternative developer portfolio" to "https://guns.lol/bxane", "Community Discord" to "https://discord.gg/h4Wsu824Uf",
-                "Contact bxane" to "mailto:bxanee@gmail.com", "Source code and licences" to "https://github.com/bxanedot/nuvx").forEach { (label, url) ->
-                Row(Modifier.fillMaxWidth().clickable { uri.openUri(url) }.padding(16.dp).semantics { role = Role.Button }, verticalAlignment = Alignment.CenterVertically) {
-                    Text(label, color = NuvxColors.Text, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                    Icon(NuvxIcons.Chevron, null, Modifier.size(16.dp), tint = NuvxColors.Tertiary)
+    var query by remember { mutableStateOf("") }
+    fun status(b: BackendId) = health[b]?.let { "${if (it.ok) "Working" else "Unavailable"} · ${it.latencyMs} ms" } ?: "Not used yet this session"
+    val sections: List<Pair<String?, List<SettingRow>>> = listOf(
+        null to listOfNotNull(onTogether?.let { SettingRow(NuvxIcons.Together, "Listen together", "Share a code and play the same music, in time", onClick = it) }),
+        "STREAMING" to router.available.map { b ->
+            SettingRow(null, b.label + if (b == BackendId.INNERTUBEX) " (default)" else "", status(b), value = if (selected == b) "In use" else null,
+                onClick = { router.choose(b, store) })
+        } + SettingRow(null, "Automatic fallback", "Try the other engine when a request fails", toggle = fallback, onClick = { router.chooseFallback(!fallback, store) }),
+        "LIBRARY" to listOfNotNull(
+            onLocal?.let { SettingRow(NuvxIcons.Library, "On this device", "Music files stored on this device", onClick = it) },
+            onLiked?.let { SettingRow(NuvxIcons.HeartFilled, "Liked songs", "Saved on this device", onClick = it) },
+        ),
+        "ABOUT" to listOf(
+            "Official nuvx website" to "https://nuvx.lol", "Developer: bxane" to "https://github.com/bxanedot",
+            "Developer portfolio" to "https://bxane.lol", "Alternative developer portfolio" to "https://guns.lol/bxane",
+            "Community Discord" to "https://discord.gg/h4Wsu824Uf", "Contact" to "mailto:bxanee@gmail.com",
+            "Source code and licences" to "https://github.com/bxanedot/nuvx",
+        ).map { (label, url) -> SettingRow(null, label, onClick = { uri.openUri(url) }) },
+    )
+    val q = query.trim()
+    val shown = sections.map { (title, rows) -> title to rows.filter { q.isEmpty() || it.label.contains(q, true) || it.subtitle?.contains(q, true) == true } }
+        .filter { it.second.isNotEmpty() }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = BottomChromePadding)) {
+        Field(query, { query = it }, "Search settings", Modifier.fillMaxWidth().padding(bottom = 8.dp))
+        shown.forEach { (title, rows) ->
+            title?.let { Text(it, color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 8.dp)) }
+                ?: Spacer(Modifier.height(12.dp))
+            Column(Modifier.clip(RoundedCornerShape(20.dp)).background(NuvxColors.Card)) {
+                rows.forEachIndexed { i, r ->
+                    if (i > 0) Box(Modifier.padding(start = if (r.icon != null) 56.dp else 16.dp).fillMaxWidth().height(0.5.dp).background(Color.White.copy(0.08f)))
+                    SettingsRowView(r)
                 }
             }
         }
-        Text("Early development · GPL-3.0-only\nInnerTubeX · GPL-3.0\neXcor · Apache-2.0\nNo Google account connected.", color = NuvxColors.Secondary, fontSize = 13.sp)
+        if (shown.isEmpty()) Text("No settings match \"$q\".", color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.padding(top = 20.dp))
+        Text("nuvx · early development · GPL-3.0-only\nInnerTubeX (GPL-3.0) · eXcor (Apache-2.0) · no Google account connected",
+            color = NuvxColors.Secondary, fontSize = 12.sp, lineHeight = 18.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 24.dp))
     }
 }
+
+@Composable private fun SettingsRowView(r: SettingRow) =
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).then(if (r.onClick != null) Modifier.focusRing(RoundedCornerShape(20.dp)).clickable(onClick = r.onClick) else Modifier)
+        .semantics(mergeDescendants = true) { if (r.toggle != null) role = Role.Switch else if (r.onClick != null) role = Role.Button }
+        .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        r.icon?.let { Icon(it, null, Modifier.size(24.dp), tint = NuvxColors.Text); Spacer(Modifier.width(16.dp)) }
+        Column(Modifier.weight(1f)) {
+            Text(r.label, color = NuvxColors.Text, fontSize = 17.sp)
+            r.subtitle?.let { Text(it, color = NuvxColors.Secondary, fontSize = 14.sp) }
+        }
+        when {
+            r.toggle != null -> Switch(r.toggle, onCheckedChange = { r.onClick?.invoke() })
+            r.value != null -> Text(r.value, color = NuvxColors.Accent, fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
+            r.onClick != null -> Icon(NuvxIcons.Chevron, null, Modifier.size(16.dp).padding(start = 4.dp), tint = NuvxColors.Tertiary)
+        }
+    }
 
 @Composable private fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier, ime: ImeAction = ImeAction.Done, onIme: () -> Unit = {}) =
     Box(modifier.heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(NuvxColors.Card).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
