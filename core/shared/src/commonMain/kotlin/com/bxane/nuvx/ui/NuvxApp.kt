@@ -64,12 +64,16 @@ fun NuvxApp(
     var page by remember { mutableStateOf<Page?>(null) }
     var sheet by remember { mutableStateOf(false) }
     var album by remember { mutableStateOf<Collection?>(null) }
+    var artist by remember { mutableStateOf<Collection?>(null) }
+    // Albums and playlists open on top of an artist page; another artist replaces it.
+    val open = { c: Collection -> if (c.kind == Collection.Kind.ARTIST) { artist = c; album = null } else album = c }
     // Back unwinds one layer at a time: player sheet, sub-page, search, then a non-Home tab returns to Home.
-    val canGoBack = welcomed && !watch && !tv && (sheet || album != null || page != null || searching || tab != 0)
+    val canGoBack = welcomed && !watch && !tv && (sheet || album != null || artist != null || page != null || searching || tab != 0)
     if (!tv) onBackHandler?.invoke(canGoBack) {
         when {
             sheet -> sheet = false
             album != null -> album = null
+            artist != null -> artist = null
             page != null -> page = null
             searching -> searching = false
             else -> tab = 0
@@ -92,8 +96,8 @@ fun NuvxApp(
                 }
                 else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                     val wide = maxWidth >= 840.dp
-                    val select = { i: Int -> tab = i; searching = false; page = null; album = null }
-                    val openSearch = { q: String? -> searchQuery = q; searching = true; page = null; album = null }
+                    val select = { i: Int -> tab = i; searching = false; page = null; album = null; artist = null }
+                    val openSearch = { q: String? -> searchQuery = q; searching = true; page = null; album = null; artist = null }
                     val openPage = { p: Page -> page = p }
                     Row(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f).fillMaxHeight().safeDrawingPadding()) {
@@ -101,6 +105,7 @@ fun NuvxApp(
                             Box(content) {
                                 when {
                                     album != null -> AlbumShell({ album = null }) { AlbumPage(router, player, state, album!!) }
+                                    artist != null -> AlbumShell({ artist = null }) { ArtistPage(router, player, state, artist!!, open) }
                                     page != null -> SubPage(page!!, { page = null }) {
                                         when (page!!) {
                                             Page.TOGETHER -> TogetherPage(together, store)
@@ -110,7 +115,7 @@ fun NuvxApp(
                                             Page.LOCAL_LIBRARY -> if (localLibrary != null) LocalLibraryScreen(localLibrary, player) else Unit
                                         }
                                     }
-                                    searching -> SearchScreen(router, player, history, searchQuery, { album = it }) { openPage(Page.SETTINGS) }
+                                    searching -> SearchScreen(router, player, history, searchQuery, open) { openPage(Page.SETTINGS) }
                                     tab == 0 -> HomeScreen(history, router, player, { openPage(Page.TOGETHER) }) { openPage(Page.SETTINGS) }
                                     tab == 1 -> ExploreScreen({ openSearch(it) }) { openPage(Page.SETTINGS) }
                                     else -> LibraryScreen(

@@ -167,7 +167,7 @@ private val Moods = listOf(
         trailing?.invoke()
     }
 
-@Composable fun SearchScreen(router: BackendRouter, player: NuvxPlayer, history: History, initialQuery: String?, onAlbum: (Collection) -> Unit, onAccount: () -> Unit) {
+@Composable fun SearchScreen(router: BackendRouter, player: NuvxPlayer, history: History, initialQuery: String?, onOpen: (Collection) -> Unit, onAccount: () -> Unit) {
     var query by remember(initialQuery) { mutableStateOf(initialQuery.orEmpty()) }
     var submitted by remember(initialQuery) { mutableStateOf(initialQuery) }
     var filter by remember { mutableStateOf(SearchFilter.ALL) }
@@ -186,6 +186,7 @@ private val Moods = listOf(
             when (filter) {
                 SearchFilter.ALBUMS -> albums = found.collections.filter { it.kind == Collection.Kind.ALBUM }
                 SearchFilter.PLAYLISTS -> albums = found.collections.filter { it.kind == Collection.Kind.PLAYLIST }
+                SearchFilter.ARTISTS -> albums = found.collections.filter { it.kind == Collection.Kind.ARTIST }
                 else -> results = found.tracks
             }
             history.searched(q)
@@ -226,7 +227,7 @@ private val Moods = listOf(
             }
             error?.let { item { Text(it, color = NuvxColors.Secondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp)) } }
             itemsIndexed(results) { i, t -> TrackRow(t) { player.playQueue(results, i) } }
-            items(albums) { a -> AlbumRow(a) { onAlbum(a) } }
+            items(albums) { a -> AlbumRow(a) { onOpen(a) } }
         }
     }
 }
@@ -262,7 +263,7 @@ private val Moods = listOf(
 
 @Composable private fun AlbumRow(album: Collection, onClick: () -> Unit) =
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        CoverArt(album.artworkUrl, album.title, Modifier.size(64.dp))
+        CoverArt(album.artworkUrl, album.title, Modifier.size(64.dp).then(if (album.kind == Collection.Kind.ARTIST) Modifier.clip(CircleShape) else Modifier))
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
             Text(album.title, color = NuvxColors.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             album.subtitle?.let { Text(it, color = NuvxColors.Secondary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }

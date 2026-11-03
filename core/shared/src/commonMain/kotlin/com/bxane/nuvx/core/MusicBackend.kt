@@ -14,10 +14,16 @@ enum class SearchFilter(val label: String, val params: String?) {
     VIDEOS("Videos", "EgWKAQIQAWoMEA4QChADEAQQCRAF"),
     ALBUMS("Albums", "EgWKAQIYAWoMEA4QChADEAQQCRAF"),
     PLAYLISTS("Playlists", "EgeKAQQoAEABagwQDhAKEAMQBBAJEAU%3D"),
+    ARTISTS("Artists", "EgWKAQIgAWoMEA4QChADEAQQCRAF"),
 }
 
 /** An album or playlist page (same browse shape): header details plus its playable tracks in order. */
 data class Album(val browseId: String, val title: String, val artist: String?, val year: String?, val artworkUrl: String?, val tracks: List<Track>)
+
+/** An artist page: top songs plus browsable shelves (albums, singles, playlists, similar artists). */
+data class Artist(val browseId: String, val name: String, val artworkUrl: String?, val topSongs: List<Track>, val shelves: List<ArtistShelf>)
+
+data class ArtistShelf(val title: String, val items: List<Collection>)
 
 enum class BackendId(val label: String) { INNERTUBEX("InnerTubeX"), EXCOR("eXcor") }
 
@@ -29,6 +35,7 @@ interface MusicBackend {
     suspend fun stream(videoId: String): AudioStream?
     /** Engines without album pages keep this default, so the router falls back to one that has them. */
     suspend fun album(browseId: String): Album = throw BackendFailure(id, "album", UnsupportedOperationException("${id.label} has no album pages"))
+    suspend fun artist(browseId: String): Artist = throw BackendFailure(id, "artist", UnsupportedOperationException("${id.label} has no artist pages"))
 }
 
 class BackendFailure(val backend: BackendId, val operation: String, cause: Throwable?) :
@@ -66,6 +73,8 @@ class BackendRouter(
         route("search", { it.tracks.isEmpty() && it.collections.isEmpty() }) { it.search(query, filter) }
 
     suspend fun album(browseId: String) = route("album", { it.tracks.isEmpty() }) { it.album(browseId) }
+
+    suspend fun artist(browseId: String) = route("artist", { it.topSongs.isEmpty() && it.shelves.isEmpty() }) { it.artist(browseId) }
 
     suspend fun radio(seed: String, continuation: String? = null): RadioPage {
         if (seed.startsWith("local:")) return RadioPage(emptyList(), null)

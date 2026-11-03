@@ -34,6 +34,9 @@ class InnerTubeXBackend(http: HttpClient = nuvxHttpClient()) : MusicBackend {
     override suspend fun album(browseId: String) =
         YtmJson.parseAlbum(browseId, innerTube.browse(YouTubeClient.WEB_REMIX, browseId = browseId).text("album"))
 
+    override suspend fun artist(browseId: String) =
+        YtmJson.parseArtist(browseId, innerTube.browse(YouTubeClient.WEB_REMIX, browseId = browseId).text("artist"))
+
     override suspend fun radio(seedVideoId: String, continuation: String?) = YtmJson.parseRadio(
         innerTube.next(YouTubeClient.WEB_REMIX, videoId = seedVideoId, playlistId = "RDAMVM$seedVideoId", continuation = continuation)
             .text("radio"),

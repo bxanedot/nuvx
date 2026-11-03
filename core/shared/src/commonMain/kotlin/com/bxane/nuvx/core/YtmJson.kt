@@ -38,7 +38,16 @@ object YtmJson {
                 collections += Collection(kind, id, title, meta.joinToString("") { it.str("text").orEmpty() }.ifBlank { null }, art)
             }
         }
-        return SearchResults(tracks.distinctBy { it.videoId }, collections.distinctBy { it.browseId })
+        // Songs inside the "top result" card show their artist once on the card, not on each row.
+        val cardArtist = root.findAll("musicCardShelfRenderer").associate { card ->
+            val sub = card.obj("subtitle").runs()
+            val name = sub.artists().firstOrNull()
+                ?: card.obj("title").runs().joinToString("") { it.str("text").orEmpty() }.takeIf { sub.firstOrNull()?.str("text") == "Artist" }
+            val ids = card.arr("contents").mapNotNull { it.obj("musicResponsiveListItemRenderer")?.obj("playlistItemData")?.str("videoId") }
+            ids to name
+        }.flatMap { (ids, name) -> ids.map { it to name } }.toMap()
+        val withArtists = tracks.map { t -> if (t.artists.isEmpty()) cardArtist[t.videoId]?.let { t.copy(artists = listOf(it)) } ?: t else t }
+        return SearchResults(withArtists.distinctBy { it.videoId }, collections.distinctBy { it.browseId })
     }
 
     /**
@@ -70,6 +79,34 @@ object YtmJson {
 
     private fun JsonElement.findThumb(): String? =
         findAll("musicThumbnailRenderer").firstNotNullOfOrNull { it.obj("thumbnail").bestThumb() }
+
+    /** Artist page: immersive/visual header, the "Top songs" shelf and carousels of albums, playlists and artists. Video carousels are skipped. */
+    fun parseArtist(browseId: String, body: String): Artist {
+        val root = json.parseToJsonElement(body)
+        val header = (root.findAll("musicImmersiveHeaderRenderer") + root.findAll("musicVisualHeaderRenderer")).firstOrNull()
+        val name = header?.obj("title").runs().joinToString("") { it.str("text").orEmpty() }.ifBlank { "Artist" }
+        val art = header?.findThumb()
+        val top = root.findAll("musicShelfRenderer").firstOrNull()?.let { parseSearch(it.toString()).tracks }.orEmpty()
+        val shelves = root.findAll("musicCarouselShelfRenderer").mapNotNull { shelf ->
+            val title = shelf.obj("header")?.obj("musicCarouselShelfBasicHeaderRenderer")?.obj("title").runs()
+                .joinToString("") { it.str("text").orEmpty() }
+            val items = shelf.arr("contents").mapNotNull { it.obj("musicTwoRowItemRenderer") }.mapNotNull { card ->
+                val be = card.obj("navigationEndpoint")?.obj("browseEndpoint") ?: return@mapNotNull null
+                val kind = when (be.pageType()) {
+                    "MUSIC_PAGE_TYPE_ALBUM" -> Collection.Kind.ALBUM
+                    "MUSIC_PAGE_TYPE_PLAYLIST" -> Collection.Kind.PLAYLIST
+                    "MUSIC_PAGE_TYPE_ARTIST" -> Collection.Kind.ARTIST
+                    else -> return@mapNotNull null
+                }
+                Collection(kind, be.str("browseId") ?: return@mapNotNull null,
+                    card.obj("title").runs().joinToString("") { it.str("text").orEmpty() },
+                    card.obj("subtitle").runs().joinToString("") { it.str("text").orEmpty() }.ifBlank { null },
+                    card.obj("thumbnailRenderer")?.findThumb())
+            }
+            if (title.isBlank() || items.isEmpty()) null else ArtistShelf(title, items)
+        }
+        return Artist(browseId, name, art, top, shelves)
+    }
 
     fun parseRadio(body: String): RadioPage {
         val root = json.parseToJsonElement(body)

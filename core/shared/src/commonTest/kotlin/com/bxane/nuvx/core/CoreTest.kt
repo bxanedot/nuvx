@@ -32,6 +32,15 @@ class YtmJsonTest {
         assertEquals(listOf(Collection(Collection.Kind.ARTIST, "UC1", "Daft Punk", "Artist", "big")), r.collections)
     }
 
+    @Test fun topResultCardSongsInheritTheCardArtist() {
+        val song = row("Placeholder Song", listOf(run("Song"), run(" • "), run("5:52")).joinToString(","), """"playlistItemData":{"videoId":"c1"},""")
+        val body = """{"contents":[{"musicCardShelfRenderer":{"title":{"runs":[{"text":"Test Band"}]},
+            "subtitle":{"runs":[{"text":"Artist"},{"text":" • "},{"text":"1M monthly audience"}]},"contents":[$song]}}]}"""
+        val track = YtmJson.parseSearch(body).tracks.single()
+        assertEquals(listOf("Test Band"), track.artists)
+        assertEquals(352_000L, track.durationMs)
+    }
+
     @Test fun parsesRadioAndContinuation() {
         val body = """{"x":[{"playlistPanelVideoRenderer":{"videoId":"v1","title":{"runs":[{"text":"One"}]},
             "longBylineText":{"runs":[${run("Artist A", "MUSIC_PAGE_TYPE_ARTIST")}]},"lengthText":{"runs":[{"text":"3:05"}]}}}],
