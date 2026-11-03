@@ -27,7 +27,8 @@ class CommunityCanvas(private val http: HttpClient = nuvxHttpClient(), private v
     }
 
     companion object {
-        const val FOLDER = "https://raw.githubusercontent.com/bxanedot/nuvx-canvas/main/canvas/"
+        // Served by GitHub Pages from github.com/bxanedot/nuvx-canvas (upload there); the subdomain is a CNAME in nuvx.lol DNS.
+        const val FOLDER = "https://canvas.nuvx.lol/canvas/"
         private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
     }
 }
