@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -101,8 +102,15 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
         catch (_: Exception) { status = "Lyrics couldn't be loaded" }
     }
     var drag by remember { mutableFloatStateOf(0f) }
-    Box(Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {
-        detectVerticalDragGestures(onDragEnd = { if (drag > 180f) onClose(); drag = 0f }) { _, dy -> drag = (drag + dy).coerceAtLeast(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    // The sheet follows the finger while pulled down and springs back if released short of closing.
+    val offset by androidx.compose.animation.core.animateFloatAsState(drag,
+        if (dragging || reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.spring(stiffness = 500f), label = "sheetDrag")
+    val corner = if (offset > 1f) 28.dp else 0.dp
+    Box(Modifier.fillMaxSize().graphicsLayer { translationY = offset }.clip(RoundedCornerShape(topStart = corner, topEnd = corner))
+        .background(Color.Black).pointerInput(Unit) {
+        detectVerticalDragGestures(onDragStart = { dragging = true }, onDragCancel = { dragging = false; drag = 0f },
+            onDragEnd = { dragging = false; if (drag > 180f) onClose() else drag = 0f }) { _, dy -> drag = (drag + dy).coerceAtLeast(0f) }
     }) {
         // The artwork itself, blurred and darkened, is the colour wash; no palette extraction needed.
         if (track?.artworkUrl != null) AsyncImage(track.artworkUrl, null, Modifier.fillMaxSize().blur(90.dp).alpha(0.75f), contentScale = ContentScale.Crop)
