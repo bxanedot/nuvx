@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -65,6 +67,17 @@ fun NuvxApp(
     var sheet by remember { mutableStateOf(false) }
     var album by remember { mutableStateOf<Collection?>(null) }
     var artist by remember { mutableStateOf<Collection?>(null) }
+    // Scrolling down folds the tab bar into a compact row (tab button · mini player · search); scrolling up restores it.
+    var collapsed by remember { mutableStateOf(false) }
+    val scrollWatch = remember {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (available.y < -4f) collapsed = true else if (available.y > 4f) collapsed = false
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+        }
+    }
+    LaunchedEffect(tab, searching, page, album, artist) { collapsed = false }
     // Albums and playlists open on top of an artist page; another artist replaces it.
     val open = { c: Collection -> if (c.kind == Collection.Kind.ARTIST) { artist = c; album = null } else album = c }
     // Back unwinds one layer at a time: player sheet, sub-page, search, then a non-Home tab returns to Home.
@@ -102,7 +115,7 @@ fun NuvxApp(
                     Row(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f).fillMaxHeight().safeDrawingPadding()) {
                             val content = Modifier.align(Alignment.TopCenter).fillMaxSize().then(if (wide) Modifier.widthIn(max = 1100.dp) else Modifier)
-                            Box(content) {
+                            Box(content.nestedScroll(scrollWatch)) {
                                 when {
                                     album != null -> AlbumShell({ album = null }) { AlbumPage(router, player, state, album!!) }
                                     artist != null -> AlbumShell({ artist = null }) { ArtistPage(router, player, state, artist!!, open) }
@@ -128,8 +141,19 @@ fun NuvxApp(
                                 }
                             }
                             Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true })
-                                TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) })
+                                androidx.compose.animation.AnimatedContent(collapsed && state.current != null,
+                                    transitionSpec = { if (reduceMotion) androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                                        else fadeIn(tween(180)) togetherWith fadeOut(tween(120)) }, label = "chrome") { compact ->
+                                    if (compact) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        val current = if (searching) Tab("Search", NuvxIcons.Search) else Tabs[tab]
+                                        GlassIconButton(current.icon, "Show tabs, ${current.label} selected", size = 56.dp) { collapsed = false }
+                                        MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true }, Modifier.weight(1f))
+                                        GlassIconButton(NuvxIcons.Search, "Search", size = 56.dp) { openSearch(null) }
+                                    } else Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true })
+                                        TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) })
+                                    }
+                                }
                             }
                         }
                     }
