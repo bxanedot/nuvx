@@ -64,7 +64,9 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
-fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, fullBleed: Boolean = true, onClose: () -> Unit) {
+fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, fullBleed: Boolean = true,
+    artScope: androidx.compose.animation.AnimatedVisibilityScope? = null, onClose: () -> Unit) {
+    val artMorph = Modifier.morphArt(artScope)
     val track = state.current
     val liked by history.liked.collectAsState()
     val scope = rememberCoroutineScope()
@@ -127,7 +129,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
         // Phones show the artwork full bleed: edge to edge from the top, fading into the wash; wide screens keep the inset tile.
         val sheetWidth = maxWidth
         val bleed = fullBleed && mode == SheetMode.ARTWORK && maxWidth < 600.dp && track?.artworkUrl != null
-        if (bleed) Box(Modifier.fillMaxWidth().height(sheetWidth * 1.08f)
+        if (bleed) Box(artMorph.fillMaxWidth().height(sheetWidth * 1.08f)
             // The artwork's lower part dissolves into the wash (alpha mask), so there is no hard edge.
             .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
             .drawWithContent {
@@ -152,7 +154,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth().onPlaced { c -> root?.let { modeTop = it.localPositionOf(c, androidx.compose.ui.geometry.Offset.Zero).y } }) {
                 when (mode) {
-                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous,
+                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous, artMorph,
                         bleedGap = if (bleed) with(density) { (sheetWidth.toPx() * 1.1f - modeTop).coerceAtLeast(0f).toDp() } else null,
                         progress = if (bleed) ({ Progress(player, state) }) else null) { mode = SheetMode.LYRICS }
                     SheetMode.LYRICS -> when (val l = lyrics) {
@@ -218,10 +220,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
     // Full bleed: the artwork is drawn behind the sheet, so this space over it only carries the swipe gesture.
     if (bleedGap != null) Spacer(Modifier.height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
-    else ArtworkTile(track, Modifier.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp)), 1080)
+    else ArtworkTile(track, artMorph.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp)), 1080)
     Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (bleedGap != null) 19.sp else 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,

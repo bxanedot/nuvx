@@ -1,5 +1,11 @@
 package com.bxane.nuvx.ui
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -110,7 +116,8 @@ fun NuvxApp(
                         TvSubpage.LOCAL_LIBRARY -> if (localLibrary != null) LocalLibraryScreen(localLibrary, player) else Unit
                     }
                 }
-                else -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                else -> SharedTransitionLayout { CompositionLocalProvider(LocalArtMorph provides (if (reduceMotion) null else ArtMorph(this, sheet && state.current != null))) {
+                BoxWithConstraints(Modifier.fillMaxSize()) {
                     val wide = maxWidth >= 840.dp
                     val select = { i: Int -> tab = i; searching = false; page = null; album = null; artist = null }
                     val openSearch = { q: String? -> searchQuery = q; searching = true; page = null; album = null; artist = null }
@@ -161,12 +168,14 @@ fun NuvxApp(
                             }
                         }
                     }
+                    // Springs rather than fixed-time slides, so opening and closing feel like a physical sheet.
                     AnimatedVisibility(sheet && state.current != null,
-                        enter = if (reduceMotion) fadeIn() else slideInVertically(tween(320)) { it },
-                        exit = if (reduceMotion) fadeOut() else slideOutVertically(tween(260)) { it }) {
-                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }, sleep = sleep, fullBleed = fullBleed) { sheet = false }
+                        enter = if (reduceMotion) fadeIn() else slideInVertically(spring(dampingRatio = 0.86f, stiffness = 380f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it },
+                        exit = if (reduceMotion) fadeOut() else slideOutVertically(spring(stiffness = 520f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it }) {
+                        NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, onOpen = { sheet = false; open(it) }, sleep = sleep, fullBleed = fullBleed, artScope = this) { sheet = false }
                     }
                 }
+                } }
             }
         }
     }

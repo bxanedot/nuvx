@@ -1,5 +1,12 @@
 package com.bxane.nuvx.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -93,7 +101,12 @@ fun Modifier.glass(shape: Shape = CircleShape) = this
     Row(modifier.fillMaxWidth().heightIn(min = 64.dp).trackSwipe(onNext = onNext, onPrevious = onPrevious, onUp = onOpen)
         .glass(RoundedCornerShape(32.dp)).clickable(onClick = onOpen).padding(start = 10.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        ArtworkTile(track, Modifier.size(width = 52.dp, height = 44.dp))
+        // While the full player is open its cover stands in for this one; the two morph into each other (see ArtMorph).
+        val morph = LocalArtMorph.current
+        Box(Modifier.size(width = 52.dp, height = 44.dp)) {
+            if (morph == null) ArtworkTile(track, Modifier.fillMaxSize())
+            else androidx.compose.animation.AnimatedVisibility(visible = !morph.open, enter = fadeIn(), exit = fadeOut()) { ArtworkTile(track, Modifier.fillMaxSize().morphArt(this)) }
+        }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(track.title, color = NuvxColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(if (state.buffering) "Loading…" else track.artistLine, color = NuvxColors.Secondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -149,7 +162,15 @@ data class Tab(val label: String, val icon: ImageVector)
     return this
         .graphicsLayer { translationX = dx * 0.35f; translationY = minOf(0f, dy) * 0.2f }
         .pointerInput(onNext, onPrevious, onUp) {
-            detectDragGestures(
+            // Without a swipe-up action only sideways drags are taken, so vertical drags reach the parent (e.g. pull the player down to close).
+            if (onUp == null) detectHorizontalDragGestures(
+                onDragEnd = {
+                    if (dx < -threshold) onNext() else if (dx > threshold) onPrevious()
+                    dx = 0f
+                },
+                onDragCancel = { dx = 0f },
+            ) { change, drag -> change.consume(); dx += drag }
+            else detectDragGestures(
                 onDragEnd = {
                     when {
                         kotlin.math.abs(dx) > kotlin.math.abs(dy) && dx < -threshold -> onNext()
@@ -201,4 +222,16 @@ data class Tab(val label: String, val icon: ImageVector)
     var failed by remember(url) { mutableStateOf(false) }
     coil3.compose.AsyncImage(if (failed) url else hiResArtwork(url, size), description, modifier,
         contentScale = androidx.compose.ui.layout.ContentScale.Crop, onError = { failed = true })
+}
+
+/** Set by NuvxApp on phones (not with reduced motion): the mini player's cover grows into the full player's cover and back. */
+@OptIn(ExperimentalSharedTransitionApi::class)
+class ArtMorph(val scope: SharedTransitionScope, val open: Boolean)
+val LocalArtMorph = compositionLocalOf<ArtMorph?> { null }
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable fun Modifier.morphArt(visibility: AnimatedVisibilityScope?): Modifier {
+    val morph = LocalArtMorph.current
+    if (morph == null || visibility == null) return this
+    return with(morph.scope) { this@morphArt.sharedElement(rememberSharedContentState("nowPlayingArt"), visibility) }
 }
