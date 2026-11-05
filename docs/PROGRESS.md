@@ -1010,3 +1010,9 @@ Extracted the collapsed navigation icon/label selection into `compactNavigationT
 - Android Library presents recent tracks in an artwork shelf wired to the existing queue/playback behavior. Non-Android layouts retain their current presentation.
 - Updated README and offline-scope docs to say Android is active and desktop/iOS work is paused.
 - :androidApp:compileMobileDebugKotlin succeeded at 2026-11-05 23:00:03 +01:00 with pinned JDK 27. No test suite or emulator screenshot was run. The 22:46 APK predates these newest screen edits; next scheduled mobile APK refresh is 2026-11-05 23:16:11 +01:00. Provider catalog downloads remain blocked pending documented authorization for full-track offline storage.
+# 2026-11-05 — Android-only nightly packages
+
+- Removed Windows, Linux, and macOS packaging from the nightly preview workflow. Nightly artifacts and opt-in prereleases now contain Android mobile, TV, and Wear OS debug APKs only.
+- Shared and Android checks remain in the workflow; stable release signing is unchanged.
+- Static diff review only; the nightly workflow itself was not run. The mobile debug APK build succeeded at 23:19:59 +01:00 and installed on emulator-5554; it was not launched or visually inspected. Tests were not run.
+- APK: `App/androidApp/build/outputs/apk/mobile/debug/androidApp-mobile-debug.apk`, 41,927,776 bytes, SHA-256 `49819307E8EFD3F84CFB7B8EB884AED83B44B820D7CFC33D26A40282A984821B`. Next refresh due 23:49:59 +01:00.
