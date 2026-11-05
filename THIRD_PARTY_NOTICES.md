@@ -17,6 +17,7 @@ nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party com
 | Coil 3 | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil |
 | AndroidX Media3 | 1.11.1 | Apache-2.0 | https://github.com/androidx/media |
 | AndroidX Activity | 1.13.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
+| Kyant0/backdrop | 2.0.0 (vendored Android source) | Apache-2.0 | https://github.com/Kyant0/backdrop |
 | vlcj / vlcj-natives | 4.12.1 / 4.12.0 | GPL-3.0 | https://github.com/caprica/vlcj |
 | JNA (transitive, vlcj) | 5.16.0 | LGPL-2.1-or-later / Apache-2.0 | https://github.com/java-native-access/jna |
 | VLC Windows runtime (packaging download) | 3.0.24 | GPL-2.0-or-later; components retain their own licences | https://www.videolan.org/vlc/ |
@@ -29,10 +30,16 @@ The SF Symbols used through GlyphStudio are Apple artwork and remain subject to 
 
 The nuvx mark (white and black variants, traced to vector from bxane's artwork) was created by bxane and is used with permission.
 
-## External research references (not integrated)
+## Integrated GPL source code
 
-These projects were looked at only for publicly observable product features. **nuvx contains none of their code, assets or dependencies.**
+The Android rubber-band scrolling implementation is derived from BitChord's `IosOverscroll.kt`; its header credits the Convx implementation it adapted from. The copied source retains GPL-3.0 licensing and attribution. No upstream artwork or brand assets were copied.
+
+The Android Explore browse layout and welcome-page motion are adaptations of GPL-3.0 Compose UI from Convx's `ExploreScreen.kt` and BitChord's `OnboardingScreen.kt`. Nuvx keeps its own screen state, text, product flows, artwork and navigation wiring; no upstream artwork or brand assets were copied.
+
+The Android glass surface adapts bxane's supplied GPL-3.0 `Nuvx_GlassEffect_bxane.kt` and vendors Kyant0/backdrop 2.0.0 under Apache-2.0. Copyright and license headers are retained in the vendored source files.
 
 | Project | Licence | URL |
 |---|---|---|
-| BitChord | GPL-3.0 | https://github.com/kushagrasinghx/BitChord |
+| BitChord (`App/androidApp/.../RubberBandOverscroll.kt`; adapted source at `app/src/main/java/com/music/bitchord/ui/utils/IosOverscroll.kt`) | GPL-3.0 | https://github.com/kushagrasinghx/BitChord |
+| Convx (upstream lineage credited in the copied file header) | GPL-3.0 | https://github.com/cosmictaserdev-creator/Convx |
+| Kyant0/backdrop (`App/androidApp/src/main/kotlin/com/bxane/nuvx/backdrop/`) | Apache-2.0 | https://github.com/Kyant0/backdrop |

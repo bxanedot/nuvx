@@ -6,7 +6,13 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /** [startMs] of a word comes only from the source; words never get invented timestamps. */
 data class LyricWord(val text: String, val startMs: Long)
@@ -79,16 +85,107 @@ interface LyricsProvider {
 
 data class SourcedLyrics(val lyrics: Lyrics, val source: String, val link: String? = null)
 
-/** Asks [providers] in order. Timed lyrics win over plain text from an earlier provider; a failing provider is skipped. */
+/** Asks the preferred provider first when selected; otherwise timed lyrics win over earlier plain text. Failures are skipped. */
 class LyricsChain(private val providers: List<LyricsProvider>) {
-    suspend fun find(track: Track, offsetMs: Long = 0): SourcedLyrics? {
+    private data class LookupKey(
+        val provider: String,
+        val videoId: String,
+        val title: String,
+        val artists: List<String>,
+        val album: String?,
+        val durationMs: Long?,
+        val mediaKind: MediaKind,
+        val pairedVideoId: String?,
+        val offsetMs: Long,
+    )
+
+    private data class CachedLyrics(val lyrics: Lyrics, val createdAt: TimeMark)
+
+    private val cacheMutex = Mutex()
+    private val cache = LinkedHashMap<LookupKey, CachedLyrics>()
+    private val inFlight = mutableMapOf<LookupKey, CompletableDeferred<Lyrics?>>()
+
+    val providerNames: List<String> get() = providers.map { it.name }
+
+    suspend fun find(
+        track: Track,
+        offsetMs: Long = 0,
+        preferredSource: String? = null,
+        providerOrder: List<String> = providerNames,
+        disabledSources: Set<String> = emptySet(),
+        preferWordSynced: Boolean = true,
+    ): SourcedLyrics? {
+        val known = providers.associateBy { it.name }
+        val order = providerOrder.filter { it in known }.distinct() + providerNames.filterNot(providerOrder.toSet()::contains)
+        val active = order.filterNot(disabledSources::contains).mapNotNull(known::get)
         var fallback: SourcedLyrics? = null
-        for (p in providers) {
-            val found = try { p.find(track, offsetMs) } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (_: Exception) { null } ?: continue
-            if (found is Lyrics.Synced || found == Lyrics.Instrumental) return SourcedLyrics(found, p.name, p.homepage)
-            if (fallback == null) fallback = SourcedLyrics(found, p.name, p.homepage)
+        val preferred = active.firstOrNull { it.name == preferredSource }
+        val ordered = preferred?.let { selected -> listOf(selected) + active.filterNot { it === selected } } ?: active
+        for (p in ordered) {
+            val found = try { findCached(p, track, offsetMs) } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (_: Exception) { null } ?: continue
+            if (found == Lyrics.Instrumental || found is Lyrics.Synced && (!preferWordSynced || found.wordSynced)) {
+                return SourcedLyrics(found, p.name, p.homepage)
+            }
+            if (fallback == null ||
+                (fallback.source != preferred?.name && fallback.lyrics is Lyrics.Plain && found is Lyrics.Synced)
+            ) {
+                fallback = SourcedLyrics(found, p.name, p.homepage)
+            }
         }
         return fallback
+    }
+
+    private suspend fun findCached(provider: LyricsProvider, track: Track, offsetMs: Long): Lyrics? {
+        val key = LookupKey(
+            provider.name, track.videoId, track.title, track.artists, track.album, track.durationMs,
+            track.mediaKind, track.pairedVideoId, offsetMs,
+        )
+        var request: CompletableDeferred<Lyrics?>? = null
+        var owner = false
+        val cached = cacheMutex.withLock {
+            cache[key]?.let { entry ->
+                if (entry.createdAt.elapsedNow() < CACHE_TTL) {
+                    cache.remove(key)
+                    cache[key] = entry
+                    return@withLock entry.lyrics
+                }
+                cache.remove(key)
+            }
+            request = inFlight[key]
+            if (request == null) {
+                request = CompletableDeferred()
+                inFlight[key] = request
+                owner = true
+            }
+            null
+        }
+        if (cached != null) return cached
+        val sharedRequest = request!!
+        if (!owner) return sharedRequest.await()
+
+        try {
+            val result = provider.find(track, offsetMs)
+            cacheMutex.withLock {
+                if (result != null) {
+                    cache[key] = CachedLyrics(result, TimeSource.Monotonic.markNow())
+                    while (cache.size > CACHE_LIMIT) cache.remove(cache.keys.first())
+                }
+                inFlight.remove(key)
+                sharedRequest.complete(result)
+            }
+            return result
+        } catch (failure: Throwable) {
+            cacheMutex.withLock {
+                inFlight.remove(key)
+                sharedRequest.completeExceptionally(failure)
+            }
+            throw failure
+        }
+    }
+
+    private companion object {
+        const val CACHE_LIMIT = 128
+        val CACHE_TTL = 6.hours
     }
 }
 

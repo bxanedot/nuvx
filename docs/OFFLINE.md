@@ -14,8 +14,24 @@ Android uses a Media3 disk cache capped at 256 MiB under the app's cache directo
 
 This is a playback cache, not an offline download feature. Stream addresses can expire or change, so the cache does not promise that a song will be available after closing the app, restarting playback, or losing network access. The app has no YouTube audio-file download button. Desktop currently has no streaming cache.
 
+## Provider catalog downloads
+
+Checked 2026-11-05. Nuvx does not currently have an authorized provider flow for downloading full catalog tracks, albums, playlists, or artist catalogs. Do not infer download rights from a catalog or streaming API, and do not show download actions that cannot complete through a documented, authorized flow.
+
+| Source | Documented status | Nuvx decision |
+|---|---|---|
+| YouTube / YouTube Music | YouTube's Terms allow downloads only when expressly authorized by the Service, with prior written permission, or where law permits. Nuvx has no documented audio-file download API. | Do not save or rip YouTube audio streams. The transient Android cache remains playback-only. |
+| Spotify | The Web API's policy notes say Spotify content may not be downloaded and prohibit facilitating downloads or stream ripping. | No Spotify catalog download feature. |
+| Apple Music | The Apple Developer Program License Agreement prohibits downloading MusicKit content except where Apple documentation permits it. MusicKit can report which library items are already downloaded, but that does not grant Nuvx a general catalog-file download flow. | Do not copy or export MusicKit content. A future native integration must use only documented MusicKit playback/library behavior. |
+| Deezer | No documented public third-party full-track download flow was confirmed in this check. Catalog access alone does not establish storage permission. | No Deezer catalog download feature until Deezer documents and authorizes a supported flow. |
+| TIDAL | The official Android SDK exposes offline-play hooks, and its latest player release is 0.0.74 (2026-10-26). Its published authentication guide still says client-credentials access is limited to previews, while the full-length authorization-code/device-login flows are only available to TIDAL internal apps. | Candidate only. Before implementation, Nuvx needs TIDAL to enable a public full-length/offline authorization flow and explicitly approve offline storage. Once enabled, use the SDK offline-play API; never turn a resolved streaming URL into a download. Active app work is Android only for now; Windows, Linux, macOS and iOS/iPadOS are paused pending bxane's direction. |
+| User-owned local files | The local library reads files in place and does not copy or upload them. | Keep local playback separate from provider catalog downloads; no copying is added here. |
+
+**Blocker / required action:** no eligible full-catalog download source is currently available to this project. Before work resumes on provider downloads, bxane must obtain TIDAL developer access that supports full-length playback and explicit offline-storage permission, or identify another provider with a documented authorized download API. Until then, keep provider download controls absent. See [BLOCKERS.md](BLOCKERS.md).
+
+Sources: [YouTube Terms](https://www.youtube.com/t/terms), [Spotify Web API track reference](https://developer.spotify.com/documentation/web-api/reference/get-track), [Apple Developer Program License Agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/), [Apple MusicKit downloaded-content query](https://developer.apple.com/documentation/musickit/musiclibraryrequest/includeonlydownloadedcontent), [TIDAL Android playback SDK](https://tidal-music.github.io/tidal-sdk-android/player/index.html), [TIDAL Android player release notes](https://github.com/tidal-music/tidal-sdk-android/releases), [TIDAL Android player README](https://github.com/tidal-music/tidal-sdk-android/blob/main/player/README.md), and [TIDAL Android authentication guide](https://tidal-music.github.io/tidal-sdk-android/auth/index.html).
+
 ## Platform status
 
-- Android mobile, TV, and Wear share the MediaStore reader and Media3 cache; permission timing was checked on the TV emulator, but a granted scan was not.
-- Windows, Linux, and macOS desktop use the folder picker and direct local-file playback; recursive scanner behavior has a unit test, but picker/audio runtime behavior was not checked.
-- iOS/iPadOS local-library access and offline playback are not implemented by this phase.
+- Android mobile, TV, and Wear are the active product scope. They share the MediaStore reader and Media3 cache; permission timing was checked on the TV emulator, but a granted scan was not.
+- Windows, Linux, macOS and iOS/iPadOS work is paused until bxane provides the next platform direction. Existing desktop local-file support is historical and is not part of current Android verification.

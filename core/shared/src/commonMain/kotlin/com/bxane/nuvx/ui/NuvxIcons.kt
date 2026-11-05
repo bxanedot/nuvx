@@ -32,6 +32,7 @@ object NuvxIcons {
     val Library = icon("Library") { fill { roundRect(4f, 8f, 16f, 13f, 2.5f); roundRect(6f, 5f, 12f, 2f, 1f); roundRect(8f, 2f, 8f, 2f, 1f) } }
     val Search = icon("Search") { stroke { circle(10.5f, 10.5f, 6.5f); moveTo(15.5f, 15.5f); lineTo(20.5f, 20.5f) } }
     val Play = icon("Play") { fill { moveTo(7f, 4.5f); lineTo(19.5f, 12f); lineTo(7f, 19.5f); close() } }
+    val Video = icon("Video") { stroke { roundRect(2.5f, 5f, 13f, 14f, 2f); moveTo(15.5f, 10f); lineTo(21.5f, 6.5f); lineTo(21.5f, 17.5f); lineTo(15.5f, 14f) } }
     val Pause = icon("Pause") { fill { roundRect(6f, 4.5f, 4f, 15f, 1.2f); roundRect(14f, 4.5f, 4f, 15f, 1.2f) } }
     val Forward = icon("Forward") { fill { moveTo(3f, 6f); lineTo(12f, 12f); lineTo(3f, 18f); close(); moveTo(12f, 6f); lineTo(21f, 12f); lineTo(12f, 18f); close() } }
     val Back = icon("Back") { fill { moveTo(21f, 6f); lineTo(12f, 12f); lineTo(21f, 18f); close(); moveTo(12f, 6f); lineTo(3f, 12f); lineTo(12f, 18f); close() } }
@@ -45,6 +46,7 @@ object NuvxIcons {
     val SpeakerHigh = icon("SpeakerHigh") { fill { moveTo(3f, 9f); lineTo(7f, 9f); lineTo(12f, 5f); lineTo(12f, 19f); lineTo(7f, 15f); lineTo(3f, 15f); close() }; stroke { moveTo(15.5f, 9f); quadTo(17.5f, 12f, 15.5f, 15f); moveTo(18.5f, 6.5f); quadTo(22f, 12f, 18.5f, 17.5f) } }
     val Note = icon("Note") { fill { circle(7f, 18f, 3f); circle(18f, 16f, 3f); moveTo(8.5f, 18f); lineTo(8.5f, 6f); lineTo(21f, 3f); lineTo(21f, 16f); lineTo(19.5f, 16f); lineTo(19.5f, 7f); lineTo(10f, 9.2f); lineTo(10f, 18f); close() } }
     val Queue = icon("Queue") { stroke { moveTo(4f, 6f); lineTo(20f, 6f); moveTo(4f, 12f); lineTo(20f, 12f); moveTo(4f, 18f); lineTo(14f, 18f) } }
+    val History = icon("History") { stroke { circle(12f, 12f, 8f); moveTo(12f, 7f); lineTo(12f, 12f); lineTo(15.5f, 14f); moveTo(5.5f, 5.5f); lineTo(3f, 6f); lineTo(3.5f, 3.5f) } }
     val Chevron = icon("Chevron") { stroke { moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f) } }
     val Close = icon("Close") { stroke { moveTo(6f, 6f); lineTo(18f, 18f); moveTo(18f, 6f); lineTo(6f, 18f) } }
     val Heart = icon("Heart") { stroke { moveTo(12f, 20f); curveTo(5f, 15f, 2.5f, 11.5f, 4f, 8f); curveTo(5.5f, 4.5f, 10f, 4.5f, 12f, 8f); curveTo(14f, 4.5f, 18.5f, 4.5f, 20f, 8f); curveTo(21.5f, 11.5f, 19f, 15f, 12f, 20f); close() } }

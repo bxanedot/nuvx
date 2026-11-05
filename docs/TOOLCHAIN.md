@@ -38,6 +38,7 @@ git clone https://github.com/bxanedot/eXcor && cd eXcor
 ## Known limits
 - iOS: Kotlin/Native iOS targets and xtool need macOS or Linux. Windows can't build them (see BLOCKERS.md).
 - Once eXcor publishes an LTS-compatible JVM artifact, move the desktop target back to JDK 25 / `jvmTarget=25`.
+- Local recheck on 2026-11-04 at 20:04 +01:00: `local.properties` still names `C:/Users/bxane/AppData/Local/Android/Sdk`, but that directory is absent and `ANDROID_HOME` / `ANDROID_SDK_ROOT` are unset. The latest Android variant matrix could not resolve its SDK and did not execute; restore a verified existing SDK location before rerunning. No local configuration or pinned toolchain version was changed. Shared/desktop verification uses the existing nested JDK home `C:/Users/bxane/.gradle/jdks/jdk-27.0.0+35/jdk-27+35`.
 
 ## Application continuation (2026-11-02)
 

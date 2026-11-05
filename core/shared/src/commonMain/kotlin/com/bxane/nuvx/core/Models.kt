@@ -14,10 +14,17 @@ data class Track(
     /** YouTube Music browse IDs for the first credited artist and the album; null when the source gives no link. */
     val artistId: String? = null,
     val albumId: String? = null,
+    val mediaKind: MediaKind = MediaKind.SONG,
+    /** Paired video source for an audio song; [videoId] remains the stable song/queue identity. */
+    val pairedVideoId: String? = null,
 ) {
     val artistLine: String get() = artists.joinToString(", ")
     val isLocal: Boolean get() = videoId.startsWith("local:")
+    val playbackVideoId: String get() = if (mediaKind == MediaKind.VIDEO) pairedVideoId ?: videoId else videoId
 }
+
+@Serializable
+enum class MediaKind { SONG, VIDEO }
 
 /** Primitive metadata fields survive Media3 controllers, which otherwise collapse artists and omit duration. */
 fun Track.toMetadataExtras(): Map<String, String> = buildMap {
@@ -28,6 +35,8 @@ fun Track.toMetadataExtras(): Map<String, String> = buildMap {
     localUri?.let { put("nuvx.localUri", it) }
     artistId?.let { put("nuvx.artistId", it) }
     albumId?.let { put("nuvx.albumId", it) }
+    put("nuvx.mediaKind", mediaKind.name)
+    pairedVideoId?.let { put("nuvx.pairedVideoId", it) }
 }
 
 fun trackFromMetadata(
@@ -49,6 +58,8 @@ fun trackFromMetadata(
         extras["nuvx.localUri"],
         extras["nuvx.artistId"],
         extras["nuvx.albumId"],
+        extras["nuvx.mediaKind"]?.let { value -> MediaKind.entries.firstOrNull { it.name == value } } ?: MediaKind.SONG,
+        extras["nuvx.pairedVideoId"],
     )
 }
 
@@ -60,6 +71,23 @@ data class Collection(val kind: Kind, val browseId: String, val title: String, v
 
 data class SearchResults(val tracks: List<Track>, val collections: List<Collection>)
 
+/** One extractable adaptive video stream. Signed addresses and headers must never be logged or persisted. */
+data class VideoStream(
+    val videoId: String,
+    val audioUrl: String,
+    val videoUrl: String,
+    val headers: Map<String, String>,
+    val width: Int?,
+    val height: Int?,
+    val mimeType: String?,
+    val audioMimeType: String?,
+    val codecs: String?,
+    val availableHeights: List<Int>,
+    val backend: BackendId,
+) {
+    override fun toString() = "VideoStream(videoId=$videoId, resolution=${width ?: "?"}x${height ?: "?"}, backend=$backend)"
+}
+
 /** A resolved, directly fetchable audio stream. [headers] must accompany every media request and must never be logged. */
 class AudioStream(
     val videoId: String,
@@ -69,6 +97,8 @@ class AudioStream(
     val bitrateKbps: Int?,
     val loudnessDb: Double?,
     val backend: BackendId,
+    val codecs: String? = null,
+    val sampleRateHz: Int? = null,
 ) {
     override fun toString() = "AudioStream(videoId=$videoId, mime=$mimeType, kbps=$bitrateKbps, backend=$backend)"
 }

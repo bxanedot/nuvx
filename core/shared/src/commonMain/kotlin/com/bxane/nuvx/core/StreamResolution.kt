@@ -6,9 +6,12 @@ import io.ktor.http.Url
 suspend fun BackendRouter.resolveAudio(videoId: String): AudioStream {
     require(Regex("[A-Za-z0-9_-]{11}").matches(videoId)) { "Invalid track identifier" }
     val result = requireNotNull(stream(videoId)) { "No playable stream is available" }
-    val address = runCatching { Url(result.url) }.getOrNull()
-    require(address != null && address.protocol.name == "https" && address.port == 443 &&
-        address.host.endsWith(".googlevideo.com", ignoreCase = true) &&
-        address.user == null && address.password == null) { "The engine returned an unsupported media address" }
+    require(isSupportedMediaAddress(result.url)) { "The engine returned an unsupported media address" }
     return result
+}
+
+internal fun isSupportedMediaAddress(value: String): Boolean {
+    val address = runCatching { Url(value) }.getOrNull()
+    return address != null && address.protocol.name == "https" && address.port == 443 &&
+        address.host.endsWith(".googlevideo.com", ignoreCase = true) && address.user == null && address.password == null
 }

@@ -3,15 +3,23 @@ package com.bxane.nuvx.core
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class ListenSyncTest {
     private val id = "dQw4w9WgXcQ"
     private val playing = SharedPlayback(id, positionMs = 10_000, playing = true, updatedAt = 1_000, title = "Song", artists = listOf("Band"))
     private fun local(videoId: String?, pos: Long = 0, isPlaying: Boolean = true, buffering: Boolean = false) =
-        PlayerState(listOfNotNull(videoId?.let { Track(it, "t") }), if (videoId == null) -1 else 0, isPlaying, buffering, pos, 200_000)
+        PlayerState(listOfNotNull(videoId?.let { Track(it, "Song", listOf("Band")) }), if (videoId == null) -1 else 0, isPlaying, buffering, pos, 200_000)
 
     @Test fun clockOffsetAssumesSymmetricRoundTrip() = assertEquals(500, ListenSync.offset(sentAt = 1_000, serverAt = 1_550, receivedAt = 1_100))
+
+    @Test fun clockCalibrationUsesOnlyCurrentNonNegativeLowestRttSamples() {
+        assertTrue(ListenSync.shouldApplyClockSample(sentAt = 101, roundStartedAt = 100, roundTripMs = 20, bestRoundTripMs = 30))
+        assertFalse(ListenSync.shouldApplyClockSample(sentAt = 99, roundStartedAt = 100, roundTripMs = 10, bestRoundTripMs = 30))
+        assertFalse(ListenSync.shouldApplyClockSample(sentAt = 101, roundStartedAt = 100, roundTripMs = -1, bestRoundTripMs = 30))
+        assertFalse(ListenSync.shouldApplyClockSample(sentAt = 101, roundStartedAt = 100, roundTripMs = 40, bestRoundTripMs = 30))
+    }
 
     @Test fun expectedPositionAdvancesOnlyWhilePlaying() {
         assertEquals(13_000, ListenSync.expected(playing, 4_000))
@@ -21,6 +29,12 @@ class ListenSyncTest {
     @Test fun guestLoadsTheHostTrackAtTheRightPlace() {
         val a = ListenSync.decide(local(null), playing, 4_000)
         assertEquals(SyncAction.Load(Track(id, "Song", listOf("Band"), artworkUrl = "https://i.ytimg.com/vi/$id/hqdefault.jpg"), 13_000), a)
+    }
+
+    @Test fun initialLoadRetainsWhetherTheHostIsPaused() {
+        val paused = ListenSync.decide(local(null), playing.copy(playing = false), 1_000)
+        val active = ListenSync.decide(local(null), playing, 1_000)
+        assertNotEquals(active, paused, "the first load must carry play state, rather than starting then correcting it")
     }
 
     @Test fun guestFixesPlayStateThenDrift() {

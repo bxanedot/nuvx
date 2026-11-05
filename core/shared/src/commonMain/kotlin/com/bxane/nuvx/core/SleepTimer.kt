@@ -28,11 +28,18 @@ class SleepTimer(private val player: NuvxPlayer, private val scope: CoroutineSco
         job = scope.launch {
             when (mode) {
                 is Mode.After -> delay(mode.minutes * 60_000L)
-                // shortcut: "end of track" fires when a different track becomes current, so repeat-one never ends it; watch position if that matters.
                 Mode.EndOfTrack -> player.state.value.current?.videoId?.let { playing ->
-                    player.state.first { it.current?.videoId != playing }
-                    // The next track is usually still buffering at this point; pause it once it actually starts.
-                    withTimeoutOrNull(10_000) { player.state.first { it.isPlaying } }
+                    // shortcut: repeat-one detection needs a reported duration; unknown-duration tracks wait for a track change.
+                    var reachedEnd = false
+                    val ended = player.state.first { state ->
+                        if (state.current?.videoId != playing) return@first true
+                        if (state.durationMs > 0 && state.positionMs >= (state.durationMs - 1_500).coerceAtLeast(0)) reachedEnd = true
+                        reachedEnd && state.positionMs < 3_000
+                    }
+                    if (ended.current?.videoId != playing) {
+                        // The next track is usually still buffering at this point; pause it once it actually starts.
+                        withTimeoutOrNull(10_000) { player.state.first { it.isPlaying } }
+                    }
                 }
             }
             if (player.state.value.isPlaying) player.togglePlay()

@@ -24,7 +24,10 @@ class LyricsProvidersTest {
     @Test fun onlyDocumentedProvidersAreRegistered() {
         val http = HttpClient(MockEngine { error("Provider registration must not send requests") })
         try {
-            assertEquals(listOf("Unison", "LRCLIB", "lrc.red", "Better Lyrics"), defaultLyricsProviders(http).map { it.name })
+            val expected = listOf("lrc.red", "LRCLIB", "Better Lyrics", "Unison")
+            val providers = defaultLyricsProviders(http)
+            assertEquals(expected, providers.map { it.name })
+            assertEquals(expected, com.bxane.nuvx.core.LyricsChain(providers).providerNames)
         } finally {
             http.close()
         }

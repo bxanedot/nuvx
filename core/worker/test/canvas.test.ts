@@ -1,8 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { commitCanvas, isMp4, samePasscode, videoIdFromLink } from "../src/canvas.ts";
+import { canvasKey, commitCanvas, isMp4, samePasscode, shareCanvas, videoIdFromLink } from "../src/canvas.ts";
 
 const ID = "9qnqYL0eNNI";
+const utf8Base64 = (value: string) => btoa(String.fromCharCode(...new TextEncoder().encode(value)));
+const fromUtf8Base64 = (value: string) => new TextDecoder().decode(Uint8Array.from(atob(value), char => char.charCodeAt(0)));
 
 test("song links and bare ids give the video id; anything else is rejected", () => {
   assert.equal(videoIdFromLink(`https://music.youtube.com/watch?v=${ID}&si=abc`), ID);
@@ -39,4 +41,36 @@ test("commit creates a new file, and replaces an existing one with its sha", asy
   assert.equal(calls[1].body.content, "AQID");
   assert.deepEqual(await commitCanvas(ID, bytes, "t", fake(true)), { status: 200 });
   assert.equal(calls[3].body.sha, "abc");
+});
+
+test("canvas keys normalize title and Topic artist names", () => {
+  assert.equal(canvasKey("  Falling   Down ", "Lil Peep - Topic"), "falling down|lil peep");
+});
+
+test("sharing merges the existing index and stores the oEmbed song", async () => {
+  const calls: { url: string; method: string; body?: any }[] = [];
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    calls.push({ url, method: init?.method ?? "GET", body: init?.body ? JSON.parse(init.body as string) : undefined });
+    if (url.includes("youtube.com/oembed")) return Response.json({ title: "Björk", author_name: "Beyoncé - Topic" });
+    if (!init?.method) return Response.json({ sha: "sha1", content: utf8Base64(JSON.stringify({ "niño|beyoncé": "abcdefghijk" })) });
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  assert.equal(await shareCanvas(ID, "token", fetcher), true);
+  assert.deepEqual(JSON.parse(fromUtf8Base64(calls[2].body.content)), { "niño|beyoncé": "abcdefghijk", "björk|beyoncé": ID });
+  assert.equal(calls[2].body.sha, "sha1");
+});
+
+test("sharing creates the index when it does not exist", async () => {
+  const calls: { url: string; method: string; body?: any }[] = [];
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    calls.push({ url, method: init?.method ?? "GET", body: init?.body ? JSON.parse(init.body as string) : undefined });
+    if (url.includes("youtube.com/oembed")) return Response.json({ title: "Falling Down", author_name: "Lil Peep - Topic" });
+    if (!init?.method) return new Response("", { status: 404 });
+    return new Response("{}", { status: 201 });
+  }) as typeof fetch;
+  assert.equal(await shareCanvas(ID, "token", fetcher), true);
+  assert.equal(calls[2].body.sha, undefined);
+  assert.deepEqual(JSON.parse(atob(calls[2].body.content)), { "falling down|lil peep": ID });
 });

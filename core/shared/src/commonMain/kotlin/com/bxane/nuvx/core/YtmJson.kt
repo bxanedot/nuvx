@@ -11,7 +11,7 @@ import kotlinx.serialization.json.contentOrNull
 object YtmJson {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun parseSearch(body: String): SearchResults {
+    fun parseSearch(body: String, videoResults: Boolean = false): SearchResults {
         val root = json.parseToJsonElement(body)
         val tracks = mutableListOf<Track>()
         val collections = mutableListOf<Collection>()
@@ -26,7 +26,8 @@ object YtmJson {
                 ?: item.obj("overlay")?.obj("musicItemThumbnailOverlayRenderer")?.obj("content")
                     ?.obj("musicPlayButtonRenderer")?.obj("playNavigationEndpoint")?.obj("watchEndpoint")?.str("videoId")
             if (browse == null && videoId != null) {
-                tracks += Track(videoId, title, meta.artists(), meta.album(), meta.durationMs(), art, artistId = meta.artistId(), albumId = meta.albumId())
+                tracks += Track(videoId, title, meta.artists(), meta.album(), meta.durationMs(), art,
+                    artistId = meta.artistId(), albumId = meta.albumId(), mediaKind = if (videoResults) MediaKind.VIDEO else MediaKind.SONG)
             } else if (browse != null) {
                 val kind = when (browse.pageType()) {
                     "MUSIC_PAGE_TYPE_ALBUM" -> Collection.Kind.ALBUM
@@ -83,7 +84,7 @@ object YtmJson {
     private fun JsonElement.findThumb(): String? =
         findAll("musicThumbnailRenderer").firstNotNullOfOrNull { it.obj("thumbnail").bestThumb() }
 
-    /** Artist page: immersive/visual header, the "Top songs" shelf and carousels of albums, playlists and artists. Video carousels are skipped. */
+    /** Artist page: browseable music shelves and video shelves returned by the catalog. */
     fun parseArtist(browseId: String, body: String): Artist {
         val root = json.parseToJsonElement(body)
         val header = (root.findAll("musicImmersiveHeaderRenderer") + root.findAll("musicVisualHeaderRenderer")).firstOrNull()
@@ -108,7 +109,80 @@ object YtmJson {
             }
             if (title.isBlank() || items.isEmpty()) null else ArtistShelf(title, items)
         }
-        return Artist(browseId, name, art, top, shelves)
+        val videoShelves = root.findAll("musicCarouselShelfRenderer").mapNotNull { shelf ->
+            val title = shelf.obj("header")?.obj("musicCarouselShelfBasicHeaderRenderer")?.obj("title").runs()
+                .joinToString("") { it.str("text").orEmpty() }
+            val category = artistVideoCategory(title)
+            val videos = artistVideoTracks(browseId, name, shelf.arr("contents"))
+            if (title.isBlank() || videos.isEmpty()) null
+            else {
+                val continuation = shelf.continuation()
+                val moreBrowse = shelf.findAll("moreContentButton").firstNotNullOfOrNull { it.findAll("browseEndpoint").firstOrNull() }
+                ArtistVideoShelf(
+                    title, category, videos, continuation,
+                    moreBrowseId = moreBrowse?.str("browseId"),
+                    moreBrowseParams = moreBrowse?.str("params"),
+                    continuationBrowseId = browseId.takeIf { continuation != null },
+                )
+            }
+        }
+        return Artist(browseId, name, art, top, shelves, videoShelves)
+    }
+
+    fun parseArtistVideoPage(
+        browseId: String,
+        artistName: String,
+        shelfTitle: String,
+        body: String,
+        pageBrowseId: String = browseId,
+    ): ArtistVideoShelf {
+        val root = json.parseToJsonElement(body)
+        val page = root.findAll("musicCarouselShelfContinuation").firstOrNull()
+        val carouselItems = page?.let { artistVideoTracks(browseId, artistName, it.arr("contents")) }.orEmpty()
+        val playlistShelves = root.findAll("musicPlaylistShelfRenderer").map { shelf ->
+            shelf to parseSearch(shelf.toString(), videoResults = true).tracks
+        }
+        val selectedPlaylistShelf = playlistShelves.firstOrNull { (_, items) -> items.isNotEmpty() }
+        val listItems = (selectedPlaylistShelf?.second ?: if (playlistShelves.isEmpty()) {
+            parseSearch(root.toString(), videoResults = true).tracks
+        } else {
+            emptyList()
+        }).map { track ->
+            track.copy(artists = track.artists.ifEmpty { listOf(artistName) }, artistId = track.artistId ?: browseId)
+        }
+        val items = (carouselItems + listItems).distinctBy { it.videoId }
+        val continuation = page?.continuation()
+            ?: selectedPlaylistShelf?.first?.continuation()
+            ?: if (playlistShelves.isEmpty()) root.findAll("musicShelfRenderer").firstOrNull()?.continuation() else null
+        return ArtistVideoShelf(
+            shelfTitle, artistVideoCategory(shelfTitle), items, continuation,
+            continuationBrowseId = pageBrowseId.takeIf { continuation != null },
+        )
+    }
+
+    private fun artistVideoTracks(browseId: String, artistName: String, contents: List<JsonElement>) =
+        contents.mapNotNull { it.obj("musicTwoRowItemRenderer") }.mapNotNull { card ->
+            val endpoint = card.obj("navigationEndpoint")?.obj("watchEndpoint") ?: return@mapNotNull null
+            val id = endpoint.str("videoId")?.takeIf { Regex("[A-Za-z0-9_-]{11}").matches(it) } ?: return@mapNotNull null
+            val title = card.obj("title").runs().joinToString("") { it.str("text").orEmpty() }.ifBlank { return@mapNotNull null }
+            val duration = card.findAll("musicThumbnailOverlayTimeStatusRenderer").firstOrNull()
+                ?.obj("text").runs().joinToString("") { it.str("text").orEmpty() }.let(::parseClock)
+            Track(id, title, listOf(artistName), durationMs = duration,
+                artworkUrl = card.obj("thumbnailRenderer")?.findThumb(), artistId = browseId, mediaKind = MediaKind.VIDEO)
+        }.distinctBy { it.videoId }
+
+    private fun artistVideoCategory(title: String): ArtistVideoCategory {
+        val words = " ${title.lowercase().replace(Regex("[^a-z0-9]+"), " ").trim()} "
+        return when {
+            " behind the scenes " in words -> ArtistVideoCategory.BEHIND_THE_SCENES
+            " interview " in words -> ArtistVideoCategory.INTERVIEW
+            " acoustic " in words -> ArtistVideoCategory.ACOUSTIC
+            " lyric video " in words || " lyrics video " in words -> ArtistVideoCategory.LYRIC_VIDEO
+            " visualizer " in words || " visualiser " in words -> ArtistVideoCategory.VISUALIZER
+            " live " in words || " performance " in words || " concert " in words -> ArtistVideoCategory.LIVE_PERFORMANCE
+            " music video " in words || " music videos " in words -> ArtistVideoCategory.MUSIC_VIDEO
+            else -> ArtistVideoCategory.OTHER
+        }
     }
 
     fun parseRadio(body: String): RadioPage {
@@ -164,6 +238,13 @@ object YtmJson {
     private fun JsonElement.obj(key: String) = (this as? JsonObject)?.get(key) as? JsonObject
     private fun JsonElement.arr(key: String): List<JsonElement> = ((this as? JsonObject)?.get(key) as? JsonArray).orEmpty()
     private fun JsonElement.str(key: String) = ((this as? JsonObject)?.get(key) as? JsonPrimitive)?.contentOrNull
+
+    private fun JsonElement.continuation(): String? = (
+        findAll("nextContinuationData").firstNotNullOfOrNull { it.str("continuation") }
+            ?: findAll("continuationItemRenderer").firstNotNullOfOrNull {
+                it.obj("continuationEndpoint")?.obj("continuationCommand")?.str("token")
+            }
+        )?.takeIf(String::isNotBlank)
 
     private fun JsonElement.findAll(key: String): List<JsonObject> {
         val out = mutableListOf<JsonObject>()

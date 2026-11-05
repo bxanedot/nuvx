@@ -13,15 +13,38 @@ data class PlayerState(
     val repeat: RepeatMode = RepeatMode.OFF,
     /** nuvx's own playback volume, 0..1 (not the device volume). */
     val volume: Float = 1f,
+    val playbackSpeed: Float = PlaybackSpeed.DEFAULT,
+    val audioFormat: AudioFormatInfo? = null,
+    val videoResolution: VideoResolution? = null,
+    val nativePlaybackState: String? = null,
 ) {
     val current: Track? get() = queue.getOrNull(index)
 }
 
+/** Audio stream details that are safe to show in player diagnostics; never include addresses or request headers. */
+data class AudioFormatInfo(
+    val mimeType: String? = null,
+    val codecs: String? = null,
+    val bitrateKbps: Int? = null,
+    val sampleRateHz: Int? = null,
+)
+
+data class VideoResolution(val width: Int, val height: Int)
+
+fun Track.playbackFailureMessage(): String =
+    if (mediaKind == MediaKind.VIDEO) "Video playback failed. Try again later or switch to song audio."
+    else "Playback failed. Retry or choose another engine in Settings."
+
 /** Platform playback. Implementations resolve each [Track.videoId] through [BackendRouter.stream] when it is loaded. */
 interface NuvxPlayer {
     val state: StateFlow<PlayerState>
-    fun playQueue(tracks: List<Track>, startIndex: Int = 0)
+    /** Position and play intent take effect together, including while the native player prepares. */
+    fun playQueue(tracks: List<Track>, startIndex: Int = 0, initialPositionMs: Long = 0, autoplay: Boolean = true)
+    /** Replaces only the current queue item, retaining its queue slot and metadata identity. */
+    fun replaceCurrent(track: Track, positionMs: Long) {}
     fun enqueue(tracks: List<Track>)
+    /** Update current metadata and upcoming tracks without seeking, restarting, or discarding earlier queue items. */
+    fun syncQueue(current: Track, upNext: List<Track>) {}
     fun togglePlay()
     fun seekTo(positionMs: Long)
     fun next()
@@ -39,6 +62,8 @@ interface NuvxPlayer {
     fun shuffleUpNext() {}
     /** Playback volume 0..1. The default does nothing; platform players override it. */
     fun setVolume(volume: Float) {}
+    /** Playback rate from the shared speed choices. */
+    fun setPlaybackSpeed(speed: Float) {}
 }
 
 /** Minimal persisted preferences; Android uses SharedPreferences, desktop java.util.prefs. */
@@ -51,6 +76,8 @@ interface KeyValueStore {
 fun BackendRouter.bindTo(store: KeyValueStore): BackendRouter = apply {
     store.get("engine")?.let { saved -> BackendId.entries.firstOrNull { it.name == saved }?.takeIf { it in available }?.let(::select) }
     store.get("engineFallback")?.let { setFallback(it == "true") }
+    chooseAudioQuality(AudioQualityPreference.read(store), store)
+    chooseVideoQuality(VideoQualityPreference.read(store), store)
 }
 
 fun BackendRouter.choose(id: BackendId, store: KeyValueStore) { select(id); store.put("engine", id.name) }
@@ -83,6 +110,10 @@ fun PlayerState.moving(from: Int, to: Int): PlayerState? {
     }
     return copy(queue = moved, index = playing)
 }
+
+/** A room update must not replace a track which has already changed locally. */
+fun PlayerState.syncingQueue(current: Track, upNext: List<Track>): PlayerState? =
+    if (this.current?.videoId != current.videoId) null else copy(queue = queue.take(index) + current + upNext)
 
 enum class RepeatMode { OFF, ALL, ONE }
 
