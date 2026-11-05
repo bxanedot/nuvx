@@ -48,7 +48,11 @@ import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.core.*
 import com.bxane.nuvx.core.Collection
 
-private val Tabs = listOf(Tab("Home", NuvxIcons.Home), Tab("Explore", NuvxIcons.Explore), Tab("Library", NuvxIcons.Library))
+private val Tabs = listOf(
+    Tab("Home", NuvxIcons.Home, "house.fill"),
+    Tab("Explore", NuvxIcons.Explore, "safari.fill"),
+    Tab("Library", NuvxIcons.Library, "books.vertical.fill"),
+)
 private enum class Page(val title: String) { TOGETHER("Listen Together"), SETTINGS("Settings"), QUEUE("Queue"), LIKED("Liked songs"), LOCAL_LIBRARY("On this device") }
 
 @Composable
@@ -108,7 +112,7 @@ fun NuvxApp(
     MaterialTheme(colorScheme = darkColorScheme(primary = NuvxColors.Accent, background = NuvxColors.Background, surface = NuvxColors.Card, onSurface = NuvxColors.Text)) {
         Surface(Modifier.fillMaxSize(), color = NuvxColors.Background) {
             when {
-                watch -> WatchApp(router, store, player)
+                watch -> WatchApp(router, store, player, reduceMotion)
                 !welcomed -> Welcome { store.put("welcomeSeen", "true"); welcomed = true }
                 tv -> TvShell(router, history, state, player, lyrics, localLibrary, reduceMotion, onBackHandler, sleep,
                     canvases?.let { c -> canvasVideo?.let { v -> c to v } }) { tvPage ->
@@ -152,6 +156,7 @@ fun NuvxApp(
                                         onQueue = { openPage(Page.QUEUE) }, onLiked = { openPage(Page.LIKED) },
                                         onTogether = { openPage(Page.TOGETHER) }, onAccount = { openPage(Page.SETTINGS) },
                                         onLocalLibrary = if (localLibrary != null) ({ openPage(Page.LOCAL_LIBRARY) }) else null,
+                                        reduceMotion = reduceMotion,
                                     )
                                 }
                             }
@@ -160,13 +165,15 @@ fun NuvxApp(
                                     transitionSpec = { if (reduceMotion) androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
                                         else fadeIn(tween(180)) togetherWith fadeOut(tween(120)) }, label = "chrome") { compact ->
                                     if (compact) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        val current = if (searching) Tab("Search", NuvxIcons.Search) else Tabs[tab]
-                                        GlassIconButton(current.icon, "Show tabs, ${current.label} selected", size = 56.dp) { collapsed = false }
+                                        val current = if (searching) Tab("Search", NuvxIcons.Search, "magnifyingglass") else Tabs[tab]
+                                        GlassIconButton(current.icon, "Show tabs, ${current.label} selected", size = 56.dp,
+                                            onClick = { collapsed = false }, symbolName = current.symbolName, selected = true, motionEnabled = !reduceMotion)
                                         MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true }, Modifier.weight(1f), onPrevious = player::previous)
-                                        GlassIconButton(NuvxIcons.Search, "Search", size = 56.dp) { openSearch(null) }
+                                        GlassIconButton(NuvxIcons.Search, "Search", size = 56.dp, onClick = { openSearch(null) },
+                                            symbolName = "magnifyingglass", selected = searching, motionEnabled = !reduceMotion)
                                     } else Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                         MiniPlayerPill(state, player::togglePlay, player::next, { sheet = true }, onPrevious = player::previous)
-                                        TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) })
+                                        TabBar(Tabs, tab, searching, select, onSearch = { openSearch(null) }, motionEnabled = !reduceMotion)
                                     }
                                 }
                             }

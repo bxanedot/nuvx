@@ -1,6 +1,6 @@
 # Progress
 
-Updated 2026-11-03. Engineering checkpoint; not a release.
+Updated 2026-11-05. Engineering checkpoint; not a release.
 
 | Area | Implemented / verified | Remaining |
 |---|---|---|
@@ -15,6 +15,7 @@ Updated 2026-11-03. Engineering checkpoint; not a release.
 | iOS/iPadOS | KMP framework targets, common primary backend, Darwin networking | AVFoundation player, app shell, macOS build and signed IPA |
 | Lyrics | LRC/enhanced-LRC plus bounded absolute-time TTML parser; documented public API clients with focused offline tests; opt-in live tests | Word highlighting, timing corrections UI; live provider availability is not claimed |
 | Radio | Interrupted session's seed/refill core and test preserved | Radio UI/internet radio and cancellation/race hardening |
+| Shared icons | GlyphStudio 1.0.0 KMP dependency wired; animated SF symbols cover mobile, desktop, TV, and Wear navigation/library controls; player radio action uses its radio-wave glyph; Android and desktop shared targets compile | iOS/macOS compilation and on-device animation appearance not verified |
 | CI | SHA-pinned 3-host workflow, macOS iOS framework attempt, Dependabot; YAML parsed | Workflow has not run remotely |
 
 This worktree wires the local library into the shared Library screen and Android/desktop entry points. Android requests access only from the local-library route; the emulator permission prompt was verified, but it was not granted, so MediaStore results and actual local playback remain unverified. Desktop recursive scanning is unit-tested, but the native folder picker and audio playback were not exercised. Android's 256 MiB cache is a streaming cache and does not provide offline downloads.

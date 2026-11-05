@@ -13,6 +13,7 @@ nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party com
 | Ktor client | 3.6.1 | Apache-2.0 | https://github.com/ktorio/ktor |
 | OkHttp / Okio (transitive) | see build | Apache-2.0 | https://github.com/square/okhttp |
 | Compose Multiplatform | 1.12.2 | Apache-2.0 | https://github.com/JetBrains/compose-multiplatform |
+| GlyphStudio SF Symbols Compose library | v1.0.0 | Apache-2.0 | https://github.com/bxanedot/GlyphStudio |
 | Coil 3 | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil |
 | AndroidX Media3 | 1.11.1 | Apache-2.0 | https://github.com/androidx/media |
 | AndroidX Activity | 1.13.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx |
@@ -21,6 +22,8 @@ nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party com
 | VLC Windows runtime (packaging download) | 3.0.24 | GPL-2.0-or-later; components retain their own licences | https://www.videolan.org/vlc/ |
 
 Licence texts: GPL-3.0 at https://www.gnu.org/licenses/gpl-3.0.txt; Apache-2.0 at https://www.apache.org/licenses/LICENSE-2.0.txt.
+
+The SF Symbols used through GlyphStudio are Apple artwork and remain subject to Apple's SF Symbols terms. nuvx uses these symbols only as interface icons, not as its app icon or brand mark.
 
 ## Original nuvx assets
 

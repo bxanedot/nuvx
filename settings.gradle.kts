@@ -21,6 +21,7 @@ dependencyResolutionManagement {
             content {
                 includeGroup("com.github.MetrolistGroup.innertubex")
                 includeGroup("com.github.MetrolistGroup.quackjs")
+                includeGroup("com.github.bxanedot.GlyphStudio")
             }
         }
     }

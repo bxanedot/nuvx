@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.onFocusChanged
@@ -85,9 +86,10 @@ fun Modifier.glass(shape: Shape = CircleShape) = this
     return onFocusChanged { focused = it.isFocused }.border(if (focused) 2.5.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
 }
 
-@Composable fun GlassIconButton(icon: ImageVector, label: String, size: Dp = 48.dp, onClick: () -> Unit) =
+@Composable fun GlassIconButton(icon: ImageVector, label: String, size: Dp = 48.dp, onClick: () -> Unit, symbolName: String? = null, selected: Boolean = false, motionEnabled: Boolean = true) =
     Box(Modifier.size(size).glass().focusRing().clickable(onClick = onClick).semantics { contentDescription = label; role = Role.Button }, contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(size * 0.46f), tint = NuvxColors.Text)
+        if (symbolName == null) Icon(icon, null, Modifier.size(size * 0.46f), tint = NuvxColors.Text)
+        else NuvxGlyphIcon(symbolName, Modifier.size(size * 0.46f), tint = NuvxColors.Text, selected = selected, motionEnabled = motionEnabled)
     }
 
 @Composable fun PlainIconButton(icon: ImageVector, label: String, size: Dp, enabled: Boolean = true, onClick: () -> Unit) =
@@ -116,10 +118,10 @@ fun Modifier.glass(shape: Shape = CircleShape) = this
     }
 }
 
-data class Tab(val label: String, val icon: ImageVector)
+data class Tab(val label: String, val icon: ImageVector, val symbolName: String? = null)
 
 /** Glass capsule of tabs with the selected one in a lighter inner pill, plus a separate round search button. */
-@Composable fun TabBar(tabs: List<Tab>, selectedIndex: Int, searchSelected: Boolean, onSelect: (Int) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier) {
+@Composable fun TabBar(tabs: List<Tab>, selectedIndex: Int, searchSelected: Boolean, onSelect: (Int) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier, motionEnabled: Boolean = true) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.weight(1f).heightIn(min = 66.dp).height(IntrinsicSize.Min).glass(RoundedCornerShape(33.dp)).padding(5.dp)) {
             tabs.forEachIndexed { i, tab ->
@@ -128,28 +130,35 @@ data class Tab(val label: String, val icon: ImageVector)
                 Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(28.dp)).background(bg).clickable { onSelect(i) }
                     .semantics { selected = active; role = Role.Tab; contentDescription = tab.label },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Icon(tab.icon, null, Modifier.size(24.dp), tint = if (active) NuvxColors.Text else NuvxColors.Secondary)
+                    if (tab.symbolName == null) Icon(tab.icon, null, Modifier.size(24.dp), tint = if (active) NuvxColors.Text else NuvxColors.Secondary)
+                    else NuvxGlyphIcon(tab.symbolName, Modifier.size(24.dp), tint = if (active) NuvxColors.Accent else NuvxColors.Secondary, selected = active, motionEnabled = motionEnabled)
                     Text(tab.label, fontSize = 11.sp, color = if (active) NuvxColors.Text else NuvxColors.Secondary, fontWeight = FontWeight.Medium)
                 }
             }
         }
         Box(Modifier.size(66.dp).glass().background(if (searchSelected) Color.White.copy(alpha = 0.14f) else Color.Transparent).clickable(onClick = onSearch)
             .semantics { contentDescription = "Search"; role = Role.Tab; selected = searchSelected }, contentAlignment = Alignment.Center) {
-            Icon(NuvxIcons.Search, null, Modifier.size(28.dp), tint = NuvxColors.Text)
+            NuvxGlyphIcon("magnifyingglass", Modifier.size(28.dp), tint = if (searchSelected) NuvxColors.Accent else NuvxColors.Text, selected = searchSelected, motionEnabled = motionEnabled)
         }
     }
 }
 
 /** Leading icon · label · chevron row, as used in Library and Settings lists. */
-@Composable fun NavRow(icon: ImageVector, label: String, detail: String? = null, onClick: () -> Unit) =
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(24.dp), tint = NuvxColors.Text)
+@Composable fun NavRow(icon: ImageVector, label: String, detail: String? = null, onClick: () -> Unit, symbolName: String? = null, motionEnabled: Boolean = true) {
+    var taps by remember { mutableIntStateOf(0) }
+    Row(Modifier.fillMaxWidth().clickable(onClick = {
+        if (symbolName != null && motionEnabled) taps++
+        onClick()
+    }).padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (symbolName == null) Icon(icon, null, Modifier.size(24.dp), tint = NuvxColors.Text)
+        else NuvxGlyphIcon(symbolName, Modifier.size(24.dp), tint = NuvxColors.Text, trigger = taps, animateOnTrigger = true, motionEnabled = motionEnabled)
         Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
             Text(label, color = NuvxColors.Text, fontSize = 17.sp)
             detail?.let { Text(it, color = NuvxColors.Secondary, fontSize = 13.sp) }
         }
         Icon(NuvxIcons.Chevron, null, Modifier.size(18.dp), tint = NuvxColors.Tertiary)
     }
+}
 
 /**
  * Swipe left for the next track, right for the previous one, and optionally up (e.g. to open the player).

@@ -275,7 +275,11 @@ private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
         Box {
             RoundChip(NuvxIcons.More, "More options", enabled, chip) { menu = true }
             DropdownMenu(menu, { menu = false }, containerColor = Color(0xFF232327)) {
-                DropdownMenuItem({ Text("Start radio from this song") }, { menu = false; a.onRadio() })
+                DropdownMenuItem(
+                    text = { Text("Start radio from this song") },
+                    onClick = { menu = false; a.onRadio() },
+                    leadingIcon = { RadioSymbolIcon() },
+                )
                 DropdownMenuItem({ Text(if (a.liked) "Remove from liked songs" else "Add to liked songs") }, { menu = false; a.onLike() })
                 if (a.sleep != null) DropdownMenuItem({ Text("Sleep timer" + sleepLabel(a.sleepMode)?.let { ": $it" }.orEmpty()) }, { menu = false; sleepMenu = true })
             }

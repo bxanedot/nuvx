@@ -144,7 +144,7 @@ private val Moods = listOf(
     }
 }
 
-@Composable fun LibraryScreen(history: History, state: PlayerState, player: NuvxPlayer, onQueue: () -> Unit, onLiked: () -> Unit, onTogether: () -> Unit, onAccount: () -> Unit, onLocalLibrary: (() -> Unit)? = null) {
+@Composable fun LibraryScreen(history: History, state: PlayerState, player: NuvxPlayer, onQueue: () -> Unit, onLiked: () -> Unit, onTogether: () -> Unit, onAccount: () -> Unit, onLocalLibrary: (() -> Unit)? = null, reduceMotion: Boolean = false) {
     val played by history.played.collectAsState()
     val liked by history.liked.collectAsState()
     LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
@@ -158,11 +158,11 @@ private val Moods = listOf(
                 Text(if (played.size == 1) "SONG PLAYED ON THIS DEVICE" else "SONGS PLAYED ON THIS DEVICE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp)
             }
         }
-        item { NavRow(NuvxIcons.HeartFilled, "Liked songs", if (liked.isEmpty()) "None yet" else songs(liked.size), onLiked) }
-        item { NavRow(NuvxIcons.Queue, "Queue", if (state.queue.isEmpty()) "Empty" else songs(state.queue.size), onQueue) }
-        if (onLocalLibrary != null) item { NavRow(NuvxIcons.Library, "On this device", "Music stored here", onLocalLibrary) }
-        item { NavRow(NuvxIcons.Together, "Listen Together", "Rooms with friends", onTogether) }
-        item { NavRow(NuvxIcons.Settings, "Settings and about", null, onAccount) }
+        item { NavRow(NuvxIcons.HeartFilled, "Liked songs", if (liked.isEmpty()) "None yet" else songs(liked.size), onLiked, "heart.fill", !reduceMotion) }
+        item { NavRow(NuvxIcons.Queue, "Queue", if (state.queue.isEmpty()) "Empty" else songs(state.queue.size), onQueue, "list.bullet", !reduceMotion) }
+        if (onLocalLibrary != null) item { NavRow(NuvxIcons.Library, "On this device", "Music stored here", onLocalLibrary, "iphone", !reduceMotion) }
+        item { NavRow(NuvxIcons.Together, "Listen Together", "Rooms with friends", onTogether, "person.2.fill", !reduceMotion) }
+        item { NavRow(NuvxIcons.Settings, "Settings and about", null, onAccount, "gearshape.fill", !reduceMotion) }
         if (played.isNotEmpty()) {
             item { SectionHeader("Recently played") }
             itemsIndexed(played) { i, t -> TrackRow(t, active = state.current?.videoId == t.videoId) { player.playQueue(played, i) } }
