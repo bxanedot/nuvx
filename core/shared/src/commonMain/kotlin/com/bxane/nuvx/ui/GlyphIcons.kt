@@ -18,6 +18,8 @@ import com.composables.sfsymbols.SfSymbols
 import com.composables.sfsymbols.SfWeight
 import com.composables.sfsymbols.monochrome.SFDotRadiowavesLeftAndRight
 
+private val NuvxBounceEffect = SfSymbolEffect.Bounce()
+
 @Composable
 internal fun NuvxGlyphIcon(
     name: String,
@@ -37,10 +39,10 @@ internal fun NuvxGlyphIcon(
         weight = if (selected) SfWeight.Semibold else SfWeight.Medium,
         mode = SfRenderingMode.Hierarchical,
         tint = tint,
-        effect = if (motionEnabled && (selected || animateOnTrigger)) SfSymbolEffect.Bounce() else null,
+        effect = if (motionEnabled && (selected || animateOnTrigger)) NuvxBounceEffect else null,
         repeat = SfEffectRepeat.Once,
         trigger = trigger,
-        transition = SfSymbolTransition.MagicReplace,
+        transition = if (motionEnabled) SfSymbolTransition.MagicReplace else SfSymbolTransition.None,
     )
 }
 
