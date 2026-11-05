@@ -9,6 +9,7 @@ Versions were checked against the official release feeds on 2026-11-02: Maven Ce
 | JDK toolchain for `:shared` | Temurin 27 | adoptium.net | **forced by eXcor**: its desktop artifact is JVM 26 bytecode, so the desktop target compiles with `jvmTarget=26`. Android bytecode stays at 17. |
 | Kotlin | 2.4.21 | Maven Central | |
 | Compose Multiplatform | 1.12.2 (Material3 1.9.0) | Maven Central | |
+| GlyphStudio SF Symbols Compose | 1.0.0 | JitPack | KMP symbol vectors and effects used by shared navigation, library, and player UI |
 | Android Gradle Plugin | 9.5.0 | Google Maven | uses the AGP 9 KMP library plugin `com.android.kotlin.multiplatform.library` |
 | Android compile/target SDK | 37 | SDK Manager | min SDK 26 (eXcor's minimum) |
 | kotlinx.coroutines | 1.11.0 | Maven Central | |

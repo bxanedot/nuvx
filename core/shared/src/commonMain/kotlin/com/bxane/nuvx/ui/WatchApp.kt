@@ -20,7 +20,7 @@ import kotlinx.coroutines.CancellationException
 
 /** Standalone watch layout: one vertical action column stays inside the round display's safe area. */
 @Composable
-internal fun WatchApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer) {
+internal fun WatchApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, reduceMotion: Boolean) {
     val state by player.state.collectAsState()
     val engine by router.selected.collectAsState()
     val fallback by router.fallback.collectAsState()
@@ -61,9 +61,16 @@ internal fun WatchApp(router: BackendRouter, store: KeyValueStore, player: NuvxP
                     if (state.buffering) item { CircularProgressIndicator(Modifier.size(24.dp)) }
                     state.error?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
                 }
-                item { Button(onClick = { page = "search" }, modifier = Modifier.fillMaxWidth()) { Text("Search") } }
-                item { OutlinedButton(onClick = { page = "queue" }, modifier = Modifier.fillMaxWidth()) { Text("Queue") } }
-                item { OutlinedButton(onClick = { page = "engine" }, modifier = Modifier.fillMaxWidth()) { Text("Engine") } }
+                item { Button(onClick = { page = "search" }, modifier = Modifier.fillMaxWidth()) {
+                    NuvxGlyphIcon("magnifyingglass", Modifier.size(18.dp), selected = true, motionEnabled = !reduceMotion)
+                    Spacer(Modifier.width(8.dp)); Text("Search")
+                } }
+                item { OutlinedButton(onClick = { page = "queue" }, modifier = Modifier.fillMaxWidth()) {
+                    NuvxGlyphIcon("list.bullet", Modifier.size(18.dp), motionEnabled = !reduceMotion); Spacer(Modifier.width(8.dp)); Text("Queue")
+                } }
+                item { OutlinedButton(onClick = { page = "engine" }, modifier = Modifier.fillMaxWidth()) {
+                    NuvxGlyphIcon("waveform", Modifier.size(18.dp), motionEnabled = !reduceMotion); Spacer(Modifier.width(8.dp)); Text("Engine")
+                } }
                 item { Text("Developed by bxane", style = MaterialTheme.typography.bodySmall) }
             }
             "search" -> {

@@ -17,7 +17,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -30,16 +29,16 @@ import androidx.compose.material3.Text
 import com.bxane.nuvx.core.*
 import com.bxane.nuvx.core.Collection
 
-private data class TvTab(val destination: TvDestination, val label: String, val icon: ImageVector)
+private data class TvTab(val destination: TvDestination, val label: String, val symbolName: String)
 
 private val tvTabs = listOf(
-    TvTab(TvDestination.HOME, "Home", NuvxIcons.Home),
-    TvTab(TvDestination.EXPLORE, "Explore", NuvxIcons.Explore),
-    TvTab(TvDestination.LIBRARY, "Library", NuvxIcons.Library),
-    TvTab(TvDestination.NOW_PLAYING, "Now playing", NuvxIcons.Play),
-    TvTab(TvDestination.SEARCH, "Search", NuvxIcons.Search),
-    TvTab(TvDestination.TOGETHER, "Listen together", NuvxIcons.Together),
-    TvTab(TvDestination.SETTINGS, "Settings", NuvxIcons.Settings),
+    TvTab(TvDestination.HOME, "Home", "house.fill"),
+    TvTab(TvDestination.EXPLORE, "Explore", "safari.fill"),
+    TvTab(TvDestination.LIBRARY, "Library", "books.vertical.fill"),
+    TvTab(TvDestination.NOW_PLAYING, "Now playing", "play.fill"),
+    TvTab(TvDestination.SEARCH, "Search", "magnifyingglass"),
+    TvTab(TvDestination.TOGETHER, "Listen together", "person.2.fill"),
+    TvTab(TvDestination.SETTINGS, "Settings", "gearshape.fill"),
 )
 
 @Composable
@@ -91,7 +90,7 @@ internal fun TvShell(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 tvTabs.forEachIndexed { index, tab ->
-                    TvTabButton(tab, navigation.destination == tab.destination, if (index == 0) initialFocus else null) {
+                    TvTabButton(tab, navigation.destination == tab.destination, if (index == 0) initialFocus else null, motionEnabled = !reduceMotion) {
                         selectTab(tab.destination)
                     }
                 }
@@ -129,6 +128,7 @@ internal fun TvShell(
                         history, state, player,
                         { openPage(TvSubpage.QUEUE) }, { openPage(TvSubpage.LIKED) }, { openPage(TvSubpage.TOGETHER) }, { openPage(TvSubpage.SETTINGS) },
                         onLocalLibrary = if (localLibrary != null) ({ openPage(TvSubpage.LOCAL_LIBRARY) }) else null,
+                        reduceMotion = reduceMotion,
                     )
                     navigation.destination == TvDestination.SEARCH -> SearchScreen(router, player, history, searchQuery, { collection ->
                         currentCollection = collection
@@ -142,7 +142,7 @@ internal fun TvShell(
 }
 
 @Composable
-private fun TvTabButton(tab: TvTab, selected: Boolean, focusRequester: FocusRequester?, onClick: () -> Unit) {
+private fun TvTabButton(tab: TvTab, selected: Boolean, focusRequester: FocusRequester?, motionEnabled: Boolean, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val modifier = if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester)
     Row(
@@ -157,7 +157,8 @@ private fun TvTabButton(tab: TvTab, selected: Boolean, focusRequester: FocusRequ
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(tab.icon, null, Modifier.size(20.dp), tint = if (focused || selected) NuvxColors.Text else NuvxColors.Secondary)
+        NuvxGlyphIcon(tab.symbolName, Modifier.size(20.dp), tint = if (focused || selected) NuvxColors.Accent else NuvxColors.Secondary,
+            selected = focused || selected, trigger = focused || selected, motionEnabled = motionEnabled)
         Text(tab.label, color = if (focused || selected) NuvxColors.Text else NuvxColors.Secondary, fontSize = 14.sp)
     }
 }

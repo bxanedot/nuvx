@@ -46,6 +46,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.material3)
+            implementation("com.github.bxanedot.GlyphStudio:sfsymbols:v1.0.0")
             implementation(libs.coil.compose)
             implementation(libs.coil.ktor)
             implementation(libs.innertubex)
