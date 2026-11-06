@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -18,7 +19,10 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalComposeUiApi::class)
 class NowPlayingSwitchInteractionTest {
-    @Test fun unavailableVideoIsHiddenAndSongAudioKeepsTheCurrentPosition() {
+    @Test fun unavailableVideoIsHiddenAndSongAudioKeepsTheCurrentPosition() = checkSwitch(400, 900, 1f)
+    @Test fun narrowPhoneAtDoubleFontKeepsSongAudioReachable() = checkSwitch(320, 640, 2f)
+
+    private fun checkSwitch(width: Int, height: Int, fontScale: Float) {
         SwingUtilities.invokeAndWait {
             val song = Track("aaaaaaaaaaa", "Signal", listOf("Nova"), durationMs = 180_000,
                 pairedVideoId = "bbbbbbbbbbb")
@@ -50,7 +54,7 @@ class NowPlayingSwitchInteractionTest {
             val radio = RadioStation(router, player, scope)
             val history = History(store)
             val lyrics = LyricsChain(emptyList())
-            val scene = ImageComposeScene(400, 900) {
+            val scene = ImageComposeScene(width, height, density = Density(1f, fontScale)) {
                 val state = player.state.collectAsState().value
                 MaterialTheme {
                     NowPlayingSheet(player, state, lyrics, history, router, reduceMotion = true,
@@ -69,6 +73,9 @@ class NowPlayingSwitchInteractionTest {
                 player.state.value = player.state.value.copy(queue = listOf(song.copy(mediaKind = MediaKind.VIDEO)))
                 render()
                 val action = controls("Song audio").single()
+                val bounds = action.boundsInRoot
+                assertTrue(bounds.width > 0 && bounds.height > 0 && bounds.left >= 0 && bounds.top >= 0 &&
+                    bounds.right <= width && bounds.bottom <= height, "Song audio must remain visible: $bounds" )
                 assertEquals(true, action.config[SemanticsActions.OnClick].action?.invoke())
                 assertEquals(listOf(song to 12_345L), player.replacements)
             } finally {
