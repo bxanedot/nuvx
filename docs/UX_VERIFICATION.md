@@ -422,3 +422,29 @@ Wear OS subpage headers now show the current Search, Queue, or Engine GlyphStudi
 ## 2026-11-05 20:44 +01:00 — short desktop sidebar source fix
 
 `DesktopSidebar` previously measured its navigation destinations as fixed children of the same non-scrollable column as the bottom Settings action. At short window heights this can place Settings outside the viewport. The navigation group now scrolls within the available height while Settings stays anchored. `DesktopSidebarLayoutTest` was authored to render a 200×260 sidebar and assert Settings bounds; it was not compiled or run because the game process and an existing desktop Gradle run are active. This is source-level evidence only; no visual/runtime claim is made.
+
+## Android integration evidence — 2026-11-06
+
+Active scope is phone/tablet, TV and Wear OS. The following evidence supplements the historical platform tables above; it does not establish full visual parity or release readiness.
+
+| Behavior | Current evidence | Acceptance still needed |
+|---|---|---|
+| Settings switch | Actual offscreen Settings row exposes one labelled toggle, one callback and checked state; standalone LTR/RTL and reduced-motion tests passed | Android touch, TalkBack, largest font and animation inspection |
+| Explore recommendations | Actual offscreen screen test verifies radio seed, duplicate removal and selected queue index | Live authorized catalogue results and screen comparison; editorial/new-release/chart feeds remain absent |
+| Queue restoration | Eight host tests per mobile/TV/Wear variant passed; actual service adapter compiled and inspected; full Android matrix at that checkpoint: 60 passes | Real process death/reopen, controller reconnect, URI permission loss and audio focus; position saves can lag five seconds plus asynchronous preferences flush |
+| Play after Stop | Behavioral regression failed with Pause instead of Prepare/Play, then passed after branch reorder; 15 focused mobile tests passed including restoration | Notification/headset STOP and first Play on an Android device; no later TV/Wear test run claimed |
+| Artist hero / video sort contrast | Explicit white text on fixed dark surfaces; static diff check passed | Compilation and light/dark device screenshots |
+| Introduction | Five actual offscreen tests passed after a minimum-height footer fix; portrait/short landscape, 1x/2x text, scrolling and Continue/Skip completion checked | Android compilation/APK update, touch, TalkBack and device visual comparison remain pending |
+
+Latest APK assembly contains queue restoration and the Stop/Play fix. Installation is pending: the sole adb-connected emulator reports its package service is unavailable. The later artist contrast edit is not yet in an assembled APK. External `SESSION_STATE.json` is authoritative for artifact path, SHA-256, bytes and delivery timestamps. No app launch, emulator restart, real playback or new visual acceptance is claimed by these host checks.
+
+### Integrated shared / Android checkpoint — 2026-11-06 11:39 +01:00
+Full :shared:desktopTest and mobile/TV/Wear unit tests passed in 29s (99 tasks, 17 executed). Fresh XML totals: shared 202 tests, 192 passed and 10 skipped; Android each 24 passed, no failures/errors/skips (72 total Android). Includes current search retry plus prior onboarding, artist browser and playback changes. Ten skipped shared cases remain unverified. No device/native/visual parity claim. Latest APK still predates same-query retry; do not advance build timestamps for this test run. No commit/push.
+
+## Published integration checkpoint — 2026-11-06
+
+Published PR commits: `e5ebc3b` navigation fixtures; `caa6b89` Android queue restoration/Stop/Canvas lifecycle; `f80fc5c` API guards, Media3 opt-ins and TV launcher manifest; `5c35fbf` browsing/search/onboarding; `a7f078b` independent switch/player motion and Settings integration. Earlier adapted switch/player drafts are preserved externally, with current implementation notices reconciled. Historical entries below describe the state at their recorded time and are superseded by this checkpoint where they differ.
+
+The last full local matrix before the independent switch/player replacement passed 198 shared tests with 10 skipped and 25 tests per Android variant. Focused artwork-state, switch and Settings-quality tests plus mobile compilation passed after replacement. The CI-equivalent `:androidApp:lint` task passed locally. Ubuntu and Windows application jobs passed remotely on `f80fc5c`; macOS remained active at inspection. Current-head application checks must pass before claiming PR repair. No historical failed run is described as retroactively successful.
+
+No Android device is currently connected. The retained APK includes the previous Canvas/search/Home fixes but predates the latest independent switch/player replacement. Device visuals, pointer/TalkBack behavior, real media playback, source authorization, animated artist backgrounds and release gates remain open. External SESSION_STATE.json owns exact APK/hash/install metadata. This is not release approval.

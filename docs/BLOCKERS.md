@@ -60,3 +60,9 @@ Active-playback maximize/restore was checked on both desktop apps. Each showed a
 ## Android emulator availability — 2026-11-05 11:49 +01:00
 
 A fresh mobile debug APK was built and retained locally. The explicit SDK adb device listing returned no connected emulator, so this build could not be installed for bxane to inspect.
+
+## Android integration checkpoint — 2026-11-06
+
+The current integration worktree is `C:/Users/bxane/Downloads/Claude/nuvx-codex-share-publish-20261105`. Android phone/tablet, TV and Wear remain the active platform scope; other platform work is deferred. Queue restoration passed 8 host tests per Android variant (full matrix 60 passes before the subsequent Stop fix); Play-after-Stop passed 15 focused mobile tests including restoration. These results do not verify real process death, headset/notification delivery, local permission recovery or native playback.
+
+The latest mobile debug assembly passed, but `emulator-5554` reports `Service package: not found`. Installation and Android visual/TalkBack/runtime acceptance remain pending. No emulator restart or app launch was attempted. Retain the APK path/hash/bytes from external SESSION_STATE.json; a connected adb transport alone does not establish an installable Android system. Public release remains blocked by the existing signing, provider authorization, asset licence and unverified product-parity requirements.

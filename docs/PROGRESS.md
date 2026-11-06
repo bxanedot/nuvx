@@ -1016,3 +1016,101 @@ Extracted the collapsed navigation icon/label selection into `compactNavigationT
 - Shared and Android checks remain in the workflow; stable release signing is unchanged.
 - Static diff review only; the nightly workflow itself was not run. The mobile debug APK build succeeded at 23:19:59 +01:00 and installed on emulator-5554; it was not launched or visually inspected. Tests were not run.
 - APK: `App/androidApp/build/outputs/apk/mobile/debug/androidApp-mobile-debug.apk`, 41,927,776 bytes, SHA-256 `49819307E8EFD3F84CFB7B8EB884AED83B44B820D7CFC33D26A40282A984821B`. Next refresh due 23:49:59 +01:00.
+
+## 2026-11-05 23:35 +01:00 — BitChord-style Android Settings switch
+
+- Added the BitChord GPL-3.0 animated iOS-style switch to Android Settings rows. Existing persisted preference values and Nuvx row callbacks remain unchanged; desktop retains Material switches.
+- Kept the portable Compose drawing and spring motion. The upstream haptics dependency was not brought in.
+- `git diff --check` passed. No tests/build/runtime screenshot run; the shared `:desktopApp:run` Gradle process is still active in the original worktree. Latest APK predates this source edit and the next refresh is due at 23:49:59 +01:00.
+
+## 2026-11-05 23:49 +01:00 — Android player artwork motion
+
+- Adapted BitChord's paused-cover contraction to the Android phone/tablet Now Playing sheet. Cover art and community canvas contract together while paused; music video content stays at full size. Reduced motion suppresses the contraction.
+- The rest of the current Nuvx player controls and playback/lyrics wiring remain in place.
+- `git diff --check` passed. No tests, build, or runtime screenshot were run. The pre-existing desktop Gradle run in the original worktree remains active; the due 23:49:59 APK refresh is deferred until it exits. The installed APK does not contain this edit.
+
+## 2026-11-05 23:53 +01:00 — Android UI compiled and installed
+
+- Isolated :androidApp:assembleMobileDebug with --no-daemon --max-workers=2 and pinned JDK 27 passed in 24s (53 tasks; 9 executed). The original worktree's desktop app continued running: that process alone is not an Android build blocker. This supersedes the prior deferral.
+- Installed on the sole connected emulator-5554 with adb install -r: Success. No game process found before build/install. App not launched; no visual review or tests run.
+- APK includes Settings switches and paused-cover player motion. SHA-256: 54507883746B08B04438702ED57DF6A576C674FE6A68F424CE6FA8F949B1FEF0; 41,933,970 bytes; built 23:52:59 +01:00. Both SESSION_STATE build timestamps and path/hash/bytes mirrors updated. Next build due 00:22:59 +01:00 on November 6.
+- Full UI/feature parity and release readiness remain incomplete. No commit, push, or release performed.
+
+## Android Settings accessibility and reduced motion — 2026-11-05
+
+- Named the custom switch accessibility target with its setting label. Passed the effective reduced-motion value (saved preference OR platform override) through SettingsPage and SettingsRowView. Reduced motion snaps thumb/track changes and suppresses press stretching.
+- :androidApp:compileMobileDebugKotlin passed with --no-daemon --max-workers=2 and pinned JDK 27 in 16s (14 tasks, 4 executed). git diff --check passed. No runtime/TalkBack review or tests run.
+- Installed APK from 23:52:59 predates this additional fix; APK timestamps were not advanced for a compile-only check. Next scheduled assembly remains due 00:22:59 +01 on November 6. No commit/push.
+
+### Android Settings switch interaction verification — 2026-11-05 23:57 +01:00
+Added IosSwitchTest covering accessible name, switch checked state, and exactly one callback per semantic click in LTR/RTL with reduced motion on/off. Updated the existing TV Home mood routing fixture to pass magneticNavigation=false after its API changed. Focused :shared:desktopTest for IosSwitchTest and TvHomeMoodRoutingTest passed (BUILD SUCCESSFUL in 18s); git diff --check passed. These are offscreen Compose tests, not Android TalkBack or touch/runtime verification. Latest source fixes remain uncommitted; installed APK is still the 23:52:59 build. No build timestamp advanced. Next: verify the complete Settings row semantics and Android player motion on emulator; full screen parity remains unfinished.
+
+### Settings row accessibility fix — 2026-11-06
+Reproduced two switch accessibility targets for one Settings row (regression failed expected 1, actual 2). SettingsRowView now owns toggle semantics/action and checked state; its child switch is decorative when no callback is supplied. The same row pattern applies to Material switches. Added actual SettingsRowView regression asserting a single labelled target, state change and one callback. Standalone switch regression remains. :shared:desktopTest --tests com.bxane.nuvx.ui.IosSwitchTest plus :androidApp:compileMobileDebugKotlin passed in 19s; git diff --check passed. No APK assembly/install, TalkBack, or physical touch verification; APK timestamp unchanged. Next: runtime review of Settings/player and remaining Convx screen fidelity. Full product goal remains incomplete.
+
+### Android Explore recommendations — 2026-11-06
+Compared current Explore with the local Convx Explore source. Confirmed Nuvx lacked catalogue shelves. Added a Recommended for you shelf using the existing router.radio capability, seeded by the latest online track in History; filters seed/duplicates and caps at 20. Selection plays the actual displayed queue through NuvxPlayer. Reuses existing Shelf; no upstream implementation/assets or new dependencies copied. Cancellation propagates; failed/empty requests hide the shelf and preserve mood browsing. New-release/editorial/chart feeds remain missing, so full Explore parity is not claimed.
+Verification: actual ExploreScreen offscreen interaction test verifies seed request, duplicate removal and selecting second song gives queue index 1. :shared:desktopTest --tests com.bxane.nuvx.ui.ExploreRecommendationsTest and :androidApp:compileMobileDebugKotlin passed in 20s. git diff --check passed. No network catalogue/runtime visual verification; no APK assembly/install, commit/push, or change to APK build timestamps. Next: verify Android UI on emulator and implement genuine catalogue feeds before claiming Explore parity.
+
+### Android variant verification — 2026-11-06 00:04 +01:00
+Ran the complete shared JVM test suite plus Android TV/Wear compilation and all three Android unit-test variants. First run exposed three stale CompactNavigationTabTest expectations from before GlyphStudio symbol names were added. Updated expected destination symbols (without weakening icon/label assertions). Rerun BUILD SUCCESSFUL in 25s, 99 tasks: shared 192 total / 182 passed / 10 skipped; mobile, TV and Wear unit variants each 12 passed, zero failures/errors. Skipped shared cases remain unverified, not counted as passing. Exact command: :shared:desktopTest :androidApp:compileTvDebugKotlin :androidApp:compileWearDebugKotlin :androidApp:testMobileDebugUnitTest :androidApp:testTvDebugUnitTest :androidApp:testWearDebugUnitTest with existing pinned Java/SDK environment, --no-daemon --max-workers=2. Log: ../handover/android-matrix-20261106.log. git diff --check passed. APK refresh not due until 00:22:59; no APK assembly/install or timestamp advancement. No Android device visual/TalkBack checks and no release/push. Product parity remains incomplete.
+
+
+2026-11-06 04:35 +01:00: source review found theme-dependent dark text on fixed dark Home Listen Together and Library listening cards in light mode. Set their title/caption colors explicitly to white/75% white, preserving dark surfaces and layout. Static diff check passed; no runtime visual claim or new build. Installed APK remains 04:20 build, next due 04:50. GitHub latest run unchanged, OpenCode active-session map empty; desktop mission remains deferred for Android focus.
+
+
+
+### APK delivery 2026-11-06 04:50:40 +01:00
+Mobile debug assembly passed in 28s, installed successfully on sole emulator-5554 without launch. Light-mode dark-card text contrast fixes included. SHA256 A649B3C3E44E72F99E705C2D2B42729A0D106022D11CC68BB921FFB6E63DE268; 41941153 bytes. No runtime visual verification. GitHub run 42120724218 unchanged (failed; local fixture correction remains unpushed). OpenCode idle; desktop mission deferred per Android focus. Build timestamp/path/hash/bytes mirrors updated; dirty work preserved.
+
+
+
+### Settings press-motion wiring — 2026-11-06 05:07 +01:00
+Shared the row's MutableInteractionSource with its decorative IosSwitch so row presses drive the existing thumb stretch after the single-accessibility-target fix. Reduced-motion suppression remains intact. IosSwitchTest and Android mobile Kotlin compilation passed in 30s; actual press animation not visually verified. No APK assembly/install; next due 05:20:40. GitHub and OpenCode states unchanged. No commit/push.
+
+### Android queue restoration — 2026-11-06
+Service now saves ordered queue/cursor/position and requested intent, restores passively paused, checkpoints on changes and every five seconds, and closes checkpoint work before releasing players. Only stable metadata/local references persisted; no resolved stream URLs/headers. Root reviewed source wiring and fresh XML: eight restoration tests passed per mobile/TV/Wear; worker full variant matrix 60 passed. Mobile APK assembly succeeded in 12s; installation deferred because emulator-5554 package service is unavailable. No real process-kill/native playback verification; position may lag by five seconds plus asynchronous preference flush. No commit/push.
+
+### Android Play after Stop — 2026-11-06
+Reordered togglePlay recovery so idle/error prepares and plays before interpreting retained playWhenReady as a pause request. Regression first failed expected prepare/play, got pause; worker focused AndroidPlayerTest and PlaybackRestoreTest then passed 15/15. Root inspected diff and fresh XML. Buffering cancellation and ended replay remain covered. Mobile APK assembly passed in 12s; installation deferred because emulator package service remains unavailable. No native STOP/notification/headset reproduction, no new TV/Wear matrix, no commit/push.
+
+### Artist dark-surface contrast — 2026-11-06
+Root set artist hero title and video-sort popup labels to white because these surfaces keep black/dark backgrounds in both themes. Two explicit color changes; git diff --check passed. No build or device visual check yet; existing worker owns AndroidWelcome/test and remains active. Root change is disjoint; preserve both.
+
+### Android onboarding large-text fix — 2026-11-06
+Actual offscreen regression reproduced Continue/Start listening text requiring 40px but receiving 38px at 2x font. Replaced fixed 54dp footer height with minimum 54dp. Root reviewed diff and fresh AndroidWelcomeLayoutTest XML: 5 tests, zero failures/errors/skips at 2026-11-06T10:22:33.611Z. Tests cover portrait/short landscape, 1x/2x text, intro-line scroll reachability and Continue/Skip completion once. Shared compilation succeeded in worker run (27s). Android target compile/APK containing onboarding and artist contrast changes remain pending; no device/TalkBack/visual parity claim. Worker still writing final report; do not queue duplicate task.
+
+### Android integration compilation — 2026-11-06 11:27 +01:00
+Root compiled mobile/TV/Wear Kotlin with onboarding footer and artist contrast changes: BUILD SUCCESSFUL in 26s, 26 tasks (5 executed). Worker final report reviewed; five actual offscreen onboarding tests passed and worker is idle. git diff --check passed. Compile-only verification; no APK timestamp advanced, no device/TalkBack/visual check. Latest APK still predates these two UI changes.
+
+### Artist-video browser and search evidence — 2026-11-06
+ArtistVideoBrowserInteractionTest passed 2 actual-screen cases (wide/narrow), zero failures/errors/skips, XML 2026-11-06T10:32:21.356Z. Category/search/sort dispatches displayed queue and nonzero clicked index; loaded-only empty message/Clear recover correctly without page fetch. No production artist defect found. Root SearchResultsFeedbackTest passed 2 methods in 11s, including all collection kinds plus true empty/provider failure. Search empty condition now includes tops.isEmpty; no false Nothing found alongside collection-only results. No live catalogue/native video/runtime visual claim.
+
+### APK delivery — 2026-11-06 11:35:45 +01:00
+Mobile debug assembly passed in 27s (53 tasks, 6 executed), includes onboarding footer, artist contrast and search feedback fixes. SHA256 D387FED9229297C19B03F16E0BA017C487C66AEB826539F718CBA33C3F1E0455, bytes 41941668. adb devices returned no devices; install deferred, APK retained, emulator not started. Both metadata mirrors synchronized. Artist-video worker completed and idle. No device/native playback/visual acceptance, commit/push.
+
+### Same-query search retry — 2026-11-06
+Actual screen regression reproduced unchanged IME submission making only one provider request (expected two). Added explicit submission counter to search effect key. Rerun: SearchResultsFeedbackTest 3 methods passed, zero failures/errors/skips; mobile Kotlin compilation passed, BUILD SUCCESSFUL 29s. Empty/provider failure and collection-only controls retained. No live provider/device claim, no APK timestamp advancement; latest APK predates this retry fix.
+
+### Integrated shared / Android checkpoint — 2026-11-06 11:39 +01:00
+Full :shared:desktopTest and mobile/TV/Wear unit tests passed in 29s (99 tasks, 17 executed). Fresh XML totals: shared 202 tests, 192 passed and 10 skipped; Android each 24 passed, no failures/errors/skips (72 total Android). Includes current search retry plus prior onboarding, artist browser and playback changes. Ten skipped shared cases remain unverified. No device/native/visual parity claim. Latest APK still predates same-query retry; do not advance build timestamps for this test run. No commit/push.
+
+### Canvas background lifecycle — 2026-11-06
+Root found Canvas silent player autoplayed for composition lifetime without lifecycle pause. Added observer: STARTED permits playback, background STOP pauses; observer closes before player release, and owner replacement recreates the player. Actual LifecycleRegistry host regression verifies stop/resume and no callbacks after disposal. Mobile unit test and actual Android source compilation passed, BUILD SUCCESSFUL 16s. Music service unaffected. No decoder/battery/device verification or APK refresh; latest artifact predates this fix. Worker owns only SettingsRowView/new Settings quality test; root Canvas files are disjoint.
+
+### Canvas first frame — 2026-11-06
+Root wired initially hidden TextureView alpha to Media3 onRenderedFirstFrame so the underlying still cover remains visible during initial loading, consistent with the existing intended fallback. Mobile/TV/Wear Kotlin compilation passed in 15s. No device renderer/decoder or visual timing test; compiled callback wiring is not runtime proof. Latest APK predates Canvas changes.
+
+### Home recommendations after local playback — 2026-11-06
+Actual Home regression failed: recent local track suppressed radio despite an earlier online song. Home now chooses most recent non-local seed; local-only history remains radio-free. Router already validates identifiers, so no provider leak is claimed. Two Home regressions and three search feedback regressions passed with mobile Kotlin compilation (29s). No live provider/device verification or APK refresh; current artifact predates change.
+
+### Integrated delivery — 2026-11-06 15:52:33 +01:00
+Installed SDK moved to Codex LocalCache; original SDK/adb path absent. First attempt failed SDK discovery before tests, second full shared/mobile/TV/Wear tests plus mobile assembly succeeded in 50s (121 tasks). APK SHA256 5690A4C09271A53226C934B31AFE1733F105622D0B0DD3063BC77ADA0BA5B1C3, bytes 41942677; no devices connected, retained without install. Includes Settings wrapping/minimum-height controls, Canvas lifecycle/first-frame handling, Home online seed and search retry. Four Settings tests passed; worker hit usage limit before report, root inspected code/XML. No native/visual acceptance. Both APK metadata mirrors synchronized. Current standing heartbeat prohibits commit/push, so PR failures remain remotely unchanged; local fixture fixes retained.
+
+## Published integration checkpoint — 2026-11-06
+
+Published PR commits: `e5ebc3b` navigation fixtures; `caa6b89` Android queue restoration/Stop/Canvas lifecycle; `f80fc5c` API guards, Media3 opt-ins and TV launcher manifest; `5c35fbf` browsing/search/onboarding; `a7f078b` independent switch/player motion and Settings integration. Earlier adapted switch/player drafts are preserved externally, with current implementation notices reconciled. Historical entries below describe the state at their recorded time and are superseded by this checkpoint where they differ.
+
+The last full local matrix before the independent switch/player replacement passed 198 shared tests with 10 skipped and 25 tests per Android variant. Focused artwork-state, switch and Settings-quality tests plus mobile compilation passed after replacement. The CI-equivalent `:androidApp:lint` task passed locally. Ubuntu and Windows application jobs passed remotely on `f80fc5c`; macOS remained active at inspection. Current-head application checks must pass before claiming PR repair. No historical failed run is described as retroactively successful.
+
+No Android device is currently connected. The retained APK includes the previous Canvas/search/Home fixes but predates the latest independent switch/player replacement. Device visuals, pointer/TalkBack behavior, real media playback, source authorization, animated artist backgrounds and release gates remain open. External SESSION_STATE.json owns exact APK/hash/install metadata. This is not release approval.
