@@ -79,6 +79,13 @@ private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 internal fun shouldUseFullBleedArtwork(fullBleed: Boolean, artworkMode: Boolean, tallNarrowScreen: Boolean, track: Track?): Boolean =
     fullBleed && artworkMode && tallNarrowScreen && track?.let { it.artworkUrl != null && it.mediaKind != MediaKind.VIDEO } == true
 
+internal fun canSwitchPlaybackKind(track: Track?, videoMatch: Track?): Boolean =
+    when (track?.mediaKind) {
+        MediaKind.VIDEO -> track.pairedVideoId != null
+        MediaKind.SONG -> videoMatch != null
+        null -> false
+    }
+
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
 fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, fullBleed: Boolean = true,
@@ -324,7 +331,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                 ModeButton(NuvxIcons.Shuffle, "Shuffle up next", false, player::shuffleUpNext)
                 ModeButton(NuvxIcons.Lyrics, "Lyrics", mode == SheetMode.LYRICS) { mode = if (mode == SheetMode.LYRICS) SheetMode.ARTWORK else SheetMode.LYRICS }
                 ModeButton(NuvxIcons.Queue, "Queue", mode == SheetMode.QUEUE) { mode = if (mode == SheetMode.QUEUE) SheetMode.ARTWORK else SheetMode.QUEUE }
-                if (videoSurface != null && (track?.pairedVideoId != null || videoMatch != null)) {
+                if (videoSurface != null && canSwitchPlaybackKind(track, videoMatch)) {
                     val isVideo = track?.mediaKind == MediaKind.VIDEO
                     ModeButton(if (isVideo) NuvxIcons.Note else NuvxIcons.Video, if (isVideo) "Song audio" else "Watch video", isVideo) {
                         track?.let { current ->

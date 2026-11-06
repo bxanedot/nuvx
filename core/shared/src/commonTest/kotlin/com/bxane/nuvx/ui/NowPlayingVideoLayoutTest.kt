@@ -8,6 +8,16 @@ import kotlin.test.assertTrue
 
 class NowPlayingVideoLayoutTest {
     @Test
+    fun mediaSwitchRequiresAnActionableTarget() {
+        val song = Track("song-id", "Song", pairedVideoId = "paired-video")
+        val video = song.copy(mediaKind = MediaKind.VIDEO)
+        assertFalse(canSwitchPlaybackKind(song, null))
+        assertTrue(canSwitchPlaybackKind(song, video))
+        assertTrue(canSwitchPlaybackKind(video, null))
+        assertFalse(canSwitchPlaybackKind(video.copy(pairedVideoId = null), null))
+        assertFalse(canSwitchPlaybackKind(null, video))
+    }
+    @Test
     fun fullBleedCoverRemainsAvailableForSongsButNeverHidesVideoSurface() {
         val cover = "https://example.test/cover.jpg"
 

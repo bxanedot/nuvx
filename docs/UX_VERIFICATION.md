@@ -448,3 +448,8 @@ Published PR commits: `e5ebc3b` navigation fixtures; `caa6b89` Android queue res
 The last full local matrix before the independent switch/player replacement passed 198 shared tests with 10 skipped and 25 tests per Android variant. Focused artwork-state, switch and Settings-quality tests plus mobile compilation passed after replacement. The CI-equivalent `:androidApp:lint` task passed locally. Ubuntu and Windows application jobs passed remotely on `f80fc5c`; macOS remained active at inspection. Current-head application checks must pass before claiming PR repair. No historical failed run is described as retroactively successful.
 
 No Android device is currently connected. The retained APK includes the previous Canvas/search/Home fixes but predates the latest independent switch/player replacement. Device visuals, pointer/TalkBack behavior, real media playback, source authorization, animated artist backgrounds and release gates remain open. External SESSION_STATE.json owns exact APK/hash/install metadata. This is not release approval.
+
+## Song/video switch availability — 2026-11-06
+
+Retained pairing metadata previously exposed Watch video while the song-to-video resolver had no result; its callback then did nothing. Availability now follows the actual callback target: song requires a resolved match, video requires its paired origin. The previous condition failed the new regression; both NowPlayingVideoLayoutTest tests and Android mobile Kotlin compilation passed (50s). Native switching, position continuity and provider playback remain unverified.
+
