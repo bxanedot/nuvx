@@ -9,6 +9,7 @@
  */
 package com.bxane.nuvx.backdrop
 
+import android.os.Build
 import org.intellij.lang.annotations.Language
 
 sealed interface RuntimeShaderCache {
@@ -21,7 +22,10 @@ internal class RuntimeShaderCacheImpl : RuntimeShaderCache {
     private val runtimeShaders = mutableMapOf<String, RuntimeShader>()
 
     override fun obtainRuntimeShader(key: String, string: String): RuntimeShader {
-        return runtimeShaders.getOrPut(key) { RuntimeShader(string) }
+        return runtimeShaders.getOrPut(key) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) RuntimeShader(string)
+            else error("Runtime shaders require Android 13")
+        }
     }
 
     fun clear() {
