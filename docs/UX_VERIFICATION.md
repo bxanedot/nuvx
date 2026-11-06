@@ -452,4 +452,3 @@ No Android device is currently connected. The retained APK includes the previous
 ## Song/video switch availability — 2026-11-06
 
 Retained pairing metadata previously exposed Watch video while the song-to-video resolver had no result; its callback then did nothing. Availability now follows the actual callback target: song requires a resolved match, video requires its paired origin. The previous condition failed the new regression; both NowPlayingVideoLayoutTest tests and Android mobile Kotlin compilation passed (50s). Native switching, position continuity and provider playback remain unverified.
-
