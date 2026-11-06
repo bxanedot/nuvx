@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.bxane.nuvx.core.AudioQualityPreference
 import com.bxane.nuvx.core.VideoQualityPreference
 import javax.swing.SwingUtilities
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -134,6 +135,11 @@ class SettingsQualityLayoutTest {
                     }
                     render()
                     assertEquals(choices, requests, "$context must not choose again on recomposition")
+                    val images = File("build/reports/settings-quality-images").apply { mkdirs() }
+                    val name = "${title.replace(' ', '-')}-${width}-${fontScale}-${direction}-${reduced}.png"
+                    scene.render(frame++ * 16_000_000L).use { image ->
+                        image.encodeToData()?.use { data -> File(images, name).writeBytes(data.bytes) }
+                    }
                     println("$context callbacks=$requests controls=${choices.map { it to radio(it).boundsInRoot }}")
                 } finally {
                     scene.close()
