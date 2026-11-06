@@ -3,6 +3,7 @@ package com.bxane.nuvx.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -50,6 +51,15 @@ class SettingsCategoryBackTest {
                 assertEquals(true, category.config[SemanticsActions.OnClick].action?.invoke())
                 render()
                 assertTrue(enabled, "Category navigation must intercept platform Back")
+                val search = nodes().single { it.config.getOrNull(SemanticsActions.SetText) != null }
+                assertEquals(true, search.config[SemanticsActions.SetText].action?.invoke(AnnotatedString("quality")))
+                render()
+                assertTrue(enabled, "Search must intercept platform Back before the category")
+                back!!.invoke()
+                render()
+                val cleared = nodes().single { it.config.getOrNull(SemanticsActions.SetText) != null }
+                assertEquals("", cleared.config[SemanticsProperties.EditableText].text)
+                assertTrue(enabled, "Clearing search must retain the current category")
                 back!!.invoke()
                 render()
                 assertFalse(enabled, "Category list must return Back handling to the parent")

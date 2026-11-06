@@ -460,3 +460,7 @@ The matcher rejected neither blank titles nor titles consisting only of punctuat
 ## Android Settings category Back — 2026-11-06
 
 Category navigation now registers the existing platform Back callback, returning to the category list before leaving Settings. The callback is removed behind the open player sheet so the parent handles dismissal. The actual-screen category test failed before wiring the callback, then passed with mobile Kotlin compilation (44s). This command's process check reported Roblox but did not abort Gradle; the gaming gate was not correctly enforced for this run. No further build/device work is permitted while gaming. Native Back dispatch/overlay ordering remain unverified.
+
+## Settings search Back — 2026-11-06
+
+Android Back clears a nonblank Settings query before category navigation. The actual-screen regression types a query, invokes the registered Back callback, checks an empty field and retained category, then invokes Back again to return to categories. Focused test and mobile compilation passed46s after the game gate cleared. Native keyboard/Back dispatch remains unverified.

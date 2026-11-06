@@ -674,7 +674,9 @@ private val AndroidSettingsCategories = listOf(
         ).map { (label, url) -> SettingRow(null, label, onClick = { uri.openUri(url) }) },
     )
     val q = query.trim()
-    onBackHandler?.invoke(androidUi && q.isBlank() && androidCategory != null) { androidCategory = null }
+    onBackHandler?.invoke(androidUi && (q.isNotBlank() || androidCategory != null)) {
+        if (q.isNotBlank()) changeQuery("") else androidCategory = null
+    }
     val shown = sections.map { (title, rows) -> title to rows.filter { q.isEmpty() || it.label.contains(q, true) || it.subtitle?.contains(q, true) == true } }
         .filter { (title, rows) -> rows.isNotEmpty() || title == "LYRICS" && lyricProviders.any { it.contains(q, true) } }
     val visibleSections = if (androidUi && q.isBlank() && androidCategory != null) {
