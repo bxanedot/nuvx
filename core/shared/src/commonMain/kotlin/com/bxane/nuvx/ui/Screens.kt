@@ -73,7 +73,7 @@ import kotlinx.coroutines.CancellationException
     val played by history.played.collectAsState()
     val desktop = LocalDesktopLayout.current
     val moodArt = remember { mutableStateMapOf<String, String?>() }
-    val seed = played.firstOrNull()
+    val seed = played.firstOrNull { !it.isLocal }
     var picks by remember { mutableStateOf<List<Track>>(emptyList()) }
     LaunchedEffect(seed?.videoId) {
         picks = emptyList()
@@ -89,8 +89,8 @@ import kotlinx.coroutines.CancellationException
                 .semantics { role = Role.Button; contentDescription = "Listen together" }
                 .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Listen together", color = NuvxColors.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Start a room and listen in sync with friends.", color = NuvxColors.Secondary, fontSize = 13.sp)
+                    Text("Listen together", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Start a room and listen in sync with friends.", color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp)
                 }
                 Row(Modifier.clip(CircleShape).background(Color.White).padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(NuvxIcons.Together, null, Modifier.size(18.dp), tint = Color.Black)
@@ -199,10 +199,27 @@ private fun BrowseShortcutChip(shortcut: BrowseShortcut, onClick: (String) -> Un
     }
 
 /** Mood tiles: a colour band with real artwork (the mood's top song) fading in from the right; the colour alone if none loads. */
-@Composable fun ExploreScreen(onMood: (String) -> Unit, router: BackendRouter? = null, androidUi: Boolean = false, onAccount: () -> Unit) {
+@Composable fun ExploreScreen(
+    onMood: (String) -> Unit,
+    router: BackendRouter? = null,
+    androidUi: Boolean = false,
+    recommendationSeed: Track? = null,
+    onPlayRecommendations: ((List<Track>, Int) -> Unit)? = null,
+    onAccount: () -> Unit,
+) {
     // shortcut: artwork is cached only while Explore is on screen; hoist to the app graph if re-fetching on return is noticeable.
     val desktop = LocalDesktopLayout.current
     val art = remember { mutableStateMapOf<String, String?>() }
+    var recommendations by remember(router, recommendationSeed?.videoId) { mutableStateOf<List<Track>>(emptyList()) }
+    LaunchedEffect(router, recommendationSeed?.videoId, androidUi) {
+        if (androidUi && router != null && recommendationSeed != null && !recommendationSeed.isLocal) {
+            recommendations = try {
+                router.radio(recommendationSeed.videoId).tracks
+                    .filter { it.videoId != recommendationSeed.videoId }
+                    .distinctBy { it.videoId }.take(20)
+            } catch (e: CancellationException) { throw e } catch (_: Exception) { emptyList() }
+        }
+    }
     if (desktop) {
         LazyColumn(contentPadding = PaddingValues(bottom = desktopAwareBottomPadding()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(Moods.chunked(4)) { row ->
@@ -225,10 +242,18 @@ private fun BrowseShortcutChip(shortcut: BrowseShortcut, onClick: (String) -> Un
                         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(ExploreShortcuts, key = BrowseShortcut::query) { BrowseShortcutChip(it, onMood) }
                         }
-                        SectionHeader("Moods & genres")
                     }
                 }
             }
+            if (androidUi && recommendations.isNotEmpty() && onPlayRecommendations != null) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Column {
+                        SectionHeader("Recommended for you")
+                        Shelf(recommendations) { index -> onPlayRecommendations(recommendations, index) }
+                    }
+                }
+            }
+            if (androidUi) item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader("Moods & genres") }
             items(Moods, key = Mood::query) { mood -> MoodTile(mood, art, router, Modifier.fillMaxWidth().aspectRatio(1.6f), desktop, onMood) }
         }
     }
@@ -300,9 +325,9 @@ private fun MoodTile(
         } else item {
             Column(Modifier.padding(horizontal = 20.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp))
                 .background(Brush.linearGradient(listOf(Color(0xFF2A2C33), Color(0xFF16171B)))).padding(20.dp)) {
-                Text("YOUR LISTENING", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.SemiBold)
+                Text("YOUR LISTENING", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.SemiBold)
                 Text("${played.size}", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
-                Text(if (played.size == 1) "SONG PLAYED ON THIS DEVICE" else "SONGS PLAYED ON THIS DEVICE", color = NuvxColors.Secondary, fontSize = 12.sp, letterSpacing = 1.5.sp)
+                Text(if (played.size == 1) "SONG PLAYED ON THIS DEVICE" else "SONGS PLAYED ON THIS DEVICE", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, letterSpacing = 1.5.sp)
             }
         }
         if (desktop) {
@@ -392,6 +417,7 @@ private fun DesktopLibraryDivider() {
     val desktop = LocalDesktopLayout.current
     var query by remember(initialQuery) { mutableStateOf(initialQuery.orEmpty()) }
     var submitted by remember(initialQuery) { mutableStateOf(initialQuery) }
+    var searchRequest by remember { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf(SearchFilter.ALL) }
     var results by remember { mutableStateOf<List<Track>>(emptyList()) }
     var albums by remember { mutableStateOf<List<Collection>>(emptyList()) }
@@ -402,10 +428,10 @@ private fun DesktopLibraryDivider() {
     val discoveryArt = remember { mutableStateMapOf<String, String?>() }
     val focus = remember { FocusRequester() }
     fun submit(value: String) {
-        value.trim().takeIf(String::isNotEmpty)?.let { submitted = it; onSubmittedQuery(it) }
+        value.trim().takeIf(String::isNotEmpty)?.let { submitted = it; searchRequest++; onSubmittedQuery(it) }
     }
     LaunchedEffect(Unit) { if (initialQuery == null && !desktop) runCatching { focus.requestFocus() } }
-    LaunchedEffect(submitted, filter) {
+    LaunchedEffect(submitted, filter, searchRequest) {
         val q = submitted ?: run {
             busy = false; error = null; results = emptyList(); albums = emptyList(); tops = emptyList()
             return@LaunchedEffect
@@ -420,7 +446,7 @@ private fun DesktopLibraryDivider() {
                 else -> { results = found.tracks; if (filter == SearchFilter.ALL) tops = found.collections.take(12) }
             }
             history.searched(q)
-            if (results.isEmpty() && albums.isEmpty()) error = "Nothing found for \"$q\"."
+            if (results.isEmpty() && albums.isEmpty() && tops.isEmpty()) error = "Nothing found for \"$q\"."
         }
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { error = "Search isn't available right now. Check your connection, or try the other engine in Settings." }

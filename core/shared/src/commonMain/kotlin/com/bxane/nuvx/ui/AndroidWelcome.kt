@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -107,7 +108,7 @@ internal fun AndroidWelcome(onDone: () -> Unit, reduceMotion: Boolean) {
         }
         Button(
             onClick = { if (step == steps.lastIndex) onDone() else step++ },
-            modifier = Modifier.fillMaxWidth().height(54.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(containerColor = NuvxColors.Accent, contentColor = NuvxColors.OnAccent),
         ) {

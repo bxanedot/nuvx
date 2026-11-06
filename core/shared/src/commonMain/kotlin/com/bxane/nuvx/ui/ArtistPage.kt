@@ -217,7 +217,7 @@ internal fun artistVideoItems(items: List<Track>, query: String, order: ArtistVi
                 }
                 DropdownMenu(sortMenu, { sortMenu = false }, containerColor = Color(0xFF232327)) {
                     ArtistVideoOrder.entries.forEach { option ->
-                        DropdownMenuItem({ Text(option.label) }, { sortMenu = false; onOrder(option) },
+                        DropdownMenuItem({ Text(option.label, color = Color.White) }, { sortMenu = false; onOrder(option) },
                             modifier = Modifier.semantics { selected = order == option })
                     }
                 }
@@ -235,7 +235,7 @@ internal fun artistVideoItems(items: List<Track>, query: String, order: ArtistVi
             1f to Color.Black.copy(alpha = 0.9f),
         )))
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) {
-            Text(name, color = NuvxColors.Text, fontSize = 40.sp, fontWeight = FontWeight.Bold,
+            Text(name, color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.7).sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
