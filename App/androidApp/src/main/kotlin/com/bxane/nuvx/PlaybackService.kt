@@ -8,8 +8,11 @@ import android.content.SharedPreferences
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
+import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -31,6 +34,13 @@ import androidx.media3.session.MediaSessionService
 import com.bxane.nuvx.core.resolveAudio
 import com.bxane.nuvx.core.VideoStream
 import com.bxane.nuvx.core.CrossfadeSettings
+import com.bxane.nuvx.core.MediaKind
+import com.bxane.nuvx.core.toMetadataExtras
+import com.bxane.nuvx.core.trackFromMetadata
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
@@ -89,6 +99,17 @@ class PlaybackService : MediaSessionService() {
     private var exoPlayer: ExoPlayer? = null
     private var standbyPlayer: ExoPlayer? = null
     private var crossfadePlayer: AndroidCrossfadePlayer? = null
+    private val restoreScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var playbackRestore: PlaybackRestore? = null
+    private val restoreListener = object : Player.Listener {
+        override fun onEvents(player: Player, events: Player.Events) {
+            if (events.containsAny(Player.EVENT_TIMELINE_CHANGED, Player.EVENT_MEDIA_ITEM_TRANSITION,
+                    Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                    Player.EVENT_MEDIA_METADATA_CHANGED, Player.EVENT_PLAYBACK_STATE_CHANGED)) {
+                playbackRestore?.checkpoint()
+            }
+        }
+    }
     private var crossfadePreferences: SharedPreferences? = null
     private var cache: androidx.media3.datasource.cache.SimpleCache? = null
     private val videoLock = Any()
@@ -161,6 +182,22 @@ class PlaybackService : MediaSessionService() {
             it.registerOnSharedPreferenceChangeListener(crossfadePreferenceListener)
             crossfadePlayer?.setCrossfadeSeconds(CrossfadeSettings.read((application as NuvxApplication).store))
         }
+        val sessionPlayer = requireNotNull(crossfadePlayer)
+        playbackRestore = PlaybackRestore((application as NuvxApplication).store, restoreScope,
+            capture = { sessionPlayer.playbackSnapshot() },
+            restorePaused = { snapshot ->
+                sessionPlayer.playWhenReady = false
+                val items = snapshot.queue.map { track ->
+                    MediaItem.Builder().setMediaId(track.videoId)
+                        .setUri(track.localUri ?: if (track.mediaKind == MediaKind.VIDEO) "nuvx://video/${track.playbackVideoId}" else "nuvx://track/${track.videoId}")
+                        .setMediaMetadata(MediaMetadata.Builder().setTitle(track.title).setArtist(track.artistLine).setAlbumTitle(track.album)
+                            .setExtras(Bundle().apply { track.toMetadataExtras().forEach { (key, value) -> putString(key, value) } })
+                            .build()).build()
+                }
+                // Leave restored items idle: the existing user Play action prepares them on demand.
+                sessionPlayer.setMediaItems(items, snapshot.index, snapshot.positionMs)
+            })
+        sessionPlayer.addListener(restoreListener)
         val activity = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         session = MediaSession.Builder(this, crossfadePlayer!!).setSessionActivity(activity).build()
     }
@@ -169,6 +206,10 @@ class PlaybackService : MediaSessionService() {
         session?.takeIf { controllerInfo.packageName == packageName || controllerInfo.isTrusted }
 
     override fun onDestroy() {
+        crossfadePlayer?.removeListener(restoreListener)
+        playbackRestore?.close()
+        playbackRestore = null
+        restoreScope.cancel()
         crossfadePreferences?.unregisterOnSharedPreferenceChangeListener(crossfadePreferenceListener)
         crossfadePreferences = null
         crossfadePlayer?.close()
@@ -187,6 +228,17 @@ class PlaybackService : MediaSessionService() {
         cache = null
         synchronized(videoLock) { videoStreams.clear() }
         super.onDestroy()
+    }
+
+    private fun Player.playbackSnapshot(): PlaybackSnapshot {
+        val queue = (0 until mediaItemCount).map { index ->
+            val item = getMediaItemAt(index)
+            val metadata = item.mediaMetadata
+            val extras = metadata.extras?.keySet()?.associateWith { metadata.extras?.getString(it).orEmpty() }.orEmpty()
+            trackFromMetadata(item.mediaId, metadata.title?.toString().orEmpty(), metadata.artist?.toString(),
+                metadata.albumTitle?.toString(), null, extras)
+        }
+        return PlaybackSnapshot(queue, currentMediaItemIndex, currentPosition.coerceAtLeast(0), playWhenReady)
     }
 
     private fun updateAudioEffectSession() {

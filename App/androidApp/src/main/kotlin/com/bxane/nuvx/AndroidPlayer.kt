@@ -110,8 +110,9 @@ class AndroidPlayer(internal val controller: Player) : NuvxPlayer, AutoCloseable
     override fun remove(index: Int) { if (index in 0 until controller.mediaItemCount) controller.removeMediaItem(index) }
     override fun togglePlay() {
         if (controller.playbackState == Player.STATE_ENDED) { controller.seekToDefaultPosition(); controller.play() }
-        else if (controller.playWhenReady && controller.playerError == null) controller.pause()
-        else { if (controller.playerError != null || controller.playbackState == Player.STATE_IDLE) controller.prepare(); controller.play() }
+        else if (controller.playerError != null || controller.playbackState == Player.STATE_IDLE) { controller.prepare(); controller.play() }
+        else if (controller.playWhenReady) controller.pause()
+        else controller.play()
     }
     override fun seekTo(positionMs: Long) { controller.seekTo(positionMs.coerceAtLeast(0)) }
     override fun next() { controller.seekToNextMediaItem() }

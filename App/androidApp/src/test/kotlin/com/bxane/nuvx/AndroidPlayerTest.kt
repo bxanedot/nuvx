@@ -1,5 +1,7 @@
 package com.bxane.nuvx
 
+import android.os.Bundle
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import java.lang.reflect.Proxy
 import kotlinx.coroutines.Dispatchers
@@ -39,14 +41,41 @@ class AndroidPlayerTest {
     }
 
     @Test fun playAfterQueueCompletionRewindsBeforePlaying() = runTest {
+        assertEquals(listOf("rewind", "play"), toggleCommands(Player.STATE_ENDED, true))
+    }
+
+    @Test fun playAfterSessionStopPreparesOnFirstToggle() = runTest {
+        assertEquals(listOf("prepare", "play"), toggleCommands(Player.STATE_IDLE, true))
+    }
+
+    @Test fun playAfterPausedRestorePreparesBeforePlaying() = runTest {
+        assertEquals(listOf("prepare", "play"), toggleCommands(Player.STATE_IDLE, false))
+    }
+
+    @Test fun bufferingToggleUsesRequestedPlayRatherThanIsPlaying() = runTest {
+        assertEquals(listOf("pause"), toggleCommands(Player.STATE_BUFFERING, true))
+        assertEquals(listOf("play"), toggleCommands(Player.STATE_BUFFERING, false))
+    }
+
+    @Test fun playAfterErrorPreparesBeforePlaying() = runTest {
+        // An explicit timestamp avoids calling Android's clock in this host test.
+        val error = object : PlaybackException("Test error", null, PlaybackException.ERROR_CODE_IO_UNSPECIFIED, Bundle.EMPTY, 0L) {}
+        for (requestedPlay in listOf(true, false)) {
+            assertEquals(listOf("prepare", "play"), toggleCommands(Player.STATE_IDLE, requestedPlay, error))
+        }
+    }
+
+    private fun TestScope.toggleCommands(playbackState: Int, playWhenReady: Boolean, playerError: PlaybackException? = null): List<String> {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val commands = mutableListOf<String>()
         val controller = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, method, _ ->
             when (method.name) {
-                "getPlaybackState" -> Player.STATE_ENDED
-                "getPlayWhenReady" -> true
-                "getPlayerError" -> null
+                "getPlaybackState" -> playbackState
+                "getPlayWhenReady" -> playWhenReady
+                "getPlayerError" -> playerError
+                "isPlaying" -> false
                 "seekToDefaultPosition" -> { commands += "rewind"; null }
+                "prepare" -> { commands += "prepare"; null }
                 "play" -> { commands += "play"; null }
                 "pause" -> { commands += "pause"; null }
                 else -> null
@@ -55,7 +84,7 @@ class AndroidPlayerTest {
         val player = AndroidPlayer(controller)
         try {
             player.togglePlay()
-            assertEquals(listOf("rewind", "play"), commands)
+            return commands
         } finally { player.close(); Dispatchers.resetMain() }
     }
 }
