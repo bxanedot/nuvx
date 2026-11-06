@@ -456,3 +456,7 @@ Retained pairing metadata previously exposed Watch video while the song-to-video
 ## Video matching requires a song title — 2026-11-06
 
 The matcher rejected neither blank titles nor titles consisting only of punctuation or a video suffix. Matching artist and duration could therefore pair unrelated items with no song identity. A regression failed before adding the normalized-title guard. Full shared tests (211 total, 10 skipped, zero failures/errors) and Android mobile Kotlin compilation passed in 1m7s. Live catalogue and playback remain unverified.
+
+## Android Settings category Back — 2026-11-06
+
+Category navigation now registers the existing platform Back callback, returning to the category list before leaving Settings. The callback is removed behind the open player sheet so the parent handles dismissal. The actual-screen category test failed before wiring the callback, then passed with mobile Kotlin compilation (44s). This command's process check reported Roblox but did not abort Gradle; the gaming gate was not correctly enforced for this run. No further build/device work is permitted while gaming. Native Back dispatch/overlay ordering remain unverified.

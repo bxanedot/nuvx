@@ -308,7 +308,7 @@ fun NuvxApp(
                                         searchQuery = settingsQuery.takeIf { desktop },
                                         onSearchQueryChange = { settingsQuery = it },
                                         accentHex = accentHex, accentSwatches = accentSwatches,
-                                         onAccentPaletteChange = updateAccentPalette, androidUi = androidUi)
+                                         onAccentPaletteChange = updateAccentPalette, androidUi = androidUi, onBackHandler = onBackHandler.takeIf { !sheet })
                                     Page.QUEUE -> QueuePage(state, player)
                                     Page.HISTORY -> PlaybackHistoryPage(history, state, player)
                                     Page.LIKED -> LikedPage(history, state, player)
@@ -533,7 +533,7 @@ private val AndroidSettingsCategories = listOf(
 )
 
 /** Grouped settings: searchable rows in rounded cards with small-caps section labels, then the About links and a footer. */
-@Composable private fun SettingsPage(router: BackendRouter, store: KeyValueStore, lyricProviders: List<String>, lyricSettings: LyricsProviderSettings,
+@Composable internal fun SettingsPage(router: BackendRouter, store: KeyValueStore, lyricProviders: List<String>, lyricSettings: LyricsProviderSettings,
     onLyricsChange: (LyricsProviderSettings) -> Unit, onTogether: (() -> Unit)? = null, onLiked: (() -> Unit)? = null, onLocal: (() -> Unit)? = null,
     darkMode: Boolean? = null, onDarkModeChange: (Boolean) -> Unit = {},
     lyricsTextSize: LyricsTextSizePreference = LyricsTextSizePreference.DEFAULT, onLyricsTextSizeChange: (LyricsTextSizePreference) -> Unit = {},
@@ -553,7 +553,8 @@ private val AndroidSettingsCategories = listOf(
      player: NuvxPlayer? = null, playerState: PlayerState? = null,
     sleepTimer: SleepTimer? = null, sleepMode: SleepTimer.Mode? = null,
     accentHex: String = AccentPalettePreference.DEFAULT, accentSwatches: List<String> = AccentPalettePreference.DEFAULT_SWATCHES,
-     onAccentPaletteChange: (AccentPaletteDraft) -> Unit = {}, androidUi: Boolean = false) {
+     onAccentPaletteChange: (AccentPaletteDraft) -> Unit = {}, androidUi: Boolean = false,
+    onBackHandler: (@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit)? = null) {
     val selected by router.selected.collectAsState()
     val fallback by router.fallback.collectAsState()
     val audioQuality by router.audioQuality.collectAsState()
@@ -673,6 +674,7 @@ private val AndroidSettingsCategories = listOf(
         ).map { (label, url) -> SettingRow(null, label, onClick = { uri.openUri(url) }) },
     )
     val q = query.trim()
+    onBackHandler?.invoke(androidUi && q.isBlank() && androidCategory != null) { androidCategory = null }
     val shown = sections.map { (title, rows) -> title to rows.filter { q.isEmpty() || it.label.contains(q, true) || it.subtitle?.contains(q, true) == true } }
         .filter { (title, rows) -> rows.isNotEmpty() || title == "LYRICS" && lyricProviders.any { it.contains(q, true) } }
     val visibleSections = if (androidUi && q.isBlank() && androidCategory != null) {
