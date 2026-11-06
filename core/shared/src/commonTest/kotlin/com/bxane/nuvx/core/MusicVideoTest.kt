@@ -8,6 +8,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class MusicVideoTest {
+    @Test fun matcherRejectsTitlesWithoutSongIdentity() {
+        for (title in listOf("", "   ", "!!!", "(Official Music Video)")) {
+            val song = Track("song-id", title, listOf("Nova"), durationMs = 240_000)
+            val candidate = Track("video123456", "(Official Music Video)", listOf("Nova"),
+                durationMs = 240_000, mediaKind = MediaKind.VIDEO)
+            assertNull(MusicVideoMatcher.bestMatch(song, listOf(candidate)), "No song title: '$title'")
+        }
+    }
     @Test fun youtubeFallbackRequiresAVideoAndUsesItsPairedVideoId() {
         val directVideo = Track("abcdefghijk", "Signal", mediaKind = MediaKind.VIDEO)
         val pairedVideo = Track("songid12345", "Signal", mediaKind = MediaKind.VIDEO, pairedVideoId = "lmnopqrstuv")

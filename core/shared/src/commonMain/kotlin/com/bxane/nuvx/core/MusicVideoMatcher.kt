@@ -15,7 +15,7 @@ object MusicVideoMatcher {
     fun bestMatch(song: Track, candidates: List<Track>): Track? {
         val songArtistId = song.artistId?.takeIf(String::isNotBlank)
         if (song.isLocal || song.mediaKind != MediaKind.SONG || song.artists.isEmpty() && songArtistId == null) return null
-        val title = coreTitle(song.title)
+        val title = coreTitle(song.title).takeIf { it.isNotEmpty() } ?: return null
         val duration = song.durationMs?.takeIf { it > 0 } ?: return null
         val artists = song.artists.map(::normalize).filter(String::isNotEmpty).toSet()
         return candidates.asSequence()

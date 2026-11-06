@@ -452,3 +452,7 @@ No Android device is currently connected. The retained APK includes the previous
 ## Song/video switch availability — 2026-11-06
 
 Retained pairing metadata previously exposed Watch video while the song-to-video resolver had no result; its callback then did nothing. Availability now follows the actual callback target: song requires a resolved match, video requires its paired origin. The previous condition failed the new regression; both NowPlayingVideoLayoutTest tests and Android mobile Kotlin compilation passed (50s). Native switching, position continuity and provider playback remain unverified.
+
+## Video matching requires a song title — 2026-11-06
+
+The matcher rejected neither blank titles nor titles consisting only of punctuation or a video suffix. Matching artist and duration could therefore pair unrelated items with no song identity. A regression failed before adding the normalized-title guard. Full shared tests (211 total, 10 skipped, zero failures/errors) and Android mobile Kotlin compilation passed in 1m7s. Live catalogue and playback remain unverified.
