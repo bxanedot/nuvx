@@ -53,7 +53,7 @@ class TvHomeMoodRoutingTest {
                 MaterialTheme {
                     TvShell(
                         router = router, history = history, state = PlayerState(), player = player,
-                        lyrics = LyricsChain(emptyList()), localLibrary = null, reduceMotion = true,
+                        lyrics = LyricsChain(emptyList()), localLibrary = null, reduceMotion = true, magneticNavigation = false,
                         onBackHandler = null, radio = RadioStation(router, player, scope),
                         lyricSettings = LyricsProviderSettings(emptyList(), preferredSource = null),
                         onLyricsChange = {}, lyricsOffsetMs = 0, onLyricsOffsetChange = {},
