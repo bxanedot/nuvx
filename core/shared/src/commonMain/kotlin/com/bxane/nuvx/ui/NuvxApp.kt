@@ -20,6 +20,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -177,6 +180,7 @@ fun NuvxApp(
         if (canvasVideo != null && communityCanvasEnabled) CommunityCanvas() else null
     }
     val history = remember(store) { History(store) }
+    val recentlyPlayed by history.played.collectAsState()
     LaunchedEffect(state.current?.videoId) { state.current?.let(history::played) }
 
     var tab by remember { mutableIntStateOf(0) }
@@ -254,7 +258,7 @@ fun NuvxApp(
                             player = player, playerState = state, sleepTimer = sleep, sleepMode = sleepMode,
                             onOpenSystemEqualizer = openSystemEqualizer,
                             fullBleed = fullBleed, onFullBleed = { fullBleed = !fullBleed; store.put("fullBleedArt", fullBleed.toString()) },
-                            reduceMotionPreference = reduceMotionPreference, onReduceMotionChange = updateReduceMotion,
+                            reduceMotionPreference = reduceMotionPreference, onReduceMotionChange = updateReduceMotion, reduceMotion = reduceMotionEnabled,
                             magneticNavigation = magneticNavigation, onMagneticNavigation = updateMagneticNavigation,
                             canvasEnabled = communityCanvasEnabled.takeIf { canvasVideo != null },
                             onCanvasEnabled = { communityCanvasEnabled = it; store.put("communityCanvas", it.toString()) },
@@ -288,7 +292,7 @@ fun NuvxApp(
                                          player = player, playerState = state, sleepTimer = sleep, sleepMode = sleepMode,
                                         onOpenSystemEqualizer = openSystemEqualizer,
                                         fullBleed = fullBleed, onFullBleed = { fullBleed = !fullBleed; store.put("fullBleedArt", fullBleed.toString()) },
-                                        reduceMotionPreference = reduceMotionPreference, onReduceMotionChange = updateReduceMotion,
+                                        reduceMotionPreference = reduceMotionPreference, onReduceMotionChange = updateReduceMotion, reduceMotion = reduceMotionEnabled,
                                         magneticNavigation = magneticNavigation, onMagneticNavigation = updateMagneticNavigation,
                                         canvasEnabled = communityCanvasEnabled.takeIf { canvasVideo != null },
                                         onCanvasEnabled = { communityCanvasEnabled = it; store.put("communityCanvas", it.toString()) },
@@ -326,6 +330,8 @@ fun NuvxApp(
                             tab == 1 -> ExploreScreen(
                                 onMood = { openSearch(it) }, router = router,
                                 onAccount = { openPage(Page.SETTINGS) }, androidUi = androidUi,
+                                recommendationSeed = recentlyPlayed.firstOrNull { !it.isLocal },
+                                onPlayRecommendations = { tracks, index -> player.playQueue(tracks, index) },
                             )
                             else -> LibraryScreen(
                                 history, state, player,
@@ -405,6 +411,7 @@ fun NuvxApp(
                         NowPlayingSheet(player, state, lyrics, history, router, reduceMotionEnabled, onOpen = { sheet = false; open(it) }, sleep = sleep, fullBleed = fullBleed,
                             lyricSettings = lyricSettings, onLyricSettingsChange = updateLyrics, artScope = this,
                             lyricsOffsetMs = lyricsOffsetMs, onLyricsOffsetChange = updateLyricsOffset, lyricsTextSize = lyricsTextSize,
+                            androidUi = androidUi,
                             canvas = canvases?.let { c -> canvasVideo?.let { v -> c to v } }, videoSurface = videoSurface, radio = radio) { sheet = false }
                     }
                 }
@@ -504,7 +511,7 @@ private fun QueueMoveButton(trackTitle: String, up: Boolean, enabled: Boolean, f
     }
 }
 /** One settings row: icon, label, optional subtitle, and a trailing value, switch or chevron. */
-private class SettingRow(
+internal class SettingRow(
     val icon: androidx.compose.ui.graphics.vector.ImageVector?, val label: String, val subtitle: String? = null,
     val value: String? = null, val toggle: Boolean? = null, val onClick: (() -> Unit)? = null,
     val choices: List<String>? = null, val onChoose: ((String) -> Unit)? = null, val segmented: Boolean = false,
@@ -531,7 +538,7 @@ private val AndroidSettingsCategories = listOf(
     darkMode: Boolean? = null, onDarkModeChange: (Boolean) -> Unit = {},
     lyricsTextSize: LyricsTextSizePreference = LyricsTextSizePreference.DEFAULT, onLyricsTextSizeChange: (LyricsTextSizePreference) -> Unit = {},
     fullBleed: Boolean? = null, onFullBleed: () -> Unit = {}, canvasEnabled: Boolean? = null, onCanvasEnabled: (Boolean) -> Unit = {},
-    reduceMotionPreference: Boolean = false, onReduceMotionChange: (Boolean) -> Unit = {},
+    reduceMotionPreference: Boolean = false, onReduceMotionChange: (Boolean) -> Unit = {}, reduceMotion: Boolean = false,
     magneticNavigation: Boolean = false, onMagneticNavigation: (Boolean) -> Unit = {},
     radioSettings: RadioSettings = RadioSettings(), onRadioSettingsChange: (RadioSettings) -> Unit = {},
     playbackSpeed: Float = PlaybackSpeed.DEFAULT, onPlaybackSpeed: (Float) -> Unit = {}, onOpenSystemEqualizer: (() -> Unit)? = null,
@@ -680,7 +687,7 @@ private val AndroidSettingsCategories = listOf(
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(NuvxColors.Card)) {
                 AndroidSettingsCategories.forEachIndexed { index, category ->
                     if (index > 0) Box(Modifier.padding(start = 56.dp).fillMaxWidth().height(0.5.dp).background(NuvxColors.Divider))
-                    SettingsRowView(SettingRow(category.icon, category.title, category.description, onClick = { androidCategory = category.title }), desktop = false)
+                    SettingsRowView(SettingRow(category.icon, category.title, category.description, onClick = { androidCategory = category.title }), desktop = false, androidUi = androidUi, reduceMotion = reduceMotion)
                 }
             }
         } else {
@@ -701,7 +708,7 @@ private val AndroidSettingsCategories = listOf(
                 rows.forEachIndexed { i, r ->
                     if (i > 0) Box(Modifier.padding(start = if (desktopSettings) 0.dp else if (r.icon != null) 56.dp else 16.dp)
                         .fillMaxWidth().height(0.5.dp).background(NuvxColors.Divider))
-                    SettingsRowView(r, desktopSettings)
+                    SettingsRowView(r, desktopSettings, androidUi, reduceMotion)
                 }
             }
             if (title == "LYRICS" && (q.isBlank() || "lyrics".contains(q, true) || lyricProviders.any { it.contains(q, true) })) {
@@ -725,26 +732,28 @@ private val AndroidSettingsCategories = listOf(
     })
 }
 
-@Composable private fun SettingsRowView(r: SettingRow, desktop: Boolean) {
+@Composable internal fun SettingsRowView(r: SettingRow, desktop: Boolean, androidUi: Boolean, reduceMotion: Boolean) {
+    val toggleInteraction = remember { MutableInteractionSource() }
     var expanded by remember { mutableStateOf(false) }
     if (r.segmented && r.choices != null && r.value != null) {
         Column(Modifier.fillMaxWidth().padding(horizontal = if (desktop) 0.dp else 16.dp, vertical = 14.dp)) {
             Text(r.label, color = NuvxColors.Text, fontSize = if (desktop) 16.sp else 17.sp)
             r.subtitle?.let { Text(it, color = NuvxColors.Secondary, fontSize = 14.sp) }
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp).then(
+            FlowRow(Modifier.fillMaxWidth().padding(top = 12.dp).then(
                 if (desktop) Modifier else Modifier.clip(RoundedCornerShape(12.dp)).background(NuvxColors.ControlTrack).padding(4.dp)
-            ), horizontalArrangement = Arrangement.spacedBy(if (desktop) 6.dp else 4.dp)) {
+            ), horizontalArrangement = Arrangement.spacedBy(if (desktop) 6.dp else 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 r.choices.forEach { choice ->
                     val active = choice == r.value
                     val shape = RoundedCornerShape(if (desktop) 7.dp else 9.dp)
-                    Box(Modifier.then(if (desktop) Modifier.widthIn(min = 58.dp) else Modifier.weight(1f))
-                        .height(if (desktop) 34.dp else 44.dp).clip(shape)
+                    // Measure full labels before deciding which choices fit on each row.
+                    Box(Modifier.then(if (desktop) Modifier.widthIn(min = 58.dp) else Modifier.weight(1f).width(IntrinsicSize.Max))
+                        .then(if (desktop) Modifier.height(34.dp) else Modifier.heightIn(min = 44.dp)).clip(shape)
                         .background(if (active) NuvxColors.Accent else Color.Transparent)
                         .then(if (desktop && !active) Modifier.border(1.dp, Color.White.copy(0.24f), shape) else Modifier)
                         .focusRing(shape)
                         .clickable { r.onChoose?.invoke(choice) }.semantics { role = Role.RadioButton; selected = active }
                         .padding(horizontal = if (desktop) 14.dp else 6.dp), contentAlignment = Alignment.Center) {
-                        Text(choice, color = if (active) NuvxColors.OnAccent else NuvxColors.Secondary, fontSize = if (desktop) 13.sp else 14.sp, maxLines = 1)
+                        Text(choice, color = if (active) NuvxColors.OnAccent else NuvxColors.Secondary, fontSize = if (desktop) 13.sp else 14.sp, maxLines = if (desktop) 1 else Int.MAX_VALUE)
                     }
                 }
             }
@@ -753,7 +762,9 @@ private val AndroidSettingsCategories = listOf(
     }
     val rowShape = RoundedCornerShape(if (desktop) 8.dp else 20.dp)
     Row(Modifier.fillMaxWidth().heightIn(min = if (desktop) 64.dp else 56.dp).then(
-        if (r.onClick != null || r.choices != null) Modifier.focusRing(rowShape).clickable {
+        if (r.toggle != null) Modifier.focusRing(rowShape).toggleable(r.toggle, interactionSource = toggleInteraction,
+            indication = LocalIndication.current, enabled = r.onClick != null, role = Role.Switch) { r.onClick?.invoke() }
+        else if (r.onClick != null || r.choices != null) Modifier.focusRing(rowShape).clickable {
             if (r.choices != null) expanded = true else r.onClick?.invoke()
         } else Modifier)
         .semantics(mergeDescendants = true) { if (r.toggle != null) role = Role.Switch else if (r.onClick != null || r.choices != null) role = Role.Button }
@@ -776,7 +787,8 @@ private val AndroidSettingsCategories = listOf(
                     ) }
                 }
             }
-            r.toggle != null -> Switch(r.toggle, onCheckedChange = { r.onClick?.invoke() })
+            r.toggle != null -> if (androidUi) IosSwitch(r.toggle, label = r.label, reduceMotion = reduceMotion,
+                interaction = toggleInteraction, onCheckedChange = null) else Switch(r.toggle, onCheckedChange = null)
             r.value != null -> Text(r.value, color = NuvxColors.Accent, fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
             r.onClick != null -> Icon(NuvxIcons.Chevron, null, Modifier.size(16.dp).padding(start = 4.dp), tint = NuvxColors.Tertiary)
         }

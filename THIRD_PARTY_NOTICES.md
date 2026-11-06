@@ -36,10 +36,14 @@ The Android rubber-band scrolling implementation is derived from BitChord's `Ios
 
 The Android Explore browse layout and welcome-page motion are adaptations of GPL-3.0 Compose UI from Convx's `ExploreScreen.kt` and BitChord's `OnboardingScreen.kt`. Nuvx keeps its own screen state, text, product flows, artwork and navigation wiring; no upstream artwork or brand assets were copied.
 
+The current Android Settings capsule switch is independently authored using Compose primitives; the earlier adapted draft is retained only in the external development handoff snapshot.
+
+The current paused-cover motion is independently authored with a Compose state transition. Only paused Android song artwork contracts; video, empty players and reduced-motion mode retain full size. The earlier adapted draft is retained only in the external development handoff snapshot.
+
 The Android glass surface adapts bxane's supplied GPL-3.0 `Nuvx_GlassEffect_bxane.kt` and vendors Kyant0/backdrop 2.0.0 under Apache-2.0. Copyright and license headers are retained in the vendored source files.
 
 | Project | Licence | URL |
 |---|---|---|
-| BitChord (`App/androidApp/.../RubberBandOverscroll.kt`; adapted source at `app/src/main/java/com/music/bitchord/ui/utils/IosOverscroll.kt`) | GPL-3.0 | https://github.com/kushagrasinghx/BitChord |
+| BitChord (`App/androidApp/.../RubberBandOverscroll.kt`; adapted sources at `app/src/main/java/com/music/bitchord/ui/utils/IosOverscroll.kt`) | GPL-3.0 | https://github.com/kushagrasinghx/BitChord |
 | Convx (upstream lineage credited in the copied file header) | GPL-3.0 | https://github.com/cosmictaserdev-creator/Convx |
 | Kyant0/backdrop (`App/androidApp/src/main/kotlin/com/bxane/nuvx/backdrop/`) | Apache-2.0 | https://github.com/Kyant0/backdrop |

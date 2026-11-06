@@ -5,6 +5,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -82,6 +85,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     lyricSettings: LyricsProviderSettings, onLyricSettingsChange: (LyricsProviderSettings) -> Unit,
     lyricsOffsetMs: Long, onLyricsOffsetChange: (Long) -> Unit,
     lyricsTextSize: LyricsTextSizePreference = LyricsTextSizePreference.DEFAULT,
+    androidUi: Boolean = false,
     artScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
     canvas: Pair<CommunityCanvas, @Composable (url: String, modifier: Modifier) -> Unit>? = null,
     videoSurface: (@Composable (modifier: Modifier) -> Unit)? = null,
@@ -90,6 +94,13 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     val artMorph = Modifier.morphArt(artScope)
     // A community canvas plays over the cover when one exists for this song (never with reduced motion).
     val track = state.current
+    val coverMotion = updateTransition(
+        artworkRestingScale(androidUi, reduceMotion, state.isPlaying, track?.mediaKind), label = "coverMotion",
+    )
+    val artworkScale by coverMotion.animateFloat(
+        transitionSpec = { if (reduceMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 350f) },
+        label = "coverSize",
+    ) { it }
     val canvasSource = canvas?.first?.takeIf { !reduceMotion && track?.mediaKind == MediaKind.SONG }
     var canvasUrl by remember(canvasSource, track?.videoId) { mutableStateOf<String?>(null) }
     LaunchedEffect(canvasSource, track) {
@@ -194,8 +205,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                 drawContent()
                 drawRect(Brush.verticalGradient(0.72f to Color.Black, 1f to Color.Transparent), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
             }) {
-            SharpArtwork(track?.artworkUrl, track?.title?.let { "Artwork for $it" }, Modifier.fillMaxSize(), 1080)
-            canvasLayer?.invoke()
+            Box(Modifier.fillMaxSize().graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }) {
+                SharpArtwork(track?.artworkUrl, track?.title?.let { "Artwork for $it" }, Modifier.fillMaxSize(), 1080)
+                canvasLayer?.invoke()
+            }
             // A light shade so the status bar, handle and "Playing from" caption stay readable over bright covers.
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(0.4f), 0.2f to Color.Transparent)))
         }
@@ -234,7 +247,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth().onPlaced { c -> root?.let { modeTop = it.localPositionOf(c, androidx.compose.ui.geometry.Offset.Zero).y } }) {
                 when (mode) {
-                    SheetMode.ARTWORK -> ArtworkMode(track, displayedLyrics, state.positionMs, actions, player::next, player::previous, artMorph, canvasLayer,
+                    SheetMode.ARTWORK -> ArtworkMode(track, displayedLyrics, state.positionMs, actions, player::next, player::previous, artMorph, canvasLayer, artworkScale,
                         videoSurface = videoSurface?.takeIf { track?.mediaKind == MediaKind.VIDEO && state.error == null },
                         videoResolution = state.videoResolution,
                         bleedGap = if (bleed) with(density) { (sheetWidth.toPx() * 1.1f - modeTop).coerceAtLeast(0f).toDp() } else null,
@@ -350,7 +363,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, videoSurface: (@Composable (modifier: Modifier) -> Unit)?, videoResolution: VideoResolution?, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, artworkScale: Float, videoSurface: (@Composable (modifier: Modifier) -> Unit)?, videoResolution: VideoResolution?, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
     // Full bleed: the artwork is drawn behind the sheet, so this space over it only carries the swipe gesture.
     // The artwork gap yields space to the title and time labels on shorter screens.
     if (bleedGap != null) Spacer(Modifier.weight(1f, fill = false).height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
@@ -366,8 +379,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             }
         }
         else {
-            ArtworkTile(track, Modifier.fillMaxSize(), 1080)
-            canvasLayer?.invoke()
+            Box(Modifier.fillMaxSize().graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }) {
+                ArtworkTile(track, Modifier.fillMaxSize(), 1080)
+                canvasLayer?.invoke()
+            }
         }
     }
     Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -563,3 +578,6 @@ private fun lyricsOffsetLabel(offsetMs: Long): String {
 }
 
 internal fun clock(ms: Long) = "${ms / 60_000}:${(ms / 1000 % 60).toString().padStart(2, '0')}"
+
+internal fun artworkRestingScale(android: Boolean, reduced: Boolean, playing: Boolean, kind: MediaKind?): Float =
+    if (android && !reduced && !playing && kind == MediaKind.SONG) 0.86f else 1f
