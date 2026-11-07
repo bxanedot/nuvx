@@ -39,7 +39,8 @@ class NowPlayingSwitchInteractionTest {
                 override fun replaceCurrent(track: Track, positionMs: Long) { replacements += track to positionMs }
                 override fun playQueue(tracks: List<Track>, startIndex: Int, initialPositionMs: Long, autoplay: Boolean) = Unit
                 override fun enqueue(tracks: List<Track>) = Unit
-                override fun togglePlay() = Unit
+                var toggles = 0
+                override fun togglePlay() { toggles++ }
                 override fun seekTo(positionMs: Long) = Unit
                 override fun next() = Unit
                 override fun previous() = Unit
@@ -97,6 +98,17 @@ class NowPlayingSwitchInteractionTest {
                         }
                     }
                 }
+                val playBounds = controls("Play").single().boundsInRoot
+                player.state.value = player.state.value.copy(buffering = true, isPlaying = true)
+                render()
+                val buffering = controls("Pause").single()
+                assertEquals("Buffering", buffering.config[SemanticsProperties.StateDescription])
+                assertEquals(playBounds, buffering.boundsInRoot, "Loading must not move or shrink the transport target")
+                assertEquals(true, buffering.config[SemanticsActions.OnClick].action?.invoke())
+                assertEquals(1, player.toggles, "Loading must preserve the pause action")
+                player.state.value = player.state.value.copy(buffering = false, isPlaying = false)
+                render()
+                assertEquals(playBounds, controls("Play").single().boundsInRoot)
                 assertTrue(controls("Watch video").isEmpty(), "Failed lookup must not expose an inert action")
                 player.state.value = player.state.value.copy(queue = listOf(song.copy(mediaKind = MediaKind.VIDEO)))
                 render()

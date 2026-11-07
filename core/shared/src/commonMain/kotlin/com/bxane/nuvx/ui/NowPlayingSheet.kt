@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -54,6 +55,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -550,7 +552,17 @@ private fun lyricsOffsetLabel(offsetMs: Long): String {
             if (showProgress) Progress(player, state)
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 PlainIconButton(NuvxIcons.Back, "Previous", if (large) 80.dp else 64.dp) { player.previous() }
-                PlayPauseIconButton(state.isPlaying, player::togglePlay, if (large) 96.dp else 80.dp, reduceMotion = reduceMotion)
+                if (state.buffering) {
+                    Box(Modifier.size(if (large) 96.dp else 80.dp).clip(CircleShape).focusRing()
+                        .clickable(onClick = player::togglePlay).semantics {
+                            contentDescription = if (state.isPlaying) "Pause" else "Play"
+                            stateDescription = "Buffering"
+                            role = Role.Button
+                        }, contentAlignment = Alignment.Center) {
+                        if (reduceMotion) CircularProgressIndicator(progress = { 0.75f }, modifier = Modifier.size(40.dp), color = Color.White)
+                        else CircularProgressIndicator(Modifier.size(40.dp), color = Color.White)
+                    }
+                } else PlayPauseIconButton(state.isPlaying, player::togglePlay, if (large) 96.dp else 80.dp, reduceMotion = reduceMotion)
                 PlainIconButton(NuvxIcons.Forward, "Next", if (large) 80.dp else 64.dp, enabled = state.index < state.queue.lastIndex) { player.next() }
             }
         }
