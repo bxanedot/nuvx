@@ -6,9 +6,9 @@ nuvx © 2026 bxane, licensed GPL-3.0-only. This file lists every third-party com
 
 | Component | Version | Licence | Upstream |
 |---|---|---|---|
-| InnerTubeX | v0.11.2 | GPL-3.0 | https://github.com/MetrolistGroup/innertubex |
+| InnerTubeX | resolved stable release; known pin v0.11.2 | GPL-3.0 | https://github.com/MetrolistGroup/innertubex |
 | QuackJS (transitive, InnerTubeX) | 0.1.2 | see upstream | https://github.com/MetrolistGroup/quackjs |
-| eXcor | 0.2.0 (commit 170e81f) | Apache-2.0 | https://github.com/bxanedot/eXcor |
+| eXcor (upstream source dependency) | resolved commit recorded in build cache; known pin 170e81f | Apache-2.0; solver dependencies retain their upstream NOTICE terms | https://github.com/bxanedot/eXcor |
 | Kotlin stdlib, kotlinx.coroutines, kotlinx.serialization | 2.4.21 / 1.11.0 / 1.12.0 | Apache-2.0 | https://github.com/JetBrains/kotlin, https://github.com/Kotlin |
 | Ktor client | 3.6.1 | Apache-2.0 | https://github.com/ktorio/ktor |
 | OkHttp / Okio (transitive) | see build | Apache-2.0 | https://github.com/square/okhttp |

@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -8,6 +9,10 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
+
+val engineVersions = Properties().apply {
+    rootProject.file(".gradle/engines/resolved.properties").inputStream().use { load(it) }
+}
 
 kotlin {
     // eXcor's desktop artifact is JVM 26 bytecode, so the desktop target compiles on JDK 27 (see docs/TOOLCHAIN.md).
@@ -49,7 +54,7 @@ kotlin {
             implementation("com.github.bxanedot.GlyphStudio:sfsymbols:v1.0.0")
             implementation(libs.coil.compose)
             implementation(libs.coil.ktor)
-            implementation(libs.innertubex)
+            implementation("com.github.MetrolistGroup.innertubex:innertubex:${engineVersions.getProperty("innertubex")}")
         }
         jvmCommonMain.dependencies {
             implementation(libs.ktor.okhttp)

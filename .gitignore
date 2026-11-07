@@ -10,3 +10,4 @@ build/
 .vercel/
 .wrangler/
 node_modules/
+__pycache__/

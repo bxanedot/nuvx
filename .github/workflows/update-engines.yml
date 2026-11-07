@@ -1,0 +1,101 @@
+name: Engine update PR
+
+on:
+  schedule:
+    - cron: '15 5 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'core/scripts/update-engines.py'
+      - 'core/scripts/test_update_engines.py'
+      - '.github/workflows/update-engines.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-updater-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'scheduled' }}
+  cancel-in-progress: false
+
+jobs:
+  updater-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Offline updater tests
+        run: python3 -B -m unittest discover -s core/scripts -p test_update_engines.py -v
+
+  propose:
+    if: github.event_name != 'pull_request'
+    needs: updater-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BASE: ${{ github.event.repository.default_branch }}
+      BRANCH: automation/engine-updates
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - name: Prepare the single update branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git ls-remote --exit-code --heads origin "refs/heads/$BRANCH" > /dev/null; then
+            git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+            git checkout -b "$BRANCH" "origin/$BRANCH"
+            python3 -B - <<'PY'
+          import os
+          import subprocess
+          allowed = {'gradle/libs.versions.toml', 'core/engines/UPSTREAM.json'}
+          paths = subprocess.check_output(['git', 'diff', '--name-only', 'origin/' + os.environ['BASE'] + '...HEAD'], text=True).splitlines()
+          for path in paths:
+              if path not in allowed:
+                  raise SystemExit('Reserved update branch has unrelated edits; refusing to overwrite it')
+          PY
+            git merge --no-edit "origin/$BASE"
+          else
+            git checkout -b "$BRANCH" "origin/$BASE"
+          fi
+      - name: Stage upstream updates and open or refresh the review PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B core/scripts/update-engines.py --root "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/engine-updates.txt"
+          changed=false
+          if ! git diff --quiet; then
+            git add -- gradle/libs.versions.toml core/engines
+            git commit -m 'chore: update pinned music engines'
+            changed=true
+          fi
+          if git diff --quiet "origin/$BASE" HEAD; then
+            exit 0
+          fi
+          git push origin "HEAD:refs/heads/$BRANCH"
+          pr=$(gh pr list --head "$BRANCH" --base "$BASE" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            python3 -B - <<'PY'
+          import os
+          from pathlib import Path
+          summary = (Path(os.environ['RUNNER_TEMP']) / 'engine-updates.txt').read_text()
+          body = ('Updates engine pins from their own upstream repositories: MetrolistGroup/innertubex stable releases and bxanedot/eXcor immutable default-branch commits.\n\n'
+                  + summary + '\nOffline updater tests passed. The full application workflow is explicitly dispatched on this branch; inspect its results before merging. No automatic merge or release is configured.\n')
+          (Path(os.environ['RUNNER_TEMP']) / 'engine-update-pr.md').write_text(body)
+          PY
+            gh pr create --head "$BRANCH" --base "$BASE" --title 'Update pinned music engines' --body-file "$RUNNER_TEMP/engine-update-pr.md"
+            changed=true
+          fi
+          if [ "$changed" = true ]; then
+            gh workflow run build.yml --ref "$BRANCH"
+          fi

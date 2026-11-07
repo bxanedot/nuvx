@@ -1,6 +1,7 @@
 name: Build and test
 on:
   push:
+    branches: [main]
     # Canvas uploads only add videos; they don't need the app build.
     paths-ignore: ["canvas/**"]
   pull_request:
@@ -16,6 +17,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
     defaults:
       run:
         shell: bash
@@ -27,31 +30,25 @@ jobs:
           java-version: '25'
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-      - name: Build pinned alternative engine outside application checkout
-        run: |
-          git init "$RUNNER_TEMP/excor"
-          git -C "$RUNNER_TEMP/excor" remote add origin https://github.com/bxanedot/eXcor.git
-          git -C "$RUNNER_TEMP/excor" fetch --depth 1 origin 170e81f1caf92b8cbd637340a50e6ebe686906d5
-          git -C "$RUNNER_TEMP/excor" checkout --detach FETCH_HEAD
-          cd "$RUNNER_TEMP/excor"
-          bash ./gradlew publishAndroidPublicationToMavenLocal publishJvmPublicationToMavenLocal publishKotlinMultiplatformPublicationToMavenLocal
       - name: Prepare Windows decoder and brand icon
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./core/scripts/prepare-windows.ps1
       - name: Tests, Android variants, and desktop application image
-        run: bash ./gradlew :shared:desktopTest :androidApp:testMobileDebugUnitTest :androidApp:assembleDebug :androidApp:bundleRelease :androidApp:lint :desktopApp:test :desktopApp:createDistributable
+        run: bash ./gradlew :excor:jvmTest :shared:desktopTest :androidApp:testMobileDebugUnitTest :androidApp:assembleDebug :androidApp:bundleRelease :androidApp:lint :desktopApp:test :desktopApp:createDistributable
       - name: Compile iOS shared framework
         if: runner.os == 'macOS'
         run: bash ./gradlew :shared:linkReleaseFrameworkIosArm64 :shared:linkReleaseFrameworkIosSimulatorArm64
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nuvx-${{ runner.os }}
+          include-hidden-files: true
           path: |
             App/androidApp/build/outputs/apk/**/debug/*.apk
             App/androidApp/build/outputs/bundle/*Release/*.aab
             App/desktopApp/build/compose/binaries/main/app/
             core/shared/build/bin/ios*/releaseFramework/
+            .gradle/engines/resolved.properties
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

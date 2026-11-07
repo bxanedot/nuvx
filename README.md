@@ -28,6 +28,8 @@ nuvx talks to YouTube Music through a `MusicBackend` interface, and you choose t
 
 ## Build
 
+Nuvx's source and build scripts live in this checkout. Online builds follow the engines' own upstream links: latest stable InnerTubeX release and current eXcor default-branch revision. Source is cached inside .gradle; no sibling repository or local Maven publication is required. Python 3.11+, normal SDKs/toolchains and Gradle library resolution are required. Offline builds reuse the last complete engine resolution. See [engine updates](docs/ENGINE_UPDATES.md).
+
 You need JDK 25 to run Gradle and JDK 27 for the shared desktop target (eXcor ships JVM 26 bytecode), plus the Android SDK (API 37). [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md) has the details.
 
 ```bash
