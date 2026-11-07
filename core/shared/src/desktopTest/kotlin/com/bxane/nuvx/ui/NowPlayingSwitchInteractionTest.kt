@@ -36,14 +36,17 @@ class NowPlayingSwitchInteractionTest {
             val song = Track("aaaaaaaaaaa", "Signal", listOf("Nova"), durationMs = 180_000,
                 pairedVideoId = "bbbbbbbbbbb", artworkUrl = cover.toURI().toString())
             val player = object : NuvxPlayer {
-                override val state = MutableStateFlow(PlayerState(listOf(song), 0, positionMs = 12_345))
+                override val state = MutableStateFlow(PlayerState(listOf(song), 0, positionMs = 12_345, durationMs = 180_000))
                 val replacements = mutableListOf<Pair<Track, Long>>()
                 override fun replaceCurrent(track: Track, positionMs: Long) { replacements += track to positionMs }
                 override fun playQueue(tracks: List<Track>, startIndex: Int, initialPositionMs: Long, autoplay: Boolean) = Unit
                 override fun enqueue(tracks: List<Track>) = Unit
                 var toggles = 0
                 override fun togglePlay() { toggles++ }
-                override fun seekTo(positionMs: Long) = Unit
+                val seeks = mutableListOf<Long>()
+                override fun seekTo(positionMs: Long) { seeks += positionMs }
+                val volumes = mutableListOf<Float>()
+                override fun setVolume(volume: Float) { volumes += volume }
                 override fun next() = Unit
                 override fun previous() = Unit
                 override fun skipTo(index: Int) = Unit
@@ -110,6 +113,15 @@ class NowPlayingSwitchInteractionTest {
                             "Play must remain bright on the dark player in light app mode")
                     }
                 }
+                val seek = scene.semanticsOwners.flatMap { descendants(it.rootSemanticsNode) }
+                    .single { it.config.getOrNull(SemanticsActions.SetProgress)?.label == "Seek" }
+                assertTrue(seek.boundsInRoot.top >= titleBounds.bottom, "Scrubber must stay below metadata")
+                assertEquals(true, seek.config[SemanticsActions.SetProgress].action?.invoke(0.5f))
+                assertEquals(listOf(90_000L), player.seeks)
+                val volume = scene.semanticsOwners.flatMap { descendants(it.rootSemanticsNode) }
+                    .single { it.config.getOrNull(SemanticsProperties.ContentDescription)?.any { label -> label.startsWith("Volume ") } == true }
+                assertEquals(true, volume.config[SemanticsActions.SetProgress].action?.invoke(0.5f))
+                assertEquals(listOf(0.5f), player.volumes)
                 val playBounds = controls("Play").single().boundsInRoot
                 player.state.value = player.state.value.copy(buffering = true, isPlaying = true)
                 render()
@@ -122,8 +134,25 @@ class NowPlayingSwitchInteractionTest {
                 render()
                 assertEquals(playBounds, controls("Play").single().boundsInRoot)
                 assertTrue(controls("Watch video").isEmpty(), "Failed lookup must not expose an inert action")
+                for (mode in listOf("Queue", "Lyrics")) {
+                    assertEquals(true, controls(mode).single().config[SemanticsActions.OnClick].action?.invoke())
+                    render()
+                    val modeSeek = scene.semanticsOwners.flatMap { descendants(it.rootSemanticsNode) }
+                        .single { it.config.getOrNull(SemanticsActions.SetProgress)?.label == "Seek" }
+                    assertEquals(true, modeSeek.config[SemanticsActions.SetProgress].action?.invoke(0.25f))
+                    assertEquals(true, controls(mode).single().config[SemanticsActions.OnClick].action?.invoke())
+                    render()
+                }
+                assertEquals(listOf(90_000L, 45_000L, 45_000L), player.seeks)
                 player.state.value = player.state.value.copy(queue = listOf(song.copy(mediaKind = MediaKind.VIDEO)))
                 render()
+                scene.render(frame++ * 16_000_000L).use { image ->
+                    image.encodeToData()?.use { File(images, "$width-$height-$fontScale-$lightPalette-video.png").writeBytes(it.bytes) }
+                }
+                val videoSeek = scene.semanticsOwners.flatMap { descendants(it.rootSemanticsNode) }
+                    .single { it.config.getOrNull(SemanticsActions.SetProgress)?.label == "Seek" }
+                assertEquals(true, videoSeek.config[SemanticsActions.SetProgress].action?.invoke(0.75f))
+                assertEquals(listOf(90_000L, 45_000L, 45_000L, 135_000L), player.seeks)
                 val action = controls("Song audio").single()
                 val bounds = action.boundsInRoot
                 assertTrue(bounds.width > 0 && bounds.height > 0 && bounds.left >= 0 && bounds.top >= 0 &&

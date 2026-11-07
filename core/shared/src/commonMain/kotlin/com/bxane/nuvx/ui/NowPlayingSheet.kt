@@ -261,7 +261,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                         videoSurface = videoSurface?.takeIf { track?.mediaKind == MediaKind.VIDEO && state.error == null },
                         videoResolution = state.videoResolution, compactHeight = compactHeight,
                         bleedGap = if (bleed) with(density) { (sheetWidth.toPx() * 1.1f - modeTop).coerceAtLeast(0f).toDp() } else null,
-                        progress = if (bleed) ({ Progress(player, state) }) else null) { mode = SheetMode.LYRICS }
+                        progress = { Progress(player, state) }) { mode = SheetMode.LYRICS }
                     SheetMode.LYRICS -> when (val l = displayedLyrics) {
                         is Lyrics.Synced -> Column(Modifier.fillMaxSize()) {
                             LyricsTimingControls(lyricsOffsetMs, onLyricsOffsetChange)
@@ -288,8 +288,8 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                     }
                 }
             }
-            // Full bleed keeps the progress bar up under the title (see ArtworkMode) and leaves the space above the controls.
-            Transport(player, state, showProgress = !bleed, large = bleed, reduceMotion = reduceMotion, compactHeight = compactHeight)
+            // Artwork mode keeps metadata, lyric preview and progress together above the transport.
+            Transport(player, state, showProgress = mode != SheetMode.ARTWORK, large = bleed, reduceMotion = reduceMotion, compactHeight = compactHeight)
             state.error?.let { error ->
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error, color = Color(0xFFFF8A80), fontSize = 13.sp, maxLines = 2,
@@ -302,7 +302,6 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             Row(Modifier.fillMaxWidth().padding(bottom = if (bleed) 22.dp else 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(NuvxIcons.SpeakerLow, null, Modifier.size(18.dp), tint = Color.White.copy(0.6f))
                 val volume = state.volume.coerceIn(0f, 1f)
-                val accent = NuvxColors.Accent
                 val fill by animateFloatAsState(
                     targetValue = volume,
                     animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 0.65f, stiffness = 360f),
@@ -312,18 +311,19 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                     value = volume,
                     onValueChange = player::setVolume,
                     colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
                         activeTrackColor = Color.Transparent,
                         inactiveTrackColor = Color.Transparent,
                     ),
                     modifier = Modifier.weight(1f).heightIn(min = 40.dp).drawBehind {
-                        val trackWidth = 4.dp.toPx()
+                        val trackWidth = 6.dp.toPx()
                         val inset = 10.dp.toPx()
                         val start = inset
                         val end = (size.width - inset).coerceAtLeast(start)
                         val centerY = size.height / 2f
                         drawLine(Color.White.copy(alpha = 0.24f), Offset(start, centerY), Offset(end, centerY), trackWidth, StrokeCap.Round)
                         val filledEnd = start + (end - start) * fill.coerceIn(0f, 1f)
-                        if (filledEnd > start) drawLine(accent, Offset(start, centerY), Offset(filledEnd, centerY), trackWidth, StrokeCap.Round)
+                        if (filledEnd > start) drawLine(Color.White.copy(alpha = 0.85f), Offset(start, centerY), Offset(filledEnd, centerY), trackWidth, StrokeCap.Round)
                     }.semantics {
                         contentDescription = "Volume ${ (state.volume.coerceIn(0f, 1f) * 100).toInt() } percent"
                     },
@@ -373,7 +373,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, artworkScale: Float, videoSurface: (@Composable (modifier: Modifier) -> Unit)?, videoResolution: VideoResolution?, compactHeight: Boolean, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, artworkScale: Float, videoSurface: (@Composable (modifier: Modifier) -> Unit)?, videoResolution: VideoResolution?, compactHeight: Boolean, bleedGap: Dp?, progress: @Composable () -> Unit, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
     // Full bleed: the artwork is drawn behind the sheet, so this space over it only carries the swipe gesture.
     // The artwork gap yields space to the title and time labels on shorter screens.
     if (bleedGap != null) Spacer(Modifier.weight(1f, fill = false).height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
@@ -415,7 +415,8 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             modifier = if (bleedGap != null) Modifier.weight(1f, fill = false) else Modifier.weight(1f))
         Icon(NuvxIcons.Chevron, "Open lyrics", Modifier.padding(start = 6.dp).size(16.dp), tint = Color.White.copy(0.6f))
     }
-    if (progress != null) { Spacer(Modifier.height(12.dp)); progress() }
+    Spacer(Modifier.height(if (compactHeight) 4.dp else 12.dp))
+    progress()
 }
 
 @Composable private fun Centered(text: String) = Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
