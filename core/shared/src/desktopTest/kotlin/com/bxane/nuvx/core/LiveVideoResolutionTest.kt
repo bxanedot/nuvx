@@ -15,8 +15,7 @@ class LiveVideoResolutionTest {
         val stream = try {
             backend.video("dQw4w9WgXcQ")
         } catch (error: com.metrolist.innertubex.extraction.StreamResolveException) {
-            println("Video extraction reason=${error.reason}; attempts=${error.diagnostics?.attempts?.size ?: 0}; outcomes=${error.diagnostics?.attempts?.map { it.outcome }?.distinct().orEmpty()}")
-            throw error
+            throw AssertionError("Video extraction reason=${error.reason.name}; attempts=${error.diagnostics?.attempts?.size ?: 0}")
         }
         assertNotNull(stream, "No compatible video stream was returned")
         assertTrue(isSupportedMediaAddress(stream.audioUrl), "Audio stream address is unsupported")
