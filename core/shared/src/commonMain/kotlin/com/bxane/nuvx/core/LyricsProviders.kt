@@ -10,8 +10,8 @@ import com.bxane.nuvx.core.lyrics.Unison
  * third-party apps; record that in docs/LYRICS_PROVIDERS.md.
  */
 fun defaultLyricsProviders(http: HttpClient): List<LyricsProvider> = listOf(
-    Unison(http),
-    LrcLib(http),
     LrcRed(http),
+    LrcLib(http),
     BetterLyrics(http),
+    Unison(http),
 )

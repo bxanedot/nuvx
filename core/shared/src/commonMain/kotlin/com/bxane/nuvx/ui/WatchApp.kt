@@ -18,9 +18,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.bxane.nuvx.core.*
 import kotlinx.coroutines.CancellationException
 
+internal fun watchPageGlyph(page: String): String? = when (page) {
+    "search" -> "magnifyingglass"
+    "queue" -> "list.bullet"
+    "engine" -> "waveform"
+    else -> null
+}
+
 /** Standalone watch layout: one vertical action column stays inside the round display's safe area. */
 @Composable
-internal fun WatchApp(router: BackendRouter, store: KeyValueStore, player: NuvxPlayer, reduceMotion: Boolean) {
+internal fun WatchApp(
+    router: BackendRouter,
+    store: KeyValueStore,
+    player: NuvxPlayer,
+    reduceMotion: Boolean,
+    reduceMotionPreference: Boolean,
+    onReduceMotionChange: (Boolean) -> Unit,
+) {
     val state by player.state.collectAsState()
     val engine by router.selected.collectAsState()
     val fallback by router.fallback.collectAsState()
@@ -46,9 +60,21 @@ internal fun WatchApp(router: BackendRouter, store: KeyValueStore, player: NuvxP
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             if (page == "home") {
-                Image(NuvxMark, "nuvx", Modifier.size(36.dp))
+                NuvxBrandMark("nuvx", Modifier.size(36.dp))
                 Text("nuvx", style = MaterialTheme.typography.titleLarge)
-            } else TextButton(onClick = { page = "home" }) { Text("Back") }
+            } else Row(verticalAlignment = Alignment.CenterVertically) {
+                watchPageGlyph(page)?.let { glyph ->
+                    NuvxGlyphIcon(
+                        glyph,
+                        Modifier.size(18.dp),
+                        selected = true,
+                        trigger = page,
+                        animateOnTrigger = true,
+                        motionEnabled = !reduceMotion,
+                    )
+                }
+                TextButton(onClick = { page = "home" }) { Text("Back") }
+            }
         }
         when (page) {
             "home" -> {
@@ -58,19 +84,30 @@ internal fun WatchApp(router: BackendRouter, store: KeyValueStore, player: NuvxP
                     item { Button(onClick = player::togglePlay, modifier = Modifier.fillMaxWidth()) { Text(if (state.isPlaying) "Pause" else "Play") } }
                     item { TextButton(onClick = player::previous) { Text("Previous track") } }
                     item { TextButton(onClick = player::next, enabled = state.index < state.queue.lastIndex) { Text("Next track") } }
-                    if (state.buffering) item { CircularProgressIndicator(Modifier.size(24.dp)) }
+                    if (state.buffering) item {
+                        if (reduceMotion) Text("Loading…", style = MaterialTheme.typography.bodySmall)
+                        else CircularProgressIndicator(Modifier.size(24.dp))
+                    }
                     state.error?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
                 }
                 item { Button(onClick = { page = "search" }, modifier = Modifier.fillMaxWidth()) {
-                    NuvxGlyphIcon("magnifyingglass", Modifier.size(18.dp), selected = true, motionEnabled = !reduceMotion)
+                    NuvxGlyphIcon("magnifyingglass", Modifier.size(18.dp), motionEnabled = !reduceMotion)
                     Spacer(Modifier.width(8.dp)); Text("Search")
                 } }
                 item { OutlinedButton(onClick = { page = "queue" }, modifier = Modifier.fillMaxWidth()) {
-                    NuvxGlyphIcon("list.bullet", Modifier.size(18.dp), motionEnabled = !reduceMotion); Spacer(Modifier.width(8.dp)); Text("Queue")
+                    NuvxGlyphIcon("list.bullet", Modifier.size(18.dp), motionEnabled = !reduceMotion)
+                    Spacer(Modifier.width(8.dp)); Text("Queue")
                 } }
                 item { OutlinedButton(onClick = { page = "engine" }, modifier = Modifier.fillMaxWidth()) {
-                    NuvxGlyphIcon("waveform", Modifier.size(18.dp), motionEnabled = !reduceMotion); Spacer(Modifier.width(8.dp)); Text("Engine")
+                    NuvxGlyphIcon("waveform", Modifier.size(18.dp), motionEnabled = !reduceMotion)
+                    Spacer(Modifier.width(8.dp)); Text("Engine")
                 } }
+                item {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Reduce motion", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Switch(checked = reduceMotionPreference, onCheckedChange = onReduceMotionChange)
+                    }
+                }
                 item { Text("Developed by bxane", style = MaterialTheme.typography.bodySmall) }
             }
             "search" -> {

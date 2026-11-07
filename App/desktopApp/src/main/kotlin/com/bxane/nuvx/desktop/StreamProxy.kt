@@ -1,6 +1,7 @@
 package com.bxane.nuvx.desktop
 
 import com.bxane.nuvx.core.AudioStream
+import com.bxane.nuvx.core.VideoStream
 import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.net.URI
@@ -9,27 +10,29 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 /** VLC gets a private loopback URL; source credentials and signed addresses never enter native player options. */
 internal class StreamProxy : AutoCloseable {
+    private data class Source(val url: String, val headers: Map<String, String>)
     private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build()
     private val executor = Executors.newFixedThreadPool(4) { task -> Thread(task, "nuvx-media").apply { isDaemon = true } }
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-    @Volatile private var active: Pair<String, AudioStream>? = null
+    private val active = ConcurrentHashMap<String, Source>()
 
     init {
         server.executor = executor
         server.createContext("/") { exchange ->
-            val current = active
-            if (current == null || exchange.requestURI.toString() != current.first) {
+            val current = active[exchange.requestURI.path]
+            if (current == null) {
                 exchange.sendResponseHeaders(404, -1); exchange.close()
             } else if (exchange.requestMethod !in setOf("GET", "HEAD")) {
                 exchange.sendResponseHeaders(405, -1); exchange.close()
             } else {
                 try {
-                    val request = HttpRequest.newBuilder(URI(current.second.url)).timeout(Duration.ofSeconds(45))
-                    current.second.headers.forEach { (key, value) -> request.setHeader(key, value) }
+                    val request = HttpRequest.newBuilder(URI(current.url)).timeout(Duration.ofSeconds(45))
+                    current.headers.forEach { (key, value) -> request.setHeader(key, value) }
                     exchange.requestHeaders.getFirst("Range")?.let { request.setHeader("Range", it) }
                     val response = http.send(request.method(exchange.requestMethod, HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofInputStream())
                     response.body().use { body ->
@@ -50,9 +53,28 @@ internal class StreamProxy : AutoCloseable {
     }
 
     fun register(stream: AudioStream): String {
-        val path = "/${UUID.randomUUID()}"
-        active = path to stream
+        clear()
+        return register(stream.url, stream.headers, stream.mimeType)
+    }
+
+    fun registerVideo(stream: VideoStream): Pair<String, String> {
+        clear()
+        val picture = register(stream.videoUrl, stream.headers, stream.mimeType)
+        val audio = register(stream.audioUrl, stream.headers, stream.audioMimeType)
+        return picture to audio
+    }
+
+    private fun register(url: String, headers: Map<String, String>, mimeType: String?): String {
+        val extension = when {
+            mimeType?.contains("webm", ignoreCase = true) == true -> "webm"
+            mimeType?.contains("mp4", ignoreCase = true) == true -> "mp4"
+            mimeType?.contains("mpeg", ignoreCase = true) == true -> "mp3"
+            else -> "mp4"
+        }
+        val path = "/${UUID.randomUUID()}.$extension"
+        active[path] = Source(url, headers)
         return "http://127.0.0.1:${server.address.port}$path"
     }
-    override fun close() { active = null; server.stop(0); executor.shutdownNow(); http.close() }
+    fun clear() = active.clear()
+    override fun close() { active.clear(); server.stop(0); executor.shutdownNow(); http.close() }
 }

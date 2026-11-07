@@ -29,11 +29,13 @@ android {
 
 dependencies {
     implementation(project(":shared"))
+    implementation(libs.serialization.json)
     implementation(libs.activity.compose)
     implementation(libs.compose.material3)
     implementation(libs.coroutines.android)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
+    implementation(libs.media3.ui)
     implementation(libs.media3.datasource.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

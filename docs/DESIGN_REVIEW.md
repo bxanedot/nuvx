@@ -66,10 +66,30 @@ Reviewed on 2026-11-03. Scope: the shared Compose TV shell, local-library screen
 ## What works
 
 - The light theme uses the black mark on `#fcfcfa` (about **20.5:1** contrast); the dark theme uses the white mark on `#101114` (about **18.4:1**). Both exceed WCAG's 3:1 non-text contrast threshold. The theme-specific logo files avoid depending on color alone or a CSS recoloring filter.
-- The favicon SVG uses a tight viewBox around the supplied vector artwork. At 16px its mark occupies about 15 × 6px, keeping the main silhouette visible without adding a background or altering the artwork. This is suitable for a simple monochrome mark; browser UI may still display favicons at smaller effective sizes.
+- The favicon SVG uses a tight viewBox around the supplied vector artwork. At 16px its mark occupies about 15 ï¿½ 6px, keeping the main silhouette visible without adding a background or altering the artwork. This is suitable for a simple monochrome mark; browser UI may still display favicons at smaller effective sizes.
 - The logo appears in the site header and footer, with one larger hero instance. It does not displace page content or repeat throughout the documentation.
-- These are web design findings using Apple's general clarity and consistency guidance: `app-icons.md › Design` says to keep icons simple because fine details can be hard to discern at small sizes; `branding.md › Best practices` says to keep branding unobtrusive and avoid repeating logos without context.
+- These are web design findings using Apple's general clarity and consistency guidance: `app-icons.md ï¿½ Design` says to keep icons simple because fine details can be hard to discern at small sizes; `branding.md ï¿½ Best practices` says to keep branding unobtrusive and avoid repeating logos without context.
 
 ## Platform notes
 
 This review covers source assets, CSS theme selection, SVG geometry and computed color contrast. It did not verify favicon rendering in browser chrome or third-party social-card crawlers. The OG image is a static light-surface preview; it is not theme-dependent because social preview crawlers request one shared image.
+
+# Design review: artist video actions and Canvas motion (2026-11-04)
+
+## Summary
+
+Source review only; runtime rating is deferred. The artist page keeps video artwork and identity primary, with secondary queue actions in the existing overflow menu. No new visual theme, icon source, glass effect or unsupported playback setting was introduced.
+
+## Changes and guidance
+
+- `ArtistPage.kt`: video cards now use the existing focus ring and 44dp More button, with an explicit Play video action label. Queue actions reuse the app's existing menu rather than adding prominent competing controls. `accessibility.md > Mobility`: "Offer alternatives to gestures." `buttons.md > Content`: "Ensure that each button clearly communicates its purpose."
+- `NowPlayingSheet.kt`: reduced motion now gates the composed Canvas surface itself, so enabling it disposes an already-running surface. `accessibility.md > Cognitive`: "When this setting is active, ensure your app or game responds by reducing automatic and repetitive animations."
+- New tests target scalable timestamp height, actual artwork/video branch selection, Canvas disposal and queue actions. `layout.md > Adaptability`: "Preview your app on multiple devices, using different size classes, localizations, and text sizes."
+
+## Verification limits
+
+The added tests and affected code have not run or compiled during gaming. Android and desktop pointer/keyboard/assistive-technology interaction, actual decoding, and screenshots remain unverified. Colors and type sizes are unchanged; no new contrast measurement or exact visual-parity claim is made. Apple guidance is used here as cross-platform design principles, not as proof of native Apple-platform compliance.
+
+## Headless verification update â€” 2026-11-04 20:10 +01:00
+
+The seven focused UI tests now pass, followed by the full shared/desktop suite. Synthetic offscreen full-cover, normal-art and fake-video screenshots at 360Ã—740/fontScale 1.3 were inspected: the time labels are complete and control/title/artwork hierarchy stays coherent. Actual branch selection, Canvas composition disposal, semantic queue actions and deferred-duration matching are tested. This improves the earlier source-only confidence but does not verify real decoding, keyboard/pointer/D-pad traversal, screen readers, reference fidelity or Android rendering; the Android SDK is currently unavailable. Runtime product rating remains deferred.

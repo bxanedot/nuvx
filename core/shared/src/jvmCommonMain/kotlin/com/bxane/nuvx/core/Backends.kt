@@ -1,6 +1,8 @@
 package com.bxane.nuvx.core
 
 import com.excor.Excor
+import com.excor.ExcorVideoStreams
+import com.excor.ExcorVideoCodec
 import com.excor.ExcorYouTubeMusicItem
 import com.excor.ExcorYouTubeMusicItemType
 import com.excor.excorDefaultHost
@@ -17,7 +19,7 @@ actual fun nuvxHttpClient() = HttpClient(OkHttp) {
 }
 
 /** Alternative engine, selectable in Settings. */
-class ExcorBackend(private val excor: Excor = Excor(excorDefaultHost())) : MusicBackend {
+class ExcorBackend(private val excor: Excor = Excor(excorDefaultHost())) : MusicBackend, VideoCapableBackend {
     override val id = BackendId.EXCOR
 
     override suspend fun search(query: String, filter: SearchFilter): SearchResults {
@@ -45,6 +47,9 @@ class ExcorBackend(private val excor: Excor = Excor(excorDefaultHost())) : Music
             AudioStream(it.videoId, it.url, excor.headersFor(it.url) ?: it.headers, it.mimeType, it.kbps, it.loudnessDb, id)
         }
 
+    override suspend fun video(videoId: String, maxHeight: Int?): VideoStream? =
+        excor.extractVideo(videoId, maxHeight = maxHeight ?: 4320)?.toNuvxVideoStream()
+
     private fun ExcorYouTubeMusicItem.toTrack() =
         Track(videoId!!, title, artists.map { it.name }, album, durationSeconds?.times(1000), art())
 
@@ -53,6 +58,22 @@ class ExcorBackend(private val excor: Excor = Excor(excorDefaultHost())) : Music
     private companion object {
         val PLAYABLE = setOf(ExcorYouTubeMusicItemType.SONG, ExcorYouTubeMusicItemType.VIDEO)
     }
+}
+
+internal fun ExcorVideoStreams.toNuvxVideoStream(): VideoStream? {
+    // shortcut: VideoStream requires separate audio; add muxed-source playback before accepting progressive-only results.
+    val companion = audio ?: return null
+    require(companion.videoId == videoId) { "Companion audio belongs to a different video" }
+    require(video.headers == companion.headers) { "Video and audio require different request headers" }
+    require(video.height > 0 && (video.width == null || video.width!! > 0)) { "Invalid video dimensions" }
+    val codec = when (video.codec) {
+        ExcorVideoCodec.H264 -> "avc1"
+        ExcorVideoCodec.VP9 -> "vp09"
+        ExcorVideoCodec.AV1 -> "av01"
+        ExcorVideoCodec.OTHER -> null
+    }
+    return VideoStream(videoId, companion.url, video.url, video.headers, video.width, video.height,
+        video.mimeType, companion.mimeType, codec, listOf(video.height), BackendId.EXCOR)
 }
 
 fun defaultBackends(): Map<BackendId, MusicBackend> = mapOf(

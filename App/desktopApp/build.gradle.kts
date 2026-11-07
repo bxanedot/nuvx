@@ -28,11 +28,11 @@ compose.desktop {
             appResourcesRootDir.set(layout.buildDirectory.dir("native-resources"))
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "nuvx"
-            packageVersion = "0.1.0"
+            packageVersion = providers.gradleProperty("nuvx.versionName").get()
             description = "nuvx music client"
             vendor = "bxane"
             modules("jdk.httpserver", "java.net.http", "java.prefs", "jdk.unsupported")
-            windows { iconFile.set(layout.buildDirectory.file("native-icons/nuvx.ico")) }
+            windows { iconFile.set(rootProject.file("core/assets/brand/mark/nuvx_mark_white.ico")) }
             linux { packageName = "nuvx"; iconFile.set(rootProject.file("core/assets/brand/mark/nuvx_mark_white.png")) }
             macOS { bundleID = "com.bxane.nuvx" }
         }

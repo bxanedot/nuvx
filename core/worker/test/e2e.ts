@@ -36,10 +36,12 @@ host.ws.send(JSON.stringify({ t: "ping", c: sent }));
 const pong = await host.next("pong");
 console.log(`clock offset ≈ ${pong.s - (sent + Date.now()) / 2} ms, rtt ${Date.now() - sent} ms`);
 
-host.ws.send(JSON.stringify({ t: "state", trackId: "dQw4w9WgXcQ", positionMs: 42000, playing: true, queue: ["dQw4w9WgXcQ"] }));
+const queueInfo = [{ trackId: "aaaaaaaaaaa", title: "Upcoming", artists: ["Artist"] }];
+host.ws.send(JSON.stringify({ t: "state", trackId: "dQw4w9WgXcQ", positionMs: 42000, playing: true, queue: ["aaaaaaaaaaa"], queueInfo }));
 const synced = await guest.next("state");
 assert.equal(synced.playback.trackId, "dQw4w9WgXcQ");
 assert.equal(synced.playback.positionMs, 42000);
+assert.deepEqual(synced.playback.queueInfo, queueInfo);
 
 guest.ws.send(JSON.stringify({ t: "state", trackId: null, positionMs: 0, playing: false }));
 assert.equal((await guest.next("error")).code, "not_host", "guest cannot control playback");

@@ -114,7 +114,7 @@
       if (!res.ok) throw new Error(out.error || `Upload failed (${res.status}).`);
       try { localStorage.setItem("nuvxCanvasPasscode", pass.value); } catch {}
       status.className = "good";
-      status.textContent = `${out.replaced ? "Replaced" : "Added"} the canvas for ${id}. It shows in nuvx within a few minutes.`;
+      status.textContent = `${out.replaced ? "Replaced" : "Added"} the canvas for ${id}.${out.shared ? " It also plays on other copies of the song." : " It shows in nuvx within a few minutes."}`;
     } catch (e) {
       status.className = "bad"; status.textContent = e.message;
     } finally { refresh(); }

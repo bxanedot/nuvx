@@ -2,13 +2,14 @@
 // Rooms sync track IDs and playback state only; every client streams audio from its own source.
 
 export type Member = { id: string; name: string };
+export type QueueTrackInfo = { trackId: string; title: string; artists: string[] };
 /** [title]/[artists] are display text only; clients derive artwork from [trackId], so the server never relays URLs. */
-export type Playback = { trackId: string | null; positionMs: number; playing: boolean; updatedAt: number; queue: string[]; title?: string; artists?: string[] };
+export type Playback = { trackId: string | null; positionMs: number; playing: boolean; updatedAt: number; queue: string[]; title?: string; artists?: string[]; queueInfo?: QueueTrackInfo[] };
 export type RoomState = { host: string | null; members: Member[]; playback: Playback };
 
 export type ClientMsg =
   | { t: "ping"; c: number }
-  | { t: "state"; trackId: string | null; positionMs: number; playing: boolean; queue?: string[]; title?: string; artists?: string[] }
+  | { t: "state"; trackId: string | null; positionMs: number; playing: boolean; queue?: string[]; title?: string; artists?: string[]; queueInfo?: QueueTrackInfo[] }
   | { t: "handoff"; to: string };
 
 export type ServerMsg =
@@ -23,6 +24,7 @@ export type Outcome = { reply?: ServerMsg; broadcast?: ServerMsg };
 export const MAX_MEMBERS = 50;
 export const MAX_QUEUE = 200;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+const encoder = new TextEncoder();
 
 export function emptyRoom(now: number): RoomState {
   return { host: null, members: [], playback: { trackId: null, positionMs: 0, playing: false, updatedAt: now, queue: [] } };
@@ -65,6 +67,7 @@ export function handle(room: RoomState, from: string, raw: unknown, now: number)
     queue: msg.queue ?? room.playback.queue,
     title: msg.title,
     artists: msg.artists,
+    ...(msg.queueInfo !== undefined ? { queueInfo: msg.queueInfo } : {}),
   };
   return { broadcast: { t: "state", s: now, playback: room.playback } };
 }
@@ -79,9 +82,10 @@ function members(room: RoomState): ServerMsg {
 }
 
 function parse(raw: unknown): ClientMsg | null {
+  if (typeof raw !== "string" || raw.length > 131_072 || encoder.encode(raw).byteLength > 131_072) return null;
   let m: any;
   try {
-    m = typeof raw === "string" ? JSON.parse(raw) : null;
+    m = JSON.parse(raw);
   } catch {
     return null;
   }
@@ -100,7 +104,22 @@ function parse(raw: unknown): ClientMsg | null {
       const titleOk = m.title === undefined || text(m.title, 200);
       const artistsOk = m.artists === undefined || (Array.isArray(m.artists) && m.artists.length <= 10 && m.artists.every((a: unknown) => text(a, 100)));
       if (!trackOk || !queueOk || !titleOk || !artistsOk || !num(m.positionMs) || typeof m.playing !== "boolean") return null;
-      return { t: "state", trackId: m.trackId, positionMs: m.positionMs, playing: m.playing, queue: m.queue, title: m.title, artists: m.artists };
+      let queueInfo: QueueTrackInfo[] | undefined;
+      if (m.queueInfo !== undefined) {
+        if (!Array.isArray(m.queueInfo) || m.queueInfo.length > MAX_QUEUE) return null;
+        const ids = new Set(m.queue ?? []);
+        const seen = new Set<string>();
+        queueInfo = [];
+        for (const info of m.queueInfo) {
+          if (!info || !ids.has(info.trackId) || seen.has(info.trackId) || !text(info.title, 200) || !info.title.trim() ||
+              !Array.isArray(info.artists) || info.artists.length > 10 || !info.artists.every((a: unknown) => text(a, 100))) return null;
+          seen.add(info.trackId);
+          queueInfo.push({ trackId: info.trackId, title: info.title, artists: info.artists });
+        }
+        if (encoder.encode(JSON.stringify(queueInfo)).byteLength > 65_536) return null;
+      }
+      return { t: "state", trackId: m.trackId, positionMs: m.positionMs, playing: m.playing, queue: m.queue, title: m.title, artists: m.artists,
+        ...(queueInfo !== undefined ? { queueInfo } : {}) };
     }
     default:
       return null;

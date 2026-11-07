@@ -19,4 +19,15 @@ class TrackMetadataTest {
             trackFromMetadata("abcdefghijk", "Silver Comet", "Artist One", "Night Drive", null, emptyMap()),
         )
     }
+
+    @Test fun pairedVideoModeSurvivesMediaSessionMetadata() {
+        val paired = Track("song-id", "Silver Comet", listOf("Artist One"), durationMs = 240_000,
+            mediaKind = MediaKind.VIDEO, pairedVideoId = "abcdefghijk")
+
+        val restored = trackFromMetadata(paired.videoId, paired.title, paired.artistLine, paired.album, paired.artworkUrl, paired.toMetadataExtras())
+
+        assertEquals(paired, restored)
+        assertEquals("abcdefghijk", restored.playbackVideoId)
+        assertEquals("song-id", restored.copy(mediaKind = MediaKind.SONG).playbackVideoId)
+    }
 }

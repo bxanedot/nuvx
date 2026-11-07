@@ -19,9 +19,35 @@ fun main() = application {
         desktopReducedMotion(System.getProperty("nuvx.reduceMotion"),
             Toolkit.getDefaultToolkit().getDesktopProperty("win.clientAreaAnimation") as? Boolean)
     }
+    var windowSettings by remember(store) { mutableStateOf(DesktopWindowSettings.load(store)) }
+    val windowState = rememberWindowState(width = 980.dp, height = 700.dp)
+    var windowVisible by remember { mutableStateOf(true) }
+    val trayEnabled = player != null && DesktopTray.isSupported && windowSettings.showTrayIcon
+    val audioOutputOptions = remember(player) { player?.availableAudioOutputs().orEmpty() }
+    DisposableEffect(trayEnabled, player) {
+        val tray = if (trayEnabled) DesktopTray(
+            onShow = { windowVisible = true; windowState.isMinimized = false },
+            onPlayPause = player::togglePlay,
+            onPrevious = player::previous,
+            onNext = player::next,
+            onQuit = { exitApplication() },
+        ).also {
+            if (!it.install()) {
+                DesktopWindowSettings().also { fallback -> fallback.save(store); windowSettings = fallback }
+            }
+        } else null
+        onDispose { tray?.close() }
+    }
     DisposableEffect(Unit) { onDispose { player?.close(); localLibrary.close(); http.close() } }
-    Window(onCloseRequest = ::exitApplication, title = "nuvx", state = rememberWindowState(width = 1180.dp, height = 780.dp)) {
-        if (player != null) NuvxApp(router, store, player, lyrics, watch = false, reduceMotion = reduceMotion, localLibrary = localLibrary, canvasVideo = { url, modifier -> CanvasVideo(url, modifier) })
+    Window(
+        onCloseRequest = { if (trayEnabled && windowSettings.keepPlayingWhenClosed) windowVisible = false else exitApplication() },
+        title = "nuvx", state = windowState, visible = windowVisible,
+    ) {
+        if (player != null) NuvxApp(router, store, player, lyrics, watch = false, reduceMotion = reduceMotion, localLibrary = localLibrary,
+            canvasVideo = { url, modifier -> CanvasVideo(url, modifier) }, videoSurface = { modifier -> DesktopVideoSurface(player, modifier) }, desktop = true,
+            desktopWindowSettings = windowSettings.takeIf { DesktopTray.isSupported }, onDesktopWindowSettingsChange = { windowSettings = it },
+            desktopAudioOutputOptions = audioOutputOptions, onSetDesktopAudioOutput = player::setPreferredAudioOutput,
+            onSetDesktopCrossfadeSeconds = player::setCrossfadeSeconds)
         else MaterialTheme { Surface { Text("nuvx needs VLC 3 to play audio. Install VLC for your system, or set NUVX_VLC_HOME to its portable folder, then reopen nuvx.") } }
     }
 }

@@ -2,7 +2,12 @@ package com.bxane.nuvx.ui
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -18,29 +23,39 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -57,22 +72,50 @@ import com.bxane.nuvx.core.Collection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToLong
 
 private val Dim = Color.White.copy(alpha = 0.38f)
 
 private enum class SheetMode { ARTWORK, LYRICS, QUEUE }
 
+internal fun shouldUseFullBleedArtwork(fullBleed: Boolean, artworkMode: Boolean, tallNarrowScreen: Boolean, track: Track?): Boolean =
+    fullBleed && artworkMode && tallNarrowScreen && track?.let { it.artworkUrl != null && it.mediaKind != MediaKind.VIDEO } == true
+
+internal fun canSwitchPlaybackKind(track: Track?, videoMatch: Track?): Boolean =
+    when (track?.mediaKind) {
+        MediaKind.VIDEO -> track.pairedVideoId != null
+        MediaKind.SONG -> videoMatch != null
+        null -> false
+    }
+
 /** Full-screen player: blurred-artwork backdrop with artwork, lyrics and queue modes. Swipe down or tap the handle to close. */
 @Composable
 fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain, history: History, router: BackendRouter, reduceMotion: Boolean, onOpen: (Collection) -> Unit = {}, sleep: SleepTimer? = null, fullBleed: Boolean = true,
+    lyricSettings: LyricsProviderSettings, onLyricSettingsChange: (LyricsProviderSettings) -> Unit,
+    lyricsOffsetMs: Long, onLyricsOffsetChange: (Long) -> Unit,
+    lyricsTextSize: LyricsTextSizePreference = LyricsTextSizePreference.DEFAULT,
+    androidUi: Boolean = false,
     artScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
-    canvas: Pair<CommunityCanvas, @Composable (url: String, modifier: Modifier) -> Unit>? = null, onClose: () -> Unit) {
+    canvas: Pair<CommunityCanvas, @Composable (url: String, modifier: Modifier) -> Unit>? = null,
+    videoSurface: (@Composable (modifier: Modifier) -> Unit)? = null,
+    radio: RadioStation,
+    onClose: () -> Unit) {
     val artMorph = Modifier.morphArt(artScope)
     // A community canvas plays over the cover when one exists for this song (never with reduced motion).
-    var canvasUrl by remember(state.current?.videoId) { mutableStateOf<String?>(null) }
-    if (canvas != null && !reduceMotion) LaunchedEffect(state.current?.videoId) { canvasUrl = state.current?.videoId?.let { canvas.first.find(it) } }
-    val canvasLayer: (@Composable () -> Unit)? = canvasUrl?.let { url -> canvas?.second?.let { video -> { video(url, Modifier.fillMaxSize()) } } }
     val track = state.current
+    val coverMotion = updateTransition(
+        artworkRestingScale(androidUi, reduceMotion, state.isPlaying, track?.mediaKind), label = "coverMotion",
+    )
+    val artworkScale by coverMotion.animateFloat(
+        transitionSpec = { if (reduceMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 350f) },
+        label = "coverSize",
+    ) { it }
+    val canvasSource = canvas?.first?.takeIf { !reduceMotion && track?.mediaKind == MediaKind.SONG }
+    var canvasUrl by remember(canvasSource, track?.videoId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(canvasSource, track) {
+        canvasUrl = track?.let { canvasSource?.find(it) }
+    }
+    val canvasLayer: (@Composable () -> Unit)? = if (canvasSource != null) canvasUrl?.let { url -> canvas.second.let { video -> { video(url, Modifier.fillMaxSize()) } } } else null
     val liked by history.liked.collectAsState()
     val scope = rememberCoroutineScope()
     var notice by remember { mutableStateOf<String?>(null) }
@@ -88,8 +131,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                 scope.launch {
                     notice = "Starting radio…"
                     notice = try {
-                        val page = router.radio(seed.videoId)
-                        player.playQueue(listOf(seed) + page.tracks.filter { it.videoId != seed.videoId }, 0)
+                        radio.start(seed)
                         null
                     } catch (e: CancellationException) { throw e } catch (_: Exception) { "Radio isn't available right now." }
                 }
@@ -99,17 +141,47 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     var mode by remember { mutableStateOf(SheetMode.ARTWORK) }
     var lyrics by remember { mutableStateOf<Lyrics?>(null) }
     var source by remember { mutableStateOf<SourcedLyrics?>(null) }
+    val displayedLyrics = remember(lyrics, lyricsOffsetMs) {
+        (lyrics as? Lyrics.Synced)?.let { LyricsTimingOffset.shift(it, lyricsOffsetMs) } ?: lyrics
+    }
+    val enabledLyricsProviders = lyricSettings.enabled(library.providerNames)
+    val selectedLyricsProvider = lyricSettings.preferredSource ?: enabledLyricsProviders.firstOrNull().orEmpty()
+    var lyricsProviderMenu by remember { mutableStateOf(false) }
     val uri = LocalUriHandler.current
     var status by remember { mutableStateOf("") }
+    // Match against a positive length, including the duration first reported during preparation.
+    val lookupDuration = track?.durationMs?.takeIf { it > 0 } ?: state.durationMs.takeIf { it > 0 }
+    val matchingSong = track?.takeIf {
+        videoSurface != null && !it.isLocal && it.mediaKind == MediaKind.SONG && lookupDuration != null
+    }?.copy(durationMs = lookupDuration)
+    var videoMatch by remember(track?.videoId) { mutableStateOf<Track?>(null) }
+    LaunchedEffect(matchingSong, router) {
+        videoMatch = null
+        if (matchingSong != null) {
+            try { videoMatch = MusicVideoResolver(router).find(matchingSong) }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* No verified match: keep the switch unavailable. */ }
+        }
+    }
     // Match lyrics against the length of the version actually playing; platform players may not carry it in metadata.
-    val lookupDuration = track?.durationMs ?: state.durationMs.takeIf { it > 0 }
-    LaunchedEffect(track?.videoId, lookupDuration != null) {
+    LaunchedEffect(track?.videoId, lookupDuration, lyricSettings) {
         lyrics = null
         source = null
         if (track == null) return@LaunchedEffect
         status = "Finding lyrics…"
         if (lookupDuration == null) return@LaunchedEffect // re-runs once the player reports the length
-        try { val found = library.find(track.copy(durationMs = lookupDuration)); lyrics = found?.lyrics; source = found; if (found == null) status = "No lyrics for this song" }
+        try {
+            val found = library.find(
+                track.copy(durationMs = lookupDuration),
+                preferredSource = selectedLyricsProvider.takeIf(String::isNotEmpty),
+                providerOrder = lyricSettings.order,
+                disabledSources = lyricSettings.disabled,
+                preferWordSynced = lyricSettings.preferWordSynced,
+            )
+            lyrics = found?.lyrics
+            source = found
+            if (found == null) status = if (enabledLyricsProviders.isEmpty()) "No lyrics sources are enabled" else "No lyrics for this song"
+        }
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { status = "Lyrics couldn't be loaded" }
     }
@@ -132,8 +204,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
         if (track?.artworkUrl != null) AsyncImage(track.artworkUrl, null, Modifier.fillMaxSize().blur(90.dp).alpha(0.75f), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(0.35f), Color.Black.copy(0.55f), Color.Black.copy(0.8f)))))
         // Phones show the artwork full bleed: edge to edge from the top, fading into the wash; wide screens keep the inset tile.
+        val compactHeight = maxHeight < 480.dp
         val sheetWidth = maxWidth
-        val bleed = fullBleed && mode == SheetMode.ARTWORK && maxWidth < 600.dp && track?.artworkUrl != null
+        val tallNarrowScreen = maxWidth < 600.dp && maxHeight >= maxWidth * 1.25f
+        val bleed = shouldUseFullBleedArtwork(fullBleed, mode == SheetMode.ARTWORK, tallNarrowScreen, track)
         if (bleed) Box(artMorph.fillMaxWidth().height(sheetWidth * 1.08f)
             // The artwork's lower part dissolves into the wash (alpha mask), so there is no hard edge.
             .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
@@ -141,8 +215,10 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                 drawContent()
                 drawRect(Brush.verticalGradient(0.72f to Color.Black, 1f to Color.Transparent), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
             }) {
-            SharpArtwork(track!!.artworkUrl, "Artwork for ${track.title}", Modifier.fillMaxSize(), 1080)
-            canvasLayer?.invoke()
+            Box(Modifier.fillMaxSize().graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }) {
+                SharpArtwork(track?.artworkUrl, track?.title?.let { "Artwork for $it" }, Modifier.fillMaxSize(), 1080)
+                canvasLayer?.invoke()
+            }
             // A light shade so the status bar, handle and "Playing from" caption stay readable over bright covers.
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(0.4f), 0.2f to Color.Transparent)))
         }
@@ -153,20 +229,46 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             Text(if (mode == SheetMode.QUEUE) "Playing next" else "Playing from your queue", color = Color.White.copy(0.75f), fontSize = 12.sp,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), textAlign = TextAlign.Center)
             if (mode != SheetMode.ARTWORK) CompactHeader(track, actions)
-            if (mode == SheetMode.LYRICS) source?.let { s ->
-                Text("Lyrics from ${s.source}" + if (s.link != null) " ↗" else "", color = Color.White.copy(0.55f), fontSize = 12.sp,
-                    modifier = Modifier.padding(bottom = 4.dp).then(if (s.link != null) Modifier.clickable { uri.openUri(s.link) }.semantics { role = Role.Button } else Modifier))
+            if (mode == SheetMode.LYRICS) {
+                Column(Modifier.padding(bottom = 4.dp)) {
+                    Box {
+                        Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp)).background(Color.White.copy(0.12f))
+                            .clickable(enabledLyricsProviders.isNotEmpty()) { lyricsProviderMenu = true }
+                            .semantics { role = Role.Button; contentDescription = "Choose lyrics provider, currently $selectedLyricsProvider" }
+                            .padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Lyrics provider: $selectedLyricsProvider", color = Color.White.copy(0.75f), fontSize = 13.sp)
+                            Icon(NuvxIcons.Chevron, null, Modifier.padding(start = 4.dp).size(13.dp).graphicsLayer { rotationZ = 90f }, tint = Color.White.copy(0.65f))
+                        }
+                        DropdownMenu(lyricsProviderMenu, { lyricsProviderMenu = false }, containerColor = Color(0xFF232327)) {
+                            enabledLyricsProviders.forEach { provider ->
+                                DropdownMenuItem({ Text((if (provider == selectedLyricsProvider) "✓  " else "") + provider) }, {
+                                    onLyricSettingsChange(lyricSettings.copy(preferredSource = provider))
+                                    lyricsProviderMenu = false
+                                })
+                            }
+                        }
+                    }
+                    source?.let { s ->
+                        Text("Lyrics from ${s.source}" + if (s.link != null) " ↗" else "", color = Color.White.copy(0.55f), fontSize = 12.sp,
+                            modifier = Modifier.then(if (s.link != null) Modifier.clickable { uri.openUri(s.link) }.semantics { role = Role.Button } else Modifier))
+                    }
+                }
             }
             notice?.let { Text(it, color = Color.White.copy(0.75f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth().onPlaced { c -> root?.let { modeTop = it.localPositionOf(c, androidx.compose.ui.geometry.Offset.Zero).y } }) {
                 when (mode) {
-                    SheetMode.ARTWORK -> ArtworkMode(track, lyrics, state.positionMs, actions, player::next, player::previous, artMorph, canvasLayer,
+                    SheetMode.ARTWORK -> ArtworkMode(track, displayedLyrics, state.positionMs, actions, player::next, player::previous, artMorph, canvasLayer, artworkScale,
+                        videoSurface = videoSurface?.takeIf { track?.mediaKind == MediaKind.VIDEO && state.error == null },
+                        videoResolution = state.videoResolution, compactHeight = compactHeight,
                         bleedGap = if (bleed) with(density) { (sheetWidth.toPx() * 1.1f - modeTop).coerceAtLeast(0f).toDp() } else null,
-                        progress = if (bleed) ({ Progress(player, state) }) else null) { mode = SheetMode.LYRICS }
-                    SheetMode.LYRICS -> when (val l = lyrics) {
-                        is Lyrics.Synced -> SyncedLyrics(l, state.positionMs, reduceMotion) { player.seekTo(it) }
+                        progress = { Progress(player, state) }) { mode = SheetMode.LYRICS }
+                    SheetMode.LYRICS -> when (val l = displayedLyrics) {
+                        is Lyrics.Synced -> Column(Modifier.fillMaxSize()) {
+                            LyricsTimingControls(lyricsOffsetMs, onLyricsOffsetChange)
+                            SyncedLyrics(l, state.positionMs, reduceMotion, seek = { player.seekTo(it) }, fontScale = lyricsTextSize.scale, modifier = Modifier.weight(1f))
+                        }
                         is Lyrics.Plain -> LazyColumn(contentPadding = PaddingValues(vertical = 24.dp)) {
-                            item { Text(l.text, color = Color.White.copy(0.85f), fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 34.sp) }
+                            item { Text(l.text, color = Color.White.copy(0.85f), fontSize = (26f * lyricsTextSize.scale).sp, fontWeight = FontWeight.Bold, lineHeight = (34f * lyricsTextSize.scale).sp) }
                         }
                         Lyrics.Instrumental -> Centered("♪  Instrumental")
                         null -> Centered(if (track == null) "Play something to see it here." else status)
@@ -186,19 +288,64 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                     }
                 }
             }
-            // Full bleed keeps the progress bar up under the title (see ArtworkMode) and leaves the space above the controls.
-            Transport(player, state, showProgress = !bleed, large = bleed)
-            if (bleed) Row(Modifier.fillMaxWidth().padding(bottom = 22.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(NuvxIcons.SpeakerLow, null, Modifier.size(18.dp), tint = Color.White.copy(0.6f))
-                Box(Modifier.weight(1f).padding(horizontal = 12.dp).semantics { contentDescription = "Volume" }) {
-                    ThinProgress((state.volume * 1000).toLong(), 1000) { player.setVolume(it / 1000f) }
+            // Artwork mode keeps metadata, lyric preview and progress together above the transport.
+            Transport(player, state, showProgress = mode != SheetMode.ARTWORK, large = bleed, reduceMotion = reduceMotion, compactHeight = compactHeight)
+            state.error?.let { error ->
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(error, color = Color(0xFFFF8A80), fontSize = 13.sp, maxLines = 2,
+                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
+                    track?.let(MusicVideoMatcher::youtubeWatchUrl)?.let { url ->
+                        TextButton(onClick = { uri.openUri(url) }) { Text("Watch on YouTube") }
+                    }
                 }
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = if (bleed) 22.dp else 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(NuvxIcons.SpeakerLow, null, Modifier.size(18.dp), tint = Color.White.copy(0.6f))
+                val volume = state.volume.coerceIn(0f, 1f)
+                val fill by animateFloatAsState(
+                    targetValue = volume,
+                    animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 0.65f, stiffness = 360f),
+                    label = "volume-slosh",
+                )
+                Slider(
+                    value = volume,
+                    onValueChange = player::setVolume,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.Transparent,
+                        inactiveTrackColor = Color.Transparent,
+                    ),
+                    modifier = Modifier.weight(1f).heightIn(min = 40.dp).drawBehind {
+                        val trackWidth = 6.dp.toPx()
+                        val inset = 10.dp.toPx()
+                        val start = inset
+                        val end = (size.width - inset).coerceAtLeast(start)
+                        val centerY = size.height / 2f
+                        drawLine(Color.White.copy(alpha = 0.24f), Offset(start, centerY), Offset(end, centerY), trackWidth, StrokeCap.Round)
+                        val filledEnd = start + (end - start) * fill.coerceIn(0f, 1f)
+                        if (filledEnd > start) drawLine(Color.White.copy(alpha = 0.85f), Offset(start, centerY), Offset(filledEnd, centerY), trackWidth, StrokeCap.Round)
+                    }.semantics {
+                        contentDescription = "Volume ${ (state.volume.coerceIn(0f, 1f) * 100).toInt() } percent"
+                    },
+                )
                 Icon(NuvxIcons.SpeakerHigh, null, Modifier.size(20.dp), tint = Color.White.copy(0.6f))
             }
             Row(Modifier.fillMaxWidth().padding(bottom = if (bleed) 44.dp else 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 ModeButton(NuvxIcons.Shuffle, "Shuffle up next", false, player::shuffleUpNext)
                 ModeButton(NuvxIcons.Lyrics, "Lyrics", mode == SheetMode.LYRICS) { mode = if (mode == SheetMode.LYRICS) SheetMode.ARTWORK else SheetMode.LYRICS }
                 ModeButton(NuvxIcons.Queue, "Queue", mode == SheetMode.QUEUE) { mode = if (mode == SheetMode.QUEUE) SheetMode.ARTWORK else SheetMode.QUEUE }
+                if (videoSurface != null && canSwitchPlaybackKind(track, videoMatch)) {
+                    val isVideo = track?.mediaKind == MediaKind.VIDEO
+                    ModeButton(if (isVideo) NuvxIcons.Note else NuvxIcons.Video, if (isVideo) "Song audio" else "Watch video", isVideo) {
+                        track?.let { current ->
+                            if (isVideo) player.replaceCurrent(current.copy(mediaKind = MediaKind.SONG), state.positionMs)
+                            else videoMatch?.let { candidate ->
+                                val sameTiming = lookupDuration != null && candidate.durationMs != null && abs(lookupDuration - candidate.durationMs) <= 5_000
+                                player.replaceCurrent(current.copy(mediaKind = MediaKind.VIDEO, pairedVideoId = candidate.videoId), if (sameTiming) state.positionMs else 0)
+                            }
+                        }
+                    }
+                }
                 // Cycles off → all → one; the label says the current mode for screen readers.
                 ModeButton(if (state.repeat == RepeatMode.ONE) NuvxIcons.RepeatOne else NuvxIcons.Repeat,
                     "Repeat " + when (state.repeat) { RepeatMode.OFF -> "off"; RepeatMode.ALL -> "all"; RepeatMode.ONE -> "one" }, state.repeat != RepeatMode.OFF) {
@@ -226,14 +373,33 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, artworkScale: Float, videoSurface: (@Composable (modifier: Modifier) -> Unit)?, videoResolution: VideoResolution?, compactHeight: Boolean, bleedGap: Dp?, progress: @Composable () -> Unit, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
     // Full bleed: the artwork is drawn behind the sheet, so this space over it only carries the swipe gesture.
-    if (bleedGap != null) Spacer(Modifier.height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
-    else Box(artMorph.weight(1f, fill = false).aspectRatio(1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp))) {
-        ArtworkTile(track, Modifier.fillMaxSize(), 1080)
-        canvasLayer?.invoke()
+    // The artwork gap yields space to the title and time labels on shorter screens.
+    if (bleedGap != null) Spacer(Modifier.weight(1f, fill = false).height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
+    else BoxWithConstraints(Modifier.weight(1f, fill = false).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val ratio = if (track?.mediaKind == MediaKind.VIDEO) 16f / 10f else 1f
+        val mediaHeight = minOf(maxHeight, maxWidth / ratio)
+        Box(artMorph.size(mediaHeight * ratio, mediaHeight).trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp))) {
+            if (track?.mediaKind == MediaKind.VIDEO && videoSurface != null) {
+                ArtworkTile(track, Modifier.fillMaxSize(), 1080)
+                videoSurface(Modifier.fillMaxSize())
+                videoResolution?.takeIf { it.width > 0 && it.height > 0 }?.let { resolution ->
+                    Text("${resolution.width} × ${resolution.height}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.72f)).padding(horizontal = 9.dp, vertical = 6.dp)
+                            .semantics { contentDescription = "Current video resolution ${resolution.width} by ${resolution.height}" })
+                }
+            }
+            else {
+                Box(Modifier.fillMaxSize().graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }) {
+                    ArtworkTile(track, Modifier.fillMaxSize(), 1080)
+                    canvasLayer?.invoke()
+                }
+            }
+        }
     }
-    Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else if (compactHeight) 8.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = if (bleedGap != null) FontWeight.SemiBold else FontWeight.Bold, fontSize = if (bleedGap != null) 19.sp else 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.linkTo(actions.openAlbum, "Open album"))
@@ -249,7 +415,8 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
             modifier = if (bleedGap != null) Modifier.weight(1f, fill = false) else Modifier.weight(1f))
         Icon(NuvxIcons.Chevron, "Open lyrics", Modifier.padding(start = 6.dp).size(16.dp), tint = Color.White.copy(0.6f))
     }
-    if (progress != null) { Spacer(Modifier.height(12.dp)); progress(); Spacer(Modifier.weight(1f)) }
+    Spacer(Modifier.height(if (compactHeight) 4.dp else 12.dp))
+    progress()
 }
 
 @Composable private fun Centered(text: String) = Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -293,7 +460,7 @@ private fun Modifier.linkTo(open: (() -> Unit)?, label: String) =
     }
 }
 
-private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
+internal fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
     null -> null
     SleepTimer.Mode.EndOfTrack -> "end of track"
     is SleepTimer.Mode.After -> if (mode.minutes % 60 == 0) "${mode.minutes / 60} hour" else "${mode.minutes} minutes"
@@ -313,14 +480,54 @@ private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
 }
 
 /** Active line white with words lighting up as they're sung; others dimmed and blurred by distance; tap a line to seek. */
-@Composable private fun SyncedLyrics(l: Lyrics.Synced, positionMs: Long, reduceMotion: Boolean, seek: (Long) -> Unit) {
+@Composable internal fun LyricsTimingControls(offsetMs: Long, onChange: (Long) -> Unit) {
+    var sliderValue by remember(offsetMs) { mutableFloatStateOf(offsetMs.toFloat()) }
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Lyrics timing", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+            Spacer(Modifier.weight(1f))
+            Text(lyricsOffsetLabel(offsetMs), color = Color.White, fontSize = 12.sp)
+            TextButton(
+                onClick = { sliderValue = 0f; onChange(0L) },
+                enabled = offsetMs != 0L,
+                modifier = Modifier.heightIn(min = 40.dp),
+            ) { Text("Reset") }
+        }
+        Slider(
+            value = sliderValue,
+            onValueChange = { sliderValue = it },
+            onValueChangeFinished = { onChange(sliderValue.roundToLong()) },
+            valueRange = -LyricsTimingOffset.MAX_OFFSET_MS.toFloat()..LyricsTimingOffset.MAX_OFFSET_MS.toFloat(),
+            steps = ((LyricsTimingOffset.MAX_OFFSET_MS * 2) / LyricsTimingOffset.STEP_MS - 1).toInt(),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
+                .semantics { contentDescription = "Lyrics timing offset ${lyricsOffsetLabel(sliderValue.roundToLong())}" },
+        )
+    }
+}
+
+private fun lyricsOffsetLabel(offsetMs: Long): String {
+    val absolute = abs(offsetMs)
+    val sign = when { offsetMs > 0 -> "+"; offsetMs < 0 -> "−"; else -> "" }
+    return "$sign${absolute / 1000}.${absolute % 1000 / 100}s"
+}
+
+@Composable internal fun SyncedLyrics(
+    l: Lyrics.Synced,
+    positionMs: Long,
+    reduceMotion: Boolean,
+    seek: (Long) -> Unit,
+    compact: Boolean = false,
+    fontScale: Float = 1f,
+    modifier: Modifier = Modifier,
+) {
     val active = l.lineAt(positionMs)
     val list = rememberLazyListState()
     LaunchedEffect(active) {
         if (active < 0) return@LaunchedEffect
-        if (reduceMotion) list.scrollToItem(active) else list.animateScrollToItem(active, scrollOffset = -120)
+        if (reduceMotion) list.scrollToItem(active) else list.animateScrollToItem(active, scrollOffset = if (compact) -24 else -120)
     }
-    LazyColumn(state = list, contentPadding = PaddingValues(top = 120.dp, bottom = 320.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+    LazyColumn(modifier.fillMaxWidth(), state = list, contentPadding = PaddingValues(top = if (compact) 28.dp else 120.dp, bottom = if (compact) 88.dp else 320.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 22.dp)) {
         itemsIndexed(l.lines) { i, line ->
             val distance = if (active < 0) 2 else abs(i - active)
             val blur by animateFloatAsState(if (reduceMotion) 0f else (distance * 1.6f).coerceAtMost(6f), tween(400))
@@ -330,8 +537,9 @@ private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
                     withStyle(SpanStyle(color = androidx.compose.ui.graphics.lerp(Dim, Color.White, l.wordProgress(i, wi, positionMs)))) { append(w.text) }
                 } else withStyle(SpanStyle(color = if (i == active) Color.White else Dim)) { append(line.text.ifBlank { "♪" }) }
             }
-            Text(text, fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp,
-                modifier = Modifier.fillMaxWidth().clickable { seek(line.startMs) }.blur(blur.dp))
+            Text(text, fontSize = ((if (compact) 20f else 32f) * fontScale).sp, lineHeight = ((if (compact) 26f else 38f) * fontScale).sp,
+                fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5f * fontScale).sp,
+                modifier = Modifier.fillMaxWidth().clickable { seek(line.startMs.coerceAtLeast(0)) }.blur(blur.dp))
         }
     }
 }
@@ -344,16 +552,30 @@ private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
     }
 }
 
-@Composable private fun Transport(player: NuvxPlayer, state: PlayerState, showProgress: Boolean = true, large: Boolean = false) {
-    Column(Modifier.padding(bottom = 16.dp)) {
-        if (showProgress) Progress(player, state)
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            PlainIconButton(NuvxIcons.Back, "Previous", if (large) 80.dp else 64.dp) { player.previous() }
-            PlainIconButton(if (state.isPlaying) NuvxIcons.Pause else NuvxIcons.Play, if (state.isPlaying) "Pause" else "Play", if (large) 96.dp else 80.dp) { player.togglePlay() }
-            PlainIconButton(NuvxIcons.Forward, "Next", if (large) 80.dp else 64.dp, enabled = state.index < state.queue.lastIndex) { player.next() }
+@Composable private fun Transport(player: NuvxPlayer, state: PlayerState, showProgress: Boolean = true, large: Boolean = false, reduceMotion: Boolean = false, compactHeight: Boolean = false) {
+    CompositionLocalProvider(LocalNuvxPalette provides NuvxPalette.Dark) {
+        val skipSize = if (compactHeight) 48.dp else if (large) 80.dp else 64.dp
+        val playSize = if (compactHeight) 64.dp else if (large) 96.dp else 80.dp
+        Column(Modifier.padding(bottom = if (compactHeight) 8.dp else 16.dp)) {
+            if (showProgress) Progress(player, state)
+            Row(Modifier.fillMaxWidth().padding(top = if (compactHeight) 0.dp else 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                PlainIconButton(NuvxIcons.Back, "Previous", skipSize) { player.previous() }
+                if (state.buffering) {
+                    Box(Modifier.size(playSize).clip(CircleShape).focusRing()
+                        .clickable(onClick = player::togglePlay).semantics {
+                            contentDescription = if (state.isPlaying) "Pause" else "Play"
+                            stateDescription = "Buffering"
+                            role = Role.Button
+                        }, contentAlignment = Alignment.Center) {
+                        if (reduceMotion) CircularProgressIndicator(progress = { 0.75f }, modifier = Modifier.size(40.dp), color = Color.White)
+                        else CircularProgressIndicator(Modifier.size(40.dp), color = Color.White)
+                    }
+                } else PlayPauseIconButton(state.isPlaying, player::togglePlay, playSize, reduceMotion = reduceMotion)
+                PlainIconButton(NuvxIcons.Forward, "Next", skipSize, enabled = state.index < state.queue.lastIndex) { player.next() }
+            }
+        }
         }
     }
-}
 
 /** Slim seek bar: tap or drag anywhere on it; thickens while dragging. Exposes range info and a set-progress action to screen readers. */
 @Composable private fun ThinProgress(positionMs: Long, durationMs: Long, seek: (Long) -> Unit) {
@@ -385,3 +607,6 @@ private fun sleepLabel(mode: SleepTimer.Mode?): String? = when (mode) {
 }
 
 internal fun clock(ms: Long) = "${ms / 60_000}:${(ms / 1000 % 60).toString().padStart(2, '0')}"
+
+internal fun artworkRestingScale(android: Boolean, reduced: Boolean, playing: Boolean, kind: MediaKind?): Float =
+    if (android && !reduced && !playing && kind == MediaKind.SONG) 0.86f else 1f

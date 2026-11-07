@@ -24,10 +24,11 @@ import com.bxane.nuvx.core.NuvxPlayer
 fun LocalLibraryScreen(library: LocalMusicLibrary, player: NuvxPlayer) {
     val libraryState by library.state.collectAsState()
     val playerState by player.state.collectAsState()
+    val desktop = LocalDesktopLayout.current
     LaunchedEffect(library) { library.open() }
 
     Column(Modifier.fillMaxSize()) {
-        LargeTitle("On this device", Modifier.padding(top = 12.dp, bottom = 8.dp))
+        if (!desktop) LargeTitle("On this device", Modifier.padding(top = 12.dp, bottom = 8.dp))
         Text("Play audio stored on this device.", color = NuvxColors.Secondary, fontSize = 15.sp,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
         Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp))
@@ -39,7 +40,7 @@ fun LocalLibraryScreen(library: LocalMusicLibrary, player: NuvxPlayer) {
         if (libraryState.tracks.isEmpty() && !libraryState.loading && libraryState.error == null) {
             Text("No audio files found yet.", color = NuvxColors.Secondary, fontSize = 16.sp,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
-        } else LazyColumn(contentPadding = PaddingValues(bottom = BottomChromePadding)) {
+        } else LazyColumn(contentPadding = PaddingValues(bottom = desktopAwareBottomPadding())) {
             itemsIndexed(libraryState.tracks, key = { _, track -> track.videoId }) { index, track ->
                 TrackRow(track, active = playerState.current?.videoId == track.videoId) { player.playQueue(libraryState.tracks, index) }
             }

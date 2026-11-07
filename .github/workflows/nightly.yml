@@ -1,0 +1,123 @@
+name: Nightly preview
+
+on:
+  schedule:
+    - cron: "25 2 * * *"
+  workflow_dispatch:
+    inputs:
+      publish_nightly:
+        description: Create a GitHub prerelease from this run's debug packages
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuvx-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.version.outputs.name }}
+      code: ${{ steps.version.outputs.code }}
+    steps:
+      - name: Set monotonically increasing preview versions
+        id: version
+        run: |
+          run_number="$GITHUB_RUN_NUMBER"
+          major=$(((run_number - 1) / 65025))
+          minor=$((((run_number - 1) / 255) % 255 + 1))
+          patch=$(((run_number - 1) % 255 + 1))
+          echo "name=$major.$minor.$patch" >> "$GITHUB_OUTPUT"
+          echo "code=$((run_number + 1))" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "27"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - name: Publish the pinned alternative engine to this runner's Maven local
+        run: |
+          git init "$RUNNER_TEMP/excor"
+          git -C "$RUNNER_TEMP/excor" remote add origin https://github.com/bxanedot/eXcor.git
+          git -C "$RUNNER_TEMP/excor" fetch --depth 1 origin 170e81f1caf92b8cbd637340a50e6ebe686906d5
+          git -C "$RUNNER_TEMP/excor" checkout --detach FETCH_HEAD
+          cd "$RUNNER_TEMP/excor"
+          bash ./gradlew publishAndroidPublicationToMavenLocal publishJvmPublicationToMavenLocal publishKotlinMultiplatformPublicationToMavenLocal
+
+      - name: Test shared code and build Android previews
+        run: |
+          ./gradlew \
+            -Pnuvx.versionName="${{ needs.version.outputs.name }}" \
+            -Pnuvx.versionCode="${{ needs.version.outputs.code }}" \
+            :shared:desktopTest \
+            :androidApp:testMobileDebugUnitTest \
+            :androidApp:testTvDebugUnitTest \
+            :androidApp:testWearDebugUnitTest \
+            :androidApp:assembleMobileDebug \
+            :androidApp:assembleTvDebug \
+            :androidApp:assembleWearDebug \
+            :androidApp:lint
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nuvx-nightly-android
+          path: App/androidApp/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-prerelease:
+    needs: android
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'schedule' && vars.NUVX_ENABLE_NIGHTLY_RELEASES == 'true') ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish_nightly))
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download this run's Android APKs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir release-artifacts
+
+      - name: Create dated preview prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          for directory in release-artifacts/nuvx-nightly-*; do
+            name="$(basename "$directory")"
+            zip -rq "${name}.zip" "$directory"
+          done
+          assets=(nuvx-nightly-*.zip)
+          if ((${#assets[@]} == 0)); then
+            echo "No platform packages were downloaded" >&2
+            exit 1
+          fi
+          tag="nuvx-nightly-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf '%s\n' \
+            "Automated nuvx nightly preview from commit ${GITHUB_SHA}." \
+            "" \
+            "These are prerelease debug builds, not stable or store-ready packages." \
+            "Android APKs use the runner's debug signing key; replacing another installation may require uninstalling it first." \
+            "These previews are Android-only and are not signed with the Nuvx production key." \
+            > release-notes.md
+          gh release create "$tag" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "nuvx nightly ${GITHUB_RUN_NUMBER}" \
+            --notes-file release-notes.md \
+            --prerelease \
+            --target "$GITHUB_SHA"

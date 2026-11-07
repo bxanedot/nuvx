@@ -50,3 +50,33 @@ export async function commitCanvas(id: string, bytes: Uint8Array, token: string,
   if (put.ok) return { status: put.status };
   return { status: put.status, message: ((await put.json().catch(() => ({}))) as { message?: string }).message };
 }
+
+export function canvasKey(title: string, artist: string): string {
+  const clean = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  return `${clean(title)}|${clean(artist).replace(/ - topic$/i, "")}`;
+}
+
+/** Adds the committed song to the shared index. Metadata and index failures are deliberately best effort. */
+export async function shareCanvas(id: string, token: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const embed = await fetchFn(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`);
+    if (!embed.ok) return false;
+    const { title, author_name } = await embed.json() as { title?: string; author_name?: string };
+    if (!title || !author_name) return false;
+    const headers = { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "nuvx-canvas-upload" };
+    const path = `${REPO_FILE}index.json`;
+    const existing = await fetchFn(path, { headers });
+    let sha: string | undefined;
+    let index: Record<string, string> = {};
+    if (existing.ok) {
+      const file = await existing.json() as { sha?: string; content?: string };
+      sha = file.sha;
+      const bytes = Uint8Array.from(atob((file.content ?? "").replace(/\s/g, "")), char => char.charCodeAt(0));
+      index = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, string>;
+    } else if (existing.status !== 404) return false;
+    index[canvasKey(title, author_name)] = id;
+    const content = base64(new TextEncoder().encode(JSON.stringify(index, null, 2) + "\n"));
+    const put = await fetchFn(path, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ message: `Share canvas ${id}`, content, branch: "main", ...(sha ? { sha } : {}) }) });
+    return put.ok;
+  } catch { return false; }
+}

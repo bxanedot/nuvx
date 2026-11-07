@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 class SleepTimerTest {
     private class Playing : NuvxPlayer {
         override val state = MutableStateFlow(PlayerState(listOf(Track("a", "a"), Track("b", "b")), index = 0, isPlaying = true))
-        override fun playQueue(tracks: List<Track>, startIndex: Int) = Unit
+        override fun playQueue(tracks: List<Track>, startIndex: Int, initialPositionMs: Long, autoplay: Boolean) = Unit
         override fun enqueue(tracks: List<Track>) = Unit
         override fun togglePlay() { state.value = state.value.copy(isPlaying = !state.value.isPlaying) }
         override fun seekTo(positionMs: Long) = Unit
@@ -48,5 +48,19 @@ class SleepTimerTest {
         timer.set(SleepTimer.Mode.After(1)); timer.set(null)
         advanceTimeBy(120_000); runCurrent()
         assertTrue(player.state.value.isPlaying, "a cancelled timer never pauses")
+    }
+
+    @Test fun pausesWhenRepeatOneRestartsTheSameTrackAfterItsEnd() = runTest {
+        val player = Playing()
+        player.state.value = player.state.value.copy(repeat = RepeatMode.ONE)
+        val timer = SleepTimer(player, backgroundScope)
+        timer.set(SleepTimer.Mode.EndOfTrack); runCurrent()
+
+        player.state.value = player.state.value.copy(positionMs = 89_500, durationMs = 90_000); runCurrent()
+        assertTrue(player.state.value.isPlaying)
+        player.state.value = player.state.value.copy(positionMs = 0); runCurrent()
+
+        assertFalse(player.state.value.isPlaying)
+        assertNull(timer.mode.value)
     }
 }

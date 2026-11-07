@@ -1,7 +1,10 @@
 package com.bxane.nuvx.core
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -38,7 +41,7 @@ class LrcTest {
 class RadioStationTest {
     private class FakePlayer : NuvxPlayer {
         override val state = MutableStateFlow(PlayerState())
-        override fun playQueue(tracks: List<Track>, startIndex: Int) { state.value = PlayerState(tracks, startIndex) }
+        override fun playQueue(tracks: List<Track>, startIndex: Int, initialPositionMs: Long, autoplay: Boolean) { state.value = PlayerState(tracks, startIndex) }
         override fun enqueue(tracks: List<Track>) { state.value = state.value.copy(queue = state.value.queue + tracks) }
         override fun togglePlay() = Unit
         override fun seekTo(positionMs: Long) = Unit
@@ -47,7 +50,7 @@ class RadioStationTest {
         override fun skipTo(index: Int) = Unit
     }
 
-    private class Station : MusicBackend {
+    private open class Station : MusicBackend {
         override val id = BackendId.INNERTUBEX
         override suspend fun search(query: String, filter: SearchFilter) = SearchResults(emptyList(), emptyList())
         override suspend fun stream(videoId: String): AudioStream? = null
@@ -67,6 +70,77 @@ class RadioStationTest {
         radio.onState(player.state.value)
         testScheduler.advanceUntilIdle()
         assertEquals(listOf("seed", "a", "b", "c"), player.state.value.queue.map { it.videoId })
+    }
+
+    @Test fun disabledAvoidanceAllowsDuplicatesButStillRemembersThem() = runTest {
+        val player = FakePlayer()
+        val backend = object : Station() {
+            var calls = 0
+            override suspend fun radio(seedVideoId: String, continuation: String?): RadioPage = when (calls++) {
+                0 -> RadioPage(listOf(t("a"), t("a")), "next")
+                else -> RadioPage(listOf(t("b"), t("a")), null)
+            }
+        }
+        val radio = RadioStation(BackendRouter(mapOf(BackendId.INNERTUBEX to backend)), player, this, refillWhenRemaining = 5, avoidRepeats = false)
+
+        radio.start(t("seed"))
+        assertEquals(listOf("seed", "a", "a"), player.state.value.queue.map { it.videoId })
+
+        radio.avoidRepeats = true
+        radio.onState(player.state.value)
+        testScheduler.advanceUntilIdle()
+        assertEquals(listOf("seed", "a", "a", "b"), player.state.value.queue.map { it.videoId })
+    }
+
+    @Test fun replacingTheCurrentTrackStopsTheOldRadioSession() = runTest {
+        val player = FakePlayer()
+        val backend = object : Station() {
+            var calls = 0
+            override suspend fun radio(seedVideoId: String, continuation: String?): RadioPage {
+                calls++
+                return super.radio(seedVideoId, continuation)
+            }
+        }
+        val radio = RadioStation(BackendRouter(mapOf(BackendId.INNERTUBEX to backend)), player, this, refillWhenRemaining = 5)
+        radio.start(t("seed"))
+        player.playQueue(listOf(t("other")))
+
+        radio.onState(player.state.value)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(1, backend.calls)
+        assertEquals(listOf("other"), player.state.value.queue.map { it.videoId })
+    }
+
+    @Test fun queuePreparationWithoutCurrentIndexDoesNotStopRadio() = runTest {
+        val player = FakePlayer()
+        val radio = RadioStation(BackendRouter(mapOf(BackendId.INNERTUBEX to Station())), player, this, refillWhenRemaining = 5)
+        radio.start(t("seed"))
+
+        radio.onState(player.state.value.copy(index = -1))
+        radio.onState(player.state.value)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(listOf("seed", "a", "b", "c", "bad"), player.state.value.queue.map { it.videoId })
+    }
+
+    @Test fun lateRadioStartCannotReplaceANewerStation() = runTest {
+        val player = FakePlayer()
+        val firstPage = CompletableDeferred<RadioPage>()
+        val backend = object : Station() {
+            override suspend fun radio(seedVideoId: String, continuation: String?): RadioPage = if (seedVideoId == "first") {
+                firstPage.await()
+            } else RadioPage(listOf(t("new-track")), null)
+        }
+        val radio = RadioStation(BackendRouter(mapOf(BackendId.INNERTUBEX to backend)), player, this)
+        val oldStart = async { radio.start(t("first")) }
+        runCurrent()
+
+        radio.start(t("second"))
+        firstPage.complete(RadioPage(listOf(t("old-track")), null))
+        oldStart.await()
+
+        assertEquals(listOf("second", "new-track"), player.state.value.queue.map { it.videoId })
     }
 
     private companion object { fun t(id: String) = Track(id, id) }

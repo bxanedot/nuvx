@@ -1,0 +1,5 @@
+{
+  "repository": "bxanedot/eXcor",
+  "commit": "170e81f1caf92b8cbd637340a50e6ebe686906d5",
+  "paths": ["build.gradle.kts", "gradle.properties", "cleanroom-src", "fixtures/cleanroom", "LICENSE", "NOTICE"]
+}

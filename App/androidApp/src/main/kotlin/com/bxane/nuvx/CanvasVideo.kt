@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -40,23 +41,29 @@ fun CanvasVideo(url: String, modifier: Modifier) {
 @Composable
 private fun LoopingVideo(url: String, modifier: Modifier) {
     val context = LocalContext.current
-    val video = remember(url) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val video = remember(url, lifecycle) {
         ExoPlayer.Builder(context).build().apply {
             trackSelectionParameters = trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true).build()
             volume = 0f
             repeatMode = Player.REPEAT_MODE_ONE
             setMediaItem(MediaItem.fromUri(url))
             prepare()
-            playWhenReady = true
+            playWhenReady = false
         }
     }
-    DisposableEffect(video) { onDispose { video.release() } }
+    DisposableEffect(video, lifecycle) {
+        val visibility = observeCanvasVisibility(lifecycle) { video.playWhenReady = it }
+        onDispose { visibility.close(); video.release() }
+    }
     key(video) {
         AndroidView({ ctx ->
             TextureView(ctx).also { view ->
+                view.alpha = 0f
                 video.setVideoTextureView(view)
                 view.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> view.cropTo(video.videoSize) }
                 video.addListener(object : Player.Listener {
+                    override fun onRenderedFirstFrame() { view.alpha = 1f }
                     override fun onVideoSizeChanged(size: VideoSize) = view.cropTo(size)
                 })
             }

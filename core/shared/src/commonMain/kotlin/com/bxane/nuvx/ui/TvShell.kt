@@ -17,6 +17,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -29,16 +30,16 @@ import androidx.compose.material3.Text
 import com.bxane.nuvx.core.*
 import com.bxane.nuvx.core.Collection
 
-private data class TvTab(val destination: TvDestination, val label: String, val symbolName: String)
+private data class TvTab(val destination: TvDestination, val label: String, val icon: ImageVector, val symbolName: String)
 
 private val tvTabs = listOf(
-    TvTab(TvDestination.HOME, "Home", "house.fill"),
-    TvTab(TvDestination.EXPLORE, "Explore", "safari.fill"),
-    TvTab(TvDestination.LIBRARY, "Library", "books.vertical.fill"),
-    TvTab(TvDestination.NOW_PLAYING, "Now playing", "play.fill"),
-    TvTab(TvDestination.SEARCH, "Search", "magnifyingglass"),
-    TvTab(TvDestination.TOGETHER, "Listen together", "person.2.fill"),
-    TvTab(TvDestination.SETTINGS, "Settings", "gearshape.fill"),
+    TvTab(TvDestination.HOME, "Home", NuvxIcons.Home, "house.fill"),
+    TvTab(TvDestination.EXPLORE, "Explore", NuvxIcons.Explore, "square.grid.2x2.fill"),
+    TvTab(TvDestination.LIBRARY, "Library", NuvxIcons.Library, "music.note.square.stack.fill"),
+    TvTab(TvDestination.NOW_PLAYING, "Now playing", NuvxIcons.Play, "play.fill"),
+    TvTab(TvDestination.SEARCH, "Search", NuvxIcons.Search, "magnifyingglass"),
+    TvTab(TvDestination.TOGETHER, "Listen together", NuvxIcons.Together, "person.2.fill"),
+    TvTab(TvDestination.SETTINGS, "Settings", NuvxIcons.Settings, "gearshape.fill"),
 )
 
 @Composable
@@ -50,8 +51,15 @@ internal fun TvShell(
     lyrics: LyricsChain,
     localLibrary: LocalMusicLibrary?,
     reduceMotion: Boolean,
+    magneticNavigation: Boolean,
     onBackHandler: (@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit)?,
     sleep: SleepTimer? = null,
+    radio: RadioStation,
+    lyricSettings: LyricsProviderSettings,
+    onLyricsChange: (LyricsProviderSettings) -> Unit,
+    lyricsOffsetMs: Long,
+    onLyricsOffsetChange: (Long) -> Unit,
+    lyricsTextSize: LyricsTextSizePreference = LyricsTextSizePreference.DEFAULT,
     canvas: Pair<CommunityCanvas, @Composable (url: String, modifier: Modifier) -> Unit>? = null,
     pageContent: @Composable (TvSubpage) -> Unit,
 ) {
@@ -60,6 +68,9 @@ internal fun TvShell(
     var currentCollection by remember { mutableStateOf<Collection?>(null) }
     val initialFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { initialFocus.requestFocus() } }
+    val selectedTabIndex = tvTabs.indexOfFirst { it.destination == navigation.destination }.coerceAtLeast(0)
+    var focusedTabIndex by remember { mutableIntStateOf(selectedTabIndex) }
+    LaunchedEffect(selectedTabIndex) { focusedTabIndex = selectedTabIndex }
 
     val openPage: (TvSubpage) -> Unit = { page ->
         val destination = when (page) {
@@ -85,12 +96,14 @@ internal fun TvShell(
     Column(Modifier.fillMaxSize().background(NuvxColors.Background).safeDrawingPadding()) {
         Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), contentAlignment = Alignment.Center) {
             Row(
-                Modifier.horizontalScroll(rememberScrollState()).focusGroup().glass(RoundedCornerShape(36.dp)).padding(6.dp),
+                Modifier.horizontalScroll(rememberScrollState()).focusGroup().liquidGlass(RoundedCornerShape(36.dp)).padding(6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 tvTabs.forEachIndexed { index, tab ->
-                    TvTabButton(tab, navigation.destination == tab.destination, if (index == 0) initialFocus else null, motionEnabled = !reduceMotion) {
+                    TvTabButton(tab, index, focusedTabIndex, navigation.destination == tab.destination,
+                        if (index == 0) initialFocus else null, magneticNavigation && !reduceMotion, !reduceMotion,
+                        onFocused = { focusedTabIndex = index }) {
                         selectTab(tab.destination)
                     }
                 }
@@ -99,7 +112,10 @@ internal fun TvShell(
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.fillMaxSize().widthIn(max = 1440.dp)) {
                 when {
-                    navigation.destination == TvDestination.NOW_PLAYING -> NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, sleep = sleep, canvas = canvas,
+                    navigation.destination == TvDestination.NOW_PLAYING -> NowPlayingSheet(player, state, lyrics, history, router, reduceMotion, sleep = sleep,
+                        lyricSettings = lyricSettings, onLyricSettingsChange = onLyricsChange, lyricsOffsetMs = lyricsOffsetMs,
+                        onLyricsOffsetChange = onLyricsOffsetChange, lyricsTextSize = lyricsTextSize, canvas = canvas,
+                        radio = radio,
                         // Album/artist links from the player open over Search, so Back lands somewhere useful.
                         onOpen = { c -> currentCollection = c; navigation = navigation.copy(destination = TvDestination.SEARCH, albumOpen = true, subpage = null) }) {
                         navigation = navigation.back()
@@ -109,7 +125,7 @@ internal fun TvShell(
                         Box(Modifier.weight(1f)) {
                             currentCollection?.let {
                                 // Artists get their own page; an album opened from it replaces the artist (Back returns to search).
-                                if (it.kind == Collection.Kind.ARTIST) ArtistPage(router, player, state, it) { next -> currentCollection = next }
+                                if (it.kind == Collection.Kind.ARTIST) ArtistPage(router, player, state, it, { next -> currentCollection = next }, reduceMotion)
                                 else AlbumPage(router, player, state, it)
                             }
                                 ?: Text("Album unavailable.", color = NuvxColors.Secondary, modifier = Modifier.align(Alignment.Center))
@@ -119,21 +135,31 @@ internal fun TvShell(
                         TvBackButton("Back") { navigation = navigation.back() }
                         Box(Modifier.weight(1f)) { pageContent(navigation.subpage!!) }
                     }
-                    navigation.destination == TvDestination.HOME -> HomeScreen(history, router, player, { openPage(TvSubpage.TOGETHER) }, { openPage(TvSubpage.SETTINGS) })
+                    navigation.destination == TvDestination.HOME -> HomeScreen(
+                        history, router, player,
+                        onTogether = { openPage(TvSubpage.TOGETHER) }, onAccount = { openPage(TvSubpage.SETTINGS) },
+                        onExplore = { selectTab(TvDestination.EXPLORE) },
+                        onSearch = { searchQuery = null; selectTab(TvDestination.SEARCH) },
+                        onMood = { query -> searchQuery = query; selectTab(TvDestination.SEARCH) },
+                    )
                     navigation.destination == TvDestination.EXPLORE -> ExploreScreen({ query ->
                         searchQuery = query
                         navigation = navigation.copy(destination = TvDestination.SEARCH, albumOpen = false, subpage = null)
                     }, router) { openPage(TvSubpage.SETTINGS) }
                     navigation.destination == TvDestination.LIBRARY -> LibraryScreen(
                         history, state, player,
-                        { openPage(TvSubpage.QUEUE) }, { openPage(TvSubpage.LIKED) }, { openPage(TvSubpage.TOGETHER) }, { openPage(TvSubpage.SETTINGS) },
+                        onLiked = { openPage(TvSubpage.LIKED) }, onAccount = { openPage(TvSubpage.SETTINGS) },
                         onLocalLibrary = if (localLibrary != null) ({ openPage(TvSubpage.LOCAL_LIBRARY) }) else null,
-                        reduceMotion = reduceMotion,
+                        motionEnabled = !reduceMotion,
                     )
-                    navigation.destination == TvDestination.SEARCH -> SearchScreen(router, player, history, searchQuery, { collection ->
-                        currentCollection = collection
-                        navigation = navigation.copy(albumOpen = true)
-                    }) { openPage(TvSubpage.SETTINGS) }
+                    navigation.destination == TvDestination.SEARCH -> SearchScreen(
+                        router, player, history, searchQuery,
+                        onOpen = { collection ->
+                            currentCollection = collection
+                            navigation = navigation.copy(albumOpen = true)
+                        },
+                        onAccount = { openPage(TvSubpage.SETTINGS) },
+                    )
                     else -> Text("Play something to see it here.", color = NuvxColors.Secondary, fontSize = 18.sp, modifier = Modifier.align(Alignment.Center))
                 }
             }
@@ -142,13 +168,14 @@ internal fun TvShell(
 }
 
 @Composable
-private fun TvTabButton(tab: TvTab, selected: Boolean, focusRequester: FocusRequester?, motionEnabled: Boolean, onClick: () -> Unit) {
+private fun TvTabButton(tab: TvTab, itemIndex: Int, focusedIndex: Int, selected: Boolean,
+    focusRequester: FocusRequester?, magneticEnabled: Boolean, motionEnabled: Boolean, onFocused: () -> Unit, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val modifier = if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester)
     Row(
-        modifier.onFocusChanged { focused = it.isFocused }
-            .clip(CircleShape)
-            .background(if (focused) Color.White.copy(alpha = 0.22f) else if (selected) Color.White.copy(alpha = 0.13f) else Color.Transparent)
+        modifier.onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
+            .then(if (selected) Modifier.liquidGlass(CircleShape) else Modifier.clip(CircleShape))
+            .background(if (focused) Color.White.copy(alpha = 0.12f) else Color.Transparent, CircleShape)
             .border(if (focused) 2.dp else 0.dp, if (focused) Color.White else Color.Transparent, CircleShape)
             .heightIn(min = 48.dp)
             .clickable(onClick = onClick)
@@ -157,8 +184,11 @@ private fun TvTabButton(tab: TvTab, selected: Boolean, focusRequester: FocusRequ
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        NuvxGlyphIcon(tab.symbolName, Modifier.size(20.dp), tint = if (focused || selected) NuvxColors.Accent else NuvxColors.Secondary,
-            selected = focused || selected, trigger = focused || selected, motionEnabled = motionEnabled)
+        if (magneticEnabled) MagneticNavigationIcon(tab.icon, itemIndex, focusedIndex, 20.dp,
+            if (focused || selected) NuvxColors.Accent else NuvxColors.Secondary,
+            symbolName = tab.symbolName, selected = focused || selected, motionEnabled = motionEnabled, trigger = focused || selected)
+        else NuvxGlyphIcon(tab.symbolName, Modifier.size(20.dp), tint = if (focused || selected) NuvxColors.Accent else NuvxColors.Secondary,
+            selected = focused || selected, trigger = focused || selected, animateOnTrigger = focused || selected, motionEnabled = motionEnabled)
         Text(tab.label, color = if (focused || selected) NuvxColors.Text else NuvxColors.Secondary, fontSize = 14.sp)
     }
 }
