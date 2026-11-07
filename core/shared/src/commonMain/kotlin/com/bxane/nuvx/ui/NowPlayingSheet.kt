@@ -204,6 +204,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
         if (track?.artworkUrl != null) AsyncImage(track.artworkUrl, null, Modifier.fillMaxSize().blur(90.dp).alpha(0.75f), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(0.35f), Color.Black.copy(0.55f), Color.Black.copy(0.8f)))))
         // Phones show the artwork full bleed: edge to edge from the top, fading into the wash; wide screens keep the inset tile.
+        val compactHeight = maxHeight < 480.dp
         val sheetWidth = maxWidth
         val tallNarrowScreen = maxWidth < 600.dp && maxHeight >= maxWidth * 1.25f
         val bleed = shouldUseFullBleedArtwork(fullBleed, mode == SheetMode.ARTWORK, tallNarrowScreen, track)
@@ -258,7 +259,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                 when (mode) {
                     SheetMode.ARTWORK -> ArtworkMode(track, displayedLyrics, state.positionMs, actions, player::next, player::previous, artMorph, canvasLayer, artworkScale,
                         videoSurface = videoSurface?.takeIf { track?.mediaKind == MediaKind.VIDEO && state.error == null },
-                        videoResolution = state.videoResolution,
+                        videoResolution = state.videoResolution, compactHeight = compactHeight,
                         bleedGap = if (bleed) with(density) { (sheetWidth.toPx() * 1.1f - modeTop).coerceAtLeast(0f).toDp() } else null,
                         progress = if (bleed) ({ Progress(player, state) }) else null) { mode = SheetMode.LYRICS }
                     SheetMode.LYRICS -> when (val l = displayedLyrics) {
@@ -288,7 +289,7 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
                 }
             }
             // Full bleed keeps the progress bar up under the title (see ArtworkMode) and leaves the space above the controls.
-            Transport(player, state, showProgress = !bleed, large = bleed, reduceMotion = reduceMotion)
+            Transport(player, state, showProgress = !bleed, large = bleed, reduceMotion = reduceMotion, compactHeight = compactHeight)
             state.error?.let { error ->
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error, color = Color(0xFFFF8A80), fontSize = 13.sp, maxLines = 2,
@@ -372,29 +373,33 @@ fun NowPlayingSheet(player: NuvxPlayer, state: PlayerState, library: LyricsChain
     TrackChips(track != null, actions)
 }
 
-@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, artworkScale: Float, videoSurface: (@Composable (modifier: Modifier) -> Unit)?, videoResolution: VideoResolution?, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
+@Composable private fun ArtworkMode(track: Track?, lyrics: Lyrics?, positionMs: Long, actions: TrackActions, onNext: () -> Unit, onPrevious: () -> Unit, artMorph: Modifier, canvasLayer: (@Composable () -> Unit)?, artworkScale: Float, videoSurface: (@Composable (modifier: Modifier) -> Unit)?, videoResolution: VideoResolution?, compactHeight: Boolean, bleedGap: Dp?, progress: (@Composable () -> Unit)?, openLyrics: () -> Unit) = Column(Modifier.fillMaxSize(), verticalArrangement = if (bleedGap != null) Arrangement.Top else Arrangement.Center) {
     // Full bleed: the artwork is drawn behind the sheet, so this space over it only carries the swipe gesture.
     // The artwork gap yields space to the title and time labels on shorter screens.
     if (bleedGap != null) Spacer(Modifier.weight(1f, fill = false).height(bleedGap).fillMaxWidth().trackSwipe(onNext, onPrevious))
-    else Box(artMorph.weight(1f, fill = false).aspectRatio(if (track?.mediaKind == MediaKind.VIDEO) 16f / 10f else 1f).fillMaxWidth().trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp))) {
-        if (track?.mediaKind == MediaKind.VIDEO && videoSurface != null) {
-            ArtworkTile(track, Modifier.fillMaxSize(), 1080)
-            videoSurface(Modifier.fillMaxSize())
-            videoResolution?.takeIf { it.width > 0 && it.height > 0 }?.let { resolution ->
-                Text("${resolution.width} × ${resolution.height}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(8.dp))
-                        .background(Color.Black.copy(alpha = 0.72f)).padding(horizontal = 9.dp, vertical = 6.dp)
-                        .semantics { contentDescription = "Current video resolution ${resolution.width} by ${resolution.height}" })
-            }
-        }
-        else {
-            Box(Modifier.fillMaxSize().graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }) {
+    else BoxWithConstraints(Modifier.weight(1f, fill = false).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val ratio = if (track?.mediaKind == MediaKind.VIDEO) 16f / 10f else 1f
+        val mediaHeight = minOf(maxHeight, maxWidth / ratio)
+        Box(artMorph.size(mediaHeight * ratio, mediaHeight).trackSwipe(onNext, onPrevious).clip(RoundedCornerShape(14.dp))) {
+            if (track?.mediaKind == MediaKind.VIDEO && videoSurface != null) {
                 ArtworkTile(track, Modifier.fillMaxSize(), 1080)
-                canvasLayer?.invoke()
+                videoSurface(Modifier.fillMaxSize())
+                videoResolution?.takeIf { it.width > 0 && it.height > 0 }?.let { resolution ->
+                    Text("${resolution.width} × ${resolution.height}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.72f)).padding(horizontal = 9.dp, vertical = 6.dp)
+                            .semantics { contentDescription = "Current video resolution ${resolution.width} by ${resolution.height}" })
+                }
+            }
+            else {
+                Box(Modifier.fillMaxSize().graphicsLayer { scaleX = artworkScale; scaleY = artworkScale }) {
+                    ArtworkTile(track, Modifier.fillMaxSize(), 1080)
+                    canvasLayer?.invoke()
+                }
             }
         }
     }
-    Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(top = if (bleedGap != null) 0.dp else if (compactHeight) 8.dp else 24.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(track?.title ?: "Nothing playing", color = Color.White, fontWeight = if (bleedGap != null) FontWeight.SemiBold else FontWeight.Bold, fontSize = if (bleedGap != null) 19.sp else 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.linkTo(actions.openAlbum, "Open album"))
@@ -546,14 +551,16 @@ private fun lyricsOffsetLabel(offsetMs: Long): String {
     }
 }
 
-@Composable private fun Transport(player: NuvxPlayer, state: PlayerState, showProgress: Boolean = true, large: Boolean = false, reduceMotion: Boolean = false) {
+@Composable private fun Transport(player: NuvxPlayer, state: PlayerState, showProgress: Boolean = true, large: Boolean = false, reduceMotion: Boolean = false, compactHeight: Boolean = false) {
     CompositionLocalProvider(LocalNuvxPalette provides NuvxPalette.Dark) {
-        Column(Modifier.padding(bottom = 16.dp)) {
+        val skipSize = if (compactHeight) 48.dp else if (large) 80.dp else 64.dp
+        val playSize = if (compactHeight) 64.dp else if (large) 96.dp else 80.dp
+        Column(Modifier.padding(bottom = if (compactHeight) 8.dp else 16.dp)) {
             if (showProgress) Progress(player, state)
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                PlainIconButton(NuvxIcons.Back, "Previous", if (large) 80.dp else 64.dp) { player.previous() }
+            Row(Modifier.fillMaxWidth().padding(top = if (compactHeight) 0.dp else 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                PlainIconButton(NuvxIcons.Back, "Previous", skipSize) { player.previous() }
                 if (state.buffering) {
-                    Box(Modifier.size(if (large) 96.dp else 80.dp).clip(CircleShape).focusRing()
+                    Box(Modifier.size(playSize).clip(CircleShape).focusRing()
                         .clickable(onClick = player::togglePlay).semantics {
                             contentDescription = if (state.isPlaying) "Pause" else "Play"
                             stateDescription = "Buffering"
@@ -562,8 +569,8 @@ private fun lyricsOffsetLabel(offsetMs: Long): String {
                         if (reduceMotion) CircularProgressIndicator(progress = { 0.75f }, modifier = Modifier.size(40.dp), color = Color.White)
                         else CircularProgressIndicator(Modifier.size(40.dp), color = Color.White)
                     }
-                } else PlayPauseIconButton(state.isPlaying, player::togglePlay, if (large) 96.dp else 80.dp, reduceMotion = reduceMotion)
-                PlainIconButton(NuvxIcons.Forward, "Next", if (large) 80.dp else 64.dp, enabled = state.index < state.queue.lastIndex) { player.next() }
+                } else PlayPauseIconButton(state.isPlaying, player::togglePlay, playSize, reduceMotion = reduceMotion)
+                PlainIconButton(NuvxIcons.Forward, "Next", skipSize, enabled = state.index < state.queue.lastIndex) { player.next() }
             }
         }
         }

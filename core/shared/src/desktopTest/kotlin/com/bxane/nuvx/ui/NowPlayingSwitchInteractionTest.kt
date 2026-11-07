@@ -25,6 +25,8 @@ class NowPlayingSwitchInteractionTest {
     @Test fun unavailableVideoIsHiddenAndSongAudioKeepsTheCurrentPosition() = checkSwitch(400, 900, 1f)
     @Test fun narrowPhoneAtDoubleFontKeepsSongAudioReachable() = checkSwitch(320, 640, 2f)
 
+    @Test fun shortLandscapeKeepsSongAudioReachable() = checkSwitch(640, 360, 1f)
+
     @Test fun lightAppPaletteKeepsPlayVisibleOnTheDarkPlayer() = checkSwitch(400, 900, 1f, lightPalette = true)
 
     private fun checkSwitch(width: Int, height: Int, fontScale: Float, lightPalette: Boolean = false) {
@@ -79,14 +81,21 @@ class NowPlayingSwitchInteractionTest {
                 .filter { label in it.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() }
             try {
                 render()
+                val title = scene.semanticsOwners.flatMap { descendants(it.rootSemanticsNode) }
+                    .single { it.config.getOrNull(SemanticsProperties.Text)?.any { text -> text.text == "Signal" } == true }
+                val titleBounds = title.boundsInRoot
+                assertTrue(titleBounds.height > 0 && titleBounds.top >= 0 && titleBounds.bottom <= height,
+                    "Track title must remain visible: $titleBounds")
+                val closeBounds = controls("Close player").single().boundsInRoot
+                assertTrue(closeBounds.height > 0 && closeBounds.top >= 0 && closeBounds.bottom <= titleBounds.top,
+                    "Header must remain above the track title: $closeBounds / $titleBounds")
                 val images = File("build/reports/player-images").apply { mkdirs() }
                 scene.render(frame++ * 16_000_000L).use { image ->
                     image.encodeToData()?.use { File(images, "$width-$height-$fontScale-$lightPalette.png").writeBytes(it.bytes) }
-                    if (lightPalette) {
-                        val bounds = controls("Play").single().boundsInRoot
-                        Bitmap().use { pixels ->
-                            assertTrue(pixels.allocPixels(image.imageInfo))
-                            assertTrue(image.readPixels(pixels))
+                    Bitmap().use { pixels ->
+                        assertTrue(pixels.allocPixels(image.imageInfo))
+                        assertTrue(image.readPixels(pixels))
+                        fun brightPixels(bounds: androidx.compose.ui.geometry.Rect): Int {
                             var bright = 0
                             for (y in bounds.top.toInt().coerceAtLeast(0) until minOf(height, bounds.bottom.toInt())) {
                                 for (x in bounds.left.toInt().coerceAtLeast(0) until minOf(width, bounds.right.toInt())) {
@@ -94,8 +103,11 @@ class NowPlayingSwitchInteractionTest {
                                     if ((color ushr 16 and 255) > 220 && (color ushr 8 and 255) > 220 && (color and 255) > 220) bright++
                                 }
                             }
-                            assertTrue(bright > 20, "Play must remain bright on the dark player in light app mode: $bright bright pixels")
+                            return bright
                         }
+                        assertTrue(brightPixels(titleBounds) > 20, "Track title must not be painted over by artwork")
+                        if (lightPalette) assertTrue(brightPixels(controls("Play").single().boundsInRoot) > 20,
+                            "Play must remain bright on the dark player in light app mode")
                     }
                 }
                 val playBounds = controls("Play").single().boundsInRoot
