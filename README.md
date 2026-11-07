@@ -24,7 +24,7 @@ Android is the active product scope: phones, tablets, Android TV, and Wear OS. D
 nuvx talks to YouTube Music through a `MusicBackend` interface, and you choose the engine in Settings:
 
 - **InnerTubeX** (default) handles search, radio and audio streams. Verified live (see `LiveBackendTest`).
-- **eXcor** (alternative) handles search and radio. Its stream extraction is currently refused by YouTube because eXcor does not mint PO tokens. With automatic fallback turned on, nuvx retries on the other engine and shows which engine answered.
+- **eXcor** (alternative) handles search, radio, audio and adaptive video extraction. The opt-in Nuvx router check resolved 720p video with companion audio on 2026-11-07; native playback remains unverified. Video resolution honors the selected engine, quality cap and automatic fallback, and records which engine answered. Progressive-only video with embedded audio still needs native source support.
 
 ## Build
 

@@ -148,13 +148,22 @@ class BackendRouter(
     suspend fun resolveVideo(videoId: String, maxHeight: Int? = videoQuality.value.maxHeight): VideoStream {
         require(Regex("[A-Za-z0-9_-]{11}").matches(videoId)) { "Invalid video identifier" }
         require(maxHeight == null || maxHeight in 144..4320) { "Unsupported video height" }
-        val backend = backends[BackendId.INNERTUBEX] as? VideoCapableBackend
-            ?: throw BackendFailure(BackendId.INNERTUBEX, "video", UnsupportedOperationException("Video extraction is unavailable"))
-        val stream = backend.video(videoId, maxHeight)
-            ?: throw BackendFailure(BackendId.INNERTUBEX, "video", IllegalStateException("No playable video is available"))
-        require(stream.videoId == videoId && isSupportedMediaAddress(stream.audioUrl) && isSupportedMediaAddress(stream.videoUrl)) {
-            "The engine returned an unsupported media address"
-        }
+        val stream = route<VideoStream?>("video", { it == null }) { backend ->
+            val capable = backend as? VideoCapableBackend ?: return@route null
+            val result = try {
+                capable.video(videoId, maxHeight)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                throw IllegalStateException("Video source resolution failed")
+            }
+            result?.also {
+                require(it.videoId == videoId && it.backend == backend.id &&
+                    isSupportedMediaAddress(it.audioUrl) && isSupportedMediaAddress(it.videoUrl)) {
+                    "The engine returned unsupported video sources"
+                }
+            }
+        } ?: throw BackendFailure(_selected.value, "video", IllegalStateException("No playable video is available"))
         return stream
     }
 

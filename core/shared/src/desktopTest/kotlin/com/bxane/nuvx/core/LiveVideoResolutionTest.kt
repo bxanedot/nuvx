@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assume.assumeTrue
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -46,5 +47,17 @@ class LiveVideoResolutionTest {
         assertTrue(stream.video.containsAudio || stream.audio != null, "Video has no companion or embedded audio")
         stream.audio?.let { assertTrue(isSupportedMediaAddress(it.url), "Audio stream address is unsupported") }
         println("eXcor video resolution=${stream.video.width}x${stream.video.height}; embeddedAudio=${stream.video.containsAudio}; companionAudio=${stream.audio != null}")
+    }
+
+    @Test fun excorBackendResolvesVideoThroughSelectedEngine() = runBlocking {
+        assumeTrue("Set NUVX_LIVE=1 to contact YouTube", System.getenv("NUVX_LIVE") == "1")
+        val backend = ExcorBackend()
+        val router = BackendRouter(mapOf(backend.id to backend), BackendId.EXCOR, fallback = false)
+        val stream = withTimeout(60_000) { router.resolveVideo("dQw4w9WgXcQ", 720) }
+        assertEquals(BackendId.EXCOR, stream.backend)
+        assertTrue(stream.height != null && stream.height in 1..720, "Video height exceeds the requested limit")
+        assertTrue(isSupportedMediaAddress(stream.audioUrl) && isSupportedMediaAddress(stream.videoUrl))
+        assertEquals(true, router.health.value[BackendId.EXCOR]?.ok)
+        println("Nuvx eXcor video resolution=${stream.width}x${stream.height}; backend=${stream.backend}")
     }
 }

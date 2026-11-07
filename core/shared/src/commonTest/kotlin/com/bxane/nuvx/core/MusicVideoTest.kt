@@ -171,7 +171,7 @@ class MusicVideoTest {
         assertEquals(video, MusicVideoMatcher.bestMatch(song, listOf(video)))
     }
 
-    @Test fun videoSearchAndPlaybackStayOnInnerTubeXAndValidateBothSources() = runTest {
+    @Test fun videoSearchUsesPrimaryAndPlaybackFallsBackFromUnsupportedEngine() = runTest {
         val audioUrl = "https://r1.googlevideo.com/audio?sig=secret-audio"
         val videoUrl = "https://r1.googlevideo.com/video?sig=secret-video"
         val headers = mapOf("Authorization" to "secret-header")
@@ -209,9 +209,9 @@ class MusicVideoTest {
         assertFalse(resolved.toString().contains("secret"))
 
         resolved = resolved.copy(videoUrl = "http://127.0.0.1/private")
-        assertFailsWith<IllegalArgumentException> { router.resolveVideo("abcdefghijk") }
+        assertFailsWith<BackendFailure> { router.resolveVideo("abcdefghijk") }
         resolved = resolved.copy(audioUrl = "https://googlevideo.com.evil.test/private")
-        assertFailsWith<IllegalArgumentException> { router.resolveVideo("abcdefghijk") }
+        assertFailsWith<BackendFailure> { router.resolveVideo("abcdefghijk") }
 
         val unsupported = BackendRouter(mapOf(alternative.id to alternative), selected = BackendId.EXCOR)
         assertFailsWith<BackendFailure> { unsupported.resolveVideo("abcdefghijk") }
