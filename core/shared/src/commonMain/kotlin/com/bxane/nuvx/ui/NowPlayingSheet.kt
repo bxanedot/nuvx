@@ -545,15 +545,17 @@ private fun lyricsOffsetLabel(offsetMs: Long): String {
 }
 
 @Composable private fun Transport(player: NuvxPlayer, state: PlayerState, showProgress: Boolean = true, large: Boolean = false, reduceMotion: Boolean = false) {
-    Column(Modifier.padding(bottom = 16.dp)) {
-        if (showProgress) Progress(player, state)
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            PlainIconButton(NuvxIcons.Back, "Previous", if (large) 80.dp else 64.dp) { player.previous() }
-            PlayPauseIconButton(state.isPlaying, player::togglePlay, if (large) 96.dp else 80.dp, reduceMotion = reduceMotion)
-            PlainIconButton(NuvxIcons.Forward, "Next", if (large) 80.dp else 64.dp, enabled = state.index < state.queue.lastIndex) { player.next() }
+    CompositionLocalProvider(LocalNuvxPalette provides NuvxPalette.Dark) {
+        Column(Modifier.padding(bottom = 16.dp)) {
+            if (showProgress) Progress(player, state)
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                PlainIconButton(NuvxIcons.Back, "Previous", if (large) 80.dp else 64.dp) { player.previous() }
+                PlayPauseIconButton(state.isPlaying, player::togglePlay, if (large) 96.dp else 80.dp, reduceMotion = reduceMotion)
+                PlainIconButton(NuvxIcons.Forward, "Next", if (large) 80.dp else 64.dp, enabled = state.index < state.queue.lastIndex) { player.next() }
+            }
+        }
         }
     }
-}
 
 /** Slim seek bar: tap or drag anywhere on it; thickens while dragging. Exposes range info and a set-progress action to screen readers. */
 @Composable private fun ThinProgress(positionMs: Long, durationMs: Long, seek: (Long) -> Unit) {

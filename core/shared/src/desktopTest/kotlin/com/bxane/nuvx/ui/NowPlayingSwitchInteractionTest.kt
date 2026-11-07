@@ -2,6 +2,7 @@ package com.bxane.nuvx.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
@@ -13,6 +14,8 @@ import com.bxane.nuvx.core.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import javax.swing.SwingUtilities
+import java.io.File
+import org.jetbrains.skia.Bitmap
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -22,10 +25,14 @@ class NowPlayingSwitchInteractionTest {
     @Test fun unavailableVideoIsHiddenAndSongAudioKeepsTheCurrentPosition() = checkSwitch(400, 900, 1f)
     @Test fun narrowPhoneAtDoubleFontKeepsSongAudioReachable() = checkSwitch(320, 640, 2f)
 
-    private fun checkSwitch(width: Int, height: Int, fontScale: Float) {
+    @Test fun lightAppPaletteKeepsPlayVisibleOnTheDarkPlayer() = checkSwitch(400, 900, 1f, lightPalette = true)
+
+    private fun checkSwitch(width: Int, height: Int, fontScale: Float, lightPalette: Boolean = false) {
         SwingUtilities.invokeAndWait {
+            val cover = File("../assets/brand/mark/nuvx_mark_white.png")
+            assertTrue(cover.isFile, "Owned test artwork must be inside the source checkout")
             val song = Track("aaaaaaaaaaa", "Signal", listOf("Nova"), durationMs = 180_000,
-                pairedVideoId = "bbbbbbbbbbb")
+                pairedVideoId = "bbbbbbbbbbb", artworkUrl = cover.toURI().toString())
             val player = object : NuvxPlayer {
                 override val state = MutableStateFlow(PlayerState(listOf(song), 0, positionMs = 12_345))
                 val replacements = mutableListOf<Pair<Track, Long>>()
@@ -56,11 +63,13 @@ class NowPlayingSwitchInteractionTest {
             val lyrics = LyricsChain(emptyList())
             val scene = ImageComposeScene(width, height, density = Density(1f, fontScale)) {
                 val state = player.state.collectAsState().value
+                CompositionLocalProvider(LocalNuvxPalette provides if (lightPalette) NuvxPalette.Light else NuvxPalette.Dark) {
                 MaterialTheme {
                     NowPlayingSheet(player, state, lyrics, history, router, reduceMotion = true,
                         lyricSettings = LyricsProviderSettings(emptyList(), preferredSource = null),
                         onLyricSettingsChange = {}, lyricsOffsetMs = 0, onLyricsOffsetChange = {},
                         androidUi = true, videoSurface = {}, radio = radio, onClose = {})
+                }
                 }
             }
             var frame = 0L
@@ -69,6 +78,25 @@ class NowPlayingSwitchInteractionTest {
                 .filter { label in it.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() }
             try {
                 render()
+                val images = File("build/reports/player-images").apply { mkdirs() }
+                scene.render(frame++ * 16_000_000L).use { image ->
+                    image.encodeToData()?.use { File(images, "$width-$height-$fontScale-$lightPalette.png").writeBytes(it.bytes) }
+                    if (lightPalette) {
+                        val bounds = controls("Play").single().boundsInRoot
+                        Bitmap().use { pixels ->
+                            assertTrue(pixels.allocPixels(image.imageInfo))
+                            assertTrue(image.readPixels(pixels))
+                            var bright = 0
+                            for (y in bounds.top.toInt().coerceAtLeast(0) until minOf(height, bounds.bottom.toInt())) {
+                                for (x in bounds.left.toInt().coerceAtLeast(0) until minOf(width, bounds.right.toInt())) {
+                                    val color = pixels.getColor(x, y)
+                                    if ((color ushr 16 and 255) > 220 && (color ushr 8 and 255) > 220 && (color and 255) > 220) bright++
+                                }
+                            }
+                            assertTrue(bright > 20, "Play must remain bright on the dark player in light app mode: $bright bright pixels")
+                        }
+                    }
+                }
                 assertTrue(controls("Watch video").isEmpty(), "Failed lookup must not expose an inert action")
                 player.state.value = player.state.value.copy(queue = listOf(song.copy(mediaKind = MediaKind.VIDEO)))
                 render()
