@@ -57,6 +57,6 @@ test("upload route commits a valid MP4 and updates the shared index", async () =
   assert.ok(calls[0].endsWith(`/canvas/${ID}.mp4`));
   assert.ok(calls[1].endsWith(`/canvas/${ID}.mp4`));
   assert.ok(calls[2].includes("youtube.com/oembed"));
-  assert.ok(calls[3].endsWith("/canvas/index.json"));
-  assert.ok(calls[4].endsWith("/canvas/index.json"));
+  assert.ok(calls[3].endsWith("/contents/core/canvas/index.json"));
+  assert.ok(calls[4].endsWith("/contents/core/canvas/index.json"));
 });
