@@ -1,21 +1,22 @@
+/* Colours from the website (core/website/styles.css). */
 :root {
   color-scheme: light dark;
-  --primary: #000000e0;
-  --secondary: #0000008f;
-  --group: #0000000d;
-  --divider: #00000026;
-  --key: #d60017;
-  --bg: #ffffff;
+  --primary: #161718;
+  --secondary: #777b80;
+  --group: #f2f2ef;
+  --divider: #d8d8d5;
+  --key: #193bb2;
+  --bg: #fafafa;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --primary: #ffffffeb;
-    --secondary: #ffffffa3;
-    --group: #ffffff0d;
-    --divider: #ffffff1a;
-    --key: #fa586a;
-    --bg: #1f1f1f;
+    --primary: #f0f0ed;
+    --secondary: #a2a4aa;
+    --group: #11131d;
+    --divider: #282b3b;
+    --key: #91a2ff;
+    --bg: #090a10;
   }
 }
 
