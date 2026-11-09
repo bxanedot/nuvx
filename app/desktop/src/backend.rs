@@ -28,6 +28,12 @@ pub enum Req {
     Moods,
     /// One mood's or genre's page.
     Mood { browse_id: String, params: Option<String> },
+    /// Radio Browser's countries.
+    RadioCountries,
+    /// A country's top stations, or a station search; `key` comes back with them.
+    RadioStations { key: String, country: Option<String>, query: Option<String> },
+    /// A station started playing: Radio Browser ranks by these.
+    RadioClick(String),
     Search(String),
     /// Suggestions for a query; `round` comes back with them, so stale ones can be dropped.
     Suggest { query: String, round: u64 },
@@ -111,6 +117,8 @@ impl Req {
             Req::Explore(_) => "Loading explore",
             Req::Moods => "Loading moods",
             Req::Mood { .. } => "Loading the mood",
+            Req::RadioCountries | Req::RadioStations { .. } => "Loading radio",
+            Req::RadioClick(_) => "Radio",
             Req::Search(_) => "Search",
             Req::Suggest { .. } => "Suggest",
             Req::ForgetSearch(_) => "Removing the search",
@@ -154,7 +162,7 @@ impl Req {
 
     /// Background requests fail quietly (logged, no toast).
     fn quiet(&self) -> bool {
-        matches!(self, Req::Suggest { .. } | Req::Moods | Req::Account | Req::Channels | Req::ServerQueue | Req::Art { .. } | Req::AppleArtist { .. } | Req::AppleCover { .. } | Req::ArtistSignature { .. } | Req::Prefetch { .. } | Req::HomeMore(_) | Req::Lyrics(_) | Req::Segments { .. } | Req::LyricsExtras { .. })
+        matches!(self, Req::Suggest { .. } | Req::Moods | Req::RadioClick(_) | Req::Account | Req::Channels | Req::ServerQueue | Req::Art { .. } | Req::AppleArtist { .. } | Req::AppleCover { .. } | Req::ArtistSignature { .. } | Req::Prefetch { .. } | Req::HomeMore(_) | Req::Lyrics(_) | Req::Segments { .. } | Req::LyricsExtras { .. })
     }
 }
 
@@ -256,6 +264,8 @@ pub enum Resp {
     Explore(Explore),
     Moods(Vec<model::MoodSection>),
     Mood(model::MoodPage),
+    RadioCountries(Result<Vec<crate::radio::Country>, String>),
+    RadioStations { key: String, stations: Result<Vec<crate::radio::Station>, String> },
     Search(SearchResults),
     Suggest { query: String, round: u64, terms: Vec<ytm::Suggestion> },
     /// An album or playlist; `more`: the rest of its songs follow in `CollectionMore`.
@@ -698,6 +708,16 @@ impl Backend {
                     Resp::Moods(sections)
                 }
                 Req::Mood { browse_id, params } => Resp::Mood(ytm::mood_page(api, &browse_id, params.as_deref(), me).await?),
+                // The page shows these failures itself, with a retry.
+                Req::RadioCountries => Resp::RadioCountries(crate::radio::countries(&self.http()).await.map_err(|e| format!("{e:#}"))),
+                Req::RadioStations { key, country, query } => {
+                    let stations = crate::radio::stations(&self.http(), country.as_deref(), query.as_deref()).await.map_err(|e| format!("{e:#}"));
+                    Resp::RadioStations { key, stations }
+                }
+                Req::RadioClick(id) => {
+                    crate::radio::count_click(&self.http(), &id).await;
+                    return Ok(None);
+                }
                 Req::Search(query) => self.search(query, me).await?,
                 Req::Suggest { query, round } => {
                     let terms = ytm::suggestions(api, &query, me).await?.into_iter().take(8).collect();
@@ -1050,6 +1070,10 @@ impl Backend {
     }
 
     async fn start_playback(&self, listed: &str, song_of: Option<&Track>, carried: Option<Track>, track: Option<&Track>, generation: u64, at: std::time::Duration, report: bool) -> anyhow::Result<()> {
+        // A live station: no song version, history or prefetch, just its stream.
+        if let Some(url) = listed.strip_prefix(crate::radio::PREFIX) {
+            return self.play_station(url, generation).await;
+        }
         let t0 = std::time::Instant::now();
         // A music video plays as its song when one is found in time (or goes on as the
         // one it was). From here on, everything (prefetch, replay, history) goes by what
@@ -1317,6 +1341,24 @@ impl Backend {
             }
         }
         ytm::searched_song(&self.api, video).await
+    }
+
+    /// Tune in to a live station. Its buffer holds nothing; it's there to carry a dropped
+    /// connection to the player, which then reopens the station.
+    async fn play_station(&self, url: &str, generation: u64) -> anyhow::Result<()> {
+        let shared = Shared::new(0, 0, None, stream::Format::File { hint: "mp3", mime: None }, None, false);
+        let (reader, hint) = crate::radio::open(self.http(), url, shared.clone()).await?;
+        if self.audio.status.wanted_gen.load(Ordering::Relaxed) != generation {
+            return Ok(());
+        }
+        let audio = self.audio.clone();
+        // Building the decoder reads the stream's first frames, which blocks until they arrive.
+        tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+            let decoder = rodio::Decoder::builder().with_data(reader).with_seekable(false).with_hint(hint).build()?;
+            audio.send(AudioCmd::Start { generation, decoder: crate::audio::TrackDecoder::Live(decoder), shared, at: std::time::Duration::ZERO });
+            Ok(())
+        })
+        .await?
     }
 
     async fn open_stream(&self, video_id: &str, prefetch: bool, track: Option<&Track>) -> anyhow::Result<Arc<Shared>> {
