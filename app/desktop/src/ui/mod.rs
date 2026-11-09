@@ -382,6 +382,8 @@ pub struct App {
     autoplay: bool,
     /// Turn loud tracks down to YouTube's loudness target.
     normalize: bool,
+    /// Spatial audio (Android's): stereo widened. On by default.
+    spatial: bool,
     log_volume: bool,
     high_quality: bool,
     /// Play an official music video as its song version when one is found.
@@ -716,6 +718,7 @@ impl App {
             recoveries: 0,
             autoplay: get("autoplay").is_none_or(|v| v == "1"),
             normalize: get("normalize").is_none_or(|v| v == "1"),
+            spatial: get("spatial_audio").is_none_or(|v| v == "1"),
             log_volume: get("log_volume").is_none_or(|v| v == "1"),
             high_quality: get("high_quality").is_none_or(|v| v == "1"),
             play_songs: get("play_songs").is_none_or(|v| v == "1"),
@@ -909,6 +912,7 @@ impl App {
         }
         jam::dev_hooks(&mut app);
         app.audio.set_normalize(app.normalize);
+        app.audio.set_spatial(app.spatial);
         app.set_crossfade();
         app
     }
@@ -1490,6 +1494,7 @@ impl eframe::App for App {
         });
         storage.set_string("account_cache", cache.and_then(|c| serde_json::to_string(&c).ok()).unwrap_or_default());
         storage.set_string("normalize", b(self.normalize));
+        storage.set_string("spatial_audio", b(self.spatial));
         storage.set_string("log_volume", b(self.log_volume));
         storage.set_string("high_quality", b(self.high_quality));
         storage.set_string("play_songs", b(self.play_songs));
