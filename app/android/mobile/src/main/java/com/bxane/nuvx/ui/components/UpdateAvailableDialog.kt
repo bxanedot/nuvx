@@ -233,7 +233,7 @@ fun UpdateAvailableDialog(
                         // default regardless of theme.
                         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
                             RichText(style = RichTextStyle.Default) {
-                                Markdown(notes)
+                                Markdown(githubMarkdown(notes))
                             }
                         }
                     }
@@ -322,4 +322,24 @@ internal fun AlertRule(modifier: Modifier = Modifier) {
             .height(0.5.dp)
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)),
     )
+}
+
+/**
+ * A release body as GitHub shows it, for CommonMark: `<img>` as a picture, `<br>` as a
+ * line break, `<p>`/`<div>` wrappers dropped, and each single newline a line break
+ * (outside code blocks), so plain-text notes keep their lines.
+ */
+internal fun githubMarkdown(notes: String): String {
+    val img = Regex("""<img\b[^>]*>""", RegexOption.IGNORE_CASE)
+    fun attr(tag: String, name: String) =
+        Regex("""\b$name\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE).find(tag)?.groupValues?.get(1).orEmpty()
+    val html = notes
+        .replace(img) { " ![${attr(it.value, "alt")}](${attr(it.value, "src")}) " }
+        .replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
+        .replace(Regex("""</?(p|div|center|picture)\b[^>]*>""", RegexOption.IGNORE_CASE), "")
+    var fenced = false
+    return html.lines().joinToString("\n") { line ->
+        if (line.trimStart().startsWith("```")) fenced = !fenced
+        if (fenced || line.isBlank()) line else line.trimEnd() + "  "
+    }
 }
