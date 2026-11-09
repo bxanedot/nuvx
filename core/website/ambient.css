@@ -1,14 +1,14 @@
-:root{--nuvx-ambient-opacity:.20}
-@media(prefers-color-scheme:dark){:root{--nuvx-ambient-opacity:.46}}
-:root[data-theme=dark]{--nuvx-ambient-opacity:.46}
-:root[data-theme=light]{--nuvx-ambient-opacity:.20}
+:root{--nuvx-ambient-opacity:.52}
+@media(prefers-color-scheme:dark){:root{--nuvx-ambient-opacity:.34}}
+:root[data-theme=dark]{--nuvx-ambient-opacity:.34}
+:root[data-theme=light]{--nuvx-ambient-opacity:.52}
 
 .nuvx-ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;opacity:var(--nuvx-ambient-opacity)}
 .nuvx-ambient::before{
   content:"";position:absolute;inset:-24%;
-  background:radial-gradient(ellipse at 22% 52%,#2867d9,transparent 47%),
-    radial-gradient(ellipse at 68% 29%,#6e36af,transparent 44%),
-    radial-gradient(ellipse at 87% 74%,#d2643d,transparent 42%);
+  background:radial-gradient(ellipse at 22% 52%,#d27f9d,transparent 47%),
+    radial-gradient(ellipse at 68% 29%,#e6a3b9,transparent 44%),
+    radial-gradient(ellipse at 87% 74%,#ca7593,transparent 42%);
   animation:nuvx-ambient-flow 28s ease-in-out infinite;
 }
 @keyframes nuvx-ambient-flow{

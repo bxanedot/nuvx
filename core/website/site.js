@@ -4,7 +4,7 @@
   const themeColor = document.querySelector('meta[name="theme-color"]');
   const isDark = () => root.dataset.theme === 'dark';
   const updateTheme = () => {
-    if (themeColor) themeColor.content = isDark() ? '#090a10' : '#fafafa';
+    if (themeColor) themeColor.content = isDark() ? '#0a0a0a' : '#fafafa';
     if (toggle) toggle.setAttribute('aria-label', `Switch to ${isDark() ? 'light' : 'dark'} mode`);
   };
   toggle?.addEventListener('click', () => {
