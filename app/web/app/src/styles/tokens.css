@@ -68,8 +68,8 @@
   /* ---- Colour: light ----------------------------------------------------- */
   color-scheme: light;
 
-  --pageBG: #fafafa;
-  --pageBG-rgb: 250, 250, 250;
+  --pageBG: #fbf8f9;
+  --pageBG-rgb: 251, 248, 249;
 
   --systemPrimary: #000000e0;
   --systemSecondary: #000000a6;
@@ -82,12 +82,12 @@
   --systemTertiary-onDark: #ffffff66;
 
   /* Accent and page colours from the website (core/website/styles.css). */
-  --keyColor: #772d46;
-  --keyColor-rgb: 119, 45, 70;
-  --keyColor-rollover: #69273e;
-  --keyColor-pressed: #602137;
-  --keyColorBG: #913653;
-  --selectionColor: #913653;
+  --keyColor: #631e3a;
+  --keyColor-rgb: 99, 30, 58;
+  --keyColor-rollover: #581b34;
+  --keyColor-pressed: #4d172d;
+  --keyColorBG: #631e3a;
+  --selectionColor: #631e3a;
   --keyColor-focus-color: rgba(var(--keyColor-rgb), 0.6);
 
   --systemRed: #ff3b30;
@@ -156,8 +156,8 @@
   :root {
     color-scheme: dark;
 
-    --pageBG: #0a0a0a;
-    --pageBG-rgb: 10, 10, 10;
+    --pageBG: #000000;
+    --pageBG-rgb: 0, 0, 0;
 
     --systemPrimary: #ffffffeb;
     --systemSecondary: #ffffffa3;
@@ -165,13 +165,13 @@
     --systemQuaternary: #ffffff1a;
     --systemQuinary: #ffffff0d;
 
-    --keyColor: #f1adc4;
-    --keyColor-rgb: 241, 173, 196;
-    --keyColor-rollover: #ffd0df;
-    --keyColor-pressed: #e89bb5;
+    --keyColor: #d98aa6;
+    --keyColor-rgb: 217, 138, 166;
+    --keyColor-rollover: #e9a6bd;
+    --keyColor-pressed: #c97894;
     /* Darker than the text accent: buttons on it carry white glyphs. */
-    --keyColorBG: #913653;
-    --selectionColor: #913653;
+    --keyColorBG: #631e3a;
+    --selectionColor: #631e3a;
 
     --systemRed: #ff453a;
     --systemGreen: #32d74b;

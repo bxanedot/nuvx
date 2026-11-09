@@ -29,7 +29,7 @@ export function invitePage(info: InviteInfo, origin: string): string {
 <link rel="stylesheet" href="https://www.nuvx.lol/ambient.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{--accent:#f1adc4;isolation:isolate;color-scheme:dark;accent-color:var(--accent);background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+body{--accent:#d98aa6;isolation:isolate;color-scheme:dark;accent-color:var(--accent);background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 main{max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a;border-radius:24px;padding:32px 24px;background:#0c0c0c}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#bbb;border:1px solid #2a2a2a;border-radius:99px;padding:6px 12px;margin-bottom:20px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}.dot.off{background:#ff5252}
