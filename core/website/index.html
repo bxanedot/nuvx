@@ -4,21 +4,24 @@
 <header class="topbar wrap"><a class="brand" href="/" aria-label="nuvx home"><img src="/mark.svg" alt="" width="28" height="28">nuvx</a><nav aria-label="Main navigation"><a href="#canvas">Canvas</a><a href="#releases">Releases</a><a href="/docs">Docs</a><a href="https://web.nuvx.lol">Web player ↗</a><a href="https://github.com/bxanedot/nuvx">GitHub ↗</a><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle colour theme"><svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.4A8.6 8.6 0 0 1 8.6 3.8 8.7 8.7 0 1 0 20.2 15.4Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button></nav></header>
 <main id="main">
 <section class="hero wrap"><div class="sound-field" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><div class="hero-copy"><img class="hero-logo" src="/mark.svg" width="72" height="72" alt=""><p class="eyebrow">OPEN SOURCE · YOUR MUSIC · EVERY SCREEN</p><h1 class="hero-title">Your music.<br><em>Everywhere</em> you are.</h1><p class="lede">Meet nuvx. A YouTube Music player for your phone, TV, wrist, desktop and browser. Version <span data-version>0.2.0</span> is out now.</p><div class="actions"><a class="button primary" id="device-download" href="https://github.com/bxanedot/nuvx/releases/latest"><span id="download-label">Download nuvx</span><span aria-hidden="true">↓</span></a><a class="button quiet" href="#releases">Get nuvx <span aria-hidden="true">↓</span></a></div><p class="fine" id="device-note" aria-live="polite">nuvx <span data-version>0.2.0</span> for Android, Android TV, Wear OS, Windows, Linux and macOS.</p><a class="hero-source" href="https://github.com/bxanedot/nuvx">Free and open source ↗</a></div></section>
-<section class="showcase wrap" id="showcase" aria-labelledby="showcase-title">
-  <div class="showcase-header">
-    <div class="section-heading">
-      <h2 id="showcase-title">Showcase</h2>
-      <p class="lede">Now Playing on Android and full-screen lyrics on desktop.</p>
+<section class="showcase" id="showcase" aria-labelledby="showcase-title">
+  <div class="showcase-glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="showcase-header">
+      <div class="section-heading">
+        <h2 id="showcase-title">Showcase</h2>
+        <p class="lede">Now Playing on Android and full-screen lyrics on desktop.</p>
+      </div>
+      <button class="button quiet showcase-toggle" type="button" aria-controls="showcase-viewport" hidden>Pause showcase</button>
     </div>
-    <button class="button quiet showcase-toggle" type="button" aria-controls="showcase-viewport" hidden>Pause showcase</button>
-  </div>
-  <div class="showcase-viewport" id="showcase-viewport" role="group" aria-label="Scrollable banner gallery" tabindex="0">
-    <div class="showcase-track">
-      <ul class="showcase-banners" role="list">
-        <li><img src="/showcase/encore.jpg" width="1672" height="941" loading="lazy" alt="Your music takes the stage. nuvx Now Playing with Encore artwork."></li>
-        <li><img src="/showcase/now-playing.jpg" width="1672" height="941" loading="lazy" alt="Music in full color. nuvx Now Playing with Espresso artwork."></li>
-        <li><img src="/showcase/desktop-lyrics.jpg" width="1672" height="941" loading="lazy" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics."></li>
-      </ul>
+    <div class="showcase-viewport" id="showcase-viewport" role="group" aria-label="Scrollable banner gallery" tabindex="0">
+      <div class="showcase-track">
+        <ul class="showcase-banners" role="list">
+          <li><img src="/showcase/encore.jpg" width="1672" height="941" loading="lazy" alt="Your music takes the stage. nuvx Now Playing with Encore artwork."></li>
+          <li><img src="/showcase/now-playing.jpg" width="1672" height="941" loading="lazy" alt="Music in full color. nuvx Now Playing with Espresso artwork."></li>
+          <li><img src="/showcase/desktop-lyrics.jpg" width="1672" height="941" loading="lazy" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics."></li>
+        </ul>
+      </div>
     </div>
   </div>
 </section>
