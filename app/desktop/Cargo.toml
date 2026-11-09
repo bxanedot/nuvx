@@ -1,0 +1,99 @@
+[package]
+name = "nuvx"
+version = "0.2.0"
+authors = ["bxane"]
+edition = "2024"
+license = "GPL-3.0-only"
+repository = "https://github.com/bxanedot/nuvx"
+homepage = "https://nuvx.lol"
+description = "nuvx for desktop: a native YouTube Music client"
+
+[dependencies]
+anyhow = "1.0.104"
+base64 = "0.22.1"
+bytes = "1.12.1"
+crossbeam-channel = "0.5.17"
+directories = "6.0.0"
+discord-rich-presence = "1.1.0"
+eframe = { version = "0.37", default-features = false, features = ["glow", "wgpu_no_default_features", "default_fonts", "system_fonts", "links", "clipboard", "accesskit", "persistence", "wayland", "x11"] }
+egui = { version = "0.37.0", features = ["monochrome_emoji_fonts"] }
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+egui_extras = { version = "0.37.0", default-features = false, features = ["image"] }
+env_logger = { version = "0.11.11", default-features = false, features = ["humantime"] }
+tiny-skia = "0.11"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
+localzone = "0.3.1"
+log = "0.4.34"
+memmap2 = "0.9.11"
+raw-window-handle = "0.6"
+reqwest = { version = "0.12", default-features = false, features = ["default-tls", "gzip", "json", "socks"] }
+rodio = { version = "0.22.2", default-features = false, features = ["playback", "symphonia-aac", "symphonia-isomp4"] }
+rquickjs = "0.14.0"
+roxmltree = "0.21.1"
+serde = { version = "1.0.229", features = ["derive"] }
+skrifa = "0.44.0"
+# Music videos: YouTube's H.264, decoded on the CPU. Built from source; faster with nasm installed.
+openh264 = "0.8"
+sha1 = "0.10.7"
+sha2 = "0.10.9"
+hmac = "0.12.1"
+serde_json = "1.0.151"
+souvlaki = "0.8.3"
+tao = "0.37.1"
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "sync", "time"] }
+wry = "0.57.0"
+rfd = "0.17.2"
+tray-icon = "0.26.1"
+url = "2.5.8"
+# The opt-in renderer: Vulkan, Metal on macOS (renderer.rs).
+wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "wgsl", "vulkan", "metal"] }
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["connect", "native-tls"] }
+mp4ameta = "0.13.0"
+md-5 = "0.10"
+unicode-normalization = "0.1.26"
+# Dolby Digital (Plus) for Atmos streams (dash.rs).
+filmcraft-ac3 = "0.9"
+symphonia = { version = "0.5.5", default-features = false, features = ["mkv", "wav", "pcm"] }
+rusty-opus = "1.0.2"
+unicode-bidi = "0.3"
+# System-wide media shortcuts (hotkeys.rs).
+global-hotkey = "0.9"
+
+[target.'cfg(windows)'.dependencies]
+# Windows Credential Manager, for the Google and Spotify sign-ins.
+keyring = { version = "3.6.3", features = ["windows-native"] }
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_Media_MediaFoundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Controls", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# The Secret Service (GNOME Keyring, KWallet) for the sign-ins.
+keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust"] }
+# The tray icon needs GTK running on a thread of its own.
+gtk = "0.18"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# The login Keychain for the sign-ins.
+keyring = { version = "3.6.3", features = ["apple-native"] }
+# macOS's own window materials (NSVisualEffectView) behind the see-through window.
+window-vibrancy = "0.6"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+# Unwind, not abort: a panic while handling one request (in a library or a parser)
+# must fail that request, not close the app.
+panic = "unwind"
+
+# Keep debug builds usable: optimize dependencies (decoders, egui) even in dev.
+[profile.dev.package."*"]
+opt-level = 2
+
+[dev-dependencies]
+egui_system_font_provider = "0.37.0"
+
+[build-dependencies]
+winresource = "0.1.31"
