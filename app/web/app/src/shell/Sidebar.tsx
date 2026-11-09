@@ -1,4 +1,4 @@
-import { ArrowUpRight, ListMusic, Settings } from 'lucide-react';
+import { ArrowUpRight, BookOpenText, ListMusic, Settings } from 'lucide-react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
@@ -163,6 +163,12 @@ export function Sidebar() {
           {spotifySignedIn && <SpotifyNav onNavigate={close} />}
         </div>
         <div className="flex flex-col gap-2 pt-3 pr-3 pb-5 pl-5">
+          <PrefetchNavLink to="/guide" className={item} onClick={close}>
+            <span className={icon}>
+              <BookOpenText size={18} strokeWidth={1.9} />
+            </span>
+            <span className={navLabel}>Guide</span>
+          </PrefetchNavLink>
           <PrefetchNavLink to="/extension" className={item} onClick={close}>
             {/* Chrome's own toolbar glyph for extensions (Material "extension"). */}
             <span className={icon}>

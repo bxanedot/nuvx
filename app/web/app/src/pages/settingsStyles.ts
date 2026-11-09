@@ -31,6 +31,9 @@ export const settingsUi = {
   downloadTitle: 'type-title-3-emphasized text-key',
   downloadDetail: 'type-body text-secondary',
   chevron: 'text-tertiary',
+  /** Extension page: the browser picker above the install guide. */
+  guideTab:
+    'rounded-[12px] bg-quaternary px-3 py-1 type-callout-emphasized text-secondary hover:text-primary aria-pressed:bg-key-bg aria-pressed:text-white',
   steps: 'mx-4 mt-2.5 list-decimal ps-[18px] type-body-tall text-secondary [&>li+li]:mt-1',
 
   /** Integration rows: a coloured app-icon square, the name, the state. */
