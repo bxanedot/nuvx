@@ -1406,4 +1406,6 @@
     <string name="car_mode_subtitle">Pour autoradios : paysage, et l\'écran reste allumé</string>
     <string name="classic_search">Recherche classique</string>
     <string name="classic_search_subtitle">Une page de recherche simple au lieu des catégories en couleur</string>
+    <string name="enable_youtube_search">Activer la recherche YouTube</string>
+    <string name="enable_youtube_search_subtitle">Ajoute un filtre YouTube pour les vidéos au-delà de YouTube Music</string>
 </resources>

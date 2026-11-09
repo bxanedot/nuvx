@@ -1377,4 +1377,6 @@
     <string name="car_mode_subtitle">Para radios de coche: horizontal y la pantalla siempre encendida</string>
     <string name="classic_search">Búsqueda clásica</string>
     <string name="classic_search_subtitle">Una página de búsqueda sencilla en lugar de las categorías de colores</string>
+    <string name="enable_youtube_search">Activar la búsqueda de YouTube</string>
+    <string name="enable_youtube_search_subtitle">Añade un filtro de YouTube para vídeos más allá de YouTube Music</string>
 </resources>

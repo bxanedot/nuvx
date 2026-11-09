@@ -344,7 +344,9 @@ object YtMusicRepository {
      * the listener reaches the end of the list.
      */
     suspend fun searchPage(query: String, filter: SearchFilter, anonymous: Boolean = true): Result<SearchPage> =
-        call("search:${filter.name}") {
+        if (filter == SearchFilter.YOUTUBE) {
+            call("search:youtube") { SearchPage(InnertubeParser.parseYoutubeSearch(Innertube.youtubeSearch(query)), null) }
+        } else call("search:${filter.name}") {
             InnertubeParser.parseSearchPage(
                 Innertube.search(query, filter.params, anonymous),
                 includeVideos = filter == SearchFilter.VIDEOS,

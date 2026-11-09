@@ -1432,4 +1432,6 @@
     <string name="car_mode_subtitle">Для автомагнитол: альбомная ориентация, экран не гаснет</string>
     <string name="classic_search">Классический поиск</string>
     <string name="classic_search_subtitle">Простая страница поиска вместо цветных категорий</string>
+    <string name="enable_youtube_search">Включить поиск YouTube</string>
+    <string name="enable_youtube_search_subtitle">Добавляет фильтр YouTube для видео за пределами YouTube Music</string>
 </resources>

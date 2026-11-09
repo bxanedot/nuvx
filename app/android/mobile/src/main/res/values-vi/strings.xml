@@ -1325,4 +1325,6 @@
     <string name="car_mode_subtitle">Cho đầu phát ô tô: màn hình ngang và luôn sáng</string>
     <string name="classic_search">Tìm kiếm cổ điển</string>
     <string name="classic_search_subtitle">Trang tìm kiếm đơn giản thay cho các ô danh mục màu</string>
+    <string name="enable_youtube_search">Bật tìm kiếm YouTube</string>
+    <string name="enable_youtube_search_subtitle">Thêm bộ lọc YouTube cho video ngoài YouTube Music</string>
 </resources>

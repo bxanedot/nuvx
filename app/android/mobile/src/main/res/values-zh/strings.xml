@@ -1385,4 +1385,6 @@
     <string name="car_mode_subtitle">适用于车载音响：横屏，屏幕常亮</string>
     <string name="classic_search">经典搜索</string>
     <string name="classic_search_subtitle">用简洁的搜索页代替彩色分类卡片</string>
+    <string name="enable_youtube_search">启用 YouTube 搜索</string>
+    <string name="enable_youtube_search_subtitle">添加 YouTube 筛选，搜索 YouTube Music 以外的视频</string>
 </resources>

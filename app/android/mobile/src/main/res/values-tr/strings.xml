@@ -1362,4 +1362,6 @@
     <string name="car_mode_subtitle">Araç multimedya cihazları için: yatay ekran, ekran açık kalır</string>
     <string name="classic_search">Klasik arama</string>
     <string name="classic_search_subtitle">Renkli kategori kutuları yerine sade bir arama sayfası</string>
+    <string name="enable_youtube_search">YouTube Aramasını Etkinleştir</string>
+    <string name="enable_youtube_search_subtitle">YouTube Music dışındaki videolar için bir YouTube filtresi ekler</string>
 </resources>

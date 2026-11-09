@@ -1192,6 +1192,42 @@ object Innertube {
      * Used for typeahead lookups where intermediate keystrokes must remain
      * anonymous — see [searchTypeahead].
      */
+    /**
+     * Search YouTube itself (not YouTube Music), anonymously, as youtube.com's
+     * own page does: videos only. What "Enable YouTube Search" adds.
+     */
+    suspend fun youtubeSearch(query: String): JsonObject = withRetry {
+        client.post("https://www.youtube.com/youtubei/v1/search") {
+            contentType(ContentType.Application.Json)
+            parameter("prettyPrint", "false")
+            header("Origin", "https://www.youtube.com")
+            header("X-YouTube-Client-Name", "1")
+            header("X-YouTube-Client-Version", YOUTUBE_WEB_VERSION)
+            header("Accept-Language", acceptLanguageHeader)
+            visitorData?.let { header("X-Goog-Visitor-Id", it) }
+            setBody(
+                buildJsonObject {
+                    putJsonObject("context") {
+                        putJsonObject("client") {
+                            put("clientName", "WEB")
+                            put("clientVersion", YOUTUBE_WEB_VERSION)
+                            put("hl", currentLanguage)
+                            currentRegion?.let { put("gl", it) }
+                            visitorData?.let { put("visitorData", it) }
+                        }
+                    }
+                    put("query", query)
+                    // Videos only: no channels, playlists or Shorts shelves.
+                    put("params", "EgIQAQ%3D%3D")
+                },
+            )
+        }.body<JsonObject>()
+    }
+
+    // shortcut: fixed, as YouTube keeps taking older web versions for a long
+    // time; read it off youtube.com if one is ever refused.
+    private const val YOUTUBE_WEB_VERSION = "2.20251105.01.00"
+
     private suspend fun postMusicAnonymous(
         endpoint: String,
         /** The context's `gl`; null sends none. */

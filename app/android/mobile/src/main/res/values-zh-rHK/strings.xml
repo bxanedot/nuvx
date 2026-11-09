@@ -1379,4 +1379,6 @@
     <string name="car_mode_subtitle">適用於車用音響：橫向，螢幕保持開啟</string>
     <string name="classic_search">經典搜尋</string>
     <string name="classic_search_subtitle">用簡潔的搜尋頁取代彩色分類方塊</string>
+    <string name="enable_youtube_search">啟用 YouTube 搜尋</string>
+    <string name="enable_youtube_search_subtitle">加入 YouTube 篩選，搜尋 YouTube Music 以外嘅影片</string>
 </resources>

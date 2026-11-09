@@ -1405,4 +1405,6 @@
     <string name="car_mode_subtitle">Für Autoradios und Head Units: Querformat, Bildschirm bleibt an</string>
     <string name="classic_search">Klassische Suche</string>
     <string name="classic_search_subtitle">Eine schlichte Suchseite statt der farbigen Kategorien</string>
+    <string name="enable_youtube_search">YouTube-Suche aktivieren</string>
+    <string name="enable_youtube_search_subtitle">Fügt einen YouTube-Filter für Videos jenseits von YouTube Music hinzu</string>
 </resources>

@@ -1443,4 +1443,6 @@
     <string name="car_mode_subtitle">Do radia samochodowego: poziomo, a ekran nie gaśnie</string>
     <string name="classic_search">Klasyczne wyszukiwanie</string>
     <string name="classic_search_subtitle">Prosta strona wyszukiwania zamiast kolorowych kategorii</string>
+    <string name="enable_youtube_search">Włącz wyszukiwanie YouTube</string>
+    <string name="enable_youtube_search_subtitle">Dodaje filtr YouTube dla filmów spoza YouTube Music</string>
 </resources>

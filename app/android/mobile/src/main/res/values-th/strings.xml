@@ -1391,4 +1391,6 @@
     <string name="car_mode_subtitle">สำหรับวิทยุติดรถยนต์: แนวนอน และหน้าจอเปิดค้าง</string>
     <string name="classic_search">ค้นหาแบบคลาสสิก</string>
     <string name="classic_search_subtitle">หน้าค้นหาแบบเรียบแทนไทล์หมวดหมู่สีสัน</string>
+    <string name="enable_youtube_search">เปิดการค้นหา YouTube</string>
+    <string name="enable_youtube_search_subtitle">เพิ่มตัวกรอง YouTube สำหรับวิดีโอนอกเหนือจาก YouTube Music</string>
 </resources>

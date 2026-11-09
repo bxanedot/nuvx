@@ -443,6 +443,9 @@ object AppSettings {
     /** The plain search page instead of the colour category tiles. */
     val classicSearch = MutableStateFlow(false)
 
+    /** "Enable YouTube Search": a YouTube filter beside YouTube Music's. Off by default. */
+    val youtubeSearch = MutableStateFlow(false)
+
     /** nuvx Car: for car stereos and head units, landscape with the screen kept on. */
     val carMode = MutableStateFlow(false)
 
@@ -1050,6 +1053,7 @@ object AppSettings {
         hideRadioTab.value = prefs.getBoolean(KEY_HIDE_RADIO_TAB, false)
         carMode.value = prefs.getBoolean(KEY_CAR_MODE, false)
         classicSearch.value = prefs.getBoolean(KEY_CLASSIC_SEARCH, false)
+        youtubeSearch.value = prefs.getBoolean(KEY_YOUTUBE_SEARCH, false)
         radioIntroShown.value = prefs.getBoolean(KEY_RADIO_INTRO_SHOWN, false)
         hidePodcastsTab.value = prefs.getBoolean(KEY_HIDE_PODCASTS_TAB, false)
         podcastsIntroShown.value = prefs.getBoolean(KEY_PODCASTS_INTRO_SHOWN, false)
@@ -1459,6 +1463,11 @@ object AppSettings {
     fun setOnboardingComplete() {
         onboardingComplete.value = true
         prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+    }
+
+    fun setYoutubeSearch(value: Boolean) {
+        youtubeSearch.value = value
+        prefs.edit().putBoolean(KEY_YOUTUBE_SEARCH, value).apply()
     }
 
     fun setClassicSearch(value: Boolean) {
@@ -2375,6 +2384,7 @@ object AppSettings {
     private const val KEY_HIDE_RADIO_TAB = "hide_radio_tab"
     private const val KEY_CAR_MODE = "car_mode"
     private const val KEY_CLASSIC_SEARCH = "classic_search"
+    private const val KEY_YOUTUBE_SEARCH = "youtube_search"
     private const val KEY_RADIO_INTRO_SHOWN = "radio_intro_shown"
     private const val KEY_HIDE_PODCASTS_TAB = "hide_podcasts_tab"
     private const val KEY_PODCASTS_INTRO_SHOWN = "podcasts_intro_shown"
