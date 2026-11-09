@@ -20,6 +20,7 @@ nuvx 0.2.0 ships signed universal APKs for Android phones and tablets (with the 
 - Website: https://www.nuvx.lol/
 - Documentation: https://www.nuvx.lol/docs
 - Terms: https://www.nuvx.lol/terms
+- Changelog: https://www.nuvx.lol/changelog
 - Privacy: https://www.nuvx.lol/privacy
 - Source code and issue tracking: https://github.com/bxanedot/nuvx
 - Community: https://discord.gg/h4Wsu824Uf
