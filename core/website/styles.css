@@ -22,3 +22,15 @@
 
 :root[data-theme=dark] .brand img,:root[data-theme=dark] .hero-logo{content:url('/mark-white.svg');filter:none}
 .canvas-band .wrap{min-height:76px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}.canvas-band .button{min-width:170px;justify-content:center}.canvas-band .button img{filter:brightness(0);transition:filter .3s ease}:root[data-theme=dark] .canvas-band .button img{filter:brightness(0) invert(1)}
+
+.showcase{padding-block:clamp(44px,7vw,96px)}
+.showcase-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px}
+.showcase-header h2{font-size:clamp(42px,5vw,64px);margin:0 0 10px}
+.showcase-header .lede{margin:0}
+.showcase-toggle{background:var(--bg);color:var(--text);cursor:pointer}
+.showcase-toggle[hidden]{display:none}
+.showcase-viewport{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+.showcase-viewport:focus-visible,.showcase-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.showcase-track{display:flex;width:max-content}
+.showcase-banners{display:flex;flex:none;gap:16px;list-style:none;margin:0;padding:0 16px 0 0}
+.showcase-banners img{display:block;width:clamp(260px,68vw,620px);height:auto;border-radius:14px;background:var(--surface)}

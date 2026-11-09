@@ -13,6 +13,61 @@
     updateTheme();
   });
   updateTheme();
+
+  const viewport = document.querySelector('#showcase-viewport');
+  if (viewport) {
+    const banners = viewport.querySelector('.showcase-banners');
+    const repeat = banners.cloneNode(true);
+    repeat.setAttribute('aria-hidden', 'true');
+    const control = document.querySelector('.showcase-toggle');
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    let playing = !motion.matches;
+    let visible = false;
+    let frame;
+    let lastTime;
+    let position;
+
+    const advance = (time) => {
+      const cycle = banners.offsetWidth;
+      const distance = Math.min(time - (lastTime ?? time), 50) * 0.034;
+      // Decreasing scrollLeft moves the cards right. Both copies meet at the same visual position.
+      position = (position + cycle - distance) % cycle;
+      viewport.scrollLeft = position;
+      lastTime = time;
+      frame = requestAnimationFrame(advance);
+    };
+    const sync = () => {
+      cancelAnimationFrame(frame);
+      control.textContent = playing ? 'Pause showcase' : 'Play showcase';
+      if (!playing || !visible) return;
+      if (!repeat.isConnected) banners.after(repeat);
+      position = viewport.scrollLeft;
+      lastTime = undefined;
+      frame = requestAnimationFrame(advance);
+    };
+    const pause = () => {
+      playing = false;
+      sync();
+    };
+    control.addEventListener('click', () => {
+      playing = !playing;
+      sync();
+    });
+    control.hidden = false;
+    viewport.addEventListener('focus', pause);
+    viewport.addEventListener('pointerdown', pause);
+    viewport.addEventListener('wheel', (event) => {
+      if (event.deltaX || event.shiftKey) pause();
+    }, { passive: true });
+    motion.addEventListener('change', (event) => {
+      if (event.matches) pause();
+    });
+    new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      sync();
+    }).observe(viewport);
+  }
+
   const note = document.querySelector('#device-note');
   if (!note) return;
   const ua = navigator.userAgent.toLowerCase();
