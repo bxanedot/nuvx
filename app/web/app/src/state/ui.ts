@@ -13,12 +13,15 @@ interface UiState {
   /** The sidebar as a drawer, below 484px where it's otherwise hidden. */
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
+  backgroundMotion: boolean;
+  setBackgroundMotion: (enabled: boolean) => void;
   /** The extension install banner, dismissed for this tab only. */
   installBannerDismissed: boolean;
   dismissInstallBanner: () => void;
 }
 
 const BANNER_KEY = 'nuvx:install-banner-dismissed';
+const BACKGROUND_MOTION_KEY = 'nuvx:background-motion';
 
 export const useUi = create<UiState>()((set) => ({
   sidePanel: null,
@@ -28,6 +31,11 @@ export const useUi = create<UiState>()((set) => ({
   setFullScreen: (fullScreen) => set({ fullScreen }),
   drawerOpen: false,
   setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
+  backgroundMotion: sessionStorage.getItem(BACKGROUND_MOTION_KEY) !== 'off',
+  setBackgroundMotion: (backgroundMotion) => {
+    sessionStorage.setItem(BACKGROUND_MOTION_KEY, backgroundMotion ? 'on' : 'off');
+    set({ backgroundMotion });
+  },
   installBannerDismissed: sessionStorage.getItem(BANNER_KEY) === '1',
   dismissInstallBanner: () => {
     sessionStorage.setItem(BANNER_KEY, '1');

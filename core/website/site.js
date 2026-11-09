@@ -14,15 +14,44 @@
   });
   updateTheme();
 
+  const ambient = document.createElement('div');
+  ambient.className = 'nuvx-ambient';
+  ambient.setAttribute('aria-hidden', 'true');
+  document.body.prepend(ambient);
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const motionToggle = document.createElement('button');
+  motionToggle.type = 'button';
+  motionToggle.className = 'theme-toggle motion-toggle';
+  toggle?.after(motionToggle);
+  let manuallyPaused = root.hasAttribute('data-motion-paused');
+  let playing = !motion.matches && !manuallyPaused;
+  let syncShowcase;
+  const syncMotion = () => {
+    root.toggleAttribute('data-motion-paused', !playing);
+    const label = playing ? 'Pause motion' : 'Resume motion';
+    motionToggle.textContent = playing ? 'Ⅱ' : '▷';
+    motionToggle.setAttribute('aria-label', label);
+    motionToggle.title = label;
+    syncShowcase?.();
+  };
+  const toggleMotion = () => {
+    playing = !playing;
+    manuallyPaused = !playing;
+    try { localStorage.setItem('nuvx-motion', manuallyPaused ? 'paused' : 'on'); } catch {}
+    syncMotion();
+  };
+  motionToggle.addEventListener('click', toggleMotion);
+  motion.addEventListener('change', () => {
+    playing = !motion.matches && !manuallyPaused;
+    syncMotion();
+  });
+
   const viewport = document.querySelector('#showcase-viewport');
   if (viewport) {
-    const showcase = viewport.closest('.showcase');
     const banners = viewport.querySelector('.showcase-banners');
     const repeat = banners.cloneNode(true);
     repeat.setAttribute('aria-hidden', 'true');
     const control = document.querySelector('.showcase-toggle');
-    const motion = matchMedia('(prefers-reduced-motion: reduce)');
-    let playing = !motion.matches;
     let visible = false;
     let frame;
     let lastTime;
@@ -43,16 +72,11 @@
     const sync = () => {
       cancelAnimationFrame(frame);
       control.textContent = playing ? 'Pause showcase' : 'Play showcase';
-      showcase.toggleAttribute('data-flowing', playing && visible);
       if (!playing || !visible || interacting) return;
       if (!repeat.isConnected) banners.after(repeat);
       position = viewport.scrollLeft;
       lastTime = undefined;
       frame = requestAnimationFrame(advance);
-    };
-    const pause = () => {
-      playing = false;
-      sync();
     };
     const yieldToInput = () => {
       if (!interacting) {
@@ -72,10 +96,8 @@
       pointer = undefined;
       yieldToInput();
     };
-    control.addEventListener('click', () => {
-      playing = !playing;
-      sync();
-    });
+    syncShowcase = sync;
+    control.addEventListener('click', toggleMotion);
     control.hidden = false;
     viewport.addEventListener('keydown', yieldToInput);
     viewport.addEventListener('pointerdown', (event) => {
@@ -91,14 +113,12 @@
     viewport.addEventListener('wheel', (event) => {
       if (event.deltaX || event.shiftKey) yieldToInput();
     }, { passive: true });
-    motion.addEventListener('change', (event) => {
-      if (event.matches) pause();
-    });
     new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       sync();
     }).observe(viewport);
   }
+  syncMotion();
 
   const note = document.querySelector('#device-note');
   if (!note) return;

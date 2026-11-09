@@ -1,0 +1,21 @@
+:root{--nuvx-ambient-opacity:.20}
+@media(prefers-color-scheme:dark){:root{--nuvx-ambient-opacity:.46}}
+:root[data-theme=dark]{--nuvx-ambient-opacity:.46}
+:root[data-theme=light]{--nuvx-ambient-opacity:.20}
+
+.nuvx-ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;opacity:var(--nuvx-ambient-opacity)}
+.nuvx-ambient::before{
+  content:"";position:absolute;inset:-24%;
+  background:radial-gradient(ellipse at 22% 52%,#2867d9,transparent 47%),
+    radial-gradient(ellipse at 68% 29%,#6e36af,transparent 44%),
+    radial-gradient(ellipse at 87% 74%,#d2643d,transparent 42%);
+  animation:nuvx-ambient-flow 28s ease-in-out infinite;
+}
+@keyframes nuvx-ambient-flow{
+  0%,100%{transform:translate3d(-6%,1%,0) scale(1.04)}
+  33%{transform:translate3d(2%,-6%,0) scale(1.1)}
+  66%{transform:translate3d(6%,4%,0) scale(1.06)}
+}
+:root[data-motion-paused] .nuvx-ambient::before,.nuvx-ambient[data-motion-paused]::before,body:has(#ambient-pause:checked) .nuvx-ambient::before{animation-play-state:paused}
+.ambient-pause{display:inline-flex;align-items:center;gap:8px;min-height:36px;font-size:13px;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.nuvx-ambient::before{animation:none}.ambient-pause,.theme-toggle.motion-toggle{display:none}}
