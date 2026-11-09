@@ -42,8 +42,19 @@ For Android, download the APK for your device and allow your browser or file man
 - **Make it yours.** Explore music, manage your library and queue, and try community [Canvases](core/canvas/README.md) on supported players.
 - **Use the right controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
 
+## Screenshots
+
+### Windows
+
 <p align="center">
-  <img src="app/desktop/screenshot.png" width="840" alt="The nuvx desktop player showing its home feed, library sidebar and playback controls">
+  <img src="docs/screenshots/windows.jpg" width="760" alt="nuvx on Windows showing the Home feed and playback controls">
+</p>
+
+### Android
+
+<p align="center">
+  <img src="docs/screenshots/android-home.png" width="250" alt="nuvx on Android showing Home with Top Picks and new albums">
+  <img src="docs/screenshots/android-explore.png" width="250" alt="nuvx on Android showing Explore with new releases and trending music">
 </p>
 
 ## How the counters work
