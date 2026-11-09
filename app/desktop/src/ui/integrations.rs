@@ -80,7 +80,8 @@ impl App {
         if self.lastfm_user.is_none() {
             return;
         }
-        let Some(t) = self.playing_track().filter(|_| self.playing() && !self.buffering) else { return };
+        // A station isn't a track to scrobble.
+        let Some(t) = self.playing_track().filter(|t| self.playing() && !self.buffering && !crate::radio::is_station(&t.id)) else { return };
         let pos = self.audio.status.position();
         let dur = Duration::from_millis(self.audio.status.duration_ms.load(Ordering::Relaxed));
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;

@@ -351,8 +351,12 @@ impl App {
         self.lyrics_extras = None;
         self.extras_asked = None;
         self.lyric_view.reset();
-        self.backend.request(Req::Lyrics(playing));
         self.segments = None;
+        // A live station has no lyrics or segments to look up.
+        if crate::radio::is_station(&playing.id) {
+            return;
+        }
+        self.backend.request(Req::Lyrics(playing));
         self.request_segments();
     }
 
@@ -360,7 +364,7 @@ impl App {
     /// coming in goes first.
     pub(super) fn top_up(&mut self) {
         if self.autoplay && !self.radio_pending && !self.jam.guest() && self.queue.fill.is_none() && self.queue.at_end()
-            && let Some(t) = self.current().cloned()
+            && let Some(t) = self.current().filter(|t| !crate::radio::is_station(&t.id)).cloned()
         {
             self.radio_pending = true;
             self.backend.request(Req::Radio { song_of: self.song_of(&t), seed: t.id });

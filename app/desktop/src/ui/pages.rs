@@ -65,6 +65,7 @@ pub fn page(app: &mut App, ui: &mut Ui, now: f64) {
             Page::New => new(app, ui, now),
             Page::Search(q) => search(app, ui, q, now),
             Page::Mood { browse_id, params, title } => mood(app, ui, browse_id, params.as_ref(), title, now),
+            Page::Radio => super::radio::page(app, ui, now),
             Page::Album(id) | Page::Playlist(id) => collection(app, ui, id, now),
             Page::Artist(id) => artist(app, ui, id, now),
             Page::Library(tab) => library(app, ui, *tab, now),

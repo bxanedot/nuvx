@@ -191,6 +191,8 @@ impl App {
                 }
             }
             Resp::Moods(m) => self.moods = Some(m),
+            Resp::RadioCountries(c) => self.radio.set_countries(c),
+            Resp::RadioStations { key, stations } => self.radio.set_stations(key, stations),
             Resp::Mood(m) => {
                 self.mood = Some(m);
                 self.loading = false;
