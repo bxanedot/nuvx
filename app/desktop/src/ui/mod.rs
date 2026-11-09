@@ -537,6 +537,13 @@ pub struct App {
     close_to_tray: bool,
     /// Android's Classic search: a plain Search page, without the mood tiles.
     pub(super) classic_search: bool,
+    /// "Enable YouTube Search": a YouTube switch over the results, off by default.
+    pub(super) youtube_search: bool,
+    /// The results show YouTube's instead of YouTube Music's.
+    pub(super) search_youtube: bool,
+    /// YouTube's results for a query, and the query last asked for.
+    pub(super) youtube_results: Option<(String, Result<Vec<crate::model::Track>, String>)>,
+    pub(super) youtube_asked: String,
     /// Android's "Hide Radio tab", and the same for Podcasts.
     pub(super) hide_radio: bool,
     pub(super) hide_podcasts: bool,
@@ -718,6 +725,10 @@ impl App {
             updater: None,
             close_to_tray: !no_tray && get("close_to_tray").is_some_and(|v| v == "1"),
             classic_search: get("classic_search").is_some_and(|v| v == "1"),
+            youtube_search: get("youtube_search").is_some_and(|v| v == "1"),
+            search_youtube: false,
+            youtube_results: None,
+            youtube_asked: String::new(),
             hide_radio: get("hide_radio_tab").is_some_and(|v| v == "1"),
             hide_podcasts: get("hide_podcasts_tab").is_some_and(|v| v == "1"),
             tab_intros_shown: [get("radio_intro_shown").is_some_and(|v| v == "1"), get("podcasts_intro_shown").is_some_and(|v| v == "1")],
@@ -1501,6 +1512,7 @@ impl eframe::App for App {
         }
         storage.set_string("close_to_tray", b(self.close_to_tray));
         storage.set_string("classic_search", b(self.classic_search));
+        storage.set_string("youtube_search", b(self.youtube_search));
         storage.set_string("hide_radio_tab", b(self.hide_radio));
         storage.set_string("hide_podcasts_tab", b(self.hide_podcasts));
         storage.set_string("radio_intro_shown", b(self.tab_intros_shown[0]));
