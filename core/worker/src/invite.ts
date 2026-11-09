@@ -24,11 +24,12 @@ export function invitePage(info: InviteInfo, origin: string): string {
 <div class="box"><p class="label">Party code</p><p class="code dim">${code}</p></div>
 <p class="note">Ask the host for a new invite link.</p>`;
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nuvx Listen Together · ${code}</title>
+<link rel="stylesheet" href="https://www.nuvx.lol/ambient.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+body{isolation:isolate;color-scheme:dark;background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 main{max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a;border-radius:24px;padding:32px 24px;background:#0c0c0c}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#bbb;border:1px solid #2a2a2a;border-radius:99px;padding:6px 12px;margin-bottom:20px}
 .dot{width:8px;height:8px;border-radius:50%;background:#3ddc84}.dot.off{background:#ff5252}
@@ -41,7 +42,9 @@ h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .btn.alt{background:transparent;color:#fff;border:1px solid #3a3a3a}
 .btn:focus-visible,a:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .note{margin-top:14px;font-size:13px;color:#888}.note a{color:#fff}
-</style></head><body><main>
+.ambient-pause{margin-top:12px;color:#bbb}
+</style></head><body><div class="nuvx-ambient" aria-hidden="true"></div><main>
 ${body}
+<label class="ambient-pause"><input id="ambient-pause" type="checkbox"> Pause background motion</label>
 </main></body></html>`;
 }

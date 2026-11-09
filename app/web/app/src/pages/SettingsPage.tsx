@@ -12,6 +12,7 @@ import { useHistorySettings } from '@/playback/historyReporting';
 import { Select } from '@/components/Select';
 import { AUTOMIX_BARS } from '@/playback/automix/choices';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
+import { useUi } from '@/state/ui';
 import { AppleMusicIntegration, AppleMusicToggles, CanvasToggle, LyricSourcesAccess, SpotifyIntegration, Toggle } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
 
@@ -65,6 +66,8 @@ export default function SettingsPage() {
   const showNerdStats = usePlayer((s) => s.showNerdStats);
   const shareHistory = useHistorySettings((s) => s.share);
   const setShareHistory = useHistorySettings((s) => s.setShare);
+  const backgroundMotion = useUi((s) => s.backgroundMotion);
+  const setBackgroundMotion = useUi((s) => s.setBackgroundMotion);
   const { setAutoplay, setCrossfade, setAutomix, setAutomixBars, setShowNerdStats } = usePlayer.getState();
   const [lyrics, setLyrics] = useState(false);
   const present = extension.state === 'present';
@@ -115,6 +118,16 @@ export default function SettingsPage() {
             onChange={setShareHistory}
           />
           <CanvasToggle />
+        </section>
+
+        <h2 className={settingsUi.sectionHeader}>Appearance</h2>
+        <section className={`${settingsUi.group} [&_input:focus-visible]:outline-2 [&_input:focus-visible]:outline-key`}>
+          <Toggle
+            label="Background Motion"
+            detail="Animate the color background when your device allows motion."
+            checked={backgroundMotion}
+            onChange={setBackgroundMotion}
+          />
         </section>
 
         <h2 className={settingsUi.sectionHeader}>Apple Music</h2>
