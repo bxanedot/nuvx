@@ -102,6 +102,18 @@ pub async fn mood_art(api: &Api, sections: &mut [MoodSection], auth: bool) {
     }
 }
 
+/// YouTube Music's Podcasts: Home's "Podcasts" chip (its /podcasts page opens Home),
+/// shown as a mood's page is.
+pub async fn podcasts(api: &Api, auth: bool) -> anyhow::Result<MoodPage> {
+    let params = home(api, None, auth).await?.chips.into_iter().find(|c| c.title.eq_ignore_ascii_case("podcasts")).and_then(|c| c.params);
+    let params = params.ok_or_else(|| anyhow::anyhow!("YouTube Music offered no Podcasts"))?;
+    let page = home(api, Some(&params), auth).await?;
+    Ok(MoodPage { browse_id: PODCASTS.into(), params: None, title: Some("Podcasts".into()), shelves: page.shelves })
+}
+
+/// The Podcasts page's route, as a mood's.
+pub const PODCASTS: &str = "podcasts";
+
 /// A mood's or genre's page.
 pub async fn mood_page(api: &Api, browse_id: &str, params: Option<&str>, auth: bool) -> anyhow::Result<MoodPage> {
     let mut body = json!({ "browseId": browse_id });
@@ -1323,7 +1335,11 @@ fn shelf(s: &Value) -> Option<Shelf> {
     let strapline = text(&h["strapline"]);
     let strap_thumb = thumbs(&h["thumbnail"]["musicThumbnailRenderer"]).into_iter().next().map(|t| t.url);
     let items: Vec<&Value> = arr(&r["contents"]).iter().filter(|i| !is_video(i)).collect();
-    let kind = if items.iter().any(|i| !i["musicResponsiveListItemRenderer"].is_null()) {
+    let kind = if items.iter().any(|i| !i["musicMultiRowListItemRenderer"].is_null()) {
+        // Podcast episodes, which play like songs.
+        let tracks: Vec<Track> = items.iter().filter_map(|i| episode(&i["musicMultiRowListItemRenderer"])).collect();
+        ShelfKind::Songs { tracks, rows: 4 }
+    } else if items.iter().any(|i| !i["musicResponsiveListItemRenderer"].is_null()) {
         let tracks: Vec<Track> = items.iter().filter_map(|i| list_item(&i["musicResponsiveListItemRenderer"])).collect();
         let rows = r["numItemsPerColumn"].as_str().and_then(|n| n.parse().ok()).unwrap_or(4);
         ShelfKind::Songs { tracks, rows }
@@ -1335,6 +1351,35 @@ fn shelf(s: &Value) -> Option<Shelf> {
         ShelfKind::Songs { tracks, .. } => tracks.is_empty(),
     };
     (!empty).then_some(Shelf { title, strapline, strap_thumb, kind })
+}
+
+/// A podcast episode row: its show stands in for the artist (not a link: a show isn't
+/// an artist's page).
+fn episode(r: &Value) -> Option<Track> {
+    let id = r["onTap"]["watchEndpoint"]["videoId"].as_str()?.to_owned();
+    let title = text(&r["title"])?;
+    let artists = text(&r["secondTitle"]).map(|name| vec![Link { name, id: None }]).unwrap_or_default();
+    let duration = text(&r["playbackProgress"]["musicPlaybackProgressRenderer"]["durationText"]).and_then(|d| spoken_secs(&d));
+    Some(Track { id, title, artists, album: None, duration, thumbs: thumbs(&r["thumbnail"]["musicThumbnailRenderer"]), track_nr: None, plays: None, music_video: false })
+}
+
+/// "1 hr 5 min" or " • 42 min" in seconds.
+fn spoken_secs(s: &str) -> Option<u32> {
+    let mut total = 0;
+    let mut n = None;
+    for w in s.split_whitespace() {
+        match (w.parse::<u32>(), n) {
+            (Ok(v), _) => n = Some(v),
+            (_, Some(v)) if w.starts_with("hr") || w.starts_with("hour") => total += v * 3600,
+            (_, Some(v)) if w.starts_with("min") => total += v * 60,
+            (_, Some(v)) if w.starts_with("sec") => total += v,
+            _ => continue,
+        }
+        if w.parse::<u32>().is_err() {
+            n = None;
+        }
+    }
+    (total > 0).then_some(total)
 }
 
 /// A square/round card (album, playlist, artist, or a song shown as a card).
@@ -1907,6 +1952,26 @@ mod tests {
 
     /// Asks the Android VR client for a real album (no sign-in). Run alone:
     /// `cargo test --bin nuvx -- --ignored ytm::tests::album_songs_live --exact`
+    #[tokio::test]
+    #[ignore]
+    async fn podcasts_live() {
+        let api = crate::ytmapi::Api::new(&std::env::temp_dir().join("nuvx-album-songs-test"));
+        let page = podcasts(&api, false).await.unwrap();
+        for s in &page.shelves {
+            if let ShelfKind::Songs { tracks, .. } = &s.kind {
+                println!("{}: {:?}", s.title, tracks.iter().take(2).map(|t| (&t.id, &t.title, t.duration)).collect::<Vec<_>>());
+            }
+        }
+        assert!(page.shelves.iter().any(|s| matches!(&s.kind, ShelfKind::Songs { tracks, .. } if !tracks.is_empty())));
+    }
+
+    #[test]
+    fn spoken_lengths_become_seconds() {
+        assert_eq!(spoken_secs(" • 42 min"), Some(2520));
+        assert_eq!(spoken_secs("1 hr 5 min"), Some(3900));
+        assert_eq!(spoken_secs("Played"), None);
+    }
+
     #[tokio::test]
     #[ignore]
     async fn moods_live() {

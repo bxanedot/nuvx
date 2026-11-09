@@ -236,40 +236,79 @@ pub fn dialog(app: &mut App, ctx: &egui::Context) {
     }
 }
 
-/// A downloaded update, as Android's Software Update alert: a narrow card with the title,
-/// what it is, What's New, and full-width stacked actions under hairlines.
-fn update_alert(app: &mut App, ctx: &egui::Context, version: &str) {
-    let body = app.updater.as_ref().and_then(|u| u.notes(version));
-    let accent = app.accent_color();
-    let (mut later, mut install) = (false, false);
+/// Android's alert: a narrow card with a title, a line of body, anything `content` adds,
+/// and full-width stacked actions under hairlines. Which action was clicked, and whether
+/// it was dismissed (Escape, or a click outside).
+fn alert(ctx: &egui::Context, id: &str, title: &str, body: &str, accent: Color32, content: impl FnOnce(&mut Ui), actions: &[(&str, bool)]) -> (Option<usize>, bool) {
+    let mut picked = None;
     let frame = surface().corner_radius(14).shadow(egui::epaint::Shadow { offset: [0, 12], blur: 40, spread: 0, color: theme::shade(0.4) });
-    let modal = egui::Modal::new(egui::Id::unique("update-alert")).frame(frame).backdrop_color(theme::shade(0.28)).show(ctx, |ui| {
-        let w = 300.0;
-        ui.set_width(w);
+    let modal = egui::Modal::new(egui::Id::unique(id)).frame(frame).backdrop_color(theme::shade(0.28)).show(ctx, |ui| {
+        ui.set_width(300.0);
         ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
         egui::Frame::new().inner_margin(Margin { left: 16, right: 16, top: 20, bottom: 16 }).show(ui, |ui| {
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("Software Update").font(theme::semibold(17.0)).color(theme::text()));
+                ui.label(egui::RichText::new(title).font(theme::semibold(17.0)).color(theme::text()));
                 ui.add_space(4.0);
-                let line = format!("nuvx {version} is ready to install. You're on {}.", crate::update::current_version());
-                ui.label(egui::RichText::new(line).font(theme::regular(13.0)).color(theme::text_dim()));
+                ui.label(egui::RichText::new(body).font(theme::regular(13.0)).color(theme::text_dim()));
             });
-            if let Some(md) = &body {
-                ui.add_space(14.0);
-                ui.label(egui::RichText::new("What's New").font(theme::semibold(13.0)).color(theme::text()));
-                ui.add_space(6.0);
-                egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| show(ui, &parse(md), 13.0));
-            }
+            content(ui);
         });
-        later = alert_action(ui, "Later", false, accent).clicked();
-        install = alert_action(ui, "Install Now", true, accent).clicked();
+        for (i, (label, emphasised)) in actions.iter().enumerate() {
+            if alert_action(ui, label, *emphasised, accent).clicked() {
+                picked = Some(i);
+            }
+        }
     });
-    if later || modal.should_close() {
+    (picked, modal.should_close())
+}
+
+/// A downloaded update, as Android's Software Update alert, with What's New.
+fn update_alert(app: &mut App, ctx: &egui::Context, version: &str) {
+    let body = app.updater.as_ref().and_then(|u| u.notes(version));
+    let line = format!("nuvx {version} is ready to install. You're on {}.", crate::update::current_version());
+    let content = |ui: &mut Ui| {
+        if let Some(md) = &body {
+            ui.add_space(14.0);
+            ui.label(egui::RichText::new("What's New").font(theme::semibold(13.0)).color(theme::text()));
+            ui.add_space(6.0);
+            egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| show(ui, &parse(md), 13.0));
+        }
+    };
+    let (picked, dismissed) = alert(ctx, "update-alert", "Software Update", &line, app.accent_color(), content, &[("Later", false), ("Install Now", true)]);
+    if picked.is_some() || dismissed {
         app.notes_dialog = None;
     }
-    if install {
-        app.notes_dialog = None;
+    if picked == Some(1) {
         app.restart_to_update(ctx);
+    }
+}
+
+/// Radio's or Podcasts' first visit, as Android's Radio: keep the tab, or hide it.
+pub fn tab_intro(app: &mut App, ctx: &egui::Context) {
+    let podcasts = matches!(&app.page, super::Page::Mood { browse_id, .. } if browse_id == crate::ytm::PODCASTS);
+    let i = match (&app.page, podcasts) {
+        (super::Page::Radio, _) => 0,
+        (_, true) => 1,
+        _ => return,
+    };
+    if app.tab_intros_shown[i] {
+        return;
+    }
+    let (title, body, actions) = if i == 0 {
+        ("Live Radio", "Live stations from around the world. Not your thing? You can hide this tab, and bring it back anytime in Settings › Appearance.", [("Keep Radio", true), ("Hide Radio tab", false)])
+    } else {
+        ("Podcasts", "Shows and episodes from YouTube Music. Not your thing? You can hide this tab, and bring it back anytime in Settings › Appearance.", [("Keep Podcasts", true), ("Hide Podcasts tab", false)])
+    };
+    let (picked, dismissed) = alert(ctx, "tab-intro", title, body, app.accent_color(), |_| {}, &actions);
+    if picked.is_some() || dismissed {
+        app.tab_intros_shown[i] = true;
+    }
+    if picked == Some(1) {
+        if i == 0 {
+            app.hide_radio = true;
+        } else {
+            app.hide_podcasts = true;
+        }
     }
 }
 

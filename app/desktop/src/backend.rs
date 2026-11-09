@@ -707,6 +707,7 @@ impl Backend {
                     ytm::mood_art(api, &mut sections, me).await;
                     Resp::Moods(sections)
                 }
+                Req::Mood { browse_id, .. } if browse_id == ytm::PODCASTS => Resp::Mood(ytm::podcasts(api, me).await?),
                 Req::Mood { browse_id, params } => Resp::Mood(ytm::mood_page(api, &browse_id, params.as_deref(), me).await?),
                 // The page shows these failures itself, with a retry.
                 Req::RadioCountries => Resp::RadioCountries(crate::radio::countries(&self.http()).await.map_err(|e| format!("{e:#}"))),

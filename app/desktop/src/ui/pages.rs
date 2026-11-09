@@ -1247,7 +1247,7 @@ const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 10] = {
         (Downloads, glyphs::DOWNLOAD, "Downloads", "Where downloaded songs go"),
         (Lyrics, glyphs::LYRICS_OFF, "Lyrics", "Lyrics providers, timing, translation and romanization"),
         (Artists, glyphs::PENCIL, "Artists", "Artist signatures"),
-        (Appearance, glyphs::PAINTBRUSH, "Appearance", "Light or dark, background, font, hidden playlists, classic search"),
+        (Appearance, glyphs::PAINTBRUSH, "Appearance", "Light or dark, background, font, hidden playlists, classic search, tabs"),
         (Window, glyphs::MAXIMIZE_2, "Window", "Material, close to tray, sidebar, renderer"),
         (Network, glyphs::WIFI, "Network", "Proxy and connection test"),
         (Import, glyphs::IMPORT, "Import", "Transfer from Spotify"),
@@ -1310,6 +1310,16 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
             settings_card(ui, |ui| {
                 setting_row(ui, "Classic search", Some("A plain search page instead of the colour category tiles."), |ui| {
                     toggle(ui, &mut app.classic_search, "Classic search");
+                });
+            });
+            section_label(ui, "Tabs", None);
+            settings_card(ui, |ui| {
+                setting_row(ui, "Hide Radio tab", Some("Removes live radio stations from the sidebar."), |ui| {
+                    toggle(ui, &mut app.hide_radio, "Hide Radio tab");
+                });
+                divider(ui);
+                setting_row(ui, "Hide Podcasts tab", Some("Removes podcasts from the sidebar."), |ui| {
+                    toggle(ui, &mut app.hide_podcasts, "Hide Podcasts tab");
                 });
             });
         }
