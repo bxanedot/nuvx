@@ -62,3 +62,6 @@ keystore.properties
 
 # Claude Code session files (launch configs, worktrees)
 .claude/
+
+# Desktop app (Rust)
+/app/desktop/target/
