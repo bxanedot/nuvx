@@ -36,12 +36,17 @@
 
 ## Screenshots
 
-### Windows
+### Desktop
 
 <p align="center">
-  <a href="docs/screenshots/windows.jpg"><img src="docs/screenshots/windows.jpg" width="29%" alt="nuvx on Windows showing the Home feed and playback controls"></a>
-  <a href="docs/screenshots/windows-lyrics-panel.png"><img src="docs/screenshots/windows-lyrics-panel.png" width="34%" alt="nuvx on Windows showing Home with the synced lyrics panel open"></a>
-  <a href="docs/screenshots/windows-fullscreen-lyrics.png"><img src="docs/screenshots/windows-fullscreen-lyrics.png" width="34%" alt="nuvx on Windows showing full-screen lyrics beside the Animal album cover"></a>
+  <a href="docs/nuvx-banner-desktop.png"><img src="docs/nuvx-banner-desktop.png" width="49%" alt="Make room for music. nuvx Desktop showing Home with the lyrics panel open."></a>
+  <a href="docs/nuvx-banner-desktop-lyrics.png"><img src="docs/nuvx-banner-desktop-lyrics.png" width="49%" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics."></a>
+</p>
+
+<p align="center">
+  <a href="docs/screenshots/windows.jpg"><img src="docs/screenshots/windows.jpg" width="29%" alt="nuvx Desktop showing the Home feed and playback controls"></a>
+  <a href="docs/screenshots/windows-lyrics-panel.png"><img src="docs/screenshots/windows-lyrics-panel.png" width="34%" alt="nuvx Desktop showing Home with the synced lyrics panel open"></a>
+  <a href="docs/screenshots/windows-fullscreen-lyrics.png"><img src="docs/screenshots/windows-fullscreen-lyrics.png" width="34%" alt="nuvx Desktop showing full-screen lyrics beside the Animal album cover"></a>
 </p>
 
 ### Now Playing and lyrics
