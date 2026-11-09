@@ -21,4 +21,4 @@
 :root[data-theme=dark] .social-links img{filter:brightness(0) invert(1)}
 
 :root[data-theme=dark] .brand img,:root[data-theme=dark] .hero-logo{content:url('/mark-white.svg');filter:none}
-.canvas-band .wrap{min-height:76px;display:flex;align-items:center;justify-content:center}.canvas-band .button{min-width:170px;justify-content:center}.canvas-band .button img{filter:brightness(0);transition:filter .3s ease}:root[data-theme=dark] .canvas-band .button img{filter:brightness(0) invert(1)}
+.canvas-band .wrap{min-height:76px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}.canvas-band .button{min-width:170px;justify-content:center}.canvas-band .button img{filter:brightness(0);transition:filter .3s ease}:root[data-theme=dark] .canvas-band .button img{filter:brightness(0) invert(1)}
