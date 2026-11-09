@@ -256,6 +256,7 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
     nav(ui, glyphs::HOME, APPLE, "Home", Page::Home, p == Page::Home, &mut go_to);
     nav(ui, glyphs::EXPLORE, APPLE, "Explore", Page::New, p == Page::New, &mut go_to);
     nav(ui, glyphs::LIBRARY, APPLE, "Library", Page::Library(LibTab::Playlists), matches!(p, Page::Library(_)), &mut go_to);
+    nav(ui, glyphs::RADIO, APPLE, "Radio", Page::Radio, p == Page::Radio, &mut go_to);
     nav(ui, glyphs::DOWNLOAD, APPLE, "Downloads", Page::Downloads, p == Page::Downloads, &mut go_to);
 
     ui.add_space(14.0);

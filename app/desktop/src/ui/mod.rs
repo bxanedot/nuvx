@@ -20,6 +20,7 @@ mod nowplaying;
 mod pages;
 mod playback;
 mod queue;
+mod radio;
 mod responses;
 mod shell;
 mod titlebar;
@@ -61,6 +62,8 @@ pub enum Page {
     Search(String),
     /// A mood's or genre's page, from Search's or Explore's tiles.
     Mood { browse_id: String, params: Option<String>, title: String },
+    /// Live radio stations, as Android's Radio tab.
+    Radio,
     Downloads,
     Album(String),
     Playlist(String),
@@ -538,6 +541,7 @@ pub struct App {
     pub(super) moods: Option<Vec<crate::model::MoodSection>>,
     moods_asked: bool,
     pub(super) mood: Option<crate::model::MoodPage>,
+    pub(super) radio: radio::RadioState,
     /// Settings › Window: draw with wgpu (Vulkan) from the next start (renderer.rs).
     pub(super) wgpu_renderer: bool,
     /// Settings › Window: the window's material from the next start (material.rs).
@@ -713,6 +717,7 @@ impl App {
             moods: None,
             moods_asked: false,
             mood: None,
+            radio: Default::default(),
             wgpu_renderer,
             app_icon,
             tray: None,
