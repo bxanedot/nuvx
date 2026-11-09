@@ -62,6 +62,7 @@ fn parse_moods(v: &Value) -> Vec<MoodSection> {
                         params: ep["params"].as_str().map(str::to_owned),
                         // ARGB, as a number or a numeric string.
                         color: stripe.as_u64().or_else(|| stripe.as_str()?.parse().ok()).map(|c| (c & 0xFF_FFFF) as u32),
+                        thumb: None,
                     })
                 })
                 .collect();
@@ -76,6 +77,29 @@ fn parse_moods(v: &Value) -> Vec<MoodSection> {
         .filter(|(i, s)| !s.title.eq_ignore_ascii_case("For you") && !s.items.iter().any(|m| later(*i, m)))
         .map(|(_, s)| s.clone())
         .collect()
+}
+
+/// Fill in each tile's picture: the first cover on the page it opens, as Android does.
+pub async fn mood_art(api: &Api, sections: &mut [MoodSection], auth: bool) {
+    use futures_util::{StreamExt, stream};
+    let keys: Vec<(String, Option<String>)> = sections.iter().flat_map(|s| &s.items).map(|m| (m.browse_id.clone(), m.params.clone())).collect();
+    // A few at a time, as Android: the grid gains art without flooding YouTube.
+    let found: Vec<_> = stream::iter(keys)
+        .map(|(id, params)| async move {
+            let page = mood_page(api, &id, params.as_deref(), auth).await.ok()?;
+            let url = page.shelves.iter().find_map(|s| match &s.kind {
+                ShelfKind::Cards(cards) => cards.iter().find_map(|c| crate::model::pick_thumb(&c.thumbs, 300)),
+                ShelfKind::Songs { tracks, .. } => tracks.iter().find_map(|t| crate::model::pick_thumb(&t.thumbs, 300)),
+            })?;
+            Some((id, params, url.url.clone()))
+        })
+        .buffer_unordered(4)
+        .filter_map(std::future::ready)
+        .collect()
+        .await;
+    for m in sections.iter_mut().flat_map(|s| &mut s.items) {
+        m.thumb = found.iter().find(|(id, p, _)| *id == m.browse_id && *p == m.params).map(|f| f.2.clone());
+    }
 }
 
 /// A mood's or genre's page.
@@ -1887,8 +1911,12 @@ mod tests {
     #[ignore]
     async fn moods_live() {
         let api = crate::ytmapi::Api::new(&std::env::temp_dir().join("nuvx-album-songs-test"));
-        let sections = moods(&api, false).await.unwrap();
+        let mut sections = moods(&api, false).await.unwrap();
         println!("{:?}", sections.iter().map(|s| (&s.title, s.items.len())).collect::<Vec<_>>());
+        mood_art(&api, &mut sections, false).await;
+        let (n, with) = sections.iter().flat_map(|s| &s.items).fold((0, 0), |(n, w), m| (n + 1, w + usize::from(m.thumb.is_some())));
+        println!("art for {with}/{n}: {:?}", sections[0].items[0].thumb);
+        assert!(with * 10 >= n * 9, "most tiles should find a cover");
         let m = &sections[0].items[0];
         let page = mood_page(&api, &m.browse_id, m.params.as_deref(), false).await.unwrap();
         println!("{} {:?}: {:?}", m.title, page.title, page.shelves.iter().map(|s| &s.title).collect::<Vec<_>>());

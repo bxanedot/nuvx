@@ -446,8 +446,31 @@ fn mood_tiles(ui: &mut Ui, items: &[crate::model::Mood], acts: &mut Vec<Action>)
                 let h = theme::anim_bool(ui.ctx(), resp.id.with("h"), resp.hovered(), 0.12);
                 let base = m.color.map_or(theme::glass(0.14), |c| Color32::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8));
                 ui.painter().rect_filled(rect, 12.0, theme::lerp_color(base, Color32::WHITE, 0.10 * h));
-                // Dark text on the light tiles, as Android's.
-                let light = 0.2126 * f32::from(base.r()) + 0.7152 * f32::from(base.g()) + 0.0722 * f32::from(base.b()) > 160.0;
+                // Android's duotone: the cover in grey, multiplied into the tile colour, on its right 72%.
+                if let Some(url) = &m.thumb {
+                    let img = Rect::from_min_max(pos2(rect.right() - rect.width() * 0.72, rect.top()), rect.max);
+                    // The square cover cropped to the strip, top-aligned.
+                    let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, (img.height() / img.width()).min(1.0)));
+                    let round = egui::CornerRadius { nw: 0, sw: 0, ne: 12, se: 12 };
+                    egui::Image::new(format!("gray:{url}")).uv(uv).corner_radius(round).tint(base).paint_at(ui, img);
+                    // Lifts the shadows back toward the tile colour, as Android's screen layer.
+                    ui.painter().rect_filled(img, round, theme::with_alpha(base, 0.25));
+                    // Keeps the name legible where the photo runs dark.
+                    // A gradient mesh down to the corners' height, then a solid strip that keeps their rounding.
+                    let (mid, foot, dark) = (rect.top() + rect.height() * 0.45, rect.bottom() - 12.0, theme::shade(0.28));
+                    let mut mesh = egui::Mesh::default();
+                    for (y, c) in [(mid, Color32::TRANSPARENT), (foot, dark)] {
+                        mesh.colored_vertex(pos2(rect.left(), y), c);
+                        mesh.colored_vertex(pos2(rect.right(), y), c);
+                    }
+                    mesh.add_triangle(0, 1, 2);
+                    mesh.add_triangle(1, 3, 2);
+                    ui.painter().add(mesh);
+                    let strip = Rect::from_min_max(pos2(rect.left(), foot), rect.max);
+                    ui.painter().rect_filled(strip, egui::CornerRadius { nw: 0, ne: 0, sw: 12, se: 12 }, dark);
+                }
+                // Dark text on the light plain tiles, as Android's; white over a picture.
+                let light = m.thumb.is_none() && 0.2126 * f32::from(base.r()) + 0.7152 * f32::from(base.g()) + 0.0722 * f32::from(base.b()) > 160.0;
                 let ink = if light { Color32::from_rgb(18, 18, 18) } else { Color32::WHITE };
                 let g = widgets::galley_wrapped(ui, &m.title, theme::bold(16.0), ink, tw - 28.0, 2);
                 ui.painter().galley(pos2(rect.left() + 14.0, rect.bottom() - 12.0 - g.size().y), g, ink);

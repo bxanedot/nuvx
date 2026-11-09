@@ -156,6 +156,8 @@ pub struct Mood {
     pub params: Option<String>,
     /// The tile's colour, 0xRRGGBB.
     pub color: Option<u32>,
+    /// A cover borrowed from the playlists it opens, as Android's tiles; filled in after the list.
+    pub thumb: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
