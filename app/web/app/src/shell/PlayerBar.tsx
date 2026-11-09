@@ -20,9 +20,9 @@ import { fadeForVolume, VolumeControl } from './VolumeControl';
 
 const control = 'grid place-items-center rounded-[6px] disabled:opacity-40';
 // Shuffle and repeat: secondary, and the key colour when on, as Apple's toggles.
-const toggle = `${control} size-7 text-secondary aria-pressed:text-key`;
+const toggle = `${control} size-7 text-secondary aria-pressed:bg-key/20 aria-pressed:text-primary`;
 const transport = `${control} size-7 text-primary`;
-const action = 'grid h-7 w-6 place-items-center rounded-[4px] text-primary aria-pressed:text-key';
+const action = 'grid h-7 w-6 place-items-center rounded-[4px] text-primary aria-pressed:bg-key/20';
 // The actions the volume level slides in over: they fade out while it's open.
 const fading = `${action} ${fadeForVolume}`;
 

@@ -36,11 +36,11 @@ export const settingsUi = {
     'rounded-[12px] bg-quaternary px-3 py-1 type-callout-emphasized text-secondary hover:text-primary aria-pressed:bg-key-bg aria-pressed:text-white',
   steps: 'mx-4 mt-2.5 list-decimal ps-[18px] type-body-tall text-secondary [&>li+li]:mt-1',
 
-  /** Integration rows: a coloured app-icon square, the name, the state. */
+  /** Integration rows: the icon, the name, and the state. */
   integration: `${integration} grid-cols-[24px_minmax(0,1fr)_auto]`,
   /** An integration row without the icon square. */
   integrationPlain: `${integration} grid-cols-[minmax(0,1fr)_auto]`,
-  integrationIcon: 'grid size-6 place-items-center rounded-[6px] text-white',
+  integrationIcon: 'grid size-6 place-items-center rounded-[6px] bg-quaternary text-primary',
   integrationName: 'min-w-0',
   /** Settings: an integration row that opens a page of its own. */
   linkRow: 'w-full cursor-pointer text-start hover:bg-quaternary',

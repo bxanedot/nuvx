@@ -14,16 +14,15 @@ import { settingsUi } from './settingsStyles';
 interface Integration {
   name: string;
   Icon: ComponentType<{ size?: number; className?: string }>;
-  color: string;
   capability: Capability;
   /** What the row says when the extension serves this integration. */
   ready: string;
 }
 
 const INTEGRATIONS: Integration[] = [
-  { name: 'YouTube Music', Icon: SiYoutubemusic, color: '#ff0033', capability: 'yt', ready: 'Playback ready · not signed in' },
-  { name: 'Spotify', Icon: SiSpotify, color: '#1ed760', capability: 'spotify', ready: 'Not connected' },
-  { name: 'Discord', Icon: SiDiscord, color: '#5865f2', capability: 'discord', ready: 'Off' },
+  { name: 'YouTube Music', Icon: SiYoutubemusic, capability: 'yt', ready: 'Playback ready · not signed in' },
+  { name: 'Spotify', Icon: SiSpotify, capability: 'spotify', ready: 'Not connected' },
+  { name: 'Discord', Icon: SiDiscord, capability: 'discord', ready: 'Off' },
 ];
 
 /** YouTube Music's row: who requests act as, once the extension reports it. */
@@ -156,7 +155,7 @@ export default function ExtensionPage() {
         <section className={settingsUi.group}>
           {INTEGRATIONS.map((integration) => (
             <div key={integration.name} className={settingsUi.integration}>
-              <span className={settingsUi.integrationIcon} style={{ backgroundColor: integration.color }}>
+              <span className={settingsUi.integrationIcon} aria-hidden="true">
                 <integration.Icon size={15} />
               </span>
               <span className={settingsUi.integrationName}>{integration.name}</span>

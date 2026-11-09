@@ -111,7 +111,7 @@ export function MenuItem({ onSelect, icon, checked, destructive, disabled, trail
       disabled={disabled}
       onClick={onSelect}
     >
-      {checked !== undefined && <span className="inline-grid w-3.5 flex-none place-items-center text-key">{checked && <Check size={14} strokeWidth={2.6} />}</span>}
+      {checked !== undefined && <span className="inline-grid w-3.5 flex-none place-items-center">{checked && <Check size={14} strokeWidth={2.6} />}</span>}
       {icon && <span className="inline-grid w-5 flex-none place-items-center text-secondary">{icon}</span>}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {trailing && <span className="flex-none text-secondary">{trailing}</span>}

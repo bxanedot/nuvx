@@ -54,7 +54,7 @@ const LIBRARY: NavItem[] = (Object.keys(LIBRARY_ICONS) as (keyof typeof LIBRARY_
 const item =
   'group flex h-9 items-center gap-2 mb-0.5 p-1 rounded-nav type-body-reduced text-primary hover:bg-quinary aria-[current=page]:bg-nav-selected';
 // Apple's glyphs, drawn at 24px (their 24-unit box), which the user preferred to Apple's own 28px.
-const icon = 'inline-grid size-6 flex-none place-items-center text-primary group-aria-[current=page]:text-key';
+const icon = 'inline-grid size-6 flex-none place-items-center text-primary';
 const navLabel = 'min-w-0 truncate';
 // "Library", "Playlists" (report §1: 12px/15px 600, secondary, padding 4px 8px).
 const sectionHeader = 'mt-4 px-2 py-1 type-callout-emphasized text-secondary';
@@ -183,8 +183,8 @@ export function Sidebar() {
           </PrefetchNavLink>
           <AccountButton />
           <div className="flex items-center justify-between">
-            <a className="inline-flex items-center gap-1 ps-1 type-callout text-primary hover:underline" href={config.androidAppUrl} target="_blank" rel="noreferrer">
-              <span>Get the Android app</span>
+            <a className="inline-flex items-center gap-1 ps-1 type-callout text-primary hover:underline" href={config.appDownloadUrl} target="_blank" rel="noreferrer">
+              <span>Get the app</span>
               <ArrowUpRight size={14} strokeWidth={2} />
             </a>
             <PrefetchNavLink to="/settings" className="grid size-7 place-items-center rounded-nav text-secondary hover:bg-quinary hover:text-primary aria-[current=page]:bg-quinary aria-[current=page]:text-primary" aria-label="Settings" title="Settings" onClick={close}>
