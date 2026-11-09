@@ -1771,11 +1771,11 @@ fn settings_window(app: &mut App, ui: &mut Ui) {
             divider(ui);
             use crate::material::Material;
             let desc = if cfg!(windows) {
-                "Solid is nuvx's own background. Mica and Acrylic let Windows 11 tint the window with your desktop behind it, Acrylic with more blur."
+                "Dynamic is nuvx's own background. Mica and Acrylic let Windows 11 tint the window with your desktop behind it, Acrylic with more blur."
             } else if cfg!(target_os = "macos") {
-                "Solid is nuvx's own background. Window and Sidebar are macOS's own vibrancy, with your desktop blurred behind the window."
+                "Dynamic is nuvx's own background. Window and Sidebar are macOS's own vibrancy, with your desktop blurred behind the window."
             } else {
-                "Solid is nuvx's own background. Tinted and Translucent let your desktop show through the window; your compositor decides any blur."
+                "Dynamic is nuvx's own background. Tinted and Translucent let your desktop show through the window; your compositor decides any blur."
             };
             setting_row(ui, "Window material", Some(desc), |ui| {
                 let now = crate::material::active();

@@ -1,4 +1,4 @@
-//! The window's material: the app's own background (Solid), or the system's own material
+//! The window's material: the app's own background (Dynamic; saved as "solid"), or the system's own material
 //! showing through the window, as BitChord does. The same three choices everywhere, each
 //! system's own: Windows 11's Mica and Acrylic, macOS's Window and Sidebar vibrancy,
 //! and on Linux the desktop tinted or showing through (the compositor decides any blur).
@@ -20,7 +20,7 @@ impl Material {
     /// What this system calls it.
     pub fn name(self) -> &'static str {
         match self {
-            Material::Default => "Solid",
+            Material::Default => "Dynamic",
             Material::Mica if cfg!(target_os = "macos") => "Window",
             Material::Acrylic if cfg!(target_os = "macos") => "Sidebar",
             Material::Mica if cfg!(target_os = "linux") => "Tinted",
@@ -50,7 +50,7 @@ impl Material {
 pub const SUPPORTED: bool = cfg!(any(windows, target_os = "linux", target_os = "macos"));
 
 static CHOSEN: AtomicU8 = AtomicU8::new(Material::initial() as u8);
-/// Whether the system took the material (Windows 10 has no Mica or Acrylic: then Solid shows).
+/// Whether the system took the material (Windows 10 has no Mica or Acrylic: then Dynamic shows).
 static APPLIED: AtomicBool = AtomicBool::new(cfg!(target_os = "linux"));
 static WINDOW: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(std::ptr::null_mut());
 /// The dark-mode flag last handed to the window: 0 unset, 1 light, 2 dark.
