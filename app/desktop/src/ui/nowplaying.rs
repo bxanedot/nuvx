@@ -108,9 +108,17 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
             app.set_fullscreen(ui.ctx(), false);
         }
     }
+    // Its actions (like, download, share…) are for what's heard: a song version
+    // standing in for the music video. They live beside the star under the cover, and
+    // lyrics and the queue beside Repeat; only when the cover column is hidden (a narrow
+    // window showing lyrics) do they stay up here.
+    let cover_hidden = (narrow || cs.layout == Layout::LyricsOnly) && app.np_tab != NpTab::Art && !no_lyrics;
     hui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         ui.add_space(super::titlebar::right_gap(ui.ctx(), ui.max_rect(), 0.0));
-        // Lyrics beside the artwork, and back to the artwork alone.
+        if !cover_hidden {
+            return;
+        }
+        // Back to the artwork alone.
         let on = app.np_tab == NpTab::Lyrics;
         let (r, resp) = ui.allocate_exact_size(vec2(34.0, 34.0), Sense::click());
         let resp = widgets::named(resp, if on { "Hide lyrics" } else { "Show lyrics" }).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -123,15 +131,8 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
         if resp.clicked() {
             app.np_tab = if on { NpTab::Art } else { NpTab::Lyrics };
         }
-        // Its actions (like, download, share…) are for what's heard: a song version
-        // standing in for the music video. It lives beside the star under the cover;
-        // only when the cover column is hidden (a narrow window showing lyrics) does
-        // it stay up here.
-        let cover_hidden = (narrow || cs.layout == Layout::LyricsOnly) && app.np_tab != NpTab::Art && !no_lyrics;
-        if cover_hidden {
-            let (r, _) = ui.allocate_exact_size(vec2(34.0, 34.0), Sense::hover());
-            options_menu(app, ui, r, &heard, app.np_tab == NpTab::Lyrics && !no_lyrics);
-        }
+        let (r, _) = ui.allocate_exact_size(vec2(34.0, 34.0), Sense::hover());
+        options_menu(app, ui, r, &heard, app.np_tab == NpTab::Lyrics && !no_lyrics, true);
     });
 
     let content = Rect::from_min_max(pos2(area.left(), header.bottom() + 12.0), area.max);
@@ -356,7 +357,7 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     }
     // The song's options, beside the star.
     let options = Rect::from_center_size(pos2(art.right() - 15.0, info_y + 14.0), Vec2::splat(34.0));
-    options_menu(app, ui, options, &heard, app.np_tab == NpTab::Lyrics && !no_lyrics);
+    options_menu(app, ui, options, &heard, app.np_tab == NpTab::Lyrics && !no_lyrics, false);
 
     // Seek: a 4 px line that grows under the pointer, its times below.
     let status = app.audio.status.clone();
@@ -439,14 +440,15 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         }
     }
 
-    // Transport: the reference's row — shuffle, previous, play, next, repeat — 52 tall,
-    // no wider than 315, its buttons 36/48/56/48/36 with icons of 30/40/48/40/30.
+    // Transport: the reference's row — shuffle, previous, play, next, repeat — then the
+    // queue and lyrics beside Repeat; 52 tall, no wider than 400, its buttons
+    // 36/48/56/48/36/36/36 with icons of 30/40/48/40/30/26/26.
     let ty = info_y + 99.0 + 26.0;
-    let row_w = w.min(315.0);
-    let sizes = [36.0f32, 48.0, 56.0, 48.0, 36.0];
-    let icons = [30.0f32, 40.0, 48.0, 40.0, 30.0];
-    let gap = ((row_w - sizes.iter().sum::<f32>()) / 4.0).max(4.0);
-    let mut xs = [0.0f32; 5];
+    let row_w = w.min(400.0);
+    let sizes = [36.0f32, 48.0, 56.0, 48.0, 36.0, 36.0, 36.0];
+    let icons = [30.0f32, 40.0, 48.0, 40.0, 30.0, 26.0, 26.0];
+    let gap = ((row_w - sizes.iter().sum::<f32>()) / 6.0).max(4.0);
+    let mut xs = [0.0f32; 7];
     let mut cx = art.center().x - row_w / 2.0;
     for (i, s) in sizes.iter().enumerate() {
         xs[i] = cx + s / 2.0;
@@ -520,6 +522,19 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
             Repeat::All => Repeat::One,
             Repeat::One => Repeat::Off,
         };
+    }
+    // The queue and lyrics open beside the artwork, and close back to it.
+    for (i, tab, key, glyph, off_glyph, show, hide) in [
+        (5, NpTab::UpNext, "queue", super::glyphs::QUEUE, super::glyphs::QUEUE, "View queue", "Hide queue"),
+        (6, NpTab::Lyrics, "lyrics", super::glyphs::LYRICS, super::glyphs::LYRICS_OFF, "Show lyrics", "Hide lyrics"),
+    ] {
+        let on = app.np_tab == tab;
+        let (r, h, p) = btn(ui, i, key, if on { hide } else { show }, true);
+        let tint = if on { app.accent_color() } else { ink(h, 0.55, 1.0) };
+        super::glyphs::draw(ui, r.rect.center(), icons[i] * (1.0 - 0.1 * p), if on { glyph } else { off_glyph }, tint);
+        if r.clicked() {
+            app.np_tab = if on { NpTab::Art } else { tab };
+        }
     }
 
     if no_lyrics && app.np_tab == NpTab::Lyrics {
@@ -729,9 +744,9 @@ fn sync_label(k: SyncKind) -> &'static str {
     }
 }
 
-/// The ⋯ menu: the song's actions, and with lyrics showing, the source picker,
+/// The ⋯ menu (`header`: up top, with the cover column and its transport hidden): the song's actions, and with lyrics showing, the source picker,
 /// translation and romanization toggles, and this song's timing offset above them.
-fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Track, lyrics: bool) {
+fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Track, lyrics: bool, header: bool) {
     let resp = ui.interact(rect, ui.scope_id().with("np-options"), Sense::click());
     let resp = named(resp, "Options").on_hover_cursor(egui::CursorIcon::PointingHand);
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
@@ -759,12 +774,24 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
         if widgets::menu_action(ui, Some(icon::LIST_MUSIC), "Add to queue") {
             app.actions.push(Action::Enqueue(track.clone()));
         }
+        // The transport's queue button is hidden with the cover column.
         let queue = app.np_tab == NpTab::UpNext;
-        if widgets::menu_action(ui, Some(icon::LIST_MUSIC), if queue { "View lyrics" } else { "View queue" }) {
+        if header && widgets::menu_glyph_action(ui, super::glyphs::QUEUE, if queue { "View lyrics" } else { "View queue" }) {
             app.np_tab = if queue { NpTab::Lyrics } else { NpTab::UpNext };
         }
-        if widgets::menu_action(ui, Some(icon::RADIO), "Start radio") {
-            app.actions.push(Action::Radio(track.clone()));
+        if app.queue.upcoming().is_some() && widgets::menu_glyph_action(ui, super::glyphs::SHUFFLE, "Shuffle") {
+            app.shuffle_upcoming();
+        }
+        // Which recording plays, as Android's switch: a music video's song version, or
+        // the video itself. Only a listed music video has both.
+        if app.current().is_some_and(|t| t.music_video) && !app.jam.active() {
+            if app.playing_as().is_some() {
+                if widgets::menu_glyph_action(ui, super::glyphs::VIDEO, "Switch to video") {
+                    app.play_listed_upload();
+                }
+            } else if widgets::menu_glyph_action(ui, super::glyphs::MUSIC_NOTE, "Switch to song") {
+                app.play_song_version();
+            }
         }
         // Quality toggle at the bottom: revert when hi-res is playing, upgrade when not.
         let hires_playing = app.audio_info.as_ref().is_some_and(|(_, i)| i.lossless() || i.atmos);

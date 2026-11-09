@@ -22,6 +22,9 @@ pub const STAR_FILLED: Glyph = include_str!("../../assets/icon/glyphs/star_fille
 pub const LYRICS: Glyph = include_str!("../../assets/icon/glyphs/lyrics.svg");
 pub const LYRICS_OFF: Glyph = include_str!("../../assets/icon/glyphs/lyrics_off.svg");
 pub const QUEUE: Glyph = include_str!("../../assets/icon/glyphs/queue.svg");
+pub const VIDEO: Glyph = include_str!("../../assets/icon/glyphs/video.svg");
+pub const MUSIC_NOTE: Glyph = include_str!("../../assets/icon/glyphs/music_note.svg");
+pub const PODCAST: Glyph = include_str!("../../assets/icon/glyphs/podcast.svg");
 pub const MAXIMIZE_2: Glyph = include_str!("../../assets/icon/glyphs/maximize2.svg");
 pub const VOLUME: [Glyph; 4] = [
     include_str!("../../assets/icon/glyphs/volume_0.svg"),
@@ -370,7 +373,7 @@ mod tests {
     #[test]
     fn every_glyph_parses_and_draws() {
         let all = [
-            SHUFFLE, PREVIOUS, PLAY, PAUSE, NEXT, REPEAT, REPEAT_ONE, STAR, STAR_FILLED, LYRICS, LYRICS_OFF, QUEUE,
+            SHUFFLE, PREVIOUS, PLAY, PAUSE, NEXT, REPEAT, REPEAT_ONE, STAR, STAR_FILLED, LYRICS, LYRICS_OFF, QUEUE, VIDEO, MUSIC_NOTE, PODCAST,
             MAXIMIZE_2, HOME, EXPLORE, LIBRARY, SEARCH, DOWNLOAD, SETTINGS, PERSON_CIRCLE, SPARKLES, MARK, SPOTIFY, DISCORD,
             YOUTUBE_MUSIC, PERSON, PLAY_OUTLINE, PENCIL, PAINTBRUSH, WIFI, IMPORT, KEYBOARD, HISTORY, RADIO, WAVEFORM,
         ];

@@ -155,6 +155,15 @@ impl App {
         }
     }
 
+    /// Play the current music video's song version from the start (the two don't share
+    /// a timeline), even with "Play songs, not music videos" off. With none found, the
+    /// video goes on, as with that setting on.
+    pub(super) fn play_song_version(&mut self) {
+        let keep = std::mem::replace(&mut self.play_songs, true);
+        self.play_current_at(Duration::ZERO, false);
+        self.play_songs = keep;
+    }
+
     /// `t`, when it's a music video to play as its song version. Not in a jam: everyone
     /// there plays the host's exact upload at the host's position.
     pub(super) fn song_of(&self, t: &Track) -> Option<Track> {

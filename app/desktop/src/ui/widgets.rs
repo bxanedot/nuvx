@@ -587,12 +587,14 @@ pub fn menu_action(ui: &mut Ui, glyph: Option<char>, label: &str) -> bool {
     })
 }
 
+/// A menu row marked with one of the app's own glyphs.
+pub fn menu_glyph_action(ui: &mut Ui, glyph: super::glyphs::Glyph, label: &str) -> bool {
+    menu_row(ui, label, |ui, at, color| super::glyphs::draw(ui, at, 16.0, glyph, color))
+}
+
 /// A menu row marked with the app's own star, filled once the song is liked.
 fn menu_action_star(ui: &mut Ui, liked: bool, label: &str) -> bool {
-    menu_row(ui, label, |ui, at, color| {
-        let glyph = if liked { super::glyphs::STAR_FILLED } else { super::glyphs::STAR };
-        super::glyphs::draw(ui, at, 16.0, glyph, color);
-    })
+    menu_glyph_action(ui, if liked { super::glyphs::STAR_FILLED } else { super::glyphs::STAR }, label)
 }
 
 /// `remove`: the song's row in the open playlist, when it's yours and the song can come out.
