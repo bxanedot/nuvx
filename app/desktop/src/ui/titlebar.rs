@@ -139,7 +139,8 @@ pub fn window_buttons(ctx: &egui::Context) {
             if resp.clicked() {
                 ctx.send_viewport_cmd(match kind {
                     Kind::Minimize => ViewportCommand::Minimized(true),
-                    Kind::Maximize => ViewportCommand::Maximized(true),
+                    // Windows' buttons have no full screen of their own.
+                    Kind::Maximize | Kind::FullScreen => ViewportCommand::Maximized(true),
                     Kind::Restore => ViewportCommand::Maximized(false),
                     Kind::Close => ViewportCommand::Close,
                 });
@@ -148,17 +149,26 @@ pub fn window_buttons(ctx: &egui::Context) {
     });
 }
 
-/// macOS's close, minimize and zoom buttons in `rect` (52 by any height): coloured
-/// circles that show their symbols while the pointer is over the group.
-pub fn traffic_lights(ui: &Ui, rect: Rect) {
+/// macOS's close, minimize and green buttons in `rect` (52 by any height): coloured
+/// circles that show their symbols while the pointer is over the group. As on macOS,
+/// green enters full screen (its two arrows) and with Option (Alt) held zooms instead
+/// (its plus). True when it asked for full screen, which the app goes into itself.
+pub fn traffic_lights(ui: &Ui, rect: Rect) -> bool {
     let ctx = ui.ctx().clone();
     let max = maximized(&ctx);
     let focused = ctx.input(|i| i.viewport().focused.unwrap_or(true));
+    let zoom = ctx.input(|i| i.modifiers.alt);
     let over = ui.rect_contains_pointer(rect);
+    let mut full_screen = false;
+    let green = match (zoom, max) {
+        (false, _) => (Kind::FullScreen, "Enter Full Screen"),
+        (true, false) => (Kind::Maximize, "Zoom"),
+        (true, true) => (Kind::Restore, "Zoom"),
+    };
     let lights = [
         (Kind::Close, "Close", Color32::from_rgb(0xFF, 0x5F, 0x57)),
         (Kind::Minimize, "Minimize", Color32::from_rgb(0xFE, 0xBC, 0x2E)),
-        (if max { Kind::Restore } else { Kind::Maximize }, if max { "Restore" } else { "Maximize" }, Color32::from_rgb(0x28, 0xC8, 0x40)),
+        (green.0, green.1, Color32::from_rgb(0x28, 0xC8, 0x40)),
     ];
     let p = ui.painter();
     for (i, (kind, name, color)) in lights.into_iter().enumerate() {
@@ -181,12 +191,19 @@ pub fn traffic_lights(ui: &Ui, rect: Rect) {
                     p.line_segment([c + vec2(-2.5, -2.5), c + vec2(2.5, 2.5)], s);
                     p.line_segment([c + vec2(-2.5, 2.5), c + vec2(2.5, -2.5)], s);
                 }
-                Kind::Minimize | Kind::Restore => {
+                Kind::Minimize => {
                     p.line_segment([c + vec2(-3.0, 0.0), c + vec2(3.0, 0.0)], s);
                 }
-                Kind::Maximize => {
+                // Zoom is a plus either way, as macOS draws it.
+                Kind::Maximize | Kind::Restore => {
                     p.line_segment([c + vec2(-3.0, 0.0), c + vec2(3.0, 0.0)], s);
                     p.line_segment([c + vec2(0.0, -3.0), c + vec2(0.0, 3.0)], s);
+                }
+                // Two arrowheads pointing out to opposite corners.
+                Kind::FullScreen => {
+                    let ink = Color32::from_black_alpha(150);
+                    p.add(egui::Shape::convex_polygon(vec![c + vec2(-3.2, -3.2), c + vec2(1.2, -3.2), c + vec2(-3.2, 1.2)], ink, Stroke::NONE));
+                    p.add(egui::Shape::convex_polygon(vec![c + vec2(3.2, 3.2), c + vec2(-1.2, 3.2), c + vec2(3.2, -1.2)], ink, Stroke::NONE));
                 }
             }
         }
@@ -194,14 +211,16 @@ pub fn traffic_lights(ui: &Ui, rect: Rect) {
             p.circle_stroke(c, 8.0, Stroke::new(1.5, theme::text()));
         }
         if resp.clicked() {
-            ctx.send_viewport_cmd(match kind {
-                Kind::Minimize => ViewportCommand::Minimized(true),
-                Kind::Maximize => ViewportCommand::Maximized(true),
-                Kind::Restore => ViewportCommand::Maximized(false),
-                Kind::Close => ViewportCommand::Close,
-            });
+            match kind {
+                Kind::FullScreen => full_screen = true,
+                Kind::Minimize => ctx.send_viewport_cmd(ViewportCommand::Minimized(true)),
+                Kind::Maximize => ctx.send_viewport_cmd(ViewportCommand::Maximized(true)),
+                Kind::Restore => ctx.send_viewport_cmd(ViewportCommand::Maximized(false)),
+                Kind::Close => ctx.send_viewport_cmd(ViewportCommand::Close),
+            }
         }
     }
+    full_screen
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -210,6 +229,8 @@ enum Kind {
     Maximize,
     Restore,
     Close,
+    /// macOS's green button: the app's own full screen.
+    FullScreen,
 }
 
 fn paint_button(ui: &Ui, r: Rect, kind: Kind, resp: &egui::Response) {
@@ -238,7 +259,7 @@ fn paint_button(ui: &Ui, r: Rect, kind: Kind, resp: &egui::Response) {
         Kind::Minimize => {
             p.line_segment([c + vec2(-5.0, 0.0), c + vec2(5.0, 0.0)], s);
         }
-        Kind::Maximize => {
+        Kind::Maximize | Kind::FullScreen => {
             p.rect_stroke(Rect::from_center_size(c, vec2(10.0, 10.0)), 1.0, s, egui::StrokeKind::Middle);
         }
         Kind::Restore => {

@@ -199,7 +199,9 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
         if super::titlebar::lights_shown(ui.ctx()) {
             ui.add_space(6.0);
             let (r, _) = ui.allocate_exact_size(vec2(52.0, 32.0), Sense::hover());
-            super::titlebar::traffic_lights(ui, r);
+            if super::titlebar::traffic_lights(ui, r) {
+                app.set_fullscreen(ui.ctx(), true);
+            }
         } else {
             // The mark stays: it's the rail's top, centred on the icons below.
             ui.add_space(8.0);
