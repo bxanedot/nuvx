@@ -192,16 +192,6 @@ impl App {
                 if self.logged_in { self.backend.request(Req::SaveCollection { id, save }); }
                 else { self.toast("Sign in to save to library"); }
             }
-            Action::HomeChip(params) => {
-                self.home_loading = true;
-                if let Some(h) = &mut self.home {
-                    h.shelves.clear();
-                    for c in &mut h.chips {
-                        c.selected = false;
-                    }
-                }
-                self.backend.request(Req::Home(params));
-            }
             Action::OpenNowPlaying(open) => {
                 if self.current().is_some() {
                     if open && !self.np_open {

@@ -198,12 +198,12 @@ impl TextureLoader for Textures {
     }
 
     fn load(&self, ctx: &egui::Context, uri: &str, options: TextureOptions, size_hint: SizeHint) -> TextureLoadResult {
-        // Also the bundled theme covers and icon previews: egui's own loader would keep
-        // each one decoded, as well as its texture, until the app closes.
+        // Also the bundled icon previews: egui's own loader would keep each one decoded,
+        // as well as its texture, until the app closes.
         // `gray:<url>`: the picture desaturated, for the mood tiles' duotone.
         let gray = uri.strip_prefix("gray:");
         let src = gray.unwrap_or(uri);
-        if !is_http(src) && !uri.starts_with("bytes://theme-cover/") && !uri.starts_with("bytes://app-icon/") {
+        if !is_http(src) && !uri.starts_with("bytes://app-icon/") {
             return Err(LoadError::NotSupported);
         }
         {

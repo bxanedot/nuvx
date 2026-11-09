@@ -266,27 +266,6 @@ fn downmix(channels: &[Vec<f32>], pcm: &mut Vec<i16>) {
     }
 }
 
-fn wav(pcm: &[i16], sample_rate: u32) -> Vec<u8> {
-    let data = (pcm.len() * 2) as u32;
-    let mut out = Vec::with_capacity(44 + pcm.len() * 2);
-    out.extend_from_slice(b"RIFF");
-    out.extend_from_slice(&(36 + data).to_le_bytes());
-    out.extend_from_slice(b"WAVEfmt ");
-    out.extend_from_slice(&16u32.to_le_bytes());
-    out.extend_from_slice(&1u16.to_le_bytes()); // PCM
-    out.extend_from_slice(&2u16.to_le_bytes()); // stereo
-    out.extend_from_slice(&sample_rate.to_le_bytes());
-    out.extend_from_slice(&(sample_rate * 4).to_le_bytes());
-    out.extend_from_slice(&4u16.to_le_bytes());
-    out.extend_from_slice(&16u16.to_le_bytes());
-    out.extend_from_slice(b"data");
-    out.extend_from_slice(&data.to_le_bytes());
-    for s in pcm {
-        out.extend_from_slice(&s.to_le_bytes());
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,24 +305,6 @@ mod tests {
         bytes.extend_from_slice(b"mdat");
         bytes.extend_from_slice(&[1, 2, 3, 4]);
         assert_eq!(mdat_payloads(&bytes), vec![&[1u8, 2, 3, 4][..]]);
-    }
-
-    #[test]
-    fn the_decoded_wav_plays_through_the_players_decoder() {
-        let pcm: Vec<i16> = (0..480).flat_map(|i| [i as i16 * 10, -(i as i16) * 10]).collect();
-        let data = wav(&pcm, 48_000);
-        assert_eq!(&data[0..4], b"RIFF");
-        assert_eq!(&data[8..12], b"WAVE");
-        assert_eq!(&data[12..16], b"fmt ");
-        assert_eq!(&data[36..40], b"data");
-        // Symphonia probe directly.
-        use symphonia::core::io::MediaSourceStream;
-        use symphonia::core::probe::Hint;
-        let mss = MediaSourceStream::new(Box::new(std::io::Cursor::new(data.clone())), Default::default());
-        let mut hint = Hint::new();
-        hint.with_extension("wav");
-        let probed = symphonia::default::get_probe().format(&hint, mss, &Default::default(), &Default::default());
-        assert!(probed.is_ok(), "symphonia wav probe failed: {:?}", probed.err());
     }
 
     #[test]
