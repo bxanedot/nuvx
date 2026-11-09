@@ -34,8 +34,6 @@
   <a href="docs/nuvx-banner-lyrics-motion.png"><img src="docs/nuvx-banner-lyrics-motion.png" width="49%" alt="Lyrics in motion. An illustration of the active lyric line lighting up in nuvx."></a>
 </p>
 
-## Desktop
-
 <p align="center">
   <a href="docs/nuvx-banner-desktop.png"><img src="docs/nuvx-banner-desktop.png" width="49%" alt="Make room for music. nuvx Desktop showing Home with the lyrics panel open."></a>
   <a href="docs/nuvx-banner-desktop-lyrics.png"><img src="docs/nuvx-banner-desktop-lyrics.png" width="49%" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics."></a>
