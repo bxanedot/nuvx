@@ -23,10 +23,26 @@
 :root[data-theme=dark] .brand img,:root[data-theme=dark] .hero-logo{content:url('/mark-white.svg');filter:none}
 .canvas-band .wrap{min-height:76px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}.canvas-band .button{min-width:170px;justify-content:center}.canvas-band .button img{filter:brightness(0);transition:filter .3s ease}:root[data-theme=dark] .canvas-band .button img{filter:brightness(0) invert(1)}
 
-.showcase{padding-block:clamp(44px,7vw,96px)}
+.showcase{position:relative;isolation:isolate;padding-block:clamp(44px,7vw,96px)}
+.showcase-glow{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);opacity:.22}
+:root[data-theme=dark] .showcase-glow{opacity:.52}
+.showcase-glow::before{
+  content:"";position:absolute;inset:-24%;
+  background:radial-gradient(ellipse at 22% 52%,#2867d9,transparent 47%),
+    radial-gradient(ellipse at 68% 29%,#6e36af,transparent 44%),
+    radial-gradient(ellipse at 87% 74%,#d2643d,transparent 42%);
+  animation:showcase-flow 28s ease-in-out infinite paused;
+}
+.showcase[data-flowing] .showcase-glow::before{animation-play-state:running}
+@keyframes showcase-flow{
+  0%,100%{transform:translate3d(-6%,1%,0) scale(1.04)}
+  33%{transform:translate3d(2%,-6%,0) scale(1.1)}
+  66%{transform:translate3d(6%,4%,0) scale(1.06)}
+}
+@media(prefers-reduced-motion:reduce){.showcase-glow::before{animation:none}}
 .showcase-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px}
 .showcase-header h2{font-size:clamp(42px,5vw,64px);margin:0 0 10px}
-.showcase-header .lede{margin:0}
+.showcase-header .lede{margin:0;color:color-mix(in srgb,var(--text) 82%,var(--bg))}
 .showcase-toggle{background:var(--bg);color:var(--text);cursor:pointer}
 .showcase-toggle[hidden]{display:none}
 .showcase-viewport{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}

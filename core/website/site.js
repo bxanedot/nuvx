@@ -16,6 +16,7 @@
 
   const viewport = document.querySelector('#showcase-viewport');
   if (viewport) {
+    const showcase = viewport.closest('.showcase');
     const banners = viewport.querySelector('.showcase-banners');
     const repeat = banners.cloneNode(true);
     repeat.setAttribute('aria-hidden', 'true');
@@ -42,6 +43,7 @@
     const sync = () => {
       cancelAnimationFrame(frame);
       control.textContent = playing ? 'Pause showcase' : 'Play showcase';
+      showcase.toggleAttribute('data-flowing', playing && visible);
       if (!playing || !visible || interacting) return;
       if (!repeat.isConnected) banners.after(repeat);
       position = viewport.scrollLeft;
