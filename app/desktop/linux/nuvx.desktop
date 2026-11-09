@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=nuvx
+GenericName=Music Player
+Comment=YouTube Music for your desktop
+Exec=nuvx
+Icon=nuvx
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;player;
+StartupWMClass=nuvx
