@@ -256,7 +256,18 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
     nav(ui, glyphs::HOME, APPLE, "Home", Page::Home, p == Page::Home, &mut go_to);
     nav(ui, glyphs::EXPLORE, APPLE, "Explore", Page::New, p == Page::New, &mut go_to);
     nav(ui, glyphs::LIBRARY, APPLE, "Library", Page::Library(LibTab::Playlists), matches!(p, Page::Library(_)), &mut go_to);
-    nav(ui, glyphs::RADIO, APPLE, "Radio", Page::Radio, p == Page::Radio, &mut go_to);
+    let podcasts = matches!(&p, Page::Mood { browse_id, .. } if browse_id == crate::ytm::PODCASTS);
+    if !app.hide_radio {
+        nav(ui, glyphs::RADIO, APPLE, "Radio", Page::Radio, p == Page::Radio, &mut go_to);
+    }
+    if !app.hide_podcasts {
+        let page = Page::Mood { browse_id: crate::ytm::PODCASTS.into(), params: None, title: "Podcasts".into() };
+        nav(ui, glyphs::PODCAST, APPLE, "Podcasts", page, podcasts, &mut go_to);
+    }
+    // A tab hidden while it's open: back home, as Android does.
+    if (app.hide_radio && p == Page::Radio) || (app.hide_podcasts && podcasts) {
+        go_to = Some(Page::Home);
+    }
     nav(ui, glyphs::DOWNLOAD, APPLE, "Downloads", Page::Downloads, p == Page::Downloads, &mut go_to);
 
     ui.add_space(14.0);

@@ -537,6 +537,11 @@ pub struct App {
     close_to_tray: bool,
     /// Android's Classic search: a plain Search page, without the mood tiles.
     pub(super) classic_search: bool,
+    /// Android's "Hide Radio tab", and the same for Podcasts.
+    pub(super) hide_radio: bool,
+    pub(super) hide_podcasts: bool,
+    /// Whether Radio's and Podcasts' first visits have asked to keep the tab.
+    pub(super) tab_intros_shown: [bool; 2],
     pub(super) moods: Option<Vec<crate::model::MoodSection>>,
     moods_asked: bool,
     pub(super) mood: Option<crate::model::MoodPage>,
@@ -713,6 +718,9 @@ impl App {
             updater: None,
             close_to_tray: !no_tray && get("close_to_tray").is_some_and(|v| v == "1"),
             classic_search: get("classic_search").is_some_and(|v| v == "1"),
+            hide_radio: get("hide_radio_tab").is_some_and(|v| v == "1"),
+            hide_podcasts: get("hide_podcasts_tab").is_some_and(|v| v == "1"),
+            tab_intros_shown: [get("radio_intro_shown").is_some_and(|v| v == "1"), get("podcasts_intro_shown").is_some_and(|v| v == "1")],
             moods: None,
             moods_asked: false,
             mood: None,
@@ -1396,6 +1404,7 @@ impl eframe::App for App {
         self.draw_dialog(&ctx);
         notes::card(self, &ctx);
         notes::dialog(self, &ctx);
+        notes::tab_intro(self, &ctx);
         if let Some(url) = self.share_pending.take() { ctx.copy_text(url); }
         shell::suggestions(self, &ctx);
         shell::toast(self, &ctx, now);
@@ -1492,6 +1501,10 @@ impl eframe::App for App {
         }
         storage.set_string("close_to_tray", b(self.close_to_tray));
         storage.set_string("classic_search", b(self.classic_search));
+        storage.set_string("hide_radio_tab", b(self.hide_radio));
+        storage.set_string("hide_podcasts_tab", b(self.hide_podcasts));
+        storage.set_string("radio_intro_shown", b(self.tab_intros_shown[0]));
+        storage.set_string("podcasts_intro_shown", b(self.tab_intros_shown[1]));
         storage.set_string("sidebar_collapsed", b(self.sidebar_collapsed));
         storage.set_string("window_buttons", if titlebar::mac() { "mac" } else { "windows" }.to_owned());
         // The sidebar's playlist order, completed with any playlist that appeared since
