@@ -65,5 +65,5 @@ kotlin {
 
 android {
     namespace = "com.bxane.nuvx.shared"
-    compileSdk = 36
+    compileSdk = 37
 }
