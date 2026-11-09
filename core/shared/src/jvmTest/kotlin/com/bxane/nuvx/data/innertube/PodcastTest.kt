@@ -135,4 +135,34 @@ class PodcastTest {
         assertEquals("Figuring Out With Raj Shamani", song.artist)
         assertFalse(song.isVideo)
     }
+
+    @Test
+    fun podcastsFeed_isHomesPodcastsChip_inAnyLanguage() {
+        fun home(title: String, params: String) = json(
+            """{"contents":{"singleColumnBrowseResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{
+              "header":{"chipCloudRenderer":{"chips":[
+                {"chipCloudChipRenderer":{"text":{"runs":[{"text":"Relax"}]},"navigationEndpoint":{"browseEndpoint":{"params":"ggNCSgQIDBABSgQIBxAD"}}}},
+                {"chipCloudChipRenderer":{"text":{"runs":[{"text":"$title"}]},"navigationEndpoint":{"browseEndpoint":{"params":"$params"}}}}
+              ]}},"contents":[]}}}}]}}}""",
+        )
+        assertEquals("ggNCSgQIDBAD", InnertubeParser.podcastsChipParams(home("Podcasts", "ggNCSgQIDBAD")))
+        assertEquals("ggNCSgQIDBADSgQIBxAB", InnertubeParser.podcastsChipParams(home("Подкасты", "ggNCSgQIDBADSgQIBxAB")))
+        assertNull(InnertubeParser.podcastsChipParams(home("Sleep", "ggNCSgQIDBABSgQIBRAD")))
+    }
+
+    @Test
+    fun podcastsFeedEpisodes_becomePlayableShelfRows() {
+        val feed = json(
+            """{"contents":{"singleColumnBrowseResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
+              {"musicCarouselShelfRenderer":{"header":{"musicCarouselShelfBasicHeaderRenderer":{"title":{"runs":[{"text":"Films"}]}}},
+               "contents":[{"musicMultiRowListItemRenderer":{
+                 "title":{"runs":[{"text":"Episode 7"}]},"secondTitle":{"runs":[{"text":"The Show"}]},
+                 "onTap":{"watchEndpoint":{"videoId":"e-rDtY7SK80"}}}}]}}
+            ]}}}}]}}}""",
+        )
+        val shelf = InnertubeParser.parseHome(feed).single()
+        val item = shelf.items.single()
+        assertEquals("Films", shelf.title)
+        assertEquals(listOf("Episode 7", "The Show", "e-rDtY7SK80"), listOf(item.title, item.subtitle, item.videoId))
+    }
 }

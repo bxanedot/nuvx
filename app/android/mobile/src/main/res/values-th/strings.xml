@@ -1366,6 +1366,12 @@
     <string name="radio_intro_body">สถานีสดจากทั่วโลก ไม่ชอบหรือ? ซ่อนแท็บนี้ได้</string>
     <string name="radio_intro_keep">เก็บวิทยุไว้</string>
     <string name="radio_intro_later">ซ่อนแท็บวิทยุได้ทุกเมื่อใน การตั้งค่า > อื่นๆ</string>
+    <string name="podcasts">พอดแคสต์</string>
+    <string name="hide_podcasts_tab">ซ่อนแท็บพอดแคสต์</string>
+    <string name="hide_podcasts_tab_subtitle">นำพอดแคสต์ออกจากแถบแท็บ</string>
+    <string name="podcasts_intro_body">รายการและตอนต่างๆ จาก YouTube Music ไม่ชอบใช่ไหม คุณซ่อนแท็บนี้ได้</string>
+    <string name="podcasts_intro_keep">เก็บพอดแคสต์ไว้</string>
+    <string name="podcasts_intro_later">คุณซ่อนแท็บพอดแคสต์ได้ทุกเมื่อในการตั้งค่า &gt; อื่นๆ</string>
     <string name="support_tip_title">ชอบ nuvx ไหม?</string>
     <string name="support_tip_body">nuvx ใช้ฟรีและทำโดยคนคนเดียว ทิปเล็กๆ ช่วยให้ไปต่อได้</string>
     <string name="support_tip_action">ให้ทิปบน Ko-fi</string>

@@ -1360,6 +1360,12 @@
     <string name="radio_intro_body">来自世界各地的直播电台。不需要？可以隐藏此标签。</string>
     <string name="radio_intro_keep">保留电台</string>
     <string name="radio_intro_later">可随时在 设置 > 其他 中隐藏电台标签。</string>
+    <string name="podcasts">播客</string>
+    <string name="hide_podcasts_tab">隐藏播客标签</string>
+    <string name="hide_podcasts_tab_subtitle">从标签栏中移除播客</string>
+    <string name="podcasts_intro_body">来自 YouTube Music 的节目和单集。不感兴趣？你可以隐藏此标签。</string>
+    <string name="podcasts_intro_keep">保留播客</string>
+    <string name="podcasts_intro_later">你可以随时在“设置 &gt; 其他”中隐藏播客标签。</string>
     <string name="support_tip_title">喜欢 nuvx 吗？</string>
     <string name="support_tip_body">nuvx 免费，由一个人开发。一点小费能让它继续下去。</string>
     <string name="support_tip_action">在 Ko-fi 打赏</string>

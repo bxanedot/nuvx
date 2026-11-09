@@ -206,6 +206,7 @@ fun SettingsScreen(
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val hideRadioTab by AppSettings.hideRadioTab.collectAsStateWithLifecycle()
+    val hidePodcastsTab by AppSettings.hidePodcastsTab.collectAsStateWithLifecycle()
     val carMode by AppSettings.carMode.collectAsStateWithLifecycle()
     val classicSearch by AppSettings.classicSearch.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -1569,6 +1570,21 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setHideRadioTab(!hideRadioTab) },
+                )
+            }
+            val hidePodcastsTabTitle = stringResource(R.string.hide_podcasts_tab)
+            row(hidePodcastsTabTitle, "podcasts", "podcast", "episodes", "tab", "nav") {
+                SettingsRow(
+                    icon = SfIcons.Recognize,
+                    title = hidePodcastsTabTitle,
+                    subtitle = stringResource(R.string.hide_podcasts_tab_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = hidePodcastsTab,
+                            onCheckedChange = AppSettings::setHidePodcastsTab,
+                        )
+                    },
+                    onClick = { AppSettings.setHidePodcastsTab(!hidePodcastsTab) },
                 )
             }
             val playNextOnSwipeTitle = stringResource(R.string.play_next_on_swipe)

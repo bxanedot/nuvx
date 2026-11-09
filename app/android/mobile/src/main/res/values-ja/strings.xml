@@ -1361,6 +1361,12 @@
     <string name="radio_intro_body">世界中のライブ局。不要ならこのタブを非表示にできます。</string>
     <string name="radio_intro_keep">ラジオを残す</string>
     <string name="radio_intro_later">ラジオタブはいつでも 設定 > その他 で非表示にできます。</string>
+    <string name="podcasts">ポッドキャスト</string>
+    <string name="hide_podcasts_tab">ポッドキャストタブを非表示</string>
+    <string name="hide_podcasts_tab_subtitle">タブバーからポッドキャストを削除します</string>
+    <string name="podcasts_intro_body">YouTube Music の番組とエピソード。興味がなければ、このタブは非表示にできます。</string>
+    <string name="podcasts_intro_keep">ポッドキャストを残す</string>
+    <string name="podcasts_intro_later">ポッドキャストタブは「設定 &gt; その他」でいつでも非表示にできます。</string>
     <string name="support_tip_title">nuvx を楽しんでいますか？</string>
     <string name="support_tip_body">nuvx は無料で、一人で作っています。少額のチップが続ける力になります。</string>
     <string name="support_tip_action">Ko-fi でチップ</string>

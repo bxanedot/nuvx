@@ -1360,6 +1360,12 @@
     <string name="radio_intro_body">Stasiun langsung dari seluruh dunia. Tidak suka? Kamu bisa menyembunyikan tab ini.</string>
     <string name="radio_intro_keep">Tetap pakai Radio</string>
     <string name="radio_intro_later">Kamu bisa menyembunyikan tab Radio kapan saja di Setelan > Lainnya.</string>
+    <string name="podcasts">Podcast</string>
+    <string name="hide_podcasts_tab">Sembunyikan tab Podcast</string>
+    <string name="hide_podcasts_tab_subtitle">Menghapus podcast dari bilah tab</string>
+    <string name="podcasts_intro_body">Acara dan episode dari YouTube Music. Bukan seleramu? Kamu bisa menyembunyikan tab ini.</string>
+    <string name="podcasts_intro_keep">Pertahankan Podcast</string>
+    <string name="podcasts_intro_later">Kamu bisa menyembunyikan tab Podcast kapan saja di Setelan &gt; Lainnya.</string>
     <string name="support_tip_title">Suka nuvx?</string>
     <string name="support_tip_body">nuvx gratis dan dibuat oleh satu orang. Tip kecil membuatnya terus berjalan.</string>
     <string name="support_tip_action">Beri tip di Ko-fi</string>

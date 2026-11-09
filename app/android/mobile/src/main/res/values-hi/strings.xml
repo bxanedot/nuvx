@@ -1380,6 +1380,12 @@
     <string name="radio_intro_body">दुनिया भर के लाइव स्टेशन। पसंद नहीं? आप यह टैब छिपा सकते हैं।</string>
     <string name="radio_intro_keep">रेडियो रखें</string>
     <string name="radio_intro_later">आप रेडियो टैब कभी भी सेटिंग्स > विविध में छिपा सकते हैं।</string>
+    <string name="podcasts">पॉडकास्ट</string>
+    <string name="hide_podcasts_tab">पॉडकास्ट टैब छिपाएं</string>
+    <string name="hide_podcasts_tab_subtitle">टैब बार से पॉडकास्ट हटाता है</string>
+    <string name="podcasts_intro_body">YouTube Music के शो और एपिसोड। आपकी पसंद नहीं? आप यह टैब छिपा सकते हैं।</string>
+    <string name="podcasts_intro_keep">पॉडकास्ट रखें</string>
+    <string name="podcasts_intro_later">आप पॉडकास्ट टैब कभी भी सेटिंग्स &gt; अन्य में छिपा सकते हैं।</string>
     <string name="support_tip_title">nuvx पसंद आ रहा है?</string>
     <string name="support_tip_body">nuvx मुफ़्त है और एक व्यक्ति बनाता है। एक छोटी सी टिप इसे चलाए रखती है।</string>
     <string name="support_tip_action">Ko-fi पर टिप दें</string>

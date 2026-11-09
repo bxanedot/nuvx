@@ -182,6 +182,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _moodGenreShelves = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
     val moodGenreShelves: StateFlow<UiState<List<HomeShelf>>> = _moodGenreShelves.asStateFlow()
 
+    private val _podcasts = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
+    val podcasts: StateFlow<UiState<List<HomeShelf>>> = _podcasts.asStateFlow()
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -1685,6 +1688,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _moodGenreShelves.value = UiState.Loading
         viewModelScope.launch {
             _moodGenreShelves.value = YtMusicRepository.moodGenreShelves(item.browseId, item.params).fold(
+                onSuccess = { shelves ->
+                    if (shelves.isEmpty()) UiState.Error(text(R.string.nothing_to_explore))
+                    else UiState.Success(shelves)
+                },
+                onFailure = { UiState.Error(it.friendly()) },
+            )
+        }
+    }
+
+    /** The Podcasts tab's feed, fetched on its first visit and on Retry. */
+    fun loadPodcasts(force: Boolean = false) {
+        if (!force && _podcasts.value is UiState.Success) return
+        _podcasts.value = UiState.Loading
+        viewModelScope.launch {
+            _podcasts.value = YtMusicRepository.podcasts().fold(
                 onSuccess = { shelves ->
                     if (shelves.isEmpty()) UiState.Error(text(R.string.nothing_to_explore))
                     else UiState.Success(shelves)

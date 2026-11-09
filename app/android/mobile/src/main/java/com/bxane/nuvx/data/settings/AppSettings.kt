@@ -452,6 +452,12 @@ object AppSettings {
     /** Whether the first-visit Radio pop-up has been answered. */
     val radioIntroShown = MutableStateFlow(false)
 
+    /** Hides the Podcasts tab from the nav bar. */
+    val hidePodcastsTab = MutableStateFlow(false)
+
+    /** Whether the first-visit Podcasts pop-up has been answered. */
+    val podcastsIntroShown = MutableStateFlow(false)
+
     /** "Don't show again" on the occasional tip / GitHub-star pop-up. */
     val supportPromptsOff = MutableStateFlow(false)
 
@@ -1045,6 +1051,8 @@ object AppSettings {
         carMode.value = prefs.getBoolean(KEY_CAR_MODE, false)
         classicSearch.value = prefs.getBoolean(KEY_CLASSIC_SEARCH, false)
         radioIntroShown.value = prefs.getBoolean(KEY_RADIO_INTRO_SHOWN, false)
+        hidePodcastsTab.value = prefs.getBoolean(KEY_HIDE_PODCASTS_TAB, false)
+        podcastsIntroShown.value = prefs.getBoolean(KEY_PODCASTS_INTRO_SHOWN, false)
         supportPromptsOff.value = prefs.getBoolean(KEY_SUPPORT_PROMPTS_OFF, false)
         highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
         performanceRefreshRate.value = normalizePerformanceRefreshRate(
@@ -1471,6 +1479,16 @@ object AppSettings {
     fun setRadioIntroShown() {
         radioIntroShown.value = true
         prefs.edit().putBoolean(KEY_RADIO_INTRO_SHOWN, true).apply()
+    }
+
+    fun setHidePodcastsTab(value: Boolean) {
+        hidePodcastsTab.value = value
+        prefs.edit().putBoolean(KEY_HIDE_PODCASTS_TAB, value).apply()
+    }
+
+    fun setPodcastsIntroShown() {
+        podcastsIntroShown.value = true
+        prefs.edit().putBoolean(KEY_PODCASTS_INTRO_SHOWN, true).apply()
     }
 
     fun setSupportPromptsOff() {
@@ -2358,6 +2376,8 @@ object AppSettings {
     private const val KEY_CAR_MODE = "car_mode"
     private const val KEY_CLASSIC_SEARCH = "classic_search"
     private const val KEY_RADIO_INTRO_SHOWN = "radio_intro_shown"
+    private const val KEY_HIDE_PODCASTS_TAB = "hide_podcasts_tab"
+    private const val KEY_PODCASTS_INTRO_SHOWN = "podcasts_intro_shown"
     private const val KEY_SUPPORT_PROMPTS_OFF = "support_prompts_off"
     private const val KEY_LAUNCHES = "launch_count"
     private const val KEY_HIGH_PERFORMANCE_MODE = "high_performance_mode"

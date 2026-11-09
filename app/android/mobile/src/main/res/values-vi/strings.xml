@@ -1300,6 +1300,12 @@
     <string name="radio_intro_body">Các đài trực tiếp khắp thế giới. Không thích? Bạn có thể ẩn tab này.</string>
     <string name="radio_intro_keep">Giữ Radio</string>
     <string name="radio_intro_later">Bạn có thể ẩn tab Radio bất cứ lúc nào trong Cài đặt > Khác.</string>
+    <string name="podcasts">Podcast</string>
+    <string name="hide_podcasts_tab">Ẩn thẻ Podcast</string>
+    <string name="hide_podcasts_tab_subtitle">Xóa podcast khỏi thanh thẻ</string>
+    <string name="podcasts_intro_body">Chương trình và tập từ YouTube Music. Không hợp với bạn? Bạn có thể ẩn thẻ này.</string>
+    <string name="podcasts_intro_keep">Giữ Podcast</string>
+    <string name="podcasts_intro_later">Bạn có thể ẩn thẻ Podcast bất cứ lúc nào trong Cài đặt &gt; Khác.</string>
     <string name="support_tip_title">Bạn thích nuvx chứ?</string>
     <string name="support_tip_body">nuvx miễn phí và do một người làm. Một chút tiền tip giúp nó tiếp tục.</string>
     <string name="support_tip_action">Tip trên Ko-fi</string>

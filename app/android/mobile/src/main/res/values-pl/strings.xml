@@ -1418,6 +1418,12 @@
     <string name="radio_intro_body">Stacje na żywo z całego świata. Nie dla ciebie? Możesz ukryć tę kartę.</string>
     <string name="radio_intro_keep">Zostaw Radio</string>
     <string name="radio_intro_later">Kartę Radio możesz ukryć w każdej chwili w Ustawienia > Różne.</string>
+    <string name="podcasts">Podcasty</string>
+    <string name="hide_podcasts_tab">Ukryj kartę Podcasty</string>
+    <string name="hide_podcasts_tab_subtitle">Usuwa podcasty z paska kart</string>
+    <string name="podcasts_intro_body">Audycje i odcinki z YouTube Music. Nie dla ciebie? Możesz ukryć tę kartę.</string>
+    <string name="podcasts_intro_keep">Zostaw Podcasty</string>
+    <string name="podcasts_intro_later">Kartę Podcasty możesz ukryć w dowolnej chwili w Ustawienia &gt; Różne.</string>
     <string name="support_tip_title">Podoba ci się nuvx?</string>
     <string name="support_tip_body">nuvx jest darmowy i tworzy go jedna osoba. Mały napiwek pomaga go rozwijać.</string>
     <string name="support_tip_action">Napiwek na Ko-fi</string>

@@ -1257,11 +1257,13 @@ private fun NuvxApp(
     val moodsGridState = rememberLazyGridState()
     val searchListState = rememberLazyListState()
     val radioListState = rememberLazyListState()
+    val podcastsListState = rememberLazyListState()
     val currentListState = when (selectedTab) {
         TAB_HOME -> homeListState
         TAB_EXPLORE -> if (selectedMoodGenre == null) exploreListState else moodGenreListState
         TAB_LIBRARY -> libraryListState
         TAB_RADIO -> radioListState
+        TAB_PODCASTS -> podcastsListState
         else -> searchListState
     }
 
@@ -1372,24 +1374,28 @@ private fun NuvxApp(
     val libraryLabel = stringResource(R.string.library)
     val searchLabel = stringResource(R.string.search)
     val radioLabel = stringResource(R.string.radio)
+    val podcastsLabel = stringResource(R.string.podcasts)
     val historyLabel = stringResource(R.string.history)
     val replayLabel = stringResource(R.string.replay)
     val queueLabel = stringResource(R.string.queue)
     val sharedLinkLabel = stringResource(R.string.shared_link)
     val openedFileLabel = stringResource(R.string.opened_file)
-    val tabs = remember(homeLabel, exploreLabel, libraryLabel, radioLabel, searchLabel) {
+    val tabs = remember(homeLabel, exploreLabel, libraryLabel, radioLabel, searchLabel, podcastsLabel) {
         listOf(
             BottomTab(homeLabel, SfIcons.Home, SfSymbol.named("house.fill")),
             BottomTab(libraryLabel, SfIcons.TabLibrary, SfSymbol.named("square.stack.fill")),
             BottomTab(radioLabel, RadioSymbol.toImageVector(), RadioSymbol),
             BottomTab(exploreLabel, SfIcons.TabExplore, SfSymbol.named("square.grid.2x2.fill")),
             BottomTab(searchLabel, SfIcons.Search, SfSymbol.named("magnifyingglass")),
+            BottomTab(podcastsLabel, PodcastsSymbol.toImageVector(), PodcastsSymbol),
         )
     }
     val hideRadioTab by AppSettings.hideRadioTab.collectAsStateWithLifecycle()
+    val hidePodcastsTab by AppSettings.hidePodcastsTab.collectAsStateWithLifecycle()
     // The bars index what they draw; this maps those back to the TAB_ constants.
-    val navTabIds = remember(hideRadioTab) {
-        listOf(TAB_HOME, TAB_LIBRARY, TAB_RADIO, TAB_EXPLORE, TAB_SEARCH).filter { it != TAB_RADIO || !hideRadioTab }
+    val navTabIds = remember(hideRadioTab, hidePodcastsTab) {
+        listOf(TAB_HOME, TAB_LIBRARY, TAB_RADIO, TAB_PODCASTS, TAB_EXPLORE, TAB_SEARCH)
+            .filter { (it != TAB_RADIO || !hideRadioTab) && (it != TAB_PODCASTS || !hidePodcastsTab) }
     }
     val navTabs = remember(tabs, navTabIds) { navTabIds.map { tabs[it] } }
 
@@ -3599,6 +3605,28 @@ private fun NuvxApp(
                                 contentPadding = listPadding,
                                 listState = radioListState,
                             )
+                            TAB_PODCASTS -> {
+                                LaunchedEffect(Unit) { viewModel.loadPodcasts() }
+                                MoodGenrePlaylistsScreen(
+                                    title = podcastsLabel,
+                                    state = viewModel.podcasts.collectAsStateWithLifecycle().value,
+                                    listState = podcastsListState,
+                                    onItemClick = { item ->
+                                        shelfSong(item)?.let { song ->
+                                            playRadio(song, QueueSource(podcastsLabel, PlaybackSourceType.EXPLORE))
+                                        } ?: item.browseId?.let { browseId ->
+                                            viewModel.openDetail(
+                                                browseId = browseId,
+                                                title = item.title,
+                                                subtitle = item.subtitle,
+                                                thumbnailUrl = item.thumbnailUrl,
+                                            )
+                                        }
+                                    },
+                                    onRetry = { viewModel.loadPodcasts(force = true) },
+                                    contentPadding = listPadding,
+                                )
+                            }
                             TAB_SEARCH -> SearchScreen(
                                 query = query,
                                 onQueryChange = viewModel::onQueryChange,
@@ -5578,8 +5606,9 @@ private fun NuvxApp(
         }
 
         // ---- Radio's first visit, and now and then a tip or a GitHub star ----
-        LaunchedEffect(hideRadioTab) {
+        LaunchedEffect(hideRadioTab, hidePodcastsTab) {
             if (hideRadioTab && selectedTab == TAB_RADIO) selectedTab = TAB_HOME
+            if (hidePodcastsTab && selectedTab == TAB_PODCASTS) selectedTab = TAB_HOME
         }
         if (showRecognizer) {
             RecognitionSheet(
@@ -5594,6 +5623,7 @@ private fun NuvxApp(
         }
         AppPrompts(
             radioOpen = selectedTab == TAB_RADIO,
+            podcastsOpen = selectedTab == TAB_PODCASTS,
             held = !onboardingComplete || showDiwali || showUpdateDialog,
             hazeState = hazeState,
         )
@@ -6449,6 +6479,11 @@ private const val TAB_LIBRARY = 1
 private const val TAB_RADIO = 2
 private const val TAB_EXPLORE = 3
 private const val TAB_SEARCH = 4
+// Drawn between Radio and Explore (see navTabIds); numbered last so saved tabs keep theirs.
+private const val TAB_PODCASTS = 5
+
+/** The Podcasts tab's glyph, GlyphStudio's microphone. */
+private val PodcastsSymbol: SfSymbol by lazy { SfSymbol.named("microphone")!! }
 
 /** The tab Search was opened from: the circle in Search's dock goes back to it. */
 private var tabBeforeSearch by mutableIntStateOf(TAB_HOME)

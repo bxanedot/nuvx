@@ -1319,6 +1319,12 @@
     <string name="radio_intro_body">Stazioni in diretta da tutto il mondo. Non fa per te? Puoi nascondere questa scheda.</string>
     <string name="radio_intro_keep">Tieni Radio</string>
     <string name="radio_intro_later">Puoi nascondere la scheda Radio quando vuoi in Impostazioni > Varie.</string>
+    <string name="podcasts">Podcast</string>
+    <string name="hide_podcasts_tab">Nascondi la scheda Podcast</string>
+    <string name="hide_podcasts_tab_subtitle">Rimuove i podcast dalla barra delle schede</string>
+    <string name="podcasts_intro_body">Programmi ed episodi da YouTube Music. Non fa per te? Puoi nascondere questa scheda.</string>
+    <string name="podcasts_intro_keep">Tieni Podcast</string>
+    <string name="podcasts_intro_later">Puoi nascondere la scheda Podcast in qualsiasi momento in Impostazioni &gt; Varie.</string>
     <string name="support_tip_title">Ti piace nuvx?</string>
     <string name="support_tip_body">nuvx è gratis ed è fatto da una persona sola. Una piccola mancia lo tiene in vita.</string>
     <string name="support_tip_action">Mancia su Ko-fi</string>

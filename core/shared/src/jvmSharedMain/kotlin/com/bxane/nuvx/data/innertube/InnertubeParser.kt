@@ -209,6 +209,28 @@ object InnertubeParser {
     }
 
     /**
+     * The browse params of Home's "Podcasts" chip, which is all YouTube Music's
+     * Podcasts page is now (its /podcasts link opens Home). The chip's title is
+     * in the app's language, so it's also known by the category it selects
+     * (12, marked selected), which its params spell out in any language.
+     */
+    fun podcastsChipParams(home: JsonObject): String? {
+        val chips = home.o("contents")
+            .o("singleColumnBrowseResultsRenderer").a("tabs")?.firstOrNull()
+            .o("tabRenderer").o("content").o("sectionListRenderer").o("header")
+            .o("chipCloudRenderer").a("chips").orEmpty()
+        return chips.firstNotNullOfOrNull { element ->
+            val chip = element.o("chipCloudChipRenderer") ?: return@firstNotNullOfOrNull null
+            val params = chip.o("navigationEndpoint").o("browseEndpoint").s("params") ?: return@firstNotNullOfOrNull null
+            val title = chip.o("text").runs()
+            params.takeIf { title.equals("Podcasts", ignoreCase = true) || PODCASTS_CHIP in params }
+        }
+    }
+
+    /** Category 12 marked selected, in a Home chip's base64 params. */
+    private const val PODCASTS_CHIP = "SgQIDBAD"
+
+    /**
      * The Moods & genres browse page is a set of navigation-button grids, not
      * a normal carousel. Keep the browse params on every button: they select
      * the playlist shelves that belong to that exact mood or genre.
@@ -295,6 +317,9 @@ object InnertubeParser {
                 // artist alone, no track — falls through parseResponsiveListItem
                 // (it demands a videoId) and used to drop the whole shelf.
                 ?: parseArtistRow(item.o("musicResponsiveListItemRenderer"))
+                // A podcast episode, as the Podcasts feed lists them.
+                ?: parseMultiRowListItem(item.o("musicMultiRowListItemRenderer"), null)
+                    ?.let { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null) }
         }
         // A shelf billed as videos ("Video charts", "Recommended music videos")
         // keeps the videos it can play and loses the video compilations, which
@@ -302,7 +327,8 @@ object InnertubeParser {
         val items = if (VIDEO_WORD.containsMatchIn(title)) parsed.filter { it.videoId != null } else parsed
         if (items.isEmpty()) return null
         val shelfTitle = title.ifBlank { "For you" }
-        val fromList = contents.firstOrNull().o("musicResponsiveListItemRenderer") != null
+        val first = contents.firstOrNull()
+        val fromList = first.o("musicResponsiveListItemRenderer") != null || first.o("musicMultiRowListItemRenderer") != null
         return HomeShelf(shelfTitle, items, strapline, layout = shelfLayoutFor(shelfTitle, items, fromList))
     }
 

@@ -97,17 +97,21 @@ fun NoticeAlert(
 }
 
 /**
- * The app's own pop-ups: Radio's first visit (offer to hide the tab, else say
+ * The app's own pop-ups: Radio's and Podcasts' first visits (offer to hide the tab, else say
  * where that lives), and the rare tip / GitHub-star ask. [held] keeps the
  * latter back while the welcome, a greeting or an update is up.
  */
 @Composable
-internal fun AppPrompts(radioOpen: Boolean, held: Boolean, hazeState: HazeState) {
+internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean, hazeState: HazeState) {
     val context = LocalContext.current
     var radioIntroStep by rememberSaveable { mutableIntStateOf(0) }
     var supportPrompt by rememberSaveable { mutableIntStateOf(AppSettings.nextSupportPrompt()) }
+    var podcastsIntroStep by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(radioOpen) {
         if (radioOpen && !AppSettings.radioIntroShown.value) radioIntroStep = 1
+    }
+    LaunchedEffect(podcastsOpen) {
+        if (podcastsOpen && !AppSettings.podcastsIntroShown.value) podcastsIntroStep = 1
     }
     if (radioIntroStep == 1) {
         NoticeAlert(
@@ -135,8 +139,35 @@ internal fun AppPrompts(radioOpen: Boolean, held: Boolean, hazeState: HazeState)
         )
     }
 
+    // Podcasts' first visit, the same two steps as Radio's.
+    if (podcastsIntroStep == 1) {
+        NoticeAlert(
+            title = stringResource(R.string.podcasts),
+            body = stringResource(R.string.podcasts_intro_body),
+            actions = listOf(
+                NoticeAction(stringResource(R.string.podcasts_intro_keep), emphasised = true) { podcastsIntroStep = 2 },
+                NoticeAction(stringResource(R.string.hide_podcasts_tab)) {
+                    AppSettings.setPodcastsIntroShown()
+                    AppSettings.setHidePodcastsTab(true)
+                    podcastsIntroStep = 0
+                },
+            ),
+            hazeState = hazeState,
+            onDismiss = { podcastsIntroStep = 2 },
+        )
+    } else if (podcastsIntroStep == 2) {
+        val done = { AppSettings.setPodcastsIntroShown(); podcastsIntroStep = 0 }
+        NoticeAlert(
+            title = stringResource(R.string.podcasts),
+            body = stringResource(R.string.podcasts_intro_later),
+            actions = listOf(NoticeAction(stringResource(android.R.string.ok), emphasised = true, onClick = done)),
+            hazeState = hazeState,
+            onDismiss = done,
+        )
+    }
+
     // Now and then: a tip or a GitHub star (see AppSettings.nextSupportPrompt).
-    if (supportPrompt != 0 && !held && radioIntroStep == 0) {
+    if (supportPrompt != 0 && !held && radioIntroStep == 0 && podcastsIntroStep == 0) {
         val tip = supportPrompt == 1
         val url = if (tip) "https://ko-fi.com/bxane" else "https://github.com/bxanedot/nuvx"
         NoticeAlert(

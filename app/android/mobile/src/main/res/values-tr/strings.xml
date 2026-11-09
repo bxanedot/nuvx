@@ -1337,6 +1337,12 @@
     <string name="radio_intro_body">Dünyanın her yerinden canlı istasyonlar. Sana göre değil mi? Bu sekmeyi gizleyebilirsin.</string>
     <string name="radio_intro_keep">Radyo kalsın</string>
     <string name="radio_intro_later">Radyo sekmesini istediğin zaman Ayarlar > Diğer bölümünden gizleyebilirsin.</string>
+    <string name="podcasts">Podcast\'ler</string>
+    <string name="hide_podcasts_tab">Podcast\'ler sekmesini gizle</string>
+    <string name="hide_podcasts_tab_subtitle">Podcast\'leri sekme çubuğundan kaldırır</string>
+    <string name="podcasts_intro_body">YouTube Music\'ten programlar ve bölümler. Size göre değil mi? Bu sekmeyi gizleyebilirsiniz.</string>
+    <string name="podcasts_intro_keep">Podcast\'leri tut</string>
+    <string name="podcasts_intro_later">Podcast\'ler sekmesini istediğiniz zaman Ayarlar &gt; Diğer bölümünden gizleyebilirsiniz.</string>
     <string name="support_tip_title">nuvx\'i seviyor musun?</string>
     <string name="support_tip_body">nuvx ücretsiz ve tek bir kişi tarafından yapılıyor. Küçük bir bahşiş devam etmesini sağlar.</string>
     <string name="support_tip_action">Ko-fi\'de bahşiş ver</string>
