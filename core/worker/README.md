@@ -1,7 +1,6 @@
 # nuvx Listen Together worker
 
-**Live:** https://nuvx-listen.bxane.workers.dev. The party protocol in this folder is **not deployed yet**: the live
-worker still runs the old room protocol until `npm run deploy` (see Deploy).
+**Live:** https://nuvx-listen.bxane.workers.dev, running the party protocol in this folder.
 
 A Cloudflare Worker that serves:
 
@@ -10,7 +9,7 @@ A Cloudflare Worker that serves:
 - **The open-app counter**: `POST /api/presence`, `GET /api/stats/live`, `GET /api/stats/live/badge.svg` (`Presence`
   Durable Object, one SQLite row per install).
 - **Invite pages**: `GET /invite/{code}`, which nuvx.lol rewrites here.
-- **Canvas uploads**: `POST /canvas` from the canvas.nuvx.lol page (commits `canvas/<videoId>.mp4` to this repo).
+- **Canvas uploads**: `POST /canvas` from the canvas.nuvx.lol page (commits `core/canvas/<videoId>.mp4` to this repo).
 
 The wire contract is the upstream Go party server's, with its names replaced by nuvx. Routes, frames, limits and the reasoning are
 in [docs/designs/listen-together-worker.md](../docs/designs/listen-together-worker.md); the party logic is
