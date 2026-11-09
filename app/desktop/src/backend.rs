@@ -689,7 +689,14 @@ impl Backend {
                     Resp::QuickPicksMore { seed, tracks }
                 }
                 Req::Explore(preferred_artists) => self.explore(&preferred_artists, me).await?,
-                Req::Moods => Resp::Moods(ytm::moods(api, me).await?),
+                Req::Moods => {
+                    // The tiles show at once; their pictures follow in a second answer.
+                    let mut sections = ytm::moods(api, me).await?;
+                    let _ = self.tx.send(Resp::Moods(sections.clone()));
+                    self.wake();
+                    ytm::mood_art(api, &mut sections, me).await;
+                    Resp::Moods(sections)
+                }
                 Req::Mood { browse_id, params } => Resp::Mood(ytm::mood_page(api, &browse_id, params.as_deref(), me).await?),
                 Req::Search(query) => self.search(query, me).await?,
                 Req::Suggest { query, round } => {
