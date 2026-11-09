@@ -8,7 +8,7 @@
 <link rel="icon" href="https://nuvx.lol/mark-white.svg">
 <link rel="stylesheet" href="https://www.nuvx.lol/ambient.css">
 <style>
-  :root { color-scheme: dark; --bg: #000; --card: #161618; --line: #2c2c30; --text: #fff; --dim: #9a9aa0; --accent: #5aa2ff; --bad: #ff6b6b; --good: #57d68d; }
+  :root { color-scheme: dark; --bg: #000; --card: #161616; --line: #2c2c2c; --text: #fff; --dim: #b8b8b8; --accent: #f1adc4; --bad: #ff6b6b; --good: #57d68d; accent-color: var(--accent); }
   * { box-sizing: border-box; }
   body { isolation: isolate; margin: 0; background: var(--bg); color: var(--text); font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   main { max-width: 560px; margin: 0 auto; padding: 28px 16px 48px; }
@@ -22,11 +22,11 @@
   .hint { color: var(--dim); font-size: 14px; margin-top: 6px; min-height: 20px; }
   .hint.bad { color: var(--bad); }
   .drop { display: grid; place-items: center; gap: 10px; text-align: center; min-height: 180px; padding: 20px; border: 2px dashed var(--line); border-radius: 20px; background: var(--card); cursor: pointer; }
-  .drop.over { border-color: var(--accent); background: #12233a; }
+  .drop.over { border-color: var(--accent); background: #35212a; }
   .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
   .drop video { width: 160px; height: 160px; object-fit: cover; border-radius: 14px; display: none; }
   .drop strong { font-size: 18px; }
-  button { width: 100%; margin-top: 24px; padding: 15px; border: 0; border-radius: 999px; background: #fff; color: #000; font: 600 17px system-ui, sans-serif; cursor: pointer; }
+  button { width: 100%; margin-top: 24px; padding: 15px; border: 0; border-radius: 999px; background: var(--accent); color: #000; font: 600 17px system-ui, sans-serif; cursor: pointer; }
   button:disabled { opacity: 0.4; cursor: default; }
   #status { margin-top: 16px; min-height: 24px; }
   #status.good { color: var(--good); } #status.bad { color: var(--bad); }

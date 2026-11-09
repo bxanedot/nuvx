@@ -29,19 +29,19 @@ export function invitePage(info: InviteInfo, origin: string): string {
 <link rel="stylesheet" href="https://www.nuvx.lol/ambient.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{isolation:isolate;color-scheme:dark;background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+body{--accent:#f1adc4;isolation:isolate;color-scheme:dark;accent-color:var(--accent);background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 main{max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a;border-radius:24px;padding:32px 24px;background:#0c0c0c}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#bbb;border:1px solid #2a2a2a;border-radius:99px;padding:6px 12px;margin-bottom:20px}
-.dot{width:8px;height:8px;border-radius:50%;background:#3ddc84}.dot.off{background:#ff5252}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}.dot.off{background:#ff5252}
 h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .box{border:1px solid #2a2a2a;border-radius:16px;padding:16px;margin-bottom:24px}
 .label{font-size:12px;color:#777;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
 .code{font:800 32px ui-monospace,Consolas,monospace;letter-spacing:6px}.dim{color:#777}
 .now{font-size:14px;color:#ccc;margin-top:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btn{display:block;padding:15px;border-radius:14px;background:#fff;color:#000;font-weight:600;text-decoration:none;margin-bottom:10px}
+.btn{display:block;padding:15px;border-radius:14px;background:var(--accent);color:#000;font-weight:600;text-decoration:none;margin-bottom:10px}
 .btn.alt{background:transparent;color:#fff;border:1px solid #3a3a3a}
-.btn:focus-visible,a:focus-visible{outline:2px solid #fff;outline-offset:2px}
-.note{margin-top:14px;font-size:13px;color:#888}.note a{color:#fff}
+.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{margin-top:14px;font-size:13px;color:#888}.note a{color:var(--accent)}
 .ambient-pause{margin-top:12px;color:#bbb}
 </style></head><body><div class="nuvx-ambient" aria-hidden="true"></div><main>
 ${body}
