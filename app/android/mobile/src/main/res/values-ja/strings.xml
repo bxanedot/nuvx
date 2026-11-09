@@ -1386,4 +1386,6 @@
     <string name="car_mode_subtitle">カーオーディオ向け：横向きで画面を常にオン</string>
     <string name="classic_search">クラシック検索</string>
     <string name="classic_search_subtitle">カラーのカテゴリタイルの代わりにシンプルな検索ページ</string>
+    <string name="enable_youtube_search">YouTube 検索を有効にする</string>
+    <string name="enable_youtube_search_subtitle">YouTube Music 以外の動画を探せる YouTube フィルタを追加します</string>
 </resources>

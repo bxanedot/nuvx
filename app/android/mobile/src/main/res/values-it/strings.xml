@@ -1344,4 +1344,6 @@
     <string name="car_mode_subtitle">Per autoradio: orizzontale e lo schermo resta acceso</string>
     <string name="classic_search">Ricerca classica</string>
     <string name="classic_search_subtitle">Una pagina di ricerca semplice al posto delle categorie colorate</string>
+    <string name="enable_youtube_search">Attiva la ricerca YouTube</string>
+    <string name="enable_youtube_search_subtitle">Aggiunge un filtro YouTube per i video oltre YouTube Music</string>
 </resources>

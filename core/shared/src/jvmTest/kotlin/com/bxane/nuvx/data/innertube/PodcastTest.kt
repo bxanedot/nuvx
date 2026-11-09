@@ -165,4 +165,20 @@ class PodcastTest {
         assertEquals("Films", shelf.title)
         assertEquals(listOf("Episode 7", "The Show", "e-rDtY7SK80"), listOf(item.title, item.subtitle, item.videoId))
     }
+
+    @Test
+    fun youtubeSearch_keepsVideosWithALength() {
+        val page = json(
+            """{"contents":{"twoColumnSearchResultsRenderer":{"primaryContents":{"sectionListRenderer":{"contents":[
+              {"itemSectionRenderer":{"contents":[
+                {"videoRenderer":{"videoId":"abc","title":{"runs":[{"text":"A talk"}]},"lengthText":{"simpleText":"1:02:03"},"ownerText":{"runs":[{"text":"Chan"}]}}},
+                {"videoRenderer":{"videoId":"live","title":{"runs":[{"text":"Live now"}]}}},
+                {"shelfRenderer":{}}
+              ]}}
+            ]}}}}}""",
+        )
+        val rows = InnertubeParser.parseYoutubeSearch(page)
+        val song = (rows.single() as com.bxane.nuvx.data.model.SearchResult.Track).song
+        assertEquals(listOf("abc", "A talk", "Chan", "1:02:03"), listOf(song.videoId, song.title, song.artist, song.durationText))
+    }
 }

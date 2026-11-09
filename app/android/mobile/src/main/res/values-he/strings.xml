@@ -1410,4 +1410,6 @@
     <string name="car_mode_subtitle">למערכות שמע ברכב: לרוחב, והמסך נשאר דולק</string>
     <string name="classic_search">חיפוש קלאסי</string>
     <string name="classic_search_subtitle">דף חיפוש פשוט במקום אריחי הקטגוריות הצבעוניים</string>
+    <string name="enable_youtube_search">הפעלת חיפוש ב-YouTube</string>
+    <string name="enable_youtube_search_subtitle">מוסיף מסנן YouTube לסרטונים שמעבר ל-YouTube Music</string>
 </resources>

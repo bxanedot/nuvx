@@ -405,6 +405,9 @@ enum class SearchFilter(val label: String, val params: String?) {
     ALBUMS("Albums", "EgWKAQIYAWoKEAkQChAFEAMQBA=="),
     ARTISTS("Artists", "EgWKAQIgAWoKEAkQChAFEAMQBA=="),
     PLAYLISTS("Playlists", "EgWKAQIoAWoKEAkQChAFEAMQBA=="),
+
+    /** YouTube itself rather than YouTube Music: only with "Enable YouTube Search" on. */
+    YOUTUBE("YouTube", null),
 }
 
 /** A card in a home-feed carousel: either a track (videoId) or an album/playlist (browseId). */

@@ -209,6 +209,31 @@ object InnertubeParser {
     }
 
     /**
+     * YouTube's own search results as video rows. A live stream has no length
+     * and never ends, so it's left out, as the desktop app does.
+     */
+    fun parseYoutubeSearch(root: JsonObject): List<SearchResult> =
+        root.o("contents").o("twoColumnSearchResultsRenderer").o("primaryContents")
+            .o("sectionListRenderer").a("contents").orEmpty()
+            .flatMap { it.o("itemSectionRenderer").a("contents").orEmpty() }
+            .mapNotNull { item ->
+                val r = item.o("videoRenderer") ?: return@mapNotNull null
+                val videoId = r.s("videoId") ?: return@mapNotNull null
+                val length = r.o("lengthText").s("simpleText") ?: return@mapNotNull null
+                val title = r.o("title").runs().takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                SearchResult.Track(
+                    Song(
+                        videoId = videoId,
+                        title = title,
+                        artist = r.o("ownerText").runs().ifBlank { "YouTube" },
+                        thumbnailUrl = r.o("thumbnail").a("thumbnails").best(),
+                        durationText = length,
+                        isVideo = true,
+                    ),
+                )
+            }
+
+    /**
      * The browse params of Home's "Podcasts" chip, which is all YouTube Music's
      * Podcasts page is now (its /podcasts link opens Home). The chip's title is
      * in the app's language, so it's also known by the category it selects

@@ -1255,4 +1255,6 @@
     <string name="car_mode_subtitle">For car stereos and head units: landscape, and the screen stays on</string>
     <string name="classic_search">Classic search</string>
     <string name="classic_search_subtitle">A plain search page instead of the colour category tiles</string>
+    <string name="enable_youtube_search">Enable YouTube Search</string>
+    <string name="enable_youtube_search_subtitle">Adds a YouTube filter for videos beyond YouTube Music</string>
 </resources>

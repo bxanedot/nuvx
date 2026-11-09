@@ -1410,4 +1410,6 @@
     <string name="car_mode_subtitle">Para centrais multimídia: paisagem, e a tela fica ligada</string>
     <string name="classic_search">Busca clássica</string>
     <string name="classic_search_subtitle">Uma página de busca simples no lugar das categorias coloridas</string>
+    <string name="enable_youtube_search">Ativar a pesquisa do YouTube</string>
+    <string name="enable_youtube_search_subtitle">Adiciona um filtro do YouTube para vídeos além do YouTube Music</string>
 </resources>

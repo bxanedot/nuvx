@@ -209,6 +209,7 @@ fun SettingsScreen(
     val hidePodcastsTab by AppSettings.hidePodcastsTab.collectAsStateWithLifecycle()
     val carMode by AppSettings.carMode.collectAsStateWithLifecycle()
     val classicSearch by AppSettings.classicSearch.collectAsStateWithLifecycle()
+    val youtubeSearch by AppSettings.youtubeSearch.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val disableBlendEffects by AppSettings.disableBlendEffects.collectAsStateWithLifecycle()
@@ -1540,6 +1541,21 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setClassicSearch(!classicSearch) },
+                )
+            }
+            val youtubeSearchTitle = stringResource(R.string.enable_youtube_search)
+            row(youtubeSearchTitle, "search", "youtube", "videos") {
+                SettingsRow(
+                    icon = SfIcons.Video,
+                    title = youtubeSearchTitle,
+                    subtitle = stringResource(R.string.enable_youtube_search_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = youtubeSearch,
+                            onCheckedChange = AppSettings::setYoutubeSearch,
+                        )
+                    },
+                    onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
                 )
             }
             val carModeTitle = stringResource(R.string.car_mode)

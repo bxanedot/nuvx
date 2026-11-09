@@ -92,6 +92,8 @@ fun SearchScreen(
     isPlaying: Boolean,
     onFilterChange: (SearchFilter) -> Unit,
     results: UiState<List<SearchResult>>?,
+    /** "Enable YouTube Search": offers YouTube beside YouTube Music's filters. */
+    youtubeSearch: Boolean = false,
     loadingMore: Boolean,
     onLoadMore: () -> Unit,
     listState: LazyListState,
@@ -246,10 +248,13 @@ fun SearchScreen(
             // The same selector as the sources above it and a folder's tabs, so
             // the app has one look for "pick one of these".
             if (results != null && !suggesting && !searchingLibrary && !searchingAddons) {
+                val filters = remember(youtubeSearch) {
+                    SearchFilter.entries.filter { it != SearchFilter.YOUTUBE || youtubeSearch }
+                }
                 PillSegmentedControl(
-                    options = SearchFilter.entries.map { it.label },
-                    selectedIndex = filter.ordinal,
-                    onSelect = { onFilterChange(SearchFilter.entries[it]) },
+                    options = filters.map { it.label },
+                    selectedIndex = filters.indexOf(filter).coerceAtLeast(0),
+                    onSelect = { onFilterChange(filters[it]) },
                     modifier = Modifier.padding(start = PAGE_GUTTER, end = PAGE_GUTTER, bottom = 6.dp),
                 )
             }

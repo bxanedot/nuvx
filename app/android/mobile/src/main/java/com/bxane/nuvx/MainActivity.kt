@@ -1392,6 +1392,11 @@ private fun NuvxApp(
     }
     val hideRadioTab by AppSettings.hideRadioTab.collectAsStateWithLifecycle()
     val hidePodcastsTab by AppSettings.hidePodcastsTab.collectAsStateWithLifecycle()
+    val youtubeSearch by AppSettings.youtubeSearch.collectAsStateWithLifecycle()
+    // Switched off with YouTube's results up: back to YouTube Music's.
+    LaunchedEffect(youtubeSearch) {
+        if (!youtubeSearch && viewModel.filter.value == SearchFilter.YOUTUBE) viewModel.onFilterChange(SearchFilter.ALL)
+    }
     // The bars index what they draw; this maps those back to the TAB_ constants.
     val navTabIds = remember(hideRadioTab, hidePodcastsTab) {
         listOf(TAB_HOME, TAB_LIBRARY, TAB_RADIO, TAB_PODCASTS, TAB_EXPLORE, TAB_SEARCH)
@@ -3635,6 +3640,7 @@ private fun NuvxApp(
                                 isPlaying = player.isPlaying,
                                 onFilterChange = viewModel::onFilterChange,
                                 results = results,
+                                youtubeSearch = youtubeSearch,
                                 loadingMore = searchLoadingMore,
                                 onLoadMore = viewModel::loadMoreSearchResults,
                                 listState = searchListState,

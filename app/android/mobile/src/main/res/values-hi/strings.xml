@@ -1405,4 +1405,6 @@
     <string name="car_mode_subtitle">कार स्टीरियो के लिए: लैंडस्केप, और स्क्रीन चालू रहती है</string>
     <string name="classic_search">क्लासिक खोज</string>
     <string name="classic_search_subtitle">रंगीन श्रेणी टाइलों की जगह सादा खोज पेज</string>
+    <string name="enable_youtube_search">YouTube खोज चालू करें</string>
+    <string name="enable_youtube_search_subtitle">YouTube Music से आगे के वीडियो के लिए YouTube फ़िल्टर जोड़ता है</string>
 </resources>

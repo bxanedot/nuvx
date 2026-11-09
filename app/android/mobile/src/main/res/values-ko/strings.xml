@@ -1243,4 +1243,6 @@
     <string name="car_mode_subtitle">차량용 오디오용: 가로 화면, 화면 항상 켜짐</string>
     <string name="classic_search">클래식 검색</string>
     <string name="classic_search_subtitle">색상 카테고리 타일 대신 단순한 검색 페이지</string>
+    <string name="enable_youtube_search">YouTube 검색 사용</string>
+    <string name="enable_youtube_search_subtitle">YouTube Music 밖의 동영상을 위한 YouTube 필터를 추가합니다</string>
 </resources>

@@ -1385,4 +1385,6 @@
     <string name="car_mode_subtitle">Untuk head unit mobil: lanskap, dan layar tetap menyala</string>
     <string name="classic_search">Pencarian klasik</string>
     <string name="classic_search_subtitle">Halaman pencarian sederhana tanpa ubin kategori berwarna</string>
+    <string name="enable_youtube_search">Aktifkan Penelusuran YouTube</string>
+    <string name="enable_youtube_search_subtitle">Menambahkan filter YouTube untuk video di luar YouTube Music</string>
 </resources>
