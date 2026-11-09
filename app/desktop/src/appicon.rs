@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 
 pub struct Variant {
     pub id: &'static str,
-    pub name: &'static str,
     /// An ICO whose entries are PNGs, from 16 to 256 px.
     ico: &'static [u8],
 }
@@ -17,7 +16,7 @@ pub struct Variant {
 pub const CLASSIC: &str = "classic";
 
 pub static ALL: &[Variant] = &[
-    Variant { id: CLASSIC, name: "nuvx", ico: include_bytes!("../assets/icon/icon.ico") },
+    Variant { id: CLASSIC, ico: include_bytes!("../assets/icon/icon.ico") },
 ];
 
 pub fn get(id: &str) -> &'static Variant {

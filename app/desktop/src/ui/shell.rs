@@ -332,7 +332,7 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
                 Target::Playlist(id) => app.playlist_order.iter().position(|x| x == id).unwrap_or(usize::MAX),
                 _ => usize::MAX,
             });
-            let drag_key = egui::Id::new("sidebar-pl-drag");
+            let drag_key = egui::Id::unique("sidebar-pl-drag");
             let dragging: Option<String> = ui.data(|d| d.get_temp(drag_key));
             let down = ui.input(|i| i.pointer.any_down());
             let pointer = ui.input(|i| i.pointer.interact_pos());

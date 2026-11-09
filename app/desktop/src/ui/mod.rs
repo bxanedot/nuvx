@@ -139,7 +139,6 @@ pub enum Action {
     Collaborate,
     DeletePlaylist,
     SaveCollection(String, bool),
-    HomeChip(Option<String>),
     OpenNowPlaying(bool),
     /// Into the mini player (true) or back to the full window.
     Mini(bool),
