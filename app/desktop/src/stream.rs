@@ -253,7 +253,8 @@ impl Shared {
         self.ready.notify_all();
     }
 
-    fn fail(&self, err: String) {
+    /// Mark the stream failed (also a live station's dropped connection), so playback reopens it.
+    pub fn fail(&self, err: String) {
         log::error!("download failed: {err}");
         FAIL_FROM.store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
         self.inner.lock().unwrap().error = Some(err);
@@ -607,6 +608,8 @@ pub fn decoder(shared: Arc<Shared>, seekable: bool) -> anyhow::Result<TrackDecod
 /// rodio decodes (AAC/MP4 included).
 pub enum TrackDecoder {
     Rodio(rodio::Decoder<StreamReader>),
+    /// A live radio station, read as it arrives.
+    Live(rodio::Decoder<crate::radio::LiveReader>),
     /// Boxed: its decoder state is about 11 KB.
     Opus(Box<crate::opus::OpusSource>),
     Pcm(PcmSource),
@@ -618,6 +621,7 @@ impl Iterator for TrackDecoder {
     fn next(&mut self) -> Option<rodio::Sample> {
         match self {
             Self::Rodio(d) => d.next(),
+            Self::Live(d) => d.next(),
             Self::Opus(d) => d.next(),
             Self::Pcm(d) => d.next(),
         }
@@ -628,6 +632,7 @@ impl rodio::Source for TrackDecoder {
     fn current_span_len(&self) -> Option<usize> {
         match self {
             Self::Rodio(d) => d.current_span_len(),
+            Self::Live(d) => d.current_span_len(),
             Self::Opus(d) => d.current_span_len(),
             Self::Pcm(d) => d.current_span_len(),
         }
@@ -635,6 +640,7 @@ impl rodio::Source for TrackDecoder {
     fn channels(&self) -> rodio::ChannelCount {
         match self {
             Self::Rodio(d) => d.channels(),
+            Self::Live(d) => d.channels(),
             Self::Opus(d) => d.channels(),
             Self::Pcm(d) => d.channels(),
         }
@@ -642,6 +648,7 @@ impl rodio::Source for TrackDecoder {
     fn sample_rate(&self) -> rodio::SampleRate {
         match self {
             Self::Rodio(d) => d.sample_rate(),
+            Self::Live(d) => d.sample_rate(),
             Self::Opus(d) => d.sample_rate(),
             Self::Pcm(d) => d.sample_rate(),
         }
@@ -649,6 +656,7 @@ impl rodio::Source for TrackDecoder {
     fn total_duration(&self) -> Option<Duration> {
         match self {
             Self::Rodio(d) => d.total_duration(),
+            Self::Live(d) => d.total_duration(),
             Self::Opus(d) => d.total_duration(),
             Self::Pcm(d) => d.total_duration(),
         }
@@ -656,6 +664,7 @@ impl rodio::Source for TrackDecoder {
     fn try_seek(&mut self, pos: Duration) -> Result<(), rodio::source::SeekError> {
         match self {
             Self::Rodio(d) => d.try_seek(pos),
+            Self::Live(d) => d.try_seek(pos),
             Self::Opus(d) => d.try_seek(pos),
             Self::Pcm(d) => d.try_seek(pos),
         }
