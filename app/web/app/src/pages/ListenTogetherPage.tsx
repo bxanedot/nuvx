@@ -295,7 +295,7 @@ function InParty() {
       )}
 
       <button className="mx-4 mt-6 inline-flex items-center gap-1.5 type-body-emphasized text-red" onClick={() => void leaveParty().then(() => navigate('/settings/listen-together'))}>
-        <LogOut size={15} />
+        <LogOut size={15} className="text-primary" />
         Leave Party
       </button>
     </>

@@ -188,7 +188,7 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow }: RowProps)
         {!unavailable && (
           <TrackMenu
             track={track}
-            className="absolute end-2.5 hidden size-7 place-items-center rounded-full text-key group-focus-within/row:grid group-hover/row:grid hover:bg-quinary data-open:grid"
+            className="absolute end-2.5 hidden size-7 place-items-center rounded-full text-primary group-focus-within/row:grid group-hover/row:grid hover:bg-quinary data-open:grid"
           />
         )}
       </div>

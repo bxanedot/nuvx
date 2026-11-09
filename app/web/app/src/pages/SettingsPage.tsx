@@ -18,10 +18,9 @@ import { settingsUi } from './settingsStyles';
 
 const LyricsSettings = lazy(() => import('@/shell/LyricsSettings').then((m) => ({ default: m.LyricsSettings })));
 
-/** An integration's coloured glyph, as on the Extension page. */
-function Glyph({ Icon, color, ink }: { Icon: ComponentType<{ size?: number }>; color: string; ink?: string }) {
+function Glyph({ Icon }: { Icon: ComponentType<{ size?: number }> }) {
   return (
-    <span className={settingsUi.integrationIcon} style={{ backgroundColor: color, ...(ink && { color: ink }) }}>
+    <span className={settingsUi.integrationIcon} aria-hidden="true">
       <Icon size={15} />
     </span>
   );
@@ -87,21 +86,21 @@ export default function SettingsPage() {
         <h2 className={settingsUi.sectionHeader}>Account & Integrations</h2>
         <section className={settingsUi.group}>
           <div className={settingsUi.integration}>
-            <Glyph Icon={SiYoutubemusic} color="#ffffff" ink="#ff0033" />
+            <Glyph Icon={SiYoutubemusic} />
             <span className={settingsUi.integrationName}>YouTube Music</span>
             <span className={settingsUi.value}>{youtubeText(yt)}</span>
           </div>
           <div className={settingsUi.integration}>
-            <Glyph Icon={SiSpotify} color="#1ed760" />
+            <Glyph Icon={SiSpotify} />
             <span className={settingsUi.integrationName}>Spotify</span>
             {present ? <SpotifyIntegration /> : <span className={settingsUi.value}>Needs the extension</span>}
           </div>
           {present && discord.state === 'ready' && discord.discord.available && (
-            <LinkRow to="/settings/discord" icon={<Glyph Icon={SiDiscord} color="#5865f2" />} title="Discord" value={discordText} />
+            <LinkRow to="/settings/discord" icon={<Glyph Icon={SiDiscord} />} title="Discord" value={discordText} />
           )}
           <LinkRow
             to="/extension"
-            icon={<Glyph Icon={MdOutlineExtension} color="#636366" />}
+            icon={<Glyph Icon={MdOutlineExtension} />}
             title="nuvx Extension"
             value={present ? `v${extension.extension.info.version}` : 'Not installed'}
           />
@@ -133,7 +132,7 @@ export default function SettingsPage() {
         <h2 className={settingsUi.sectionHeader}>Apple Music</h2>
         <section className={settingsUi.group}>
           <div className={settingsUi.integration}>
-            <Glyph Icon={SiApplemusic} color="#fa2d48" />
+            <Glyph Icon={SiApplemusic} />
             <span className={settingsUi.integrationName}>Extension Access</span>
             {present ? <AppleMusicIntegration /> : <span className={settingsUi.value}>Needs the extension</span>}
           </div>
@@ -145,7 +144,7 @@ export default function SettingsPage() {
         <section className={settingsUi.group}>
           <LinkRow
             to="/settings/listen-together"
-            icon={<Glyph Icon={Users} color="var(--keyColorBG)" />}
+            icon={<Glyph Icon={Users} />}
             title="Listen Together"
             value={party.code ? `In party ${party.code}` : 'Listen in sync with friends'}
           />

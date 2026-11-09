@@ -49,7 +49,7 @@ const topCard = 'group/top relative rounded-[8px] bg-quinary hover:bg-quaternary
 const top =
   'grid min-h-[118px] w-full grid-cols-[90px_minmax(0,1fr)] items-center gap-x-3.5 px-3 py-3.5 text-left';
 const topMenu =
-  'absolute right-2 bottom-2 z-3 grid size-7 place-items-center rounded-full text-key opacity-0 transition-opacity duration-100 ease-in group-hover/top:opacity-100 focus-visible:opacity-100 hover:bg-quinary data-open:opacity-100';
+  'absolute right-2 bottom-2 z-3 grid size-7 place-items-center rounded-full text-primary opacity-0 transition-opacity duration-100 ease-in group-hover/top:opacity-100 focus-visible:opacity-100 hover:bg-quinary data-open:opacity-100';
 const topText = 'flex min-w-0 flex-col gap-0.5';
 
 function TopResult({ item }: { item: MusicItem }) {

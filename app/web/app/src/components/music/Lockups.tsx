@@ -166,7 +166,7 @@ export function TrackLockup({ item, onPlay }: { item: MusicItem; onPlay?: () => 
       {isPlayable(item) && (
         <TrackMenu
           track={toTrack(item)}
-          className="grid size-7 place-items-center rounded-full text-key opacity-0 transition-opacity duration-100 ease-in group-hover/track:opacity-100 focus-visible:opacity-100 hover:bg-quinary data-open:opacity-100"
+          className="grid size-7 place-items-center rounded-full text-primary opacity-0 transition-opacity duration-100 ease-in group-hover/track:opacity-100 focus-visible:opacity-100 hover:bg-quinary data-open:opacity-100"
         />
       )}
     </div>

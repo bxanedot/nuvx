@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, type MouseEvent } from 'react';
 import { resumeSession } from '@/party/listenTogether';
 import { startPartySync } from '@/party/partySync';
 import { useDiscordPresence } from '@/playback/discordPresence';
@@ -21,6 +21,21 @@ const mobile = isMobileBrowser();
 
 // It carries am-lyrics; loaded the first time it opens, as the side panel's lyrics are.
 const FullScreenPlayer = lazy(() => import('./FullScreenPlayer').then((m) => ({ default: m.FullScreenPlayer })));
+
+function bounceGlyph({ target }: MouseEvent<HTMLDivElement>) {
+  if (!(target instanceof Element) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const control = target.closest('button:enabled, a[href]');
+  if (!control) return;
+  // Wait for React to swap stateful icons such as Play and Pause before animating.
+  requestAnimationFrame(() => {
+    control.querySelector(':scope > svg, :scope > span > svg')?.animate([
+      { translate: '0 0', easing: 'cubic-bezier(.55, 0, .67, 1)' },
+      { translate: '0 -18%', offset: .31, easing: 'cubic-bezier(.45, 0, .67, 1)' },
+      { translate: '0 6%', offset: .62, easing: 'cubic-bezier(.25, 0, .55, 1)' },
+      { translate: '0 0' },
+    ], { duration: 700, id: 'glyph-bounce' });
+  });
+}
 
 /**
  * The app frame (report §1): glass sidebar, the scrolling page, the floating
@@ -49,10 +64,10 @@ export function AppShell() {
     banner = (
       <Banner
         title="nuvx is better in the app."
-        detail="Phone browsers can’t run the nuvx extension. The Android app has everything."
+        detail="Download nuvx for Android, Windows, macOS, or Linux."
         action={
-          <a className={bannerButtonClass} href={config.androidAppUrl} target="_blank" rel="noreferrer">
-            Get the App
+          <a className={bannerButtonClass} href={config.appDownloadUrl} target="_blank" rel="noreferrer">
+            Get the app
           </a>
         }
       />
@@ -73,11 +88,14 @@ export function AppShell() {
   }
 
   return (
-    <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]">
+    <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]" onClickCapture={bounceGlyph}>
       {/* The side panel slides in from beyond the right edge; never let it scroll the page. */}
       <div className="relative min-h-0 overflow-hidden">
         <Sidebar />
         <MobileTopBar />
+        <span className="pointer-events-none absolute top-3 right-5 z-[calc(var(--z-web-chrome)-2)] rounded-full px-2 py-0.5 font-serif text-[17px]/5 tracking-tight text-key italic glass-material max-sm:right-3.5">
+          bxane
+        </span>
         {/* The page scrolls under the fixed sidebar and the floating player. */}
         <main
           id="scrollable-page"

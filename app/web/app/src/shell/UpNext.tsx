@@ -8,7 +8,7 @@ import { autoplaySectionStart, upcomingUserQueueIndices, type QueueEntry } from 
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
 
 // The panel's square buttons: AutoPlay (the key colour when on) and the options menu.
-const square = 'grid size-7 place-items-center rounded-[6px] text-secondary hover:bg-quinary aria-pressed:text-key';
+const square = 'grid size-7 place-items-center rounded-[6px] text-secondary hover:bg-quinary aria-pressed:bg-key/20 aria-pressed:text-primary';
 const list = 'flex flex-col';
 
 /** A row: 55px, [art] 40px [title] 1fr [right] 40px, gap 12px, radius 6px; a key-colour line where a drag would drop. */
@@ -71,7 +71,7 @@ function Row({
       <div className="relative grid items-center justify-items-end">
         <span className="type-body tabular-nums text-secondary group-hover/row:invisible group-has-[[data-open]]/row:invisible">{formatDuration(track.durationSec)}</span>
         <button
-          className="absolute inset-y-0 right-0 my-auto hidden size-7 place-items-center rounded-full text-key group-hover/row:grid data-open:grid"
+          className="absolute inset-y-0 right-0 my-auto hidden size-7 place-items-center rounded-full text-primary group-hover/row:grid data-open:grid"
           aria-label={`More options for ${track.title}`}
           aria-haspopup="menu"
           data-open={anchor !== null || undefined}

@@ -113,7 +113,7 @@
   --systemStandardThickMaterialSover: #f6f6f6b8;
   --systemHeaderMaterialSover: #ffffffcc;
 
-  --navSidebarSelectedState: #3c3c431a;
+  --navSidebarSelectedState: rgba(var(--keyColor-rgb), 0.14);
   --tracklistHoverColor: #0000000f;
   --shelfBG: #0000000d;
   --opaqueShelfBG: #f2f2f2;
@@ -195,7 +195,6 @@
     --systemStandardThickMaterialSover: #282828b3;
     --systemHeaderMaterialSover: #1e1e1ecc;
 
-    --navSidebarSelectedState: #ffffff0d;
     --tracklistHoverColor: #ffffff0f;
     --shelfBG: #ffffff0d;
     --opaqueShelfBG: #2b2b2b;
