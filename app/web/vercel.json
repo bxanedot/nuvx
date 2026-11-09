@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npm i -g pnpm@12.11.2 && pnpm -v && pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm build:site",
+  "installCommand": "npm i -g --allow-scripts=pnpm pnpm@12.11.2 && PATH=\"$(npm prefix -g)/bin:$PATH\" pnpm install --frozen-lockfile",
+  "buildCommand": "export PATH=\"$(npm prefix -g)/bin:$PATH\" && pnpm -v && pnpm build:site",
   "outputDirectory": "app/dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
