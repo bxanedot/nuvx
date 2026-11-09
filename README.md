@@ -29,6 +29,8 @@
 
 ![Music in full color. nuvx Now Playing framed by cobalt and copper panels.](docs/nuvx-banner-now-playing.png)
 
+![Your music takes the stage. nuvx Now Playing with Encore artwork.](docs/nuvx-banner-encore.png)
+
 <p align="center">
   <a href="docs/nuvx-banner-amber.png"><img src="docs/nuvx-banner-amber.png" width="49%" alt="Follow every word. Synced lyrics in nuvx, with a copper record-groove backdrop."></a>
   <a href="docs/nuvx-banner-lyrics-motion.png"><img src="docs/nuvx-banner-lyrics-motion.png" width="49%" alt="Lyrics in motion. An illustration of the active lyric line lighting up in nuvx."></a>
