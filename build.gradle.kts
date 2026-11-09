@@ -12,8 +12,8 @@
  * it is one more, however far the name jumps (0.2.0 or 0.77.0 next is still 2).
  * The TV app reads these too.
  */
-extra["nuvxVersionCode"] = 4
-extra["nuvxVersionName"] = "0.4.0"
+extra["nuvxVersionCode"] = 5
+extra["nuvxVersionName"] = "0.5.0"
 
 /*
  * Bump this by hand before cutting each sideloaded test build ("beta2",
