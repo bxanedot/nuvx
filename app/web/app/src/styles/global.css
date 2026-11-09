@@ -212,10 +212,20 @@
   font: --value([*]) var(--font-family);
 }
 
-/* Glass (report §1): the sidebar, the side panel and the phone's top bar. */
+/* Glass (report §1): the sidebar and side panel. */
 @utility glass-material {
   background-color: var(--glassMaterialBackground);
   backdrop-filter: var(--glassMaterialBackdropFilter);
+}
+
+@utility topbar-glass {
+  background-color: color-mix(in srgb, var(--pageBG) 20%, transparent);
+  backdrop-filter: blur(24px) saturate(140%);
+
+  @media (prefers-contrast: more), (prefers-reduced-transparency: reduce) {
+    background-color: var(--pageBG);
+    backdrop-filter: none;
+  }
 }
 
 /* The player pill's glass: blurred fill and drop shadow (::before), 0.5px inner stroke (::after). */
