@@ -46,6 +46,10 @@ pub const WIFI: Glyph = include_str!("../../assets/icon/glyphs/wifi.svg");
 pub const IMPORT: Glyph = include_str!("../../assets/icon/glyphs/import.svg");
 pub const KEYBOARD: Glyph = include_str!("../../assets/icon/glyphs/keyboard.svg");
 pub const HISTORY: Glyph = include_str!("../../assets/icon/glyphs/history.svg");
+/// GlyphStudio's broadcast symbol, as Android's Radio tab; it carries Variable Color's layer order.
+pub const RADIO: Glyph = include_str!("../../assets/icon/glyphs/radio.svg");
+/// Beside the station on air, pulsing while it plays (as Android's).
+pub const WAVEFORM: Glyph = include_str!("../../assets/icon/glyphs/waveform.svg");
 /// Brand marks (Simple Icons, CC0), drawn in one colour like every other glyph.
 pub const SPOTIFY: Glyph = include_str!("../../assets/icon/glyphs/spotify.svg");
 pub const DISCORD: Glyph = include_str!("../../assets/icon/glyphs/discord.svg");
@@ -69,6 +73,8 @@ struct Shape {
     view: [f32; 4],
     groups: u32,
     layers: Vec<Layer>,
+    /// Variable Color's layer order (`data-variable`), first lit first.
+    variable: Vec<usize>,
 }
 
 fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
@@ -90,7 +96,8 @@ fn parse(svg: &str) -> Option<Shape> {
         });
     }
     let groups = attr(root, "data-groups").and_then(|g| g.parse().ok()).unwrap_or(1);
-    Some(Shape { view: view.try_into().ok()?, groups, layers })
+    let variable = attr(root, "data-variable").map_or_else(Vec::new, |v| v.split_whitespace().filter_map(|i| i.parse().ok()).collect());
+    Some(Shape { view: view.try_into().ok()?, groups, layers, variable })
 }
 
 fn number(b: &[u8], i: &mut usize) -> Option<f32> {
@@ -175,19 +182,20 @@ const EM: f32 = 2048.0;
 /// The room a bounce needs above and below the symbol, in ems.
 const LIFT_ROOM: f32 = 0.26;
 
-/// `shape` in white on a `w`×`h` pixmap, `k` pixels per unit, centred, each group raised by `lift(group)` ems.
-fn raster(shape: &Shape, w: u32, h: u32, k: f32, lift: impl Fn(u32) -> f32) -> Option<ColorImage> {
+/// `shape` in white on a `w`×`h` pixmap, `k` pixels per unit, centred, each group raised by
+/// `lift(group)` ems and each layer's opacity scaled by `alpha(layer)`.
+fn raster(shape: &Shape, w: u32, h: u32, k: f32, lift: impl Fn(u32) -> f32, alpha: impl Fn(usize) -> f32) -> Option<ColorImage> {
     let mut pix = Pixmap::new(w, h)?;
     let [vx, vy, vw, vh] = shape.view;
     let ox = (w as f32 - vw * k) / 2.0 - vx * k;
     let oy = (h as f32 - vh * k) / 2.0 - vy * k;
-    for l in &shape.layers {
+    for (i, l) in shape.layers.iter().enumerate() {
         let mut paint = Paint::default();
         paint.anti_alias = true;
         if l.erase {
             paint.blend_mode = BlendMode::Clear;
         } else {
-            paint.set_color_rgba8(255, 255, 255, (l.alpha.clamp(0.0, 1.0) * 255.0).round() as u8);
+            paint.set_color_rgba8(255, 255, 255, ((l.alpha * alpha(i)).clamp(0.0, 1.0) * 255.0).round() as u8);
         }
         let t = Transform::from_row(k, 0.0, 0.0, k, ox, oy - lift(l.group) * EM * k);
         pix.fill_path(&l.path, &paint, FillRule::Winding, t, None);
@@ -202,8 +210,9 @@ const OPTIONS: TextureOptions = TextureOptions {
     mipmap_mode: None,
 };
 
-/// Draws `glyph` fitted (aspect kept) and centred in `rect`, tinted; `bounce` is seconds into a bounce.
-fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f32)>) {
+/// Draws `glyph` fitted (aspect kept) and centred in `rect`, tinted; `bounce` is seconds into a
+/// bounce, `pulse` seconds into Variable Color's loop.
+fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f32)>, pulse: Option<(Id, f32)>) {
     if tint.a() == 0 {
         return;
     }
@@ -213,16 +222,18 @@ fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f
     let k = (rect.width() / vw).min(rect.height() / vh) * ppp;
     let pad = if bounce.is_some() { (LIFT_ROOM * EM * k).ceil() } else { 0.0 };
     let (w, h) = ((vw * k).ceil() as u32, (vh * k).ceil() as u32 + 2 * pad as u32);
-    let key = match bounce {
-        Some((id, _)) => id.with("nuvx-glyph-bounce-tex"),
-        None => Id::unique(("nuvx-glyph", glyph.as_ptr(), w, h)),
+    let key = match (bounce, pulse) {
+        (Some((id, _)), _) => id.with("nuvx-glyph-bounce-tex"),
+        (None, Some((id, _))) => id.with(("nuvx-glyph-pulse-tex", w, h)),
+        (None, None) => Id::unique(("nuvx-glyph", glyph.as_ptr(), w, h)),
     };
     let cached = ui.ctx().data(|d| d.get_temp::<TextureHandle>(key));
-    let tex = match (cached, bounce) {
+    let tex = match (cached, bounce.or(pulse)) {
         (Some(t), None) => t,
         (cached, _) => {
             let lift = |g| bounce.map_or(0.0, |(_, t)| bounce_lift(t, g, shape.groups));
-            let Some(img) = raster(&shape, w.max(1), h.max(1), k, lift) else { return };
+            let alpha = |i| pulse.map_or(1.0, |(_, t)| variable_alpha(t, i, &shape.variable));
+            let Some(img) = raster(&shape, w.max(1), h.max(1), k, lift, alpha) else { return };
             match cached {
                 Some(mut t) => {
                     t.set(img, OPTIONS);
@@ -245,12 +256,22 @@ fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f
 
 /// Draws `glyph` centred on `center`, fitted in a `size` square, tinted `tint`.
 pub fn draw(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32) {
-    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None);
+    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, None);
 }
 
 /// Draws `glyph` fitted inside `rect` (for wide marks).
 pub fn draw_in(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32) {
-    paint(ui, rect, glyph, tint, None);
+    paint(ui, rect, glyph, tint, None, None);
+}
+
+/// Like [draw], with GlyphStudio's Variable Color running on repeat while `active`:
+/// the layers light one after another, as Android's Radio heading does while on air.
+pub fn draw_pulsing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32, id: Id, active: bool) {
+    let t = active.then(|| {
+        ui.ctx().request_repaint();
+        ui.input(|i| i.time) as f32
+    });
+    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, t.map(|t| (id, t)));
 }
 
 /// Like [draw], but plays the bounce last started with [bounce] for `id`.
@@ -260,7 +281,7 @@ pub fn draw_bouncing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color
     if t.is_some() {
         ui.ctx().request_repaint();
     }
-    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, t.map(|t| (id, t)));
+    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, t.map(|t| (id, t)), None);
 }
 
 /// Starts the symbol drawn by [draw_bouncing] with `id` bouncing, layer by layer.
@@ -315,6 +336,20 @@ fn bounce_lift(t: f32, group: u32, groups: u32) -> f32 {
     v - 1.0
 }
 
+// GlyphStudio's Variable Color (Iterative): in `order`, each layer rises from 30% to full over
+// one slot and falls back over the next (smoothstep), the loop lasting a slot more than the layers.
+const VARIABLE_SLOT: f32 = 1.0 / 3.0;
+const VARIABLE_DIM: f32 = 0.3;
+
+/// Layer `layer`'s opacity `t` seconds into Variable Color's loop (1 for layers outside `order`).
+fn variable_alpha(t: f32, layer: usize, order: &[usize]) -> f32 {
+    let Some(k) = order.iter().position(|&l| l == layer) else { return 1.0 };
+    let t = t.rem_euclid(VARIABLE_SLOT * (order.len() + 1) as f32);
+    let f = t / VARIABLE_SLOT - k as f32;
+    let f = if f > 1.0 { 2.0 - f } else { f }.clamp(0.0, 1.0);
+    VARIABLE_DIM + (1.0 - VARIABLE_DIM) * f * f * (3.0 - 2.0 * f)
+}
+
 /// How many of the speaker's three arcs are lit at `volume`, as the desktop app counts them.
 pub fn volume_step(volume: f32) -> usize {
     if volume <= 0.0 {
@@ -337,14 +372,28 @@ mod tests {
         let all = [
             SHUFFLE, PREVIOUS, PLAY, PAUSE, NEXT, REPEAT, REPEAT_ONE, STAR, STAR_FILLED, LYRICS, LYRICS_OFF, QUEUE,
             MAXIMIZE_2, HOME, EXPLORE, LIBRARY, SEARCH, DOWNLOAD, SETTINGS, PERSON_CIRCLE, SPARKLES, MARK, SPOTIFY, DISCORD,
-            YOUTUBE_MUSIC, PERSON, PLAY_OUTLINE, PENCIL, PAINTBRUSH, WIFI, IMPORT, KEYBOARD, HISTORY,
+            YOUTUBE_MUSIC, PERSON, PLAY_OUTLINE, PENCIL, PAINTBRUSH, WIFI, IMPORT, KEYBOARD, HISTORY, RADIO, WAVEFORM,
         ];
         for g in all.into_iter().chain(VOLUME) {
             let s = parse(g).unwrap_or_else(|| panic!("{}", &g[..80]));
             assert!(!s.layers.is_empty());
-            let img = raster(&s, 24, 24, 24.0 / s.view[2].max(s.view[3]), |_| 0.0).unwrap();
+            let img = raster(&s, 24, 24, 24.0 / s.view[2].max(s.view[3]), |_| 0.0, |_| 1.0).unwrap();
             assert!(img.pixels.iter().any(|p| p.a() > 200), "{}", &g[..80]);
         }
+    }
+
+    #[test]
+    fn variable_color_matches_glyphstudio() {
+        // Sampled from GlyphStudio's own VariableColor on dot.radiowaves.left.and.right.
+        let order = parse(RADIO).unwrap().variable;
+        assert_eq!(order, [3, 2, 1, 0]);
+        let samples = [(0.0, [0.3, 0.3, 0.3, 0.3]), (0.167, [0.3, 0.3, 0.3, 0.65]), (0.5, [0.3, 0.3, 0.65, 0.65]), (1.0, [0.3, 1.0, 0.3, 0.3]), (1.125, [0.522, 0.778, 0.3, 0.3])];
+        for (t, want) in samples {
+            for (layer, w) in want.iter().enumerate() {
+                assert!((variable_alpha(t, layer, &order) - w).abs() < 0.01, "t={t} layer={layer}");
+            }
+        }
+        assert_eq!(variable_alpha(0.5, 0, &[]), 1.0);
     }
 
     #[test]
