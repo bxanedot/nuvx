@@ -851,7 +851,23 @@ pub fn install_style(ctx: &egui::Context) {
     ctx.global_style_mut(|s| {
         s.spacing.item_spacing = egui::vec2(8.0, 6.0);
         s.spacing.button_padding = egui::vec2(14.0, 7.0);
-        s.spacing.scroll = egui::style::ScrollStyle::floating();
+        // No scrollbars anywhere, as asked: the wheel, trackpad and dragging still
+        // scroll. Zero-wide too, so no invisible bar catches the pointer.
+        s.spacing.scroll = egui::style::ScrollStyle {
+            bar_width: 0.0,
+            floating_width: 0.0,
+            floating_allocated_width: 0.0,
+            handle_min_length: 0.0,
+            bar_inner_margin: 0.0,
+            bar_outer_margin: 0.0,
+            dormant_background_opacity: 0.0,
+            active_background_opacity: 0.0,
+            interact_background_opacity: 0.0,
+            dormant_handle_opacity: 0.0,
+            active_handle_opacity: 0.0,
+            interact_handle_opacity: 0.0,
+            ..egui::style::ScrollStyle::floating()
+        };
         s.text_styles.insert(egui::TextStyle::Body, regular(14.0));
         s.text_styles.insert(egui::TextStyle::Button, semibold(14.0));
         s.text_styles.insert(egui::TextStyle::Heading, bold(22.0));
