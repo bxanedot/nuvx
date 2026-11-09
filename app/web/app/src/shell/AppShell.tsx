@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, type MouseEvent } from 'react';
+import bxaneSignature from '@/assets/bxane-signature.svg';
 import { resumeSession } from '@/party/listenTogether';
 import { startPartySync } from '@/party/partySync';
 import { useDiscordPresence } from '@/playback/discordPresence';
@@ -93,9 +94,12 @@ export function AppShell() {
       <div className="relative min-h-0 overflow-hidden">
         <Sidebar />
         <MobileTopBar />
-        <span className="pointer-events-none absolute top-3 right-5 z-[calc(var(--z-web-chrome)-2)] rounded-full px-2 py-0.5 font-serif text-[17px]/5 tracking-tight text-key italic glass-material max-sm:right-3.5">
-          bxane
-        </span>
+        <span
+          role="img"
+          aria-label="bxane"
+          className="pointer-events-none absolute top-4 right-5 z-[calc(var(--z-web-chrome)-2)] h-5 w-[76px] bg-key mask-contain mask-center mask-no-repeat max-sm:right-3.5"
+          style={{ maskImage: `url("${bxaneSignature}")` }}
+        />
         {/* The page scrolls under the fixed sidebar and the floating player. */}
         <main
           id="scrollable-page"
