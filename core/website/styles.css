@@ -40,3 +40,11 @@
 .showcase-track{display:flex;width:max-content}
 .showcase-banners{display:flex;flex:none;gap:16px;list-style:none;margin:0;padding:0 16px 0 0}
 .showcase-banners img{display:block;width:clamp(260px,68vw,620px);height:auto;border-radius:14px;background:var(--surface)}
+
+.topbar nav{margin-left:auto}
+.topbar .bxane-signature{width:76px;height:19px;margin-left:24px;flex:none;background:var(--accent);mask:url("/bxane-signature.svg") center/contain no-repeat}
+@media(max-width:720px){
+  .topbar{height:auto;min-height:66px;flex-wrap:wrap;row-gap:4px;padding-block:8px}
+  .topbar nav{order:1;width:100%;justify-content:space-between;gap:8px}
+  .topbar .bxane-signature{margin-left:auto}
+}

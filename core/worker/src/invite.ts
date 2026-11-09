@@ -43,7 +43,7 @@ h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .note{margin-top:14px;font-size:13px;color:#888}.note a{color:var(--accent)}
 .ambient-pause{margin-top:12px;color:#bbb}
-</style></head><body><div class="nuvx-ambient" aria-hidden="true"></div><main>
+</style></head><body><img class="bxane-signature-corner" src="https://www.nuvx.lol/bxane-signature.svg" alt="bxane" width="76" height="19"><div class="nuvx-ambient" aria-hidden="true"></div><main>
 ${body}
 <label class="ambient-pause"><input id="ambient-pause" type="checkbox"> Pause background motion</label>
 </main></body></html>`;
