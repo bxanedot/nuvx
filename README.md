@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="core/brand/mark/nuvx_mark_white.png">
-    <img src="core/brand/mark/nuvx_mark_black.png" width="88" height="88" alt="">
+    <img src="core/brand/mark/nuvx_mark_black.png" width="116" height="116" alt="">
   </picture>
 </p>
 
@@ -9,19 +9,42 @@
 <p align="center">An open-source YouTube Music player for your phone, TV, wrist, desktop and browser.</p>
 
 <p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases"><img alt="GitHub downloads" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Fdownloads&amp;query=%24.downloads&amp;style=flat-square&amp;label=GitHub%20downloads&amp;color=6b4f99"></a>
-  <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Online clients" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.online&amp;style=flat-square&amp;label=Online%20clients&amp;color=397458"></a>
-  <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Listening Together" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.listening&amp;style=flat-square&amp;label=Listening%20Together&amp;color=87563c"></a>
+  <a href="https://github.com/bxanedot/nuvx/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/bxanedot/nuvx?style=for-the-badge&amp;labelColor=0d1117&amp;color=355f8a"></a>
+  <a href="LICENSE"><img alt="GPL-3.0 license" src="https://img.shields.io/badge/license-GPL--3.0-4b5563?style=for-the-badge&amp;labelColor=0d1117"></a>
+  <a href="https://github.com/bxanedot/nuvx/releases"><img alt="GitHub downloads" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Fdownloads&amp;query=%24.downloads&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=GitHub%20downloads&amp;color=6b4f99"></a>
+  <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Online clients" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.online&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=Online%20clients&amp;color=397458"></a>
+  <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Listening Together" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.listening&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=Listening%20Together&amp;color=87563c"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases/latest"><strong>Get nuvx</strong></a> ·
-  <a href="https://web.nuvx.lol"><strong>Open the web player</strong></a> ·
-  <a href="https://www.nuvx.lol">Website</a> ·
+  <a href="#download"><strong>Download</strong></a> ·
+  <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#build-from-source">Build</a> ·
+  <a href="https://web.nuvx.lol">Web player</a> ·
   <a href="https://discord.gg/h4Wsu824Uf">Discord</a>
 </p>
 
-## Find your build
+---
+
+## Screenshots
+
+<p align="center">
+  <a href="docs/screenshots/windows.jpg"><img src="docs/screenshots/windows.jpg" width="440" alt="nuvx on Windows showing the Home feed and playback controls"></a>
+  <a href="docs/screenshots/android-home.png"><img src="docs/screenshots/android-home.png" width="150" alt="nuvx on Android showing Home with Top Picks and new albums"></a>
+  <a href="docs/screenshots/android-explore.png"><img src="docs/screenshots/android-explore.png" width="150" alt="nuvx on Android showing Explore with new releases and trending music"></a>
+</p>
+<p align="center"><sub>Windows Home · Android Home · Android Explore</sub></p>
+
+## Features
+
+- **Listen Together.** Share an invite and keep the queue and playback in sync with friends.
+- **Synced lyrics.** Follow the words in the full-screen player.
+- **Music discovery.** Browse new releases, explore by mood, and manage your library and queue.
+- **Community Canvases.** Add motion artwork to Now Playing on supported players. [Browse the project](core/canvas/README.md)
+- **Controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
+
+## Download
 
 | Device | Requirements | Where to start |
 | --- | --- | --- |
@@ -34,28 +57,6 @@
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
 For Android, download the APK for your device and allow your browser or file manager to install it when prompted. The release notes list desktop packages by architecture and include signing details.
-
-## What you can do
-
-- **Listen Together.** Share an invite and keep the queue and playback in sync with friends.
-- **Follow the lyrics.** Read synced lyrics in the full-screen player.
-- **Make it yours.** Explore music, manage your library and queue, and try community [Canvases](core/canvas/README.md) on supported players.
-- **Use the right controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
-
-## Screenshots
-
-### Windows
-
-<p align="center">
-  <img src="docs/screenshots/windows.jpg" width="760" alt="nuvx on Windows showing the Home feed and playback controls">
-</p>
-
-### Android
-
-<p align="center">
-  <img src="docs/screenshots/android-home.png" width="250" alt="nuvx on Android showing Home with Top Picks and new albums">
-  <img src="docs/screenshots/android-explore.png" width="250" alt="nuvx on Android showing Explore with new releases and trending music">
-</p>
 
 ## How the counters work
 
@@ -88,7 +89,7 @@ On Windows, use `gradlew.bat`. For signing release builds, see [keystore.propert
 
 ## Contribute
 
-Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/issues) or join the [Discord](https://discord.gg/h4Wsu824Uf). See [Contributing](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/issues) or join the [Discord](https://discord.gg/h4Wsu824Uf). See [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), or the [nuvx website](https://www.nuvx.lol).
 
 ## License
 
