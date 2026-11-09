@@ -1,0 +1,5 @@
+{
+    global:
+        Java_com_bxane_nuvx_playback_audio_bitperfect_*;
+    local: *;
+};

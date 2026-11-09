@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Media3/ExoPlayer's own notification glyph, for any notification it builds
+         without being handed one: the nuvx signature, no background. -->
+    <drawable name="media3_notification_small_icon">@drawable/ic_notification_logo</drawable>
+</resources>
