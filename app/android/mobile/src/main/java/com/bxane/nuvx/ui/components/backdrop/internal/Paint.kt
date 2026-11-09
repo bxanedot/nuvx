@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0
+/*
+ * Vendored so the library ships as source with this app (binary AARs compiled
+ * against older Compose broke at runtime) and to add a backdrop resolution
+ * scale for cheaper effect rendering. KMP expect/actual declarations were
+ * merged into this single Android source set. Package renamed accordingly.
+ */
+package com.bxane.nuvx.ui.components.backdrop.internal
+
+import android.graphics.BlurMaskFilter
+import androidx.compose.ui.graphics.Paint
+import com.bxane.nuvx.ui.components.backdrop.RuntimeShader
+import com.bxane.nuvx.ui.components.backdrop.asAndroidRuntimeShader
+
+internal fun Paint.blur(radius: Float) {
+    this.asFrameworkPaint().maskFilter =
+        if (radius > 0f) BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL)
+        else null
+}
+
+internal fun Paint.setRuntimeShader(runtimeShader: RuntimeShader?) {
+    this.asFrameworkPaint().shader = runtimeShader?.asAndroidRuntimeShader()
+}
