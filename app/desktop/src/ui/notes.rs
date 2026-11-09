@@ -173,7 +173,7 @@ pub fn github_link(ui: &mut Ui) {
     ui.hyperlink_to(egui::RichText::new("Full release notes on GitHub").font(theme::regular(13.0)).color(if theme::light() { Color32::from_rgb(0, 102, 204) } else { Color32::from_rgb(62, 166, 255) }), crate::update::RELEASES);
 }
 
-/// What the notes dialog shows: a downloaded update (with Restart), or a version's notes.
+/// What the notes dialog shows: a downloaded update (Android's alert), or a version's notes.
 #[derive(Clone)]
 pub struct NotesDialog {
     pub version: String,
@@ -182,8 +182,11 @@ pub struct NotesDialog {
 
 pub fn dialog(app: &mut App, ctx: &egui::Context) {
     let Some(d) = app.notes_dialog.clone() else { return };
+    if d.ready {
+        return update_alert(app, ctx, &d.version);
+    }
     let body = app.updater.as_ref().and_then(|u| u.notes(&d.version));
-    let (mut close, mut restart) = (false, false);
+    let mut close = false;
     let accent = app.accent_color();
     let modal = egui::Modal::new(egui::Id::unique("release-notes")).frame(surface()).backdrop_color(theme::shade(0.55)).show(ctx, |ui| {
         let w = 540.0_f32.min(ctx.content_rect().width() - 48.0);
@@ -193,20 +196,14 @@ pub fn dialog(app: &mut App, ctx: &egui::Context) {
             ui.horizontal(|ui| {
                 widgets::icon_at(ui, ui.cursor().min + vec2(8.0, 8.0), icon::SPARKLES, 15.0, accent);
                 ui.add_space(22.0);
-                let label = if d.ready { "UPDATE READY" } else { "WHAT'S NEW" };
                 let mut j = LayoutJob::default();
-                j.append(label, 0.0, TextFormat { font_id: theme::semibold(12.0), color: theme::text_dim(), extra_letter_spacing: 1.0, ..Default::default() });
+                j.append("WHAT'S NEW", 0.0, TextFormat { font_id: theme::semibold(12.0), color: theme::text_dim(), extra_letter_spacing: 1.0, ..Default::default() });
                 ui.label(j);
             });
             ui.add_space(8.0);
             ui.label(egui::RichText::new(format!("nuvx {}", d.version)).font(theme::bold(26.0)).color(theme::text()));
             ui.add_space(6.0);
-            let sub = if d.ready {
-                format!("You're on {}. It's downloaded and installs when you close the app.", crate::update::current_version())
-            } else {
-                "The version you're running.".to_owned()
-            };
-            ui.label(egui::RichText::new(sub).font(theme::regular(13.5)).color(theme::text_dim()));
+            ui.label(egui::RichText::new("The version you're running.").font(theme::regular(13.5)).color(theme::text_dim()));
         });
         hline(ui);
         let max_h = (ctx.content_rect().height() - 330.0).clamp(160.0, 460.0);
@@ -230,22 +227,62 @@ pub fn dialog(app: &mut App, ctx: &egui::Context) {
         egui::Frame::new().inner_margin(Margin { left: 28, right: 28, top: 16, bottom: 16 }).show(ui, |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 10.0;
-                if d.ready {
-                    restart = widgets::pill(ui, "Restart to update", None, true).clicked();
-                    close = widgets::pill(ui, "Later", None, false).clicked();
-                } else {
-                    close = widgets::pill(ui, "Close", None, true).clicked();
-                }
+                close = widgets::pill(ui, "Close", None, true).clicked();
             });
         });
     });
     if close || modal.should_close() {
         app.notes_dialog = None;
     }
-    if restart {
+}
+
+/// A downloaded update, as Android's Software Update alert: a narrow card with the title,
+/// what it is, What's New, and full-width stacked actions under hairlines.
+fn update_alert(app: &mut App, ctx: &egui::Context, version: &str) {
+    let body = app.updater.as_ref().and_then(|u| u.notes(version));
+    let accent = app.accent_color();
+    let (mut later, mut install) = (false, false);
+    let frame = surface().corner_radius(14).shadow(egui::epaint::Shadow { offset: [0, 12], blur: 40, spread: 0, color: theme::shade(0.4) });
+    let modal = egui::Modal::new(egui::Id::unique("update-alert")).frame(frame).backdrop_color(theme::shade(0.28)).show(ctx, |ui| {
+        let w = 300.0;
+        ui.set_width(w);
+        ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+        egui::Frame::new().inner_margin(Margin { left: 16, right: 16, top: 20, bottom: 16 }).show(ui, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new("Software Update").font(theme::semibold(17.0)).color(theme::text()));
+                ui.add_space(4.0);
+                let line = format!("nuvx {version} is ready to install. You're on {}.", crate::update::current_version());
+                ui.label(egui::RichText::new(line).font(theme::regular(13.0)).color(theme::text_dim()));
+            });
+            if let Some(md) = &body {
+                ui.add_space(14.0);
+                ui.label(egui::RichText::new("What's New").font(theme::semibold(13.0)).color(theme::text()));
+                ui.add_space(6.0);
+                egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| show(ui, &parse(md), 13.0));
+            }
+        });
+        later = alert_action(ui, "Later", false, accent).clicked();
+        install = alert_action(ui, "Install Now", true, accent).clicked();
+    });
+    if later || modal.should_close() {
+        app.notes_dialog = None;
+    }
+    if install {
         app.notes_dialog = None;
         app.restart_to_update(ctx);
     }
+}
+
+/// One of the alert's stacked 44pt buttons, under a hairline.
+fn alert_action(ui: &mut Ui, label: &str, emphasised: bool, accent: Color32) -> egui::Response {
+    hline(ui);
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), egui::Sense::click());
+    if resp.hovered() {
+        ui.painter().rect_filled(rect, 0.0, theme::glass(0.05));
+    }
+    let font = if emphasised { theme::semibold(16.0) } else { theme::regular(16.0) };
+    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, label, font, accent);
+    widgets::named(resp, label).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// "Updated to X" in the corner on the first launch of a new version.
