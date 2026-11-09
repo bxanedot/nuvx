@@ -1230,6 +1230,12 @@
     <string name="radio_intro_body">Live stations from around the world. Not your thing? You can hide this tab.</string>
     <string name="radio_intro_keep">Keep Radio</string>
     <string name="radio_intro_later">You can hide the Radio tab anytime in Settings > Miscellaneous.</string>
+    <string name="podcasts">Podcasts</string>
+    <string name="hide_podcasts_tab">Hide Podcasts tab</string>
+    <string name="hide_podcasts_tab_subtitle">Removes podcasts from the tab bar</string>
+    <string name="podcasts_intro_body">Shows and episodes from YouTube Music. Not your thing? You can hide this tab.</string>
+    <string name="podcasts_intro_keep">Keep Podcasts</string>
+    <string name="podcasts_intro_later">You can hide the Podcasts tab anytime in Settings &gt; Miscellaneous.</string>
     <string name="support_tip_title">Enjoying nuvx?</string>
     <string name="support_tip_body">nuvx is free and made by one person. A small tip keeps it going.</string>
     <string name="support_tip_action">Tip on Ko-fi</string>

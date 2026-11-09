@@ -1385,6 +1385,12 @@
     <string name="radio_intro_body">תחנות חיות מכל העולם. לא בשבילך? אפשר להסתיר את הלשונית הזו.</string>
     <string name="radio_intro_keep">להשאיר רדיו</string>
     <string name="radio_intro_later">אפשר להסתיר את לשונית הרדיו בכל עת בהגדרות > שונות.</string>
+    <string name="podcasts">פודקאסטים</string>
+    <string name="hide_podcasts_tab">הסתרת לשונית הפודקאסטים</string>
+    <string name="hide_podcasts_tab_subtitle">מסיר את הפודקאסטים מסרגל הלשוניות</string>
+    <string name="podcasts_intro_body">תוכניות ופרקים מ-YouTube Music. לא בשבילך? אפשר להסתיר את הלשונית הזו.</string>
+    <string name="podcasts_intro_keep">להשאיר פודקאסטים</string>
+    <string name="podcasts_intro_later">אפשר להסתיר את לשונית הפודקאסטים בכל עת בהגדרות &gt; שונות.</string>
     <string name="support_tip_title">נהנים מ-nuvx?</string>
     <string name="support_tip_body">nuvx חינמית ונבנית על ידי אדם אחד. טיפ קטן עוזר לה להמשיך.</string>
     <string name="support_tip_action">טיפ ב-Ko-fi</string>

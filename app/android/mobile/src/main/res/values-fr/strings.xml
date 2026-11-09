@@ -1381,6 +1381,12 @@
     <string name="radio_intro_body">Des stations en direct du monde entier. Pas pour vous ? Vous pouvez masquer cet onglet.</string>
     <string name="radio_intro_keep">Garder Radio</string>
     <string name="radio_intro_later">Vous pouvez masquer l\'onglet Radio à tout moment dans Réglages > Divers.</string>
+    <string name="podcasts">Podcasts</string>
+    <string name="hide_podcasts_tab">Masquer l\'onglet Podcasts</string>
+    <string name="hide_podcasts_tab_subtitle">Retire les podcasts de la barre d\'onglets</string>
+    <string name="podcasts_intro_body">Émissions et épisodes de YouTube Music. Pas votre truc ? Vous pouvez masquer cet onglet.</string>
+    <string name="podcasts_intro_keep">Garder Podcasts</string>
+    <string name="podcasts_intro_later">Vous pouvez masquer l\'onglet Podcasts à tout moment dans Réglages &gt; Divers.</string>
     <string name="support_tip_title">Vous aimez nuvx ?</string>
     <string name="support_tip_body">nuvx est gratuit et fait par une seule personne. Un petit pourboire le fait vivre.</string>
     <string name="support_tip_action">Pourboire sur Ko-fi</string>

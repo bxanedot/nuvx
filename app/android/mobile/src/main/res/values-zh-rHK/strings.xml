@@ -1354,6 +1354,12 @@
     <string name="radio_intro_body">來自世界各地的直播電台。不需要？可以隱藏此分頁。</string>
     <string name="radio_intro_keep">保留電台</string>
     <string name="radio_intro_later">可隨時在 設定 > 其他 中隱藏電台分頁。</string>
+    <string name="podcasts">Podcast</string>
+    <string name="hide_podcasts_tab">隱藏 Podcast 分頁</string>
+    <string name="hide_podcasts_tab_subtitle">從分頁列移除 Podcast</string>
+    <string name="podcasts_intro_body">來自 YouTube Music 的節目和單集。唔啱你？你可以隱藏呢個分頁。</string>
+    <string name="podcasts_intro_keep">保留 Podcast</string>
+    <string name="podcasts_intro_later">你可以隨時喺「設定 &gt; 其他」隱藏 Podcast 分頁。</string>
     <string name="support_tip_title">喜歡 nuvx 嗎？</string>
     <string name="support_tip_body">nuvx 免費，由一個人開發。一點小費能讓它繼續下去。</string>
     <string name="support_tip_action">在 Ko-fi 打賞</string>

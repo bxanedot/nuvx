@@ -1407,6 +1407,12 @@
     <string name="radio_intro_body">Живые станции со всего мира. Не нужно? Эту вкладку можно скрыть.</string>
     <string name="radio_intro_keep">Оставить Радио</string>
     <string name="radio_intro_later">Вкладку Радио можно скрыть в любой момент в Настройки > Разное.</string>
+    <string name="podcasts">Подкасты</string>
+    <string name="hide_podcasts_tab">Скрыть вкладку «Подкасты»</string>
+    <string name="hide_podcasts_tab_subtitle">Убирает подкасты с панели вкладок</string>
+    <string name="podcasts_intro_body">Передачи и выпуски из YouTube Music. Не ваше? Эту вкладку можно скрыть.</string>
+    <string name="podcasts_intro_keep">Оставить подкасты</string>
+    <string name="podcasts_intro_later">Вкладку «Подкасты» можно скрыть в любой момент в разделе Настройки &gt; Прочее.</string>
     <string name="support_tip_title">Нравится nuvx?</string>
     <string name="support_tip_body">nuvx бесплатный, и его делает один человек. Небольшие чаевые помогают ему жить.</string>
     <string name="support_tip_action">Чаевые на Ko-fi</string>

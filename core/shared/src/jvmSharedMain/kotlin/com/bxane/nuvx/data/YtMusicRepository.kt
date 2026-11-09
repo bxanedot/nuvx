@@ -317,6 +317,13 @@ object YtMusicRepository {
         }.also { result -> result.getOrNull()?.let { moodGenreShelfCache.putIfAbsent(key, it) } }
     }
 
+    /** YouTube Music's Podcasts feed: Home under its "Podcasts" chip. */
+    suspend fun podcasts(): Result<List<HomeShelf>> = call("podcasts") {
+        val params = InnertubeParser.podcastsChipParams(Innertube.browse("FEmusic_home"))
+            ?: error("YouTube Music offered no Podcasts")
+        InnertubeParser.parseHome(Innertube.browse("FEmusic_home", params))
+    }
+
     /** A category card borrows the first real cover from the playlists it opens. */
     suspend fun moodGenreArtwork(browseId: String, params: String?): Result<String?> =
         moodGenreShelves(browseId, params).map { shelves ->

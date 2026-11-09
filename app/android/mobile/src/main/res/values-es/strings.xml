@@ -1352,6 +1352,12 @@
     <string name="radio_intro_body">Emisoras en directo de todo el mundo. ¿No es lo tuyo? Puedes ocultar esta pestaña.</string>
     <string name="radio_intro_keep">Mantener Radio</string>
     <string name="radio_intro_later">Puedes ocultar la pestaña Radio cuando quieras en Ajustes > Varios.</string>
+    <string name="podcasts">Podcasts</string>
+    <string name="hide_podcasts_tab">Ocultar la pestaña Podcasts</string>
+    <string name="hide_podcasts_tab_subtitle">Quita los podcasts de la barra de pestañas</string>
+    <string name="podcasts_intro_body">Programas y episodios de YouTube Music. ¿No es lo tuyo? Puedes ocultar esta pestaña.</string>
+    <string name="podcasts_intro_keep">Mantener Podcasts</string>
+    <string name="podcasts_intro_later">Puedes ocultar la pestaña Podcasts cuando quieras en Ajustes &gt; Varios.</string>
     <string name="support_tip_title">¿Te gusta nuvx?</string>
     <string name="support_tip_body">nuvx es gratis y lo hace una sola persona. Una pequeña propina lo mantiene vivo.</string>
     <string name="support_tip_action">Propina en Ko-fi</string>

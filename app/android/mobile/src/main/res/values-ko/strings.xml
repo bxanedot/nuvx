@@ -1218,6 +1218,12 @@
     <string name="radio_intro_body">전 세계의 라이브 방송국. 필요 없다면 이 탭을 숨길 수 있어요.</string>
     <string name="radio_intro_keep">라디오 유지</string>
     <string name="radio_intro_later">라디오 탭은 언제든 설정 > 기타에서 숨길 수 있어요.</string>
+    <string name="podcasts">팟캐스트</string>
+    <string name="hide_podcasts_tab">팟캐스트 탭 숨기기</string>
+    <string name="hide_podcasts_tab_subtitle">탭 바에서 팟캐스트를 제거합니다</string>
+    <string name="podcasts_intro_body">YouTube Music의 프로그램과 에피소드. 관심 없으신가요? 이 탭을 숨길 수 있어요.</string>
+    <string name="podcasts_intro_keep">팟캐스트 유지</string>
+    <string name="podcasts_intro_later">팟캐스트 탭은 설정 &gt; 기타에서 언제든지 숨길 수 있어요.</string>
     <string name="support_tip_title">nuvx가 마음에 드시나요?</string>
     <string name="support_tip_body">nuvx는 무료이며 한 사람이 만듭니다. 작은 팁이 계속할 힘이 됩니다.</string>
     <string name="support_tip_action">Ko-fi에서 팁 주기</string>

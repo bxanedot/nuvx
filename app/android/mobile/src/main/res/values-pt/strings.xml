@@ -1385,6 +1385,12 @@
     <string name="radio_intro_body">Estações ao vivo do mundo todo. Não curte? Você pode ocultar esta aba.</string>
     <string name="radio_intro_keep">Manter Rádio</string>
     <string name="radio_intro_later">Você pode ocultar a aba Rádio quando quiser em Ajustes > Diversos.</string>
+    <string name="podcasts">Podcasts</string>
+    <string name="hide_podcasts_tab">Ocultar a aba Podcasts</string>
+    <string name="hide_podcasts_tab_subtitle">Remove os podcasts da barra de abas</string>
+    <string name="podcasts_intro_body">Programas e episódios do YouTube Music. Não é a sua? Você pode ocultar esta aba.</string>
+    <string name="podcasts_intro_keep">Manter Podcasts</string>
+    <string name="podcasts_intro_later">Você pode ocultar a aba Podcasts a qualquer momento em Configurações &gt; Diversos.</string>
     <string name="support_tip_title">Curtindo o nuvx?</string>
     <string name="support_tip_body">O nuvx é gratuito e feito por uma pessoa. Uma pequena gorjeta mantém ele vivo.</string>
     <string name="support_tip_action">Gorjeta no Ko-fi</string>
