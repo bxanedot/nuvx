@@ -200,7 +200,10 @@ impl TextureLoader for Textures {
     fn load(&self, ctx: &egui::Context, uri: &str, options: TextureOptions, size_hint: SizeHint) -> TextureLoadResult {
         // Also the bundled theme covers and icon previews: egui's own loader would keep
         // each one decoded, as well as its texture, until the app closes.
-        if !is_http(uri) && !uri.starts_with("bytes://theme-cover/") && !uri.starts_with("bytes://app-icon/") {
+        // `gray:<url>`: the picture desaturated, for the mood tiles' duotone.
+        let gray = uri.strip_prefix("gray:");
+        let src = gray.unwrap_or(uri);
+        if !is_http(src) && !uri.starts_with("bytes://theme-cover/") && !uri.starts_with("bytes://app-icon/") {
             return Err(LoadError::NotSupported);
         }
         {
@@ -211,18 +214,19 @@ impl TextureLoader for Textures {
                 return Ok(TexturePoll::Ready { texture: SizedTexture::new(t.handle.id(), t.size) });
             }
         }
-        match ctx.try_load_image(uri, size_hint)? {
+        match ctx.try_load_image(src, size_hint)? {
             ImagePoll::Pending { size } => Ok(TexturePoll::Pending { size }),
             ImagePoll::Ready { image } => {
+                let image = if gray.is_some() { Arc::new(desaturate(&image)) } else { image };
                 let size = image.source_size;
                 let handle = ctx.load_texture(uri, image, options);
                 let texture = SizedTexture::new(handle.id(), size);
                 let loaders = ctx.loaders();
                 for l in loaders.bytes.lock().iter() {
-                    l.forget(uri);
+                    l.forget(src);
                 }
                 for l in loaders.image.lock().iter() {
-                    l.forget(uri);
+                    l.forget(src);
                 }
                 let mut state = self.state.lock().unwrap();
                 let last_used = state.pass;
@@ -262,5 +266,28 @@ impl TextureLoader for Textures {
 
     fn byte_size(&self) -> usize {
         self.state.lock().unwrap().cache.values().map(|t| t.handle.byte_size()).sum()
+    }
+}
+
+/// Luminance only (Rec. 709), keeping alpha.
+fn desaturate(image: &egui::ColorImage) -> egui::ColorImage {
+    let mut out = image.clone();
+    for p in &mut out.pixels {
+        let [r, g, b, a] = p.to_srgba_unmultiplied();
+        let l = (0.2126 * f32::from(r) + 0.7152 * f32::from(g) + 0.0722 * f32::from(b)).round() as u8;
+        *p = egui::Color32::from_rgba_unmultiplied(l, l, l, a);
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn desaturate_keeps_luminance_and_alpha() {
+        let img = egui::ColorImage::new([2, 1], vec![egui::Color32::from_rgb(255, 0, 0), egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128)]);
+        let out = super::desaturate(&img);
+        assert_eq!(out.pixels[0].to_srgba_unmultiplied(), [54, 54, 54, 255]);
+        let [r, g, b, a] = out.pixels[1].to_srgba_unmultiplied();
+        assert!(r == g && g == b && r >= 250 && a == 128);
     }
 }
