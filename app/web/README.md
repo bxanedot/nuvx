@@ -16,13 +16,13 @@ The web player and its companion browser extension. The plan, and the decisions 
 Node 22 or newer. pnpm comes through corepack, so nothing needs a global install:
 
 ```bash
-corepack pnpm --dir web install
+corepack pnpm --dir app/web install
 ```
 
 ## Run the site
 
 ```bash
-corepack pnpm --dir web/app dev
+corepack pnpm --dir app/web/app dev
 ```
 
 It serves on `http://localhost:5173`, and only there (`strictPort`): the extension trusts that exact origin.
@@ -32,16 +32,16 @@ It serves on `http://localhost:5173`, and only there (`strictPort`): the extensi
 Build both targets:
 
 ```bash
-corepack pnpm --dir web/extension build
+corepack pnpm --dir app/web/extension build
 ```
 
-- **Chrome, Edge, Brave:** `chrome://extensions` → Developer mode → *Load unpacked* → `web/extension/.output/chrome-mv3`. The id is always `ddclilijgpfpkhidfcooohihfalmmfmm`, pinned by the manifest `key` (`extension/dev-key/`), so the site finds it without configuration.
-- **Firefox:** `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `web/extension/.output/firefox-mv3/manifest.json`.
+- **Chrome, Edge, Brave:** `chrome://extensions` → Developer mode → *Load unpacked* → `app/web/extension/.output/chrome-mv3`. The id is always `ddclilijgpfpkhidfcooohihfalmmfmm`, pinned by the manifest `key` (`extension/dev-key/`), so the site finds it without configuration.
+- **Firefox:** `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `app/web/extension/.output/firefox-mv3/manifest.json`.
 
 To offer the extension as a download from the site's Extension page, package it:
 
 ```bash
-corepack pnpm --dir web/extension package
+corepack pnpm --dir app/web/extension package
 ```
 
 This builds both targets and writes three files to `app/public/downloads/` (git-ignored):
@@ -51,7 +51,7 @@ This builds both targets and writes three files to `app/public/downloads/` (git-
 
 `VITE_EXTENSION_CHROME_URL`, `VITE_EXTENSION_FIREFOX_URL` and `VITE_EXTENSION_MANIFEST_URL` override those links, for example to point at store listings.
 
-The toolbar icons (`extension/public/icon/`) are rendered from `app/public/favicon.svg` by `corepack pnpm --dir web/extension icons`.
+The toolbar icons (`extension/public/icon/`) are rendered from `app/public/favicon.svg` by `corepack pnpm --dir app/web/extension icons`.
 
 Then open `http://localhost:5173/extension`. It shows "Installed", with the version and the transport: **Direct** on Chromium (`externally_connectable`), **Page relay** on Firefox (content script).
 
@@ -65,20 +65,20 @@ Then open `http://localhost:5173/extension`. It shows "Installed", with the vers
 | `VITE_ANDROID_APP_URL` | app | The GitHub releases page |
 | `VITE_PARTY_SERVER_URL` | app (`app/.env.local`, Pages env) | None. The Listen Together server; `vite build` fails without it |
 
-## Deploy (Cloudflare Pages)
+## Deploy (Vercel)
 
-| Setting | Value |
+Live at **https://web.nuvx.lol**. The `nuvx-web` Vercel project deploys every push to `main` from the root directory `app/web`; build settings are in `vercel.json`.
+
+| Project environment variable | Value |
 | --- | --- |
-| Root directory | `web` |
-| Build command | `pnpm build:site` |
-| Output directory | `app/dist` |
-| Environment | `NODE_VERSION=22`, `VITE_PARTY_SERVER_URL` |
+| `VITE_PARTY_SERVER_URL` | `https://nuvx-listen.bxane.workers.dev` |
+| `ENABLE_EXPERIMENTAL_COREPACK` | `1`, so Vercel uses the pnpm version in `package.json` |
 
-`build:site` packages the extension first, so each deploy publishes the zips and `downloads/extension.json` with the version from `web/extension/package.json`. The Extension page polls that file and offers the update when it's newer than the installed one. Bump that version to make an update show.
+`build:site` packages the extension first, so each deploy publishes the zips and `downloads/extension.json` with the version from `app/web/extension/package.json`. The Extension page polls that file and offers the update when it's newer than the installed one. Bump that version to make an update show.
 
 ## Checks
 
 ```bash
-corepack pnpm --dir web -r typecheck
-corepack pnpm --dir web/app build
+corepack pnpm --dir app/web -r typecheck
+corepack pnpm --dir app/web/app build
 ```
