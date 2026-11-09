@@ -27,6 +27,8 @@
 
 ---
 
+![Your music. Everywhere you are. The nuvx player on Windows and Android.](docs/nuvx-banner.png)
+
 ## Screenshots
 
 <p align="center">
