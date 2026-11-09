@@ -67,12 +67,11 @@ Then open `http://localhost:5173/extension`. It shows "Installed", with the vers
 
 ## Deploy (Vercel)
 
-Live at **https://web.nuvx.lol**. The `nuvx-web` Vercel project deploys every push to `main` from the root directory `app/web`; build settings are in `vercel.json`.
+Live at **https://web.nuvx.lol**. The `nuvx-web` Vercel project deploys every push to `main` from the root directory `app/web`; build settings are in `vercel.json`, which installs the pnpm version `package.json` names (Vercel's Node has no corepack).
 
 | Project environment variable | Value |
 | --- | --- |
 | `VITE_PARTY_SERVER_URL` | `https://nuvx-listen.bxane.workers.dev` |
-| `ENABLE_EXPERIMENTAL_COREPACK` | `1`, so Vercel uses the pnpm version in `package.json` |
 
 `build:site` packages the extension first, so each deploy publishes the zips and `downloads/extension.json` with the version from `app/web/extension/package.json`. The Extension page polls that file and offers the update when it's newer than the installed one. Bump that version to make an update show.
 
