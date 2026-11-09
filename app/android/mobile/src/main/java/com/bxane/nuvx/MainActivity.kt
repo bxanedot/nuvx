@@ -1387,7 +1387,7 @@ private fun NuvxApp(
             BottomTab(radioLabel, RadioSymbol.toImageVector(), RadioSymbol),
             BottomTab(exploreLabel, SfIcons.TabExplore, SfSymbol.named("square.grid.2x2.fill")),
             BottomTab(searchLabel, SfIcons.Search, SfSymbol.named("magnifyingglass")),
-            BottomTab(podcastsLabel, PodcastsSymbol.toImageVector(), PodcastsSymbol),
+            BottomTab(podcastsLabel, PodcastsSymbol.toImageVector(), PodcastsSymbol, wiggles = true),
         )
     }
     val hideRadioTab by AppSettings.hideRadioTab.collectAsStateWithLifecycle()
