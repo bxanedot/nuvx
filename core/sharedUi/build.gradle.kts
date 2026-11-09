@@ -77,7 +77,7 @@ kotlin {
             api("org.jetbrains.compose.components:components-resources:$cmp")
             api("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
             api("io.coil-kt.coil3:coil-compose:3.6.3")
-            api("dev.chrisbanes.haze:haze:1.7.3")
+            api("dev.chrisbanes.haze:haze:2.1.0")
             api("dev.chrisbanes.haze:haze-materials:1.7.3")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
