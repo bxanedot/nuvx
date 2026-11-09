@@ -1497,6 +1497,12 @@ fn settings_playback(app: &mut App, ui: &mut Ui) {
             }
         });
         divider(ui);
+        setting_row(ui, "Spatial audio", Some("Widens stereo songs for a more immersive feel."), |ui| {
+            if toggle(ui, &mut app.spatial, "Spatial audio").changed() {
+                app.audio.set_spatial(app.spatial);
+            }
+        });
+        divider(ui);
         setting_row(ui, "Logarithmic volume", Some("Space the volume slider out the way ears hear loudness, so quiet levels aren't squeezed into its first few pixels."), |ui| {
             if toggle(ui, &mut app.log_volume, "Logarithmic volume").changed() {
                 app.audio.set_log_volume(app.log_volume);

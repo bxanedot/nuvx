@@ -70,6 +70,8 @@ pub struct AudioStatus {
     volume: AtomicU32,
     /// Turn loud tracks down to YouTube's loudness target.
     pub normalize: AtomicBool,
+    /// Widen stereo songs (see `Spatial`).
+    spatial: AtomicBool,
     /// The volume slider follows loudness (cubic) rather than amplitude.
     log_volume: AtomicBool,
     /// Smoothed output loudness 0..1 (f32 bits), for audio-reactive visuals.
@@ -325,6 +327,82 @@ impl MixFx {
 /// Pass-through source that tracks loudness (RMS over ~23 ms windows, smoothed) and
 /// applies crossfade ramps. `fade_out` is set by the audio thread to the fade-out
 /// length in ms (0 = keep playing); a new value restarts it from the current gain.
+/// Android's "spatial audio": the stereo image widened in mid/side, plus a short, dulled
+/// cross-feed from the other channel, like a far ear hears. O(1) a sample; stereo only.
+struct Spatial<S> {
+    inner: S,
+    status: Arc<AudioStatus>,
+    /// The right sample of the frame whose left went out last.
+    pending: Option<f32>,
+    delay: [Vec<f32>; 2],
+    at: usize,
+    lowpass: [f32; 2],
+}
+
+impl<S: rodio::Source> Spatial<S> {
+    const WIDTH: f32 = 2.5;
+    const OUTPUT: f32 = 0.82;
+    const CROSSFEED: f32 = 0.2;
+    const LOWPASS: f32 = 0.3;
+    const DELAY_MS: u32 = 15;
+
+    fn new(inner: S, status: Arc<AudioStatus>) -> Self {
+        let n = (inner.sample_rate().get() * Self::DELAY_MS / 1000).max(1) as usize;
+        Spatial { inner, status, pending: None, delay: [vec![0.0; n], vec![0.0; n]], at: 0, lowpass: [0.0; 2] }
+    }
+
+    fn widen(&mut self, l: f32, r: f32) -> (f32, f32) {
+        let (mid, side) = ((l + r) * 0.5, (l - r) * 0.5 * Self::WIDTH);
+        let i = self.at;
+        self.lowpass[0] += Self::LOWPASS * (self.delay[1][i] - self.lowpass[0]);
+        self.lowpass[1] += Self::LOWPASS * (self.delay[0][i] - self.lowpass[1]);
+        self.delay[0][i] = l;
+        self.delay[1][i] = r;
+        self.at = (i + 1) % self.delay[0].len();
+        ((mid + side + self.lowpass[0] * Self::CROSSFEED) * Self::OUTPUT, (mid - side + self.lowpass[1] * Self::CROSSFEED) * Self::OUTPUT)
+    }
+}
+
+impl<S: rodio::Source> Iterator for Spatial<S> {
+    type Item = f32;
+    fn next(&mut self) -> Option<f32> {
+        if let Some(r) = self.pending.take() {
+            return Some(r);
+        }
+        let l = self.inner.next()?;
+        if self.inner.channels().get() != 2 || !self.status.spatial.load(Ordering::Relaxed) {
+            return Some(l);
+        }
+        // A whole frame at once: the left channel's output needs the right's input.
+        let Some(r) = self.inner.next() else { return Some(l) };
+        let (l, r) = self.widen(l, r);
+        self.pending = Some(r);
+        Some(l)
+    }
+}
+
+impl<S: rodio::Source> rodio::Source for Spatial<S> {
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner.current_span_len().map(|n| n + self.pending.is_some() as usize)
+    }
+    fn channels(&self) -> rodio::ChannelCount {
+        self.inner.channels()
+    }
+    fn sample_rate(&self) -> rodio::SampleRate {
+        self.inner.sample_rate()
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
+    }
+    fn try_seek(&mut self, pos: Duration) -> Result<(), rodio::source::SeekError> {
+        self.inner.try_seek(pos)?;
+        self.pending = None;
+        self.delay.iter_mut().for_each(|d| d.fill(0.0));
+        self.lowpass = [0.0; 2];
+        Ok(())
+    }
+}
+
 struct Meter<S> {
     inner: S,
     status: Arc<AudioStatus>,
@@ -550,6 +628,10 @@ impl AudioHandle {
             self.status.volume.store(if on { v.cbrt() } else { v.powi(3) }.to_bits(), Ordering::Relaxed);
         }
         self.send(AudioCmd::Volume(self.volume()));
+    }
+
+    pub fn set_spatial(&self, on: bool) {
+        self.status.spatial.store(on, Ordering::Relaxed);
     }
 
     pub fn set_crossfade(&self, secs: u32) {
@@ -959,7 +1041,7 @@ fn run(
                 status.mix_duration_ms.store(fade_in, Ordering::Relaxed);
                 status.mix_active.store(mix, Ordering::Relaxed);
                 status.mix_generation.store(generation, Ordering::Release);
-                player.append(Meter::new(decoder, status.clone(), fade_in, fade_out.clone(), mix, s.tempo.clone()));
+                player.append(Meter::new(Spatial::new(decoder, status.clone()), status.clone(), fade_in, fade_out.clone(), mix, s.tempo.clone()));
                 player.play();
                 // 0 means the stream didn't say; keep the length the UI already knows.
                 if s.duration_ms > 0 {
@@ -987,7 +1069,7 @@ fn run(
                 player.clear();
                 fade_out = Arc::new(AtomicU32::new(0));
                 let analysis = shared.as_ref().expect("a current generation has a stream").tempo.clone();
-                player.append(Meter::new(decoder, status.clone(), 0, fade_out.clone(), false, analysis));
+                player.append(Meter::new(Spatial::new(decoder, status.clone()), status.clone(), 0, fade_out.clone(), false, analysis));
                 if !paused {
                     player.play();
                 }
@@ -1461,6 +1543,21 @@ mod tests {
         assert_eq!(norm_gain(&status, None), 1.0);
         status.normalize.store(false, Ordering::Relaxed);
         assert_eq!(norm_gain(&status, Some(&loud)), 1.0);
+    }
+
+    #[test]
+    fn spatial_widens_stereo_and_leaves_it_alone_when_off() {
+        let status = Arc::new(AudioStatus::default());
+        let frames = [0.5f32, -0.5, 0.25, 0.25].repeat(2000);
+        let src = || rodio::buffer::SamplesBuffer::new(rodio::ChannelCount::new(2).unwrap(), rodio::SampleRate::new(44100).unwrap(), frames.clone());
+        let off: Vec<f32> = Spatial::new(src(), status.clone()).collect();
+        assert_eq!(off, frames);
+        status.spatial.store(true, Ordering::Relaxed);
+        let on: Vec<f32> = Spatial::new(src(), status).collect();
+        assert_eq!(on.len(), frames.len());
+        // Side-only content gets wider; a centred (mono) frame stays centred.
+        assert!((on[0] - 0.5 * 2.5 * 0.82).abs() < 1e-6 && (on[1] + 0.5 * 2.5 * 0.82).abs() < 1e-6);
+        assert!((on[2] - on[3]).abs() < 1e-6);
     }
 
     #[test]
