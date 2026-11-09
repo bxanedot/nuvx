@@ -27,20 +27,22 @@ defaults:
 
 jobs:
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: app/desktop }
-      - run: cargo build --release --locked
+      - run: |
+          test "$TAG" = "v$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
+          cargo build --release --locked
       - name: Installer and portable zip
         run: |
           v=${TAG#v}
           choco install innosetup --no-progress -y
-          iscc //DAppVersion="$v" windows/nuvx.iss
-          mkdir portable && cp target/release/nuvx.exe windows/portable.txt portable/
-          (cd portable && 7z a "../nuvx-portable-$v.zip" nuvx.exe portable.txt)
+          MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$v" windows/nuvx.iss
+          mkdir portable && cp target/release/nuvx.exe windows/portable.txt README.md LICENSE portable/
+          (cd portable && 7z a "../nuvx-portable-$v.zip" nuvx.exe portable.txt README.md LICENSE)
           gh release upload "$TAG" "windows/Output/nuvx-setup-$v.exe" "nuvx-portable-$v.zip" --clobber
 
   linux:
@@ -53,12 +55,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: app/desktop }
-      - run: cargo build --release --locked
+      - run: |
+          test "$TAG" = "v$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
+          cargo build --release --locked
       - name: Tarballs
         run: |
           v=${TAG#v}
           mkdir -p dist/nuvx
-          cp target/release/nuvx linux/install.sh linux/nuvx.desktop dist/nuvx/
+          cp target/release/nuvx linux/install.sh linux/nuvx.desktop README.md LICENSE dist/nuvx/
           cp assets/icon/icon.png dist/nuvx/nuvx.png
           chmod 755 dist/nuvx/nuvx dist/nuvx/install.sh
           tar -C dist -czf "nuvx-$v-linux-x86_64.tar.gz" nuvx
@@ -71,16 +75,19 @@ jobs:
       matrix:
         include:
           - arch: aarch64
+            runner: macos-15
           - arch: x86_64
-    # Both on Apple silicon; the Intel build is cross-compiled.
-    runs-on: macos-latest
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: "${{ matrix.arch }}-apple-darwin" }
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
-      - run: cargo build --release --locked --target ${{ matrix.arch }}-apple-darwin
+      - run: |
+          test "$TAG" = "v$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
+          cargo build --release --locked --target ${{ matrix.arch }}-apple-darwin
       - name: DMG and portable zip
         run: |
           v=${TAG#v}

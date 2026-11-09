@@ -477,11 +477,13 @@ fn unzip_exe(zip: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     let status = cmd.status()?;
     #[cfg(windows)]
     let exe = dir.join("nuvx.exe");
-    // Everything is in one top-level folder: the binary, or on macOS the app bundle.
-    #[cfg(not(windows))]
+    // The portable macOS zip contains nuvx.app directly. Linux wraps the binary in a folder.
+    #[cfg(target_os = "macos")]
+    let exe = dir.join("nuvx.app/Contents/MacOS/nuvx");
+    #[cfg(target_os = "linux")]
     let exe = std::fs::read_dir(dir)?
         .flatten()
-        .flat_map(|e| [e.path().join("nuvx"), e.path().join("nuvx.app/Contents/MacOS/nuvx")])
+        .map(|e| e.path().join("nuvx"))
         .find(|p| p.is_file())
         .unwrap_or_else(|| dir.join("nuvx"));
     anyhow::ensure!(status.success() && exe.exists(), "couldn't unpack {}", zip.display());
