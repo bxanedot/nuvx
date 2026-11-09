@@ -74,13 +74,10 @@ data class BottomTab(
     val icon: ImageVector,
     /** GlyphStudio glyph drawn in place of [icon]; it bounces when its tab is picked. */
     val symbol: SfSymbol? = null,
-    /** Wiggles instead: Podcasts' microphone is one piece, with no layers to bounce. */
-    val wiggles: Boolean = false,
 )
 
 /** Each glyph layer bounces on its own (Explore's four cubes), as in the first 0.1.0 build. */
 private val TabBounce = SfSymbolEffect.Bounce(scope = SfEffectScope.ByLayer)
-private val TabWiggle = SfSymbolEffect.Wiggle()
 
 /** Re-taps of the tab already showing, by label: its glyph bounces on each one too. */
 internal val tabReselects = androidx.compose.runtime.mutableStateMapOf<String, Int>()
@@ -111,7 +108,7 @@ internal fun TabIcon(tab: BottomTab, selected: Boolean, tint: Color, modifier: M
             size = TAB_SYMBOL_SIZE,
             weight = SfWeight.Semibold,
             tint = tint,
-            effect = if (tab.wiggles) TabWiggle else TabBounce,
+            effect = TabBounce,
             trigger = taps to again,
             contentDescription = tab.label,
         )

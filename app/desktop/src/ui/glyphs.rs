@@ -214,8 +214,8 @@ const OPTIONS: TextureOptions = TextureOptions {
 };
 
 /// Draws `glyph` fitted (aspect kept) and centred in `rect`, tinted; `bounce` is seconds into a
-/// bounce, `pulse` seconds into Variable Color's loop, `tilt` a wiggle's turn in radians.
-fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f32)>, pulse: Option<(Id, f32)>, tilt: f32) {
+/// bounce, `pulse` seconds into Variable Color's loop.
+fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f32)>, pulse: Option<(Id, f32)>) {
     if tint.a() == 0 {
         return;
     }
@@ -254,21 +254,17 @@ fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f
     let size = vec2(w as f32, h as f32) / ppp;
     let min = ((rect.center() - size / 2.0) * ppp).round() / ppp;
     let dst = Rect::from_min_size(min, size);
-    if tilt == 0.0 {
-        ui.painter().image(tex.id(), dst, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), tint);
-    } else {
-        egui::Image::from_texture((tex.id(), size)).tint(tint).rotate(tilt, vec2(0.5, 0.5)).paint_at(ui, dst);
-    }
+    ui.painter().image(tex.id(), dst, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), tint);
 }
 
 /// Draws `glyph` centred on `center`, fitted in a `size` square, tinted `tint`.
 pub fn draw(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32) {
-    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, None, 0.0);
+    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, None);
 }
 
 /// Draws `glyph` fitted inside `rect` (for wide marks).
 pub fn draw_in(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32) {
-    paint(ui, rect, glyph, tint, None, None, 0.0);
+    paint(ui, rect, glyph, tint, None, None);
 }
 
 /// Like [draw], with GlyphStudio's Variable Color running on repeat while `active`:
@@ -278,33 +274,17 @@ pub fn draw_pulsing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color3
         ui.ctx().request_repaint();
         ui.input(|i| i.time) as f32
     });
-    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, t.map(|t| (id, t)), 0.0);
+    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, t.map(|t| (id, t)));
 }
 
-/// Like [draw], but plays the bounce last started with [bounce] for `id`. Podcasts' microphone,
-/// one piece with no layers to bounce, wiggles instead, as on Android.
+/// Like [draw], but plays the bounce last started with [bounce] for `id`.
 pub fn draw_bouncing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32, id: Id) {
-    let wiggles = glyph == PODCAST;
-    let secs = if wiggles { WIGGLE_SECS } else { BOUNCE_SECS };
     let start = ui.ctx().data(|d| d.get_temp::<f64>(id.with("nuvx-glyph-bounce")));
-    let t = start.map(|s| (ui.input(|i| i.time) - s) as f32).filter(|t| (0.0..secs).contains(t));
+    let t = start.map(|s| (ui.input(|i| i.time) - s) as f32).filter(|t| (0.0..BOUNCE_SECS).contains(t));
     if t.is_some() {
         ui.ctx().request_repaint();
     }
-    let rect = Rect::from_center_size(center, vec2(size, size));
-    match t {
-        Some(t) if wiggles => paint(ui, rect, glyph, tint, None, None, wiggle_tilt(t)),
-        t => paint(ui, rect, glyph, tint, t.map(|t| (id, t)), None, 0.0),
-    }
-}
-
-// GlyphStudio's Wiggle: a few quick turns either way that settle back upright.
-const WIGGLE_SECS: f32 = 0.6;
-
-/// The wiggle's turn `t` seconds in, in radians: ±14° easing out to none.
-fn wiggle_tilt(t: f32) -> f32 {
-    let left = (1.0 - t / WIGGLE_SECS).clamp(0.0, 1.0);
-    14f32.to_radians() * left * left * (t * std::f32::consts::TAU * 3.0 / WIGGLE_SECS * 0.6).sin()
+    paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, t.map(|t| (id, t)), None);
 }
 
 /// Starts the symbol drawn by [draw_bouncing] with `id` bouncing, layer by layer.
@@ -425,7 +405,6 @@ mod tests {
         assert!((bounce_lift(BOUNCE_UP, 0, 1) - 0.25).abs() < 1e-3);
         assert!(bounce_lift(2.0 * BOUNCE_UP, 0, 1) < 0.0);
         assert!(bounce_lift(BOUNCE_SECS, 2, 3).abs() < 1e-4);
-        assert!(wiggle_tilt(0.0).abs() < 1e-6 && wiggle_tilt(WIGGLE_SECS).abs() < 1e-6 && wiggle_tilt(0.05) > 0.0);
         // Later groups lag behind.
         assert!(bounce_lift(0.1, 2, 3) < bounce_lift(0.1, 0, 3));
     }
