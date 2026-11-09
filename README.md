@@ -2,7 +2,7 @@
 
 An open-source YouTube Music client for Android phones, Android TV, Wear OS and the web, built with Kotlin Multiplatform and Compose Multiplatform.
 
-> nuvx is in active development. There is no public release yet.
+> **nuvx 0.1.0 is out.** Download the phone and TV apps from the [latest release](https://github.com/bxanedot/nuvx/releases/latest), or use the web player at https://web.nuvx.lol.
 
 - Website: https://www.nuvx.lol
 - Community: https://discord.gg/h4Wsu824Uf
