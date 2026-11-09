@@ -3,13 +3,13 @@
 ;   iscc windows\nuvx.iss
 ; Output: windows\Output\nuvx-setup-<version>.exe
 ; The version comes from Cargo.toml by default; the release workflow stamps its own:
-;   iscc /DAppVersion="0.3.0" windows\nuvx.iss
+;   iscc /DAppVersion="0.4.0" windows\nuvx.iss
 ; ARM64: cargo build --release --target aarch64-pc-windows-msvc, then
 ;   iscc /DArm64 windows\nuvx.iss  ->  nuvx-setup-<version>-arm64.exe
 
 #define AppName "nuvx"
 #ifndef AppVersion
-#define AppVersion "0.3.0"
+#define AppVersion "0.4.0"
 #endif
 #define AppExe "nuvx.exe"
 #ifdef Arm64
