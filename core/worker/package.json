@@ -1,0 +1,18 @@
+{
+  "name": "nuvx-listen",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/party.test.ts test/canvas.test.ts test/canvas-route.test.ts",
+    "e2e": "node test/e2e.ts",
+    "dev": "wrangler dev",
+    "check": "wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261108.1",
+    "typescript": "7.0.2",
+    "wrangler": "4.158.0"
+  }
+}

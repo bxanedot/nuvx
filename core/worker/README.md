@@ -1,0 +1,43 @@
+# nuvx Listen Together worker
+
+**Live:** https://nuvx-listen.bxane.workers.dev. The party protocol in this folder is **not deployed yet**: the live
+worker still runs the old room protocol until `npm run deploy` (see Deploy).
+
+A Cloudflare Worker that serves:
+
+- **Listen Together parties**: one Durable Object (`Party`) per six-character code. Parties sync track ids, the queue
+  and playback state, never audio; every device streams on its own.
+- **The open-app counter**: `POST /api/presence`, `GET /api/stats/live`, `GET /api/stats/live/badge.svg` (`Presence`
+  Durable Object, one SQLite row per install).
+- **Invite pages**: `GET /invite/{code}`, which nuvx.lol rewrites here.
+- **Canvas uploads**: `POST /canvas` from the canvas.nuvx.lol page (commits `canvas/<videoId>.mp4` to this repo).
+
+The wire contract is the upstream Go party server's, with its names replaced by nuvx. Routes, frames, limits and the reasoning are
+in [docs/designs/listen-together-worker.md](../docs/designs/listen-together-worker.md); the party logic is
+`src/party.ts`.
+
+**Rules.** The first joiner hosts; when the host leaves, the longest-present member takes over. Parties hold 2–10
+devices (5 by default). Anyone may control the music unless the host turns on host-only control. A member
+disconnected for 45 s is removed; a party is deleted 2 minutes after its last device disconnects, or after 12 hours.
+Each member may send 30 frames and 25 controls per second. Per IP: 2 party creations, 60 other party requests and
+20 presence pings per minute. Bodies and frames are limited to 16 KiB. Nothing is logged.
+
+## Develop
+
+```bash
+npm ci
+npm test                 # party logic + canvas (node --test)
+npx wrangler dev         # local runtime, then in another shell:
+npm run e2e              # real WebSocket clients against wrangler dev
+npm run check            # bundle + binding check without deploying
+```
+
+## Deploy
+
+`npx wrangler login`, then `npm run deploy` (or a `CLOUDFLARE_API_TOKEN` secret in CI). The deploy applies migration
+`v2`, which deletes the old `Room` Durable Object class and its data.
+
+nuvx.lol is hosted on Vercel, so `listen.nuvx.lol` would need a CNAME at Vercel DNS pointing to the worker plus a
+Cloudflare custom domain, which only works for zones on Cloudflare. Clients use the workers.dev URL until that changes.
+
+Canvas uploads need two secrets: `wrangler secret put CANVAS_PASSCODE` and `wrangler secret put CANVAS_GITHUB_TOKEN`.

@@ -1,0 +1,48 @@
+name = "nuvx-listen"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[durable_objects.bindings]]
+name = "PARTIES"
+class_name = "Party"
+
+[[durable_objects.bindings]]
+name = "PRESENCE"
+class_name = "Presence"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+# The room protocol was replaced by the party protocol (docs/designs/listen-together-worker.md).
+[[migrations]]
+tag = "v2"
+deleted_classes = ["Room"]
+new_sqlite_classes = ["Party", "Presence"]
+
+# Party creation: 2 per minute per IP.
+[[ratelimits]]
+name = "CREATE_LIMIT"
+namespace_id = "1001"
+simple = { limit = 2, period = 60 }
+
+# Canvas uploads: 5 per minute per IP (slows passcode guessing).
+[[ratelimits]]
+name = "CANVAS_LIMIT"
+namespace_id = "1002"
+simple = { limit = 5, period = 60 }
+
+# Every other party, socket and invite request: stops code scanning from spending the Durable Object quota.
+[[ratelimits]]
+name = "PARTY_LIMIT"
+namespace_id = "1003"
+simple = { limit = 60, period = 60 }
+
+# Open-app counter pings.
+[[ratelimits]]
+name = "PRESENCE_LIMIT"
+namespace_id = "1004"
+simple = { limit = 20, period = 60 }
+
+# Uncomment once nuvx.lol is on this Cloudflare account:
+# routes = [{ pattern = "listen.nuvx.lol", custom_domain = true }]
