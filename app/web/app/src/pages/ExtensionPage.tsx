@@ -1,78 +1,15 @@
 import { ChevronRight } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
-import { FaChrome, FaFirefoxBrowser } from 'react-icons/fa';
 import { SiDiscord, SiSpotify, SiYoutubemusic } from 'react-icons/si';
 import type { Capability } from '@nuvx/shared/bridge';
 import { PageHeader } from '@/components/PageHeader';
-import { config } from '@/config';
+import { currentBrowser, downloadsFor, type Browser } from '@/extension/downloads';
 import { useExtension, type ExtensionStatus } from '@/extension/useExtension';
-import { downloadUrl, useExtensionUpdate, usePublishedExtension, type PublishedExtension } from '@/extension/useExtensionUpdate';
+import { useExtensionUpdate, usePublishedExtension } from '@/extension/useExtensionUpdate';
 import { useYtAuth, type YtAuthStatus } from '@/extension/useYtAuth';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { DiscordIntegration, SpotifyIntegration } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
-
-type Browser = 'chrome' | 'firefox';
-
-interface Download {
-  browser: Browser;
-  title: string;
-  detail: string;
-  href: string;
-  Icon: ComponentType<{ size?: number; className?: string }>;
-  steps: string[];
-  updateSteps: string[];
-}
-
-/**
- * The two builds, as published (extension.json): the zip and the folder in it
- * carry the version, "nuvx-extension-chrome (0.4.3)". Before that file
- * has loaded, the configured URLs and the unversioned names stand in.
- */
-function downloadsFor(published: PublishedExtension | null): Download[] {
-  const folder = (browser: Browser) => `nuvx-extension-${browser}${published ? ` (${published.version})` : ''}`;
-  return [
-    {
-      browser: 'chrome',
-      title: 'Download for Chrome',
-      detail: 'Chrome, Edge, Brave and other Chromium browsers',
-      href: published ? downloadUrl(published.files.chrome) : config.extensionChromeUrl,
-      Icon: FaChrome,
-      steps: [
-        `Extract the zip somewhere you’ll keep it. It holds one folder, ${folder('chrome')}.`,
-        'Open chrome://extensions and turn on Developer mode.',
-        'Choose Load unpacked and select that folder.',
-        'Come back to this page: the status above turns to Installed.',
-      ],
-      updateSteps: [
-        `Extract the new zip. It holds ${folder('chrome')}.`,
-        'In chrome://extensions, choose Load unpacked and select that folder. It has the same ID, so it takes the old one’s place and keeps your settings.',
-        'Delete the old folder, then come back to this page: the version above updates on its own.',
-      ],
-    },
-    {
-      browser: 'firefox',
-      title: 'Download for Firefox',
-      detail: 'Firefox 128 or newer',
-      href: published ? downloadUrl(published.files.firefox) : config.extensionFirefoxUrl,
-      Icon: FaFirefoxBrowser,
-      steps: [
-        `Extract the zip. It holds one folder, ${folder('firefox')}.`,
-        'Open about:debugging#/runtime/this-firefox and choose Load Temporary Add-on.',
-        'Select manifest.json inside that folder.',
-        'Firefox removes temporary add-ons when it quits; a signed version is coming.',
-      ],
-      updateSteps: [
-        `Extract the new zip. It holds ${folder('firefox')}.`,
-        'In about:debugging, choose Load Temporary Add-on and select manifest.json in the new folder.',
-        'Come back to this page: the version above updates on its own.',
-      ],
-    },
-  ];
-}
-
-/** The browser this page is open in, to put its download first. */
-const currentBrowser: Browser = /firefox/i.test(navigator.userAgent) ? 'firefox' : 'chrome';
 
 interface Integration {
   name: string;
@@ -111,13 +48,11 @@ export default function ExtensionPage() {
   const update = useExtensionUpdate();
   const DOWNLOADS = downloadsFor(usePublishedExtension());
   const auth = useYtAuth();
-  const [chosen, setChosen] = useState<Browser | null>(null);
   const [updating, setUpdating] = useState(false);
   const downloads = [...DOWNLOADS].sort((a, b) => Number(b.browser === currentBrowser) - Number(a.browser === currentBrowser));
   const installedBrowser: Browser | null =
     status.state === 'present' ? (status.extension.info.browser === 'firefox' ? 'firefox' : 'chrome') : null;
   const forUpdate = DOWNLOADS.find((d) => d.browser === (installedBrowser ?? currentBrowser))!;
-  const steps = DOWNLOADS.find((d) => d.browser === chosen)?.steps;
 
   return (
     <div className={settingsUi.centered}>
@@ -196,7 +131,6 @@ export default function ExtensionPage() {
               className={settingsUi.download}
               href={href}
               download
-              onClick={() => setChosen(browser)}
             >
               <Icon size={28} className="text-primary" />
               <span className={settingsUi.downloadText}>
@@ -210,15 +144,13 @@ export default function ExtensionPage() {
             </a>
           ))}
         </section>
-        {steps ? (
-          <ol className={settingsUi.steps}>
-            {steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        ) : (
-          <p className={settingsUi.footer}>Pick your browser to download the extension and see how to install it.</p>
-        )}
+        <p className={settingsUi.footer}>
+          New to this?{' '}
+          <PrefetchLink to="/guide" className={settingsUi.inlineLink}>
+            Follow the step-by-step guide
+          </PrefetchLink>
+          .
+        </p>
 
         <h2 className={settingsUi.sectionHeader}>Integrations</h2>
         <section className={settingsUi.group}>
