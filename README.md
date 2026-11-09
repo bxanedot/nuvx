@@ -41,15 +41,6 @@
   <a href="docs/nuvx-banner-desktop-lyrics.png"><img src="docs/nuvx-banner-desktop-lyrics.png" width="49%" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics."></a>
 </p>
 
-
-### Now Playing and lyrics
-
-<p align="center">
-  <a href="docs/screenshots/android-now-playing.png"><img src="docs/screenshots/android-now-playing.png" width="180" alt="Android Now Playing with Espresso album artwork and a synced lyric preview"></a>
-  <a href="docs/screenshots/android-lyrics-out-of-the-woods.png"><img src="docs/screenshots/android-lyrics-out-of-the-woods.png" width="180" alt="Full-screen synced lyrics for Out Of The Woods"></a>
-  <a href="docs/screenshots/android-lyrics-espresso.png"><img src="docs/screenshots/android-lyrics-espresso.png" width="180" alt="Full-screen synced lyrics for Espresso"></a>
-</p>
-
 ## Features
 
 - **Listen Together.** Share an invite and keep the queue and playback in sync with friends.
