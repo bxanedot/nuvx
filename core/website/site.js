@@ -23,6 +23,7 @@
   const released = device === 'Android' || device === 'Android TV' || device === 'Wear OS';
   if (device && !released && device !== 'iOS' && downloadLabel) {
     downloadLabel.textContent = 'Open the web player';
+    if (downloadLabel.nextElementSibling) downloadLabel.nextElementSibling.textContent = '↗';
     document.querySelector('#device-download')?.setAttribute('href', 'https://web.nuvx.lol');
   }
   if (device) note.textContent = released
