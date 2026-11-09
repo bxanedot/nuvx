@@ -1,5 +1,5 @@
 /// The build number, raised with every release (Android's version code).
-const VERSION_CODE: u64 = 2;
+const VERSION_CODE: u64 = 3;
 
 // Embed the app icon into the Windows executable (Explorer, taskbar, shortcuts).
 fn main() {
