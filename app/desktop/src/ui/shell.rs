@@ -704,17 +704,19 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         named(resp, name).on_hover_text(name).on_hover_cursor(egui::CursorIcon::PointingHand)
     };
 
-    // Left: shuffle · previous · play · next · repeat.
-    let x0 = full.left() + 22.0;
+    // Left: shuffle · previous · play · next · repeat, centred between the sidebar and the
+    // display, as Apple Music's are. The display is about a third of the window.
+    let lcd_max = (full.width() * 0.32).min(640.0);
+    let x0 = ((full.left() + full.center().x - lcd_max / 2.0) / 2.0 - 70.0).max(full.left() + 22.0);
     let r = btn(ui, x0, "shuffle", "Shuffle up next");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
-    glyphs::draw(ui, r.rect.center(), 17.0, glyphs::SHUFFLE, ink(h));
+    glyphs::draw(ui, r.rect.center(), 15.0, glyphs::SHUFFLE, ink(h));
     if r.clicked() {
         app.shuffle_upcoming();
     }
     let r = btn(ui, x0 + 36.0, "prev", "Previous");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
-    glyphs::draw(ui, r.rect.center(), 20.0, glyphs::PREVIOUS, ink(h));
+    glyphs::draw(ui, r.rect.center(), 18.0, glyphs::PREVIOUS, ink(h));
     if r.clicked() && enabled {
         app.prev();
     }
@@ -731,10 +733,10 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         // Cross-faded rather than swapped: a hard cut between the two weights flickers.
         let fg = ink(0.55 + 0.45 * h);
         if morph < 1.0 {
-            glyphs::draw(ui, c, 19.0, glyphs::PLAY, theme::with_alpha(fg, 1.0 - morph));
+            glyphs::draw(ui, c, 17.0, glyphs::PLAY, theme::with_alpha(fg, 1.0 - morph));
         }
         if morph > 0.0 {
-            glyphs::draw(ui, c, 19.0, glyphs::PAUSE, theme::with_alpha(fg, morph));
+            glyphs::draw(ui, c, 17.0, glyphs::PAUSE, theme::with_alpha(fg, morph));
         }
     }
     if r.clicked() && enabled {
@@ -742,7 +744,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     }
     let r = btn(ui, x0 + 104.0, "next", "Next");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
-    glyphs::draw(ui, r.rect.center(), 20.0, glyphs::NEXT, ink(h));
+    glyphs::draw(ui, r.rect.center(), 18.0, glyphs::NEXT, ink(h));
     if r.clicked() && enabled {
         app.next();
     }
@@ -753,7 +755,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     };
     let r = btn(ui, x0 + 140.0, "repeat", "Repeat");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
-    glyphs::draw(ui, r.rect.center(), 17.0, glyph, if on { accent } else { ink(h) });
+    glyphs::draw(ui, r.rect.center(), 15.0, glyph, if on { accent } else { ink(h) });
     if r.clicked() {
         app.queue.repeat = match app.queue.repeat {
             Repeat::Off => Repeat::All,
@@ -775,7 +777,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     let queue_open = if app.np_open { app.np_tab == NpTab::UpNext } else { app.queue_open };
     let r = btn(ui, avatar.left() - 22.0, "queue", "Up next");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
-    glyphs::draw(ui, r.rect.center(), 17.0, glyphs::QUEUE, if queue_open { accent } else { ink(h) });
+    glyphs::draw(ui, r.rect.center(), 16.0, glyphs::QUEUE, if queue_open { accent } else { ink(h) });
     if r.clicked() {
         if app.np_open {
             app.np_tab = if queue_open { NpTab::Art } else { NpTab::UpNext };
@@ -787,7 +789,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     let lyrics_on = if app.np_open { app.np_tab == NpTab::Lyrics && !app.no_lyrics() } else { app.lyrics_open };
     let r = btn(ui, avatar.left() - 56.0, "lyrics", "Lyrics");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
-    glyphs::draw(ui, r.rect.center(), 17.0, if lyrics_on { glyphs::LYRICS } else { glyphs::LYRICS_OFF }, if lyrics_on { accent } else { ink(h) });
+    glyphs::draw(ui, r.rect.center(), 16.0, if lyrics_on { glyphs::LYRICS } else { glyphs::LYRICS_OFF }, if lyrics_on { accent } else { ink(h) });
     if r.clicked() {
         if app.np_open {
             app.np_tab = if lyrics_on { NpTab::Art } else { NpTab::Lyrics };
@@ -796,17 +798,12 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
             app.queue_open &= !app.lyrics_open;
         }
     }
-    // The slider stays out, as on BitChord; it gives way first when the window narrows.
+    // Just the speaker, as Apple Music's: its slider drops down under it on hover.
     let vol = app.audio.volume();
-    let roomy = full.width() > 760.0;
-    let slider_w = if roomy { 84.0 } else { 0.0 };
-    let slider = Rect::from_min_size(pos2(avatar.left() - 84.0 - slider_w, cy - 10.0), vec2(slider_w, 20.0));
-    if roomy {
-        volume_slider(app, ui, slider, "bar");
-    }
-    let r = btn(ui, slider.left() - 18.0, "vol", "Mute");
+    let r = btn(ui, avatar.left() - 92.0, "vol", "Mute");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
-    glyphs::draw(ui, r.rect.center(), 17.0, glyphs::VOLUME[glyphs::volume_step(vol)], theme::lerp_color(theme::text_dim(), theme::text(), h));
+    glyphs::draw(ui, r.rect.center(), 16.0, glyphs::VOLUME[glyphs::volume_step(vol)], theme::lerp_color(theme::text_dim(), theme::text(), h));
+    volume_popover(app, ui, r.rect);
     if r.hovered() {
         let scroll = ui.input(|i| i.smooth_scroll_delta.y);
         if scroll != 0.0 {
@@ -826,7 +823,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
 
     // The display: centred on the toolbar, or between the two groups when it's tight.
     let room = (right_start - left_end - 24.0).max(0.0);
-    let lcd_w = room.min(520.0);
+    let lcd_w = room.min(lcd_max);
     if lcd_w < 160.0 {
         return;
     }
@@ -1011,6 +1008,30 @@ fn mark(ui: &Ui, r: Rect, tint: Color32) {
 /// Where Mute keeps the volume to go back to (the player bar's and the mini player's).
 pub fn unmute_id() -> egui::Id {
     egui::Id::unique("unmute")
+}
+
+/// The volume slider under the speaker at `anchor`: open while the pointer is on either
+/// (or dragging it), like Apple Music's.
+fn volume_popover(app: &mut App, ui: &mut Ui, anchor: Rect) {
+    let ctx = ui.ctx().clone();
+    let id = egui::Id::unique("bar-vol-pop");
+    let panel = Rect::from_min_size(pos2(anchor.center().x - 80.0, anchor.bottom() + 6.0), vec2(160.0, 34.0));
+    let over = |r: Rect| ctx.input(|i| i.pointer.hover_pos()).is_some_and(|p| r.contains(p));
+    let was = ctx.data(|d| d.get_temp::<bool>(id).unwrap_or(false));
+    // The gap between the two counts too, so the pointer can cross it.
+    let bridge = Rect::from_min_max(pos2(anchor.left(), anchor.center().y), pos2(anchor.right(), panel.top() + 2.0));
+    let open = over(anchor.expand(2.0)) || (was && (over(panel) || over(bridge) || ctx.input(|i| i.pointer.any_down())));
+    ctx.data_mut(|d| d.insert_temp(id, open));
+    let t = theme::anim_bool(&ctx, id.with("t"), open, 0.12);
+    if t <= 0.0 {
+        return;
+    }
+    egui::Area::new(id.with("area")).order(egui::Order::Foreground).fixed_pos(panel.min).interactable(true).show(&ctx, |ui| {
+        let (rect, _) = ui.allocate_exact_size(panel.size(), Sense::hover());
+        ui.painter().rect_filled(rect, 10.0, theme::panel(0.96).gamma_multiply(t));
+        ui.painter().rect_stroke(rect, 10.0, egui::Stroke::new(1.0, theme::glass(0.12 * t)), egui::StrokeKind::Inside);
+        volume_slider(app, ui, rect.shrink2(vec2(16.0, 7.0)), "bar");
+    });
 }
 
 /// The volume track: click or drag to set, scroll over it to nudge.
