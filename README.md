@@ -29,6 +29,11 @@
 
 ![Your music. Everywhere you are. The nuvx player on Windows and Android.](docs/nuvx-banner.png)
 
+<p align="center">
+  <a href="docs/nuvx-banner-amber.png"><img src="docs/nuvx-banner-amber.png" width="49%" alt="Follow every word. Synced lyrics in nuvx, with a copper record-groove backdrop."></a>
+  <a href="docs/nuvx-banner-starfield.png"><img src="docs/nuvx-banner-starfield.png" width="49%" alt="Find your next favorite. nuvx Home with a blue orbital trail."></a>
+</p>
+
 ## Screenshots
 
 <p align="center">
@@ -37,6 +42,14 @@
   <a href="docs/screenshots/android-explore.png"><img src="docs/screenshots/android-explore.png" width="150" alt="nuvx on Android showing Explore with new releases and trending music"></a>
 </p>
 <p align="center"><sub>Windows Home · Android Home · Android Explore</sub></p>
+
+### Now Playing and lyrics
+
+<p align="center">
+  <a href="docs/screenshots/android-now-playing.png"><img src="docs/screenshots/android-now-playing.png" width="180" alt="Android Now Playing with Espresso album artwork and a synced lyric preview"></a>
+  <a href="docs/screenshots/android-lyrics-out-of-the-woods.png"><img src="docs/screenshots/android-lyrics-out-of-the-woods.png" width="180" alt="Full-screen synced lyrics for Out Of The Woods"></a>
+  <a href="docs/screenshots/android-lyrics-espresso.png"><img src="docs/screenshots/android-lyrics-espresso.png" width="180" alt="Full-screen synced lyrics for Espresso"></a>
+</p>
 
 ## Features
 
