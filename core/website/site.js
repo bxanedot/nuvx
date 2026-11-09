@@ -20,7 +20,8 @@
   const device = /wear os|watch/.test(ua) ? 'Wear OS' : /android/.test(ua) && /tv|aft|bravia|shield/.test(ua) ? 'Android TV' : /android/.test(ua) ? 'Android' : /iphone|ipad|ipod/.test(ua) || (/ios/.test(platform.toLowerCase()) || /mac/.test(platform.toLowerCase()) && navigator.maxTouchPoints > 1) ? 'iOS' : /mac/.test(platform.toLowerCase()) ? 'macOS' : /win/.test(platform.toLowerCase()) ? 'Windows' : /linux/.test(platform.toLowerCase()) ? 'Linux' : '';
   const downloadLabel = document.querySelector('#download-label');
   if (downloadLabel && device) downloadLabel.textContent = device === 'iOS' ? 'iOS — coming soon' : `Download for ${device}`;
-  const released = device === 'Android' || device === 'Android TV' || device === 'Wear OS';
+  const desktop = ['Windows', 'Linux', 'macOS'].includes(device);
+  const released = desktop || device === 'Android' || device === 'Android TV' || device === 'Wear OS';
   if (device && !released && device !== 'iOS' && downloadLabel) {
     downloadLabel.textContent = 'Open the web player';
     if (downloadLabel.nextElementSibling) downloadLabel.nextElementSibling.textContent = '↗';
@@ -29,7 +30,7 @@
   // Fills the device note; called again with the latest release's version once GitHub answers.
   const showNote = (version) => {
     if (device) note.textContent = released
-      ? `nuvx ${version} for ${device} is out. ${device === 'Wear OS' ? 'Install the phone app; it adds nuvx to your watch.' : 'It runs on Android 8.0 or newer.'}`
+      ? `nuvx ${version} for ${device} is out. ${device === 'Wear OS' ? 'Install the phone app; it adds nuvx to your watch.' : desktop ? 'Choose an installer or a portable build on GitHub.' : 'It runs on Android 8.0 or newer.'}`
       : `No ${device} app yet. Use the web player in your browser, or get nuvx for Android.`;
   };
   showNote(document.querySelector('[data-version]')?.textContent ?? '');
