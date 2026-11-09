@@ -8,6 +8,15 @@ const post = async (path: string, body: unknown, token?: string) => {
   return { status: r.status, body: await r.json() as any };
 };
 const joinReq = (id: string) => ({ userId: `user-${id}`, deviceId: `device-${id}`, displayName: id });
+const liveStats = async () => (await fetch(`${base}/api/stats/live`, { cache: "no-store" })).json() as Promise<{ android: number; listening: number }>;
+
+async function expectListeners(expected: number) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if ((await liveStats()).listening === expected) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.equal((await liveStats()).listening, expected);
+}
 
 function client(code: string, token: string) {
   const ws = new WebSocket(`${base.replace(/^http/, "ws")}/ws/parties/${code}`, ["nuvx.v1", `nuvx.token.${token}`]);
@@ -45,10 +54,11 @@ assert.equal(preview.memberCount, 2);
 const host = client(code, created.body.token);
 await host.open;
 assert.equal((await host.next("welcome")).you.displayName, "Host");
-const guest = client(code, joined.body.token);
+let guest = client(code, joined.body.token);
 await guest.open;
 await guest.next("welcome");
 await host.next("members", (m) => m.members.every((x: any) => x.connected));
+await expectListeners(0);
 
 host.send({ type: "ping", clientMs: 42 });
 assert.equal((await host.next("pong")).clientMs, 42);
@@ -57,6 +67,22 @@ guest.send({ type: "control", action: "setTrack", track: { videoId: "dQw4w9WgXcQ
 const state = await host.next("state", (m) => m.playback.track?.videoId === "dQw4w9WgXcQ");
 assert.equal(state.playback.isPlaying, true);
 assert.equal((await host.next("activity")).detail, 'Changed the song to "Song"');
+await expectListeners(2);
+
+host.send({ type: "control", action: "pause" });
+await host.next("state", (m) => !m.playback.isPlaying);
+await expectListeners(0);
+host.send({ type: "control", action: "play" });
+await host.next("state", (m) => m.playback.isPlaying);
+await expectListeners(2);
+
+guest.ws.close();
+await host.next("members", (m) => m.members.some((x: any) => !x.connected));
+await expectListeners(1);
+guest = client(code, joined.body.token);
+await guest.open;
+await guest.next("welcome");
+await expectListeners(2);
 
 host.send({ type: "control", action: "setHostOnlyControl", enabled: true });
 await guest.next("members", (m) => m.hostOnlyControl === true);
@@ -67,6 +93,7 @@ const guestId = joined.body.you.memberId;
 host.send({ type: "control", action: "kick", memberId: guestId });
 assert.equal((await guest.next("bye")).reason, "kicked");
 await host.next("members", (m) => m.members.length === 1);
+await expectListeners(1);
 
 const snapshot = await fetch(`${base}/api/parties/${code}`, { headers: { authorization: `Bearer ${created.body.token}` } });
 assert.equal(snapshot.status, 200);
@@ -78,12 +105,14 @@ assert.match(await invite.text(), new RegExp(`nuvx://party/${code}`));
 
 assert.equal((await post(`/api/parties/${code}/leave`, {}, created.body.token)).status, 200);
 assert.equal((await host.next("bye")).reason, "left");
+await expectListeners(0);
 
 const id = crypto.randomUUID();
 assert.equal((await post("/api/presence", { id, platform: "android", open: true })).body.intervalSec, 300);
 assert.equal((await post("/api/presence", { id, platform: "browser", open: true })).status, 403, "browser without Origin");
-const stats = await (await fetch(`${base}/api/stats/live`)).json() as any;
+const stats = await liveStats();
 assert.ok(stats.android >= 1);
+assert.equal(stats.listening, 0, "open clients are not counted as party listeners");
 assert.match(await (await fetch(`${base}/api/stats/live/badge.svg`)).text(), /LISTENING NOW/);
 
 host.ws.close();

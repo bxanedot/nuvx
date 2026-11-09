@@ -6,8 +6,11 @@ A Cloudflare Worker that serves:
 
 - **Listen Together parties**: one Durable Object (`Party`) per six-character code. Parties sync track ids, the queue
   and playback state, never audio; every device streams on its own.
-- **The open-app counter**: `POST /api/presence`, `GET /api/stats/live`, `GET /api/stats/live/badge.svg` (`Presence`
-  Durable Object, one SQLite row per install).
+- **Live stats**: `GET /api/stats/live` reports `online` from recent app presence pings and `listening` from
+  connected devices in parties with playback running. `POST /api/presence` updates the online count.
+  `GET /api/stats/live/badge.svg` displays the online count.
+- **Release downloads**: `GET /api/stats/downloads` sums GitHub download counts for published nuvx app packages.
+  It refreshes at most every five minutes and serves the last successful total if GitHub is unavailable.
 - **Invite pages**: `GET /invite/{code}`, which nuvx.lol rewrites here.
 - **Canvas uploads**: `POST /canvas` from the canvas.nuvx.lol page (commits `core/canvas/<videoId>.mp4` to this repo).
 

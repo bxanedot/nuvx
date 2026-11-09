@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import * as P from "./party.ts";
 import { handleCanvasUpload } from "./canvas-route.ts";
+import { countReleaseDownloads } from "./downloads.ts";
 import { invitePage } from "./invite.ts";
 
 export interface Env {
@@ -10,7 +11,7 @@ export interface Env {
   PARTY_LIMIT: RateLimit;
   PRESENCE_LIMIT: RateLimit;
   CANVAS_LIMIT: RateLimit;
-  /** Secrets for canvas uploads (wrangler secret put); uploads are refused until both are set. */
+  /** Secrets for canvas uploads. The repo token also authenticates release count requests to GitHub. */
   CANVAS_PASSCODE?: string;
   CANVAS_GITHUB_TOKEN?: string;
 }
@@ -21,6 +22,7 @@ const SOCKET_PROTOCOL = "nuvx.v1";
 const SOCKET_TOKEN_PREFIX = "nuvx.token.";
 const PRESENCE_INTERVAL_SEC = 300;
 const PRESENCE_WINDOW_MS = (PRESENCE_INTERVAL_SEC + 90) * 1000;
+const LISTENER_WINDOW_MS = 60_000;
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
 type Reply = { status: number; body: unknown };
@@ -62,6 +64,15 @@ export default {
     if (route === "GET /api/time") return send({ status: 200, body: { serverMs: now } });
     if (route === "POST /canvas") return handleCanvasUpload(req, env);
     if (route === "POST /api/presence") return presence(req, env, ip, origin);
+    if (route === "GET /api/stats/downloads") {
+      try {
+        const downloads = await env.PRESENCE.get(env.PRESENCE.idFromName("global")).releaseDownloads();
+        return json({ downloads }, 200, origin, { "cache-control": "public, max-age=300" });
+      } catch (error) {
+        console.warn("Release download count unavailable", error);
+        return send({ status: 502, body: { error: "downloads_unavailable", message: "GitHub download counts are temporarily unavailable." } });
+      }
+    }
     if (route === "GET /api/stats/live" || route === "GET /api/stats/live/badge.svg") {
       const c = await env.PRESENCE.get(env.PRESENCE.idFromName("global")).counts();
       if (!url.pathname.endsWith(".svg")) {
@@ -148,6 +159,8 @@ type Attachment = { memberId: string };
 export class Party extends DurableObject<Env> {
   private buckets = new Map<string, ReturnType<typeof P.freshBuckets>>();
   private lastStateAt = 0;
+  private presence?: DurableObjectStub<Presence>;
+  private publishedListeners?: { count: number; expiresAt: number };
 
   /** Open sockets of a member, optionally ignoring one that is closing. */
   private sockets(memberId: string, except?: WebSocket) {
@@ -168,9 +181,32 @@ export class Party extends DurableObject<Env> {
   }
 
   private async save(party: P.Party, except?: WebSocket) {
-    P.refreshEmptiness(party, this.connected(except), Date.now());
+    const connected = this.connected(except);
+    P.refreshEmptiness(party, connected, Date.now());
     await this.ctx.storage.put("party", party);
-    await this.ctx.storage.setAlarm(P.nextExpiry(party, this.connected(except)));
+    await this.ctx.storage.setAlarm(P.nextExpiry(party, connected));
+    this.publishListeners(party, connected);
+  }
+
+  private publishListeners(party: P.Party, connected = this.connected()) {
+    const now = Date.now();
+    const count = party.playback.isPlaying && party.playback.track
+      ? party.members.filter((member) => connected(member.memberId)).length
+      : 0;
+    const previous = this.publishedListeners;
+    if (previous?.count === count && (count === 0 || previous.expiresAt - now > LISTENER_WINDOW_MS / 2)) return;
+
+    // Renew from existing socket pings. The lease bounds stale counts if a close or update is lost.
+    const expiresAt = Math.min(now + LISTENER_WINDOW_MS, party.createdAtMs + P.PARTY_MAX_AGE_MS);
+    const presence = this.presence ??= this.env.PRESENCE.get(this.env.PRESENCE.idFromName("global"));
+    this.publishedListeners = { count, expiresAt };
+    this.ctx.waitUntil(presence.setPartyListeners(party.code, count, expiresAt).catch(() => {
+      // Failed stubs must be replaced. Retry on the next party update or ping.
+      if (this.presence === presence) {
+        this.presence = undefined;
+        this.publishedListeners = undefined;
+      }
+    }));
   }
 
   private broadcast(frame: unknown, except?: WebSocket) {
@@ -277,7 +313,10 @@ export class Party extends DurableObject<Env> {
     if (!b) this.buckets.set(memberId, (b = P.freshBuckets(now)));
     const reply = (f: unknown) => ws.send(JSON.stringify(f));
     if (!P.spendFrame(b.frame, now)) return reply({ type: "error", error: "rate_limited", message: "Too many messages at once." });
-    const heartbeat = () => { if (now - this.lastStateAt > P.HEARTBEAT_MS) this.broadcast(P.stateFrame(party, now)); };
+    const heartbeat = () => {
+      this.publishListeners(party);
+      if (now - this.lastStateAt > P.HEARTBEAT_MS) this.broadcast(P.stateFrame(party, now));
+    };
     switch (frame.type) {
       case "ping": reply({ type: "pong", clientMs: frame.clientMs ?? null, serverMs: now }); return heartbeat();
       case "report": return heartbeat();
@@ -326,9 +365,12 @@ export class Party extends DurableObject<Env> {
 
 /** Counts open app installs. One row per install; rows older than the ping window are dropped when counting. */
 export class Presence extends DurableObject<Env> {
+  private downloadRefresh?: Promise<number>;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS installs (id TEXT PRIMARY KEY, platform TEXT NOT NULL, last_ms INTEGER NOT NULL)");
+    ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS playing_parties (code TEXT PRIMARY KEY, listeners INTEGER NOT NULL, expires_ms INTEGER NOT NULL)");
   }
 
   // shortcut: no cap on rows (Go capped at 200k); per-IP rate limiting bounds growth, add a cap if the table gets large.
@@ -337,10 +379,39 @@ export class Presence extends DurableObject<Env> {
     else this.ctx.storage.sql.exec("DELETE FROM installs WHERE id = ?", id);
   }
 
+  async setPartyListeners(code: string, count: number, expiresAt: number) {
+    const sql = this.ctx.storage.sql;
+    if (count === 0) sql.exec("DELETE FROM playing_parties WHERE code = ?", code);
+    else sql.exec("INSERT INTO playing_parties (code, listeners, expires_ms) VALUES (?, ?, ?) ON CONFLICT(code) DO UPDATE SET listeners = excluded.listeners, expires_ms = excluded.expires_ms", code, count, expiresAt);
+  }
+
+  async releaseDownloads() {
+    const cached = await this.ctx.storage.get<{ downloads: number; refreshAt: number }>("release-downloads");
+    if (cached && cached.refreshAt > Date.now()) return cached.downloads;
+
+    this.downloadRefresh ??= this.refreshDownloads(cached?.downloads).finally(() => { this.downloadRefresh = undefined; });
+    return this.downloadRefresh;
+  }
+
+  private async refreshDownloads(downloads?: number) {
+    let refreshIn = 300_000;
+    try {
+      downloads = await countReleaseDownloads(fetch, this.env.CANVAS_GITHUB_TOKEN);
+    } catch (error) {
+      if (downloads === undefined) throw error;
+      console.warn("Serving cached release download count", error);
+      refreshIn = 60_000;
+    }
+    await this.ctx.storage.put("release-downloads", { downloads, refreshAt: Date.now() + refreshIn });
+    return downloads;
+  }
+
   async counts() {
     const now = Date.now();
     this.ctx.storage.sql.exec("DELETE FROM installs WHERE last_ms < ?", now - PRESENCE_WINDOW_MS);
-    const c = { online: 0, android: 0, pc: 0, browser: 0, updatedAt: now };
+    this.ctx.storage.sql.exec("DELETE FROM playing_parties WHERE expires_ms <= ?", now);
+    const { listening } = this.ctx.storage.sql.exec<{ listening: number }>("SELECT COALESCE(SUM(listeners), 0) AS listening FROM playing_parties").one();
+    const c = { online: 0, android: 0, pc: 0, browser: 0, updatedAt: now, listening };
     for (const row of this.ctx.storage.sql.exec<{ platform: "android" | "pc" | "browser"; n: number }>("SELECT platform, COUNT(*) AS n FROM installs GROUP BY platform")) {
       c[row.platform] = row.n;
       c.online += row.n;
