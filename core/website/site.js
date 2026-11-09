@@ -26,9 +26,12 @@
     let frame;
     let lastTime;
     let position;
+    let interacting = false;
+    let pointer;
+    let resumeTimer;
 
     const advance = (time) => {
-      const cycle = banners.offsetWidth;
+      const cycle = banners.getBoundingClientRect().width;
       const distance = Math.min(time - (lastTime ?? time), 50) * 0.034;
       // Decreasing scrollLeft moves the cards right. Both copies meet at the same visual position.
       position = (position + cycle - distance) % cycle;
@@ -39,7 +42,7 @@
     const sync = () => {
       cancelAnimationFrame(frame);
       control.textContent = playing ? 'Pause showcase' : 'Play showcase';
-      if (!playing || !visible) return;
+      if (!playing || !visible || interacting) return;
       if (!repeat.isConnected) banners.after(repeat);
       position = viewport.scrollLeft;
       lastTime = undefined;
@@ -49,15 +52,42 @@
       playing = false;
       sync();
     };
+    const yieldToInput = () => {
+      if (!interacting) {
+        interacting = true;
+        sync();
+      }
+      clearTimeout(resumeTimer);
+      if (pointer !== undefined) return;
+      // Give native scrolling, including touch momentum, time to settle.
+      resumeTimer = setTimeout(() => {
+        interacting = false;
+        sync();
+      }, 900);
+    };
+    const releasePointer = (event) => {
+      if (pointer === undefined || (event.type !== 'blur' && event.pointerId !== pointer)) return;
+      pointer = undefined;
+      yieldToInput();
+    };
     control.addEventListener('click', () => {
       playing = !playing;
       sync();
     });
     control.hidden = false;
-    viewport.addEventListener('focus', pause);
-    viewport.addEventListener('pointerdown', pause);
+    viewport.addEventListener('keydown', yieldToInput);
+    viewport.addEventListener('pointerdown', (event) => {
+      pointer = event.pointerId;
+      yieldToInput();
+    });
+    window.addEventListener('pointerup', releasePointer);
+    window.addEventListener('pointercancel', releasePointer);
+    window.addEventListener('blur', releasePointer);
+    viewport.addEventListener('scroll', () => {
+      if (interacting) yieldToInput();
+    }, { passive: true });
     viewport.addEventListener('wheel', (event) => {
-      if (event.deltaX || event.shiftKey) pause();
+      if (event.deltaX || event.shiftKey) yieldToInput();
     }, { passive: true });
     motion.addEventListener('change', (event) => {
       if (event.matches) pause();
