@@ -440,13 +440,13 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         }
     }
 
-    // Transport: the reference's row — shuffle, previous, play, next, repeat — then the
-    // queue and lyrics beside Repeat; 52 tall, no wider than 400, its buttons
-    // 36/48/56/48/36/36/36 with icons of 30/40/48/40/30/26/26.
+    // Transport: lyrics, then the reference's row — shuffle, previous, play, next, repeat —
+    // then the queue; 52 tall, no wider than 400, its buttons 36/36/48/56/48/36/36 with
+    // icons of 26/30/40/48/40/30/26, so play stays centred.
     let ty = info_y + 99.0 + 26.0;
     let row_w = w.min(400.0);
-    let sizes = [36.0f32, 48.0, 56.0, 48.0, 36.0, 36.0, 36.0];
-    let icons = [30.0f32, 40.0, 48.0, 40.0, 30.0, 26.0, 26.0];
+    let sizes = [36.0f32, 36.0, 48.0, 56.0, 48.0, 36.0, 36.0];
+    let icons = [26.0f32, 30.0, 40.0, 48.0, 40.0, 30.0, 26.0];
     let gap = ((row_w - sizes.iter().sum::<f32>()) / 6.0).max(4.0);
     let mut xs = [0.0f32; 7];
     let mut cx = art.center().x - row_w / 2.0;
@@ -471,19 +471,19 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         }
         (resp, h, p)
     };
-    let (r, h, p) = btn(ui, 0, "shuffle", "Shuffle up next", true);
-    super::glyphs::draw(ui, r.rect.center(), icons[0] * (1.0 - 0.1 * p), super::glyphs::SHUFFLE, ink(h, 0.55, 1.0));
+    let (r, h, p) = btn(ui, 1, "shuffle", "Shuffle up next", true);
+    super::glyphs::draw(ui, r.rect.center(), icons[1] * (1.0 - 0.1 * p), super::glyphs::SHUFFLE, ink(h, 0.55, 1.0));
     if r.clicked() {
         app.shuffle_upcoming();
     }
-    let (r, h, p) = btn(ui, 1, "prev", "Previous", enabled);
-    super::glyphs::draw(ui, r.rect.center(), icons[1] * (1.0 - 0.1 * p), super::glyphs::PREVIOUS, ink(h, 1.0, dim));
+    let (r, h, p) = btn(ui, 2, "prev", "Previous", enabled);
+    super::glyphs::draw(ui, r.rect.center(), icons[2] * (1.0 - 0.1 * p), super::glyphs::PREVIOUS, ink(h, 1.0, dim));
     if r.clicked() && enabled {
         app.prev();
     }
-    let (r, h, p) = btn(ui, 2, "play", if app.playing() || app.buffering { "Pause" } else { "Play" }, enabled);
+    let (r, h, p) = btn(ui, 3, "play", if app.playing() || app.buffering { "Pause" } else { "Play" }, enabled);
     let c = r.rect.center();
-    let size = icons[2] * (1.0 - 0.1 * p);
+    let size = icons[3] * (1.0 - 0.1 * p);
     let mark = ink(h, 1.0, dim);
     let morph = theme::anim_bool(ui.ctx(), "np-play-morph", app.playing() || app.buffering, 0.18);
     if app.buffering {
@@ -504,8 +504,8 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     if r.clicked() && enabled {
         app.toggle();
     }
-    let (r, h, p) = btn(ui, 3, "next", "Next", enabled);
-    super::glyphs::draw(ui, r.rect.center(), icons[3] * (1.0 - 0.1 * p), super::glyphs::NEXT, ink(h, 1.0, dim));
+    let (r, h, p) = btn(ui, 4, "next", "Next", enabled);
+    super::glyphs::draw(ui, r.rect.center(), icons[4] * (1.0 - 0.1 * p), super::glyphs::NEXT, ink(h, 1.0, dim));
     if r.clicked() && enabled {
         app.next();
     }
@@ -514,8 +514,8 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         Repeat::All => (super::glyphs::REPEAT, true),
         Repeat::One => (super::glyphs::REPEAT_ONE, true),
     };
-    let (r, h, p) = btn(ui, 4, "repeat", "Repeat", true);
-    super::glyphs::draw(ui, r.rect.center(), icons[4] * (1.0 - 0.1 * p), glyph, if on { app.accent_color() } else { ink(h, 0.55, 1.0) });
+    let (r, h, p) = btn(ui, 5, "repeat", "Repeat", true);
+    super::glyphs::draw(ui, r.rect.center(), icons[5] * (1.0 - 0.1 * p), glyph, if on { app.accent_color() } else { ink(h, 0.55, 1.0) });
     if r.clicked() {
         app.queue.repeat = match app.queue.repeat {
             Repeat::Off => Repeat::All,
@@ -523,10 +523,10 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
             Repeat::One => Repeat::Off,
         };
     }
-    // The queue and lyrics open beside the artwork, and close back to it.
+    // The lyrics and queue open beside the artwork, and close back to it.
     for (i, tab, key, glyph, off_glyph, show, hide) in [
-        (5, NpTab::UpNext, "queue", super::glyphs::QUEUE, super::glyphs::QUEUE, "View queue", "Hide queue"),
-        (6, NpTab::Lyrics, "lyrics", super::glyphs::LYRICS, super::glyphs::LYRICS_OFF, "Show lyrics", "Hide lyrics"),
+        (6, NpTab::UpNext, "queue", super::glyphs::QUEUE, super::glyphs::QUEUE, "View queue", "Hide queue"),
+        (0, NpTab::Lyrics, "lyrics", super::glyphs::LYRICS, super::glyphs::LYRICS_OFF, "Show lyrics", "Hide lyrics"),
     ] {
         let on = app.np_tab == tab;
         let (r, h, p) = btn(ui, i, key, if on { hide } else { show }, true);
