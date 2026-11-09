@@ -402,7 +402,7 @@ dependencies {
     implementation("org.mozilla:rhino-engine:1.9.2")
 
     // ---- Auth/session storage ----
-    implementation("androidx.security:security-crypto:1.1.0-beta01")
+    implementation("androidx.security:security-crypto:1.1.0")
 
     // ---- JS module execution: QuickJS VM for style source plugins ----
     // Held at InnerTubeX's version; the same VM runs QuickJsExecutor's module sources.
