@@ -29,4 +29,21 @@
   if (device) note.textContent = released
     ? `nuvx 0.1.0 for ${device} is out. ${device === 'Wear OS' ? 'Install the phone app; it adds nuvx to your watch.' : 'It runs on Android 8.0 or newer.'}`
     : `No ${device} app yet. Use the web player in your browser, or get nuvx for Android.`;
+  // A watch can't install the phone APK, so Wear OS keeps the release page.
+  if (device === 'Android' || device === 'Android TV') {
+    document.querySelector('#device-download')?.setAttribute('data-apk', device === 'Android TV' ? 'NuvxTV-' : 'nuvx-');
+  }
+  // Point every [data-apk] link at the newest release's universal APK (named "<prefix>vX.Y.Z.apk"); the release page stays the fallback.
+  const apkLinks = document.querySelectorAll('[data-apk]');
+  if (apkLinks.length) {
+    fetch('https://api.github.com/repos/bxanedot/nuvx/releases/latest')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((release) => {
+        for (const link of apkLinks) {
+          const asset = release?.assets?.find((a) => a.name.startsWith(link.dataset.apk) && a.name.endsWith('.apk') && !a.name.includes('_'));
+          if (asset) link.href = asset.browser_download_url;
+        }
+      })
+      .catch(() => {});
+  }
 })();
