@@ -1,0 +1,94 @@
+# Builds nuvx for desktop on Windows, Linux and macOS and uploads the installers and
+# portable builds to an existing (draft) GitHub release. Asset names must match
+# app/desktop/src/update.rs asset_name, which the in-app updater looks for.
+name: Desktop release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to upload to (e.g. v0.2.0); the release must exist
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ github.token }}
+  TAG: ${{ inputs.tag }}
+  LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+  LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: app/desktop
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop }
+      - run: cargo build --release --locked
+      - name: Installer and portable zip
+        run: |
+          v=${TAG#v}
+          choco install innosetup --no-progress -y
+          iscc //DAppVersion="$v" windows/nuvx.iss
+          mkdir portable && cp target/release/nuvx.exe windows/portable.txt portable/
+          (cd portable && 7z a "../nuvx-portable-$v.zip" nuvx.exe portable.txt)
+          gh release upload "$TAG" "windows/Output/nuvx-setup-$v.exe" "nuvx-portable-$v.zip" --clobber
+
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev libasound2-dev libxdo-dev libssl-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop }
+      - run: cargo build --release --locked
+      - name: Tarballs
+        run: |
+          v=${TAG#v}
+          mkdir -p dist/nuvx
+          cp target/release/nuvx linux/install.sh linux/nuvx.desktop dist/nuvx/
+          cp assets/icon/icon.png dist/nuvx/nuvx.png
+          chmod 755 dist/nuvx/nuvx dist/nuvx/install.sh
+          tar -C dist -czf "nuvx-$v-linux-x86_64.tar.gz" nuvx
+          cp linux/portable.txt dist/nuvx/
+          tar -C dist -czf "nuvx-portable-$v-linux-x86_64.tar.gz" nuvx
+          gh release upload "$TAG" "nuvx-$v-linux-x86_64.tar.gz" "nuvx-portable-$v-linux-x86_64.tar.gz" --clobber
+
+  macos:
+    strategy:
+      matrix:
+        include:
+          - arch: aarch64
+          - arch: x86_64
+    # Both on Apple silicon; the Intel build is cross-compiled.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.arch }}-apple-darwin" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
+      - run: cargo build --release --locked --target ${{ matrix.arch }}-apple-darwin
+      - name: DMG and portable zip
+        run: |
+          v=${TAG#v}
+          a=${{ matrix.arch }}
+          bin=target/$a-apple-darwin/release/nuvx
+          sh macos/bundle.sh "$bin" "$v" dmg
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname nuvx -srcfolder dmg -format UDZO "nuvx-setup-$v-macos-$a.dmg"
+          sh macos/bundle.sh "$bin" "$v" portable portable
+          (cd portable && ditto -c -k --keepParent nuvx.app "../nuvx-portable-$v-macos-$a.zip")
+          gh release upload "$TAG" "nuvx-setup-$v-macos-$a.dmg" "nuvx-portable-$v-macos-$a.zip" --clobber
