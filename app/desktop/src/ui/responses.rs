@@ -201,6 +201,7 @@ impl App {
                 self.explore = Some(e);
                 self.loading = false;
             }
+            Resp::YoutubeSearch { query, tracks } => self.youtube_results = Some((query, tracks)),
             Resp::Search(r) => {
                 if self.smoke.as_ref() == Some(&r.query) {
                     self.smoke = None;

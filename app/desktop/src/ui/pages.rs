@@ -509,6 +509,45 @@ fn mood(app: &mut App, ui: &mut Ui, browse_id: &str, params: Option<&String>, ti
     }
 }
 
+/// YouTube's videos for `q`, as song rows that play as they are.
+fn youtube_results(app: &mut App, ui: &mut Ui, q: &str, pick: bool, now: f64) {
+    let q = q.trim();
+    let have = app.youtube_results.as_ref().filter(|(k, _)| k == q);
+    if have.is_none() && app.youtube_asked != q {
+        app.youtube_asked = q.to_owned();
+        app.backend.request(crate::backend::Req::YoutubeSearch(q.to_owned()));
+    }
+    ui.add_space(14.0);
+    let Some((_, found)) = have else {
+        placeholder(app, ui, now, 2, CARD);
+        return;
+    };
+    let tracks = match found {
+        Ok(t) if t.is_empty() => {
+            ui.label(RichText::new("No results").font(theme::bold(20.0)).color(theme::text()));
+            return;
+        }
+        Ok(t) => t.clone(),
+        Err(_) => {
+            ui.label(RichText::new("Couldn't search YouTube").color(theme::text_dim()));
+            ui.add_space(10.0);
+            if widgets::pill(ui, "Retry", None, false).clicked() {
+                app.youtube_results = None;
+                app.youtube_asked.clear();
+            }
+            return;
+        }
+    };
+    let rows = Rows::new(app, now);
+    let acts = &mut app.actions;
+    for (i, t) in tracks.iter().enumerate() {
+        let o = RowOpts { pick, ..rows.opts(&app.liked, t, None, true) };
+        if track_row(ui, t, &o, acts).clicked() {
+            acts.push(if pick { Action::TransferPick(t.clone()) } else { Action::Play(tracks.clone(), i) });
+        }
+    }
+}
+
 pub(super) fn page_title(ui: &mut Ui, title: &str) {
     // Left-aligned with the page's content, a little below the top edge.
     ui.add_space(18.0);
@@ -545,6 +584,22 @@ fn search(app: &mut App, ui: &mut Ui, q: &str, now: f64) {
             mood_tiles(ui, &tiles, &mut app.actions);
         }
         return;
+    }
+    // YouTube Music's results, or with "Enable YouTube Search" on, YouTube's.
+    if app.youtube_search {
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 8.0;
+            if widgets::chip(ui, "YouTube Music", !app.search_youtube).clicked() {
+                app.search_youtube = false;
+            }
+            if widgets::chip(ui, "YouTube", app.search_youtube).clicked() {
+                app.search_youtube = true;
+            }
+        });
+        if app.search_youtube {
+            return youtube_results(app, ui, q, pick, now);
+        }
     }
     if app.search.as_ref().is_none_or(|r| r.query != q) {
         ui.add_space(14.0);
@@ -1310,6 +1365,12 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
             settings_card(ui, |ui| {
                 setting_row(ui, "Classic search", Some("A plain search page instead of the colour category tiles."), |ui| {
                     toggle(ui, &mut app.classic_search, "Classic search");
+                });
+                divider(ui);
+                setting_row(ui, "Enable YouTube Search", Some("A YouTube switch over the results, for videos beyond YouTube Music's."), |ui| {
+                    if toggle(ui, &mut app.youtube_search, "Enable YouTube Search").changed() && !app.youtube_search {
+                        app.search_youtube = false;
+                    }
                 });
             });
             section_label(ui, "Tabs", None);

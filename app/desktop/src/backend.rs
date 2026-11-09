@@ -35,6 +35,8 @@ pub enum Req {
     /// A station started playing: Radio Browser ranks by these.
     RadioClick(String),
     Search(String),
+    /// YouTube's own results, with "Enable YouTube Search" on.
+    YoutubeSearch(String),
     /// Suggestions for a query; `round` comes back with them, so stale ones can be dropped.
     Suggest { query: String, round: u64 },
     /// Remove a past search (its token) from the account's history.
@@ -119,7 +121,7 @@ impl Req {
             Req::Mood { .. } => "Loading the mood",
             Req::RadioCountries | Req::RadioStations { .. } => "Loading radio",
             Req::RadioClick(_) => "Radio",
-            Req::Search(_) => "Search",
+            Req::Search(_) | Req::YoutubeSearch(_) => "Search",
             Req::Suggest { .. } => "Suggest",
             Req::ForgetSearch(_) => "Removing the search",
             Req::Album { .. } => "Loading album",
@@ -267,6 +269,7 @@ pub enum Resp {
     RadioCountries(Result<Vec<crate::radio::Country>, String>),
     RadioStations { key: String, stations: Result<Vec<crate::radio::Station>, String> },
     Search(SearchResults),
+    YoutubeSearch { query: String, tracks: Result<Vec<Track>, String> },
     Suggest { query: String, round: u64, terms: Vec<ytm::Suggestion> },
     /// An album or playlist; `more`: the rest of its songs follow in `CollectionMore`.
     Collection { load: u64, c: Collection, more: bool },
@@ -720,6 +723,8 @@ impl Backend {
                     return Ok(None);
                 }
                 Req::Search(query) => self.search(query, me).await?,
+                // The page shows a failure itself, with a retry.
+                Req::YoutubeSearch(query) => Resp::YoutubeSearch { tracks: ytm::youtube_search(api, &query).await.map_err(|e| format!("{e:#}")), query },
                 Req::Suggest { query, round } => {
                     let terms = ytm::suggestions(api, &query, me).await?.into_iter().take(8).collect();
                     Resp::Suggest { query, round, terms }

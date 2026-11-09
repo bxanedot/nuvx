@@ -304,6 +304,34 @@ impl Api {
         }
     }
 
+    /// Search YouTube itself (not YouTube Music), anonymously, as youtube.com's own page
+    /// does: what "Enable YouTube Search" adds to the results.
+    pub async fn youtube_search(&self, query: &str) -> anyhow::Result<Value> {
+        let web = self.web(false).await;
+        let payload = json!({
+            "query": query,
+            // Videos only: no channels, playlists or Shorts shelves.
+            "params": "EgIQAQ%3D%3D",
+            "context": {
+                "client": { "clientName": "WEB", "clientVersion": YOUTUBE_WEB_VERSION, "hl": "en", "gl": "US", "visitorData": web.visitor_data },
+            },
+        });
+        let resp = crate::proxy::http()
+            .post("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
+            .header("User-Agent", webmusic::UA)
+            .header("Origin", "https://www.youtube.com")
+            .header("X-YouTube-Client-Name", "1")
+            .header("X-YouTube-Client-Version", YOUTUBE_WEB_VERSION)
+            .header("Cookie", CONSENT)
+            .timeout(Duration::from_secs(15))
+            .json(&payload)
+            .send()
+            .await?;
+        let status = resp.status();
+        anyhow::ensure!(status.is_success(), "YouTube search returned HTTP {status}");
+        Ok(resp.json().await?)
+    }
+
     /// Like `call`, but a signed-in account is required.
     pub async fn call_signed_in(&self, endpoint: &str, body: Value) -> anyhow::Result<Value> {
         let account = self.account().ok_or_else(|| anyhow::anyhow!("sign in first"))?;
@@ -511,6 +539,10 @@ impl std::error::Error for NotSignedIn {}
 fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
+
+/// The youtube.com web client version searches go as. shortcut: fixed, as YouTube
+/// keeps taking older versions for a long time; read it off youtube.com if one is refused.
+const YOUTUBE_WEB_VERSION: &str = "2.20251105.01.00";
 
 /// Whether YouTube answered as signed out.
 pub fn logged_out(v: &Value) -> bool {

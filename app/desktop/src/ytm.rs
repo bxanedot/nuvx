@@ -187,6 +187,37 @@ pub async fn search_cards(api: &Api, query: &str, filter: Filter, auth: bool) ->
     Ok(search_as(api, query, filter, auth).await?.iter().filter_map(|i| list_card(&i["musicResponsiveListItemRenderer"])).collect())
 }
 
+/// YouTube's own results for `query`: its videos, as tracks that play as they are.
+pub async fn youtube_search(api: &Api, query: &str) -> anyhow::Result<Vec<Track>> {
+    Ok(youtube_videos(&api.youtube_search(query).await?))
+}
+
+fn youtube_videos(v: &Value) -> Vec<Track> {
+    let sections = &v["contents"]["twoColumnSearchResultsRenderer"]["primaryContents"]["sectionListRenderer"]["contents"];
+    arr(sections)
+        .iter()
+        .flat_map(|s| arr(&s["itemSectionRenderer"]["contents"]))
+        .filter_map(|i| {
+            let r = &i["videoRenderer"];
+            let id = r["videoId"].as_str()?.to_owned();
+            // A live stream has no length; the player wants one that ends.
+            let duration = r["lengthText"]["simpleText"].as_str().and_then(clock_secs)?;
+            let owner = &r["ownerText"]["runs"][0];
+            let artists = owner["text"].as_str().map(|name| vec![Link { name: name.to_owned(), id: None }]).unwrap_or_default();
+            let thumbs = arr(&r["thumbnail"]["thumbnails"])
+                .iter()
+                .filter_map(|t| Some(Thumb { url: t["url"].as_str()?.to_owned(), width: t["width"].as_u64()? as u32, height: t["height"].as_u64()? as u32 }))
+                .collect();
+            Some(Track { id, title: text(&r["title"])?, artists, album: None, duration: Some(duration), thumbs, track_nr: None, plays: None, music_video: false })
+        })
+        .collect()
+}
+
+/// "1:02:03" or "4:05" in seconds.
+fn clock_secs(s: &str) -> Option<u32> {
+    s.split(':').try_fold(0u32, |acc, p| Some(acc * 60 + p.trim().parse::<u32>().ok()?))
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Suggestion {
     pub text: String,
@@ -1963,6 +1994,29 @@ mod tests {
             }
         }
         assert!(page.shelves.iter().any(|s| matches!(&s.kind, ShelfKind::Songs { tracks, .. } if !tracks.is_empty())));
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn youtube_search_live() {
+        let api = crate::ytmapi::Api::new(&std::env::temp_dir().join("nuvx-album-songs-test"));
+        let found = youtube_search(&api, "rust programming tutorial").await.unwrap();
+        println!("{:?}", found.iter().take(3).map(|t| (&t.id, &t.title, t.duration, t.artists.first().map(|a| &a.name))).collect::<Vec<_>>());
+        assert!(found.len() >= 5);
+    }
+
+    #[test]
+    fn youtube_rows_become_tracks_and_live_streams_drop() {
+        let v = json!({"contents": {"twoColumnSearchResultsRenderer": {"primaryContents": {"sectionListRenderer": {"contents": [
+            {"itemSectionRenderer": {"contents": [
+                {"videoRenderer": {"videoId": "abc", "title": {"runs": [{"text": "A talk"}]}, "lengthText": {"simpleText": "1:02:03"}, "ownerText": {"runs": [{"text": "Chan"}]}}},
+                {"videoRenderer": {"videoId": "live", "title": {"runs": [{"text": "Live now"}]}}},
+                {"shelfRenderer": {}}
+            ]}}
+        ]}}}}});
+        let t = youtube_videos(&v);
+        assert_eq!(t.len(), 1);
+        assert_eq!((t[0].id.as_str(), t[0].duration, t[0].artists[0].name.as_str()), ("abc", Some(3723), "Chan"));
     }
 
     #[test]
