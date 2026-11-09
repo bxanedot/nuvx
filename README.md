@@ -46,6 +46,11 @@
 ### Now Playing and lyrics
 
 <p align="center">
+  <a href="docs/nuvx-banner-now-playing.png"><img src="docs/nuvx-banner-now-playing.png" width="49%" alt="Music in full color. nuvx Now Playing framed by cobalt and copper panels."></a>
+  <a href="docs/nuvx-banner-lyrics-motion.png"><img src="docs/nuvx-banner-lyrics-motion.png" width="49%" alt="Lyrics in motion. An illustration of the active lyric line lighting up in nuvx."></a>
+</p>
+
+<p align="center">
   <a href="docs/screenshots/android-now-playing.png"><img src="docs/screenshots/android-now-playing.png" width="180" alt="Android Now Playing with Espresso album artwork and a synced lyric preview"></a>
   <a href="docs/screenshots/android-lyrics-out-of-the-woods.png"><img src="docs/screenshots/android-lyrics-out-of-the-woods.png" width="180" alt="Full-screen synced lyrics for Out Of The Woods"></a>
   <a href="docs/screenshots/android-lyrics-espresso.png"><img src="docs/screenshots/android-lyrics-espresso.png" width="180" alt="Full-screen synced lyrics for Espresso"></a>
