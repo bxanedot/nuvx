@@ -524,7 +524,7 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
             edit.request_focus();
         }
     }
-    if field.clicked() || ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::F)) {
+    if field.clicked() || ui.data_mut(|d| d.remove_temp::<bool>(egui::Id::unique("focus-search"))).unwrap_or(false) {
         edit.request_focus();
     }
     if edit.changed() || edit.gained_focus() || cleared {
