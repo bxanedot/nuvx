@@ -2775,8 +2775,8 @@ private fun NuvxApp(
             // No artwork: this track's cover isn't the artist's
             // picture, and the page fills its own in once loaded.
             onOpenArtist = { id, name ->
-                dismissPlayer()
                 if (id != null) {
+                    dismissPlayer()
                     viewModel.openDetail(
                         id,
                         name,
@@ -2788,6 +2788,7 @@ private fun NuvxApp(
                     scope.launch {
                         val found = YtMusicRepository.findArtistPageId(name).getOrNull()
                         if (found != null) {
+                            dismissPlayer()
                             viewModel.openDetail(
                                 found,
                                 name,
