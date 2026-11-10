@@ -3,7 +3,7 @@
 //! its edges to resize it by. winit keeps the window styles snapping needs, so dragging
 //! to a screen edge and Win+arrows still work. Elsewhere the system's frame stays.
 
-use egui::{Color32, CursorIcon, Id, Pos2, Rect, ResizeDirection, Sense, Stroke, Ui, ViewportCommand, pos2, vec2};
+use egui::{Color32, CursorIcon, Id, Pos2, Rect, ResizeDirection, Sense, Stroke, Ui, Vec2, ViewportCommand, pos2, vec2};
 
 use crate::theme;
 
@@ -180,19 +180,30 @@ pub fn traffic_lights(ui: &Ui, rect: Rect) {
         p.circle_filled(c, 6.0, fill);
         p.circle_stroke(c, 6.0, Stroke::new(0.5, Color32::from_black_alpha(50)));
         if over {
-            let s = Stroke::new(1.2, Color32::from_black_alpha(150));
+            // Each glyph is a dark shade of its own light, as macOS inks them.
+            let ink = match kind {
+                Kind::Close => Color32::from_rgb(0x4D, 0x00, 0x00),
+                Kind::Minimize => Color32::from_rgb(0x99, 0x57, 0x00),
+                Kind::Maximize | Kind::Restore => Color32::from_rgb(0x00, 0x65, 0x00),
+            };
+            let s = Stroke::new(1.1, ink);
+            let tri = |pts: [Vec2; 3]| egui::Shape::convex_polygon(pts.iter().map(|v| c + *v).collect(), ink, Stroke::NONE);
             match kind {
                 Kind::Close => {
-                    p.line_segment([c + vec2(-2.5, -2.5), c + vec2(2.5, 2.5)], s);
-                    p.line_segment([c + vec2(-2.5, 2.5), c + vec2(2.5, -2.5)], s);
+                    p.line_segment([c + vec2(-2.3, -2.3), c + vec2(2.3, 2.3)], s);
+                    p.line_segment([c + vec2(-2.3, 2.3), c + vec2(2.3, -2.3)], s);
                 }
                 Kind::Minimize => {
-                    p.line_segment([c + vec2(-3.0, 0.0), c + vec2(3.0, 0.0)], s);
+                    p.line_segment([c + vec2(-3.2, 0.0), c + vec2(3.2, 0.0)], Stroke::new(1.3, ink));
                 }
-                // Zoom is a plus either way, as macOS draws it.
-                Kind::Maximize | Kind::Restore => {
-                    p.line_segment([c + vec2(-3.0, 0.0), c + vec2(3.0, 0.0)], s);
-                    p.line_segment([c + vec2(0.0, -3.0), c + vec2(0.0, 3.0)], s);
+                // Two arrowheads out to opposite corners, pointing back in once maximized.
+                Kind::Maximize => {
+                    p.add(tri([vec2(-3.0, -3.0), vec2(1.3, -3.0), vec2(-3.0, 1.3)]));
+                    p.add(tri([vec2(3.0, 3.0), vec2(-1.3, 3.0), vec2(3.0, -1.3)]));
+                }
+                Kind::Restore => {
+                    p.add(tri([vec2(-0.5, -0.5), vec2(-0.5, -4.2), vec2(-4.2, -0.5)]));
+                    p.add(tri([vec2(0.5, 0.5), vec2(4.2, 0.5), vec2(0.5, 4.2)]));
                 }
             }
         }
