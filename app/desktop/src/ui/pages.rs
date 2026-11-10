@@ -368,7 +368,12 @@ fn home(app: &mut App, ui: &mut Ui, now: f64) {
         ui.label(RichText::new("Nothing here yet").color(theme::text_dim()));
     }
     let mut more_picks = None;
+    let no_videos = app.hide_home_videos;
+    let is_video = |c: &crate::model::Card| matches!(&c.target, Target::Song(t) if t.music_video);
     for (i, s) in h.shelves.iter().enumerate() {
+        if app.hide_quick_picks && s.title == "Quick picks" {
+            continue;
+        }
         let id = format!("home-{i}-{}", s.title);
         match &s.kind {
             ShelfKind::Cards(cards) => {
@@ -378,15 +383,18 @@ fn home(app: &mut App, ui: &mut Ui, now: f64) {
                 let tile = feed_tile(ui, true);
                 let acts = &mut app.actions;
                 let liked = &app.liked;
-                h_scroll(ui, &id, nudge, cards.len(), tile, 20.0, |ui| {
+                let shown = cards.iter().filter(|c| !(no_videos && is_video(c))).count();
+                h_scroll(ui, &id, nudge, shown, tile, 20.0, |ui| {
                     ui.spacing_mut().item_spacing.x = 20.0;
-                    for c in cards {
+                    for c in cards.iter().filter(|c| !(no_videos && is_video(c))) {
                         let is_liked = matches!(&c.target, Target::Song(t) if liked.contains(&t.id));
                         card(ui, c, tile, is_liked, acts);
                     }
                 });
             }
             ShelfKind::Songs { tracks, rows: n } => {
+                let kept: Vec<Track>;
+                let tracks = if no_videos { kept = tracks.iter().filter(|t| !t.music_video).cloned().collect(); &kept } else { tracks };
                 let reached_end = song_grid(ui, &rows, &app.liked, &mut app.actions, &id, &s.title, s.strapline.as_deref(), tracks, *n);
                 if s.title == "Quick picks" && reached_end && !h.picks_loading && !h.picks_expanded {
                     more_picks = tracks.last().map(|t| t.id.clone());
@@ -823,6 +831,9 @@ fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
                     super::shuffle(&mut t);
                     acts.push(Action::Play(t, 0));
                 }
+                if !tracks.is_empty() && circle_action(ui, CircleGlyph::Char(icon::DOWNLOAD), "Download", false).clicked() {
+                    acts.push(Action::DownloadAll(c.title.clone(), vec![target.clone()]));
+                }
                 if circle_action(ui, CircleGlyph::Char(icon::SEARCH), "Search in this list", filter_on).clicked() {
                     toggle_search = true;
                 }
@@ -1047,6 +1058,15 @@ fn artist(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
             && pill(ui, "Radio", Some(icon::RADIO), false).clicked() {
                 acts.push(Action::Radio(first.clone()));
             }
+        // The catalogue: every album and single on the page, else the top songs' playlist.
+        // shortcut: only the releases this page lists, not those behind its shelves' "More"; fetch those pages too if someone misses them.
+        let mut releases: Vec<Target> = a.albums.iter().map(|c| c.target.clone()).filter(|t| matches!(t, Target::Album(_))).collect();
+        if releases.is_empty() {
+            releases.extend(a.top_playlist.clone().map(Target::Playlist));
+        }
+        if !releases.is_empty() && pill(ui, "Download", Some(icon::DOWNLOAD), false).clicked() {
+            acts.push(Action::DownloadAll(a.name.clone(), releases));
+        }
     });
     if !top.is_empty() {
         ui.add_space(26.0);
@@ -1383,6 +1403,14 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
                 divider(ui);
                 setting_row(ui, "Hide Podcasts tab", Some("Removes podcasts from the sidebar."), |ui| {
                     toggle(ui, &mut app.hide_podcasts, "Hide Podcasts tab");
+                });
+                divider(ui);
+                setting_row(ui, "Hide Quick picks", Some("Removes the Quick picks shelf from Home."), |ui| {
+                    toggle(ui, &mut app.hide_quick_picks, "Hide Quick picks");
+                });
+                divider(ui);
+                setting_row(ui, "Hide videos from Home", Some("Leaves music videos out of Home's shelves."), |ui| {
+                    toggle(ui, &mut app.hide_home_videos, "Hide videos from Home");
                 });
             });
         }
@@ -2000,6 +2028,12 @@ fn settings_appearance(app: &mut App, ui: &mut Ui) {
         divider(ui);
         setting_row(ui, "Animated background", Some("The album art slowly drifts behind everything."), |ui| {
             toggle(ui, &mut app.anim_bg, "Animated background");
+        });
+        divider(ui);
+        setting_row(ui, "Reduce animation", Some("Panels, menus and pages change at once instead of sliding and fading."), |ui| {
+            if toggle(ui, &mut app.reduce_motion, "Reduce animation").changed() {
+                theme::set_reduce_motion(app.reduce_motion);
+            }
         });
         divider(ui);
         setting_row(ui, "Pulse with the music", Some("The background swells with the beat."), |ui| {

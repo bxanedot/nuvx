@@ -115,16 +115,16 @@ impl Prefs {
         self.order.iter().filter(|(p, on)| *on && set.get(*p).is_some_and(usable)).map(|(p, _)| *p).collect()
     }
 
-    /// The source to show: the song's pick when it has lyrics, else the first in the
-    /// listener's order that does (`orderByPin`, then fall through on failure).
+    /// The source to show: the song's pick when it has lyrics, else the finest-timed one
+    /// that does (syllable, then word, then line), the listener's order breaking ties.
     pub fn choose(&self, video_id: &str, set: &LyricsSet) -> Option<Provider> {
         let available = self.available(set);
-        self.pins.get(video_id).filter(|p| available.contains(p)).copied().or_else(|| available.first().copied())
+        self.pins.get(video_id).filter(|p| available.contains(p)).copied().or_else(|| finest(&available))
     }
 
-    /// Pick a source for one song (`pinForPick`: the listener's own first choice needs no pin).
+    /// Pick a source for one song (`pinForPick`: what would be chosen anyway needs no pin).
     pub fn pick(&mut self, video_id: &str, set: &LyricsSet, p: Provider) {
-        if self.available(set).first() == Some(&p) {
+        if finest(&self.available(set)) == Some(p) {
             self.pins.remove(video_id);
         } else {
             self.pins.insert(video_id.to_owned(), p);
@@ -153,6 +153,11 @@ impl Prefs {
 }
 
 /// Lyrics worth showing: some line is sung (the extension's `hideInstrumentalOnly`).
+/// The finest-timed provider; `min_by_key` keeps the first of equals, so order breaks ties.
+fn finest(available: &[Provider]) -> Option<Provider> {
+    available.iter().copied().min_by_key(|p| p.sync())
+}
+
 pub fn usable(l: &Lyrics) -> bool {
     l.lines.iter().any(|x| !x.instrumental && !x.text.trim().is_empty())
 }
@@ -200,6 +205,15 @@ impl Clock {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finest_timing_wins_and_order_breaks_ties() {
+        use Provider::*;
+        assert_eq!(finest(&[LrclibSynced, MusixmatchRich, UnisonRich]), Some(UnisonRich)); // syllable
+        assert_eq!(finest(&[LrclibSynced, LrcredRich, MusixmatchRich]), Some(LrcredRich)); // word, first of equals
+        assert_eq!(finest(&[LrclibPlain, LrclibSynced]), Some(LrclibSynced)); // line beats unsynced
+        assert_eq!(finest(&[]), None);
+    }
 
     #[test]
     fn stored_order_merges_new_sources_and_keeps_disabled() {

@@ -134,6 +134,8 @@ pub enum Action {
     /// Rows (indices into the open playlist) to take out of it.
     RemoveFromPlaylist(Vec<usize>),
     Download(Track),
+    /// Every song of these albums and playlists, under a name for the toasts.
+    DownloadAll(String, Vec<Target>),
     NewPlaylist(Vec<Track>),
     EditPlaylist,
     /// The open playlist's collaboration settings.
@@ -443,6 +445,9 @@ pub struct App {
     /// Light or dark pages (the nuvx theme's; see `light_pages`).
     appearance: theme::Appearance,
     anim_bg: bool,
+    pub(super) reduce_motion: bool,
+    pub(super) hide_quick_picks: bool,
+    pub(super) hide_home_videos: bool,
     reactive_bg: bool,
     /// Skip the parts of music videos SponsorBlock marks as not music.
     sponsorblock: bool,
@@ -620,7 +625,8 @@ impl App {
         storage: Option<&dyn eframe::Storage>,
     ) -> Self {
         let get = |k: &str| storage.and_then(|s| s.get_string(k));
-        titlebar::set_mac(get("window_buttons").is_some_and(|v| v == "mac"));
+        titlebar::set_mac(get("window_buttons").is_none_or(|v| v == "mac"));
+        theme::set_reduce_motion(get("reduce_motion").is_some_and(|v| v == "1"));
         // Dev hook: NUVX_FONT=<font name> tries a font without saving it.
         theme::set_font_choice(&dev_var("NUVX_FONT").map(str::to_owned).or_else(|| get("font")).unwrap_or_default());
         let discord_enabled = get("discord_enabled").is_none_or(|v| v == "1");
@@ -638,7 +644,7 @@ impl App {
         let hires_source = get("hires_source").unwrap_or_default();
         let hires_sources: Vec<String> = hires_source.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_owned).collect();
         backend.set_hires_source(&hires_sources.join("\n"));
-        let prefer_atmos = get("prefer_atmos").is_some_and(|v| v == "1");
+        let prefer_atmos = get("prefer_atmos").is_none_or(|v| v == "1");
         backend.set_prefer_atmos(prefer_atmos);
         backend.request(Req::Home(None));
         if logged_in {
@@ -799,6 +805,9 @@ impl App {
             // Dev hook: NUVX_APPEARANCE=light|dark|system tries a mode without saving it.
             appearance: theme::Appearance::from_key(&dev_var("NUVX_APPEARANCE").map(str::to_owned).or_else(|| get("appearance")).unwrap_or_default()),
             anim_bg: get("anim_bg").is_none_or(|v| v == "1"),
+            reduce_motion: get("reduce_motion").is_some_and(|v| v == "1"),
+            hide_quick_picks: get("hide_quick_picks").is_some_and(|v| v == "1"),
+            hide_home_videos: get("hide_home_videos").is_some_and(|v| v == "1"),
             reactive_bg: get("reactive_bg").is_none_or(|v| v == "1"),
             sponsorblock: get("sponsorblock").is_some_and(|v| v == "1"),
             crossfade: get("crossfade").is_some_and(|v| v == "1"),
@@ -1558,6 +1567,9 @@ impl eframe::App for App {
             storage.set_string("font", theme::font_choice());
         }
         storage.set_string("anim_bg", b(self.anim_bg));
+        storage.set_string("reduce_motion", b(self.reduce_motion));
+        storage.set_string("hide_quick_picks", b(self.hide_quick_picks));
+        storage.set_string("hide_home_videos", b(self.hide_home_videos));
         storage.set_string("reactive_bg", b(self.reactive_bg));
         storage.set_string("signature_api", self.signature_api.clone());
         storage.set_string("hires_source", self.hires_sources.join("\n"));

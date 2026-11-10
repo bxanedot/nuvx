@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.vector.VectorGroup
 import androidx.compose.ui.graphics.vector.VectorPath
 import androidx.compose.ui.unit.dp
 import com.composables.sfsymbols.SfSymbols
+import com.composables.sfsymbols.dualtone.SFWaveformBadgeMicrophone
 import com.composables.sfsymbols.monochrome.SFHouseFill
 import com.composables.sfsymbols.monochrome.SFInfinity
 import com.composables.sfsymbols.monochrome.SFPianokeys
@@ -131,7 +132,6 @@ import com.composables.sfsymbols.monochrome.SFSquareStack
 import com.composables.sfsymbols.monochrome.SFStar
 import com.composables.sfsymbols.monochrome.SFStarFill
 import com.composables.sfsymbols.monochrome.SFStopwatch
-import com.composables.sfsymbols.monochrome.SFSunMax
 import com.composables.sfsymbols.monochrome.SFTag
 import com.composables.sfsymbols.monochrome.SFTextAlignleft
 import com.composables.sfsymbols.monochrome.SFTextBadgeMinus
@@ -144,7 +144,6 @@ import com.composables.sfsymbols.monochrome.SFVideo
 import com.composables.sfsymbols.monochrome.SFWaterWaves
 import com.composables.sfsymbols.monochrome.SFWaveform
 import com.composables.sfsymbols.monochrome.SFCarFill
-import com.composables.sfsymbols.monochrome.SFMicrophone
 import com.composables.sfsymbols.monochrome.SFWifi
 import com.composables.sfsymbols.monochrome.SFWrenchAndScrewdriver
 import com.composables.sfsymbols.monochrome.SFXmark
@@ -177,7 +176,6 @@ object SfIcons {
     val Bluetooth: ImageVector by lazy { bold(SfSymbols.Monochrome.SFHeadphones) }
     val BlurOff: ImageVector by lazy { bold(SfSymbols.Monochrome.SFDrop) }
     val BlurOn: ImageVector by lazy { bold(SfSymbols.Monochrome.SFDropHalffull) }
-    val Brightness: ImageVector by lazy { bold(SfSymbols.Monochrome.SFSunMax) }
     val Cached: ImageVector by lazy { bold(SfSymbols.Monochrome.SFArrowTrianglehead2Clockwise) }
     val Check: ImageVector by lazy { bold(SfSymbols.Monochrome.SFCheckmark) }
     val ChevronRight: ImageVector by lazy { bold(SfSymbols.Monochrome.SFChevronRight) }
@@ -204,7 +202,7 @@ object SfIcons {
     val Gradient: ImageVector by lazy { bold(SfSymbols.Monochrome.SFCircleLefthalfFilled) }
     val GraphicEq: ImageVector by lazy { bold(SfSymbols.Monochrome.SFWaveform) }
     val Car: ImageVector by lazy { bold(SfSymbols.Monochrome.SFCarFill) }
-    val Recognize: ImageVector by lazy { bold(SfSymbols.Monochrome.SFMicrophone) }
+    val Recognize: ImageVector by lazy { bold(SfSymbols.Dualtone.SFWaveformBadgeMicrophone) }
     val Groups: ImageVector by lazy { bold(SfSymbols.Monochrome.SFPerson2) }
     val History: ImageVector by lazy { bold(SfSymbols.Monochrome.SFClockArrowTriangleheadCounterclockwiseRotate90) }
     val Key: ImageVector by lazy { bold(SfSymbols.Monochrome.SFKey) }

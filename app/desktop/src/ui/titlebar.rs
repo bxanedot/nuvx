@@ -23,7 +23,7 @@ pub fn custom() -> bool {
 }
 
 /// macOS's coloured buttons at the top left instead of Windows' at the top right.
-static MAC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static MAC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
 pub fn set_mac(on: bool) {
     MAC.store(on, std::sync::atomic::Ordering::Relaxed);
