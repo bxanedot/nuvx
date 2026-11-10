@@ -14,6 +14,13 @@
       </div>
       <button class="button quiet showcase-toggle" type="button" aria-controls="showcase-viewport" hidden>Pause showcase</button>
     </div>
+    <figure class="promo">
+      <video id="promo-video" src="/showcase/nuvx.mp4" poster="/showcase/nuvx-poster.jpg" width="1920" height="1080" loop muted playsinline preload="metadata" aria-label="nuvx promo video: Now Playing, lyrics, search and the desktop app"></video>
+      <figcaption class="promo-controls">
+        <button class="button quiet" type="button" id="promo-play" aria-controls="promo-video">Play</button>
+        <label class="promo-volume">Volume <input type="range" id="promo-volume" min="0" max="1" step="0.05" value="0"></label>
+      </figcaption>
+    </figure>
     <div class="showcase-viewport" id="showcase-viewport" role="group" aria-label="Scrollable banner gallery" tabindex="0">
       <div class="showcase-track">
         <ul class="showcase-banners" role="list">
