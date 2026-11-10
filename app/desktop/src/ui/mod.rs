@@ -310,8 +310,6 @@ pub struct App {
     /// an album's or artist's songs (`Req::PlayCollection`).
     play_pending: Option<(Target, bool)>,
     bg: Option<Background>,
-    /// The player bar's liquid glass (OpenGL only).
-    pub(super) glass: Option<crate::glass::Glass>,
 
     // navigation
     page: Page,
@@ -618,7 +616,6 @@ impl App {
         ch: Channels,
         media: Option<Media>,
         bg: Option<Background>,
-        glass: Option<crate::glass::Glass>,
         no_tray: bool,
         storage: Option<&dyn eframe::Storage>,
     ) -> Self {
@@ -673,7 +670,6 @@ impl App {
             queue_source: None,
             play_pending: None,
             bg,
-            glass,
             page: Page::Home,
             back: Vec::new(),
             forward: Vec::new(),
@@ -1585,9 +1581,6 @@ impl eframe::App for App {
     }
 
     fn on_exit(&mut self, gl: Option<&eframe::glow::Context>) {
-        if let (Some(g), Some(gl)) = (&self.glass, gl) {
-            g.destroy(gl);
-        }
         if let (Some(bg), Some(gl)) = (&self.bg, gl) {
             bg.destroy(gl);
         }

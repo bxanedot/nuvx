@@ -30,7 +30,6 @@ mod motion;
 mod opus;
 mod preset;
 mod radio;
-mod glass;
 mod material;
 mod shader;
 mod sponsorblock;
@@ -230,8 +229,6 @@ fn main() -> eframe::Result {
                 (_, Some(rs)) if shader => Some(shader::Background::new_wgpu(rs)),
                 _ => None,
             };
-            // The player bar's liquid glass is OpenGL only; elsewhere it stays frosted.
-            let glass = cc.gl.as_ref().filter(|_| shader).and_then(|gl| glass::Glass::new(gl).map_err(|e| log::warn!("glass unavailable: {e:#}")).ok());
 
             Ok(Box::new(ui::App::new(
                 backend,
@@ -239,7 +236,6 @@ fn main() -> eframe::Result {
                 ui::Channels { resp_rx, audio_rx, media_rx },
                 media,
                 bg,
-                glass,
                 // `--no-tray`: a session with "Close to tray" off, so × quits for real
                 // (for when the tray icon can't be trusted).
                 std::env::args_os().skip(1).any(|a| a == deeplink::NO_TRAY_FLAG),
