@@ -27,6 +27,7 @@ mod lyrics;
 mod media;
 mod model;
 mod motion;
+mod tidal;
 mod opus;
 mod preset;
 mod radio;

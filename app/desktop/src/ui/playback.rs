@@ -164,6 +164,35 @@ impl App {
         self.play_songs = keep;
     }
 
+    /// Play the current song's music video in its place, once it's found.
+    pub(super) fn play_video_version(&mut self) {
+        let Some(track) = self.current().cloned() else { return };
+        match self.video_of.as_ref().filter(|(listed, _)| *listed == track.id) {
+            Some((_, Some(video))) => {
+                self.next_as = Some(video.clone());
+                self.play_current_at(Duration::ZERO, false);
+            }
+            Some((_, None)) => self.toast("No music video found for this song.".to_owned()),
+            None => {
+                self.video_wanted = true;
+                self.backend.request(Req::VideoOf { generation: self.generation, track });
+            }
+        }
+    }
+
+    /// With "Load songs and videos together" on, fetch the other version of what's just
+    /// started: a music video's song (its audio), or a song's video (its audio and picture).
+    fn load_other_version(&mut self, track: &Track) {
+        if !self.load_both || self.jam.active() {
+            return;
+        }
+        if track.music_video {
+            self.backend.request(Req::Prefetch { video_id: track.id.clone(), song_of: Some(track.clone()), track: Some(track.clone()) });
+        } else {
+            self.backend.request(Req::VideoOf { generation: self.generation, track: track.clone() });
+        }
+    }
+
     /// `t`, when it's a music video to play as its song version. Not in a jam: everyone
     /// there plays the host's exact upload at the host's position.
     pub(super) fn song_of(&self, t: &Track) -> Option<Track> {
@@ -176,11 +205,11 @@ impl App {
 
     /// Fetch the current song's art for the background and accent.
     pub(super) fn request_art(&mut self) {
-        let Some(track) = self.current() else { return };
+        let Some(track) = self.current().cloned() else { return };
         if self.art_key.as_deref() == Some(track.id.as_str()) {
             return;
         }
-        if let Some(url) = backend::art_url(track) {
+        if let Some(url) = backend::art_url(&self.with_cover(&track)) {
             let key = track.id.clone();
             self.backend.request(Req::Art { key, url });
         }
@@ -308,7 +337,8 @@ impl App {
         }
         // Picking up mid-song (a resume, a download that broke off): the position is the
         // song version's when one was playing, so that goes on; a music video stays one.
-        let carried = if at.is_zero() || self.jam.active() { None } else { self.playing_as().cloned() };
+        // A video version asked for ("Switch to video") plays in the song's place from the top.
+        let carried = self.next_as.take().or_else(|| if at.is_zero() || self.jam.active() { None } else { self.playing_as().cloned() });
         self.queue.started();
         self.resume_at = None;
         self.resume_counts = false;
@@ -325,7 +355,11 @@ impl App {
         // A carried song version goes with its music video, which plays if the song won't.
         let song_of = if carried.is_none() && at.is_zero() { self.song_of(&track) } else { None };
         self.playing_as = carried.clone().map(|song| PlayingAs { generation: self.generation, listed: track.id.clone(), song });
-        self.backend.request(Req::Play { video_id: track.id.clone(), generation: self.generation, at, report, song_of, song: carried, track: Some(track.clone()) });
+        self.video_wanted = false;
+        self.backend.request(Req::Play { video_id: track.id.clone(), generation: self.generation, at, report, song_of, song: carried.clone(), track: Some(track.clone()) });
+        if carried.is_none() {
+            self.load_other_version(&track);
+        }
         if mixing {
             // The outgoing song keeps the art, lyrics and media info it still deserves.
         } else {
@@ -343,7 +377,7 @@ impl App {
     /// The playing track's title, artist and length for the system's media controls,
     /// with the listed track's art (what the app shows too).
     pub(super) fn show_in_media(&mut self, shown: &Track) {
-        let Some(track) = self.current().cloned() else { return };
+        let Some(track) = self.current().cloned().map(|t| self.with_cover(&t)) else { return };
         let Some(m) = &mut self.media else { return };
         // Windows fetches a cover URL on its own, through its own proxy setting only.
         let by_url = matches!(crate::proxy::active(), crate::proxy::Setting::System);

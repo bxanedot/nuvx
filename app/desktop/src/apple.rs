@@ -234,11 +234,11 @@ async fn api(http: &reqwest::Client, path_and_query: &str) -> Option<Value> {
 
 // ------------------------------------------------------------- matching
 
-fn norm(s: &str) -> String {
+pub(crate) fn norm(s: &str) -> String {
     s.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect()
 }
 
-fn artists_match(want: &str, got: &str) -> bool {
+pub(crate) fn artists_match(want: &str, got: &str) -> bool {
     let g = norm(got);
     let parts: Vec<String> = want.split(',').map(norm).filter(|p| p.len() > 1).collect();
     !parts.is_empty() && parts.iter().all(|p| g.contains(p.as_str()))

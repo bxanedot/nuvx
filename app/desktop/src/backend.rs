@@ -76,8 +76,15 @@ pub enum Req {
     Art { key: String, url: String },
     /// Apple's artist page (display name and hero clips) for the artist `id`.
     AppleArtist { id: String, name: String },
-    /// Apple's motion sleeve for a release; `key` is what the UI asked for.
-    AppleCover { key: String, album: String, artist: String, title: Option<String> },
+    /// The song version of a track that only has a video's thumbnail, for its square cover.
+    SongCover { track: Track },
+    /// The looping clip for a song (`title` set; `album` may be empty) or a release, from
+    /// Apple, then Tidal; `key` is what the UI asked for.
+    Canvas { key: String, album: String, artist: String, title: Option<String> },
+    /// A music video's picture up to `height` tall, saved whole for the decoder.
+    Video { id: String, height: u32 },
+    /// The music video of the song `track`, for "Switch to video".
+    VideoOf { generation: u64, track: Track },
     /// A handwritten signature for `name` from the service at `endpoint`; `key` is
     /// what the UI asked for.
     ArtistSignature { key: String, endpoint: String, name: String },
@@ -143,7 +150,10 @@ impl Req {
             Req::LyricsExtras { .. } => "Translation",
             Req::Art { .. } => "Art",
             Req::AppleArtist { .. } => "Apple artist",
-            Req::AppleCover { .. } => "Apple artwork",
+            Req::Canvas { .. } => "Canvas",
+            Req::Video { .. } => "Video",
+            Req::VideoOf { .. } => "Finding the video",
+            Req::SongCover { .. } => "Cover",
             Req::ArtistSignature { .. } => "Artist signature",
             Req::Radio { .. } => "Loading radio",
             Req::PlayCollection { .. } => "Playback",
@@ -166,7 +176,7 @@ impl Req {
 
     /// Background requests fail quietly (logged, no toast).
     fn quiet(&self) -> bool {
-        matches!(self, Req::Suggest { .. } | Req::Moods | Req::RadioClick(_) | Req::Account | Req::Channels | Req::ServerQueue | Req::Art { .. } | Req::AppleArtist { .. } | Req::AppleCover { .. } | Req::ArtistSignature { .. } | Req::Prefetch { .. } | Req::HomeMore(_) | Req::Lyrics(_) | Req::Segments { .. } | Req::LyricsExtras { .. })
+        matches!(self, Req::Suggest { .. } | Req::Moods | Req::RadioClick(_) | Req::Account | Req::Channels | Req::ServerQueue | Req::Art { .. } | Req::AppleArtist { .. } | Req::Canvas { .. } | Req::Video { .. } | Req::SongCover { .. } | Req::ArtistSignature { .. } | Req::Prefetch { .. } | Req::HomeMore(_) | Req::Lyrics(_) | Req::Segments { .. } | Req::LyricsExtras { .. })
     }
 }
 
@@ -298,8 +308,14 @@ pub enum Resp {
     Art { key: String, art: Art },
     /// Apple's page for an artist, when there is one (`None`: no match, or no token).
     AppleArtist { id: String, info: Option<crate::apple::Artwork> },
-    /// Apple's motion sleeve for a release; `key` is what the UI asked it for.
-    AppleCover { key: String, motion: Option<crate::apple::Motion> },
+    /// The song version found for the track `id` (`None`: there's none to take a cover from).
+    SongCover { id: String, song: Option<Track> },
+    /// The clip's address (an Apple HLS playlist or a Tidal MP4); `key` is what the UI
+    /// asked it for.
+    Canvas { key: String, url: Option<String> },
+    /// The saved picture of the music video `id` (`None`: it couldn't be had).
+    Video { id: String, path: Option<PathBuf> },
+    VideoOf { generation: u64, listed: String, video: Option<Track> },
     /// A signature for an artist, already whitened for the header.
     ArtistSignature { key: String, signature: Option<crate::artist_signature::Signature> },
     Radio { seed: String, tracks: Vec<Track> },
@@ -795,15 +811,45 @@ impl Backend {
                     });
                     Resp::AppleArtist { id, info }
                 }
-                Req::AppleCover { key, album, artist, title } => {
-                    let motion = match title.as_deref() {
-                        Some(t) => crate::apple::song_motion(&self.http(), t, &artist, Some(&album)).await,
-                        None => crate::apple::album_motion(&self.http(), &album, &artist).await,
+                Req::SongCover { track } => {
+                    let premium = match self.api.account() {
+                        Some(session) => self.is_premium(&session).await,
+                        None => false,
                     };
-                    if motion.is_none() {
-                        log::debug!("apple: no motion sleeve for '{album}' by '{artist}'");
-                    }
-                    Resp::AppleCover { key, motion }
+                    let song = match premium {
+                        true => ytm::paired_song(&self.api, &track.id).await.ok().flatten(),
+                        false => ytm::cover_song(&self.api, &track).await.ok().flatten(),
+                    };
+                    log::info!("cover for '{}': {}", track.title, song.as_ref().map_or("none".to_owned(), |s| format!("'{}'", s.title)));
+                    Resp::SongCover { id: track.id, song }
+                }
+                Req::Canvas { key, album, artist, title } => {
+                    let http = self.http();
+                    let album = Some(album.as_str()).filter(|a| !a.is_empty());
+                    let apple = match (title.as_deref(), album) {
+                        (Some(t), _) => crate::apple::song_motion(&http, t, &artist, album).await,
+                        (None, Some(a)) => crate::apple::album_motion(&http, a, &artist).await,
+                        (None, None) => None,
+                    };
+                    let url = match apple.and_then(|m| m.square) {
+                        Some(url) => Some(url),
+                        None => match (title.as_deref(), album) {
+                            (Some(t), _) => crate::tidal::cover(&http, t, &artist, album, false).await,
+                            (None, Some(a)) => crate::tidal::cover(&http, a, &artist, None, true).await,
+                            (None, None) => None,
+                        },
+                    };
+                    log::info!("canvas for '{}' by '{artist}': {}", title.as_deref().or(album).unwrap_or_default(), url.as_deref().unwrap_or("none"));
+                    Resp::Canvas { key, url }
+                }
+                Req::Video { id, height } => {
+                    let path = self.video_file(&id, height).await.inspect_err(|e| log::warn!("video {id}: {e:#}")).ok();
+                    Resp::Video { id, path }
+                }
+                Req::VideoOf { generation, track } => {
+                    let video = ytm::video_of(&self.api, &track).await?;
+                    log::info!("video of '{}': {}", track.title, video.as_ref().map_or("none", |v| v.id.as_str()));
+                    Resp::VideoOf { generation, listed: track.id, video }
                 }
                 Req::ArtistSignature { key, endpoint, name } => {
                     let signature = crate::artist_signature::lookup(&self.http(), &endpoint, &name).await;
@@ -1634,6 +1680,33 @@ impl Backend {
                 false
             }
         }
+    }
+
+    /// The music video's picture saved whole, fetched in ranges (one plain request is
+    /// throttled to a crawl); only the latest one is kept.
+    /// shortcut: over 40 MB the downloader keeps a window, not the file; a long video gets no picture.
+    async fn video_file(&self, id: &str, height: u32) -> anyhow::Result<PathBuf> {
+        let dir = std::env::temp_dir().join("nuvx-video");
+        let path = dir.join(format!("{id}-{height}.mp4"));
+        if path.exists() {
+            return Ok(path);
+        }
+        let vd = self.api.visitor_data(false).await?;
+        let (url, size) = innertube::video_stream(&self.http(), id, &vd, height).await?;
+        let shared = stream::Shared::new(size, 0, None, stream::Format::Aac, None, false);
+        stream::download(self.http(), url, innertube::UA.to_owned(), shared.clone(), None, stream::Ranging::Query).await;
+        let mut bytes = shared.bytes().ok_or_else(|| anyhow::anyhow!("download incomplete"))?;
+        crate::motion::drop_edit_lists(&mut bytes);
+        // Only the newest few stay (one playing, one loaded ahead); one still open stays too.
+        std::fs::create_dir_all(&dir)?;
+        let mut old: Vec<_> = std::fs::read_dir(&dir)?.flatten().filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path()))).collect();
+        old.sort();
+        for (_, p) in old.iter().rev().skip(2) {
+            let _ = std::fs::remove_file(p);
+        }
+        std::fs::write(&path, bytes)?;
+        log::info!("video {id}: {:.1} MB saved", size as f64 / 1e6);
+        Ok(path)
     }
 
     async fn visionos_stream(&self, video_id: &str, opus: bool) -> anyhow::Result<innertube::Stream> {

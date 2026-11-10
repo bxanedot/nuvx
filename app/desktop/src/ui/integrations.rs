@@ -86,7 +86,7 @@ impl App {
         let dur = Duration::from_millis(self.audio.status.duration_ms.load(Ordering::Relaxed));
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
         let play = crate::lastfm::Scrobble {
-            artist: t.artists.first().map(|a| a.name.clone()).unwrap_or_default(),
+            artist: if self.lastfm_primary_only { t.artists.first().map(|a| a.name.clone()).unwrap_or_default() } else { t.artist_line() },
             track: t.title.clone(),
             album: t.album.as_ref().map(|a| a.name.clone()),
             duration: (!dur.is_zero()).then_some(dur.as_secs() as u32),
@@ -98,8 +98,10 @@ impl App {
         let http = self.backend.http();
         if self.scrobble.is_none_or(|(g, _)| g != self.generation) {
             self.scrobble = Some((self.generation, false));
-            let p = play.clone();
-            self.backend.spawn(async move { crate::lastfm::now_playing(&http, &p).await });
+            if self.lastfm_now_playing {
+                let p = play.clone();
+                self.backend.spawn(async move { crate::lastfm::now_playing(&http, &p).await });
+            }
             return;
         }
         if dur >= Duration::from_secs(30) && pos >= (dur / 2).min(Duration::from_secs(240)) && self.scrobble.is_some_and(|(_, done)| !done) {
