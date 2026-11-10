@@ -2,6 +2,29 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
 
+## 0.6.0
+
+### Downloads on desktop
+
+Albums and playlists get a Download button beside Search, and artist pages get a Download pill that saves every release the page lists. Songs you already have are skipped, and three download at a time.
+
+### Lyrics
+
+nuvx now picks the most finely timed lyrics it finds: syllable by syllable first, then word by word, then line by line. On Android, **Prioritize syllable sync** is on by default.
+
+### Desktop
+
+- The player in the top bar keeps its sharp, solid display while a song plays, as Apple Music's does, instead of turning glassy.
+- The red, yellow and green window buttons are the default. You can still switch to Windows buttons in Settings.
+- Dolby Atmos is on by default.
+- New in Settings: **Reduce animation**, **Hide Quick picks** and **Hide videos from Home**, as on Android.
+
+The new defaults apply to fresh installs. If you already chose window buttons or Atmos, your choice is kept.
+
+### Android
+
+Song recognition has a new waveform-and-microphone icon.
+
 ## 0.5.0
 
 ### Podcasts
