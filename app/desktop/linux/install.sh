@@ -1,11 +1,4 @@
 #!/bin/sh
-# Install nuvx for this user: the app in ~/.local/lib/nuvx, a `nuvx` command in
-# ~/.local/bin, and a menu entry with its icon. Installed this way, the app updates
-# itself. Libraries it needs that are missing get installed with the system's package
-# manager (that step asks for your password).
-#
-# Run it from the extracted download.
-# `install.sh --uninstall` removes it again.
 set -e
 
 data=${XDG_DATA_HOME:-$HOME/.local/share}
@@ -28,13 +21,10 @@ if [ "$1" = "--uninstall" ]; then
     exit 0
 fi
 
-# The files to install: beside this script, or (run from the web) the latest release.
 here=$(cd "$(dirname "$0")" && pwd)
 [ -f "$here/nuvx" ] || { echo "Run install.sh from the extracted download."; exit 1; }
 
 mkdir -p "$lib" "$bin" "$data/applications" "$(dirname "$icon")"
-# Put the new binary next to the old one and rename it over, so a copy that's
-# running keeps going.
 cp "$here/nuvx" "$lib/nuvx.new"
 chmod 755 "$lib/nuvx.new"
 mv -f "$lib/nuvx.new" "$lib/nuvx"
@@ -46,9 +36,7 @@ sed "s|^Exec=.*|Exec=$lib/nuvx|" "$here/nuvx.desktop" > "$desktop"
 cp "$here/nuvx.png" "$icon"
 refresh
 
-# Libraries: WebKitGTK (sign-in, lyrics), GTK, the tray's appindicator and ALSA.
 missing=$(ldd "$lib/nuvx" 2>/dev/null | awk '/not found/ { print $1 }' | tr '\n' ' ')
-# (Loaded at run time, so ldd doesn't list it. ldconfig is in /sbin, off a user's PATH on Debian.)
 ldconfig=$(command -v ldconfig || echo /sbin/ldconfig)
 appindicator=$("$ldconfig" -p 2>/dev/null | grep -c 'libayatana-appindicator3\|libappindicator3' || true)
 if [ -n "$missing" ] || [ "$appindicator" = 0 ]; then

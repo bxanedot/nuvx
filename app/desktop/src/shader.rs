@@ -56,7 +56,6 @@ float hash(vec3 p) {
 }
 
 void main() {
-  // Zoom in so warped edges never show the clamp.
   vec2 uv = (v_uv - 0.5) / u_scale + 0.5;
   float t = u_time * 0.05;
   float centerWeight = 1.0 - smoothstep(0.0, 0.7, length(uv - 0.5));
@@ -74,7 +73,6 @@ void main() {
   float gray = dot(color, vec3(0.299, 0.587, 0.114));
   color = mix(vec3(gray), color, u_saturation);
   color *= u_dim;
-  // Dither to hide banding in the smooth gradients.
   color += (hash(vec3(floor(v_uv * u_resolution), floor(u_time * 30.0))) - 0.5) / 255.0 * 1.5;
   FRAG = vec4(color, 1.0);
 }
@@ -83,9 +81,7 @@ void main() {
 const VERTEX: &str = r#"
 OUT vec2 v_uv;
 void main() {
-  // Full-screen triangle from the vertex index; no vertex buffers needed.
   vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
-  // Texture row 0 is the image's top edge, drawn at the top of the rect.
   v_uv = vec2(p.x, 1.0 - p.y);
   gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
 }
@@ -113,7 +109,6 @@ struct VOut {
 
 @vertex
 fn vs_main(@builtin(vertex_index) vi: u32) -> VOut {
-  // Full-screen triangle from the vertex index, as in VERTEX.
   let p = vec2<f32>(f32((vi << 1u) & 2u), f32(vi & 2u));
   var o: VOut;
   o.uv = vec2<f32>(p.x, 1.0 - p.y);
