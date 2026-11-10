@@ -309,12 +309,33 @@ pub async fn searched_song(api: &Api, video: &Track) -> anyhow::Result<Option<Tr
 /// and a length that fits. A video can run longer (an intro, a skit), and often shorter:
 /// many are cut down from the song.
 fn same_song(video: &Track, hit: &Track) -> bool {
-    let title = without_artist(&song_title(&video.title), video);
-    let base = base_title(&title);
     let fits = match (video.duration, hit.duration) {
         (Some(v), Some(s)) => s + 30.max(v / 5) >= v && s <= v * 2,
         _ => false,
     };
+    named_alike(video, hit) && fits
+}
+
+/// The song of the music video `video` by name alone: enough for its cover, which a
+/// video's intro or outro doesn't change, not to play it in the video's place.
+pub async fn cover_song(api: &Api, video: &Track) -> anyhow::Result<Option<Track>> {
+    let title = without_artist(&song_title(&video.title), video);
+    let Some(a) = video.artists.first() else { return Ok(None) };
+    let hits = search_songs(api, &format!("{title} {}", a.name), false).await?;
+    Ok(hits.into_iter().take(5).find(|h| named_alike(video, h)))
+}
+
+/// The music video of `song`, by a signed-out search; only a sure name match counts.
+pub async fn video_of(api: &Api, song: &Track) -> anyhow::Result<Option<Track>> {
+    let Some(a) = song.artists.first() else { return Ok(None) };
+    let hits = search_as(api, &format!("{} {}", song.title, a.name), Filter::Videos, false).await?;
+    Ok(hits.iter().filter_map(|i| list_item(&i["musicResponsiveListItemRenderer"])).take(5).find(|v| v.music_video && named_alike(v, song)))
+}
+
+/// [`same_song`] without the length check.
+fn named_alike(video: &Track, hit: &Track) -> bool {
+    let title = without_artist(&song_title(&video.title), video);
+    let base = base_title(&title);
     !hit.music_video
         && !base.is_empty()
         && base == base_title(&hit.title)
@@ -323,7 +344,6 @@ fn same_song(video: &Track, hit: &Track) -> bool {
         && qualifiers_agree(&title, &hit.title)
         && !video.artists.is_empty()
         && video.artists.iter().all(|a| hit.artists.iter().any(|b| same_artist(a, b)))
-        && fits
 }
 
 /// Bracketed parts on one title only must be ones that don't change the recording: a
