@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpenText, ListMusic, Settings } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, BookOpenText, ListMusic, Settings } from 'lucide-react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
@@ -163,6 +163,13 @@ export function Sidebar() {
           {spotifySignedIn && <SpotifyNav onNavigate={close} />}
         </div>
         <div className="flex flex-col gap-2 pt-3 pr-3 pb-5 pl-5">
+          {/* A way back out to the website, for whoever arrived from it. */}
+          <a href="https://nuvx.lol" className={item}>
+            <span className={icon}>
+              <ArrowLeft size={18} strokeWidth={1.9} />
+            </span>
+            <span className={navLabel}>Back to nuvx.lol</span>
+          </a>
           <PrefetchNavLink to="/guide" className={item} onClick={close}>
             <span className={icon}>
               <BookOpenText size={18} strokeWidth={1.9} />
