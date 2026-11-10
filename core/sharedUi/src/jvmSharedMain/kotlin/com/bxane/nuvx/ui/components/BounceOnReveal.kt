@@ -29,10 +29,6 @@ import com.composables.sfsymbols.SfEffectScope
 import com.composables.sfsymbols.SfSymbolIcon
 import com.composables.sfsymbols.SfWeight
 
-/**
- * Bounces a row's glyph each time it scrolls fully into view, up or down, the
- * way the tab icons bounce when picked. Still when Reduce animation is on.
- */
 @Composable
 fun Modifier.bounceOnReveal(): Modifier {
     val reduce by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -50,7 +46,6 @@ fun Modifier.bounceOnReveal(): Modifier {
     }
 }
 
-/** GlyphStudio's symbol behind one of SfIcons' vectors ("Monochrome.SFCarFill.bold" is car.fill), or null for a hand-drawn one. */
 fun ImageVector.sfSymbol(): SfSymbol? = symbolsByGlyphName[name.removePrefix("Monochrome.").removeSuffix(".bold")]
 
 private val symbolsByGlyphName: Map<String, SfSymbol> by lazy {
@@ -59,11 +54,6 @@ private val symbolsByGlyphName: Map<String, SfSymbol> by lazy {
 
 private val RevealBounce = SfSymbolEffect.Bounce(scope = SfEffectScope.ByLayer)
 
-/**
- * A row's glyph that bounces with GlyphStudio's own effect, layer by layer,
- * each time it scrolls fully into view. A glyph GlyphStudio doesn't know
- * pulses as [bounceOnReveal] does. Still when Reduce animation is on.
- */
 @Composable
 fun RevealIcon(icon: ImageVector, tint: Color, size: Dp) {
     val symbol = remember(icon) { icon.sfSymbol() }
@@ -89,5 +79,4 @@ fun RevealIcon(icon: ImageVector, tint: Color, size: Dp) {
     }
 }
 
-/** A symbol's point size inside an icon box, as the tab bar sets its glyphs (22 in 28). */
 private const val REVEAL_SYMBOL_SCALE = 22f / 28f

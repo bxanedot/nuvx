@@ -151,13 +151,6 @@ fun TvDetailScreen(
     }
 }
 
-/**
- * An album or a playlist, as Apple Music lays one out: a header — the large
- * cover, then title, artist, how long it runs, the blurb and the circle action
- * row — over a full-width track list with hairline separators. Albums number
- * their tracks; playlists show each track's own cover. The page is washed in a
- * colour taken from the cover.
- */
 @Composable
 private fun TvReleaseContent(
     page: DetailPage?,
@@ -183,7 +176,6 @@ private fun TvReleaseContent(
     val scope = rememberCoroutineScope()
     TvChromeScrollEffect(listState)
 
-    // The cover's colour, washed down from the top of the page.
     val tint = animateColorAsState(
         targetValue = rememberDominantCardColor(artworkUrl, Color.Transparent),
         animationSpec = tween(500),
@@ -260,8 +252,6 @@ private fun TvReleaseContent(
                 }
             }
 
-            // Tracks YouTube offers to round a playlist out, kept apart from
-            // the playlist's own — as the phone does.
             if (suggested.isNotEmpty()) {
                 item(key = "suggestedTitle") {
                     TvShelfTitle(title = "Suggestions", modifier = Modifier.padding(top = 24.dp, bottom = 6.dp))
@@ -303,7 +293,6 @@ private fun TvReleaseContent(
     }
 }
 
-/** The release's header: the cover beside what it is, how long it runs, and the actions. */
 @Composable
 private fun TvReleaseHeader(
     title: String,
@@ -377,7 +366,6 @@ private fun TvReleaseHeader(
     }
 }
 
-/** A track line: a [TvSongRow] with a hairline under it, inset to the text. */
 @Composable
 private fun TvTrackLine(
     song: Song,
@@ -410,7 +398,6 @@ private fun TvTrackLine(
     }
 }
 
-/** "12 songs, 45 minutes" — from the tracks' own durations. */
 private fun List<Song>.summary(): String? {
     if (isEmpty()) return null
     val totalSeconds = sumOf { song ->

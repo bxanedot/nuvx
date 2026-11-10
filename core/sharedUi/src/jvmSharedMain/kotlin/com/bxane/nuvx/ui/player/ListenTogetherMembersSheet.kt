@@ -38,16 +38,6 @@ import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
 
-/**
- * Who's in the party right now, from the same button that used to drop
- * straight into Settings.
- *
- * A [PlayerDrawer] rather than the settings page itself: the settings page
- * (party size, server, activity log) is a lot to land on for a listener who
- * only wanted to see who else is here. [onManage] is the escape hatch to that
- * page for the host actions this drawer doesn't have room for — resizing the
- * party, switching servers, leaving.
- */
 @Composable
 internal fun ListenTogetherMembersSheet(
     hazeState: HazeState,
@@ -77,7 +67,6 @@ internal fun ListenTogetherMembersSheet(
     }
 }
 
-/** One member. The playing style mirrors [OutputRow] — a lit row for the one that's you. */
 @Composable
 private fun MemberDrawerRow(member: PartyMember, isYou: Boolean) {
     Row(
@@ -120,9 +109,6 @@ private fun MemberDrawerRow(member: PartyMember, isYou: Boolean) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // "Away" rather than "offline": the slot is still theirs, and the
-            // server holds it through a grace period precisely so a tunnel or
-            // a locked screen does not read to everyone else as leaving.
             val subtitle = when {
                 isYou && member.isHost -> stringResource(Res.string.listen_together_host)
                 isYou -> stringResource(Res.string.listen_together_you)
@@ -142,7 +128,6 @@ private fun MemberDrawerRow(member: PartyMember, isYou: Boolean) {
     }
 }
 
-/** Drills into the full Listen Together settings page — party size, server, leaving. */
 @Composable
 private fun ManageRow(code: String?, onClick: () -> Unit) {
     val haptics = rememberHaptics()

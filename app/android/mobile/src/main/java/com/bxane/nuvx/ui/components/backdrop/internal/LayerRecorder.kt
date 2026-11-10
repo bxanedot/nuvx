@@ -1,10 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-/*
- * Vendored so the library ships as source with this app (binary AARs compiled
- * against older Compose broke at runtime) and to add a backdrop resolution
- * scale for cheaper effect rendering. KMP expect/actual declarations were
- * merged into this single Android source set. Package renamed accordingly.
- */
 package com.bxane.nuvx.ui.components.backdrop.internal
 
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -14,10 +8,6 @@ import androidx.compose.ui.node.requireDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toIntSize
 
-// Vendored change: the upstream declaration used an experimental Kotlin context
-// parameter (`context(node: DelegatableNode)`), which would require enabling
-// -Xcontext-parameters for the whole app module; the node is an explicit
-// parameter instead.
 internal fun DrawScope.recordLayer(
     node: DelegatableNode,
     layer: GraphicsLayer,

@@ -18,38 +18,8 @@ import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-/**
- * Web scraper for Genius.com lyrics.
- *
- * Used strictly as a last resort fallback when none of the time-synced providers
- * (LRCLIB, Musixmatch, BetterLyrics, KuGou, etc.) have lyrics for a track.
- *
- * Genius does not offer timestamps, but carries an immense catalogue. The scraper:
- *  1. Searches Genius's open multi-search endpoint (no API key required).
- *  2. Matches the best candidate song and grabs its webpage URL.
- *  3. Fetches the page HTML and extracts lyrics from `data-lyrics-container` tags via Jsoup.
- *  4. Cleans out Genius metadata (headers, translation links, "You might also like", "Embed").
- *  5. Retains section headers (e.g. "[Verse 1]", "[Chorus]") for beautiful formatted display.
- */
 object Genius {
 
-    /**
-     * What this says it is, which is deliberately not a browser.
-     *
-     * It used to claim Chrome 124, on the usual reasoning that a site serves a
-     * scraper better if it looks like a person. That reasoning has inverted:
-     * Genius sits behind Cloudflare, and Cloudflare now challenges a
-     * browser-claiming User-Agent whose TLS fingerprint and `sec-ch-ua`
-     * headers do not back the claim. Measured against both endpoints in
-     * September 2026, from the same host and the same second: a Chrome UA is
-     * answered `403` with a bot-challenge page, and a plain one is answered
-     * `200` with the JSON and the lyrics HTML. Claiming to be a browser was
-     * the thing getting this blocked.
-     *
-     * The cost of the 403 was invisible. [httpGet] reads any non-2xx as null,
-     * which travels up as "no lyrics for this track" — indistinguishable from
-     * a song Genius genuinely does not have.
-     */
     private const val USER_AGENT = "nuvx"
 
     private val json by lazy { Json { ignoreUnknownKeys = true; isLenient = true } }
@@ -71,7 +41,6 @@ object Genius {
         val cleanTitle = cleanQuery(title)
         val cleanArtist = cleanQuery(artist)
 
-        // If the title is in "Artist - Title" format, extract both parts
         val titleParts = if (cleanTitle.contains(TITLE_SEPARATOR)) {
             cleanTitle.split(TITLE_SEPARATOR, limit = 2)
         } else null
@@ -98,23 +67,19 @@ object Genius {
 
         val searchAttempts = mutableListOf<SearchAttempt>()
 
-        // 1. Extracted artist + extracted title
         if (extractedArtist.isNotBlank() && extractedTitle.isNotBlank()) {
             searchAttempts.add(SearchAttempt("$extractedArtist $extractedTitle".trim(), extractedTitle, extractedArtist))
         }
 
-        // 2. Extracted artist + title without brackets
         if (extractedArtist.isNotBlank() && titleWithoutBrackets.isNotBlank() && titleWithoutBrackets != extractedTitle) {
             searchAttempts.add(SearchAttempt("$extractedArtist $titleWithoutBrackets".trim(), titleWithoutBrackets, extractedArtist))
         }
 
-        // 3. Clean artist + clean title (in case separator wasn't Artist - Title)
         if (cleanTitle != extractedTitle) {
             searchAttempts.add(SearchAttempt("$cleanArtist $cleanTitle".trim(), cleanTitle, cleanArtist))
             searchAttempts.add(SearchAttempt(cleanTitle, extractedTitle, extractedArtist))
         }
 
-        // 4. Standalone extracted title without artist prefix
         if (titleWithoutBrackets.isNotBlank()) {
             searchAttempts.add(SearchAttempt(titleWithoutBrackets, titleWithoutBrackets, extractedArtist))
         } else if (extractedTitle.isNotBlank()) {
@@ -135,9 +100,6 @@ object Genius {
         return lines
     }
 
-    /**
-     * Searches Genius for the track and returns the song's page URL.
-     */
     internal fun searchSongUrl(cleanTitle: String, cleanArtist: String): String? {
         return searchSongUrl("$cleanArtist $cleanTitle".trim(), cleanTitle, cleanArtist)
     }
@@ -190,7 +152,6 @@ object Genius {
                 else score += 20
             }
 
-            // Penalize translations / instrumentals / reviews unless specifically requested
             val path = item["path"]?.jsonPrimitive?.contentOrNull ?: ""
             if (path.contains("translation", ignoreCase = true) && !normTitle.contains("translation")) score -= 30
             if (path.contains("türkçe", ignoreCase = true) || path.contains("polskie-tlumaczenie", ignoreCase = true)) score -= 40
@@ -203,10 +164,6 @@ object Genius {
         return scored.maxByOrNull { it.second }?.first
     }
 
-    /**
-     * Parses the Genius lyrics HTML page using Jsoup, extracting text while preserving
-     * stanzas and section headers.
-     */
     fun parseHtml(html: String): List<LyricLine>? {
         return runCatching {
             parseHtmlUnsafe(html)
@@ -216,7 +173,6 @@ object Genius {
     private fun parseHtmlUnsafe(html: String): List<LyricLine>? {
         val doc = Jsoup.parse(html)
 
-        // Modern Genius uses data-lyrics-container="true", older pages use div.lyrics
         var containers = doc.select("div[data-lyrics-container=true]")
         if (containers.isEmpty()) {
             containers = doc.select("div.lyrics")
@@ -226,7 +182,6 @@ object Genius {
         val fullTextBuilder = StringBuilder()
 
         for (container in containers) {
-            // Remove headers, contributors, translation links, buttons, ads
             container.select(
                 "[data-exclude-from-selection=true], " +
                     ".LyricsHeader__Container, " +
@@ -237,7 +192,6 @@ object Genius {
                     "style",
             ).remove()
 
-            // Turn <br> into explicit newlines before extracting text
             container.select("br").forEach { it.replaceWith(TextNode("\n")) }
             container.select("p").forEach { it.prepend("\n") }
 
@@ -254,29 +208,17 @@ object Genius {
         return textToLyricLines(cleaned).takeIf { it.isNotEmpty() }
     }
 
-    /**
-     * Cleans common web scraper artifacts found on Genius:
-     * - "You might also like" insertions
-     * - Trailing "Embed" or "[0-9]+Embed"
-     * - Non-breaking or zero-width unicode spaces
-     */
     fun stripArtifacts(raw: String): String {
         return raw
-            // Replace non-breaking / special unicode spaces with normal space
             .replace('\u00A0', ' ')
             .replace('\u200B', ' ')
             .replace('\uFEFF', ' ')
-            // Remove "You might also like" mid-text recommendations
             .replace(YOU_MIGHT_ALSO_LIKE, "")
             .trim()
-            // Remove trailing "123Embed" or "Embed" at the very end
             .replace(TRAILING_EMBED, "")
             .trim()
     }
 
-    /**
-     * Converts clean multi-line lyrics text into structured [LyricLine]s.
-     */
     fun textToLyricLines(text: String): List<LyricLine> {
         val lines = text.lines()
         val result = mutableListOf<LyricLine>()
@@ -295,16 +237,12 @@ object Genius {
             }
         }
 
-        // Drop leading and trailing gaps
         while (result.isNotEmpty() && result.first().isGap) result.removeAt(0)
         while (result.isNotEmpty() && result.last().isGap) result.removeAt(result.lastIndex)
 
         return result
     }
 
-    /**
-     * Checks if a line is a section header like "[Verse 1]", "[Chorus]", "[Bridge]".
-     */
     fun isSectionHeader(text: String): Boolean = isGeniusSectionHeader(text)
 
     private fun cleanQuery(text: String): String {

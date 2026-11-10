@@ -4,10 +4,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/**
- * What counts as an invite. Anything that is not the public URL shape must be refused outright
- * rather than half-parsed: a join is an action taken on someone else's behalf.
- */
 class JamInviteTest {
 
     @Test

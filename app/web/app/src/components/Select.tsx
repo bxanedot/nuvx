@@ -11,18 +11,9 @@ interface SelectProps<T> {
   value: T;
   options: readonly SelectOption<T>[];
   onChange: (value: T) => void;
-  /** Names the menu for assistive tech, e.g. "Crossfade". */
   label: string;
 }
 
-/**
- * Apple's pop-up button (the macOS settings idiom): the current choice and a
- * ⌃⌄ glyph, opening the app's own contextual menu with a checkmark on it.
- * Replaces the native <select>, whose list Windows draws white-on-light
- * against the dark theme, in the system font, unreadable.
- *
- * Inside a settings row's <label>, a click anywhere on the row opens it.
- */
 export function Select<T extends string | number>({ value, options, onChange, label }: SelectProps<T>) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const close = useCallback(() => setAnchor(null), []);

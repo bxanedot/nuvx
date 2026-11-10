@@ -73,17 +73,10 @@ import com.bxane.nuvx.ui.tv.theme.TvGlass
 import com.bxane.nuvx.ui.tv.theme.TvType
 import kotlinx.coroutines.launch
 
-/** Top Songs stops here, as on the phone: past twenty the list would bury the releases. */
 private const val MaxTopSongs = 20
 
-/** Top Songs pages sideways a column at a time; each column holds this many. */
 private const val SongsPerColumn = 4
 
-/**
- * An artist, laid out as the phone lays one out — hero photo with the name on
- * it and Play / Shuffle / Subscribe, the newest release, Top Songs in columns of
- * four, every shelf YouTube sends, then About — sized for a television.
- */
 @Composable
 internal fun TvArtistContent(
     page: DetailPage?,
@@ -103,14 +96,10 @@ internal fun TvArtistContent(
     val sections = page?.sections.orEmpty()
     val topRelease = remember(sections) { sections.topRelease() }
 
-    // Apple Music's photo and title logo for this artist, found by name, as the
-    // phone does. YouTube's own picture stands in until — and unless — it lands.
     var appleArt by remember(page?.browseId) {
         mutableStateOf(page?.browseId?.let(AppleArtistArtRepository::cached))
     }
     LaunchedEffect(page?.browseId, title, page?.songs is UiState.Loading) {
-        // A title that is still a whole credit ("A, B & C") finds nobody, and
-        // Apple's match is confirmed against the page's songs; wait for both.
         if (page != null && page.songs !is UiState.Loading) {
             appleArt = AppleArtistArtRepository.artFor(page.browseId, title) { page.appleCatalogue() } ?: appleArt
         }
@@ -249,10 +238,6 @@ internal fun TvArtistContent(
     }
 }
 
-/**
- * The photo across the top, fading into the page at its foot, with the name —
- * Apple's title logo when there is one — counts and the actions laid over it.
- */
 @Composable
 private fun TvArtistHero(
     name: String,
@@ -278,9 +263,6 @@ private fun TvArtistHero(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 alignment = Alignment.TopCenter,
-                // Faded out to transparent rather than to a colour, so the photo
-                // melts into whatever canvas is behind it with no seam. The
-                // photo doesn't change, so the layer is drawn once and reused.
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
@@ -348,7 +330,6 @@ private val HeroSide = Brush.horizontalGradient(
     0.55f to Color.Transparent,
 )
 
-/** The newest release, as a wide card: its cover and what it is. */
 @Composable
 private fun TvLatestRelease(item: ShelfItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
@@ -384,10 +365,6 @@ private fun TvLatestRelease(item: ShelfItem, onClick: () -> Unit, modifier: Modi
     }
 }
 
-/**
- * The blurb and the counts. Focusable, so the remote can reach the foot of the
- * page at all; select opens the whole text.
- */
 @Composable
 private fun TvAbout(text: String?, stats: List<String>, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
@@ -422,10 +399,6 @@ private fun TvAbout(text: String?, stats: List<String>, modifier: Modifier = Mod
     }
 }
 
-/**
- * The newest release on an artist's shelves — the phone's rule: only an `MPRE…`
- * id is a release, newest by the year in its subtitle, ties in YouTube's order.
- */
 private fun List<HomeShelf>.topRelease(): ShelfItem? =
     asSequence()
         .flatMap { it.items.asSequence() }

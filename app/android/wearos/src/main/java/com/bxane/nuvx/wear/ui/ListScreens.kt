@@ -49,11 +49,6 @@ import com.bxane.nuvx.wear.data.PhoneLink
 import com.bxane.nuvx.wear.data.Queue
 import com.bxane.nuvx.wear.data.QueueRow
 
-/**
- * Up Next. Text first, thumbnails a beat later — see PhoneLink.applyQueue —
- * and asked for again whenever the playing track changes, so the list is never
- * the one from two songs ago.
- */
 @Composable
 fun QueueScreen(
     queue: Queue?,
@@ -130,7 +125,6 @@ private fun QueueCell(row: QueueRow, isCurrent: Boolean, isPast: Boolean, onClic
     }
 }
 
-/** Shuffle, repeat and love, with the state each is in on the phone. */
 @Composable
 fun MoreScreen(np: NowPlaying?, link: PhoneLink, onOpenOutput: () -> Unit) {
     val state = rememberScalingLazyListState(initialCenterItemIndex = 1)
@@ -206,7 +200,6 @@ private fun ToggleCell(
     badge: String? = null,
 ) {
     Cell(onClick = onClick) {
-        // On: a filled disc, as the phone's player highlights shuffle and repeat.
         val disc = when {
             !active -> Color.White.copy(alpha = 0.12f)
             activeTint != null -> activeTint.copy(alpha = 0.20f)
@@ -248,7 +241,6 @@ private fun ToggleCell(
     }
 }
 
-/** A grouped cell: the phone's settings rows, rounded for a round screen. */
 @Composable
 private fun Cell(
     onClick: () -> Unit,
@@ -296,11 +288,6 @@ private fun Hint(text: String) {
     )
 }
 
-/**
- * Where the music plays: this watch, or any output the phone has. Picking the
- * watch hands the queue over from the phone; picking a phone output while the
- * watch plays hands it back, through that output.
- */
 @Composable
 fun OutputScreen(link: PhoneLink, onDone: () -> Unit) {
     LaunchedEffect(Unit) { link.requestOutputs() }

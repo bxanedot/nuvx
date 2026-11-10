@@ -44,10 +44,6 @@ import com.bxane.nuvx.ui.icons.SfIcons
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
 
-/**
- * The top bar's song-recognition button, left of the account photo. Slides
- * out the way [com.bxane.nuvx.ui.components.TopBarDownloadButton] does.
- */
 @Composable
 fun TopBarRecognizeButton(visible: Boolean, onClick: () -> Unit) {
     val haptics = rememberHaptics()
@@ -62,10 +58,6 @@ fun TopBarRecognizeButton(visible: Boolean, onClick: () -> Unit) {
     }
 }
 
-/**
- * Listens through the microphone for ten seconds and names the song, in the
- * app's alert card. [onSearch] takes "title artist" to find it in nuvx.
- */
 @Composable
 fun RecognitionSheet(hazeState: HazeState, onSearch: (String) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -129,7 +121,6 @@ fun RecognitionSheet(hazeState: HazeState, onSearch: (String) -> Unit, onDismiss
     }
 }
 
-/** A mic that breathes while it listens. */
 @Composable
 private fun ListeningPulse(modifier: Modifier) {
     val t = rememberInfiniteTransition(label = "listen")

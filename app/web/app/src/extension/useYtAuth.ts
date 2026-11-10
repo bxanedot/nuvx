@@ -4,14 +4,6 @@ import type { DetectedExtension, YtAuthState } from '@nuvx/shared/bridge';
 import { queryClient } from '@/lib/queryClient';
 import { extensionQueryKey, useExtension } from './useExtension';
 
-/**
- * Who YouTube requests act as (prompt §5.3). The extension owns the session;
- * this is the page's copy of the names and pictures it reports, kept current
- * three ways: a read on start, the extension's pushes (Bridge.subscribe), and
- * a re-read when the tab regains focus, for the pushes a sleeping worker
- * missed.
- */
-
 export const ytAuthQueryKey = ['yt', 'auth'] as const;
 
 const SIGNED_OUT: YtAuthState = { browserSignedIn: false, connected: true, signedIn: false, accounts: [], active: null, problem: null };
@@ -24,23 +16,15 @@ function supportsAuth(extension: DetectedExtension | null): boolean {
   return !!extension?.info.capabilities.includes('yt.auth');
 }
 
-/** The current state, for code outside React (the music API, the player). */
 export function ytAuthSnapshot(): YtAuthState {
   return queryClient.getQueryData<YtAuthState>(ytAuthQueryKey) ?? SIGNED_OUT;
 }
 
-/** A key for "who is asking", which changes whenever the answers YouTube gives would. */
 export function identityOf(state: YtAuthState): string {
   return state.signedIn && state.active ? state.active.id : 'anonymous';
 }
 
 let lastIdentity: string | null = null;
-/**
- * Who the cached ['music', …] queries were fetched as (getMusicClient notes
- * it). Not the same as the last state adopted: a browse request that ran
- * before the auth read came back (or after it failed) went out anonymous, and
- * that has to be noticed when the real identity arrives.
- */
 let musicIdentity: string | null = null;
 
 export function noteMusicIdentity(identity: string): void {
@@ -54,16 +38,10 @@ function resetMusic(): void {
   void queryClient.cancelQueries({ queryKey: ['music'] }).then(() => queryClient.resetQueries({ queryKey: ['music'] }));
 }
 
-/**
- * Takes in a new state. When the identity changes (sign-in, sign-out, a
- * channel switch), everything read as the old identity is dropped: the home
- * feed, the library, playlists, and the resolver's verdicts.
- */
 function adopt(state: YtAuthState): void {
   queryClient.setQueryData(ytAuthQueryKey, state);
   const identity = identityOf(state);
   if (lastIdentity !== null && identity !== lastIdentity) {
-    // Loaded on demand: the resolver pulls in BotGuard, which the shell shouldn't.
     void import('@/playback/youtube/resolver').then((m) => m.onSessionChanged());
   }
   if (musicIdentity !== null && identity !== musicIdentity) resetMusic();
@@ -78,7 +56,6 @@ async function readAuth(refresh: boolean): Promise<YtAuthState> {
   return state;
 }
 
-/** Waits for the extension and the first auth read, so the first browse request already knows who is asking. */
 export async function ensureYtAuth(): Promise<YtAuthState> {
   const cached = queryClient.getQueryData<YtAuthState>(ytAuthQueryKey);
   if (cached) return cached;
@@ -112,7 +89,6 @@ export function useYtAuth(): YtAuthStatus {
   return { state: 'ready', auth: query.data ?? SIGNED_OUT };
 }
 
-/** Switches the channel requests act as. */
 export function useSelectChannel() {
   return useMutation({
     mutationFn: async (channelId: string) => {
@@ -124,12 +100,10 @@ export function useSelectChannel() {
   });
 }
 
-/** Re-reads the accounts from YouTube rather than the extension's cache. */
 export function useRefreshYtAuth() {
   return useMutation({ mutationFn: () => readAuth(true) });
 }
 
-/** Connect or disconnect nuvx from the browser's YouTube session (it stays signed in to Google). */
 export function useSetConnected() {
   return useMutation({
     mutationFn: async (connected: boolean) => {

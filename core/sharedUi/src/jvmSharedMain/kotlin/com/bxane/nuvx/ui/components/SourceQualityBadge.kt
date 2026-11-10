@@ -19,30 +19,17 @@ import com.bxane.nuvx.sharedui.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/**
- * What a source row says it can be streamed at, in the player badge's terms.
- *
- * Read off [Song.sourceQuality] — the tier the addon *offered* in its search
- * answer, not anything measured — so it is a label for picking between rows,
- * and the player's own badge is still the one that confirms what played.
- * `LOW` and unlabelled rows get none, as under the seek bar.
- */
 enum class SourceQuality { DOLBY_ATMOS, HI_RES_LOSSLESS, LOSSLESS, HIGH_QUALITY }
 
 fun Song.sourceQualityBadge(): SourceQuality? = when (sourceQuality?.uppercase()) {
     "DOLBY" -> SourceQuality.DOLBY_ATMOS
     "HI-RES", "HIRES" -> SourceQuality.HI_RES_LOSSLESS
-    // The desktop's local files carry their container here — FLAC, WAV.
     "LOSSLESS", "FLAC", "ALAC", "WAV" ->
         if (sourceHiRes) SourceQuality.HI_RES_LOSSLESS else SourceQuality.LOSSLESS
     "HIGH", "320" -> SourceQuality.HIGH_QUALITY
     else -> null
 }
 
-/**
- * The player's quality glyph and label, at row size: the same lossless wave,
- * Dolby double-D and headphones the badge under the seek bar draws.
- */
 @Composable
 fun SourceQualityBadge(
     quality: SourceQuality,
@@ -52,8 +39,6 @@ fun SourceQualityBadge(
 ) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         when (quality) {
-            // The two drawables at their own size, as in the player: the wave
-            // is wide and the double-D nearly square.
             SourceQuality.DOLBY_ATMOS -> Icon(painterResource(Res.drawable.ic_dolby_atmos), null, tint = color)
             SourceQuality.HI_RES_LOSSLESS, SourceQuality.LOSSLESS ->
                 Icon(painterResource(Res.drawable.ic_lossless), null, tint = color)

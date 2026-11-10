@@ -29,16 +29,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Base64
 
-/**
- * The bearer token behind Spotify's own web player, minted from the
- * listener's session cookie ([AppSettings.spotifySpdcToken]) rather than an
- * app credential — there is no public API for a track's Canvas, so this walks
- * the same door the web player itself uses to fetch one.
- *
- * Call [init] once at process start, same as [CanvasCache] and the other
- * app-scoped singletons — the WebView harvest below needs a [Context] and
- * none of the suspend call chain that reaches [accessToken] has one to hand.
- */
 internal object SpotifyToken {
 
     private const val TAG = "SpotifyToken"
@@ -74,17 +64,6 @@ internal object SpotifyToken {
         clientTokenExpiresAtMs = 0L
     }
 
-    /**
-     * The current bearer token, or null when there is no cookie to mint one
-     * from, [init] was never called, or the harvest failed. Cached until
-     * shortly before it expires so a skip through a queue doesn't pay for
-     * this per track.
-     *
-     * Minted by loading the real web player in an offscreen WebView with the
-     * listener's cookie applied and reading the token it mints for itself —
-     * see [harvestViaWebView] for why signing the request ourselves isn't
-     * enough.
-     */
     suspend fun accessToken(): String? {
         val cookie = AppSettings.spotifySpdcToken.value
         if (cookie.isBlank()) return null
@@ -116,20 +95,6 @@ internal object SpotifyToken {
         }
     }
 
-    /**
-     * Spotify retired the endpoint this used to hit directly with a signed
-     * request; its replacement (`/api/token`) checks a TOTP the web player
-     * computes from a secret buried in its own JS bundle. That part is
-     * reproducible — the secret is short-lived but published — and doing so
-     * does get a 200 back with a token. What it doesn't get back is a token
-     * anything downstream honours: api.spotify.com and spclient both turn a
-     * forged one away with a 429 that reads exactly like rate limiting, right
-     * up until it fires on the very first request of a session. So rather
-     * than sign the request ourselves, this loads open.spotify.com for real
-     * in an offscreen WebView with the cookie applied, and reads the token
-     * the page mints for itself by hooking fetch/XHR before its own bundle
-     * runs.
-     */
     @SuppressLint("SetJavaScriptEnabled")
     private suspend fun harvestViaWebView(context: Context, cookie: String): HarvestedToken? {
         val deferred = CompletableDeferred<HarvestedToken?>()
@@ -140,10 +105,6 @@ internal object SpotifyToken {
             setCookie("https://accounts.spotify.com/", "sp_dc=$cookie; Domain=.spotify.com; Path=/; Secure")
             flush()
         }
-        // The player caches its token in web storage and skips a fresh
-        // /api/token request if a live one is already sitting there, leaving
-        // the hook with nothing to see — wipe storage so every harvest forces
-        // a real mint.
         runCatching { WebStorage.getInstance().deleteAllData() }
 
         var webView: WebView? = null
@@ -163,8 +124,6 @@ internal object SpotifyToken {
 
                     override fun onPageFinished(view: WebView, url: String?) {
                         super.onPageFinished(view, url)
-                        // Re-assert in case the player navigated client-side
-                        // after the onPageStarted injection ran.
                         view.evaluateJavascript(HOOK_SCRIPT, null)
                     }
                 }
@@ -184,7 +143,6 @@ internal object SpotifyToken {
         }
     }
 
-    /** Receives raw `/api/token` response bodies from the hooked page. */
     private class TokenBridge(private val deferred: CompletableDeferred<HarvestedToken?>) {
         @JavascriptInterface
         fun onTokenPayload(payload: String?) {
@@ -194,9 +152,6 @@ internal object SpotifyToken {
                 val token = root["accessToken"]?.jsonPrimitive?.contentOrNull
                 val anonymous = root["isAnonymous"]?.jsonPrimitive?.contentOrNull
                     ?.toBooleanStrictOrNull() ?: false
-                // The player also mints an anonymous token before the cookie
-                // takes effect; that one can't read canvases, so keep waiting
-                // for the logged-in one.
                 if (token.isNullOrBlank() || anonymous) return
                 val expiresAt = root["accessTokenExpirationTimestampMs"]?.jsonPrimitive?.contentOrNull
                     ?.toLongOrNull()?.takeIf { it > System.currentTimeMillis() }
@@ -252,14 +207,6 @@ internal object SpotifyToken {
         })();
     """.trimIndent()
 
-    /**
-     * The second header these endpoints have started demanding alongside the
-     * bearer token — api.spotify.com and spclient both turn away a request
-     * that only carries [accessToken] with a 429. Best-effort: a caller with
-     * no client token just sends the bearer alone and takes whatever the
-     * endpoint does with that. Requires [accessToken] to have already
-     * succeeded once, since the client id it needs comes off that response.
-     */
     @Synchronized
     fun clientToken(): String? {
         val now = System.currentTimeMillis()
@@ -287,11 +234,6 @@ internal object SpotifyToken {
             }
         }
 
-        // The ByteArray overload, deliberately: the String overload of
-        // toRequestBody rewrites a charset-less MediaType to
-        // "application/json; charset=utf-8", and clienttoken 400s on that
-        // exact header rather than the bare "application/json" the real web
-        // player sends.
         val request = Request.Builder()
             .url("https://clienttoken.spotify.com/v1/clienttoken")
             .post(payload.toString().toByteArray(Charsets.UTF_8).toRequestBody("application/json".toMediaType()))
@@ -336,13 +278,6 @@ internal object SpotifyToken {
         return token
     }
 
-    /**
-     * [SessionInfo.clientVersion] and [SessionInfo.deviceId] both come off the
-     * plain, unauthenticated web player page — the client version from a JSON
-     * blob it embeds for itself, the device id from the `sp_t` cookie it hands
-     * out to every visitor. Fetched once and held for the process: neither
-     * changes inside a session.
-     */
     private fun session(): SessionInfo? {
         cachedSession?.let { return it }
 

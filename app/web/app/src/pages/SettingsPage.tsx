@@ -26,7 +26,6 @@ function Glyph({ Icon }: { Icon: ComponentType<{ size?: number }> }) {
   );
 }
 
-/** A row that opens a page of its own. */
 function LinkRow({ to, icon, title, value }: { to: string; icon?: ReactNode; title: string; value?: string | null }) {
   return (
     <PrefetchLink to={to} className={`${icon ? settingsUi.integration : settingsUi.integrationPlain} ${settingsUi.linkRow}`}>
@@ -49,10 +48,6 @@ function youtubeText(auth: ReturnType<typeof useYtAuth>): string {
   return active ? active.name : 'Signed in';
 }
 
-/**
- * Settings (SettingsSheet on the phone): the account and its integrations,
- * Listen Together, playback and lyrics, in the same grouped rows.
- */
 export default function SettingsPage() {
   const extension = useExtension();
   const yt = useYtAuth();

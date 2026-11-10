@@ -93,7 +93,6 @@ class QueueCoordinatorTest {
 
     @Test
     fun `buildContextQueue preserves sequential order, user queue behind selected, and sets correct startIndex`() {
-        // Current timeline: [Track 0 (playing)] + [User Q 1] + [User Q 2] + [Old Autoplay]
         val userQ1 = testSong("u1", tier = QueueTier.USER_QUEUE, entryId = "entry-u1")
         val userQ2 = testSong("u2", tier = QueueTier.USER_QUEUE, entryId = "entry-u2")
         val currentTimeline = listOf(
@@ -113,12 +112,10 @@ class QueueCoordinatorTest {
             currentTimeline = currentTimeline,
             currentIndex = 0,
             newContextSongs = albumSongs,
-            selectedIndex = 1, // User tapped album-2 (middle track)
+            selectedIndex = 1,
             contextSource = QueueSource("Abbey Road", PlaybackSourceType.BROWSE, "album-id"),
         )
 
-        // Expected: [album-1] (preceding) + [album-2] (selected) + [userQ1, userQ2] + [album-3] (following)
-        // startIndex = 1 (album-2)
         assertEquals(1, result.startIndex)
         assertEquals(5, result.timeline.size)
 
@@ -171,7 +168,7 @@ class QueueCoordinatorTest {
             currentTimeline = currentTimeline,
             currentIndex = 0,
             newContextSongs = albumSongs,
-            selectedIndex = 2, // Last track
+            selectedIndex = 2,
             contextSource = QueueSource("Abbey Road", PlaybackSourceType.BROWSE, "album-id"),
         )
 
@@ -280,7 +277,7 @@ class QueueCoordinatorTest {
         )
 
         val index = QueueCoordinator.findUserQueueInsertionIndex(timeline, currentIndex = 0, isNext = false)
-        assertEquals(3, index) // Ahead of c1
+        assertEquals(3, index)
     }
 
     @Test
@@ -292,7 +289,7 @@ class QueueCoordinatorTest {
         )
 
         val index = QueueCoordinator.findUserQueueInsertionIndex(timeline, currentIndex = 0, isNext = false)
-        assertEquals(1, index) // Ahead of c1
+        assertEquals(1, index)
     }
 
     @Test
@@ -372,7 +369,6 @@ class QueueCoordinatorTest {
         assertNotNull(result)
         result!!
 
-        // Expected: [a2 as CONTEXT] + [u1, u2]
         assertEquals(3, result.size)
         assertEquals("a2", result[0].videoId)
         assertEquals(QueueTier.CONTEXT, result[0].queueTier)
@@ -417,7 +413,6 @@ class QueueCoordinatorTest {
 
         val result = QueueCoordinator.buildJumpQueue(timeline, currentIndex = 0, targetIndex = 4)!!
 
-        // a1 was skipped over and c1 was the old context; a3 is still to come.
         assertEquals(listOf("a2", "u1", "a3"), result.map { it.videoId })
         assertEquals(QueueTier.CONTEXT, result[0].queueTier)
         assertEquals(QueueTier.AUTOPLAY, result[2].queueTier)
@@ -434,12 +429,10 @@ class QueueCoordinatorTest {
             testSong("c3", tier = QueueTier.CONTEXT),
         )
 
-        // User jumps to c2 (index 3)
         val result = QueueCoordinator.buildJumpQueue(timeline, currentIndex = 0, targetIndex = 3)
         assertNotNull(result)
         result!!
 
-        // Expected: [c2] + [u1, u2] + [c3]
         assertEquals(4, result.size)
         assertEquals("c2", result[0].videoId)
         assertEquals(QueueTier.CONTEXT, result[0].queueTier)
@@ -465,12 +458,10 @@ class QueueCoordinatorTest {
             testSong("a1", tier = QueueTier.AUTOPLAY),
         )
 
-        // User jumps to u2 (index 2), skipping u1
         val result = QueueCoordinator.buildJumpQueue(timeline, currentIndex = 0, targetIndex = 2)
         assertNotNull(result)
         result!!
 
-        // Expected: [u2] + [u3] + [c1] + [a1] (u1 was skipped and dropped)
         assertEquals(4, result.size)
         assertEquals("u2", result[0].videoId)
         assertEquals(QueueTier.USER_QUEUE, result[0].queueTier)
@@ -493,13 +484,10 @@ class QueueCoordinatorTest {
             testSong("s2"),
         )
 
-        // Same track
         assertEquals(null, QueueCoordinator.buildJumpQueue(timeline, currentIndex = 1, targetIndex = 1))
 
-        // Backward jump
         assertEquals(null, QueueCoordinator.buildJumpQueue(timeline, currentIndex = 2, targetIndex = 1))
 
-        // Out of bounds
         assertEquals(null, QueueCoordinator.buildJumpQueue(timeline, currentIndex = 0, targetIndex = 10))
         assertEquals(null, QueueCoordinator.buildJumpQueue(timeline, currentIndex = -1, targetIndex = 1))
         assertEquals(null, QueueCoordinator.buildJumpQueue(timeline, currentIndex = 0, targetIndex = -1))
@@ -552,12 +540,8 @@ class QueueCoordinatorTest {
             }
         } as Player
 
-        // Jump to a1 (index 3). The timeline is passed in because a MediaItem's
-        // tier can't be read back on the JVM; the promotion of a1 to CONTEXT is
-        // covered by the buildJumpQueue tests.
         QueueCoordinator.jumpToQueueItem(player, targetIndex = 3, cachedTimeline = songs)
 
-        // Playlist should now be: [history0 (retained), a1 (now active), u1 (preserved)]
         assertEquals(3, items.size)
         assertEquals(1, activeIndex)
         assertEquals(listOf("history0", "a1", "u1"), items.map { it.mediaId })
@@ -583,7 +567,7 @@ class QueueCoordinatorTest {
             currentTimeline = currentTimeline,
             currentIndex = 0,
             newContextSongs = trackSet,
-            selectedIndex = 2, // Track 3 tapped
+            selectedIndex = 2,
             contextSource = albumSource,
         )
 
@@ -591,11 +575,10 @@ class QueueCoordinatorTest {
             currentTimeline = currentTimeline,
             currentIndex = 0,
             newContextSongs = trackSet,
-            selectedIndex = 2, // Track 3 tapped
+            selectedIndex = 2,
             contextSource = playlistSource,
         )
 
-        // Queue semantics must be identical
         assertEquals(albumResult.startIndex, playlistResult.startIndex)
         assertEquals(albumResult.timeline.size, playlistResult.timeline.size)
         assertEquals(
@@ -607,11 +590,9 @@ class QueueCoordinatorTest {
             playlistResult.timeline.map { it.queueTier },
         )
 
-        // Verify entry identity semantics
         albumResult.timeline.forEach { assertNotNull(it.queueEntryId) }
         playlistResult.timeline.forEach { assertNotNull(it.queueEntryId) }
 
-        // Source-specific fields reflect their respective collection sources
         assertEquals(List(5) { "Abbey Road" }, albumResult.timeline.filter { it.queueTier == QueueTier.CONTEXT }.map { it.playbackSource })
         assertEquals(List(5) { "Classic Rock" }, playlistResult.timeline.filter { it.queueTier == QueueTier.CONTEXT }.map { it.playbackSource })
     }
@@ -632,37 +613,29 @@ class QueueCoordinatorTest {
         val albumShuffled = QueueTimeline.shuffledStartingOrder(albumTimeline, startIndex = 1)
         val playlistShuffled = QueueTimeline.shuffledStartingOrder(playlistTimeline, startIndex = 1)
 
-        // Selected track (t2) leads at index 0 for both
         assertEquals("t2", albumShuffled[0].videoId)
         assertEquals("t2", playlistShuffled[0].videoId)
 
-        // User queue item pinned at index 1 for both
         assertEquals("u1", albumShuffled[1].videoId)
         assertEquals("u1", playlistShuffled[1].videoId)
 
-        // Context items present in indices 2..3 for both
         assertEquals(setOf("t1", "t3"), albumShuffled.subList(2, 4).map { it.videoId }.toSet())
         assertEquals(setOf("t1", "t3"), playlistShuffled.subList(2, 4).map { it.videoId }.toSet())
 
-        // Autoplay at index 4 for both
         assertEquals("a1", albumShuffled[4].videoId)
         assertEquals("a1", playlistShuffled[4].videoId)
 
-        // Size and tiers match identically
         assertEquals(albumShuffled.map { it.queueTier }, playlistShuffled.map { it.queueTier })
     }
 
     @Test
     fun `mid-playback shuffle restoration behaves identically for Album and Playlist`() {
         val originalIds = listOf("track-1", "track-2", "track-3", "track-4", "track-5")
-        // Playing at track-2, remaining upcoming unplayed tracks are track-3, track-4, track-5
-        // Shuffled order of upcoming:
         val upcomingShuffled = listOf("track-5", "track-3", "track-4")
 
         val albumRestoredIndices = QueueShuffle.restoreOrder(upcomingShuffled, originalIds, "track-2")
         val playlistRestoredIndices = QueueShuffle.restoreOrder(upcomingShuffled, originalIds, "track-2")
 
-        // Both restore to the exact same relative indices [1, 2, 0] corresponding to track-3, track-4, track-5
         assertEquals(albumRestoredIndices, playlistRestoredIndices)
         val restoredIds = albumRestoredIndices.map { upcomingShuffled[it] }
         assertEquals(listOf("track-3", "track-4", "track-5"), restoredIds)
@@ -670,14 +643,12 @@ class QueueCoordinatorTest {
 
     @Test
     fun `duplicate track restore resolves identically regardless of collection source`() {
-        // Deluxe album with reprise or playlist with duplicate track
         val originalWithDuplicates = listOf("song-A", "song-B", "song-A", "song-C")
         val upcomingShuffled = listOf("song-C", "song-A", "song-B", "song-A")
 
         val restored = QueueShuffle.restoreOrder(upcomingShuffled, originalWithDuplicates)
         val restoredIds = restored.map { upcomingShuffled[it] }
 
-        // FIFO resolution restores first song-A, then song-B, second song-A, then song-C
         assertEquals(listOf("song-A", "song-B", "song-A", "song-C"), restoredIds)
     }
 
@@ -686,7 +657,7 @@ class QueueCoordinatorTest {
         val tracks = listOf(
             testSong("song-A", tier = QueueTier.CONTEXT, entryId = "e-A1"),
             testSong("song-B", tier = QueueTier.CONTEXT, entryId = "e-B"),
-            testSong("song-A", tier = QueueTier.CONTEXT, entryId = "e-A2"), // duplicate
+            testSong("song-A", tier = QueueTier.CONTEXT, entryId = "e-A2"),
             testSong("song-C", tier = QueueTier.CONTEXT, entryId = "e-C"),
         )
         val albumResult = QueueCoordinator.buildContextQueue(
@@ -704,13 +675,11 @@ class QueueCoordinatorTest {
             contextSource = QueueSource("My Playlist", PlaybackSourceType.QUEUE, "pl-1"),
         )
 
-        // Structure matches identically
         assertEquals(albumResult.startIndex, playlistResult.startIndex)
         assertEquals(albumResult.timeline.size, playlistResult.timeline.size)
         assertEquals(albumResult.timeline.map { it.videoId }, playlistResult.timeline.map { it.videoId })
         assertEquals(albumResult.timeline.map { it.queueTier }, playlistResult.timeline.map { it.queueTier })
 
-        // Both duplicate occurrences retain distinct queueEntryIds
         assertNotEquals(albumResult.timeline[0].queueEntryId, albumResult.timeline[2].queueEntryId)
         assertNotEquals(playlistResult.timeline[0].queueEntryId, playlistResult.timeline[2].queueEntryId)
     }
@@ -743,7 +712,6 @@ class QueueCoordinatorTest {
         var repeatMode: Int = Player.REPEAT_MODE_OFF,
     ) {
         var seekCallCount = 0
-        /** setMediaItems or replaceMediaItems: any edit to the queue's contents. */
         var queueEditCallCount = 0
 
         val player: Player = Proxy.newProxyInstance(
@@ -885,7 +853,6 @@ class QueueCoordinatorTest {
         fun makeItem(song: Song, cIdx: Int?): MediaItem =
             QueueShuffle.withQueueMetadata(song.toMediaItem(), newEntryId = song.queueEntryId, newCanonicalIndex = cIdx, newTier = song.queueTier)
 
-        // Timeline A: [C0, U1, C1, U2, C2] -> tap C2
         run {
             val songs = listOf(
                 testSong("c0", QueueTier.CONTEXT, "e-c0"),
@@ -913,7 +880,6 @@ class QueueCoordinatorTest {
             assertEquals(QueueTier.USER_QUEUE, p.items[4].queueTier)
         }
 
-        // Timeline B: [C0, U1, U2, C1, C2] -> tap C2
         run {
             val songs = listOf(
                 testSong("c0", QueueTier.CONTEXT, "e-c0"),
@@ -941,7 +907,6 @@ class QueueCoordinatorTest {
             assertEquals(QueueTier.USER_QUEUE, p.items[4].queueTier)
         }
 
-        // Timeline C: [C0, C1, U1, U2, C2, C3] -> tap C2
         run {
             val songs = listOf(
                 testSong("c0", QueueTier.CONTEXT, "e-c0"),
@@ -972,7 +937,6 @@ class QueueCoordinatorTest {
             assertEquals(QueueTier.CONTEXT, p.items[5].queueTier)
         }
 
-        // Timeline D: [C0, U1, C1, C2, U2, C3] -> tap C1
         run {
             val songs = listOf(
                 testSong("c0", QueueTier.CONTEXT, "e-c0"),
@@ -1018,7 +982,6 @@ class QueueCoordinatorTest {
         }.toMutableList()
         val testPlayer = TestPlayer(items, activeIndex = 0)
 
-        // Tap U2 (index 2)
         QueueCoordinator.jumpToQueueItem(testPlayer.player, targetIndex = 2, cachedTimeline = songs)
 
         assertEquals(1, testPlayer.queueEditCallCount)
@@ -1045,7 +1008,6 @@ class QueueCoordinatorTest {
         }.toMutableList()
         val testPlayer = TestPlayer(items, activeIndex = 0)
 
-        // Tap A2 (index 4)
         QueueCoordinator.jumpToQueueItem(testPlayer.player, targetIndex = 4, cachedTimeline = songs)
 
         assertEquals(1, testPlayer.queueEditCallCount)
@@ -1138,7 +1100,6 @@ class QueueCoordinatorTest {
         assertEquals(2, upcoming.size)
         assertEquals(setOf(3, 4), upcoming.map { it.canonicalIndex }.toSet())
 
-        // Timeline size is preserved (exactly 5 collection songs, zero duplicates)
         assertEquals(5, testPlayer.items.size)
     }
 
@@ -1273,7 +1234,6 @@ class QueueCoordinatorTest {
         }
         QueueShuffle.setCanonicalContext(canonicalItems)
 
-        // Simulate starting with shuffle ON picking track-4 (index 4)
         val selectedIndex = 4
         val startingOrder = QueueShuffle.startingOrder(albumTracks, selectedIndex)
         assertEquals("track-4", startingOrder[0].videoId)
@@ -1286,22 +1246,16 @@ class QueueCoordinatorTest {
         val testPlayer = TestPlayer(playerItems, activeIndex = 0, repeatMode = Player.REPEAT_MODE_ALL)
         QueueShuffle.setEnabled(true)
 
-        // Turn Shuffle OFF while playing track-4
         QueueShuffle.toggle(testPlayer.player)
         assertEquals(false, QueueShuffle.enabled.value)
 
-        // The entire album must be restored: 10 items
         assertEquals(10, testPlayer.items.size)
-        // Current index must be 4 (track-4)
         assertEquals(4, testPlayer.activeIndex)
         assertEquals("track-4", testPlayer.items[testPlayer.activeIndex].mediaId)
 
-        // History contains track-0..3 in canonical order
         assertEquals(listOf("track-0", "track-1", "track-2", "track-3"), testPlayer.items.take(4).map { it.mediaId })
-        // Upcoming contains track-5..9 in canonical order
         assertEquals(listOf("track-5", "track-6", "track-7", "track-8", "track-9"), testPlayer.items.drop(5).map { it.mediaId })
 
-        // Hitting Prev steps backwards through preceding tracks: 3 -> 2 -> 1 -> 0
         testPlayer.player.seekToPreviousMediaItem()
         assertEquals(3, testPlayer.activeIndex)
         assertEquals("track-3", testPlayer.items[testPlayer.activeIndex].mediaId)
@@ -1327,7 +1281,6 @@ class QueueCoordinatorTest {
         }
         QueueShuffle.setCanonicalContext(canonicalItems)
 
-        // Starting with shuffle ON picking pl-6 (index 6)
         val selectedIndex = 6
         val startingOrder = QueueShuffle.startingOrder(playlistTracks, selectedIndex)
         assertEquals("pl-6", startingOrder[0].videoId)
@@ -1340,7 +1293,6 @@ class QueueCoordinatorTest {
         val testPlayer = TestPlayer(playerItems, activeIndex = 0, repeatMode = Player.REPEAT_MODE_ALL)
         QueueShuffle.setEnabled(true)
 
-        // Turn Shuffle OFF
         QueueShuffle.toggle(testPlayer.player)
         assertEquals(false, QueueShuffle.enabled.value)
 
@@ -1348,12 +1300,9 @@ class QueueCoordinatorTest {
         assertEquals(6, testPlayer.activeIndex)
         assertEquals("pl-6", testPlayer.items[testPlayer.activeIndex].mediaId)
 
-        // History: pl-0..5
         assertEquals((0..5).map { "pl-$it" }, testPlayer.items.take(6).map { it.mediaId })
-        // Upcoming: pl-7..9
         assertEquals((7..9).map { "pl-$it" }, testPlayer.items.drop(7).map { it.mediaId })
 
-        // Hitting Prev steps back to pl-5
         testPlayer.player.seekToPreviousMediaItem()
         assertEquals(5, testPlayer.activeIndex)
         assertEquals("pl-5", testPlayer.items[testPlayer.activeIndex].mediaId)
@@ -1367,7 +1316,6 @@ class QueueCoordinatorTest {
         }
         QueueShuffle.setCanonicalContext(canonicalItems)
 
-        // Started shuffled at c3
         val startingOrder = QueueShuffle.startingOrder(songs, 3)
         val playerItems = startingOrder.map { s ->
             val cIdx = songs.indexOfFirst { it.videoId == s.videoId }
@@ -1377,21 +1325,17 @@ class QueueCoordinatorTest {
         val testPlayer = TestPlayer(playerItems, activeIndex = 0)
         QueueShuffle.setEnabled(true)
 
-        // Turn shuffle OFF: full album restored with c3 at index 3
         QueueShuffle.toggle(testPlayer.player)
         assertEquals(3, testPlayer.activeIndex)
         assertEquals("c3", testPlayer.items[testPlayer.activeIndex].mediaId)
 
-        // Now user jumps forward in context queue to c7 (index 7)
         QueueCoordinator.jumpToQueueItem(testPlayer.player, targetIndex = 7, cachedTimeline = songs)
         assertEquals(7, testPlayer.activeIndex)
         assertEquals("c7", testPlayer.items[testPlayer.activeIndex].mediaId)
         assertEquals(10, testPlayer.items.size)
 
-        // All preceding tracks (c0..c6) remain intact in history!
         assertEquals((0..6).map { "c$it" }, testPlayer.items.take(7).map { it.mediaId })
 
-        // Hitting Prev steps backward through history: 6 -> 5 -> 4 -> 3 -> 2 -> 1 -> 0
         for (expectedIdx in 6 downTo 0) {
             testPlayer.player.seekToPreviousMediaItem()
             assertEquals(expectedIdx, testPlayer.activeIndex)
@@ -1407,7 +1351,6 @@ class QueueCoordinatorTest {
         }
         QueueShuffle.setCanonicalContext(canonicalItems)
 
-        // Started shuffled at c2 (index 0 in player)
         val startingOrder = QueueShuffle.startingOrder(songs, 2)
         val playerItems = startingOrder.map { s ->
             val cIdx = songs.indexOfFirst { it.videoId == s.videoId }
@@ -1417,27 +1360,22 @@ class QueueCoordinatorTest {
         val testPlayer = TestPlayer(playerItems, activeIndex = 0)
         QueueShuffle.setEnabled(true)
 
-        // While shuffle is ON, user jumps forward to item at index 4 in the shuffled queue
         val targetItem = testPlayer.items[4]
         val targetCanonicalIdx = targetItem.canonicalIndex!!
         QueueCoordinator.jumpToQueueItem(testPlayer.player, targetIndex = 4)
         assertEquals(4, testPlayer.activeIndex)
         assertEquals(targetItem.mediaId, testPlayer.items[testPlayer.activeIndex].mediaId)
 
-        // Now user turns shuffle OFF
         QueueShuffle.toggle(testPlayer.player)
         assertEquals(false, QueueShuffle.enabled.value)
 
-        // Entire collection is restored around targetCanonicalIdx!
         assertEquals(10, testPlayer.items.size)
         assertEquals(targetCanonicalIdx, testPlayer.activeIndex)
         assertEquals(targetItem.mediaId, testPlayer.items[testPlayer.activeIndex].mediaId)
 
-        // All canonical tracks are in order 0..9
         assertEquals((0..9).map { "c$it" }, testPlayer.items.map { it.mediaId })
     }
 
-    /** Tiers looked up by song, since MediaItem metadata extras don't survive on the JVM. */
     private fun tierAt(songs: List<Song>, items: List<MediaItem>): (Int) -> QueueTier {
         val byId = songs.associate { it.videoId to it.queueTier }
         return { index -> byId.getValue(items[index].mediaId) }

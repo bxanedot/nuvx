@@ -13,51 +13,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * One OkHttp client for the whole app.
- *
- * This matters: googlevideo binds a stream URL to the connection context of
- * the `player` request that minted it. If Innertube and ExoPlayer used
- * separate HTTP stacks they could resolve to different addresses (v4 vs v6)
- * and the media fetch would come back 403. Sharing the client keeps DNS,
- * address family and connection pooling identical for both.
- *
- * That sharing has a cost the defaults don't budget for. Every request the
- * app makes — [Innertube]'s player/browse calls, NewPipe's own signature and
- * `next`-endpoint fetches, [ChunkedDataSource][com.bxane.nuvx.playback.ChunkedDataSource]
- * and [AudioCache][com.bxane.nuvx.playback.AudioCache]'s multi-megabyte
- * chunk downloads, and every [StreamResolver] probe — funnels through this
- * one client, and OkHttp's stock [Dispatcher] allows only 5 requests in
- * flight to a single host at a time. A track streaming while its successor
- * pre-caches is two or three of those requests already; a resolve running
- * alongside them queues behind whichever is occupying the rest — invisibly,
- * since a request stuck in OkHttp's queue and a slow server both just look
- * like a request that took several extra seconds. Sized well past anything
- * this app actually drives concurrently, so the queue is never the reason a
- * request was slow.
- */
 object Http {
 
-    // ---- Temporary data-usage instrumentation --------------------------
-    //
-    // Added to answer, with real numbers instead of code-reading, which of
-    // this app's network callers actually account for the reported data
-    // usage (issue #48): every request funnels through this one client, so
-    // a network interceptor here sees every byte the app receives,
-    // regardless of which subsystem asked for it. Categorised by host —
-    // googlevideo.com is YouTube's own audio bytes (and StreamResolver's
-    // probes, distinguishable by their small actual read against a 2MB
-    // Range ask), a canvas provider's CDN is motion artwork, youtube.com /
-    // youtubei is API/extraction traffic. Grep logcat for "BCDataUsage"
-    // during a play session; each line is one response with its actual
-    // transferred bytes and the running total for its host.
-    //
-    // Left in place rather than deleted — the investigation this served is
-    // not the last one this app will need — but off by default: flip to
-    // true only while actively measuring. Wrapping every response body in a
-    // counting source and writing a log line per request is not free, and
-    // paying that on every install for a question already answered is the
-    // wrong trade.
     private const val USAGE_LOGGING_ENABLED = false
     private const val USAGE_TAG = "BCDataUsage"
     private val usageTotals = ConcurrentHashMap<String, AtomicLong>()
@@ -105,16 +62,7 @@ object Http {
             response.newBuilder().body(CountedBody(body, counting)).build()
         }
     }
-    // ---- End temporary instrumentation ----------------------------------
 
-    /**
-     * Adds the WebDAV Basic credential to requests aimed at the configured
-     * server, so both PROPFIND listings and ExoPlayer's media fetches (which
-     * share this client via OkHttpDataSource) authenticate the same way.
-     *
-     * Read off [com.bxane.nuvx.data.webdav.WebDavAuth] rather than prefs
-     * so the network layer never touches storage: AppSettings publishes here.
-     */
     private val webDavInterceptor = okhttp3.Interceptor { chain ->
         val request = chain.request()
         if (request.header("Authorization") == null &&

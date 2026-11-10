@@ -15,87 +15,29 @@ import com.bxane.nuvx.playback.loopmix.LoopMixPort
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-/**
- * Precision audio sink intercepting decoder PCM buffers before Media3's internal
- * processing pipeline can bypass nuvx's custom DSP chain.
- *
- * Architecture:
- * - In Precision Mode (for all supported linear PCM sources):
- *   decoder PCM -> PcmBoundary.decode -> AudioBlock (Float32) -> DspChain (Spatial -> EQ -> Transition)
- *   -> PcmBoundary.encode -> delegate [DefaultAudioSink].
- *   Internal DSP precision and AudioTrack output precision are independent:
- *   - Float-capable route ([enableFloatOutput] is true and the delegate opens float natively):
- *     encodes to Float32 PCM -> delegate [DefaultAudioSink] (configured for Float32).
- *   - PCM16-only route ([enableFloatOutput] is false or unsupported by route/hardware):
- *     encodes to PCM16 -> delegate [DefaultAudioSink] (configured for PCM16).
- *
- *   Downstream, custom processors are excluded from [DefaultAudioSink]'s internal processor chain,
- *   guaranteeing ZERO duplicate processing, while SilenceSkipping and Sonic processors remain functional.
- *
- * - In Fallback/Legacy Mode (for non-linear PCM sources — a passthrough or offload
- *   bitstream): decoder buffers pass straight through to [DefaultAudioSink]. Nothing
- *   here can process a compressed stream, and nothing here pretends to.
- *
- * ## Output encoding
- *
- * [DefaultAudioSink] has exactly two linear-PCM output encodings: float, and 16-bit.
- * Its `configure` puts `ToInt16PcmAudioProcessor` in the chain for every input
- * encoding whenever float output is off, and `ToFloatPcmAudioProcessor` when it is
- * on. There is no 24-bit or 32-bit AudioTrack path through it, so asking for one
- * gets a silent downconvert rather than what was asked for — which is why
- * [resolveTargetEncoding] only ever answers float or 16-bit, however high-res the
- * route claims to be.
- *
- * Float is checked with [AudioSink.SINK_FORMAT_SUPPORTED_DIRECTLY] rather than
- * `supportsFormat`, which is too weak to be a gate: with float output disabled,
- * `getFormatSupport` rewrites a float format to 16-bit and still answers
- * SUPPORTED_WITH_TRANSCODING, so `supportsFormat` says "yes" about a track it is
- * going to downconvert.
- *
- * Threading & Buffer Contract:
- * - Steady-state execution avoids heap allocations by reusing an audio-thread-owned [AudioBlock]
- *   and a native-order [outputByteBuffer].
- * - Partial delegate consumption is fully supported: when [delegate] returns false, the exact same
- *   [outputByteBuffer] instance is retained and drained on subsequent ticks before accepting new input.
- */
 @androidx.annotation.OptIn(UnstableApi::class)
 class PrecisionAudioSink(
     private val delegate: AudioSink,
     val dspChain: DspChain,
     private val enableFloatOutput: Boolean,
     private val preferredOutputEncodingProvider: ((Format) -> PcmEncoding?)? = null,
-    /**
-     * Whether this sink is the one the listener can currently hear.
-     *
-     * A crossfade keeps two players alive, each with its own sink, both writing
-     * into the process-wide [AudioOutputStatus]. Without this the idle one wins
-     * the race regularly — its `reset` publishes "not exact" over the audible
-     * player's verdict, and its `configure` publishes the *next* track's format
-     * as though it were the playing one. Telemetry is therefore the audible
-     * sink's to write; the spare stays quiet.
-     */
     private val isAudible: () -> Boolean = { true },
 ) : ForwardingAudioSink(delegate) {
 
-    /** Whether the precision Float32 DSP path is currently active for the configured format. */
     var isPrecisionActive: Boolean = false
         private set
 
-    /** The PCM encoding format of the incoming decoder buffers when precision mode is active. */
     var inputPcmEncoding: PcmEncoding? = null
         private set
 
-    /** The target PCM encoding format written to [delegate] when precision mode is active. */
     var targetOutputEncoding: PcmEncoding? = null
         private set
 
-    /** The format passed to the most recent [configure] invocation. */
     var activeFormat: Format? = null
         private set
 
     private var processCounter: Long = 0L
 
-    /** Sample rate of the configured format, for timestamping split sub-blocks. */
     private var configuredSampleRate: Int = 0
 
     private var audioBlock: AudioBlock = AudioBlock(
@@ -108,58 +50,25 @@ class PrecisionAudioSink(
     private var pendingPresentationTimeUs: Long = C.TIME_UNSET
     private var pendingAccessUnitCount: Int = 0
 
-    /**
-     * Frames already emitted from the decoder buffer currently being drained,
-     * and the timestamp that identifies it.
-     *
-     * Kept across calls rather than per call because backpressure splits one
-     * buffer over several: when the delegate refuses a sub-block, the renderer
-     * hands the same partially-consumed buffer back with its *original*
-     * presentation time, and a per-call counter would restart at zero and
-     * re-issue a timestamp already used.
-     */
     private var timestampedInputTimeUs: Long = C.TIME_UNSET
     private var framesEmittedForInput: Long = 0L
 
-    /**
-     * Whether audio has flowed since the last flush — which is what tells a
-     * gapless track boundary apart from a skip. Both reach [setOutputStreamOffsetUs],
-     * but only a boundary arrives mid-stream, and only there is the chain's
-     * "next track" the one actually starting.
-     */
     private var streaming = false
 
-    /**
-     * End of the last block the DSP chain processed, in the renderer's
-     * timebase — the same one [getCurrentPositionUs] answers in, so the gap
-     * between the two is how far ahead of the speaker the chain is running.
-     */
     private var processedEndUs: Long = C.TIME_UNSET
-
-    // ---- The Automix loop mix (see [LoopMixPort]) -----------------------------------------
 
     private val loop: LoopMixPort get() = dspChain.transition.loop
 
-    /** The port generation this sink's loop state belongs to. */
     private var loopGeneration = -1
 
-    /** Outgoing: writing the renderer's mix and no longer consuming the song. */
     private var loopGenerating = false
     private var loopNextFrame = 0L
     private var loopNextUs = 0L
 
-    /** Outgoing: the renderer has been fed at least once (its decks keep state from then on). */
     private var loopRendering = false
 
-    /** Incoming: a block has been processed since it was armed. */
     private var loopInStarted = false
 
-    /**
-     * What the delegate's timeline is ahead of the track's by, µs: silence
-     * inserted adds to it, frames dropped take from it. Handed to the delegate
-     * so its clock runs on without a jump, and taken back off every position
-     * reported, so the player still sees the true track position.
-     */
     private var delegateOffsetUs = 0L
 
     private val loopScratch = FloatArray(AudioBlock.DEFAULT_CAPACITY_FRAMES * 2)
@@ -174,14 +83,11 @@ class PrecisionAudioSink(
                 val sampleRate = format.sampleRate
                 val channelCount = format.channelCount
 
-                // 1. Configure the Float32 DSP chain
                 dspChain.configure(sampleRate, channelCount)
 
-                // 2. Ensure internal buffers are sized for max frames and channel count
                 ensureBuffers(channelCount)
                 configuredSampleRate = sampleRate
 
-                // 3. Determine target output encoding
                 val floatFormat = format.buildUpon()
                     .setPcmEncoding(C.ENCODING_PCM_FLOAT)
                     .build()
@@ -194,7 +100,6 @@ class PrecisionAudioSink(
                     floatFormat = floatFormat,
                 )
 
-                // 4. Configure delegate DefaultAudioSink
                 val delegateFormat = format.buildUpon()
                     .setPcmEncoding(targetEncoding.toMedia3PcmEncoding())
                     .build()
@@ -224,7 +129,6 @@ class PrecisionAudioSink(
                     )
                     return
                 } catch (e: Exception) {
-                    // If the Float32 delegate config failed, try PCM16 before aborting precision
                     if (targetEncoding != PcmEncoding.PCM_16BIT) {
                         try {
                             val fallbackPcm16Config = AudioSink.AudioSinkConfig.Builder(pcm16Format)
@@ -250,7 +154,6 @@ class PrecisionAudioSink(
                             )
                             return
                         } catch (e2: Exception) {
-                            // Delegate configuration failed completely; fall back safely
                         }
                     }
                     isPrecisionActive = false
@@ -260,10 +163,6 @@ class PrecisionAudioSink(
             }
         }
 
-        // Fallback / legacy mode: forward configuration unchanged. A passthrough
-        // or offload bitstream reaches here, in which case nothing of ours is
-        // altering samples — but nothing of ours can vouch for them either, and
-        // no DSP stage can run on a stream that was never decoded to PCM.
         isPrecisionActive = false
         inputPcmEncoding = null
         targetOutputEncoding = null
@@ -323,7 +222,6 @@ class PrecisionAudioSink(
         if (outArm != null && loopGenerating) return generateLoop(outArm, outEncoding)
         val inArm = port.inArm
 
-        // 1. Drain pending output from previous cycle if delegate had backpressure
         if (outputByteBuffer.hasRemaining()) {
             val consumed = delegate.handleBuffer(
                 outputByteBuffer,
@@ -331,25 +229,16 @@ class PrecisionAudioSink(
                 pendingAccessUnitCount,
             )
             if (!consumed || outputByteBuffer.hasRemaining()) {
-                // Delegate still busy; backpressure to renderer
                 return false
             }
         }
 
-        // 2. Output buffer is drained; process available input in blocks.
-        //    A decoder buffer larger than the block capacity is split, and each
-        //    sub-block carries its own timestamp: handing the delegate the same
-        //    presentation time for every piece makes its expected-position check
-        //    drift by one block each time, and past 200ms of accumulated drift it
-        //    raises UnexpectedDiscontinuityException and resyncs the clock.
         if (presentationTimeUs != timestampedInputTimeUs) {
             timestampedInputTimeUs = presentationTimeUs
             framesEmittedForInput = 0L
         }
         while (inputBuffer.remaining() >= bytesPerFrame) {
             if (inArm != null) {
-                // Lining up with the deck, while this player is still silent:
-                // frames dropped, or silence written in their place.
                 val shift = port.pendingShift.get()
                 if (shift != 0L && canShift(inArm, presentationTimeUs)) {
                     if (shift > 0) {
@@ -408,10 +297,8 @@ class PrecisionAudioSink(
                 silenceUntilHandover(inArm, loopBlockUs, decodedFrames)
             }
 
-            // Process normalized Float32 samples through custom DSP chain
             dspChain.process(audioBlock)
 
-            // Encode processed samples to target PCM output buffer (Float32 or PCM16)
             outputByteBuffer.clear()
             PcmBoundary.encode(
                 sourceBlock = audioBlock,
@@ -424,8 +311,6 @@ class PrecisionAudioSink(
             if (blockTimeUs != C.TIME_UNSET && configuredSampleRate > 0) {
                 processedEndUs = blockTimeUs + Util.sampleCountToDurationUs(decodedFrames.toLong(), configuredSampleRate)
             }
-            // The access-unit count describes the whole decoder buffer, so it is
-            // reported once, on the first piece of it.
             val blockAccessUnits = if (framesEmittedForInput == 0L) encodedAccessUnitCount else 0
             pendingPresentationTimeUs = blockTimeUs
             pendingAccessUnitCount = blockAccessUnits
@@ -437,8 +322,6 @@ class PrecisionAudioSink(
                     Util.sampleCountToDurationUs(decodedFrames.toLong(), configuredSampleRate)
             }
             if (tookOverHere) {
-                // From here the mix is what plays: the rest of the song's input
-                // stays where it is, and the renderer's blocks follow on.
                 loopGenerating = true
                 loopNextUs = blockTimeUs + Util.sampleCountToDurationUs(decodedFrames.toLong(), configuredSampleRate)
                 loop.tookOver = true
@@ -451,13 +334,11 @@ class PrecisionAudioSink(
             )
 
             if (!consumed || outputByteBuffer.hasRemaining()) {
-                // Delegate could not accept all output frames in this cycle
                 return false
             }
             if (tookOverHere) return false
         }
 
-        // Drop any incomplete trailing frame bytes so we don't stall
         if (inputBuffer.remaining() in 1 until bytesPerFrame) {
             inputBuffer.position(inputBuffer.limit())
         }
@@ -465,7 +346,6 @@ class PrecisionAudioSink(
         return !inputBuffer.hasRemaining() && !outputByteBuffer.hasRemaining()
     }
 
-    /** [presentationTimeUs] moved on by [frames], or left alone when the rate is unknown. */
     private fun advanceTimestamp(presentationTimeUs: Long, frames: Long): Long {
         if (frames <= 0L || configuredSampleRate <= 0 || presentationTimeUs == C.TIME_UNSET) {
             return presentationTimeUs
@@ -473,31 +353,15 @@ class PrecisionAudioSink(
         return presentationTimeUs + Util.sampleCountToDurationUs(frames, configuredSampleRate)
     }
 
-    /**
-     * Called by the renderer as the output side moves onto the next stream —
-     * after the outgoing track's last buffer, before the incoming one's first.
-     * That is the one moment the DSP chain can switch per-track state on the
-     * right sample, so a gapless boundary is passed on; a skip, which flushed
-     * first, is not.
-     */
     override fun setOutputStreamOffsetUs(outputStreamOffsetUs: Long) {
         if (streaming) dspChain.onStreamBoundary()
         loop.streamOffsetUs = outputStreamOffsetUs
         super.setOutputStreamOffsetUs(outputStreamOffsetUs)
     }
 
-    /**
-     * Passed straight through, noting on the way how far the DSP chain is
-     * running ahead of it — see
-     * [com.bxane.nuvx.playback.TransitionFilterProcessor.leadUs]. The
-     * renderer polls this on every clock tick, so the lead stays current for
-     * free.
-     */
     override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
         val delegatePosition = super.getCurrentPositionUs(sourceEnded)
         if (delegatePosition == AudioSink.CURRENT_POSITION_NOT_SET) return delegatePosition
-        // The delegate counts any silence the loop mix inserted, and none of the
-        // frames it dropped; the player is told the track's own position.
         val position = delegatePosition - delegateOffsetUs
         val processed = processedEndUs
         if (processed != C.TIME_UNSET) {
@@ -511,15 +375,12 @@ class PrecisionAudioSink(
         return position
     }
 
-    // ---- The Automix loop mix ---------------------------------------------------------------
-
     private fun publishLoopFormat(sampleRate: Int, channelCount: Int, precision: Boolean) {
         loop.sampleRate = sampleRate
         loop.channelCount = channelCount
         loop.precision = precision
     }
 
-    /** A new arm (or a disarm): whatever the sink was doing for the last one is dropped. */
     private fun adoptLoopGeneration(port: LoopMixPort) {
         loopGeneration = port.generation
         loopGenerating = false
@@ -530,11 +391,6 @@ class PrecisionAudioSink(
         port.resetSplice()
     }
 
-    /**
-     * The outgoing side, block by block until the loop start: renders the mix
-     * from its decks' pre-roll on, and from 25 ms before mix frame 0 crosses the
-     * song's own audio over to it. True once the block reaches frame 0.
-     */
     private fun spliceLoop(arm: LoopMixPort.OutArm, blockUs: Long, frames: Int): Boolean {
         if (blockUs == C.TIME_UNSET || frames <= 0 || audioBlock.channelCount != 2) return false
         val trackUs = blockUs - loop.streamOffsetUs
@@ -542,7 +398,6 @@ class PrecisionAudioSink(
         val end = start + frames
         if (end <= arm.firstFrame) return false
         if (!loopRendering && start > arm.firstFrame + frames) {
-            // Armed too late to pre-roll the decks: no splice at all, rather than a cut.
             loop.interrupted = true
             return false
         }
@@ -573,11 +428,6 @@ class PrecisionAudioSink(
         return false
     }
 
-    /**
-     * The outgoing side after the takeover: the renderer's mix, block after
-     * block, for as long as the delegate takes it. The song's own input is
-     * never consumed again (false, always), so the renderer keeps coming back.
-     */
     private fun generateLoop(arm: LoopMixPort.OutArm, outEncoding: PcmEncoding): Boolean {
         if (outputByteBuffer.hasRemaining()) {
             val consumed = delegate.handleBuffer(outputByteBuffer, pendingPresentationTimeUs, 0)
@@ -603,14 +453,12 @@ class PrecisionAudioSink(
         return false
     }
 
-    /** The incoming side: nothing heard before the handover, then 25 ms up to full. */
     private fun silenceUntilHandover(arm: LoopMixPort.InArm, blockUs: Long, frames: Int) {
         if (blockUs == C.TIME_UNSET || frames <= 0) return
         loopInStarted = true
         val rate = configuredSampleRate
         val start = blockUs - loop.streamOffsetUs
         val handoverFrames = HANDOVER_SECONDS * rate
-        // Frames from the handover to this block's start (negative: still before it).
         val past = (start - arm.handoverUs) * rate / 1_000_000.0
         if (past >= handoverFrames) return
         val channels = audioBlock.channelCount
@@ -628,14 +476,12 @@ class PrecisionAudioSink(
         }
     }
 
-    /** Shifts are applied only while this player is silent with time to spare. */
     private fun canShift(arm: LoopMixPort.InArm, presentationTimeUs: Long): Boolean {
         if (presentationTimeUs == C.TIME_UNSET) return false
         val trackUs = advanceTimestamp(presentationTimeUs, framesEmittedForInput) - loop.streamOffsetUs
         return trackUs < arm.handoverUs - SHIFT_MARGIN_US
     }
 
-    /** [frames] of silence, timed as the next frames on the delegate's clock. */
     private fun writeSilence(frames: Int, trackBlockUs: Long, outEncoding: PcmEncoding): Boolean {
         if (outputByteBuffer.hasRemaining()) {
             val consumed = delegate.handleBuffer(outputByteBuffer, pendingPresentationTimeUs, 0)
@@ -650,7 +496,6 @@ class PrecisionAudioSink(
         delegateOffsetUs += Util.sampleCountToDurationUs(frames.toLong(), configuredSampleRate)
         pendingPresentationTimeUs = blockUs
         pendingAccessUnitCount = 0
-        // Accepted or not, the frames are the delegate's now (a partial write drains next call).
         delegate.handleBuffer(outputByteBuffer, blockUs, 0)
         return true
     }
@@ -705,12 +550,6 @@ class PrecisionAudioSink(
         delegate.reset()
     }
 
-    /**
-     * A flush or a reset drops everything queued: a loop mix this sink had
-     * started on is over (the controller reads [LoopMixPort.interrupted]).
-     * One merely armed, with nothing processed yet, survives: the incoming
-     * player's own start-up seek lands here.
-     */
     private fun loopInterrupted() {
         val port = loop
         if ((port.outArm != null && loopRendering) || (port.inArm != null && loopInStarted)) {
@@ -750,19 +589,6 @@ class PrecisionAudioSink(
     override fun supportsFormat(format: Format): Boolean =
         getFormatSupport(format) != AudioSink.SINK_FORMAT_UNSUPPORTED
 
-    /**
-     * How well this sink can carry [format], which Media3 reads for more than a
-     * yes/no: `MediaCodecAudioRenderer.getMediaFormat` asks about a PCM-float
-     * format and requests float decoder output *only* when the answer is
-     * [AudioSink.SINK_FORMAT_SUPPORTED_DIRECTLY].
-     *
-     * So answering SUPPORTED_DIRECTLY for float on a route that cannot open a
-     * float track is not a harmless overstatement — it makes every decoder emit
-     * float, including on the 16-bit speaker path. A 16-bit source then arrives
-     * here as Float32 and is reported as converted-on-the-way-out, when in fact
-     * the round trip through the float block recovers it exactly. The float
-     * answer therefore tracks what [resolveTargetEncoding] will really do.
-     */
     override fun getFormatSupport(format: Format): Int {
         if (shouldActivatePrecision(format)) {
             val pcm16Format = format.buildUpon()
@@ -783,38 +609,16 @@ class PrecisionAudioSink(
                 }
             }
             if (floatIsNative || pcm16Playable) {
-                // PrecisionAudioSink natively consumes every supported linear PCM input
-                // encoding (Float32, PCM16, PCM24, PCM32) straight into its canonical
-                // Float32 AudioBlock, without requiring Media3 to transcode first.
                 return AudioSink.SINK_FORMAT_SUPPORTED_DIRECTLY
             }
         }
         return delegate.getFormatSupport(format)
     }
 
-    /**
-     * Whether the delegate will open a genuine float AudioTrack for [floatFormat].
-     *
-     * [enableFloatOutput] is checked first because `getFormatSupport` alone cannot
-     * answer it: with float output off the delegate rewrites the format to 16-bit
-     * and reports SUPPORTED_WITH_TRANSCODING, which is a different claim than the
-     * one being made here.
-     */
     private fun floatIsNative(floatFormat: Format): Boolean =
         enableFloatOutput &&
             delegate.getFormatSupport(floatFormat) == AudioSink.SINK_FORMAT_SUPPORTED_DIRECTLY
 
-    /**
-     * The encoding handed to the delegate, which is only ever float or 16-bit.
-     *
-     * [OutputNegotiator] can name PCM_24BIT_PACKED when a route advertises packed
-     * 24-bit, and that used to be passed straight through. It cannot be honoured:
-     * [DefaultAudioSink] has no 24-bit AudioTrack path, so it quietly converted the
-     * result again — to 16-bit whenever float output was off — leaving a needless
-     * extra quantization in the middle and a route summary claiming 24 bits that
-     * were never written. A preference for more than 16 bits is therefore read as
-     * what it is, a request for float, and honoured only where float is real.
-     */
     private fun resolveTargetEncoding(preferred: PcmEncoding?, floatFormat: Format): PcmEncoding {
         val wantsAbove16Bit = when (preferred) {
             PcmEncoding.PCM_16BIT -> return PcmEncoding.PCM_16BIT
@@ -833,12 +637,6 @@ class PrecisionAudioSink(
         if (sampleMimeType != null && sampleMimeType != MimeTypes.AUDIO_RAW) return false
         if (!Util.isEncodingLinearPcm(format.pcmEncoding)) return false
         if (mapToPcmEncoding(format.pcmEncoding) == null) return false
-        // Any channel layout the decoder produces, not just mono and stereo. A
-        // Dolby (E-AC-3 JOC) stream decodes to 5.1, and capping this at two
-        // channels was what silently dropped the whole DSP chain — equaliser
-        // included — for every immersive track. Each stage handles an arbitrary
-        // channel count already; the ones that are inherently stereo, like
-        // spatial widening, bow out on their own.
         if (format.channelCount !in 1..MAX_CHANNELS) return false
         if (format.sampleRate <= 0) return false
         return true
@@ -859,35 +657,11 @@ class PrecisionAudioSink(
         outputByteBuffer.flip()
     }
 
-    /**
-     * Reports whether the decoder's samples survive the trip to AudioTrack.
-     *
-     * This is the *encoding* half of bit-exactness — whether anything is being
-     * lost between [PcmBoundary] and the track. Whether the listener also has a
-     * DSP stage switched on is a separate question, and the readout combines the
-     * two; see `AudioPipelineDialog.bitExactVerdict`.
-     *
-     * The combinations that are genuinely lossless:
-     *
-     * - 16-bit source to a 16-bit track. [PcmBoundary] scales by 32768, a power
-     *   of two, so the float round trip recovers every original integer.
-     * - 24-bit source to a float track. Scaled by 8388608, likewise exact, and
-     *   float32 has the 24 bits of significand to hold the result.
-     * - A float source to a float track, which is a copy.
-     *
-     * Everything else is inexact, and there are two of those worth naming. A
-     * hi-res source on a route that will not open a float track gets 16-bit,
-     * because Media3 offers nothing between. And **32-bit integer PCM cannot be
-     * delivered exactly at all** — float32 carries 24 bits of significand, so
-     * eight bits go regardless of route, and no setting in this app can change
-     * that while [DefaultAudioSink] is doing the writing.
-     */
     private fun publishOutputExactness(source: PcmEncoding, target: PcmEncoding) {
         val exact = when (source) {
             PcmEncoding.PCM_16BIT -> target == PcmEncoding.PCM_16BIT
             PcmEncoding.PCM_24BIT_PACKED -> target == PcmEncoding.PCM_FLOAT
             PcmEncoding.PCM_FLOAT -> target == PcmEncoding.PCM_FLOAT
-            // 24 bits of significand cannot hold 32.
             PcmEncoding.PCM_32BIT -> false
         }
         val sourceLabel = encodingLabel(mapFromPcmEncoding(source))
@@ -934,24 +708,15 @@ class PrecisionAudioSink(
         private const val TAG = "PrecisionAudioSink"
         const val DEFAULT_CAPACITY_FRAMES: Int = 4096
 
-        /** Song <-> mix crossings: identical audio crossed this quickly is heard as one. */
         private const val HANDOVER_SECONDS = 0.025
 
-        /** The loop mix's blocks, once it is all that plays, and how many go per call. */
         private const val GENERATED_FRAMES = 1024
         private const val MAX_GENERATED_BLOCKS = 16
 
-        /** An alignment shift stops this far (processed) before the incoming player's handover. */
         private const val SHIFT_MARGIN_US = 300_000L
 
-        /**
-         * Widest channel layout the precision path will take on. Eight covers
-         * 7.1, which is the most any decoder here produces; the cap exists so a
-         * nonsense channel count cannot size a buffer without bound.
-         */
         const val MAX_CHANNELS: Int = 8
 
-        /** Human-readable name for a Media3 PCM encoding constant. */
         fun encodingLabel(pcmEncoding: Int): String = when (pcmEncoding) {
             C.ENCODING_PCM_16BIT -> "16-bit PCM"
             C.ENCODING_PCM_24BIT -> "24-bit PCM"

@@ -10,7 +10,6 @@ import { appleWebToken } from './webToken';
 
 export type { AppleMotion };
 
-/** What this page takes from Apple Music: the artist header, and the animated sleeves. */
 export const useAppleSettings = create<{
   artistArt: boolean;
   motion: boolean;
@@ -30,13 +29,11 @@ export const useAppleSettings = create<{
 
 const AMP = 'https://amp-api.music.apple.com/v1/catalog';
 
-/** Motion artwork is per storefront: the browser's region when it names one. */
 const storefront = (() => {
   const region = typeof navigator === 'undefined' ? '' : (navigator.language.split('-')[1] ?? '');
   return /^[a-z]{2}$/i.test(region) ? region.toLowerCase() : 'us';
 })();
 
-/** An authenticated catalogue read, through the extension (Apple sends no CORS headers). */
 async function catalog(path: string, params: Record<string, string | number>): Promise<Json | null> {
   const token = await appleWebToken();
   if (!token) throw new Error('Apple Music is out of reach');
@@ -51,11 +48,6 @@ async function catalog(path: string, params: Record<string, string | number>): P
 const hitsOf = (root: Json | null, type: string): Json[] =>
   ((obj(obj(root?.results)?.[type])?.data as Json[] | undefined) ?? []).filter((h): h is Json => !!obj(h));
 
-/**
- * The motion artwork for a track (AppleMusicCanvas.search): a scored song
- * search, then the clip inline on the hit or on its album. Null when Apple has
- * none that clears the bar.
- */
 export async function fetchTrackMotion(title: string, artist: string, album: string | null): Promise<AppleMotion | null> {
   const root = await catalog('search', {
     term: songTerm(title, artist, album),
@@ -67,7 +59,6 @@ export async function fetchTrackMotion(title: string, artist: string, album: str
   for (const song of ranked(hitsOf(root, 'songs'), title, artist, album)) {
     const attributes = obj(song.attributes);
     const found = { title: str(attributes?.name) || null, artist: str(attributes?.artistName) || null, album: str(attributes?.albumName) || null };
-    // Some searches carry the clip inline, which saves the album round trip.
     const inline = motionUrls(attributes?.editorialVideo);
     if (inline && matches(found, title, artist, album)) return inline;
 
@@ -83,7 +74,6 @@ export async function fetchTrackMotion(title: string, artist: string, album: str
   return null;
 }
 
-/** The motion artwork for a release (AppleMusicCanvas.searchAlbum): albums carry it inline. */
 export async function fetchAlbumMotion(album: string, artist: string): Promise<AppleMotion | null> {
   const term = album.toLowerCase().includes(artist.toLowerCase()) ? album : `${artist} ${album}`;
   const root = await catalog('search', { term, types: 'albums', limit: 10, extend: 'editorialVideo' });
@@ -97,10 +87,8 @@ export async function fetchAlbumMotion(album: string, artist: string): Promise<A
   return null;
 }
 
-// Apple's hosts are optional extension permissions: once allowed, the lookups they refused run again.
 onGranted(() => void queryClient.invalidateQueries({ queryKey: ['apple', 'motion'] }));
 
-/** Whether a clip may be looked up and shown at all: the setting on, motion allowed, not metered. */
 function useMotionAllowed(): boolean {
   const enabled = useAppleSettings((s) => s.motion);
   const still = useReducedMotion();
@@ -109,7 +97,6 @@ function useMotionAllowed(): boolean {
 
 const QUERY = { staleTime: Infinity, gcTime: 30 * 60_000, retry: false } as const;
 
-/** Apple's animated sleeve for a track; null until (and unless) one is found. */
 export function useTrackMotion(title: string | null | undefined, artist: string | null | undefined, album: string | null | undefined) {
   const allowed = useMotionAllowed();
   const query = useQuery({
@@ -121,7 +108,6 @@ export function useTrackMotion(title: string | null | undefined, artist: string 
   return allowed ? (query.data ?? null) : null;
 }
 
-/** Apple's animated cover for an album page; null until (and unless) one is found. */
 export function useAlbumMotion(album: string | null | undefined, artist: string | null | undefined) {
   const allowed = useMotionAllowed();
   const query = useQuery({

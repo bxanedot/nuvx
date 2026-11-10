@@ -51,7 +51,6 @@ function PlaylistChoices({ videoId, onDone, onBack }: { videoId: string; onDone:
   );
 }
 
-/** Favorite and Add to Playlist: the account's actions, signed in only. */
 function AccountItems({ track, onClose, onPlaylists }: { track: Track; onClose: () => void; onPlaylists: () => void }) {
   const status = useLikeStatus(track.videoId);
   const setLiked = useSetLiked();
@@ -96,10 +95,6 @@ function TrackMenuItems({ track, onClose }: { track: Track; onClose: () => void 
   );
 }
 
-/**
- * The ⋯ button at the end of a track row (report §14): Play Next and Add to
- * Queue for everyone; Favorite and Add to Playlist signed in.
- */
 export function TrackMenu({
   track,
   className,
@@ -108,9 +103,7 @@ export function TrackMenu({
 }: {
   track: Track;
   className?: string;
-  /** Where the menu opens from the button; the player's sit at the bottom of the window. */
   placement?: MenuPlacement;
-  /** Told when the menu opens and closes; most mounts don't need to know. */
   onOpenChange?: (open: boolean) => void;
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);

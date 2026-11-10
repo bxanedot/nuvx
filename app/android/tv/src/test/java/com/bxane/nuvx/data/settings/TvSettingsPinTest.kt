@@ -27,9 +27,7 @@ class TvSettingsPinTest {
 
         val rawStored = fakePrefs.getString("tv_profile_pin_$profileId", null)
         assertTrue("Stored value should not be null", rawStored != null)
-        // Ensure plaintext PIN is never stored directly
         assertFalse("Raw PIN must not appear in stored preference", rawStored!!.contains(plainPin))
-        // Verify format pbkdf2_sha256:<iterations>:<saltHex>:<hashHex>
         assertTrue("Stored value must start with pbkdf2_sha256 prefix", rawStored.startsWith("pbkdf2_sha256:"))
         val parts = rawStored.split(':')
         assertEquals("Stored hash should have 4 colon-separated parts", 4, parts.size)
@@ -48,7 +46,6 @@ class TvSettingsPinTest {
         val storedA = fakePrefs.getString("tv_profile_pin_profile_a", null)!!
         val storedB = fakePrefs.getString("tv_profile_pin_profile_b", null)!!
 
-        // Salts must be unique, so hashes must differ even with the identical PIN
         assertNotEquals(
             "Different profiles must produce different salted hashes",
             storedA,
@@ -76,12 +73,10 @@ class TvSettingsPinTest {
         TvSettings.setProfilePin(profileId, "9999")
         assertTrue(TvSettings.isProfileLocked(profileId))
 
-        // Clearing with null
         TvSettings.setProfilePin(profileId, null)
         assertFalse(TvSettings.isProfileLocked(profileId))
         assertFalse(TvSettings.verifyProfilePin(profileId, "9999"))
 
-        // Setting again and clearing with blank
         TvSettings.setProfilePin(profileId, "8888")
         assertTrue(TvSettings.isProfileLocked(profileId))
         TvSettings.setProfilePin(profileId, "   ")
@@ -110,23 +105,19 @@ class TvSettingsPinTest {
         val profileId = "legacy_profile"
         val plainPin = "1234"
 
-        // Simulate legacy storage where PIN was stored as plaintext
         fakePrefs.edit().putString("tv_profile_pin_$profileId", plainPin).commit()
         assertEquals("1234", fakePrefs.getString("tv_profile_pin_$profileId", null))
         assertTrue(TvSettings.isProfileLocked(profileId))
 
-        // Wrong PIN fails and leaves legacy storage intact
         assertFalse(TvSettings.verifyProfilePin(profileId, "9999"))
         assertEquals("1234", fakePrefs.getString("tv_profile_pin_$profileId", null))
 
-        // Correct PIN succeeds and automatically upgrades to PBKDF2 salted hash
         assertTrue(TvSettings.verifyProfilePin(profileId, plainPin))
 
         val upgraded = fakePrefs.getString("tv_profile_pin_$profileId", null)!!
         assertTrue("Legacy PIN must be migrated to PBKDF2 hash", upgraded.startsWith("pbkdf2_sha256:"))
         assertFalse("Plaintext must no longer be present", upgraded.contains(plainPin))
 
-        // Subsequent verification works with the newly upgraded hash
         assertTrue(TvSettings.verifyProfilePin(profileId, plainPin))
     }
 

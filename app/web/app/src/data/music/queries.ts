@@ -34,10 +34,6 @@ import {
 import { isLibrarySection, LIKED_MUSIC_PLAYLIST, type LibrarySection } from './library';
 import type { AlbumPage, BrowseLink, BrowsePage, HeaderInfo, PlaylistPage, Shelf, Track } from './types';
 
-// TanStack Query for every browse request (prompt §1: caching, dedupe,
-// retries). YouTube requests need the extension, so every query waits for it;
-// pages render their install prompt instead when it's missing.
-
 const STALE = 10 * 60_000;
 
 export const albumQuery = (id: string) =>
@@ -85,7 +81,6 @@ export const playlistQuery = (id: string) =>
     staleTime: STALE,
   });
 
-/** True once the extension has answered; queries wait on it. */
 export function useYouTubeReady(): { ready: boolean; missing: boolean } {
   const extension = useExtension();
   return {
@@ -127,7 +122,6 @@ export function usePlaylist(id: string) {
   return useInfiniteQuery({ ...playlistQuery(id), enabled: ready });
 }
 
-/** Typeahead: debounced, and anonymous like the app's (Innertube.searchTypeahead). */
 export function useSuggestions(input: string) {
   const { ready } = useYouTubeReady();
   const [debounced, setDebounced] = useState(input);
@@ -144,7 +138,6 @@ export function useSuggestions(input: string) {
   });
 }
 
-/** Warms the first query of a page, for links' hover/focus prefetch (prompt §3). */
 export function prefetchPageData(pathname: string): void {
   const detected = queryClient.getQueryData<DetectedExtension | null>(extensionQueryKey);
   if (!detected?.info.capabilities.includes('yt')) return;
@@ -163,9 +156,6 @@ export function prefetchPageData(pathname: string): void {
   }
 }
 
-// ---- Signed in (prompt §5.3) ------------------------------------------------------
-
-/** True when YouTube requests are made as the user (the extension reports a chosen channel). */
 export function useSignedIn(): boolean {
   const auth = useYtAuth();
   return auth.state === 'ready' && auth.auth.signedIn;
@@ -186,7 +176,6 @@ export function useLibrary(section: LibrarySection) {
   return useInfiniteQuery({ ...libraryQuery(section), enabled: signedIn });
 }
 
-/** The sidebar's playlist list. */
 export function useLibraryPlaylists() {
   const signedIn = useSignedIn();
   return useQuery({
@@ -209,7 +198,6 @@ export function useLikeStatus(videoId: string | null) {
   });
 }
 
-/** Like or unlike, shown at once and put back if YouTube refuses. */
 export function useSetLiked() {
   return useMutation({
     mutationFn: ({ videoId, liked }: { videoId: string; liked: boolean }) => setTrackLiked(videoId, liked),
@@ -227,7 +215,6 @@ export function useSetLiked() {
   });
 }
 
-/** Writes an album's or playlist's "in library" state into whichever cached page shows it. */
 function markSaved(playlistId: string, saved: boolean) {
   const apply = <T extends { library: HeaderInfo['library'] }>(page: T | null | undefined): T | null | undefined =>
     page?.library?.playlistId === playlistId ? { ...page, library: { playlistId, saved } } : page;
@@ -237,7 +224,6 @@ function markSaved(playlistId: string, saved: boolean) {
   );
 }
 
-/** "Add to Library" on an album or playlist header. */
 export function useSetListSaved() {
   return useMutation({
     mutationFn: ({ playlistId, saved }: { playlistId: string; saved: boolean }) => setListSaved(playlistId, saved),

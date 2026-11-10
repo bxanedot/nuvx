@@ -1,25 +1,14 @@
-/*
- * The app's one stylesheet. Components style themselves with Tailwind
- * utilities; this file holds the theme they draw on, the design tokens and
- * the element defaults.
- *
- * No preflight: the element defaults below are the app's own reset. Tokens
- * and defaults live in the base layer, so any utility outranks them.
- */
 @layer theme, base, components, utilities;
 
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
 @import './tokens.css' layer(base);
 
-/* Tailwind's hover: is (hover: hover)-gated; the design's hovers aren't. */
 @custom-variant hover (&:hover);
 
 @theme {
-  /* The design is measured in px (web/docs/apple-music-dom.md): p-4 is 16px at any root font size. */
   --spacing: 4px;
 
-  /* CSS's own keywords, as the design was written, not Tailwind's curves. */
   --ease-*: initial;
   --ease-in: ease-in;
   --ease-out: ease-out;
@@ -28,11 +17,10 @@
   --default-transition-duration: 0.15s;
 
   --breakpoint-*: initial;
-  --breakpoint-sm: 484px; /* below: phone, the sidebar becomes a drawer */
+  --breakpoint-sm: 484px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1000px;
 
-  /* Film grain over the 2D mesh fallback (MeshBackdrop). */
   --background-image-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   --animate-*: initial;
@@ -79,7 +67,6 @@
       transform: scale(1.02);
     }
   }
-  /* One label melting into the next, as the quality switcher's text changes. */
   @keyframes morph {
     from {
       opacity: 0;
@@ -104,11 +91,6 @@
   }
 }
 
-/*
- * The tokens (tokens.css) as Tailwind colours, radii and easings. Inline, so
- * a utility reads the token where it's used: tinted pages (data-tint) and
- * the dark appearance redefine them below :root.
- */
 @theme inline {
   --color-*: initial;
   --color-transparent: transparent;
@@ -201,18 +183,12 @@
   --type-footnote: var(--footnote);
 }
 
-/*
- * A type token from tokens.css (`type-body`), or a one-off `weight size/leading`
- * in DM Sans (`type-[700_19px/24px]`). Either way the `font` shorthand, as the
- * tokens are written.
- */
 @utility type-* {
   --tw-sort: font-family;
   font: --value(--type-*);
   font: --value([*]) var(--font-family);
 }
 
-/* Glass (report §1): the sidebar and side panel. */
 @utility glass-material {
   background-color: var(--glassMaterialBackground);
   backdrop-filter: var(--glassMaterialBackdropFilter);
@@ -228,7 +204,6 @@
   }
 }
 
-/* The player pill's glass: blurred fill and drop shadow (::before), 0.5px inner stroke (::after). */
 @utility glass-pill {
   isolation: isolate;
 
@@ -258,7 +233,6 @@
   }
 }
 
-/* Artwork's 0.5px inner stroke (report §1, "Inner stroke"), Apple's "has-borders". */
 @utility artwork-stroke {
   &::after {
     content: '';
@@ -275,10 +249,6 @@
   }
 }
 
-/*
- * Grouped settings rows: a hairline between two rows of the same kind, inset
- * from the left by the value (to the text, past an icon).
- */
 @utility hairline-* {
   & + &::before {
     content: '';
@@ -290,11 +260,6 @@
   }
 }
 
-/*
- * The phone's lyric typeface (SF Pro Display, app/src/main/res/font), cut to
- * Latin, Greek and Cyrillic. Other scripts fall through to DM Sans and the
- * system fonts. Its own family name, so a copy installed on a Mac can't stand in.
- */
 @font-face {
   font-family: 'nuvx SF Pro Display';
   src: url('../assets/fonts/sf-pro-display-regular.woff2') format('woff2');
@@ -333,7 +298,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Apple's player is an app, not a document: no rubber-band on the page. */
     overscroll-behavior: none;
   }
 
@@ -395,7 +359,6 @@
     background-color: rgba(var(--keyColor-rgb), 0.3);
   }
 
-  /* No focus ring, for the mouse or the keyboard: the user asked for the key-colour box to go. */
   :focus,
   :focus-visible {
     outline: none;

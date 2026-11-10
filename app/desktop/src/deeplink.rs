@@ -1,34 +1,15 @@
-//! Party invite links, as the Android apps and the web player share them:
-//! `nuvx://party/CODE` and `https://nuvx.lol/invite/CODE`.
-//!
-//! Clicking a link launches a new process with the URL as its argument. If another
-//! instance is already running, the new one hands the code over a named pipe and
-//! exits; the running instance queues it here and wakes the UI, which drains the
-//! queue with `take()` (the same pattern as `tray.rs`).
-
 use std::sync::Mutex;
 
 use crate::jam::normalize_code as normalize;
 
 static PENDING: Mutex<Vec<String>> = Mutex::new(Vec::new());
-/// A plain later launch asked for the window (see `forward_show`).
 static SHOW: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-/// What a plain later launch sends instead of a code.
 #[cfg_attr(not(windows), allow(dead_code))]
 const SHOW_MSG: &str = "show";
-/// The updater's relaunch passes this: the old copy may still be exiting, so don't hand over to it.
 pub const RELAUNCH_FLAG: &str = "--relaunch";
-/// Ask a running copy to bring its window up: `--show`. A plain launch already does
-/// this, but the flag says so explicitly — and when nothing is running, the app just
-/// starts as usual with its window up. Recovery path for a window hidden behind a
-/// tray icon the shell never drew (taskbar replacements can do that).
 pub const SHOW_FLAG: &str = "--show";
-/// Run with "Close to tray" off for this session, so × quits for real: `--no-tray`.
 pub const NO_TRAY_FLAG: &str = "--no-tray";
 
-/// The party code in a launch argument, if it is an invite link:
-/// `nuvx://party/CODE[/]` or `nuvx://party?code=CODE` (any case), or
-/// `https://nuvx.lol/invite/CODE` (a `?server=` on either is ignored).
 pub fn parse(arg: &str) -> Option<String> {
     let arg = arg.trim().trim_matches('"');
     let (scheme, rest) = arg.split_once("://")?;
@@ -45,7 +26,6 @@ pub fn parse(arg: &str) -> Option<String> {
     } else {
         return None;
     };
-    // Exactly six letters and digits, like the web player's `cleanCode`.
     (code.len() == crate::jam::CODE_LEN && code.chars().all(|c| c.is_ascii_alphanumeric())).then_some(())?;
     normalize(code)
 }
@@ -57,36 +37,26 @@ fn query_param<'a>(query: &'a str, name: &str) -> Option<&'a str> {
     })
 }
 
-/// The first invite link among the process arguments.
 pub fn from_args() -> Option<String> {
     std::env::args_os().skip(1).find_map(|a| parse(&a.to_string_lossy()))
 }
 
-/// Queue a code for the UI (e.g. from the launch arguments).
 pub fn push(code: String) {
     PENDING.lock().unwrap().push(code);
 }
 
-/// Codes received since the last call, oldest first.
 pub fn take() -> Vec<String> {
     std::mem::take(&mut *PENDING.lock().unwrap())
 }
 
-/// Whether a later launch asked for the window since the last call.
 pub fn take_show() -> bool {
     SHOW.swap(false, std::sync::atomic::Ordering::Relaxed)
 }
 
-/// A plain launch (or `--show`) while another copy runs: bring that one's window up
-/// instead, so only one copy uses (and refreshes) the Google session. Two copies
-/// refreshing it apart leave one with old cookies, which Google treats as stolen and
-/// signs out. True if a running copy took it.
 pub fn forward_show() -> bool {
     if std::env::args_os().any(|a| a == RELAUNCH_FLAG) {
         return false;
     }
-    // Windows only lets a background process take the foreground when the one the user
-    // just started allows it.
     #[cfg(windows)]
     unsafe {
         use windows::Win32::UI::WindowsAndMessaging::{ASFW_ANY, AllowSetForegroundWindow};
@@ -95,8 +65,6 @@ pub fn forward_show() -> bool {
     forward_to_running(SHOW_MSG)
 }
 
-/// Per-user pipe name. A dev profile (`NUVX_DATA_DIR`) gets its own, so test runs
-/// never talk to the installed copy.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn pipe_name() -> String {
     let user: String = std::env::var("USERNAME")
@@ -143,18 +111,14 @@ mod win {
 
     use super::{normalize, pipe_name, push};
 
-    /// Hand `code` to a running instance. True if one took it.
     pub fn forward_to_running(code: &str) -> bool {
         let name = pipe_name();
-        // The server has one pipe instance; between clients it is briefly busy.
         for _ in 0..20 {
             match std::fs::OpenOptions::new().write(true).open(&name) {
                 Ok(mut pipe) => {
                     return pipe.write_all(format!("{code}\n").as_bytes()).and_then(|_| pipe.flush()).is_ok();
                 }
-                // ERROR_PIPE_BUSY: another client is mid-handoff.
                 Err(e) if e.raw_os_error() == Some(231) => std::thread::sleep(std::time::Duration::from_millis(50)),
-                // No server (ERROR_FILE_NOT_FOUND) or anything else: nobody to hand to.
                 Err(_) => return false,
             }
         }
@@ -162,7 +126,6 @@ mod win {
     }
 
     struct Pipe(HANDLE);
-    // SAFETY: a pipe handle may be used from any thread.
     unsafe impl Send for Pipe {}
     impl Drop for Pipe {
         fn drop(&mut self) {
@@ -172,9 +135,6 @@ mod win {
         }
     }
 
-    /// Serve the pipe on a background thread: each code received is queued and
-    /// `wake` called. Only the first instance gets the pipe; any later one (a plain
-    /// second launch) does nothing here.
     pub fn listen(wake: impl Fn() + Send + 'static) {
         let name = pipe_name();
         let handle = unsafe {
@@ -190,7 +150,6 @@ mod win {
             )
         };
         if handle.is_invalid() {
-            // ERROR_ACCESS_DENIED here means another instance already serves it.
             log::info!("invite link pipe not served by this instance: {}", windows::core::Error::from_thread());
             return;
         }
@@ -205,7 +164,6 @@ mod win {
         loop {
             let connected = unsafe { ConnectNamedPipe(pipe.0, None) };
             if let Err(e) = connected {
-                // A client that connected between create/disconnect and this call.
                 if e.code() != ERROR_PIPE_CONNECTED.to_hresult() {
                     log::warn!("invite link pipe: {e}");
                     std::thread::sleep(std::time::Duration::from_millis(200));
@@ -218,7 +176,7 @@ mod win {
                 let mut n = 0u32;
                 let ok = unsafe { ReadFile(pipe.0, Some(&mut buf), Some(&mut n), None) };
                 if ok.is_err() || n == 0 {
-                    break; // ERROR_BROKEN_PIPE: the client wrote and closed.
+                    break;
                 }
                 msg.extend_from_slice(&buf[..n as usize]);
                 if msg.len() > 256 {
@@ -245,8 +203,6 @@ mod win {
         }
     }
 
-    /// Register the `nuvx:` URL protocol for this user, pointing at this exe.
-    /// Call only from an installed copy, so dev builds don't take the protocol over.
     pub fn register_protocol() {
         match std::env::current_exe() {
             Ok(exe) => {
@@ -311,9 +267,9 @@ mod tests {
             "%1",
             "ABC234",
             "nuvx://party/",
-            "nuvx://party/ABC23",      // too short
-            "nuvx://party/ABC2345",    // too long
-            "nuvx://party/ABC234/xyz", // extra path
+            "nuvx://party/ABC23",
+            "nuvx://party/ABC2345",
+            "nuvx://party/ABC234/xyz",
             "nuvx://room/ABC234",
             "https://example.com/invite/ABC234",
             "https://nuvx.lol/ABC234",

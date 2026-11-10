@@ -17,12 +17,6 @@ import { usePageTint } from '@/lib/usePageTint';
 import { PlaylistSkeleton } from '@/skeletons/PageSkeletons';
 import { detailFooter } from './pageStyles';
 
-/**
- * A Spotify playlist as an ordinary playlist page (MainViewModel.openSpotifyPage):
- * Spotify's rows go up at once, each swapped for its YouTube Music song as the
- * match arrives. Import keeps the result as a YouTube Music playlist
- * (SpotifyImportAlert), with the songs that found nothing left out and named.
- */
 export default function SpotifyPlaylistPage() {
   const id = decodeURIComponent(useParams().id ?? '');
   const extension = useExtension();
@@ -75,7 +69,6 @@ export default function SpotifyPlaylistPage() {
   );
 }
 
-/** Keeps the matched songs as a private YouTube Music playlist; asks once before writing to the account. */
 function ImportButton({ title, videoIds, ready }: { title: string; videoIds: string[]; ready: boolean }) {
   const ytSignedIn = useSignedIn();
   const navigate = useNavigate();

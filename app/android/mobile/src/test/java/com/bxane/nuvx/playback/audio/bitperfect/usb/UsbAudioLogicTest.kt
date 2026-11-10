@@ -16,8 +16,6 @@ class UsbAudioLogicTest {
 
     private fun bytes(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }
 
-    // ---- Descriptors ----------------------------------------------------------------------
-
     @Test
     fun parsesUac1FixedRateHeadsetWithoutClockControls() {
         val raw = bytes(
@@ -37,7 +35,6 @@ class UsbAudioLogicTest {
         assertEquals(0x0d, a.endpoints[0].attributes)
         assertEquals(0, a.endpoints[0].syncAddress)
         assertTrue(UsbDescriptors.formats(device, 44100, 2, 16, dsd = false, dop = false).isEmpty())
-        // Fixed at 48 kHz with no rate control: a plan only for exactly that rate.
         assertNotNull(UsbDescriptors.plan(a, matches[0].second))
     }
 
@@ -101,16 +98,12 @@ class UsbAudioLogicTest {
             bits = 24,
             subslot = 4,
             pcm = true,
-            // Asynchronous OUT endpoint (sync type 1) with no feedback endpoint.
             endpoints = listOf(UsbDescriptors.Endpoint(address = 1, attributes = 0x05, maxPacket = 512, interval = 1)),
         )
         val format = UsbDescriptors.formats(Device(alternates = listOf(a)), 96000, 2, 24, dsd = false, dop = false)
         assertNull(UsbDescriptors.plan(format[0].first, format[0].second))
     }
 
-    // ---- Volume ---------------------------------------------------------------------------
-
-    /** UAC2 control at one level, ranging -96..0 dB in 1 dB steps. */
     private class Fake(var db: Int, val mismatch: Boolean = false) : UsbControl {
         override fun transfer(input: Boolean, request: Int, value: Int, index: Int, data: ByteArray) {
             if (!input) {
@@ -139,7 +132,6 @@ class UsbAudioLogicTest {
         assertEquals(-70.0, UsbVolume.Volume.open(io, master).snapshot.currentDb, 0.0)
     }
 
-    /** The attenuator lives in the DAC: closing the stream must hand it back as found. */
     @Test
     fun restoreReturnsEveryChannelToItsLevelBeforeOpen() {
         class Stereo(val levels: IntArray) : UsbControl {

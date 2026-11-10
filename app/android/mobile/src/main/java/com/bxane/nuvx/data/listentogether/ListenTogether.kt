@@ -110,58 +110,6 @@ val ServerConnectionState.health: ListenTogether.Health
         ServerConnectionState.Offline -> ListenTogether.Health.OFFLINE
     }
 
-/**
- * Listen together: one party, shared by up to five signed-in devices.
- *
- * This object is the whole client half of the feature — membership, the socket,
- * the clock, and the controls any member may send. It does **not** touch the
- * player. What it publishes instead is [partyPositionMs]: where this device
- * ought to be, right now, on its own clock.
- * [PartySync][com.bxane.nuvx.playback.PartySync] is what binds that to
- * Media3, and it lives in the playback service rather than here, because
- * everything above that line is testable and everything below it is not.
- *
- * ## A party lasts as long as the app is open
- *
- * Backgrounding, the screen going off, a tunnel, a handover — none of those end
- * a party; that is most of what listening together looks like and the whole
- * reconnect loop below exists for it. Closing the app does end it. The slot is
- * given back at the next launch (see [init]) rather than kept warm, because a
- * party nobody is in is a party of five that only holds four.
- *
- * ## How it stays in time
- *
- * Nothing here acts on "play now" messages, and correctness never depends on
- * when a frame arrived. The server holds a position and the server time that
- * position was true at; [ServerClock] measures this device's offset from that
- * clock; and the playhead is arithmetic from the two. A frame delayed 300 ms
- * carries an anchor 300 ms older and still lands in exactly the right place —
- * which is what makes a party survive one member being on bad mobile data.
- *
- * Three things back that up:
- *
- *  - **Sequence numbers.** Every state the server sends carries a [seq]
- *    [PartyPlayback.seq] that only climbs. Anything not newer than what has
- *    already been applied is dropped unread, so two people pressing pause at
- *    the same moment settle instead of fighting.
- *  - **A heartbeat from the server.** Every few seconds the party is re-told
- *    where it is, unprompted. Lost frames, a phone back from doze, an offset
- *    that has wandered — none of those announce themselves, so nothing waits
- *    to be asked.
- *  - **A reconnect loop that assumes the socket will die.** On a phone it will:
- *    tunnels, handovers, screen-off. The membership outlives the socket (the
- *    server holds the slot through a grace period), so reconnecting is
- *    invisible to everyone else, and the clock is re-sampled on arrival rather
- *    than trusted across the gap.
- *
- * ## Identity
- *
- * Creating or joining requires a signed-in account — that is what puts real
- * names and faces in the member list on every device — and [identity] is where
- * that is enforced on this side. The server cannot verify the claim; what it
- * can do is refuse anyone without the token it minted, which is why the token
- * is stored and never shown.
- */
 object ListenTogether {
 
     enum class Connection { OFFLINE, CONNECTING, LIVE }
@@ -171,42 +119,21 @@ object ListenTogether {
         val you: PartyMember? = null,
         val members: List<PartyMember> = emptyList(),
         val maxMembers: Int = 5,
-        /** @see controlsLocked */
         val hostOnlyControl: Boolean = false,
         val playback: PartyPlayback = PartyPlayback(),
-        /**
-         * Held separately from [playback] because it arrives separately: the
-         * state frame carries only a sequence number for it, and this is
-         * replaced when the server says the list has actually changed.
-         */
         val queue: PartyQueue = PartyQueue(),
         val connection: Connection = Connection.OFFLINE,
-        /** False until the first round trip; the playhead is a guess until then. */
         val clockSynced: Boolean = false,
         val roundTripMs: Long = 0,
-        /** The last thing that went wrong, for the screen to show. */
         val error: String? = null,
     ) {
         val inParty: Boolean get() = code != null
         val isFull: Boolean get() = members.size >= maxMembers
 
-        /**
-         * Whether this device may not drive the music.
-         *
-         * True only for a listener in a party whose host has taken control of
-         * it — the host is never locked out of their own party, and a device
-         * that is not in one is not in this feature's business at all. The
-         * server enforces the same rule, so this is what the app shows rather
-         * than what makes it true; see `applyControl` in `worker/src/party.ts`.
-         *
-         * Host is reassigned when a host leaves, so this can go false under a
-         * listener mid-party. Everything reading it has to follow.
-         */
         val controlsLocked: Boolean
             get() = inParty && hostOnlyControl && you?.isHost != true
     }
 
-    /** A refusal from the server, carrying the machine-readable half. */
     class PartyException(val code: String, message: String, val statusCode: Int? = null) : Exception(message)
 
     sealed interface SwitchPartyResult {
@@ -224,11 +151,6 @@ object ListenTogether {
     private val http = HttpClient(OkHttp) {
         engine {
             config {
-                // Not the shared [Http.client]: that one is tuned for streaming
-                // media, and its read timeout would take down a socket that is
-                // merely quiet. A party can sit paused for ten minutes and the
-                // connection is not in trouble — the server's own heartbeat and
-                // the ping below are what say whether it is.
                 readTimeout(0, TimeUnit.MILLISECONDS)
                 connectTimeout(15, TimeUnit.SECONDS)
                 pingInterval(20, TimeUnit.SECONDS)
@@ -236,14 +158,8 @@ object ListenTogether {
             }
         }
         install(ContentNegotiation) { json(json) }
-        // Installed with no defaults so it changes nothing on its own — the
-        // socket in particular must stay open indefinitely. It exists so the
-        // health check can set a bound of its own; every other request is
-        // left to OkHttp's connect timeout above.
         install(HttpTimeout)
         install(WebSockets)
-        // Off, so a 409 "party full" can be read out of the body and shown as
-        // itself rather than arriving as a transport exception.
         expectSuccess = false
     }
 
@@ -255,17 +171,8 @@ object ListenTogether {
     val state: StateFlow<State> = _state.asStateFlow()
 
     private val _activity = MutableStateFlow<List<PartyActivity>>(emptyList())
-    /** Last 100 actions for this app session only. */
     val activity: StateFlow<List<PartyActivity>> = _activity.asStateFlow()
 
-    /**
-     * A server the user has pointed this install at instead of the built-in one.
-     *
-     * Blank means "the one this build ships with", and that address is
-     * deliberately never published — not through this flow, not on screen, and
-     * not in a log. See [redact]. So this is the only server address the app
-     * will ever show back, because it is the only one the user typed.
-     */
     fun parseAndNormalizeServerUrl(raw: String): ServerUrlValidationResult {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return ServerUrlValidationResult.Valid("")
@@ -363,48 +270,24 @@ object ListenTogether {
     private val _customServer = MutableStateFlow("")
     val customServerUrl: StateFlow<String> = _customServer.asStateFlow()
 
-    /**
-     * The default party server this build ships pointed at, from `LISTEN_TOGETHER_SERVER`
-     * in `local.properties` or build environment.
-     */
     val defaultServer: String = when (val res = parseAndNormalizeServerUrl(BuildConfig.LISTEN_TOGETHER_SERVER)) {
         is ServerUrlValidationResult.Valid -> res.normalizedUrl
         is ServerUrlValidationResult.Invalid -> error("Invalid BuildConfig.LISTEN_TOGETHER_SERVER: ${BuildConfig.LISTEN_TOGETHER_SERVER}")
     }
 
-    /**
-     * The dynamic server currently determined to be healthy and available for IDLE operations.
-     * Probes custom server first if configured; falls back to [defaultServer] if custom is down.
-     */
     private val _effectiveIdleServer = MutableStateFlow(defaultServer)
     fun effectiveIdleServerBase(): String = _effectiveIdleServer.value
 
-    /**
-     * The server a party switch should target when the invite itself does not
-     * name one.
-     *
-     * [customServer] is `""` when nobody has configured one — not the
-     * default server's address — so a switch with no explicit target (a
-     * typed code, entered while already live in a party) has to fall back to
-     * whichever server idle joins already resolve to. Handed the raw empty
-     * string instead, [switchPartyWithRecovery] treats it as a malformed
-     * target and refuses the switch outright.
-     */
     fun resolveSwitchTarget(
         inviteServer: String?,
         customServer: String,
         idleServer: String = effectiveIdleServerBase(),
     ): String = inviteServer ?: customServer.ifBlank { idleServer }
 
-    /**
-     * The actual server hosting the active party session. Non-null while [State.inParty] is true.
-     * Immutable during the party session and never mutated by idle health checks.
-     */
     @Volatile
     private var activePartyServerBase: String? = null
     fun activePartyServerBase(): String? = activePartyServerBase
 
-    /** Whether idle operations are currently falling back to the default server. */
     val isUsingDefaultFallback: Boolean
         get() {
             val configured = _customServer.value
@@ -413,7 +296,6 @@ object ListenTogether {
                 configured != defaultServer
         }
 
-    /** Whether a party can be reached at all — a built-in or a custom address. */
     val hasServer: Boolean get() = effectiveIdleServerBase().isNotBlank()
 
     enum class Health { UNKNOWN, CHECKING, ONLINE, OFFLINE }
@@ -470,14 +352,6 @@ object ListenTogether {
         }
     }
 
-    /**
-     * Whether the periodic idle health poll should be skipped.
-     *
-     * Pure so it can be unit-tested without Android. Issue #788: the old
-     * monitor polled `/healthz` every 10s whenever the screen was open, even
-     * on metered data with no party. The socket itself proves reachability
-     * while live, and nothing reads the status row unless the screen is open.
-     */
     internal fun shouldSkipIdleProbe(
         screenActive: Boolean,
         connectionLive: Boolean,
@@ -495,10 +369,6 @@ object ListenTogether {
         healthMonitorJob = scope.launch {
             while (isActive) {
                 delay(HEALTH_POLL_INTERVAL_MS)
-                // Nobody is looking at the status row unless the screen is open,
-                // and every poll is a request to a server shared by every install.
-                // A live party socket already proves the server is reachable.
-                // Off-party polls are also skipped on metered connections (#788).
                 val snapshot = _state.value
                 if (!shouldSkipIdleProbe(
                         screenActive = isScreenActive,
@@ -532,7 +402,6 @@ object ListenTogether {
             } else {
                 val defaultProbe = probeDefault()
                 if (defaultProbe.isOnline) {
-                    // Invariant: CustomFallback latency is strictly the default server's latency
                     defaultServer to ServerConnectionState.CustomFallback(defaultProbe.latencyMs)
                 } else {
                     defaultServer to ServerConnectionState.Offline
@@ -684,8 +553,6 @@ object ListenTogether {
                 manager.registerDefaultNetworkCallback(
                     object : ConnectivityManager.NetworkCallback() {
                         override fun onAvailable(network: Network) {
-                            // A real network switch is worth one recheck, unless
-                            // it would be skipped as idle anyway (#788).
                             val snapshot = _state.value
                             if (!shouldSkipIdleProbe(
                                     screenActive = isScreenActive,
@@ -701,25 +568,15 @@ object ListenTogether {
                             _serverConnectionState.value = ServerConnectionState.Offline
                             _serverStatus.value = ServerStatus(Health.OFFLINE)
                         }
-                        // onCapabilitiesChanged is deliberately not handled: it fires on
-                        // every signal-strength change, and each one used to cost a
-                        // /healthz request. onAvailable covers a real network switch.
                     }
                 )
             }
         }
 
         startHealthMonitor()
-        // One resolution per process so create/join targets the right server
-        // (custom vs default fallback) without opening the screen first. The
-        // periodic monitor above is what was draining in #788, not this.
         refreshServerHealth(showChecking = true)
     }
 
-    /**
-     * Hands a previous process's slot back, so the others see them leave now
-     * rather than when the server's disconnect grace sweeps it.
-     */
     private fun releaseStaleSlotOnServer(serverBase: String, code: String, held: String) {
         if (serverBase.isBlank() || code.isBlank() || held.isBlank()) return
         scope.launch {
@@ -738,7 +595,6 @@ object ListenTogether {
         releaseStaleSlotOnServer(server, code, held)
     }
 
-    /** Points this install at another server, or back at the default one if blank. */
     suspend fun setCustomServerUrl(normalizedUrl: String): ServerConnectionState {
         require(parseAndNormalizeServerUrl(normalizedUrl) == ServerUrlValidationResult.Valid(normalizedUrl)) {
             "setCustomServerUrl accepts only canonical URLs produced by parseAndNormalizeServerUrl"
@@ -760,7 +616,6 @@ object ListenTogether {
         return job.await()
     }
 
-    /** Whether this device has an account it can jam as. */
     fun canJoin(): Boolean = identity() != null
 
     fun nickname(): String = prefs.getString(KEY_NICKNAME, null).orEmpty()
@@ -769,16 +624,11 @@ object ListenTogether {
         prefs.edit().putString(KEY_NICKNAME, value.trim().take(80)).apply()
     }
 
-    /**
-     * Opens the socket for a membership that was restored from storage.
-     */
     fun ensureConnected() {
         if (_state.value.code == null || token == null) return
         if (socketJob?.isActive == true) return
         connect()
     }
-
-    // ------------------------------------------------------------ joining --
 
     suspend fun createParty(nickname: String = nickname(), maxMembers: Int = 5): Result<String> = switchMutex.withLock {
         val primary = effectiveIdleServerBase()
@@ -844,18 +694,6 @@ object ListenTogether {
         return membership.code
     }
 
-    /**
-     * Joins a party from the currently active server.
-     *
-     * Architectural contract:
-     * - Precondition: IDLE only.
-     * - Used by manual party-code entry.
-     * - Performs a direct Idle -> Live transition.
-     *
-     * Do not merge this with [switchPartyWithRecovery]. Deep-link invites
-     * require target-first transactional semantics and recovery guarantees
-     * that are intentionally not part of this API.
-     */
     suspend fun joinParty(code: String, nickname: String = nickname()): Result<String> = switchMutex.withLock {
         val targetServer = resolveHttpBase(effectiveIdleServerBase())
         runCatching {
@@ -901,30 +739,6 @@ object ListenTogether {
         return membership.code
     }
 
-    /**
-     * Transactionally transitions to an invite target.
-     *
-     * Architectural contract:
-     *
-     * Before successful target `/join`, this method must not mutate the current
-     * party membership, current token, or persisted server preference.
-     *
-     * Phase 1 — Target join (cancellable):
-     * - Target /join is attempted before mutating the current party or
-     *   persisted server preference.
-     * - If the target fails, the current party remains untouched.
-     *
-     * Phase 2 — Local commit (NonCancellable):
-     * - Begins only after the target join succeeds.
-     * - Commits the target server/token and local CONNECTING state.
-     * - Dispatches old-party cleanup asynchronously.
-     * - Target WebSocket establishment occurs outside the commit boundary.
-     *
-     * This API is intentionally separate from [joinParty]. It is the
-     * deep-link transition state machine and may begin from either IDLE
-     * or LIVE. It strictly contacts [targetCustomServer] and NEVER queries
-     * or triggers idle fallback.
-     */
     suspend fun switchPartyWithRecovery(
         targetCustomServer: String,
         targetCode: String,
@@ -978,7 +792,6 @@ object ListenTogether {
             val oldCode = _state.value.code
             val oldToken = token
 
-            // Step 1: Join Target First while old party stays connected & playing
             val targetJoinResult = runCatching {
                 post(
                     "$targetBase/api/parties/$cleanedTargetCode/join",
@@ -996,27 +809,21 @@ object ListenTogether {
                 }
             }
 
-            // Step 2: Target join succeeded! Commit switch & leave old party inside NonCancellable
             withContext(NonCancellable) {
-                // Asynchronously release old party slot on old server
                 if (!oldCode.isNullOrBlank() && !oldToken.isNullOrBlank() &&
                     (oldServerBase != targetBase || !oldCode.equals(membership.code, ignoreCase = true))
                 ) {
                     releaseStaleSlotOnServer(oldServerBase, oldCode, oldToken)
                 }
 
-                // Stop old socket
                 socketJob?.cancel()
                 socketJob = null
                 session = null
 
-                // Commit active party server authority
                 activePartyServerBase = targetBase
 
-                // Commit new server URL setting
                 setCustomServerUrl(normTarget)
 
-                // Commit new party session
                 token = membership.token
                 prefs.edit()
                     .putString(KEY_CODE, membership.code)
@@ -1034,14 +841,12 @@ object ListenTogether {
                 )
             }
 
-            // Outside NonCancellable: establish socket connection
             connect()
 
             SwitchPartyResult.Success(membership.code)
         }
     }
 
-    /** Give up this device's slot. The party carries on without it. */
     suspend fun leaveParty() = switchMutex.withLock {
         withContext(Dispatchers.IO) {
             val code = _state.value.code
@@ -1060,13 +865,6 @@ object ListenTogether {
             }
         }
     }
-
-    // ------------------------------------------------------------ controls --
-    //
-    // Any member may send any of these, unless the host has taken control of
-    // the party — see [State.controlsLocked] and [setHostOnlyControl]. The
-    // server enforces that independently of anything the app does, so a control
-    // sent anyway comes back refused rather than quietly obeyed.
 
     fun play(positionMs: Long? = null) = control("play") { positionMs?.let { put("positionMs", it) } }
 
@@ -1113,7 +911,6 @@ object ListenTogether {
 
     fun setAutoplay(enabled: Boolean) = control("setAutoplay") { put("enabled", enabled) }
 
-    /** Host only, and refused by the server from anybody else. @see State.controlsLocked */
     fun setHostOnlyControl(enabled: Boolean) =
         control("setHostOnlyControl") { put("enabled", enabled) }
 
@@ -1134,41 +931,13 @@ object ListenTogether {
         }
     }
 
-    /**
-     * A resume this device has accepted but is not allowed to perform yet.
-     *
-     * In a party a local `play()` is withheld and performed later, on the
-     * instant the server schedules for everyone — see `PartySync.shouldDeferPlay`.
-     * Nothing about the player moves during that wait, so a play button reading
-     * `isPlaying` sat on "play" and then snapped to "pause" once the echo landed,
-     * which reads as a glitch rather than as the deliberate wait it is.
-     *
-     * Written only by `PartySync`, which owns the wait; held here because the
-     * player screen is the only thing that needs to see it and the playback
-     * service is not something the UI can reach.
-     */
     private val _awaitingStart = MutableStateFlow(false)
     val awaitingStart: StateFlow<Boolean> = _awaitingStart.asStateFlow()
 
-    /** @see awaitingStart */
     fun setAwaitingStart(value: Boolean) {
         _awaitingStart.value = value
     }
 
-    // --------------------------------------------------------- the playhead --
-
-    /**
-     * Where this device should be in the current track, right now.
-     *
-     * The one number the player layer will need, and the reason the rest of
-     * this class exists. Null when there is no party, or nothing playing in it.
-     *
-     * Before the first pong lands there is no offset to convert with, and this
-     * falls back to the server's own reading at the moment it sent the frame —
-     * which is right to within the age of that frame, and wrong by exactly the
-     * amount the clock sync exists to remove. So it is a starting point, not a
-     * thing to seek to: wait for [State.clockSynced] before acting on it.
-     */
     fun partyPositionMs(): Long? {
         val playback = _state.value.playback
         val track = playback.track ?: return null
@@ -1180,11 +949,6 @@ object ListenTogether {
         return if (duration != null) minOf(position, duration) else position
     }
 
-    /**
-     * How far in the future the party's next resume is scheduled, or 0 if it is
-     * already under way. The player layer waits this out rather than starting
-     * early and seeking.
-     */
     fun msUntilStart(): Long {
         val playback = _state.value.playback
         if (!playback.isPlaying) return 0
@@ -1192,23 +956,11 @@ object ListenTogether {
         return (playback.anchorMs - serverNow).coerceAtLeast(0)
     }
 
-    // ------------------------------------------------------------- socket --
-
     private fun connect() {
         socketJob?.cancel()
         socketJob = scope.launch { runSocketLoop() }
     }
 
-    /**
-     * Connect, pump frames until the connection goes away for any reason, back
-     * off, go round again.
-     *
-     * The loop is the design, not error handling bolted onto one. A socket held
-     * by a backgrounded music app will be dropped repeatedly over a listening
-     * session — the radio sleeping, a Wi-Fi handover, a captive portal, the
-     * server's free instance spinning down — and every one of those has to heal
-     * without anyone reopening the app.
-     */
     private suspend fun runSocketLoop() {
         var backoffMs = 1_000L
         while (currentScopeActive()) {
@@ -1238,14 +990,8 @@ object ListenTogether {
             }
             if (!currentScopeActive()) return
             _state.update { it.copy(connection = Connection.CONNECTING) }
-            // The clock is not carried across a gap. Whatever the offset was
-            // before the socket died, the only honest thing to say afterwards is
-            // that it has not been measured since.
             clock.reset()
             _state.update { it.copy(clockSynced = false) }
-            // Jittered, or every client that lost the socket in the same outage
-            // retries at the same instants and a recovering server is hit by the
-            // whole crowd at once.
             delay(backoffMs / 2 + Random.nextLong(backoffMs + 1))
             backoffMs = (backoffMs * 2).coerceAtMost(30_000L)
         }
@@ -1254,15 +1000,6 @@ object ListenTogether {
     private suspend fun currentScopeActive(): Boolean =
         kotlinx.coroutines.currentCoroutineContext().isActive
 
-    /**
-     * A burst on arrival, then a slow trickle.
-     *
-     * The burst is what makes the first seconds of a party accurate: the best of
-     * several quick round trips is a far better offset than the first one, and
-     * the first one is what the playhead would otherwise be built on. After
-     * that the offset only has to keep up with clock drift, which on a phone is
-     * milliseconds per minute.
-     */
     private suspend fun DefaultClientWebSocketSession.pingLoop() {
         repeat(4) {
             ping()
@@ -1283,14 +1020,6 @@ object ListenTogether {
         runCatching { send(Frame.Text(frame.toString())) }
     }
 
-    /**
-     * Tells the server where this device actually is.
-     *
-     * Nothing is decided by it — the server's state is the truth, and a party
-     * averaged towards its slowest member would be a party that drags. It keeps
-     * the membership alive and makes real drift visible in the server log,
-     * which is the only place the two halves of this feature can be compared.
-     */
     private suspend fun DefaultClientWebSocketSession.reportLoop() {
         while (true) {
             delay(REPORT_INTERVAL_MS)
@@ -1322,9 +1051,6 @@ object ListenTogether {
                     maxMembers = party.maxMembers,
                     hostOnlyControl = party.hostOnlyControl,
                     playback = party.playback,
-                    // A snapshot is the one message that carries the queue
-                    // unconditionally — a device that has just arrived has no
-                    // other way to learn it.
                     queue = party.queue,
                     connection = Connection.LIVE,
                     error = null,
@@ -1345,16 +1071,8 @@ object ListenTogether {
                 val playback = frame["playback"]?.let {
                     runCatching { json.decodeFromJsonElement(PartyPlayback.serializer(), it) }.getOrNull()
                 } ?: return
-                // Older than what is already applied, so it says nothing. This
-                // is the guard that keeps two simultaneous controllers from
-                // sending each other backwards.
                 if (playback.seq < _state.value.playback.seq) return
                 _state.update { it.copy(playback = playback) }
-                // The queue does not ride along with the state — only its
-                // sequence number does. Disagreeing with the copy held here
-                // means a queue frame was missed, which the heartbeat therefore
-                // heals within a few seconds rather than leaving the running
-                // order wrong until somebody happens to change it.
                 if (playback.queueSeq != _state.value.queue.seq) {
                     send(buildJsonObject { put("type", "syncQueue") })
                 }
@@ -1378,9 +1096,6 @@ object ListenTogether {
                     }.getOrNull()
                 } ?: return
                 val maxMembers = frame["maxMembers"]?.jsonPrimitive?.content?.toIntOrNull() ?: _state.value.maxMembers
-                // Absent on a server that predates the setting, which is not
-                // the same as "off": keeping the value already held means an
-                // upgrade mid-party does not silently unlock the party.
                 val hostOnly = frame["hostOnlyControl"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
                     ?: _state.value.hostOnlyControl
                 _state.update { current ->
@@ -1388,13 +1103,6 @@ object ListenTogether {
                         members = members,
                         maxMembers = maxMembers,
                         hostOnlyControl = hostOnly,
-                        // This frame is the only place a promotion is ever
-                        // announced — the server hands the role to an arbitrary
-                        // survivor when a host leaves and says so nowhere else.
-                        // Left unread, [State.you] keeps saying "not the host"
-                        // for the rest of the party, which hides the host's own
-                        // controls from them and, with [hostOnlyControl] on,
-                        // locks them out of a party they now own.
                         you = current.you
                             ?.let { mine -> members.firstOrNull { it.memberId == mine.memberId } }
                             ?: current.you,
@@ -1415,24 +1123,12 @@ object ListenTogether {
                 val message = frame["message"]?.jsonPrimitive?.content
                 Log.w(TAG, "party server refused a frame: $reason ${redact(message)}")
                 _state.update { it.copy(error = message) }
-                // These two are terminal, and the reconnect loop cannot learn
-                // that on its own — it would keep dialling a party that no
-                // longer knows this device for as long as the app is open. The
-                // ordinary way to reach here is the server having restarted,
-                // which on a free instance is every idle spin-down.
                 if (reason == "bad_token" || reason == "no_such_party") {
                     scope.launch { leaveParty() }
                 }
             }
 
             "bye" -> {
-                // The server has let this membership go — the slot was swept, or
-                // the party ended. Reconnecting would be answered with 4401
-                // forever, so the loop is stopped rather than left spinning.
-                //
-                // A removal is the one kind worth remembering: the code goes on
-                // this device's own shut-out list before the state carrying it
-                // is torn down. See [recentKicks].
                 if (frame["reason"]?.jsonPrimitive?.content == "kicked") {
                     _state.value.code?.let(::recordKick)
                 }
@@ -1441,8 +1137,6 @@ object ListenTogether {
         }
     }
 
-    // ------------------------------------------------------------- plumbing --
-
     private data class Identity(
         val userId: String,
         val deviceId: String,
@@ -1450,19 +1144,6 @@ object ListenTogether {
         val avatar: String?,
     )
 
-    /**
-     * Who this device is jamming as, or null if it cannot.
-     *
-     * [AuthStore.isSignedIn][com.bxane.nuvx.auth.AuthStore.isSignedIn]
-     * rather than "is there a cookie": a jar with no signable secret in it is a
-     * session the app is already treating as signed out everywhere else, and a
-     * party is not the place to start disagreeing with that.
-     *
-     * [userId] is a hash of the account and profile ids, not either of them. It
-     * only has to be stable and comparable — the server never needs to know
-     * which Google account it stands for, and a party server that accumulated
-     * real account identifiers would be holding something it has no use for.
-     */
     private fun identity(nickname: String = nickname()): Identity? {
         val store = NuvxApplication.authStore
         if (!store.isSignedIn) return null
@@ -1478,25 +1159,10 @@ object ListenTogether {
             userId = sha256("${account.accountId}:${profile?.profileId.orEmpty()}").take(32),
             deviceId = deviceId(),
             name = name,
-            // Account thumbnails come at ~88px; the party screens draw them far larger.
             avatar = profile?.avatar?.takeIf { it.startsWith("http") }?.artworkAt(AVATAR_PX),
         )
     }
 
-    // ------------------------------------------------------- recent kicks --
-
-    /**
-     * Parties this device was removed from, and when it may ask again.
-     *
-     * Held here rather than on the server, which forgets a party minutes after
-     * it empties and would have to keep a list of who is not welcome where for
-     * far longer than it keeps the party itself. A host who removes somebody
-     * gets a door that stays shut for a day without the server carrying a
-     * grudge; somebody determined to get back in can clear the app's data, and
-     * that is an acceptable trade for a guard rail rather than a ban.
-     *
-     * Stored as code → the epoch millisecond it lapses, pruned on every read.
-     */
     private fun recentKicks(): Map<String, Long> {
         val raw = prefs.getString(KEY_KICKED, null) ?: return emptyMap()
         val stored = runCatching {
@@ -1520,20 +1186,12 @@ object ListenTogether {
         prefs.edit().putString(KEY_KICKED, encoded).apply()
     }
 
-    /** @see recentKicks */
     private fun recordKick(code: String) {
         val normalised = code.filter { it.isLetterOrDigit() }.uppercase()
         if (normalised.isEmpty()) return
         writeKicks(recentKicks() + (normalised to System.currentTimeMillis() + KICK_BLOCK_MS))
     }
 
-    /**
-     * Refuses a party this device was recently removed from.
-     *
-     * The refusal says it was removed and not for how long: a countdown is an
-     * invitation to wait it out, and the listener's business is with the host
-     * rather than with a timer.
-     */
     private fun refuseIfRecentlyKicked(code: String) {
         if (recentKicks().containsKey(code)) {
             throw PartyException(
@@ -1543,22 +1201,8 @@ object ListenTogether {
         }
     }
 
-    /**
-     * The picture the rest of the party will see against this device's name.
-     *
-     * Read off [identity] rather than the account directly, so the settings
-     * screen shows what will actually be sent rather than a second guess at it
-     * — including answering null in the cases a party cannot be joined at all.
-     */
     fun myAvatarUrl(): String? = identity()?.avatar
 
-    /**
-     * This install's identity to the party, independent of who is signed in.
-     *
-     * The server counts devices, not people, and uses this to tell a rejoin
-     * from a sixth device — so it has to survive a sign-out, an account switch
-     * and a process death, and must not survive an uninstall.
-     */
     private fun deviceId(): String {
         prefs.getString(KEY_DEVICE, null)?.let { return it }
         return UUID.randomUUID().toString().also {
@@ -1571,15 +1215,6 @@ object ListenTogether {
         _activity.value = next
     }
 
-    /**
-     * Who is in a party, before committing a slot to it.
-     *
-     * Unauthenticated on both sides — see the server's `handlePreviewParty` for
-     * why that is safe — so this works from the code somebody read out as
-     * readily as from a tapped link. A party this device was recently removed
-     * from is refused here too, so the refusal arrives while the code is still
-     * on screen rather than after a confirmation the listener cannot act on.
-     */
     suspend fun previewParty(code: String, server: String? = null): Result<PartyPreview> {
         val cleaned = code.filter { it.isLetterOrDigit() }.uppercase()
         if (cleaned.length != CODE_LENGTH) {
@@ -1592,18 +1227,6 @@ object ListenTogether {
             val response = http.get("$base/api/parties/$cleaned/preview")
             if (!response.status.isSuccess()) {
                 val problem = response.toPartyException()
-                // A server that predates this endpoint is not the same answer
-                // as a code that does not exist, and the two arrive as the same
-                // status. What tells them apart is the body: the handler's own
-                // 404 is JSON with a code in it, while a route the router has
-                // never heard of is answered by the router, in plain text, so
-                // nothing parses and the code falls back to the status.
-                //
-                // Worth the paragraph because the invite in somebody's hand may
-                // point at any server at all — an older deploy, or a copy they
-                // run themselves — and a party that cannot be *looked at* is a
-                // party that cannot be joined. Without a face to show, the
-                // confirmation is still a confirmation.
                 if (problem.statusCode == 404 && problem.code == "http_404") {
                     return@runCatching PartyPreview(code = cleaned)
                 }
@@ -1630,8 +1253,6 @@ object ListenTogether {
         return PartyException(
             code = parsed?.code.orEmpty().ifBlank { "http_${status.value}" },
             message = parsed?.message?.takeIf { it.isNotBlank() }
-                // 422 is the server rejecting an identity, which here can only
-                // mean the account layer handed over something blank.
                 ?: if (status.value == 422) "This account can't be used to jam."
                 else "The party server said ${status.value}.",
             statusCode = status.value,
@@ -1641,24 +1262,12 @@ object ListenTogether {
     fun normalizeServerBase(value: String): String =
         value.trim().trimEnd('/')
 
-    /**
-     * Resolves the given custom server (or default server if blank) to a fully qualified HTTP base URL.
-     */
     private fun resolveHttpBase(server: String): String {
         val raw = normalizeServerBase(server).ifBlank { defaultServer }
         if (raw.isBlank()) return ""
         return if (raw.startsWith("http://") || raw.startsWith("https://")) raw else "https://$raw"
     }
 
-    /**
-     * A message with every server address taken out of it.
-     *
-     * Failures from the HTTP and WebSocket layers name the host they were
-     * talking to — that is what they are for — and those messages end up in two
-     * places that must not carry it: logcat, and the error line on the Listen
-     * Together screen. So nothing from below this class reaches either without
-     * passing through here.
-     */
     private fun redact(text: String?): String {
         var out = text.orEmpty()
         if (out.isEmpty()) return out
@@ -1670,9 +1279,6 @@ object ListenTogether {
         return out.replace(ABSOLUTE_URL, SERVER_PLACEHOLDER)
     }
 
-    /**
-     * What the listener is told when the transport fails.
-     */
     private fun Throwable.displayMessage(): String = when (this) {
         is PartyException -> message ?: UNREACHABLE
         else -> UNREACHABLE
@@ -1696,7 +1302,6 @@ object ListenTogether {
     private const val PREFS = "nuvx_listen_together"
     private const val KEY_SERVER = "server_url"
 
-    /** What a redacted address reads as. Not a hostname, so it cannot be resolved back. */
     private const val SERVER_PLACEHOLDER = "<party server>"
 
     private const val UNREACHABLE = "Couldn’t reach the party server."
@@ -1708,15 +1313,10 @@ object ListenTogether {
     private const val KEY_NICKNAME = "party_nickname"
     private const val KEY_KICKED = "party_kicked_until"
 
-    /** How long a removal keeps this device out of that party. */
     private const val KICK_BLOCK_MS = 24L * 60 * 60 * 1000
 
     private const val PING_INTERVAL_MS = 15_000L
-    // Polled only while the Listen Together screen is open and no party socket is
-    // live (see shouldSkipIdleProbe), so 10s costs nothing when nobody is looking.
     private const val HEALTH_POLL_INTERVAL_MS = 10_000L
-    // Debounces rapid screen toggles and network-callback bursts. Must stay at or
-    // below the poll interval, or the debounce silently stretches the poll.
     private const val HEALTH_MIN_GAP_MS = 5_000L
     private const val REPORT_INTERVAL_MS = 10_000L
     private const val HEALTH_TIMEOUT_MS = 45_000L

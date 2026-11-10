@@ -61,7 +61,6 @@ describe('history reporting', () => {
     ended.forEach((listener) => listener());
     await vi.waitFor(() => expect(pings.some((u) => u.includes('/watchtime') && u.includes('final=1') && u.includes('et=212'))).toBe(true));
 
-    // Repeat one: the same video starts over.
     audio.currentTime = 0;
     player.setState({ status: 'buffering' });
     player.setState({ status: 'playing' });

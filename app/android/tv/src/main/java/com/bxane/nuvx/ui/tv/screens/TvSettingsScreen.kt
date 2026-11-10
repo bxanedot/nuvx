@@ -50,16 +50,10 @@ import com.bxane.nuvx.ui.tv.theme.TvDimensions
 import com.bxane.nuvx.ui.tv.theme.TvGlass
 import com.bxane.nuvx.ui.tv.theme.TvType
 
-// Discord Rich Presence is hidden on TV for now; TvDiscordDialog is kept for when it returns.
 private enum class SettingsSheet { Theme, RefreshRate, Equalizer, Scrobbling, LyricsSources, Update, About }
 
 private const val DefaultBlurb = "Playback, sound and display preferences for nuvx on this TV."
 
-/**
- * Settings, as tvOS lays it out: the app on the left with a plain description of
- * whatever row has focus, the grouped rows on the right. Values are written out
- * ("On", "6 s") and change in place on select; rows that need a choice open one.
- */
 @Composable
 fun TvSettingsScreen(
     viewModel: MainViewModel,

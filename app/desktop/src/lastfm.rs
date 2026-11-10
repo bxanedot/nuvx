@@ -1,11 +1,3 @@
-//! Last.fm scrobbling: "now playing" when a song starts, and a scrobble once it has
-//! played half its length or 4 minutes (Last.fm's rule; songs under 30 s don't count).
-//!
-//! Sign-in is Last.fm's desktop flow: get a token, let the user allow nuvx in the
-//! browser, then trade the token for a session key (kept in Credential Manager).
-//! Scrobbles that can't be sent (offline, Last.fm down) wait in `lastfm_queue.json`
-//! and go out with the next one.
-
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
@@ -14,15 +6,11 @@ use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-// nuvx's own Last.fm API account, given at build time like the Android apps
-// (LASTFM_API_KEY / LASTFM_SECRET); a build without them can't sign in to Last.fm.
 const API_KEY: &str = match option_env!("LASTFM_API_KEY") { Some(k) => k, None => "" };
 const SECRET: &str = match option_env!("LASTFM_SECRET") { Some(k) => k, None => "" };
 const ROOT: &str = "https://ws.audioscrobbler.com/2.0/";
 const VAULT: &str = "lastfm";
-/// Last.fm takes up to 50 scrobbles per request.
 const BATCH: usize = 50;
-/// How long to wait for the user to allow access in the browser.
 const SIGN_IN_WAIT: Duration = Duration::from_secs(300);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -30,9 +18,7 @@ pub struct Scrobble {
     pub artist: String,
     pub track: String,
     pub album: Option<String>,
-    /// Seconds.
     pub duration: Option<u32>,
-    /// Unix seconds when the song started playing.
     pub timestamp: i64,
 }
 
@@ -48,10 +34,8 @@ struct State {
 }
 
 static STATE: LazyLock<Mutex<State>> = LazyLock::new(|| Mutex::new(State { session: None, data_dir: PathBuf::new(), queue: Vec::new() }));
-/// One send at a time, so a queued scrobble never goes out twice.
 static SENDING: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(Default::default);
 
-/// Load the saved session and any scrobbles still waiting to be sent.
 pub fn init(data_dir: &Path) {
     let session = crate::vault::get(VAULT, data_dir).and_then(|b| {
         let s = String::from_utf8(b).ok()?;
@@ -62,7 +46,6 @@ pub fn init(data_dir: &Path) {
     *STATE.lock().unwrap() = State { session, data_dir: data_dir.to_owned(), queue };
 }
 
-/// The signed-in Last.fm user.
 pub fn user() -> Option<String> {
     STATE.lock().unwrap().session.as_ref().map(|s| s.name.clone())
 }
@@ -75,8 +58,6 @@ pub fn sign_out() {
     crate::vault::delete(VAULT, &st.data_dir);
 }
 
-/// Ask the user to allow nuvx on last.fm (in their browser) and wait until they do.
-/// Returns the account name.
 pub async fn sign_in(http: &reqwest::Client) -> anyhow::Result<String> {
     anyhow::ensure!(!API_KEY.is_empty() && !SECRET.is_empty(), "this build of nuvx has no Last.fm API key");
     let token = call(http, "auth.getToken", &[], None, false).await?;
@@ -95,7 +76,6 @@ pub async fn sign_in(http: &reqwest::Client) -> anyhow::Result<String> {
                 log::info!("last.fm: signed in as {name}");
                 return Ok(name);
             }
-            // 14: not allowed yet.
             Err(e) if code(&e) == Some(14) && t0.elapsed() < SIGN_IN_WAIT => {}
             Err(e) if code(&e) == Some(14) => anyhow::bail!("Last.fm wasn't allowed in time"),
             Err(e) => return Err(e),
@@ -119,7 +99,6 @@ pub async fn now_playing(http: &reqwest::Client, s: &Scrobble) {
     }
 }
 
-/// Scrobble `s`, along with any earlier ones still waiting.
 pub async fn scrobble(http: &reqwest::Client, s: Scrobble) {
     let _sending = SENDING.lock().await;
     let Some(sk) = session_key() else { return };
@@ -152,13 +131,11 @@ pub async fn scrobble(http: &reqwest::Client, s: Scrobble) {
                 st.queue.drain(..batch.len());
                 save_queue(&st);
             }
-            // 9: the session was revoked on last.fm.
             Err(e) if code(&e) == Some(9) => {
                 log::warn!("last.fm: session no longer valid; signing out");
                 sign_out();
                 break;
             }
-            // Offline or Last.fm trouble (11, 16, 29): keep them for next time.
             Err(e) => {
                 log::warn!("last.fm: scrobble failed, keeping {} for later: {e:#}", batch.len());
                 save_queue(&STATE.lock().unwrap());
@@ -181,7 +158,6 @@ fn save_queue(st: &State) {
     }
 }
 
-/// Last.fm's error number, from an error `call` returned.
 fn code(e: &anyhow::Error) -> Option<u64> {
     e.downcast_ref::<ApiError>().map(|e| e.0)
 }
@@ -197,7 +173,6 @@ impl std::fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
-/// md5 of every parameter as name+value, sorted by name, then the secret.
 fn signature(params: &[(&str, &str)]) -> String {
     let mut sorted = params.to_vec();
     sorted.sort_by(|a, b| a.0.cmp(b.0));

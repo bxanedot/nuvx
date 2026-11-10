@@ -8,7 +8,6 @@ import { useBrowse, useYouTubeReady } from '@/data/music/queries';
 import { PlainSkeleton } from '@/skeletons/PageSkeletons';
 import { seeAllGrid, seeAllTracks } from './pageStyles';
 
-/** See All, moods and genres: a grid, a song list, or shelves, whichever the page is. */
 export default function BrowsePage() {
   const browseId = decodeURIComponent(useParams().id ?? '');
   const [params] = useSearchParams();

@@ -1,17 +1,10 @@
 import { create } from 'zustand';
 import { LYRICS_SOURCES, orderedSources, type LyricsSourceId } from './sources';
 
-/**
- * Which lyric providers are asked, and in what order (the desktop's lyric
- * settings). Kept in localStorage; a source added in a later build lands
- * where a fresh install would put it (sources.orderedSources).
- */
 interface LyricsSettings {
   order: LyricsSourceId[];
   disabled: LyricsSourceId[];
-  /** Keep looking past a line-timed answer for a word-timed one (LyricsRepository.prioritizeSyllableSync). */
   preferSyllables: boolean;
-  /** PaxSenix's Spotify and Musixmatch routes need the user's own key. */
   paxsenixKey: string;
   setEnabled: (id: LyricsSourceId, on: boolean) => void;
   move: (id: LyricsSourceId, by: -1 | 1) => void;
@@ -25,7 +18,6 @@ type Saved = Pick<LyricsSettings, 'order' | 'disabled' | 'preferSyllables' | 'pa
 
 const DEFAULTS: Saved = {
   order: LYRICS_SOURCES.map((s) => s.id),
-  // The keyed routes do nothing without a key; off until one is entered.
   disabled: ['paxsenix-spotify', 'paxsenix-musixmatch'],
   preferSyllables: false,
   paxsenixKey: '',
@@ -63,7 +55,6 @@ export const useLyricsSettings = create<LyricsSettings>()((set, get) => {
   };
 });
 
-/** The sources that will be asked, in the order they're asked. */
 export function enabledSources(): LyricsSourceId[] {
   const { order, disabled } = useLyricsSettings.getState();
   return order.filter((id) => !disabled.includes(id));

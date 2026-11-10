@@ -1,27 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// nuvx: AutoMix's own deck (signalsmith-stretch over decoded audio), used
-// for the loop mix only. It plays a decoded region of a track, so it can loop
-// whole bars sample-accurately and change tempo with the pitch kept, over any
-// ratio, which an <audio> element can't.
 import SignalsmithStretch, { type SignalsmithStretchNode } from 'signalsmith-stretch';
 import { ThreeBandEQ } from './eq';
 
-/** One scheduled change, in the track's own seconds (not the region's). */
 export interface LoopChange {
   output: number;
   input: number;
   rate: number;
   active: boolean;
-  /** Track seconds; null for no loop. */
   loop: [number, number] | null;
 }
 
-/**
- * The worklet keeps only one pending future change (each schedule() prunes
- * everything after "now"), so changes wait here and go out just before
- * their time, as in AutoMix's Deck. Beats are at least 0.33 s apart at
- * 180 BPM; this is comfortably under that.
- */
 const POST_AHEAD_SEC = 0.25;
 const DISPATCH_MS = 20;
 
@@ -29,7 +17,6 @@ export class LoopDeck {
   readonly eq: ThreeBandEQ;
   readonly gain: GainNode;
   readonly sweep: { highpass: BiquadFilterNode; lowpass: BiquadFilterNode };
-  /** Track seconds the loaded region starts at. */
   regionStart = 0;
   regionEnd = 0;
   loadedKey: string | null = null;
@@ -49,20 +36,17 @@ export class LoopDeck {
     };
     this.gain = new GainNode(ctx, { gain: 0 });
     stretch.connect(this.eq.input);
-    // AutoMix's: keeps inputTime current (the default leaves it stale)
     stretch.setUpdateInterval(0.05);
     this.eq.output.connect(this.sweep.highpass).connect(this.sweep.lowpass).connect(this.gain).connect(destination);
   }
 
   static async create(ctx: AudioContext, destination: AudioNode): Promise<LoopDeck> {
-    // NB (AutoMix): default node options only; numberOfInputs: 0 silently kills the processor.
     const stretch = await SignalsmithStretch(ctx);
     const deck = new LoopDeck(ctx, stretch, destination);
     deck.latencySec = await stretch.latency();
     return deck;
   }
 
-  /** Loads [startSec, endSec) of a decoded track. */
   async load(key: string, buffer: AudioBuffer, startSec: number, endSec: number): Promise<void> {
     this.stop();
     await this.stretch.dropBuffers();
@@ -77,7 +61,6 @@ export class LoopDeck {
     this.loadedKey = key;
   }
 
-  /** Queues changes (sorted by output); each is posted just before it's due. */
   schedule(changes: LoopChange[]): void {
     this.pending.push(...changes);
     this.pending.sort((a, b) => a.output - b.output);
@@ -105,7 +88,6 @@ export class LoopDeck {
     }
   }
 
-  /** Stops now and forgets everything queued; filters, EQ and gain back to rest. */
   stop(): void {
     this.pending = [];
     if (this.timer !== null) clearInterval(this.timer);
@@ -124,7 +106,6 @@ export class LoopDeck {
     }
   }
 
-  /** Track seconds the worklet reports it's at (~50 ms granularity). */
   get inputTime(): number {
     return this.stretch.inputTime + this.regionStart;
   }

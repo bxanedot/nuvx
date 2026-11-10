@@ -3,8 +3,6 @@ import { FaChrome, FaFirefoxBrowser } from 'react-icons/fa';
 import { config } from '@/config';
 import { downloadUrl, type PublishedExtension } from './useExtensionUpdate';
 
-/* The extension's published builds and how to install them: the Extension page and the Guide page share these. */
-
 export type Browser = 'chrome' | 'firefox';
 
 export interface Download {
@@ -17,11 +15,6 @@ export interface Download {
   updateSteps: string[];
 }
 
-/**
- * The two builds, as published (extension.json): the zip and the folder in it
- * carry the version, "nuvx-extension-chrome (0.4.3)". Before that file
- * has loaded, the configured URLs and the unversioned names stand in.
- */
 export function downloadsFor(published: PublishedExtension | null): Download[] {
   const folder = (browser: Browser) => `nuvx-extension-${browser}${published ? ` (${published.version})` : ''}`;
   return [
@@ -71,5 +64,4 @@ export function downloadsFor(published: PublishedExtension | null): Download[] {
   ];
 }
 
-/** The browser this page is open in, to put its download first. */
 export const currentBrowser: Browser = /firefox/i.test(navigator.userAgent) ? 'firefox' : 'chrome';

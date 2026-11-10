@@ -9,17 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.EnumSet
 
-/**
- * Listing (and only listing) over [SmbConnection]: the recursive walk that
- * turns a share into audio rows plus the pictures filed beside them.
- *
- * Server paths are backslash-joined — the wire's own separator. Anything with
- * a forward slash in it is a client-side display path and never goes out.
- */
 object SmbClient {
 
     data class Entry(
-        /** Display path with forward slashes, relative to the share. */
         val path: String,
         val isDirectory: Boolean,
         val size: Long,
@@ -75,10 +67,6 @@ object SmbClient {
         }
     }
 
-    /**
-     * Opens [path] (display form) for reading. The handle is the caller's to
-     * close — one per player open, so seeks never share a cursor.
-     */
     fun openFile(path: String): com.hierynomus.smbj.share.File =
         SmbConnection.withShare { diskShare ->
             diskShare.openFile(
@@ -91,10 +79,6 @@ object SmbClient {
             )
         }
 
-    /**
-     * Reads a whole small file — a cover, never audio. Capped so a
-     * mislabeled video file can't balloon the heap on a list scroll.
-     */
     fun readFully(streamUrl: String, maxBytes: Long = 16 * 1024 * 1024): ByteArray {
         val path = SmbConfig.relativePath(streamUrl, SmbAuth.share)
             ?: throw SmbConnection.SmbException("Not an SMB file: $streamUrl")
@@ -106,9 +90,6 @@ object SmbClient {
             )
             val chunk = ByteArray(64 * 1024)
             var offset = 0L
-            // Bounded by the known length: some servers answer a read past
-            // EOF with bytes no parser accepts instead of an empty one, so
-            // the end of the file is taken from the entry, never probed for.
             while (length < 0 || offset < length) {
                 val read = file.read(chunk, offset, 0, chunk.size)
                 if (read <= 0) break
@@ -122,7 +103,6 @@ object SmbClient {
         }
     }
 
-    /** Display path back to the wire form. */
     fun smbPath(displayPath: String): String =
         displayPath.replace('/', '\\').trim('\\').ifBlank { "" }
 

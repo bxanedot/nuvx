@@ -87,8 +87,6 @@ class SmbTest {
             "Album/song.mp3",
             SmbConfig.relativePath("smb://nas/Music/Album/song.mp3", "Music"),
         )
-        // A URL baked under another share fails loudly instead of opening a
-        // same-named stranger.
         assertNull(SmbConfig.relativePath("smb://nas/Other/song.mp3", "Music"))
         assertNull(SmbConfig.relativePath("smb://nas/Music", "Music"))
         assertNull(SmbConfig.relativePath("not a url", "Music"))

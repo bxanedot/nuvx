@@ -8,18 +8,8 @@ import {
   type BridgeResponse,
 } from '@nuvx/shared/bridge';
 
-/** How long a dropped event port waits before reconnecting, while the page is visible. */
 const RECONNECT_MS = 2000;
 
-/**
- * Firefox has no externally_connectable for web pages, so this relays the
- * page's window messages to the background and posts the answers back
- * (prompt §4.2). Chromium builds leave it out. `matches` is replaced with the
- * site origins by the manifest hook in wxt.config.ts.
- *
- * It also holds the event port and forwards each push to the page, which is
- * the relay's half of `Bridge.subscribe`.
- */
 export default defineContentScript({
   matches: ['http://localhost/*'],
   include: ['firefox'],

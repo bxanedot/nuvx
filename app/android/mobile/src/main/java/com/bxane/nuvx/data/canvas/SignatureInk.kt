@@ -5,26 +5,12 @@ import coil3.size.Size
 import coil3.transform.Transformation
 import kotlin.math.roundToInt
 
-/**
- * Turns a scanned signature (dark ink on white paper) into white strokes on
- * transparency, so it reads on the dark artist photo like the tinted SVGs.
- *
- * Maps each pixel's alpha to its darkness (GIMP-style white-to-alpha) and
- * paints the survivors white. Runs only for raster signature loads — see
- * DetailScreen — and refuses images that don't read as scans: when fewer
- * than [SCAN_WHITE_FRACTION] of pixels are near-white the input is returned
- * untouched, so an in-person autograph *photograph* never becomes white
- * blobs. Already-transparent PNG ink passes through the same math harmlessly
- * (transparent stays transparent, dark strokes go white).
- */
 object SignatureInkTransformation : Transformation() {
 
     override val cacheKey = "signature-ink-v1"
 
-    /** Luminance above this counts as paper rather than ink (0..1). */
     private const val PAPER_LUMINANCE = 0.92f
 
-    /** Share of paper pixels required before treating the image as a scan. */
     private const val SCAN_WHITE_FRACTION = 0.55f
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {

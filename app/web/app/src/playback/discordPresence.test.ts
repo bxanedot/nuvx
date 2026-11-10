@@ -30,10 +30,9 @@ describe('discord presence', () => {
 
   it('republishes on a seek when the decks were made after it started', async () => {
     vi.useFakeTimers();
-    stop = startPublisher(); // connected before anything played: no element yet
+    stop = startPublisher();
     await vi.advanceTimersByTimeAsync(500);
 
-    // The first play makes the decks; the deck counter only moves on a crossfade.
     audio = Object.assign(new EventTarget(), { currentTime: 0, duration: 200, playbackRate: 1 });
     player.setState({ nowPlaying: { videoId: 'abcdefghijk', title: 't', artist: 'a' }, status: 'playing' });
     await vi.advanceTimersByTimeAsync(500);
@@ -54,7 +53,6 @@ describe('discord presence', () => {
     await vi.advanceTimersByTimeAsync(500);
     expect(calls).toHaveLength(1);
 
-    // Every seek of the element goes waiting → playing, and the push must survive it.
     audio.currentTime = 90;
     audio.dispatchEvent(new Event('seeked'));
     player.setState({ status: 'buffering' });

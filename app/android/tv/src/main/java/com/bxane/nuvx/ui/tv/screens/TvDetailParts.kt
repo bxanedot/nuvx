@@ -26,15 +26,6 @@ import com.bxane.nuvx.ui.tv.components.tvLift
 import com.bxane.nuvx.ui.tv.components.tvPlatter
 import com.bxane.nuvx.ui.tv.theme.TvGlass
 
-/**
- * The phone's action row, as icon-only circles: Shuffle, a larger Play, and —
- * on an artist — a star to subscribe. Play rests in [playColor] (the artist's
- * Apple key colour, else Apple Music red) so that focus, which turns every
- * control white, is never hidden on it.
- *
- * [onFocused] fires as focus arrives in the row, so the page can scroll home:
- * the row sits at the top of the page, and the page should be at its top too.
- */
 @Composable
 internal fun TvActionRow(
     canPlay: Boolean,
@@ -79,7 +70,6 @@ internal fun TvActionRow(
     }
 }
 
-/** One circle in [TvActionRow]: translucent (or [resting]) at rest, the white platter on focus. */
 @Composable
 private fun TvCircleAction(
     icon: ImageVector,

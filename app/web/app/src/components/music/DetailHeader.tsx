@@ -15,40 +15,30 @@ interface DetailHeaderProps {
   onPlay: () => void;
   onShuffle: () => void;
   canPlay: boolean;
-  /** More actions after the library toggle (a Spotify playlist's Import). */
   extra?: React.ReactNode;
-  /** Apple's motion artwork for an album, over the cover once it plays. */
   motion?: AppleMotion | null;
 }
 
-/** Shuffle (circle) · Play (pill), report §14; also the Spotify playlist's Import button. */
 export const detailButton = {
   pill: 'inline-flex h-9 min-w-[150px] items-center justify-center gap-1.5 rounded-[24px] bg-pill-bg px-3 type-title-3-emphasized text-pill disabled:opacity-40 enabled:hover:opacity-90',
   circle:
     'grid size-9 place-items-center rounded-full border-[0.75px] border-quaternary bg-quinary text-primary disabled:opacity-40 enabled:hover:bg-quaternary',
 };
 
-/**
- * Album and playlist header (report §3, §14): artwork with its glow, title,
- * artist, metadata, a three-line description, then Shuffle · Play.
- */
 export function DetailHeader({ info, onPlay, onShuffle, canPlay, extra, motion }: DetailHeaderProps) {
   const [expanded, setExpanded] = useState(false);
   const signedIn = useSignedIn();
   const setSaved = useSetListSaved();
   const library = signedIn ? info.library : null;
   return (
-    // Artwork beside the headings, description and actions; stacked and centred below 768px.
     <div className="mx-(--body-gutter) mb-10 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr_auto] gap-x-[34px] pt-11 [grid-template-areas:'artwork_headings'_'artwork_description'_'artwork_actions'] max-md:grid-cols-[1fr] max-md:grid-rows-[auto] max-md:justify-items-center max-md:pt-4 max-md:text-center max-md:[grid-template-areas:'artwork'_'headings'_'actions'_'description']">
       <div className="relative w-[270px] self-start rounded-artwork-lg shadow-[0_10px_20px_0_var(--radiosityShadowColor)] [grid-area:artwork] max-lg:w-[220px] max-md:w-[min(270px,70vw)]">
         {info.thumbnail && (
-          // A blurred copy behind the artwork: Apple's radiosity glow.
           <div className="absolute inset-0 -z-1 scale-88 opacity-30 blur-[20px] saturate-200" aria-hidden="true">
             <Artwork src={info.thumbnail} displayWidth={80} radius="var(--radius-artwork-large)" />
           </div>
         )}
         <Artwork src={info.thumbnail} displayWidth={270} radius="var(--radius-artwork-large)" eager />
-        {/* Apple's motion artwork, over the cover once it's playing. */}
         {motion && (
           <MotionArtwork
             key={motion.url}

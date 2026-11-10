@@ -1,41 +1,16 @@
 import type { YtAccount, YtAuthState, YtChannel } from '@nuvx/shared/bridge';
 import { installExtensionFetchRule } from './rules';
 
-/**
- * YouTube Music sign-in (prompt §5.3): the user's own browser session, used
- * from here and nowhere else. The cookies stay in the browser's jar (requests
- * go out with `credentials: 'include'`), the SAPISIDHASH is computed here, and
- * the page only ever learns names and pictures.
- *
- * The scheme is the one Innertube.kt and DesktopYouTubeAuth.kt use: the
- * signature over SAPISID, `X-Goog-AuthUser` to pick the login in the jar, and
- * `X-Goog-PageId` for a brand channel. Logins and channels are listed the way
- * the desktop app lists them: `account/account_menu` for each login, then
- * `account/accounts_list` for that login's channels.
- */
-
 export const MUSIC_ORIGIN = 'https://music.youtube.com';
 
-/** The cookies the signature can be taken over, in the order Google's clients prefer them. */
 const SIGNING_COOKIES = ['SAPISID', '__Secure-3PAPISID', '__Secure-1PAPISID'];
-/** Cookies whose arrival or departure means a sign-in or sign-out (SIDCC and friends rotate constantly). */
 const SESSION_COOKIES = new Set([...SIGNING_COOKIES, 'SID', '__Secure-1PSID', '__Secure-3PSID']);
 
-/** Any recent WEB_REMIX version is accepted for the account endpoints (Innertube.kt keeps a fallback the same way). */
 const WEB_REMIX_VERSION = '1.20251006.03.00';
-/**
- * How many `X-Goog-AuthUser` indices are tried. Google allows ten logins per
- * browser, and the live ones needn't be contiguous: the user's jar had 1, 2
- * and 4 signed in, with 0 and 3 expired (account_menu answers 403 for those).
- */
 const MAX_LOGINS = 10;
-/** Accounts rarely change; a cookie change clears this at once anyway. */
 const ACCOUNTS_TTL_MS = 10 * 60_000;
 
-// ---- Preferences --------------------------------------------------------------
-
 interface Prefs {
-  /** "Disconnect" sets this false; the Google session itself is left alone. */
   connected: boolean;
   selectedChannelId: string | null;
 }
@@ -51,8 +26,6 @@ async function savePrefs(change: Partial<Prefs>): Promise<void> {
   await browser.storage.local.set({ [PREFS_KEY]: { ...(await loadPrefs()), ...change } });
 }
 
-// ---- Signing --------------------------------------------------------------------
-
 async function signingSecret(): Promise<string | null> {
   for (const name of SIGNING_COOKIES) {
     const cookie = await browser.cookies.get({ url: `${MUSIC_ORIGIN}/`, name }).catch(() => null);
@@ -61,7 +34,6 @@ async function signingSecret(): Promise<string | null> {
   return null;
 }
 
-/** `SAPISIDHASH <seconds>_<sha1(seconds + " " + secret + " " + origin)>`, as DesktopYouTubeAuth.sapisidHash. */
 async function sapisidHash(secret: string, origin: string): Promise<string> {
   const timestamp = Math.floor(Date.now() / 1000);
   const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(`${timestamp} ${secret} ${origin}`));
@@ -69,7 +41,6 @@ async function sapisidHash(secret: string, origin: string): Promise<string> {
   return `SAPISIDHASH ${timestamp}_${hex}`;
 }
 
-/** Who a signed request acts as. */
 interface Identity {
   authUser: string;
   pageId: string | null;
@@ -81,12 +52,6 @@ export class SignedOutError extends Error {
 
 let ruleReady: Promise<void> | null = null;
 
-/**
- * A request made as [identity], signed for [signAs] when that isn't the URL's
- * own origin. The browser attaches the cookies; the
- * extension's session rule gives it the YouTube Origin the signature was
- * computed for (rules.ts, installExtensionFetchRule).
- */
 export async function signedFetch(
   url: string,
   init: { method?: string; headers?: Record<string, string>; body?: BodyInit | null },
@@ -131,11 +96,8 @@ async function musicApi(endpoint: string, identity: Identity): Promise<unknown> 
   return response.json();
 }
 
-// ---- Reading the account renderers (DesktopAccountParser) ----------------------
-
 type Json = Record<string, unknown>;
 
-/** Every object stored under [key], anywhere inside. */
 function renderers(root: unknown, key: string, out: Json[] = []): Json[] {
   if (Array.isArray(root)) for (const item of root) renderers(item, key, out);
   else if (root && typeof root === 'object') {
@@ -147,7 +109,6 @@ function renderers(root: unknown, key: string, out: Json[] = []): Json[] {
   return out;
 }
 
-/** The first string under [key], anywhere inside. */
 function findString(root: unknown, key: string): string | null {
   if (Array.isArray(root)) {
     for (const item of root) {
@@ -164,7 +125,6 @@ function findString(root: unknown, key: string): string | null {
   return null;
 }
 
-/** A `runs` or `simpleText` field as plain text. */
 function text(node: unknown): string {
   const n = node as { runs?: { text?: string }[]; simpleText?: string } | undefined;
   if (n?.runs) return n.runs.map((r) => r.text ?? '').join('');
@@ -179,7 +139,6 @@ function photo(item: Json): string | null {
 interface StoredChannel extends YtChannel {
   authUser: string;
   pageId: string | null;
-  /** YouTube's own choice for this login, which is the default here too. */
   selectedOnWeb: boolean;
 }
 
@@ -214,13 +173,9 @@ function parseChannels(root: unknown, authUser: string): StoredChannel[] {
   return channels;
 }
 
-/** What went wrong reading the accounts, in words the popup can show; null when it worked. */
 let problem: string | null = null;
 
-/** Why a response has no account in it, read from what Google says about the session. */
 function describeEmpty(endpoint: string, body: unknown): string {
-  // responseContext.serviceTrackingParams carries GFEEDBACK's `logged_in`
-  // flag ("0" on an anonymous answer), whatever else the response holds.
   const services =
     (body as { responseContext?: { serviceTrackingParams?: { params?: Json[] }[] } })?.responseContext
       ?.serviceTrackingParams ?? [];
@@ -230,12 +185,6 @@ function describeEmpty(endpoint: string, body: unknown): string {
   return `${endpoint}: no account in the answer (${keys})`;
 }
 
-/**
- * One login, or null with the reason when that index isn't signed in.
- * Only `account_menu` decides: `accounts_list` answers even for an expired
- * index (with another login's channels), which once made a dead login look
- * like the active one.
- */
 async function readLogin(authUser: string): Promise<{ account: StoredAccount | null; why: string | null }> {
   const identity = { authUser, pageId: null };
   let header: Json | undefined;
@@ -255,7 +204,6 @@ async function readLogin(authUser: string): Promise<{ account: StoredAccount | n
   try {
     channels = parseChannels(await musicApi('account/accounts_list', identity), authUser);
   } catch {
-    // The switcher isn't answered for every account; the login's own channel always exists.
   }
   if (!channels.length) {
     channels = [
@@ -265,11 +213,6 @@ async function readLogin(authUser: string): Promise<{ account: StoredAccount | n
   return { account: { authUser, name, email, avatarUrl, channels }, why: null };
 }
 
-/**
- * The login YouTube Music itself is using in this browser: its page's
- * `SESSION_INDEX` (ytcfg). That's the right default rather than index 0,
- * which may be a login that has expired.
- */
 async function webSessionIndex(): Promise<string | null> {
   try {
     const response = await signedFetch(`${MUSIC_ORIGIN}/`, { headers: { Accept: 'text/html' } }, { authUser: '0', pageId: null });
@@ -302,11 +245,8 @@ async function readAccounts(): Promise<{ list: StoredAccount[]; webIndex: string
   return { list, webIndex };
 }
 
-// ---- State --------------------------------------------------------------------
-
 interface Accounts {
   list: StoredAccount[];
-  /** The login YouTube Music's own page uses, the default choice. */
   webIndex: string | null;
 }
 
@@ -324,7 +264,6 @@ async function accounts(refresh: boolean): Promise<Accounts> {
   return reading;
 }
 
-/** Forgets the account list, after a sign-in or sign-out in the browser. */
 export function invalidateAccounts(): void {
   cache = null;
 }
@@ -367,7 +306,6 @@ export async function authState(refresh = false): Promise<YtAuthState> {
   };
 }
 
-/** The identity signed requests use right now, or null when they can't be made. */
 export async function activeIdentity(): Promise<Identity | null> {
   const prefs = await loadPrefs();
   if (!prefs.connected || (await signingSecret()) === null) return null;

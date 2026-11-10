@@ -34,30 +34,6 @@ import androidx.compose.ui.unit.dp
 import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 
-/**
- * The iOS 26 switch: a wide green capsule and a white pill of a thumb, which
- * stretches a little toward where it is going while pressed.
- *
- * Plain drawing only — a track, a thumb, a shadow. Every settings page has a
- * column of these, and anything heavier per switch is paid that many times
- * over on every scroll frame.
- *
- * It takes Material3's `Switch` call shape so a settings row adopts it by name
- * alone. [thumbContent] and [colors] are accepted and ignored: on is iOS green
- * whatever the theme's accent — the one place the platform keeps its own
- * colour, and the reason it reads as a switch.
- *
- * A null [onCheckedChange] makes it a read-out, the way M3's does: the row
- * around it owns the tap.
- *
- * Interactive, it takes up M3's 48dp touch target around the drawn capsule, as
- * M3's does. The settings rows were spaced around that height — a sub-row has
- * no top padding of its own — and without it they close up on each other.
- *
- * It buzzes when [checked] flips rather than when it is tapped: most rows also
- * toggle from their own `onClick`, which never passes through here, and the
- * value changing is the one thing every path has in common.
- */
 @Composable
 fun IosSwitch(
     checked: Boolean,
@@ -91,7 +67,6 @@ fun IosSwitch(
     val ltr = LocalLayoutDirection.current == LayoutDirection.Ltr
 
     val haptics = rememberHaptics()
-    // Skips the first run, so a switch scrolling into view stays quiet.
     var settled by remember { mutableStateOf(false) }
     LaunchedEffect(checked) {
         if (settled) haptics.play(if (checked) Haptic.ToggleOn else Haptic.ToggleOff)
@@ -126,8 +101,6 @@ fun IosSwitch(
                     val travel = (TrackWidth - ThumbWidth - ThumbPadding * 2).toPx()
                     val x = ThumbPadding.toPx() + travel * position
                     translationX = if (ltr) x else -x
-                    // Grows from the edge it is leaving, so the stretch reads
-                    // as reaching toward the other side.
                     transformOrigin = TransformOrigin(if (checked == ltr) 1f else 0f, 0.5f)
                     scaleX = stretch
                 }

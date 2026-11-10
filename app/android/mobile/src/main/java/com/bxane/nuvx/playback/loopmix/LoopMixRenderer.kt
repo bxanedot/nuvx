@@ -2,14 +2,6 @@ package com.bxane.nuvx.playback.loopmix
 
 import android.util.Log
 
-/**
- * The native loop-mix renderer (native/loopmix/): two Signalsmith Stretch
- * decks, each a decoded region of one song, looped on whole bars and following
- * the mix's tempo ramp beat by beat, mixed to one stereo stream.
- *
- * Built and filled on a worker thread; after [prepare] only [render] (the
- * playback thread, inside the outgoing sink) and the small setters touch it.
- */
 class LoopMixRenderer(val sampleRate: Int) : AutoCloseable {
 
     @Volatile
@@ -17,23 +9,16 @@ class LoopMixRenderer(val sampleRate: Int) : AutoCloseable {
 
     val isValid: Boolean get() = handle != 0L
 
-    /** One deck: the region (planar, at [sampleRate]), its loop, and its beat knots. */
     class DeckSetup(
         val left: FloatArray,
         val right: FloatArray,
-        /** Track seconds of sample 0. */
         val regionStart: Double,
-        /** Loop bounds in region samples. */
         val loopStart: Long,
         val loopEnd: Long,
-        /** Unwrapped region-sample position at which the loop lets go; huge for never. */
         val releaseAt: Double,
-        /** Mix frames (0 = t0) and the unwrapped region-sample position heard at each. */
         val knotFrames: DoubleArray,
         val knotPositions: DoubleArray,
-        /** After the last knot: carry on at rate 1 (true) or stop. */
         val runOn: Boolean,
-        /** Mix seconds after which the deck renders nothing. */
         val stopAt: Double,
         val preroll: Double,
         val level: Float,
@@ -44,23 +29,18 @@ class LoopMixRenderer(val sampleRate: Int) : AutoCloseable {
         deck.knotFrames, deck.knotPositions, deck.runOn, deck.stopAt, deck.preroll, deck.level,
     )
 
-    /** Automation over mix seconds: [KIND_GAIN] (linear), [KIND_LOW_DB] (250 Hz shelf), [KIND_HIGH_PASS_HZ]. */
     fun setEnvelope(index: Int, kind: Int, times: DoubleArray, values: FloatArray, exponential: Boolean = false) =
         nativeSetEnvelope(handle, index, kind, times, values, exponential)
 
     fun prepare() = nativePrepare(handle)
 
-    /** The earliest mix frame anything renders at; negative, before t0. */
     fun firstFrame(): Long = nativeFirstFrame(handle)
 
-    /** Renders [frames] stereo frames from mix frame [frame] into [interleaved] at frame [offset]. */
     fun render(frame: Long, interleaved: FloatArray, offset: Int, frames: Int) =
         nativeRender(handle, frame, interleaved, offset, frames)
 
-    /** Fade [index] out over 25 ms once it plays track second [trackSeconds] after its release. */
     fun setFadeOut(index: Int, trackSeconds: Double) = nativeSetFadeOut(handle, index, trackSeconds)
 
-    /** Track seconds [index] played at the end of the last rendered block. */
     fun heard(index: Int): Double = nativeHeard(handle, index)
 
     override fun close() {

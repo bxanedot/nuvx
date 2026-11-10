@@ -1,5 +1,3 @@
-//! Page bodies. Every page fades and slides in when navigated to.
-
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 
@@ -14,9 +12,6 @@ use crate::theme::{self, icon};
 
 const CARD: f32 = 180.0;
 
-/// How many tiles Apple fits across a feed row at this content width. The site
-/// measures from its own viewport, which includes the navigation column this page
-/// already sits past.
 fn feed_columns(width: f32, square: bool) -> usize {
     let viewport = width + 260.0;
     match square {
@@ -29,8 +24,6 @@ fn feed_columns(width: f32, square: bool) -> usize {
     }
 }
 
-/// One tile of an Apple feed row: a share of the content on wide windows, the site's
-/// own narrow width below its breakpoint.
 fn feed_tile(ui: &Ui, square: bool) -> f32 {
     let width = ui.available_width();
     let min = if square { 144.0 } else { 270.0 };
@@ -44,16 +37,12 @@ fn feed_tile(ui: &Ui, square: bool) -> f32 {
 pub fn page(app: &mut App, ui: &mut Ui, now: f64) {
     let t = theme::ease_out(((now - app.page_changed) / 0.32) as f32);
     if t < 1.0 {
-        // The fade-in finishes even when nothing else is drawing frames.
         ui.ctx().request_repaint();
     }
     ui.set_opacity(0.15 + 0.85 * t);
     let page = app.page.clone();
-    // Each page (each album, each search) keeps its own scroll position.
     let mut area = egui::ScrollArea::vertical().id_salt(("page", &page)).auto_shrink(false);
-    // At the window's right edge: clear of where it resizes the window.
     ui.spacing_mut().scroll.bar_outer_margin += super::titlebar::edge_inset();
-    // Dev hook: NUVX_SCROLL=<px> pins the page scroll, for screenshots of lower sections.
     if let Some(y) = super::dev_var("NUVX_SCROLL").and_then(|v| v.parse::<f32>().ok()) {
         area = area.vertical_scroll_offset(y);
     }
@@ -75,15 +64,12 @@ pub fn page(app: &mut App, ui: &mut Ui, now: f64) {
             Page::Transfer => super::transfer::page(app, ui, now),
             Page::Jam => super::jam::page(app, ui),
         }
-        // Room to scroll the last rows clear of the player's frosted strip.
         ui.add_space(96.0);
     });
     selection_bar(app, ui.ctx(), &page, out.inner_rect);
-    // Infinite scroll on home: fetch the next shelves when nearing the bottom.
     if page == Page::Home {
         let remaining = out.content_size.y - (out.state.clamped_offset().y + out.inner_rect.height());
         if let Some(h) = &mut app.home {
-            // A failed fetch reports nothing (it's a quiet request): allow a retry later.
             if h.loading_more.is_some_and(|t| now - t > 20.0) {
                 h.loading_more = None;
             }
@@ -97,7 +83,6 @@ pub fn page(app: &mut App, ui: &mut Ui, now: f64) {
     }
 }
 
-/// What every song row needs from the app, gathered once per frame.
 pub(super) struct Rows {
     current: Option<String>,
     playing: bool,
@@ -132,8 +117,6 @@ impl Rows {
     }
 }
 
-/// A page's data hasn't arrived: shimmering placeholders while it loads, a retry if the
-/// request failed.
 fn placeholder(app: &mut App, ui: &mut Ui, now: f64, rows: usize, card: f32) {
     if app.load_failed {
         ui.add_space(40.0);
@@ -147,15 +130,12 @@ fn placeholder(app: &mut App, ui: &mut Ui, now: f64, rows: usize, card: f32) {
     }
 }
 
-/// What a collection header's round buttons draw: a font glyph, or the three dots.
 enum CircleGlyph {
     Char(char),
     More,
 }
 
-/// A round glass action on a collection header (shuffle, search, more).
 fn circle_action(ui: &mut Ui, glyph: CircleGlyph, name: &str, active: bool) -> egui::Response {
-    // Same 38 px height as the Play pill beside it, so the row shares one centre line.
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(38.0), Sense::click());
     let resp = named(resp, name).on_hover_text(name).on_hover_cursor(egui::CursorIcon::PointingHand);
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
@@ -174,8 +154,6 @@ fn circle_action(ui: &mut Ui, glyph: CircleGlyph, name: &str, active: bool) -> e
     resp
 }
 
-/// A page's main Play button. Shows Pause while this page's album / playlist / artist
-/// is playing, and toggles instead of restarting when it's already loaded.
 fn play_pill(ui: &mut Ui, acts: &mut Vec<Action>, target: &Target, tracks: &[Track]) {
     let active = widgets::active_state(ui, target);
     let (label, glyph) = if active == Some(true) { ("Pause", icon::PAUSE) } else { ("Play", icon::PLAY) };
@@ -203,8 +181,6 @@ fn card_row(ui: &mut Ui, id: &str, title: &str, cards: &[Card], acts: &mut Vec<A
     });
 }
 
-/// Songs laid out in columns of `rows`, scrolling sideways (Quick picks). Clicking a
-/// song starts its radio. Returns whether the arrows reached the end.
 #[allow(clippy::too_many_arguments)]
 fn song_grid(ui: &mut Ui, rows_ctx: &Rows, liked: &HashSet<String>, acts: &mut Vec<Action>, id: &str, title: &str, strap: Option<&str>, tracks: &[Track], rows: usize) -> bool {
     let (l, r) = shelf_header(ui, title, strap, None, true);
@@ -233,16 +209,12 @@ fn song_grid(ui: &mut Ui, rows_ctx: &Rows, liked: &HashSet<String>, acts: &mut V
     reached_end
 }
 
-/// Where a song list lives: the page its selection belongs to, and whether it's your own
-/// playlist (so songs can be taken out of it).
 struct ListCtx<'a> {
     sel: &'a mut Selection,
     page: &'a Page,
     own: bool,
 }
 
-/// A long song list; only the rows on screen are built. Clicking one plays `tracks` from it,
-/// or picks it while selecting: Ctrl-click picks one song, Shift-click a run of them.
 #[allow(clippy::too_many_arguments)]
 fn list(ui: &mut Ui, rows: &Rows, liked: &HashSet<String>, tracks: &[Track], show_album: bool, number: impl Fn(usize, &Track) -> Option<usize>, cx: ListCtx, acts: &mut Vec<Action>) {
     let ListCtx { sel, page, own } = cx;
@@ -265,7 +237,6 @@ fn list(ui: &mut Ui, rows: &Rows, liked: &HashSet<String>, tracks: &[Track], sho
     });
 }
 
-/// A list page's "Select" button: turns select mode on and off.
 fn select_pill(ui: &mut Ui, sel: &mut Selection, page: &Page) {
     let on = sel.on(page);
     if pill(ui, if on { "Done" } else { "Select" }, Some(icon::LIST_CHECKS), false).clicked() {
@@ -273,7 +244,6 @@ fn select_pill(ui: &mut Ui, sel: &mut Selection, page: &Page) {
     }
 }
 
-/// The songs a page lists, and whether they're your own playlist's.
 fn selectable<'a>(app: &'a App, page: &Page) -> Option<(&'a [Track], bool)> {
     match page {
         Page::Album(id) | Page::Playlist(id) => {
@@ -286,7 +256,6 @@ fn selectable<'a>(app: &'a App, page: &Page) -> Option<(&'a [Track], bool)> {
     }
 }
 
-/// While selecting: a bar floating over the bottom of the page with what to do with the picks.
 fn selection_bar(app: &mut App, ctx: &egui::Context, page: &Page, area: Rect) {
     if !app.selection.on(page) {
         return;
@@ -296,7 +265,6 @@ fn selection_bar(app: &mut App, ctx: &egui::Context, page: &Page, area: Rect) {
     let picked: Vec<Track> = app.selection.rows.iter().filter_map(|&i| tracks.get(i).cloned()).collect();
     let all = !picked.is_empty() && picked.len() == n;
     let all_liked = !picked.is_empty() && picked.iter().all(|t| app.liked.contains(&t.id));
-    // Labelled buttons when there's room, icons with tooltips when the window is narrow.
     let wide = area.width() > 820.0;
     let button = |ui: &mut Ui, label: &str, glyph: char, primary: bool| {
         if wide { pill(ui, label, Some(glyph), primary) } else { widgets::icon_button(ui, glyph, 18.0, label, false) }
@@ -352,11 +320,8 @@ fn selection_bar(app: &mut App, ctx: &egui::Context, page: &Page, area: Rect) {
     app.actions.extend(acts);
 }
 
-// ------------------------------------------------------------------ home
-
 fn home(app: &mut App, ui: &mut Ui, now: f64) {
     page_title(ui, "Home");
-    // A refresh keeps showing the current feed; the skeleton is only for an empty one.
     if app.home.as_ref().is_none_or(|h| app.home_loading && h.shelves.is_empty()) {
         placeholder(app, ui, now, 3, CARD);
         return;
@@ -414,8 +379,6 @@ fn home(app: &mut App, ui: &mut Ui, now: f64) {
     }
 }
 
-// ------------------------------------------------------------------ new
-
 fn new(app: &mut App, ui: &mut Ui, now: f64) {
     page_title(ui, "Explore");
     if app.explore.is_none() {
@@ -429,7 +392,6 @@ fn new(app: &mut App, ui: &mut Ui, now: f64) {
         song_grid(ui, &rows, &app.liked, &mut app.actions, "ex-top", "Top songs", None, &e.top, 4);
     }
     card_row(ui, "ex-charts", "Charts", &e.charts, &mut app.actions);
-    // Then the moods and genres, as Android's Explore.
     if let Some(sections) = &app.moods {
         for s in sections {
             ui.add_space(26.0);
@@ -440,7 +402,6 @@ fn new(app: &mut App, ui: &mut Ui, now: f64) {
     }
 }
 
-/// Explore's moods and genres as colour tiles, Android's.
 fn mood_tiles(ui: &mut Ui, items: &[crate::model::Mood], acts: &mut Vec<Action>) {
     const GAP: f32 = 14.0;
     let w = ui.available_width();
@@ -455,17 +416,12 @@ fn mood_tiles(ui: &mut Ui, items: &[crate::model::Mood], acts: &mut Vec<Action>)
                 let h = theme::anim_bool(ui.ctx(), resp.id.with("h"), resp.hovered(), 0.12);
                 let base = m.color.map_or(theme::glass(0.14), |c| Color32::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8));
                 ui.painter().rect_filled(rect, 12.0, theme::lerp_color(base, Color32::WHITE, 0.10 * h));
-                // Android's duotone: the cover in grey, multiplied into the tile colour, on its right 72%.
                 if let Some(url) = &m.thumb {
                     let img = Rect::from_min_max(pos2(rect.right() - rect.width() * 0.72, rect.top()), rect.max);
-                    // The square cover cropped to the strip, top-aligned.
                     let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, (img.height() / img.width()).min(1.0)));
                     let round = egui::CornerRadius { nw: 0, sw: 0, ne: 12, se: 12 };
                     egui::Image::new(format!("gray:{url}")).uv(uv).corner_radius(round).tint(base).paint_at(ui, img);
-                    // Lifts the shadows back toward the tile colour, as Android's screen layer.
                     ui.painter().rect_filled(img, round, theme::with_alpha(base, 0.25));
-                    // Keeps the name legible where the photo runs dark.
-                    // A gradient mesh down to the corners' height, then a solid strip that keeps their rounding.
                     let (mid, foot, dark) = (rect.top() + rect.height() * 0.45, rect.bottom() - 12.0, theme::shade(0.28));
                     let mut mesh = egui::Mesh::default();
                     for (y, c) in [(mid, Color32::TRANSPARENT), (foot, dark)] {
@@ -478,7 +434,6 @@ fn mood_tiles(ui: &mut Ui, items: &[crate::model::Mood], acts: &mut Vec<Action>)
                     let strip = Rect::from_min_max(pos2(rect.left(), foot), rect.max);
                     ui.painter().rect_filled(strip, egui::CornerRadius { nw: 0, ne: 0, sw: 12, se: 12 }, dark);
                 }
-                // Dark text on the light plain tiles, as Android's; white over a picture.
                 let light = m.thumb.is_none() && 0.2126 * f32::from(base.r()) + 0.7152 * f32::from(base.g()) + 0.0722 * f32::from(base.b()) > 160.0;
                 let ink = if light { Color32::from_rgb(18, 18, 18) } else { Color32::WHITE };
                 let g = widgets::galley_wrapped(ui, &m.title, theme::bold(16.0), ink, tw - 28.0, 2);
@@ -491,8 +446,6 @@ fn mood_tiles(ui: &mut Ui, items: &[crate::model::Mood], acts: &mut Vec<Action>)
         ui.add_space(GAP);
     }
 }
-
-// ------------------------------------------------------------------ mood
 
 fn mood(app: &mut App, ui: &mut Ui, browse_id: &str, params: Option<&String>, title: &str, now: f64) {
     let page = app.mood.as_ref().filter(|m| m.browse_id == browse_id && m.params.as_ref() == params);
@@ -517,7 +470,6 @@ fn mood(app: &mut App, ui: &mut Ui, browse_id: &str, params: Option<&String>, ti
     }
 }
 
-/// YouTube's videos for `q`, as song rows that play as they are.
 fn youtube_results(app: &mut App, ui: &mut Ui, q: &str, pick: bool, now: f64) {
     let q = q.trim();
     let have = app.youtube_results.as_ref().filter(|(k, _)| k == q);
@@ -557,20 +509,15 @@ fn youtube_results(app: &mut App, ui: &mut Ui, q: &str, pick: bool, now: f64) {
 }
 
 pub(super) fn page_title(ui: &mut Ui, title: &str) {
-    // Left-aligned with the page's content, a little below the top edge.
     ui.add_space(18.0);
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 42.0), Sense::hover());
     ui.painter().text(pos2(rect.left(), rect.center().y), Align2::LEFT_CENTER, title, theme::bold(34.0), theme::text());
 }
 
-// ------------------------------------------------------------------ search
-
 fn search(app: &mut App, ui: &mut Ui, q: &str, now: f64) {
     let pick = super::transfer::pick_banner(app, ui);
     page_title(ui, "Search");
     ui.add_space(10.0);
-    // Coming from a suggestion, the sidebar or a link, the field says what's shown.
-    // Only when the route changed: clearing the box leaves the route alone until Enter.
     if app.search_synced != q {
         app.search_synced = q.to_owned();
         app.search_text = q.trim().to_owned();
@@ -579,7 +526,6 @@ fn search(app: &mut App, ui: &mut Ui, q: &str, now: f64) {
     if q.trim().is_empty() {
         ui.add_space(26.0);
         recent_searches(ui, app);
-        // Android's colour tiles, unless Classic search is on.
         if !app.classic_search
             && let Some(sections) = &app.moods
         {
@@ -593,7 +539,6 @@ fn search(app: &mut App, ui: &mut Ui, q: &str, now: f64) {
         }
         return;
     }
-    // YouTube Music's results, or with "Enable YouTube Search" on, YouTube's.
     if app.youtube_search {
         ui.add_space(12.0);
         ui.horizontal(|ui| {
@@ -624,7 +569,6 @@ fn search(app: &mut App, ui: &mut Ui, q: &str, now: f64) {
         return;
     }
     ui.add_space(14.0);
-    // Top result: the first artist when the query names one, otherwise the first song.
     ui.horizontal_top(|ui| {
         if let Some(top) = r.artists.first().filter(|a| a.title.eq_ignore_ascii_case(q.trim())) {
             top_result(ui, top, false, acts);
@@ -667,7 +611,6 @@ fn search(app: &mut App, ui: &mut Ui, q: &str, now: f64) {
     card_row(ui, "s-pl", "Playlists", &r.playlists, acts);
 }
 
-/// Apple's search landing: what was opened from the last few searches, with its artwork.
 fn recent_searches(ui: &mut Ui, app: &mut App) {
     if app.recent_searches.is_empty() {
         ui.label(RichText::new("Search for artists, songs, albums and playlists.").font(theme::regular(15.0)).color(theme::text_dim()));
@@ -676,7 +619,6 @@ fn recent_searches(ui: &mut Ui, app: &mut App) {
     ui.label(RichText::new("Recently Searched").font(theme::bold(22.0)).color(theme::text()));
     ui.add_space(12.0);
     let w = ui.available_width().min(620.0);
-    // The rows are cloned so a removal can be applied after the list is drawn.
     let recents = app.recent_searches.clone();
     let mut remove = None;
     for (i, r) in recents.iter().enumerate() {
@@ -708,7 +650,6 @@ fn recent_searches(ui: &mut Ui, app: &mut App) {
         if resp.clicked() {
             app.actions.push(match &r.target {
                 Some(t) => Action::Open(t.clone()),
-                // An entry from an earlier version kept only the search.
                 None => Action::Go(Page::Search(r.query.clone())),
             });
         }
@@ -719,7 +660,6 @@ fn recent_searches(ui: &mut Ui, app: &mut App) {
     }
 }
 
-/// `pick`: choosing a transfer match, so clicking a song picks it.
 fn top_result(ui: &mut Ui, c: &Card, pick: bool, acts: &mut Vec<Action>) {    ui.vertical(|ui| {
         ui.label(RichText::new("Top result").font(theme::bold(24.0)));
         ui.add_space(8.0);
@@ -732,7 +672,6 @@ fn top_result(ui: &mut Ui, c: &Card, pick: bool, acts: &mut Vec<Action>) {    ui
         let x = rect.left() + 20.0;
         widgets::text_at(ui, pos2(x, img.bottom() + 16.0), &c.title, theme::bold(26.0), theme::text(), rect.width() - 40.0);
         widgets::linked_text(ui, pos2(x, img.bottom() + 52.0), &c.subtitle, &c.links, theme::regular(14.0), theme::text_dim(), rect.width() - 40.0, acts);
-        // Floating play button
         let pc = rect.right_bottom() + vec2(-44.0, -44.0 + 6.0 * (1.0 - h));
         let pr = Rect::from_center_size(pc, Vec2::splat(52.0));
         let active = widgets::active_state(ui, &c.target);
@@ -757,15 +696,12 @@ fn top_result(ui: &mut Ui, c: &Card, pick: bool, acts: &mut Vec<Action>) {    ui
     });
 }
 
-// ------------------------------------------------------------------ album / playlist
-
 fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
     if app.opened(id).is_none() {
         placeholder(app, ui, now, 1, 232.0);
         return;
     }
     let rows = Rows::new(app, now);
-    // The header's motion sleeve, asked for before the release is borrowed below.
     let (release, artist) = match app.opened(id) {
         Some(o) => (o.c.title.clone(), o.c.artists.first().map(|a| a.name.clone()).unwrap_or_else(|| o.c.byline())),
         None => (String::new(), String::new()),
@@ -812,14 +748,11 @@ fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
             }
             ui.add_space(16.0);
             let target = if is_album { Target::Album(id.to_owned()) } else { Target::Playlist(id.to_owned()) };
-            // Liked Music and Episodes for later are the account's own lists: they can't be
-            // saved, removed, edited or deleted.
             let auto = matches!(id, "LM" | "SE");
             let saved = app.library.as_ref().is_some_and(|l| {
                 let cards = if is_album { &l.albums } else { &l.playlists };
                 cards.iter().any(|card| card.target == target)
             });
-            // Saving only applies to someone else's playlist or an album.
             let save_id = if is_album { c.save_id.clone() } else { (!c.owned).then(|| id.to_owned()) };
             let owned = !is_album && c.owned;
             ui.horizontal(|ui| {
@@ -913,7 +846,6 @@ fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
         if toggle_search {
             edit.request_focus();
         } else if !edit.has_focus() && query.is_empty() {
-            // Left alone empty, the field goes away instead of sitting over the list.
             dismiss_search = true;
         }
         if clearable {
@@ -954,10 +886,6 @@ fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
     }
 }
 
-// ------------------------------------------------------------------ artist
-
-/// Apple's wordmark for the artist, bottom-left at `base`, no wider than `max_w`.
-/// False until the image is ready, so the caller can draw the name instead.
 fn wordmark(ui: &Ui, base: egui::Pos2, logo: &crate::apple::LogoSrc, max_w: f32) -> bool {
     let aspect = logo.w.max(1) as f32 / logo.h.max(1) as f32;
     let mut size = vec2(72.0 * aspect, 72.0);
@@ -981,12 +909,8 @@ fn artist(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
     }
     let rows = Rows::new(app, now);
     let accent = app.accent_color();
-    // Apple's own page for this artist: their display name and the hero clip. Artists
-    // Apple has no clip for (Charli xcx) keep the still banner.
     let apple = app.apple_artists.get(id).and_then(|o| o.clone());
     let name = apple.as_ref().map(|x| x.name.clone()).unwrap_or_else(|| app.artist.as_ref().map(|a| a.name.clone()).unwrap_or_default());
-    // Apple's search misses once now and then. While the page is open, ask again after
-    // the cooldown rather than waiting for the listener to come back to it.
     if apple.is_none() {
         let key = format!("artist:{id}");
         let cooling = app.apple_missed.get(&key).is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(120));
@@ -994,20 +918,15 @@ fn artist(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
             app.backend.request(crate::backend::Req::AppleArtist { id: id.to_owned(), name: name.clone() });
         }
     }
-    // Apple's wordmark wins the hero; failing one, the listener's signature service;
-    // failing that, the name in type. A lettered artist still has their signature
-    // asked for, because it signs the About section below instead of the hero.
     let signature = app.signature_texture(ui.ctx(), &name);
     let Some(a) = &app.artist else { return };
     let acts = &mut app.actions;
     let top = &a.top;
-    // Hero banner fading into the page.
     let w = ui.available_width();
     let hero_h = (w * 0.34).clamp(240.0, 380.0);
     let (hero, _) = ui.allocate_exact_size(vec2(w, hero_h), Sense::hover());
     if let Some(t) = a.banner.iter().max_by_key(|t| t.width) {
         let img_ratio = if t.height > 0 { t.width as f32 / t.height as f32 } else { 16.0 / 9.0 };
-        // Cover-fit: crop the image's top band to the hero's aspect.
         let vis_h = (img_ratio / (w / hero_h)).min(1.0);
         let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, vis_h));
         ui.painter().rect_filled(hero, 14.0, theme::glass(0.07));
@@ -1017,12 +936,9 @@ fn artist(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
     }
     super::shell::vgradient(ui.painter(), Rect::from_min_max(pos2(hero.left(), hero.center().y - 40.0), hero.max), Color32::TRANSPARENT, theme::shade(0.85));
     let base = hero.left_bottom() + vec2(28.0, -30.0);
-    // Apple letters some artists a wordmark image instead of setting their name in type.
-    // Until it downloads (or when there's none) the typed name stands in.
     let drawn = apple.as_ref().and_then(|x| x.logo.as_ref()).is_some_and(|logo| wordmark(ui, base, logo, w * 0.62));
     if !drawn {
         match &signature {
-            // The artist's own hand, credited above it the way a page signs itself off.
             Some(tex) => {
                 let tex_size = tex.size_vec2();
                 let aspect = tex_size.x / tex_size.y.max(1.0);
@@ -1057,8 +973,6 @@ fn artist(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
             && pill(ui, "Radio", Some(icon::RADIO), false).clicked() {
                 acts.push(Action::Radio(first.clone()));
             }
-        // The catalogue: every album and single on the page, else the top songs' playlist.
-        // shortcut: only the releases this page lists, not those behind its shelves' "More"; fetch those pages too if someone misses them.
         let mut releases: Vec<Target> = a.albums.iter().map(|c| c.target.clone()).filter(|t| matches!(t, Target::Album(_))).collect();
         if releases.is_empty() {
             releases.extend(a.top_playlist.clone().map(Target::Playlist));
@@ -1093,8 +1007,6 @@ fn artist(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
     if let Some(d) = a.description.as_deref().filter(|d| !d.trim().is_empty()) {
         shelf_header(ui, "About", None, None, false);
         let full = ui.available_width().min(820.0);
-        // A lettered artist's signature can't be the hero, so it signs the About
-        // section beside the prose the way a page signs itself off.
         let beside = drawn.then_some(signature.as_ref()).flatten();
         if let Some(tex) = beside {
             ui.horizontal_top(|ui| {
@@ -1122,8 +1034,6 @@ fn artist(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
     }
 }
 
-// ------------------------------------------------------------------ library
-
 fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
     page_title(ui, "Library");
     if !app.logged_in {
@@ -1140,7 +1050,6 @@ fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
         ui.spacing_mut().item_spacing.x = 10.0;
         for (t, label) in [(LibTab::Playlists, "Playlists"), (LibTab::Songs, "Liked songs"), (LibTab::Albums, "Albums"), (LibTab::History, "History"), (LibTab::Uploads, "Uploads")] {
             if chip(ui, label, tab == t).clicked() {
-                // Tabs swap in place (no history entry); the current one refreshes.
                 if tab == t {
                     app.refresh();
                 } else {
@@ -1195,7 +1104,6 @@ fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
             }
             list(ui, &rows, &app.liked, up, true, plain, ListCtx { sel: &mut app.selection, page: &app.page, own: false }, &mut app.actions);
         }
-        // Liked Music, kept like any playlist.
         LibTab::Songs => {
             if app.opened(super::LIKED_MUSIC).is_none() {
                 placeholder(app, ui, now, 1, 48.0);
@@ -1244,8 +1152,6 @@ fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
     }
 }
 
-// ------------------------------------------------------------------ downloads
-
 fn downloads(app: &mut App, ui: &mut Ui, now: f64) {
     page_title(ui, "Downloads");
     let songs = crate::downloads::list();
@@ -1288,10 +1194,7 @@ fn downloads(app: &mut App, ui: &mut Ui, now: f64) {
     list(ui, &rows, &app.liked, &songs, true, |_, _| None, ListCtx { sel: &mut app.selection, page: &app.page, own: false }, &mut app.actions);
 }
 
-// ------------------------------------------------------------------ settings
-
 fn settings(app: &mut App, ui: &mut Ui, pane: Option<super::SettingsPane>) {
-    // One narrow centred column, as BitChord's; every section shares its width.
     let avail = ui.available_width();
     let w = avail.min(640.0);
     ui.horizontal(|ui| {
@@ -1311,8 +1214,6 @@ fn settings(app: &mut App, ui: &mut Ui, pane: Option<super::SettingsPane>) {
     });
 }
 
-/// The Settings list: icon, name, what's inside, and a chevron into each group.
-/// The icons are Android's (GlyphStudio).
 const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 11] = {
     use super::SettingsPane::*;
     [
@@ -1359,7 +1260,6 @@ fn settings_list(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// One group of settings on its own page, under a way back to the list.
 fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
     use super::SettingsPane::*;
     ui.add_space(18.0);
@@ -1423,11 +1323,9 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
     }
 }
 
-/// Settings › Account: signing in and out, and which channel to use.
 fn settings_account(app: &mut App, ui: &mut Ui) {
     let busy = app.signing_in.load(Ordering::Relaxed);
     let (mut sign_in, mut sign_out) = (false, false);
-    // Asked again now and then while Settings shows: a failed ask, or a channel made since.
     let now = ui.input(|i| i.time);
     if app.logged_in && app.channels_asked.is_none_or(|at| now - at > 60.0) {
         app.channels_asked = Some(now);
@@ -1439,7 +1337,6 @@ fn settings_account(app: &mut App, ui: &mut Ui) {
             glyph_row(ui, Some(glyphs::YOUTUBE_MUSIC), &name, Some("YouTube Music account. Saved encrypted in Windows Credential Manager."), |ui| {
                 sign_out = pill(ui, "Sign out", Some(icon::LOG_OUT), false).clicked();
             });
-            // Also with one, when the one in use isn't it (a brand channel since deleted).
             if app.channels.as_ref().is_some_and(|c| c.list.len() > 1 || !c.list.iter().any(|l| l.page_id == c.current)) {
                 divider(ui);
                 glyph_row(ui, Some(glyphs::PERSON_CIRCLE), "Listen as", Some("A Google account can have Personal and Brand profiles. Each has its own library, likes and history."), |ui| {
@@ -1472,19 +1369,15 @@ fn settings_account(app: &mut App, ui: &mut Ui) {
 
 fn channel_picker(app: &mut App, ui: &mut Ui) {
     let Some(crate::backend::Channels { list, current, epoch }) = &app.channels else { return };
-    // A brand channel often has the account's name: the handle, or "No channel" (as
-    // YouTube's switcher says), tells them apart.
     let label = |c: &crate::ytm::Channel| match (&c.handle, c.has_channel) {
         (Some(h), _) => format!("{} ({h})", c.name),
         (None, false) => format!("{} (No channel)", c.name),
         (None, true) => c.name.clone(),
     };
-    // The button is narrower: a handle alone is enough there.
     let shown = match list.iter().find(|c| c.page_id == *current) {
         Some(c) => c.handle.clone().unwrap_or_else(|| label(c)),
         None => "Another channel".to_owned(),
     };
-    // A transfer would go on as the new channel.
     if app.transfer.running() {
         ui.label(RichText::new("Not while a transfer runs").font(theme::regular(13.0)).color(theme::text_dim()));
         return;
@@ -1512,7 +1405,6 @@ fn channel_picker(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// Settings › Playback.
 fn settings_playback(app: &mut App, ui: &mut Ui) {
     section_label(ui, "Playback", None);
     settings_card(ui, |ui| {
@@ -1614,8 +1506,6 @@ fn settings_playback(app: &mut App, ui: &mut Ui) {
     });
 }
 
-/// Android's Equalizer screen: a tone pad (Dynamic) or seven faders and the presets
-/// (Manual), then balance. Off, the controls below the switch dim and stop answering.
 fn settings_equalizer(app: &mut App, ui: &mut Ui) {
     let before = app.eq;
     section_label(ui, "Equalizer", None);
@@ -1696,7 +1586,6 @@ fn eq_footer(ui: &mut Ui, text: &str) {
     ui.add(egui::Label::new(RichText::new(text).font(theme::regular(11.5)).color(theme::text_dim())).wrap());
 }
 
-/// The pad, faders and balance keep to the column a phone's width would give them.
 fn pad_width(ui: &Ui) -> f32 {
     ui.available_width().min(420.0)
 }
@@ -1710,9 +1599,6 @@ fn eq_knob(ui: &Ui, c: egui::Pos2, r: f32) {
     ui.painter().circle_filled(c, r, Color32::WHITE);
 }
 
-/// Android's tone pad: an 11 x 11 dot grid (the centre row and column drawn up) and a
-/// puck that snaps to whole steps and glides between them. Right is brighter, up brings
-/// the middle forward.
 fn tone_pad(ui: &mut Ui, x: &mut i32, y: &mut i32) {
     const PUCK: f32 = 19.0;
     let steps = crate::eq::TONE_STEPS;
@@ -1744,7 +1630,6 @@ fn tone_pad(ui: &mut Ui, x: &mut i32, y: &mut i32) {
     ui.painter().circle_filled(puck, PUCK, Color32::WHITE);
 }
 
-/// Seven vertical faders, filled from the zero line, in half-dB steps with a detent at 0.
 fn band_faders(ui: &mut Ui, bands: &mut [f32; 7]) {
     const KNOB: f32 = 10.0;
     let range = crate::eq::BAND_RANGE_DB;
@@ -1794,7 +1679,6 @@ fn band_faders(ui: &mut Ui, bands: &mut [f32; 7]) {
     }
 }
 
-/// L and R with the trim between them, filled from the centre, with a detent there.
 fn balance_slider(ui: &mut Ui, balance: &mut f32) {
     const KNOB: f32 = 10.0;
     let w = pad_width(ui);
@@ -1821,8 +1705,6 @@ fn balance_slider(ui: &mut Ui, balance: &mut f32) {
     eq_knob(ui, pos2(knob_x, track.center().y), KNOB);
 }
 
-/// The hi-res source list: one line per addon, and "+ Add a source" below it that
-/// opens a fresh line for the next one.
 fn hires_sources_editor(app: &mut App, ui: &mut Ui) {
     let mut edited = false;
     let mut remove = None;
@@ -1871,12 +1753,10 @@ fn hires_sources_editor(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// The non-empty links as one newline-separated list, the way the backend reads them.
 fn live_sources(app: &App) -> String {
     app.hires_sources.iter().map(|s| s.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n")
 }
 
-/// Settings › Downloads.
 fn settings_downloads(ui: &mut Ui) {
     section_label(ui, "Downloads", None);
     ui.label(
@@ -1899,7 +1779,6 @@ fn settings_downloads(ui: &mut Ui) {
     });
 }
 
-/// Settings › Lyrics: the better-lyrics extension's options.
 fn settings_lyrics(app: &mut App, ui: &mut Ui) {
     section_label(ui, "Lyrics", None);
     settings_card(ui, |ui| {
@@ -1948,7 +1827,6 @@ fn settings_lyrics(app: &mut App, ui: &mut Ui) {
             }
         });
         divider(ui);
-        // Offsets: seconds taken off the lyrics clock, as the extension's dock sets them.
         for (title, desc, which) in [
             ("Timing offset", "Shift all lyrics later (+) or earlier (−).", 0),
             ("Word-synced trim", "Extra shift for syllable and word-synced lyrics.", 1),
@@ -1970,8 +1848,6 @@ fn settings_lyrics(app: &mut App, ui: &mut Ui) {
             });
             divider(ui);
         }
-        // Source order: the first enabled source with lyrics for a song is shown; the
-        // lyrics toolbar can pick another for that song.
         setting_row(ui, "Lyrics sources", Some("Tried in this order. Switch one off to skip it; the toolbar under the lyrics picks a different one for a single song."), |_| {});
         let n = app.lyric_prefs.order.len();
         let mut swap: Option<(usize, usize)> = None;
@@ -2008,7 +1884,6 @@ fn settings_lyrics(app: &mut App, ui: &mut Ui) {
     });
 }
 
-/// Settings › Artist pages: the listener's own signature service.
 fn settings_artists(app: &mut App, ui: &mut Ui) {
     section_label(ui, "Artist pages", None);
     settings_card(ui, |ui| {
@@ -2022,7 +1897,6 @@ fn settings_artists(app: &mut App, ui: &mut Ui) {
     });
 }
 
-/// Settings › Appearance.
 fn settings_appearance(app: &mut App, ui: &mut Ui) {
     section_label(ui, "Appearance", None);
     settings_card(ui, |ui| {
@@ -2092,7 +1966,6 @@ fn settings_appearance(app: &mut App, ui: &mut Ui) {
     });
 }
 
-/// Settings › Window.
 fn settings_window(app: &mut App, ui: &mut Ui) {
     section_label(ui, "Window", None);
     settings_card(ui, |ui| {
@@ -2165,7 +2038,6 @@ fn settings_window(app: &mut App, ui: &mut Ui) {
     });
 }
 
-/// Rich presence and scrobbling, under the accounts.
 fn settings_integrations(app: &mut App, ui: &mut Ui) {
     let mut discord_enabled = app.discord_enabled;
     section_label(ui, "Rich presence", None);
@@ -2214,7 +2086,6 @@ fn settings_integrations(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// Settings › Keyboard shortcuts.
 fn settings_shortcuts(ui: &mut Ui) {
     section_label(ui, "Keyboard shortcuts", None);
     settings_card(ui, |ui| {
@@ -2247,8 +2118,6 @@ fn settings_shortcuts(ui: &mut Ui) {
     });
 }
 
-/// Settings › Network: the proxy everything goes through, a connection test, and a
-/// restart when the setting changed.
 fn network(app: &mut App, ui: &mut Ui) {
     use crate::proxy::{self, Setting};
     let same = |a: &Setting, b: &Setting| std::mem::discriminant(a) == std::mem::discriminant(b);
@@ -2272,7 +2141,6 @@ fn network(app: &mut App, ui: &mut Ui) {
         app.proxy_error = None;
         *app.proxy_test.lock().unwrap() = None;
         app.proxy_mode = s.clone();
-        // System and Off take effect as picked; a custom address once it's saved.
         if !matches!(s, Setting::Custom(_)) {
             match proxy::save(app.backend.data_dir(), &s) {
                 Ok(()) => app.proxy_saved = s,
@@ -2358,8 +2226,6 @@ fn network(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// The font setting: the theme's own, a bundled face, or one installed on this PC.
-/// Returns the new choice ("" for the theme's).
 fn font_picker(ui: &mut Ui) -> Option<String> {
     let current = theme::font_choice();
     let btn = dropdown_button(ui, if current.is_empty() { "Theme's font" } else { &current }, 220.0, "Font");
@@ -2423,7 +2289,6 @@ fn output_device_picker(app: &mut App, ui: &mut Ui) {
         },
     };
     let btn = dropdown_button(ui, &current, 210.0, "Output device");
-    // Listed when opened, so a device that just connected shows up.
     if btn.clicked() || app.output_devices.is_empty() {
         app.output_devices = crate::audio::output_devices();
     }
@@ -2452,7 +2317,6 @@ fn output_device_picker(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// A dropdown's closed state: the chosen value and a chevron on a glass pill.
 fn dropdown_button(ui: &mut Ui, value: &str, width: f32, name: &str) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 36.0), Sense::click());
     let resp = widgets::named(resp, name).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -2465,7 +2329,6 @@ fn dropdown_button(ui: &mut Ui, value: &str, width: f32, name: &str) -> egui::Re
     resp
 }
 
-/// A dropdown option: hover glass, and a check on the chosen one.
 fn option_row(ui: &mut Ui, label: &str, selected: bool) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
     let resp = widgets::named(resp, label).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -2481,7 +2344,6 @@ fn option_row(ui: &mut Ui, label: &str, selected: bool) -> egui::Response {
     resp
 }
 
-/// 12345 -> "12,345".
 pub(super) fn thousands(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::new();
@@ -2494,7 +2356,6 @@ pub(super) fn thousands(n: u64) -> String {
     out
 }
 
-/// Small heading above a settings card, with an optional value on the right.
 pub(super) fn section_label(ui: &mut Ui, title: &str, value: Option<&str>) {
     ui.add_space(26.0);
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 16.0), Sense::hover());
@@ -2513,12 +2374,10 @@ pub(super) fn settings_card(ui: &mut Ui, body: impl FnOnce(&mut Ui)) {
         });
 }
 
-/// A settings row: title and description on the left, the control on the right.
 pub(super) fn setting_row(ui: &mut Ui, title: &str, desc: Option<&str>, control: impl FnOnce(&mut Ui)) {
     glyph_row(ui, None, title, desc, control);
 }
 
-/// A setting row led by a glyph.
 pub(super) fn glyph_row(ui: &mut Ui, glyph: Option<glyphs::Glyph>, title: &str, desc: Option<&str>, control: impl FnOnce(&mut Ui)) {
     let w = ui.available_width();
     let indent = if glyph.is_some() { 36.0 } else { 0.0 };
@@ -2543,10 +2402,8 @@ pub(super) fn glyph_row(ui: &mut Ui, glyph: Option<glyphs::Glyph>, title: &str, 
     control(&mut cui);
 }
 
-/// Between rows: BitChord draws no rule, the spacing does it.
 pub(super) fn divider(_ui: &mut Ui) {}
 
-/// On/off switch tinted with the accent.
 pub(super) fn toggle(ui: &mut Ui, on: &mut bool, name: &str) -> egui::Response {
     let (rect, mut resp) = ui.allocate_exact_size(vec2(40.0, 24.0), Sense::click());
     if resp.clicked() {
@@ -2568,8 +2425,6 @@ pub(super) fn toggle(ui: &mut Ui, on: &mut bool, name: &str) -> egui::Response {
     resp
 }
 
-/// Whole seconds on a track like the volume slider's, with the ends labelled and the
-/// value beside it: click or drag to set (scrolling over it scrolls the page).
 fn seconds_slider(ui: &mut Ui, v: &mut u32, range: std::ops::RangeInclusive<u32>, name: &str) -> egui::Response {
     let (lo, hi) = (*range.start(), *range.end());
     let label = |ui: &mut Ui, text: String, w: f32, font: egui::FontId, color: Color32| {
@@ -2607,7 +2462,6 @@ fn seconds_slider(ui: &mut Ui, v: &mut u32, range: std::ops::RangeInclusive<u32>
     resp
 }
 
-/// Draw a key cap whose right edge is at `right`; returns its left edge.
 fn keycap(ui: &Ui, right: egui::Pos2, key: &str) -> f32 {
     let g = widgets::galley(ui, key, theme::semibold(12.5), theme::text(), 200.0);
     let size = vec2((g.size().x + 18.0).max(30.0), 26.0);

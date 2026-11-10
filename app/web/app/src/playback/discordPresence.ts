@@ -5,18 +5,6 @@ import { useDiscord, useDiscordOptions } from '@/extension/useDiscord';
 import { sizedArtwork } from '@/lib/artwork';
 import { getAudio, usePlayer } from '@/state/player';
 
-/**
- * Tells the extension what's playing, for the Discord card (prompt §7.2).
- * The same moments PlaybackService pushes on:
- * - a track change, or playback resuming: a new presence;
- * - a seek: new timestamps, since Discord draws the bar from them itself;
- * - a pause: the card comes down, or Discord would count on through a stopped song;
- * - a change to the card's options.
- * A buffering stall and the gap while the next track loads are not pauses.
- * Nothing in between: the countdown is Discord's own arithmetic.
- */
-
-/** Discord draws the sleeve at about 96 dp; 480 px covers it on any density (DiscordRPC.ART_PX). */
 const ART_PX = 480;
 
 function nowPlaying(): DiscordNowPlaying | null {
@@ -37,10 +25,8 @@ function nowPlaying(): DiscordNowPlaying | null {
 }
 
 export function startPublisher(): () => void {
-  /** What was last sent: a track (and the moment it was pushed for), or a clear. */
   let sent: string | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  /** A push asked to be fresh (a seek, a resume) and not yet sent: a seek buffers before it plays again. */
   let forced = false;
 
   const publish = () => {
@@ -54,7 +40,7 @@ export function startPublisher(): () => void {
       void bridge.call('discord.presence', { track: null, options }).catch(() => (sent = null));
       return;
     }
-    if (status !== 'playing') return; // loading or buffering: wait for the music
+    if (status !== 'playing') return;
     const track = nowPlaying();
     if (!track) return;
     const key = `${track.videoId}|${JSON.stringify(options)}`;
@@ -63,8 +49,6 @@ export function startPublisher(): () => void {
     sent = key;
     void bridge.call('discord.presence', { track, options }, { timeoutMs: 30_000 }).catch(() => (sent = null));
   };
-  // Status flips in bursts (loading → buffering → playing); answer the last one,
-  // keeping any forced push from earlier in the burst.
   const soon = (force = false) => {
     if (force) forced = true;
     clearTimeout(timer);
@@ -81,10 +65,8 @@ export function startPublisher(): () => void {
   bindAudio();
 
   const offPlayer = usePlayer.subscribe((state, before) => {
-    // The decks are made on the first play, and a crossfade swaps them: follow the element, not the counter.
     if (getAudio() !== audio) bindAudio();
     if (state.nowPlaying?.videoId !== before.nowPlaying?.videoId || state.status !== before.status) {
-      // Resuming after a pause is a fresh push: the old timestamps are stale.
       soon(before.status === 'paused' && state.status === 'playing');
     }
   });
@@ -99,7 +81,6 @@ export function startPublisher(): () => void {
   };
 }
 
-/** Mounted once in the shell: publishes while an account is connected and presence is on. */
 export function useDiscordPresence(): void {
   const status = useDiscord();
   const active = status.state === 'ready' && status.discord.available && status.discord.connected && status.discord.enabled;

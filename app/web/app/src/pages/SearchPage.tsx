@@ -25,7 +25,6 @@ const KIND_LABEL: Record<MusicItem['kind'], string> = {
   unknown: '',
 };
 
-/** Apple's result shelves, in its order, from results grouped by kind. */
 function shelvesFor(results: SearchResults): Shelf[] {
   const shelf = (title: string, items: MusicItem[], layout: Shelf['layout']): Shelf | null =>
     items.length ? { title, strapline: null, layout, items, seeAll: null } : null;
@@ -39,12 +38,8 @@ function shelvesFor(results: SearchResults): Shelf[] {
 }
 
 const sectionTitle = 'mx-(--body-gutter) mt-3 type-title-2-emphasized';
-// Top Results: 3 columns, gap 20px; 118px cards with 90px artwork.
 const topGrid =
   'mx-(--body-gutter) mt-3 mb-8 grid grid-cols-3 gap-5 max-lg:grid-cols-2 max-[607px]:grid-cols-[minmax(0,1fr)] max-[607px]:gap-1';
-// The card is a relative box and the play/link layer fills it: a playable
-// item's track menu is a sibling over the card's bottom-right corner, because a
-// button can't be nested inside the card's own link or button.
 const topCard = 'group/top relative rounded-[8px] bg-quinary hover:bg-quaternary';
 const top =
   'grid min-h-[118px] w-full grid-cols-[90px_minmax(0,1fr)] items-center gap-x-3.5 px-3 py-3.5 text-left';
@@ -148,7 +143,6 @@ function Landing() {
   return <CategoryTiles groups={categories.data.map((g) => ({ ...g, title: g.title || 'Browse Categories' }))} />;
 }
 
-/** Search (report §6): a sticky bar with the field, then categories or grouped results. */
 export default function SearchPage() {
   const { missing } = useYouTubeReady();
   const [params, setParams] = useSearchParams();
@@ -156,11 +150,6 @@ export default function SearchPage() {
 
   return (
     <>
-      {/*
-        The sticky scope bar holding the field (report §6: 62px, padding 12px 0). Its glass sits on
-        a layer behind it, not on the bar: an element with a backdrop-filter is a backdrop root, so
-        the suggestions inside it could only blur the bar itself and showed the page underneath unblurred.
-      */}
       <div className="sticky top-0 z-[calc(var(--z-default)+5)] flex justify-center px-(--body-gutter) py-3 before:absolute before:inset-0 before:-z-1 before:bg-header-material before:[backdrop-filter:saturate(180%)_blur(20px)]">
         <SearchField initial={query} onSearch={(q) => setParams(q ? { q } : {})} />
       </div>

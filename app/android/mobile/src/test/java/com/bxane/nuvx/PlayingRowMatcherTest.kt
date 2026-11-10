@@ -15,7 +15,6 @@ class PlayingRowMatcherTest {
         return rows.filter(matches).map { it.videoId }
     }
 
-    /** A song and its music video share a name; only the one tapped lights. */
     @Test
     fun `only the played row lights when namesakes share the list`() {
         val track = song("track")
@@ -24,7 +23,6 @@ class PlayingRowMatcherTest {
         assertEquals(listOf("track"), lit(listOf(track, video), track))
     }
 
-    /** An addon's stereo and Atmos rows are two ids under one name. */
     @Test
     fun `an addon's stereo row lights alone when it is the one playing`() {
         val stereo = song("src:a::tidal:1")
@@ -32,14 +30,12 @@ class PlayingRowMatcherTest {
         assertEquals(listOf("src:a::tidal:1"), lit(listOf(stereo, atmos), stereo))
     }
 
-    /** A local file playing over a YouTube page still finds its row by name — the first one. */
     @Test
     fun `with no row by id the first namesake lights`() {
         val playing = song("local:42")
         assertEquals(listOf("yt1"), lit(listOf(song("other", "Else"), song("yt1"), song("yt2")), playing))
     }
 
-    /** A playlist holding the song twice lights the slot it was played from. */
     @Test
     fun `the playlist slot picks between two copies of one id`() {
         val first = song("x", slot = "s1")

@@ -1,7 +1,3 @@
-//! Previous / play-pause / next buttons on the Windows taskbar thumbnail, like
-//! other music players. Clicks arrive as WM_COMMAND on the app window, which a
-//! subclass turns into the same media events the system media keys send.
-
 use std::sync::Arc;
 
 use crossbeam_channel::Sender;
@@ -21,7 +17,6 @@ use windows::core::w;
 const PREV: u32 = 1;
 const TOGGLE: u32 = 2;
 const NEXT: u32 = 3;
-/// Timer that adds the buttons just after the window first shows.
 const SHOWN_TIMER: usize = 0x7974;
 
 pub struct ThumbBar {
@@ -34,7 +29,6 @@ pub struct ThumbBar {
     playing: bool,
 }
 
-/// What the subclass needs to forward a click.
 struct Hook {
     tx: Sender<MediaControlEvent>,
     wake: Arc<dyn Fn() + Send + Sync>,
@@ -43,8 +37,6 @@ struct Hook {
 }
 
 impl ThumbBar {
-    /// Installs the buttons on `hwnd`. Returned boxed so the window subclass can
-    /// re-add them if Explorer restarts and the taskbar button is recreated.
     pub fn install(
         hwnd: *mut std::ffi::c_void,
         tx: Sender<MediaControlEvent>,
@@ -66,14 +58,11 @@ impl ThumbBar {
                 next: icon(px, Glyph::Next)?,
                 playing: false,
             };
-            // The taskbar button exists only once the window shows (eframe shows it
-            // after the first frame), and buttons added before then never appear.
             if IsWindowVisible(hwnd).as_bool() {
                 bar.add();
             }
             let cell = Box::new(std::cell::RefCell::new(Some(bar)));
             let created = RegisterWindowMessageW(w!("TaskbarButtonCreated"));
-            // When the app runs elevated, Windows drops these messages from Explorer unless allowed.
             for m in [created, WM_COMMAND] {
                 let _ = ChangeWindowMessageFilterEx(hwnd, m, MSGFLT_ALLOW, None);
             }
@@ -93,7 +82,6 @@ impl ThumbBar {
 
     fn add(&self) {
         let buttons = self.buttons();
-        // Adding twice fails; then the buttons are already there, so just refresh them.
         if unsafe { self.taskbar.ThumbBarAddButtons(self.hwnd, &buttons) }.is_err()
             && let Err(e) = unsafe { self.taskbar.ThumbBarUpdateButtons(self.hwnd, &buttons) }
         {
@@ -133,7 +121,6 @@ unsafe extern "system" fn subclass(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM,
         }
     }
     if msg == WM_SHOWWINDOW && wp.0 != 0 {
-        // Give Explorer a moment to create the taskbar button first.
         unsafe { SetTimer(Some(hwnd), SHOWN_TIMER, 250, None) };
     }
     let shown = msg == WM_TIMER && wp.0 == SHOWN_TIMER;
@@ -141,7 +128,6 @@ unsafe extern "system" fn subclass(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM,
         let _ = unsafe { KillTimer(Some(hwnd), SHOWN_TIMER) };
     }
     if shown || msg == hook.created {
-        // The window showed, or Explorer (re)created the taskbar button.
         if let Ok(bar) = unsafe { &*hook.bar }.try_borrow()
             && let Some(bar) = bar.as_ref()
         {
@@ -159,7 +145,6 @@ enum Glyph {
     Next,
 }
 
-/// Convex shapes in a unit square, white on transparent.
 fn shapes(g: Glyph) -> Vec<Vec<(f32, f32)>> {
     let rect = |x0: f32, y0: f32, x1: f32, y1: f32| vec![(x0, y0), (x1, y0), (x1, y1), (x0, y1)];
     match g {
@@ -171,7 +156,6 @@ fn shapes(g: Glyph) -> Vec<Vec<(f32, f32)>> {
 }
 
 fn inside(poly: &[(f32, f32)], x: f32, y: f32) -> bool {
-    // Convex, either winding: the point is on the same side of every edge.
     let mut sign = 0.0f32;
     for i in 0..poly.len() {
         let (ax, ay) = poly[i];
@@ -187,7 +171,6 @@ fn inside(poly: &[(f32, f32)], x: f32, y: f32) -> bool {
     true
 }
 
-/// Coverage of each pixel, 4×4 supersampled.
 fn raster(px: i32, g: Glyph) -> Vec<u8> {
     let polys = shapes(g);
     let n = px as usize;

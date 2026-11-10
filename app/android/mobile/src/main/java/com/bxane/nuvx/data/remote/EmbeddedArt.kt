@@ -1,34 +1,17 @@
 package com.bxane.nuvx.data.remote
 
-/**
- * Cover pictures embedded in audio files, read through bounded ranged
- * access instead of downloading whole tracks.
- *
- * Only the tag regions are ever touched: an ID3v2 tag, a FLAC metadata
- * chain, an MP4 box walk or the first Ogg pages. Anything unparseable —
- * exotic flags, encryption, a picture bigger than [MAX_PICTURE_BYTES] —
- * reads as absent rather than as an error, because a missing cover must
- * never fail whatever asked for one. WAV is deliberately unsupported: its
- * metadata lives in RIFF chunks a good number of players ignore outright.
- */
 object EmbeddedArt {
 
     data class Picture(val bytes: ByteArray, val mime: String)
 
-    /**
-     * Random access into the file. Backends serve HTTP ranges or share
-     * offsets; both are just (offset, length) reads here.
-     */
     interface Reader {
         val size: Long
         fun read(offset: Long, length: Int): ByteArray
         fun close() {}
     }
 
-    /** Largest single picture kept — phone screens don't need more. */
     const val MAX_PICTURE_BYTES = 8 * 1024 * 1024
 
-    /** Largest tag region walked before giving up on a file. */
     private const val MAX_WALK_BYTES = 16 * 1024 * 1024
 
     fun extract(reader: Reader): Picture? = runCatching {
@@ -46,8 +29,6 @@ object EmbeddedArt {
             else -> null
         }
     }.getOrNull()
-
-    // ── Buffered cursor ───────────────────────────────────────────────────
 
     private class Cursor(private val reader: Reader) {
         private var windowStart = 0L
@@ -78,8 +59,6 @@ object EmbeddedArt {
         }
     }
 
-    // ── ID3v2 (MP3) ───────────────────────────────────────────────────────
-
     private fun id3(reader: Reader, magic: ByteArray): Picture? {
         val version = magic[3].toInt() and 0xFF
         if (version !in 2..4) return null
@@ -89,9 +68,6 @@ object EmbeddedArt {
         val tag = reader.read(10, tagSize)
         if (tag.size < tagSize) return null
         var pos = 0
-        // Extended header: the declared size counts itself on v2.3 and not on
-        // v2.4, and both conventions ship in the wild — try each, plus the two
-        // fixed sizes, and take the first offset that parses as frames.
         if (magic[5].toInt() and 0x40 != 0 && tag.size >= 4) {
             val declared = if (version == 4) syncsafe(tag, 0) else u32(tag, 0)
             pos = listOf(declared, declared - 4, 6, 10)
@@ -112,15 +88,10 @@ object EmbeddedArt {
             }
             val headLen = if (version == 2) 6 else 10
             if (size <= 0 || pos + headLen + size > tag.size + 1 || !id.all { it.isLetterOrDigit() }) {
-                // Padding, or a frame this walk can't trust — either way the
-                // tag has nothing more to say from here.
                 if (!isPicture) break
             }
             if (isPicture && size > 0 && pos + headLen + size <= tag.size) {
                 val raw = tag.copyOfRange(pos + headLen, pos + headLen + size)
-                // Sizes count stored bytes, so frame boundaries stay exact and
-                // only the payload is de-unsynchronised — the other order
-                // drifts every frame after the first stuffed byte.
                 val payload = if (unsync) deunsync(raw) else raw
                 pictureFromApic(payload, version)?.let { return it }
                 return null
@@ -153,7 +124,6 @@ object EmbeddedArt {
     private fun pictureFromApic(payload: ByteArray, version: Int): Picture? {
         if (payload.isEmpty()) return null
         return if (version == 2) {
-            // encoding(1) + format(3) + type(1) + description + data
             if (payload.size < 6) return null
             val format = payload.decodeToString(1, 4).uppercase()
             val mime = if (format == "PNG") "image/png" else "image/jpeg"
@@ -173,7 +143,7 @@ object EmbeddedArt {
             val mime = payload.decodeToString(at, mimeEnd).ifBlank { null }
             at = mimeEnd + 1
             if (at >= payload.size) return null
-            at++ // picture type
+            at++
             val encoding = payload[0].toInt() and 0xFF
             at = skipNull(payload, at, if (encoding == 1 || encoding == 2) 2 else 1) ?: return null
             picture(payload.copyOfRange(at, payload.size), mime)
@@ -190,8 +160,6 @@ object EmbeddedArt {
         }
         return null
     }
-
-    // ── FLAC ──────────────────────────────────────────────────────────────
 
     private fun flac(reader: Reader): Picture? {
         val cursor = Cursor(reader)
@@ -214,7 +182,6 @@ object EmbeddedArt {
         }
     }
 
-    /** A PICTURE block body: metadata, then the image at a known extent. */
     internal fun flacPicture(reader: Reader, at: Long, length: Int): Picture? {
         val head = reader.read(at, minOf(length, 64)).takeIf { it.size >= 8 } ?: return null
         var pos = 0
@@ -222,14 +189,14 @@ object EmbeddedArt {
             if (pos + 4 > head.size) return -1
             return u32(head, pos).also { pos += 4 }
         }
-        u32at() // picture type
+        u32at()
         val mimeLen = u32at().toInt()
         if (mimeLen < 0 || pos + mimeLen > head.size) return null
         val mime = head.decodeToString(pos, pos + mimeLen).ifBlank { null }
         pos += mimeLen
         val descLen = u32at().toInt()
         if (descLen < 0 || pos + descLen + 20 > head.size) return null
-        pos += descLen + 16 // description, width, height, depth, colors
+        pos += descLen + 16
         val dataLen = u32at()
         if (dataLen <= 0 || dataLen > MAX_PICTURE_BYTES) return null
         val dataAt = at + pos
@@ -238,14 +205,11 @@ object EmbeddedArt {
         return picture(data, mime)
     }
 
-    // ── MP4/M4A ───────────────────────────────────────────────────────────
-
     private fun mp4(reader: Reader): Picture? {
         val cursor = Cursor(reader)
         return findBox(cursor, 0, reader.size, setOf("moov"), 0)?.let { moov ->
             findBox(cursor, moov.start, moov.end, setOf("udta"), 1)?.let { udta ->
                 findBox(cursor, udta.start, udta.end, setOf("meta"), 2)?.let { meta ->
-                    // meta is a full box: 4 version/flags bytes before its children.
                     findBox(cursor, meta.start + 4, meta.end, setOf("ilst"), 3)?.let { ilst ->
                         covrData(cursor, ilst.start, ilst.end)
                     }
@@ -270,7 +234,6 @@ object EmbeddedArt {
             headerLen = 16L
             if (size < headerLen) return null
         } else if (size == 0L) {
-            // To the end of the file — bounded like any other walk.
             size = MAX_WALK_BYTES.toLong()
         }
         if (size < headerLen || size > MAX_WALK_BYTES * 4) return null
@@ -313,8 +276,6 @@ object EmbeddedArt {
         return null
     }
 
-    // ── Ogg Vorbis / Opus ─────────────────────────────────────────────────
-
     private fun ogg(reader: Reader): Picture? {
         val cursor = Cursor(reader)
         var pages = 0
@@ -340,7 +301,6 @@ object EmbeddedArt {
             packet = if (continued) packet + body else body
             at = cursor.position
             if (table.isNotEmpty() && table.last().toInt() and 0xFF < 255) {
-                // Packet ends here: comment packets name themselves up front.
                 if (packet.size > 7 && packet[0] == 0x03.toByte() &&
                     packet[1] == 'v'.code.toByte() && packet[2] == 'o'.code.toByte()
                 ) {
@@ -360,7 +320,6 @@ object EmbeddedArt {
     }
 
     private fun vorbisPicture(packet: ByteArray, opus: Boolean = false): Picture? {
-        // [type/vorbis-magic][vendor len + vendor][count][len + field]...
         var pos = if (opus) 8 else 7
         fun u32le(): Long {
             if (pos + 4 > packet.size) return -1
@@ -386,7 +345,6 @@ object EmbeddedArt {
                     java.util.Base64.getMimeDecoder()
                         .decode(field.substringAfter('='))
                 }.getOrNull() ?: return@repeat
-                // A FLAC PICTURE struct without the 4-byte block header.
                 return flacPictureBytes(payload)
             }
         }
@@ -413,8 +371,6 @@ object EmbeddedArt {
         return picture(payload.copyOfRange(pos, (pos + dataLen).toInt()), mime)
     }
 
-    // ── Small byte readers ────────────────────────────────────────────────
-
     private fun syncsafe(bytes: ByteArray, at: Int): Int {
         if (at + 4 > bytes.size) return -1
         return ((bytes[at].toInt() and 0x7F) shl 21) or
@@ -423,11 +379,6 @@ object EmbeddedArt {
             (bytes[at + 3].toInt() and 0x7F)
     }
 
-    /**
-     * Unsigned 32-bit big-endian, saturated: every caller needs an array
-     * index or a length out of it, and a value past 2GB fails every range
-     * check below rather than overflowing into one that passes.
-     */
     private fun u32(bytes: ByteArray, at: Int): Int {
         if (at + 4 > bytes.size) return -1
         val v = ((bytes[at].toLong() and 0xFF) shl 24) or

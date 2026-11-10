@@ -34,7 +34,6 @@ import kotlin.math.sin
 
 private val GoldGlow = Color(0xFFFFC23D)
 
-/** Metallic gold, dark at the edges and bright through the middle like a polished bevel. */
 private val GoldFace = listOf(
     Color(0xFFA8740E),
     Color(0xFFE9B23A),
@@ -44,33 +43,12 @@ private val GoldFace = listOf(
     Color(0xFFFFD873),
 )
 
-/** How long one glint — the shine crossing the mark, the halo swelling with it — takes. */
 private const val GLINT_MS = 1_600L
 
-/** The rest between glints, during which nothing is drawn at all. */
 private const val REST_MS = 3_400L
 
-/** No glint in progress: the mark sits still and asks for no frames. */
 private const val AT_REST = -1f
 
-/**
- * The wordmark, cast in gold for a festival: a soft halo, a metallic gradient
- * face, and every few seconds a glint — the shine sweeping across while the
- * halo swells and settles.
- *
- * Built to be cheap under the liquid glass. Every frame of anything on the page
- * is a frame of the whole page (the glass bars sample it live and re-run their
- * blur), so the mark follows the same rules as the rest of the page's loops:
- * - only the glint moves, and between glints no frame is asked for at all;
- * - the glint runs at [MOTION_FRAME_GAP_MS] pacing (30fps), not every vsync;
- * - it holds still while [LocalArtworkScrolling] says the page is scrolling,
- *   and while [LocalArtworkMotion] is off (app in the background, Now Playing
- *   up, or the Diwali greeting covering the page);
- * - the blurred glow is never animated, so its blur renders once and is kept.
- *
- * Progress is read only inside draw lambdas, so a glint frame redraws these
- * canvases and never recomposes anything.
- */
 @Composable
 fun GoldenLogo(
     painter: Painter,
@@ -116,9 +94,6 @@ fun GoldenLogo(
                 },
             )
             .drawBehind {
-                // The halo is a plain gradient — redrawing it costs nothing and
-                // needs no layer. It rests at a steady glow and swells with
-                // each glint.
                 val p = glint.floatValue
                 val swell = if (p == AT_REST) 0f else sin(p * PI.toFloat())
                 val strength = 0.65f + 0.35f * swell
@@ -136,10 +111,6 @@ fun GoldenLogo(
                 )
             },
     ) {
-        // Held perfectly still. Animating it either way went wrong on device:
-        // a layer alpha rendered it offscreen at the mark's own bounds (a box
-        // fading in and out), and re-recording it each frame re-ran the blur
-        // every frame, which flickered.
         Box(
             Modifier
                 .matchParentSize()
@@ -169,7 +140,6 @@ fun GoldenLogo(
                     )
                     val p = glint.floatValue
                     if (p != AT_REST) {
-                        // Enters past the left edge and leaves past the right.
                         val band = size.width * 0.22f
                         val x = -band + p * (size.width + 2 * band)
                         drawRect(

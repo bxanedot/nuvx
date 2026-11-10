@@ -20,14 +20,12 @@ import { Sidebar } from './Sidebar';
 
 const mobile = isMobileBrowser();
 
-// It carries am-lyrics; loaded the first time it opens, as the side panel's lyrics are.
 const FullScreenPlayer = lazy(() => import('./FullScreenPlayer').then((m) => ({ default: m.FullScreenPlayer })));
 
 function bounceGlyph({ target }: MouseEvent<HTMLDivElement>) {
   if (!(target instanceof Element) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const control = target.closest('button:enabled, a[href]');
   if (!control) return;
-  // Wait for React to swap stateful icons such as Play and Pause before animating.
   requestAnimationFrame(() => {
     control.querySelector(':scope > svg, :scope > span > svg')?.animate([
       { translate: '0 0', easing: 'cubic-bezier(.55, 0, .67, 1)' },
@@ -38,21 +36,14 @@ function bounceGlyph({ target }: MouseEvent<HTMLDivElement>) {
   });
 }
 
-/**
- * The app frame (report §1): glass sidebar, the scrolling page, the floating
- * player pill, the side panel, and the bottom band when there is one.
- */
 export function AppShell() {
   useKeyboardShortcuts();
   useDiscordPresence();
-  // Listen Together: pick a party back up after a reload, and keep the player in step with it.
   useEffect(() => {
     resumeSession();
     return startPartySync();
   }, []);
-  // Plays into the account's YouTube Music history (Settings › Share Listening Activity).
   useEffect(() => startHistoryReporting(), []);
-  // Counts this tab in the "listening now" figure beside the phone and PC apps.
   useEffect(() => startLivePresence(), []);
   const extension = useExtension();
   const bannerDismissed = useUi((s) => s.installBannerDismissed);
@@ -90,7 +81,6 @@ export function AppShell() {
 
   return (
     <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]" onClickCapture={bounceGlyph}>
-      {/* The side panel slides in from beyond the right edge; never let it scroll the page. */}
       <div className="relative min-h-0 overflow-hidden">
         <Sidebar />
         <MobileTopBar />
@@ -100,13 +90,11 @@ export function AppShell() {
           className="pointer-events-none absolute top-4 right-5 z-[calc(var(--z-web-chrome)-2)] h-5 w-[76px] bg-key mask-contain mask-center mask-no-repeat max-sm:right-3.5"
           style={{ maskImage: `url("${bxaneSignature}")` }}
         />
-        {/* The page scrolls under the fixed sidebar and the floating player. */}
         <main
           id="scrollable-page"
           className="absolute inset-0 isolate overflow-x-hidden overflow-y-auto pl-(--web-navigation-width) [scrollbar-gutter:stable] data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-in max-sm:pt-(--mobile-top-bar-height) max-sm:pl-0"
         >
           <div className="nuvx-ambient" data-motion-paused={backgroundMotion ? undefined : ''} aria-hidden="true" />
-          {/* Clears the floating pill: its height, its offset, and some air. */}
           <div className="min-h-full pb-[calc(var(--player-pill-height)+var(--player-bottom-offset)+40px)]">
             <Outlet />
           </div>

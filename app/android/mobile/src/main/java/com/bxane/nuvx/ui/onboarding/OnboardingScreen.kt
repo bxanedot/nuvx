@@ -89,26 +89,12 @@ import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.sharedui.resources.spotify_logo
 import com.bxane.nuvx.ui.icons.SfIcons
 
-/**
- * The two welcome pages: a name for Listen Together, then the YouTube sign-in.
- *
- * Shown once — to new installs and, because the flag it sets is new, to anyone
- * updating from a build without it. The second page is skipped for an account
- * that is already signed in; asking somebody to connect what is connected
- * reads as the app having forgotten them.
- *
- * Always drawn dark, whatever the theme, for the same reason Replay is: the
- * mesh is colour, and white type is what sits on colour.
- */
 @Composable
 fun OnboardingScreen(
     signedIn: Boolean,
     initialName: String,
-    /** Saves the party name. Called on Next, before the second page. */
     onNameChosen: (String) -> Unit,
-    /** Opens the Google sign-in. The caller finishes onboarding once it lands. */
     onSignIn: () -> Unit,
-    /** Open the Spotify and Discord logins, raised over this page; null hides the button. */
     onSpotifyLogin: (() -> Unit)? = null,
     onDiscordLogin: (() -> Unit)? = null,
     onFinish: () -> Unit,
@@ -119,23 +105,16 @@ fun OnboardingScreen(
     val focusManager = LocalFocusManager.current
 
     BackHandler(enabled = page == PAGE_CONNECT) { page = PAGE_NAME }
-    // "Sign in with Google" goes through the app's own sign-in WebView, raised
-    // over this page; the account landing is what ends the welcome.
     LaunchedEffect(signedIn, page) {
         if (signedIn && page == PAGE_CONNECT) onFinish()
     }
 
-    // The mesh never settles on one palette: each crossfade is as long as the
-    // hold, so one runs straight into the next.
     val palette = cyclingMeshPalette(if (page == PAGE_NAME) WelcomeMeshPalettes else ConnectPalettes)
 
     Box(
         modifier
             .fillMaxSize()
             .background(Color.Black)
-            // Swallows every touch the pages don't, so nothing reaches the app
-            // laid out underneath — and a tap on the backdrop puts the keyboard
-            // away, which is where a thumb goes to dismiss one.
             .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
     ) {
         MeshGradientBackground(
@@ -145,8 +124,6 @@ fun OnboardingScreen(
             driftMillis = 6_000,
             colorFadeMillis = MESH_CYCLE_MILLIS,
         )
-        // The mesh carries its own light scrim for a player's controls; two
-        // full-width buttons and a paragraph want the foot of it a shade deeper.
         Box(
             Modifier
                 .fillMaxSize()
@@ -201,7 +178,6 @@ fun OnboardingScreen(
     }
 }
 
-/** The column every page is laid out in, capped so a tablet doesn't stretch it. */
 @Composable
 private fun OnboardingPage(content: @Composable ColumnScope.() -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -222,8 +198,6 @@ private fun ColumnScope.NamePage(
     onNameChange: (String) -> Unit,
     onNext: () -> Unit,
 ) {
-    // With the keyboard up there is room for the title or the logo, not both;
-    // the title is the one that says where you are.
     val keyboardUp = WindowInsets.isImeVisible
     AnimatedVisibility(
         visible = !keyboardUp,
@@ -307,8 +281,6 @@ private fun ColumnScope.ConnectPage(
             )
         },
     )
-    // Spotify and Discord are extras on top of YouTube, not instead of it: each
-    // opens its login over this page and comes back here, ticked once connected.
     onSpotifyLogin?.let { open ->
         Spacer(Modifier.height(12.dp))
         PillButton(
@@ -347,7 +319,6 @@ private fun ColumnScope.ConnectPage(
     }
     Spacer(Modifier.height(12.dp))
     PillButton(
-        // Once something is connected, leaving is finishing rather than skipping.
         label = stringResource(
             if (spotifyConnected || discordConnected) R.string.done else R.string.onboarding_skip_sign_in,
         ),
@@ -357,7 +328,6 @@ private fun ColumnScope.ConnectPage(
     Spacer(Modifier.height(16.dp))
 }
 
-/** A service's mark, swapped for a tick with a little pop once that account is connected. */
 @Composable
 private fun ConnectMark(connected: Boolean, mark: @Composable () -> Unit) {
     AnimatedContent(
@@ -381,7 +351,6 @@ private fun ConnectMark(connected: Boolean, mark: @Composable () -> Unit) {
     }
 }
 
-/** Replay's heading, scaled up: the one line each page exists to say. */
 @Composable
 private fun Title(text: String) {
     Text(
@@ -395,10 +364,6 @@ private fun Title(text: String) {
     )
 }
 
-/**
- * The name, set in the heading's own face and weight so what you type reads
- * as part of the page rather than a form on top of it.
- */
 @Composable
 private fun NameField(value: String, onValueChange: (String) -> Unit, onDone: () -> Unit) {
     val style = MaterialTheme.typography.displayLarge.copy(
@@ -441,11 +406,6 @@ private fun NameField(value: String, onValueChange: (String) -> Unit, onDone: ()
     }
 }
 
-/**
- * A full-width capsule. Primary is white on the mesh, the way Apple Music's
- * own welcome sheet does it; secondary is the same shape in frosted white, so
- * the pair reads as a choice rather than a button and an afterthought.
- */
 @Composable
 private fun PillButton(
     label: String,
@@ -518,10 +478,8 @@ private fun BackButton(onClick: () -> Unit) {
 private const val PAGE_NAME = 0
 private const val PAGE_CONNECT = 1
 
-/** Long enough for a full name; the party server keeps the first 80. */
 private const val NAME_LIMIT = 40
 
-/** The account page keeps leaning into YouTube's red while it moves. */
 private val ConnectPalettes = listOf(
     MeshPalette(listOf(Color(0xFFFF1E3C), Color(0xFFC2185B), Color(0xFFFF8F3D), Color(0xFF4A1C8C))),
     MeshPalette(listOf(Color(0xFFE53935), Color(0xFFFF6E40), Color(0xFFAD1457), Color(0xFF311B92))),

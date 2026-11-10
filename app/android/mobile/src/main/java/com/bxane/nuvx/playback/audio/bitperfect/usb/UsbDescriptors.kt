@@ -3,16 +3,6 @@ package com.bxane.nuvx.playback.audio.bitperfect.usb
 
 import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectPcm
 
-/**
- * USB Audio Class descriptor parsing and format selection for the direct USB
- * driver: which alternate setting, endpoint and clock carry a stream at
- * exactly its own rate and precision.
- *
- * Only UAC1/UAC2 Type I mono or stereo output is accepted. Ambiguous clock
- * selectors, implicit feedback and multiple configurations are rejected
- * rather than guessed at — a wrong guess is a DAC playing at the wrong rate.
- * The descriptors come from the device, so every length is bounds-checked.
- */
 internal object UsbDescriptors {
 
     class MalformedDescriptorException(message: String) : Exception(message)
@@ -55,7 +45,6 @@ internal object UsbDescriptors {
         DSD_LE(3),
     }
 
-    /** What actually crosses the wire: the rate the endpoint runs at, and its sample container. */
     data class OutputFormat(
         val sampleRate: Int,
         val channels: Int,
@@ -64,11 +53,6 @@ internal object UsbDescriptors {
         val encoding: Encoding,
     )
 
-    /**
-     * Everything the native transport needs to set up one candidate: which
-     * interfaces to claim, which alternate and clock to select, and which
-     * endpoints to stream on.
-     */
     data class Plan(val alternate: Alternate, val format: OutputFormat, val data: Endpoint, val feedback: Endpoint?)
 
     private fun u16le(b: ByteArray, at: Int) = (b[at].toInt() and 255) or ((b[at + 1].toInt() and 255) shl 8)
@@ -114,7 +98,6 @@ internal object UsbDescriptors {
                     }
                 }
                 0x24 -> if (isControl && length >= 9 && u(2) == 2) {
-                    // UAC2 input terminal: which clock source drives it.
                     clocks[control to u(3)] = u(7)
                 } else {
                     current = current?.let { a -> classSpecific(a, d, length) }
@@ -154,7 +137,6 @@ internal object UsbDescriptors {
         )
     }
 
-    /** AS_GENERAL and FORMAT_TYPE, the two class-specific descriptors that describe a stream. */
     private fun classSpecific(a: Alternate, d: ByteArray, length: Int): Alternate {
         fun u(i: Int) = d[i].toInt() and 255
         var result = a
@@ -184,11 +166,6 @@ internal object UsbDescriptors {
         return result
     }
 
-    /**
-     * A deliberately small exact-match registry based on documented USB
-     * transport identities in Linux sound/usb/quirks.c, not a product-name
-     * heuristic.
-     */
     private fun nativeEncoding(device: Device, a: Alternate): Encoding? {
         if (!a.uac2 || a.subslot != 4) return null
         return when {
@@ -231,14 +208,6 @@ internal object UsbDescriptors {
         return result.sortedWith(compareBy({ if (it.second.encoding.name.startsWith("DSD")) 0 else 1 }, { it.second.subslot }))
     }
 
-    /**
-     * Everything this DAC might carry a PCM track on, best first. Without
-     * [convert], only its own rate at depths that hold it. With it: its own rate
-     * and depth when there is such a setting, then by [BitPerfectPcm.rankRates],
-     * and at each rate the depths that hold the source before the deepest of
-     * those that don't. UAC2 lists no rates here, so all of them are candidates
-     * and the native side finds out which the DAC's clock accepts.
-     */
     fun dacFormats(
         device: Device,
         rate: Int,
@@ -255,12 +224,6 @@ internal object UsbDescriptors {
         }
     }
 
-    /**
-     * The endpoint checks that need no device speed: an isochronous OUT data
-     * endpoint, an explicit feedback endpoint when the data endpoint is
-     * asynchronous, and a UAC1 clock that is either fixed at this rate or
-     * settable. The native side checks bandwidth, which depends on speed.
-     */
     fun plan(alternate: Alternate, format: OutputFormat): Plan? {
         val data = alternate.endpoints.firstOrNull {
             it.address and 0x80 == 0 && it.attributes and 3 == 1 && it.attributes and 0x30 == 0
@@ -270,7 +233,6 @@ internal object UsbDescriptors {
             it.address and 0x80 != 0 && it.attributes and 3 == 1 &&
                 (it.address == data.syncAddress || it.attributes and 0x30 == 0x10)
         }
-        // Implicit feedback means following the DAC's capture stream: not supported.
         if ((data.attributes shr 2) and 3 == 1 && feedback == null) return null
         if (feedback != null && feedback.maxPacket !in 3..64) return null
         if (!alternate.uac2 && !data.rateControl && alternate.rates != listOf(format.sampleRate to format.sampleRate)) {

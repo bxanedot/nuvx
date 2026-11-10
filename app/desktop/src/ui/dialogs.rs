@@ -1,5 +1,3 @@
-//! Dialogs: new and edited playlists, collaborators, confirmations, and their parts.
-
 use egui::{Color32, Ui};
 
 use crate::backend::Req;
@@ -32,7 +30,6 @@ impl App {
             Dialog::ConfirmDelete { .. } => "Delete playlist",
             Dialog::Collaborate { .. } => "Collaborate",
         };
-        // The same modal card as "Delete playlist?" and the update dialog.
         let modal = egui::Modal::new(egui::Id::unique("playlist-dialog")).frame(notes::surface()).backdrop_color(theme::shade(0.55)).show(ctx, |ui| {
             ui.set_width(440.0_f32.min(ctx.content_rect().width() - 48.0));
             egui::Frame::new().inner_margin(egui::Margin { left: 26, right: 26, top: 24, bottom: 22 }).show(ui, |ui| {
@@ -100,8 +97,6 @@ impl App {
         if !done && !dismissed { self.dialog = Some(dialog); }
     }
 
-    /// The Collaborate dialog's body: the two switches, the invite link and who has
-    /// joined. True once it's closed.
     fn collaborate_dialog(&mut self, ui: &mut Ui, info: &mut Option<crate::ytm::Collaboration>, busy: &mut bool, confirm_off: &mut bool, accent: Color32) -> bool {
         use crate::ytm::CollabChange;
         let Some(c) = info.clone() else {
@@ -163,7 +158,6 @@ impl App {
                 }
             }
             ui.add_space(24.0);
-            // Each switch applies right away, so there's nothing to cancel.
             if done_button(ui) {
                 return true;
             }
@@ -181,14 +175,12 @@ fn field_label(ui: &mut Ui, label: &str) {
     ui.add_space(8.0);
 }
 
-/// A labelled text box on a glass fill, like the jam and transfer pages' inputs.
 pub(super) fn text_field(ui: &mut Ui, label: &str, text: &mut String, multiline: bool, hint: &str) -> egui::Response {
     use egui::{Sense, vec2};
     if !label.is_empty() {
         field_label(ui, label);
     }
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), if multiline { 96.0 } else { 42.0 }), Sense::hover());
-    // Painted first, so the text box draws over it.
     let bg = ui.painter().add(egui::Shape::Noop);
     let inner = rect.shrink2(vec2(14.0, if multiline { 10.0 } else { 4.0 }));
     let edit = if multiline { egui::TextEdit::multiline(text).desired_rows(4) } else { egui::TextEdit::singleline(text).align(egui::Align2::LEFT_CENTER) };
@@ -204,7 +196,6 @@ pub(super) fn text_field(ui: &mut Ui, label: &str, text: &mut String, multiline:
     resp
 }
 
-/// Private / Unlisted / Public as one segmented control; nothing picked keeps the current setting.
 fn privacy_picker(ui: &mut Ui, privacy: &mut Option<String>) {
     use egui::{Sense, vec2};
     let (track, _) = ui.allocate_exact_size(vec2(ui.available_width(), 38.0), Sense::hover());
@@ -231,7 +222,6 @@ fn privacy_picker(ui: &mut Ui, privacy: &mut Option<String>) {
     }
 }
 
-/// Cancel and a primary button, right-aligned: (primary clicked, cancel clicked).
 fn dialog_buttons(ui: &mut Ui, primary: &str, enabled: bool, accent: Color32) -> (bool, bool) {
     use egui::{Sense, vec2};
     let (mut ok, mut cancel) = (false, false);
@@ -252,12 +242,10 @@ fn dialog_buttons(ui: &mut Ui, primary: &str, enabled: bool, accent: Color32) ->
     (ok, cancel)
 }
 
-/// A lone right-aligned Done for a dialog whose changes apply as they're made.
 fn done_button(ui: &mut Ui) -> bool {
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| widgets::pill(ui, "Done", None, true).clicked()).inner
 }
 
-/// A playlist (or "New playlist") row in the Add to playlist dialog.
 fn dialog_row(ui: &mut Ui, thumbs: Option<&[crate::model::Thumb]>, glyph: Option<char>, label: &str) -> bool {
     use egui::{Sense, pos2, vec2};
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 52.0), Sense::click());
@@ -278,7 +266,6 @@ fn dialog_row(ui: &mut Ui, thumbs: Option<&[crate::model::Thumb]>, glyph: Option
     resp.clicked()
 }
 
-/// "Delete playlist?" as a modal card: Some(true) delete, Some(false) cancel, None still open.
 fn confirm_delete(ctx: &egui::Context, title: &str, _accent: Color32) -> Option<bool> {
     let mut answer = None;
     let modal = egui::Modal::new(egui::Id::unique("confirm-delete")).frame(notes::surface()).backdrop_color(theme::shade(0.55)).show(ctx, |ui| {
@@ -292,7 +279,6 @@ fn confirm_delete(ctx: &egui::Context, title: &str, _accent: Color32) -> Option<
             ui.add_space(22.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 10.0;
-                // Destructive action in red, white text.
                 let label = "Delete";
                 let g = ui.painter().layout_no_wrap(label.to_owned(), theme::semibold(14.0), Color32::WHITE);
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(g.size().x + 40.0, 38.0), egui::Sense::click());

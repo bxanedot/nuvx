@@ -4,14 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The fixed-length phrase mode: when the listener picks 8 or 16 bars, the overlap is exactly that
- * many bars of the outgoing grid with both edges on the beat, and picking nothing (0) leaves the
- * adaptive plan untouched.
- */
 class PhraseBarAutomixTest {
 
-    /** A synthetic, fully analysed track on a steady grid, matching [AdvancedAutomixPlannerTest]. */
     private fun track(
         id: String,
         bpm: Double,
@@ -115,7 +109,6 @@ class PhraseBarAutomixTest {
     }
 
     private companion object {
-        /** The adaptive planner's ceiling; the phrase mode deliberately runs past it. */
         const val MAX_OVERLAP_SECONDS_FOR_TEST = 16.0
     }
 }

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 declare module 'essentia.js/dist/essentia-wasm.es.js' {
-  /** Emscripten Module object; WASM is embedded base64 and instantiates async. */
   export const EssentiaWASM: {
     calledRun?: boolean;
     onRuntimeInitialized?: () => void;

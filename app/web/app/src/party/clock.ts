@@ -1,15 +1,3 @@
-/**
- * This device's offset from the party server's clock: ServerClock.kt.
- *
- * NTP cut down to one WebSocket: offset = serverMs − (t0 + t1) / 2, and the
- * sample with the *smallest* round trip wins (its error is at most half that
- * trip), out of the last [WINDOW] taken within [SAMPLE_TTL_MS].
- *
- * The local reading is `performance.timeOrigin + performance.now()`
- * (prompt §8.2): monotonic like `elapsedRealtime`, so a stepped wall clock
- * never lands in the offset.
- */
-
 const WINDOW = 12;
 const SAMPLE_TTL_MS = 120_000;
 
@@ -45,7 +33,6 @@ export class ServerClock {
     this.roundTripMs = best.roundTripMs;
   }
 
-  /** The server's clock, read from here; null until the first pong. */
   serverNowMs(): number | null {
     return this.offsetMs === null ? null : this.localNowMs() + this.offsetMs;
   }

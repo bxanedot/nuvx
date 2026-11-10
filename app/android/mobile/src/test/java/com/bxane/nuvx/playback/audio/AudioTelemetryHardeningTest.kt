@@ -14,7 +14,6 @@ class AudioTelemetryHardeningTest {
 
     @Test
     fun usbEndpointTelemetryDistinguishesPortronicsUac1FromAudioTrackClientFormat() {
-        // Developer hardware: OnePlus 11 + Portronics iKonnect C Pro UAC1 DAC
         val portronicsSnapshot = AudioOutputStatus.Snapshot(
             deviceName = "Portronics iKonnect C Pro",
             routeKind = AudioRouting.Kind.USB,
@@ -28,25 +27,18 @@ class AudioTelemetryHardeningTest {
 
         val evaluated = AudioOutputStatus.evaluateActualPath(portronicsSnapshot)
 
-        // Verifications:
-        // 1. USB Endpoint truthfully represents physical DAC: PCM16 / 48000 Hz
         assertEquals("PCM16 / 48000 Hz", evaluated.usbEndpointFormat)
-        // 2. Direct playback is rejected
         assertTrue(evaluated.directPlaybackRejected)
         assertFalse(evaluated.directPlaybackActual)
-        // 3. AudioFlinger Mixer is in the path at 48000 Hz with HAL format PCM24 packed
         assertEquals(48000, evaluated.systemMixerRateHz)
         assertEquals("PCM24 packed", evaluated.halFormat)
-        // 4. AudioTrack requested is Float32 / 176400 Hz (not physical Float32)
         assertEquals(AudioFormat.ENCODING_PCM_FLOAT, evaluated.actualEncoding)
         assertEquals(176400, evaluated.actualSampleRateHz)
-        // 5. Fallback detail accurately explains route limitation
         assertEquals("Direct playback unavailable for active USB device", evaluated.fallbackDetail)
     }
 
     @Test
     fun usbEndpointTelemetryDistinguishesExternal24BitDacFromAudioTrackClientFormat() {
-        // bxane hardware: USB device advertising PCM24 / 48000 Hz
         val dac24Snapshot = AudioOutputStatus.Snapshot(
             deviceName = "External 24-bit DAC",
             routeKind = AudioRouting.Kind.USB,
@@ -60,16 +52,11 @@ class AudioTelemetryHardeningTest {
 
         val evaluated = AudioOutputStatus.evaluateActualPath(dac24Snapshot)
 
-        // Verifications:
-        // 1. USB Endpoint truthfully represents advertised 24-bit DAC: PCM24 / 48000 Hz
         assertEquals("PCM24 / 48000 Hz", evaluated.usbEndpointFormat)
-        // 2. Direct playback is rejected (AudioFlinger is still in the path)
         assertTrue(evaluated.directPlaybackRejected)
         assertFalse(evaluated.directPlaybackActual)
-        // 3. AudioFlinger mixer and HAL format
         assertEquals(48000, evaluated.systemMixerRateHz)
         assertEquals("PCM24 packed", evaluated.halFormat)
-        // 4. Client format remains Float32
         assertEquals(AudioFormat.ENCODING_PCM_FLOAT, evaluated.actualEncoding)
         assertEquals(176400, evaluated.actualSampleRateHz)
     }
@@ -126,13 +113,11 @@ class AudioTelemetryHardeningTest {
 
     @Test
     fun staticUsbCapabilityAndActiveAudioTrackRemainSeparate() {
-        // Moondrop CHU II DSP: Static USB descriptors advertise PCM24 / 96000 Hz max,
-        // but Android runtime direct support confirms PCM16 @ 176.4 kHz direct AudioTrack.
         val chu2Snapshot = AudioOutputStatus.Snapshot(
             deviceName = "Moondrop CHU II DSP",
             routeKind = AudioRouting.Kind.USB,
             encodings = intArrayOf(AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_24BIT_PACKED),
-            sampleRatesHz = intArrayOf(44100, 48000, 88200, 96000), // static USB capability
+            sampleRatesHz = intArrayOf(44100, 48000, 88200, 96000),
             requestedTransportType = TransportType.AUDIO_TRACK_DIRECT,
             directPlaybackSelected = true,
             directSupport = DirectAudioProbe.DirectSupport(
@@ -149,12 +134,9 @@ class AudioTelemetryHardeningTest {
 
         val evaluated = AudioOutputStatus.evaluateActualPath(chu2Snapshot)
 
-        // 1. Static capability truthfully reflects static descriptor: PCM24 / 96000 Hz
         assertEquals("PCM24 / 96000 Hz", evaluated.usbEndpointFormat)
-        // 2. Active AudioTrack is 176.4 kHz PCM16
         assertEquals(176400, evaluated.actualSampleRateHz)
         assertEquals(AudioFormat.ENCODING_PCM_16BIT, evaluated.actualEncoding)
-        // 3. Direct playback is ACTIVE and bypassing mixer (not capped at 96 kHz)
         assertTrue("Direct playback must be active at 176.4 kHz", evaluated.directPlaybackActual)
         assertFalse("Direct playback must not be rejected", evaluated.directPlaybackRejected)
         assertNull("System mixer must be bypassed", evaluated.systemMixerRateHz)
@@ -162,8 +144,6 @@ class AudioTelemetryHardeningTest {
 
     @Test
     fun unknownSampleRateDoesNotRejectDirectPlaybackOnWiredRoute() {
-        // Between a route change and the first AudioTrack publish there is no
-        // measured rate yet. "Not measured" must not read as "unsupported".
         val pending = AudioOutputStatus.Snapshot(
             deviceName = "Hi-Res Wired DAC",
             routeKind = AudioRouting.Kind.WIRED,

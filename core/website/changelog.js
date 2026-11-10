@@ -1,6 +1,3 @@
-// nuvx.lol/changelog: CHANGELOG.md from the repo's main branch, rendered the way GitHub
-// shows it (headings, paragraphs with their line breaks, lists, quotes, rules, pictures,
-// tables). Built from DOM nodes, never innerHTML, so the file can't inject markup.
 (() => {
   const SOURCE = 'https://raw.githubusercontent.com/bxanedot/nuvx/main/CHANGELOG.md';
   const root = document.getElementById('changelog');
@@ -12,7 +9,6 @@
     return m ? m[1] : '';
   };
 
-  // The HTML release notes use, as Markdown.
   const normalize = (md) =>
     md
       .replace(/<img\b[^>]*>/gi, (t) => ` ![${attr(t, 'alt')}](${attr(t, 'src')}) `)
@@ -39,7 +35,6 @@
     return img;
   };
 
-  // **bold**, `code`, [links](…), ![pictures](…) and line breaks inside a block.
   const inline = (parent, text) => {
     const re = /(\*\*|__)(.+?)\1|`([^`]+)`|!\[([^\]]*)\]\(([^)\s]+)[^)]*\)|\[([^\]]+)\]\(([^)\s]+)[^)]*\)|\n/g;
     let last = 0;
@@ -109,7 +104,6 @@
         frag.append(el('hr'));
       } else if ((m = /^(#{1,6})\s+(.*)$/.exec(t))) {
         close();
-        // The page has its own h1, so the file's "# Changelog" is left out.
         if (m[1].length === 1) continue;
         frag.append(inline(el(`h${m[1].length}`), m[2]));
       } else if ((m = /^>\s?(.*)$/.exec(t))) {

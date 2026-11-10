@@ -6,30 +6,12 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.bxane.nuvx.data.DebugLog as Log
 
-/**
- * Encrypted preferences that repair themselves when their keyset stops
- * matching the device's Keystore.
- *
- * An [EncryptedSharedPreferences] file carries its Tink keyset wrapped by a
- * Keystore key, and the Keystore key never leaves the device. Anything that
- * restores the file without the key (auto-backup, a device transfer) leaves a
- * keyset nothing can unwrap: every open fails with keymint's
- * `VERIFICATION_FAILED`, measured on-device on every launch, and the old
- * fallback then kept credentials in plain prefs forever. The file's contents
- * are unreadable either way, so it is deleted and recreated, and whatever the
- * plain fallback collected meanwhile is moved back in.
- *
- * A Keystore that can't be used at all, which a handful of OEM builds ship,
- * still degrades to the plain file rather than failing launch.
- */
 internal object EncryptedPrefs {
 
     private const val TAG = "nuvx"
 
-    /** Tink's own entry inside the prefs file; its presence is what makes a failed open a stale keyset. */
     private const val KEYSET_ENTRY = "__androidx_security_crypto_encrypted_prefs_key_keyset__"
 
-    /** One store per file per process; every failed open was a Keystore round trip. */
     private val opened = HashMap<String, SharedPreferences>()
 
     @Synchronized
@@ -68,15 +50,6 @@ internal object EncryptedPrefs {
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
 
-    /**
-     * Moves what an earlier fallback wrote into the encrypted store, then
-     * deletes the plain file.
-     *
-     * Plain values win over encrypted ones: while the fallback was in use it
-     * was the only store being written. The plain file is deleted only after
-     * every value reads back from the encrypted store, so a failure part-way
-     * leaves it as the source of truth and the next launch tries again.
-     */
     private fun moveIn(context: Context, plainName: String, encrypted: SharedPreferences, name: String) {
         val entries = context.getSharedPreferences(plainName, Context.MODE_PRIVATE).all
         if (entries.isEmpty()) return
@@ -105,14 +78,9 @@ internal object EncryptedPrefs {
         Log.d(TAG, "moved ${entries.size} entries from $plainName into $name")
     }
 
-    /**
-     * Whether [e] says the stored keyset failed verification, which no retry
-     * can change, as opposed to a Keystore that is merely unavailable.
-     */
     private fun isUnverifiable(e: Throwable): Boolean = causes(e).any {
         it is javax.crypto.AEADBadTagException ||
             it.javaClass.name.endsWith("InvalidProtocolBufferException") ||
-            // android.security.KeyStoreException is API 33+; matched by name so older devices never load it.
             (it.javaClass.name == "android.security.KeyStoreException" &&
                 it.message.orEmpty().contains("VERIFICATION_FAILED", ignoreCase = true))
     }

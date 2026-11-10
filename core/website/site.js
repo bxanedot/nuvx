@@ -67,7 +67,6 @@
     const advance = (time) => {
       const cycle = banners.getBoundingClientRect().width;
       const distance = Math.min(time - (lastTime ?? time), 50) * 0.034;
-      // Decreasing scrollLeft moves the cards right. Both copies meet at the same visual position.
       position = (position + cycle - distance) % cycle;
       viewport.scrollLeft = position;
       lastTime = time;
@@ -88,7 +87,6 @@
       }
       clearTimeout(resumeTimer);
       if (pointer !== undefined) return;
-      // Give native scrolling, including touch momentum, time to settle.
       resumeTimer = setTimeout(() => {
         interacting = false;
         sync();

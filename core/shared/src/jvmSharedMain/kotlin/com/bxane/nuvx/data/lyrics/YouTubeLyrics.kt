@@ -10,7 +10,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 
-/** Lyrics exposed by YouTube Music's Lyrics tab for the exact playing video. */
 object YouTubeMusicLyrics {
     suspend fun lyrics(videoId: String): List<LyricLine>? = withContext(Dispatchers.IO) {
         if (!YOUTUBE_ID.matches(videoId)) return@withContext null
@@ -34,7 +33,6 @@ object YouTubeMusicLyrics {
     }
 }
 
-/** Timed YouTube transcript/captions for the exact playing video. */
 object YouTubeTranscriptLyrics {
     suspend fun lyrics(videoId: String): List<LyricLine>? = withContext(Dispatchers.IO) {
         if (!YOUTUBE_ID.matches(videoId)) return@withContext null

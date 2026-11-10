@@ -1,8 +1,6 @@
 import '../popup/style.css';
 import './style.css';
 
-// Opened by lyrics.requestPermissions: the browser only shows a permission
-// prompt in answer to a click on one of the extension's own pages.
 const origins = (new URLSearchParams(location.search).get('origins') ?? '').split(',').filter(Boolean);
 const list = document.getElementById('hosts')!;
 for (const origin of origins) {

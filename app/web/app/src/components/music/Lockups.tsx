@@ -9,14 +9,12 @@ import { TrackMenu } from './TrackMenu';
 
 const isPlayable = (item: MusicItem) => item.kind === 'song' || item.kind === 'video';
 
-/* Lockups (report §2). */
 const lockup = 'flex min-w-0 flex-col';
 const caption = 'mt-2 flex min-w-0 flex-col gap-px';
 const title = 'flex min-w-0 items-center type-callout [&>:first-child]:truncate';
 const subtitle = 'truncate type-callout text-secondary';
 const overlayLink = 'absolute inset-0 z-1 rounded-[inherit]';
 
-/** Artist names as links where YouTube links them, else the given subtitle. */
 function Byline({ item }: { item: MusicItem }) {
   const linked = item.artists.some((a) => a.id);
   if (!linked || item.kind === 'album' || item.kind === 'playlist') return <>{item.subtitle}</>;
@@ -57,7 +55,6 @@ function PlayPlatter({ item }: { item: MusicItem }) {
   );
 }
 
-/** The artwork with its hover scrim, linking to the item or playing it. */
 function LockupArtwork({ item, width, aspect }: { item: MusicItem; width: number; aspect: number }) {
   const href = hrefFor(item);
   return (
@@ -68,11 +65,7 @@ function LockupArtwork({ item, width, aspect }: { item: MusicItem; width: number
       ) : (
         <button className={overlayLink} aria-label={`Play ${item.title}`} onClick={() => playTrack(item)} />
       )}
-      {/* Hover scrim and platter (report §2: --lockupHoverBGColor, opacity .1s ease-in). */}
       <div className="pointer-events-none absolute inset-0 z-2 rounded-[inherit] bg-lockup-hover opacity-0 transition-opacity duration-100 ease-in group-focus-visible/art:opacity-100 group-hover/art:opacity-100">{isPlayable(item) && <PlayPlatter item={item} />}</div>
-      {/* The track menu (report §14) for playable items: top-right, the
-          platter's counterpart in the same glass, revealed with the scrim
-          and held visible while its menu is open. */}
       {isPlayable(item) && (
         <TrackMenu
           track={toTrack(item)}
@@ -83,7 +76,6 @@ function LockupArtwork({ item, width, aspect }: { item: MusicItem; width: number
   );
 }
 
-/** Square lockup (report §2): artwork, hover scrim with play platter, title and subtitle. */
 export function SquareLockup({ item, width = 220 }: { item: MusicItem; width?: number }) {
   const href = hrefFor(item);
   return (
@@ -108,7 +100,6 @@ export function SquareLockup({ item, width = 220 }: { item: MusicItem; width?: n
   );
 }
 
-/** 16:9 video lockup (report §2, type C). */
 export function VideoLockup({ item, width = 300 }: { item: MusicItem; width?: number }) {
   return (
     <div className={lockup}>
@@ -124,7 +115,6 @@ export function VideoLockup({ item, width = 300 }: { item: MusicItem; width?: nu
   );
 }
 
-/** Circular artist lockup (report §2, type H). */
 export function CircleLockup({ item, width = 160 }: { item: MusicItem; width?: number }) {
   return (
     <PrefetchLink to={hrefFor(item) ?? '#'} className="group/circle flex min-w-0 flex-col items-center gap-2.5">
@@ -134,11 +124,9 @@ export function CircleLockup({ item, width = 160 }: { item: MusicItem; width?: n
   );
 }
 
-/** A song row inside a shelf (report §2, track lockup): 40px art, title, byline. */
 export function TrackLockup({ item, onPlay }: { item: MusicItem; onPlay?: () => void }) {
   const play = onPlay ?? (() => playTrack(item));
   return (
-    // 52px art column (40 + 12 gap), content, menu; 55px tall.
     <div className="group/track grid h-[55px] grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 py-[7.5px] pr-3.5 pl-0">
       <button className="group/art relative w-10 rounded-artwork-sm" aria-label={`Play ${item.title}`} onClick={play}>
         <Artwork src={item.thumbnail} displayWidth={40} radius="var(--radius-artwork-small)" />
@@ -160,9 +148,6 @@ export function TrackLockup({ item, onPlay }: { item: MusicItem; onPlay?: () => 
           <Byline item={item} />
         </div>
       </div>
-      {/* The track row's ⋯ (report §14), at the card's end: revealed on hover
-          or focus, and held visible while its menu is open. The space is
-          always reserved so the title doesn't jump when it appears. */}
       {isPlayable(item) && (
         <TrackMenu
           track={toTrack(item)}

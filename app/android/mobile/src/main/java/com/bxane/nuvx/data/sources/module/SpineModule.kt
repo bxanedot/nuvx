@@ -4,13 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.Locale
 
-/**
- * One plugin descriptor as published in a module-source index.
- *
- * Matches the exact JSON shape compatible index servers produce.
- * [download] is either an absolute URL or a filename relative to the
- * index's own base URL — [ModuleManager] resolves it either way.
- */
 @Serializable
 data class SpineModule(
     @SerialName("id") val id: String,
@@ -20,11 +13,6 @@ data class SpineModule(
     @SerialName("code") val code: Int = 0,
     @SerialName("type") val type: String = "MODULE",
     @SerialName("description") val description: String = "",
-    /**
-     * Some sources publish capabilities under "labels" instead of "tags".
-     * Reading only "tags" left those modules with empty lists, so we merge
-     * whichever key is present — same fix as Convx.
-     */
     @SerialName("tags") private val declaredTags: List<String> = emptyList(),
     @SerialName("labels") private val declaredLabels: List<String> = emptyList(),
     @SerialName("size") val size: Long = 0,
@@ -38,7 +26,6 @@ data class SpineModule(
     @SerialName("nsfw") val nsfw: Boolean = false,
     @SerialName("sources") val sources: List<SpineSource> = emptyList(),
 ) {
-    /** Whichever key the server published the capability list under. */
     val tags: List<String> get() = if (declaredTags.isNotEmpty()) declaredTags else declaredLabels
 
     val isLossless: Boolean

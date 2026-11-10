@@ -14,10 +14,8 @@ const MINOR: Record<string, number> = {
 };
 
 export interface ScaleSpec {
-  /** Root pitch class, 0-11 (C=0). */
   rootPc: number;
   scale: 'major' | 'minor';
-  /** Semitone offsets of the diatonic degrees from the root. */
   intervals: number[];
 }
 
@@ -26,8 +24,6 @@ const PITCH_CLASS: Record<string, number> = {
   'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11,
 };
 
-// Invert the note→Camelot tables to Camelot-number→root-pitch-class.
-// Enharmonics share a pitch class, so taking the first listed note is exact.
 function invertToRoot(table: Record<string, number>): Record<number, number> {
   const out: Record<number, number> = {};
   for (const [note, num] of Object.entries(table)) {
@@ -39,9 +35,8 @@ const MAJOR_ROOT = invertToRoot(MAJOR);
 const MINOR_ROOT = invertToRoot(MINOR);
 
 const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
-const MINOR_STEPS = [0, 2, 3, 5, 7, 8, 10]; // natural minor
+const MINOR_STEPS = [0, 2, 3, 5, 7, 8, 10];
 
-/** Camelot key → root pitch class + diatonic scale (the wheel is deterministic). */
 export function camelotToScale(c: CamelotKey): ScaleSpec {
   const scale: 'major' | 'minor' = c.letter === 'B' ? 'major' : 'minor';
   const rootPc = (scale === 'major' ? MAJOR_ROOT : MINOR_ROOT)[c.num] ?? 0;
@@ -59,11 +54,6 @@ export function formatCamelot(c: CamelotKey | null): string {
   return c ? `${c.num}${c.letter}` : '—';
 }
 
-/**
- * Harmonic compatibility score between two Camelot keys, for next-track
- * selection. Same key 3; ±1 same letter / relative major-minor 2.5;
- * +2 same letter ("energy boost") 1; everything else 0.
- */
 export function camelotScore(from: CamelotKey, to: CamelotKey): number {
   const dist = (a: number, b: number) => Math.min((a - b + 12) % 12, (b - a + 12) % 12);
   if (from.letter === to.letter) {

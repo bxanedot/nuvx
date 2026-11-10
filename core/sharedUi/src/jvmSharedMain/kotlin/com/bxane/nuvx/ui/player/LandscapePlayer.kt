@@ -66,83 +66,30 @@ import com.bxane.nuvx.data.canvas.CanvasArtwork
 import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.data.model.Song
 
-/**
- * The widest the two columns are allowed to get between them, centred in
- * whatever is left over.
- *
- * Without a cap the lyric column simply takes every pixel past the artwork,
- * and on a wide window that is a column of text with a hand's width of empty
- * backdrop trailing off the right of every line. Lyrics are read down, not
- * across: past a certain measure the extra width is further for the eye to
- * travel back rather than more room for the words.
- */
 private val LANDSCAPE_PLAYER_MAX_WIDTH = 1100.dp
 
-/**
- * Below this height the landscape player tightens its right column — smaller
- * transport, shorter gaps — so a phone on its side fits the credits, the
- * scrubber, the transport and the volume bar between its status and
- * navigation bars without any of them falling off the bottom.
- */
 private val LANDSCAPE_COMPACT_HEIGHT = 440.dp
 
-/**
- * Side margin of the landscape player's sleeve column and credits on a
- * phone-height window, in place of [PLAYER_GUTTER].
- */
 private val LANDSCAPE_GUTTER_COMPACT = 20.dp
 
-/**
- * How the right column hands over between the player, the lyrics and the
- * queue. The left column never moves, so a crossfade is the whole transition —
- * the same page being turned, not a panel being opened.
- */
 private const val LANDSCAPE_PANE_FADE_IN_MS = 220
 private const val LANDSCAPE_PANE_FADE_IN_DELAY_MS = 90
 private const val LANDSCAPE_PANE_FADE_OUT_MS = 140
 
-/** Which of its three things the player's content column is showing. */
 internal enum class PlayerPane { Main, Lyrics, Queue }
 
-/** The landscape sleeve's corner radius, at rest. */
 internal val LANDSCAPE_ART_CORNER = 10.dp
 
-/** The landscape sleeve's shape at rest, for a caller with no docking to do. */
 private val LandscapeArtShape = RoundedCornerShape(LANDSCAPE_ART_CORNER)
 
-/** Room above the landscape columns for the sheet's drag handle. */
 private val LANDSCAPE_HANDLE_STRIP = 24.dp
 
-/**
- * The player in a landscape window — a tablet, or a phone on its side. See
- * [landscapePlayerAvailable].
- *
- * Two columns of equal width. The left one is the same in every state: the
- * sleeve, and under it the lyrics / output / queue row with the output name —
- * the controls for *which* of the three the right column shows. The right one
- * is that one thing: the credits and transport, the lyric sheet or the queue.
- * Nothing else is drawn twice and nothing moves between columns, so opening
- * the lyrics or the queue is only ever the right column's page being turned.
- *
- * Purely the arrangement. Every slot is built by [NowPlayingScreen], which is
- * where the state behind all of them lives — the same state the portrait
- * player reads, so rotating mid-song carries the open panel, the scrub and the
- * translation mode straight across.
- *
- * Held to [LANDSCAPE_PLAYER_MAX_WIDTH] and centred, inside the safe-drawing
- * insets: a phone on its side has its status bar, navigation bar and camera
- * cutout down the short edges, and the player's content keeps clear of all
- * three while its backdrop still runs underneath them.
- */
 @Composable
 internal fun LandscapePlayerLayout(
     pane: PlayerPane,
     background: @Composable (Modifier) -> Unit,
-    /** The sleeve; handed a modifier that already fixes its square size. */
     artwork: @Composable (Modifier) -> Unit,
-    /** The row under the sleeve, emitted into its column. */
     actions: @Composable () -> Unit,
-    /** Credits and transport. [compact] is a phone-height window. */
     mainPane: @Composable (compact: Boolean) -> Unit,
     lyricsPane: @Composable () -> Unit,
     queuePane: @Composable () -> Unit,
@@ -154,8 +101,6 @@ internal fun LandscapePlayerLayout(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                // The status bar counted whether or not it is showing, so the
-                // layout holds still when the player hides it.
                 .windowInsetsPadding(WindowInsets.safeDrawing.union(stableStatusBarInsets())),
             contentAlignment = Alignment.TopCenter,
         ) {
@@ -178,11 +123,6 @@ internal fun LandscapePlayerLayout(
                         .padding(horizontal = gutter),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // The sleeve is square and takes whichever of the two axes
-                    // runs out first once the row below has had its height —
-                    // the column's width on a big tablet, the height on
-                    // anything shorter. Measured here rather than estimated,
-                    // so the row under it can never be pushed off the bottom.
                     BoxWithConstraints(
                         modifier = Modifier
                             .weight(1f)
@@ -220,11 +160,6 @@ internal fun LandscapePlayerLayout(
                         ) {
                             mainPane(compact)
                         }
-                        // The lyric sheet and the queue both reach back across
-                        // [PLAYER_GUTTER] on their own (see
-                        // [bleedHorizontally]), so that is the padding they
-                        // get: their scroll areas then run exactly to the
-                        // column's edges.
                         PlayerPane.Lyrics -> Box(
                             Modifier
                                 .fillMaxSize()
@@ -243,8 +178,6 @@ internal fun LandscapePlayerLayout(
                 }
             }
 
-            // The sheet closes from a downward drag anywhere nothing else
-            // claims, as it does in portrait; this is only the promise.
             Box(
                 Modifier
                     .align(Alignment.TopCenter)
@@ -260,18 +193,6 @@ internal fun LandscapePlayerLayout(
     }
 }
 
-/**
- * The landscape player's sleeve: the still cover, and over it the looping
- * clip when there is one.
- *
- * Draws from the screen's own [request][PlayerArtwork.request] rather than a
- * request of its own, so it shares the portrait sleeve's bitmap, its retries
- * and its [loaded][PlayerArtwork.loaded] — rotating never reloads the cover.
- *
- * The clip keeps playing whichever pane is up. The portrait player stops it
- * because its sleeve shrinks to a thumbnail behind a panel; this one never
- * shrinks.
- */
 @Composable
 internal fun LandscapeArtwork(
     artRequest: ImageRequest,
@@ -282,14 +203,8 @@ internal fun LandscapeArtwork(
     isPlaying: Boolean,
     onCanvasRenderedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    /** Halts the clip for a transition — see [CanvasArtworkPlayer]'s own. */
     pausedForTransition: Boolean = false,
-    /**
-     * The sleeve's shape, asked for each frame: its corner rounds off into the
-     * mini player's cover's as the player docks into it.
-     */
     sleeveShape: () -> Shape = { LandscapeArtShape },
-    /** How much of the sleeve's shadow is cast, 1 at rest. */
     shadowFraction: () -> Float = { 1f },
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
@@ -298,16 +213,9 @@ internal fun LandscapeArtwork(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // What `.shadow` and then `.clip` laid down, asked for in the
-                // layers' own blocks so a docking player can move them
-                // without recomposing the sleeve.
-                //
-                // Only cast once there is a picture: on the flat placeholder
-                // tile a shadow reads as a second, darker square.
                 .graphicsLayer {
                     shadowElevation = if (casts) 14.dp.toPx() * shadowFraction() else 0f
                     shape = sleeveShape()
-                    // As `.shadow` did: it clips only when it casts.
                     clip = casts
                 }
                 .graphicsLayer {
@@ -330,8 +238,6 @@ internal fun LandscapeArtwork(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 onState = onArtState,
-                // Not drawn under a clip that got there first — see the
-                // portrait sleeve's note on TextureView stacking order.
                 modifier = Modifier
                     .fillMaxSize()
                     .drawWithContent { if (artLoaded || !canvasRendered) drawContent() },
@@ -350,27 +256,15 @@ internal fun LandscapeArtwork(
     }
 }
 
-/**
- * The landscape player's right column in its main state: where the session
- * came from, the credits, the current line, the scrubber, the transport and
- * the volume bar — the portrait half-player, less the row the left column
- * already has.
- *
- * Centred in the column rather than pinned to its foot: there is no artwork
- * above it here to hand the spare height to.
- */
 @Composable
 internal fun LandscapeMainPane(
     compact: Boolean,
-    /** "Playing from …", or null where Settings hides it. */
     caption: String?,
     onOpenCaption: () -> Unit,
     credits: @Composable () -> Unit,
-    /** The one-line lyric over the scrubber; null where synced lyrics are off. */
     lyricStrip: (@Composable () -> Unit)?,
     scrubber: @Composable () -> Unit,
     transport: @Composable () -> Unit,
-    /** Null where Settings hides the volume bar. */
     volume: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -401,24 +295,15 @@ internal fun LandscapeMainPane(
     }
 }
 
-/**
- * Title, artist, like and the three-dot menu, for the landscape player.
- *
- * Marquee rather than a plain ellipsis, matching the portrait player: a tablet
- * is wider, not infinitely wide, and a long title truncated on the one surface
- * with room to scroll it would be the odd one out.
- */
 @Composable
 internal fun LandscapeCredits(
     song: Song,
     signedIn: Boolean,
     likeStatus: LikeStatus,
-    /** The menu glyph is briefly the undo arrow after a quality upgrade. */
     showRevertCue: Boolean,
     onToggleLike: () -> Unit,
     onOpenMenu: () -> Unit,
     onOpenAlbum: (String) -> Unit,
-    /** Null browse id for anyone but the lead credit — see [NowPlayingScreen]. */
     onOpenArtist: (browseId: String?, name: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -437,7 +322,6 @@ internal fun LandscapeCredits(
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
                     onOverflowChange = { titleOverflowing = it },
-                    // Before the title, in the artist line's colour.
                     leading = if (song.isExplicit == true) {
                         { ExplicitBadge(artistColor) }
                     } else {
@@ -453,17 +337,12 @@ internal fun LandscapeCredits(
                     },
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.W500),
                     color = artistColor,
-                    // A title that's also scrolling gets to go first — starting
-                    // together reads as clutter, so the artist waits a beat.
                     startDelayMillis = if (titleOverflowing) MARQUEE_ARTIST_STAGGER_MS else 0L,
                     onOpenArtist = onOpenArtist,
                 )
             }
         }
         Spacer(Modifier.width(10.dp))
-        // Same gate as the portrait player's: no account to like against for a
-        // guest — but a local file or a finished download is liked on the
-        // device, which needs none.
         if (signedIn || song.localUri != null) {
             val liked = likeStatus == LikeStatus.LIKE
             CircleGlyph(
@@ -486,25 +365,13 @@ internal fun LandscapeCredits(
     }
 }
 
-/**
- * The landscape player's right column with the lyrics open: the sheet, and
- * under it the romanize / source / translate bar.
- *
- * The bar is where the portrait player's status line and its two floating
- * toggles went. There the line sits over the scrubber and the toggles float
- * over the foot of the words; here there is no scrubber beside the lyrics, and
- * the bar gives all three a place of their own that costs the sheet no lines.
- */
 @Composable
 internal fun LandscapeLyricsPane(
     hasLyrics: Boolean,
-    /** Shown in place of the sheet while there are no lines to draw. */
     placeholder: String,
     status: String,
     onStatusClick: () -> Unit,
-    /** Whether lines are being picked, which is what the bar stands in for. */
     picking: Boolean = false,
-    /** The pick bar itself, drawn in place of the row below. */
     pickBar: @Composable () -> Unit = {},
     romanizationToggle: @Composable () -> Unit,
     translationToggle: @Composable () -> Unit,
@@ -520,10 +387,6 @@ internal fun LandscapeLyricsPane(
             if (hasLyrics) {
                 panel(Modifier.fillMaxSize())
             } else {
-                // Held at a fixed line rather than through
-                // [LyricsUnavailableLine] or [LyricsLoadingLine]: those fade
-                // out after a few seconds, which here would leave the whole
-                // column blank for as long as the track keeps playing.
                 Text(
                     text = placeholder,
                     style = MaterialTheme.typography.titleMedium,
@@ -533,10 +396,6 @@ internal fun LandscapeLyricsPane(
                 )
             }
         }
-        // While a pick is open the row below gives way to the bar: the two
-        // toggles in it would redraw the very lines the pick is indexing, and
-        // the status line is the one thing the bar's own Cancel and Share sit
-        // where.
         if (picking) {
             Box(Modifier.fillMaxWidth()) { pickBar() }
         } else {
@@ -546,8 +405,6 @@ internal fun LandscapeLyricsPane(
                 .padding(top = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Fixed slots either side whether or not the toggles are drawn, so
-            // the status line stays centred as lyrics arrive.
             Box(Modifier.size(34.dp)) { if (hasLyrics) romanizationToggle() }
             Box(
                 modifier = Modifier

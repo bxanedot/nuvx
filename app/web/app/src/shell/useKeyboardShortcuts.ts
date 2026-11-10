@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import { usePlayer } from '@/state/player';
 import { useUi } from '@/state/ui';
 
-/** Typing in a field shouldn't trigger the player. */
 function typing(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
   if (!element) return false;
@@ -14,7 +13,6 @@ function focusSearch(navigate: ReturnType<typeof useNavigate>) {
   const field = document.querySelector<HTMLInputElement>('input[type="search"]');
   if (field) return field.focus();
   navigate('/search');
-  // The search page is lazy: focus its field once it has rendered (for up to 3 s).
   const started = performance.now();
   const attempt = () => {
     const field = document.querySelector<HTMLInputElement>('input[type="search"]');
@@ -24,11 +22,6 @@ function focusSearch(navigate: ReturnType<typeof useNavigate>) {
   attempt();
 }
 
-/**
- * The web player's shortcuts, which nuvx matches (report §8): Space
- * play/pause; ⌘/Ctrl+→ / ← next/previous; ⌘/Ctrl+↑ / ↓ volume; ⌘/Ctrl+F or
- * "/" focuses search; Esc closes the full-screen player, else the side panel.
- */
 export function useKeyboardShortcuts() {
   const navigate = useNavigate();
   useEffect(() => {
@@ -44,7 +37,6 @@ export function useKeyboardShortcuts() {
       if (typing(event.target)) return;
 
       if (event.key === ' ' && !command) {
-        // A focused button already answers Space itself.
         if ((event.target as HTMLElement | null)?.closest('button, a, [role="slider"]')) return;
         event.preventDefault();
         return player.togglePlay();
@@ -55,7 +47,6 @@ export function useKeyboardShortcuts() {
       }
       if (event.key === 'Escape') {
         const ui = useUi.getState();
-        // A menu or dialog over the player closes first, on its own.
         if ((event.target as HTMLElement | null)?.closest('[role="menu"], [role="dialog"]:not([data-full-screen])')) return;
         if (ui.fullScreen) ui.setFullScreen(false);
         else if (ui.sidePanel) ui.closeSidePanel();

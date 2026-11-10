@@ -6,7 +6,6 @@ import com.excor.Excor
 import com.excor.excorDefaultHost
 import java.util.Locale
 
-/** eXcor (github.com/bxanedot/eXcor) as [StreamResolver]'s fallback engine, used only while the setting is on. */
 object ExcorFallback : StreamResolver.FallbackEngine {
     private val excor by lazy {
         val locale = Locale.getDefault()

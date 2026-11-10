@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fitGrid, normalizeTempo } from './beatgrid';
 
-/** Ticks on a [bpm] grid from [from] to [to] seconds, shifted by [phaseSec], with essentia-like ±[jitterMs] wobble. */
 function ticks(bpm: number, from: number, to: number, phaseSec = 0, jitterMs = 0): number[] {
   const beat = 60 / bpm;
   const out: number[] = [];
@@ -20,8 +19,6 @@ describe('fitGrid', () => {
     expect(fit.residualMs).toBeLessThan(1);
   });
 
-  // AutoMix numbered ticks consecutively, so a beatless breakdown (no ticks)
-  // put every later tick on the wrong beat: One More Time scored 4e-8.
   it('holds the grid across a breakdown with no ticks', () => {
     const t = [...ticks(123, 0.4, 100), ...ticks(123, 0.4, 300).filter((x) => x > 160)];
     const fit = normalizeTempo(fitGrid(t)!);
@@ -37,7 +34,7 @@ describe('fitGrid', () => {
 
   it('caps a stray tick at a quarter beat in the residual', () => {
     const t = ticks(120, 0, 60);
-    t.splice(40, 0, t[40]! - 0.25); // one tick on the off-beat
+    t.splice(40, 0, t[40]! - 0.25);
     const fit = fitGrid(t)!;
     expect(fit.bpm).toBeCloseTo(120, 1);
     expect(fit.residualMs).toBeLessThan(0.125 * 1000 / Math.sqrt(t.length) + 1);

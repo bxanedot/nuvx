@@ -2,18 +2,10 @@ import type { HttpResponse, YtFetchParams } from '@nuvx/shared/bridge';
 import { installExtensionFetchRule } from './rules';
 import { activeIdentity, signedFetch, SignedOutError } from './ytAuth';
 
-/** Where an anonymous `yt.fetch` may go: BotGuard, which a page can't call with YouTube's Origin. */
 const ALLOWED = [/^https:\/\/www\.youtube\.com\/api\/jnn\//];
-/** Where a signed one may go: InnerTube only, never an account or settings page. */
 const ALLOWED_SIGNED = [/^https:\/\/(music|www)\.youtube\.com\/youtubei\/v1\//];
-/**
- * The play-reporting pings a player response nominates (playbackTracking):
- * playback, watchtime and atr, GET only. They're what puts a play in the
- * account's YouTube Music history (PlaybackTracker.kt on the phone).
- */
 const STATS = /^https:\/\/(s|music|www)\.youtube\.com\/api\/stats\/(playback|watchtime|atr)(\?|$)/;
 const MUSIC_ORIGIN = 'https://music.youtube.com';
-/** Identity is the extension's to set; the page's copies of these are dropped. */
 const IDENTITY_HEADERS = ['authorization', 'cookie', 'x-goog-authuser', 'x-goog-pageid', 'x-origin', 'origin', 'referer'];
 
 let ruleReady: Promise<void> | null = null;
@@ -33,15 +25,6 @@ function forbidden(url: string): Error {
   return Object.assign(new Error(`yt.fetch doesn't serve ${origin}${pathname}`), { code: 'forbidden' });
 }
 
-/**
- * A request to YouTube from the extension, with YouTube's Origin and Referer
- * (rules.ts, installExtensionFetchRule).
- *
- * - Anonymous by default: no cookies.
- * - With `auth`, made as the chosen channel (ytAuth.ts). The page gets the
- *   response, as it would from YouTube's own site, but never the cookies or
- *   the signature that produced it.
- */
 export async function ytFetch(request: YtFetchParams): Promise<HttpResponse> {
   if (request.auth) return signedYtFetch(request);
   if (!ALLOWED.some((pattern) => pattern.test(request.url))) throw forbidden(request.url);
@@ -77,7 +60,6 @@ async function signedYtFetch(request: YtFetchParams): Promise<HttpResponse> {
     request.url,
     { method: request.method ?? 'GET', headers, body: body as BodyInit | undefined },
     identity,
-    // A stats ping is signed for YouTube Music, whichever host it goes to, as the web client's are.
     stats ? MUSIC_ORIGIN : undefined,
   );
   return serialise(response);

@@ -3,28 +3,16 @@ import { ytAuthSnapshot } from '@/extension/useYtAuth';
 import { getInnertube, getSignedInnertube } from '@/playback/youtube/innertube';
 import { resolvePlayer, UnplayableError, usesWebPo } from '@/playback/youtube/resolver';
 
-/**
- * A picture wider than this is a music video; a square one is YouTube's art
- * track for a song (the player's own rule, YouTubeEngine.MIN_VIDEO_ASPECT).
- */
 const MIN_VIDEO_ASPECT = 1.2;
 
-/** The track's audio, and whether YouTube serves it as a music video rather than a song. */
 export interface TrackAudio {
   bytes: ArrayBuffer;
   musicVideo: boolean;
 }
 
-/** googlevideo serves a direct URL in ranges; Android (vivi/InnerTubeX) asks for 512 KiB–1 MiB at a time. */
 const CHUNK_BYTES = 1024 * 1024;
 const MAX_BYTES = 40 * 1024 * 1024;
 
-/**
- * The whole audio file of [videoId], for analysis: the same direct URL Shaka
- * plays (VISIONOS), fetched in ranges. Opus in WebM when there is one (every
- * browser that runs the app decodes it in decodeAudioData), else AAC.
- * Throws when the track only streams over SABR, which has no file to fetch.
- */
 export async function fetchTrackAudio(videoId: string, signal?: AbortSignal): Promise<TrackAudio> {
   let source = await resolveAudioUrl(videoId);
   const parts: Uint8Array[] = [];
@@ -36,8 +24,6 @@ export async function fetchTrackAudio(videoId: string, signal?: AbortSignal): Pr
     url.searchParams.set('range', `${at}-${end}`);
     const response = await fetch(url, { signal, credentials: 'omit' });
     if (response.status === 403 && refusals < MAX_REFUSALS) {
-      // googlevideo sometimes refuses a URL part-way through; a fresh one
-      // (another player response) carries on from the same byte.
       refusals++;
       source = await resolveAudioUrl(videoId, source.itag);
       continue;
@@ -60,7 +46,6 @@ export async function fetchTrackAudio(videoId: string, signal?: AbortSignal): Pr
 
 const MAX_REFUSALS = 2;
 
-/** A deciphered direct URL for the track's best audio (or the same itag, when resuming). */
 async function resolveAudioUrl(videoId: string, itag?: number): Promise<{ url: URL; total: number; itag: number; musicVideo: boolean }> {
   const { info, client, yt } = await resolveAsPlayerWould(videoId);
   const audio = (info.streaming_data?.adaptive_formats ?? []).filter(
@@ -83,12 +68,6 @@ async function resolveAudioUrl(videoId: string, itag?: number): Promise<{ url: U
   return { url, total: format.content_length ?? 0, itag: format.itag, musicVideo };
 }
 
-/**
- * The player's own walk (YouTubeEngine.load): anonymously first, and when
- * YouTube calls that an age gate (which is also how its "sign in to confirm
- * you're not a bot" reads), again as the signed-in user. Without the second
- * step a song that plays fine could never be analysed.
- */
 async function resolveAsPlayerWould(videoId: string) {
   try {
     return await resolvePlayer(await getInnertube(), videoId);

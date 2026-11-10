@@ -12,7 +12,6 @@ class UploadedTracksTest {
     @AfterTest
     fun reset() = UploadedTracks.clear()
 
-    /** One library-style track row; [extra] is spliced in as the row's own extra JSON members. */
     private fun row(videoId: String, extra: String = "", musicVideoType: String? = null): String {
         val config = musicVideoType?.let {
             """,

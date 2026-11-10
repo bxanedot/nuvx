@@ -1,11 +1,9 @@
 package com.bxane.nuvx.playback.smart
 
-/** Loads the analyser's native library, however the platform keeps it. */
 object NativeAnalysisLibrary {
 
     private var loader: (() -> Unit)? = null
 
-    /** Must be called before anything touches the analyser. */
     fun install(loader: () -> Unit) {
         this.loader = loader
     }
@@ -18,6 +16,5 @@ object NativeAnalysisLibrary {
             .isSuccess
     }
 
-    /** The name both builds give it, so neither spells it out separately. */
     const val LIBRARY_NAME = "nuvx_analysis"
 }

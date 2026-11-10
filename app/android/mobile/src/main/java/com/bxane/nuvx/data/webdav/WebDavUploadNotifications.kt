@@ -7,16 +7,6 @@ import androidx.core.app.NotificationCompat
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.model.Song
 
-/**
- * The shade presence for uploads, shaped like the download one: an ongoing
- * progress row while bytes are moving, replaced by the batch summary when it
- * lands.
- *
- * A plain notification rather than a foreground service — uploads run in the
- * UI scope and die with it, so there is no background work to keep alive.
- * Every post is caught: without the notification permission the shade simply
- * never shows, and that must not fail the batch.
- */
 object WebDavUploadNotifications {
 
     fun postProgress(
@@ -48,7 +38,6 @@ object WebDavUploadNotifications {
             .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle(title)
             .setContentText(text)
-            // Indeterminate until something has a length to measure against.
             .setProgress(100, percent, fraction == null)
             .setOngoing(true)
             .setSilent(true)
@@ -104,6 +93,5 @@ object WebDavUploadNotifications {
 
     private const val CHANNEL_ID = "webdav_uploads"
 
-    /** Distinct from downloads', which [DownloadService][com.bxane.nuvx.download.DownloadService] owns. */
     private const val NOTIFICATION_ID = 0x8176
 }

@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { LyricClock } from './clock';
 
-// Ported from the native app's LyricClockTest.kt.
-
 const FRAME_MS = 1000 / 60;
 
-/** A small seeded generator, so a failure reproduces. */
 function seeded(seed: number): () => number {
   let state = seed >>> 0 || 1;
   return () => {
@@ -14,7 +11,6 @@ function seeded(seed: number): () => number {
   };
 }
 
-/** A song read every 500 ms, each reading stamped when taken and delivered up to [maxDelayMs] later. */
 class Playback {
   report: number;
   sampledAt: number;
@@ -127,7 +123,6 @@ describe('LyricClock', () => {
       shown = clock.frame(now, 10_000 + taken, taken, 0);
       now += FRAME_MS;
     }
-    // Seek to 60 s, announced.
     const seekAt = now;
     while (now <= seekAt + 1000) {
       const taken = Math.floor(now / 500) * 500;

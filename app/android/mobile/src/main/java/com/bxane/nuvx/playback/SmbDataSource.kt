@@ -9,20 +9,7 @@ import com.bxane.nuvx.data.smb.SmbClient
 import com.bxane.nuvx.data.smb.SmbConfig
 import java.io.IOException
 
-/**
- * Reads `smb://` tracks for ExoPlayer, straight off the share.
- *
- * Seeking is close-and-reopen per the [DataSource] contract, so each open
- * takes its own file handle (one cheap round trip on a live session) and
- * reads carry absolute offsets — no cursor is ever shared, and concurrent
- * opens of the same track cannot tread on each other. Length comes from the
- * file entry, which is what makes the seek bar determinate.
- *
- * Failures invalidate the pooled session on the way out: a dropped
- * connection that is kept looks exactly like a dead server on every retry
- * after the first.
- */
-class SmbDataSource : BaseDataSource(/* isNetwork = */ true) {
+class SmbDataSource : BaseDataSource(true) {
 
     private var file: com.hierynomus.smbj.share.File? = null
     private var position = 0L
@@ -60,7 +47,6 @@ class SmbDataSource : BaseDataSource(/* isNetwork = */ true) {
         if (position >= endPosition) return -1
         val capped = minOf(readLength.toLong(), endPosition - position).toInt()
         val read = try {
-            // One call, absolute offset — the handle holds no position of its own.
             handle.read(buffer, position, offset, capped)
         } catch (e: IOException) {
             throw e
@@ -85,7 +71,6 @@ class SmbDataSource : BaseDataSource(/* isNetwork = */ true) {
     internal fun displayPath(url: String): String? =
         SmbConfig.relativePath(url, com.bxane.nuvx.data.smb.SmbAuth.share)
 
-    /** Routes `smb` to [SmbDataSource] and everything else to [downstream]. */
     class RoutingFactory(private val downstream: DataSource.Factory) : DataSource.Factory {
         override fun createDataSource(): DataSource = RoutingDataSource(downstream.createDataSource())
 

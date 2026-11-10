@@ -1,10 +1,3 @@
-//! Songs saved to disk: the audio as YouTube serves it (AAC in an .m4a, at the best
-//! quality the account gets), tagged with title, artists, album and cover, in the
-//! downloads folder. A downloaded song plays from its file, so it works offline.
-//!
-//! `downloads.json` in the data dir maps video ids to their files; a file that was
-//! moved or deleted just stops counting as downloaded.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, RwLock};
@@ -19,18 +12,14 @@ struct Entry {
     path: PathBuf,
     duration_ms: u64,
     loudness_db: Option<f32>,
-    /// A song version: the music video it was downloaded for, and the song, so that
-    /// video plays it from this file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     stands_for: Option<String>,
-    /// The song as it was downloaded, for the Downloads page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     song: Option<Track>,
 }
 
 struct State {
     index: HashMap<String, Entry>,
-    /// Where the index is saved (the data dir's downloads.json).
     file: PathBuf,
     folder: PathBuf,
 }
@@ -38,7 +27,6 @@ struct State {
 static STATE: LazyLock<RwLock<State>> =
     LazyLock::new(|| RwLock::new(State { index: HashMap::new(), file: PathBuf::new(), folder: default_folder() }));
 
-/// Music\nuvx.
 pub fn default_folder() -> PathBuf {
     let base = directories::UserDirs::new()
         .and_then(|u| u.audio_dir().map(Path::to_path_buf).or_else(|| Some(u.home_dir().join("Music"))))
@@ -46,7 +34,6 @@ pub fn default_folder() -> PathBuf {
     base.join("nuvx")
 }
 
-/// Load the index; `folder` is the saved setting (empty for the default).
 pub fn init(data_dir: &Path, folder: &str) {
     let file = data_dir.join("downloads.json");
     let index = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
@@ -64,7 +51,6 @@ pub fn set_folder(folder: PathBuf) {
     STATE.write().unwrap().folder = folder;
 }
 
-/// Ask for a new folder (the system picker, on its own thread).
 pub fn pick_folder(ctx: &egui::Context) {
     let ctx = ctx.clone();
     std::thread::spawn(move || {
@@ -86,18 +72,14 @@ pub fn open_folder() {
     let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
 }
 
-/// Open the song's folder in Explorer with the file selected.
 pub fn show_file(path: &Path) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         let _ = std::process::Command::new("explorer").raw_arg(format!("/select,\"{}\"", path.display())).spawn();
     }
-    // macOS: Finder reveals it.
     #[cfg(target_os = "macos")]
     let _ = std::process::Command::new("open").arg("-R").arg(path).spawn();
-    // Linux: the file manager's ShowItems selects it (Nautilus, Dolphin, Nemo, …);
-    // without one, just open the folder.
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         let uri = url::Url::from_file_path(path).map(|u| u.to_string()).unwrap_or_default();
@@ -113,12 +95,10 @@ pub fn show_file(path: &Path) {
     }
 }
 
-/// The song's file, if it's downloaded and still there.
 pub fn path(video_id: &str) -> Option<PathBuf> {
     STATE.read().unwrap().index.get(video_id).map(|e| e.path.clone()).filter(|p| p.is_file())
 }
 
-/// The downloaded songs still on disk, newest first.
 pub fn list() -> Vec<Track> {
     let st = STATE.read().unwrap();
     let mut out: Vec<(std::time::SystemTime, Track)> = st
@@ -134,13 +114,11 @@ pub fn list() -> Vec<Track> {
     out.into_iter().map(|(_, t)| t).collect()
 }
 
-/// The downloaded song version of the music video `video_id`, if its file is still there.
 pub fn song_for(video_id: &str) -> Option<Track> {
     let st = STATE.read().unwrap();
     st.index.values().find(|e| e.stands_for.as_deref() == Some(video_id) && e.path.is_file()).and_then(|e| e.song.clone())
 }
 
-/// A downloaded song's audio, as a complete stream buffer for playback.
 pub fn open(video_id: &str) -> Option<Arc<Shared>> {
     let entry = STATE.read().unwrap().index.get(video_id).cloned()?;
     let data = std::fs::read(&entry.path).ok()?;
@@ -148,13 +126,10 @@ pub fn open(video_id: &str) -> Option<Arc<Shared>> {
     Some(Shared::from_bytes(data, entry.duration_ms, entry.loudness_db))
 }
 
-/// Write a downloaded song into the folder and remember it. Returns the file.
-/// `stands_for`: the music video `t` is the song version of.
 pub fn save(t: &Track, audio: &[u8], duration_ms: u64, loudness_db: Option<f32>, cover: Option<Vec<u8>>, stands_for: Option<String>) -> anyhow::Result<PathBuf> {
     let folder = folder();
     std::fs::create_dir_all(&folder)?;
     let ext = if audio.get(4..8) == Some(b"ftyp") { "m4a" } else { "webm" };
-    // A file already there for this song is replaced; another song's isn't.
     let mine = STATE.read().unwrap().index.get(&t.id).map(|e| e.path.clone());
     let stem = file_stem(t);
     let mut path = folder.join(format!("{stem}.{ext}"));
@@ -164,8 +139,6 @@ pub fn save(t: &Track, audio: &[u8], duration_ms: u64, loudness_db: Option<f32>,
         n += 1;
     }
     let part = path.with_extension(format!("{ext}.part"));
-    // YouTube's files say they're DASH segments ("dash" brand); as a file of its own,
-    // call it audio, which some players and Explorer go by.
     let mut audio = audio.to_vec();
     if audio.get(8..12) == Some(b"dash") {
         audio[8..12].copy_from_slice(b"M4A ");
@@ -174,12 +147,10 @@ pub fn save(t: &Track, audio: &[u8], duration_ms: u64, loudness_db: Option<f32>,
     if ext == "m4a"
         && let Err(e) = tag(&part, t, cover)
     {
-        // Untagged audio still plays; keep it.
         log::warn!("couldn't tag {}: {e:#}", path.display());
     }
     std::fs::rename(&part, &path)?;
     let mut st = STATE.write().unwrap();
-    // Every entry keeps its song, so the Downloads page can list it later.
     let song = Some(t.clone());
     st.index.insert(t.id.clone(), Entry { path: path.clone(), duration_ms, loudness_db, stands_for, song });
     if let Ok(json) = serde_json::to_vec(&st.index) {
@@ -188,7 +159,6 @@ pub fn save(t: &Track, audio: &[u8], duration_ms: u64, loudness_db: Option<f32>,
     Ok(path)
 }
 
-/// "Artists - Title", safe as a Windows file name.
 fn file_stem(t: &Track) -> String {
     let artists = t.artist_line();
     let name = if artists.is_empty() { t.title.clone() } else { format!("{artists} - {}", t.title) };

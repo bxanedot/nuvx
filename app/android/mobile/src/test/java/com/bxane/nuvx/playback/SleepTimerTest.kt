@@ -9,7 +9,6 @@ class SleepTimerTest {
     fun customSliderSpansOneStepToTwelveHours() {
         assertEquals(SleepTimer.STEP_MINUTES, SleepTimer.minutesAt(0f))
         assertEquals(SleepTimer.MAX_MINUTES, SleepTimer.minutesAt(1f))
-        // Dragged past either end, it stays inside the range.
         assertEquals(SleepTimer.STEP_MINUTES, SleepTimer.minutesAt(-0.5f))
         assertEquals(SleepTimer.MAX_MINUTES, SleepTimer.minutesAt(1.5f))
     }

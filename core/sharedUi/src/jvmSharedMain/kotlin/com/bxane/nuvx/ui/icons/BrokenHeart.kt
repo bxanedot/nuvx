@@ -15,27 +15,14 @@ import com.composables.sfsymbols.SfSymbols
 import com.composables.sfsymbols.monochrome.SFHeart
 import com.composables.sfsymbols.monochrome.SFHeartFill
 
-/**
- * A broken heart, for Dislike: SF Symbols has a heart with a slash through it
- * but no broken one, so this is the SF heart split down the middle along a
- * zigzag crack, the two halves pulled a hair apart. Drawn a little lighter
- * than the menus' other symbols: two halves and a crack are more line than
- * one heart, and at Bold they read as a blot.
- *
- * The outline draws the crack's edges as well, so each half reads as a closed
- * piece rather than a ring with two nicks taken out of it.
- */
 object BrokenHeart {
     val Outline: ImageVector by lazy { broken(SfSymbols.Monochrome.SFHeart, "nx_broken_heart", outline = true) }
     val Fill: ImageVector by lazy { broken(SfSymbols.Monochrome.SFHeartFill, "nx_broken_heart_fill", outline = false) }
 
-    /** Added to Apple's Regular line — about half what [SfIcons] adds for Bold. */
     private const val WEIGHT = 0.35f
 
-    /** Half the gap between the two halves, in the heart's own units. */
     private const val HALF_GAP = 0.55f
 
-    /** The crack's line, as offsets from the heart's middle at each height. */
     private val crack = listOf(
         0f to -1f,
         0f to 4.4f,
@@ -45,9 +32,7 @@ object BrokenHeart {
         0f to 26f,
     )
 
-    /** [regular] is Apple's own Regular heart, outline or filled. */
     private fun broken(regular: ImageVector, name: String, outline: Boolean): ImageVector {
-        // Padded the way [SfIcons] pads its symbols.
         val pad = SfIcons.BOLD_STROKE / 2f
         val width = regular.viewportWidth + pad * 2f
         val height = regular.viewportHeight + pad * 2f
@@ -55,10 +40,8 @@ object BrokenHeart {
         val right = width + 2f
         val bottom = height + 2f
         val heartShape = heartFillNodes()
-        // An outline's edges are as thick as the outline itself.
         val edgeWidth = REGULAR_LINE + WEIGHT
 
-        // On the same canvas as every other symbol — see [SfIcons.CANVAS].
         return SfIcons.canvas(name, width, height) {
             for (side in listOf(-1f, 1f)) {
                 val shift = side * HALF_GAP
@@ -67,7 +50,6 @@ object BrokenHeart {
                 SfIcons.copyInto(this, regular.root, extraStroke = WEIGHT)
                 clearGroup()
                 if (outline) {
-                    // The crack's edge on this half, kept inside the heart.
                     addGroup(translationX = pad, translationY = pad, clipPathData = heartShape)
                     path(
                         stroke = SolidColor(Color.Black),
@@ -87,7 +69,6 @@ object BrokenHeart {
         }
     }
 
-    /** Everything on one side of the crack, shifted to [crackX] — the side [edgeX] is on. */
     private fun halfClip(crackX: Float, edgeX: Float, bottom: Float): List<PathNode> =
         PathBuilder().apply {
             moveTo(edgeX, -2f)
@@ -96,7 +77,6 @@ object BrokenHeart {
             close()
         }.nodes
 
-    /** The filled heart's silhouette, for keeping the crack's edges inside it. */
     private fun heartFillNodes(): List<PathNode> {
         val nodes = mutableListOf<PathNode>()
         fun collect(group: VectorGroup) {
@@ -111,6 +91,5 @@ object BrokenHeart {
         return nodes.ifEmpty { addPathNodes("") }
     }
 
-    /** SF's Regular heart outline, in its own units. */
     private const val REGULAR_LINE = 1.73f
 }

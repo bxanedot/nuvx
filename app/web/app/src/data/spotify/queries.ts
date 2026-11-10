@@ -25,27 +25,16 @@ export function useSpotifyPlaylistInfo(playlistId: string) {
   });
 }
 
-/** How many tracks are looked up on YouTube Music at once (MainViewModel.SPOTIFY_MATCH_PARALLELISM). */
 const MATCH_PARALLELISM = 6;
 
 export interface SpotifyRows {
   status: 'loading' | 'ready' | 'error';
   error: unknown;
-  /** Spotify's rows, each replaced by its YouTube Music song as the matches arrive. */
   rows: Track[];
   total: number;
-  /** How many rows still wait on a match. */
   matching: number;
 }
 
-/**
- * One playlist's rows and their matches (MainViewModel.openSpotifyPage). The
- * rows go up as soon as they are read, marked as still matching, and are
- * swapped in place as their YouTube Music songs are found. Kept per playlist
- * for the session, like the phone's hoisted page state, so going back to a
- * playlist doesn't look everything up again; matching pauses while nobody is
- * looking and resumes where it stopped.
- */
 class PlaylistJob {
   state: SpotifyRows = { status: 'loading', error: null, rows: [], total: 0, matching: 0 };
   private source: SpotifyTrack[] = [];
@@ -78,7 +67,6 @@ class PlaylistJob {
       this.fetching = true;
       fetchSpotifyTracks(this.playlistId, (soFar, total) => {
         this.source = soFar;
-        // Rows already matched keep their match; new ones join as pending.
         const rows = soFar.map((t, i) => this.state.rows[i] ?? pendingTrack(t));
         this.emit({ rows, total });
         this.pump();
@@ -91,7 +79,6 @@ class PlaylistJob {
     this.pump();
   }
 
-  /** Keeps up to MATCH_PARALLELISM lookups going, in order, while someone is looking. */
   private pump() {
     while (this.inFlight.size < MATCH_PARALLELISM && this.listeners.size > 0) {
       const index = this.state.rows.findIndex((r, i) => r.unavailable === 'matching' && !this.inFlight.has(i));
@@ -115,7 +102,6 @@ class PlaylistJob {
 
 const jobs = new Map<string, PlaylistJob>();
 
-/** Per account and playlist: another account's rows are never shown. */
 export function useSpotifyRows(playlistId: string): SpotifyRows & { retry: () => void } {
   const auth = useSpotifyAuth();
   const account = auth.state === 'ready' && auth.auth.signedIn ? (auth.auth.user?.name ?? '?') : null;

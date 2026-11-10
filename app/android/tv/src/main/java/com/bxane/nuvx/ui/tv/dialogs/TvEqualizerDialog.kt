@@ -80,11 +80,6 @@ private enum class EqTab(val label: String) {
     PRESETS("Presets"),
 }
 
-/**
- * The equalizer as a tvOS sheet: on/off at the top, then either seven band
- * faders (left and right pick a band, up and down set its gain, select resets
- * it) or the list of presets.
- */
 @Composable
 fun TvEqualizerDialog(
     onDismiss: () -> Unit,
@@ -199,10 +194,6 @@ fun TvEqualizerDialog(
     }
 }
 
-/**
- * 1:1 Apple TV Vertical Band Fader with center-zero baseline fill,
- * crisp white knob, and tactile remote D-pad controls.
- */
 @Composable
 private fun TvBandFader(
     hz: Float,
@@ -226,7 +217,7 @@ private fun TvBandFader(
         label = "bandFaderScale",
     )
 
-    val maxDb = EqLayout.MANUAL_RANGE_DB // 12 dB
+    val maxDb = EqLayout.MANUAL_RANGE_DB
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -261,7 +252,6 @@ private fun TvBandFader(
             }
             .padding(horizontal = 5.dp, vertical = 6.dp),
     ) {
-        // Gain Readout (+4 dB, 0 dB, -2 dB)
         val formattedGain = when {
             abs(gainDb) < 0.2f -> "0 dB"
             gainDb > 0 -> String.format(Locale.US, "+%.0f dB", gainDb)
@@ -277,7 +267,6 @@ private fun TvBandFader(
             textAlign = TextAlign.Center,
         )
 
-        // Vertical Fader Canvas Track
         Box(
             modifier = Modifier
                 .width(29.dp)
@@ -293,7 +282,6 @@ private fun TvBandFader(
                 val centerY = (topY + bottomY) / 2f
                 val trackHeight = bottomY - topY
 
-                // 1. Background Groove
                 drawRoundRect(
                     color = Color.White.copy(alpha = 0.15f),
                     topLeft = Offset(centerX - trackRadius, topY),
@@ -301,7 +289,6 @@ private fun TvBandFader(
                     cornerRadius = CornerRadius(trackRadius, trackRadius),
                 )
 
-                // 2. Center 0dB Reference Tick
                 drawLine(
                     color = Color.White.copy(alpha = 0.40f),
                     start = Offset(centerX - 6.dp.toPx(), centerY),
@@ -309,11 +296,9 @@ private fun TvBandFader(
                     strokeWidth = 1.5.dp.toPx(),
                 )
 
-                // 3. Normalized Position (-12dB at bottom, +12dB at top)
                 val fraction = ((gainDb - (-maxDb)) / (2f * maxDb)).coerceIn(0f, 1f)
                 val knobY = bottomY - (fraction * trackHeight)
 
-                // 4. Fill bar from center baseline to knob
                 val fillTop = kotlin.math.min(centerY, knobY)
                 val fillBottom = kotlin.math.max(centerY, knobY)
                 val fillHeight = kotlin.math.max(fillBottom - fillTop, 2.dp.toPx())
@@ -325,7 +310,6 @@ private fun TvBandFader(
                     cornerRadius = CornerRadius(trackRadius, trackRadius),
                 )
 
-                // 5. White Fader Thumb Knob
                 val knobRadius = if (isFocused) 8.dp.toPx() else 6.dp.toPx()
                 drawCircle(
                     color = Color.White,
@@ -333,7 +317,6 @@ private fun TvBandFader(
                     center = Offset(centerX, knobY),
                 )
 
-                // Subtle inner shadow ring
                 if (isFocused) {
                     drawCircle(
                         color = Color.Black.copy(alpha = 0.25f),
@@ -344,7 +327,6 @@ private fun TvBandFader(
             }
         }
 
-        // Frequency Label (60Hz, 1kHz, etc.)
         val freqLabel = when {
             hz >= 1000f -> "${(hz / 1000f).roundToInt()}k"
             else -> "${hz.roundToInt()}"

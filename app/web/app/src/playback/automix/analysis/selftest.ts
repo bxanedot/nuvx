@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// nuvx: exposed from the player store in dev builds instead of on import.
 import { makeTestLoop } from './testtones';
 import type { AnalyzeResponse } from './analysis.worker';
 
-/**
- * End-to-end analysis check on a synthesized 124 BPM / A-minor-ish loop.
- * Expect BPM ≈ 123.93 and Camelot 8A.
- */
 export async function analysisSelfTest(): Promise<AnalyzeResponse> {
   const off = new OfflineAudioContext({ numberOfChannels: 1, length: 1, sampleRate: 44100 });
   const loop = makeTestLoop(off, { bpm: 124, bars: 32, toneHz: 110 });

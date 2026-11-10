@@ -54,46 +54,16 @@ import com.bxane.nuvx.data.listentogether.PartyPreview
 import com.bxane.nuvx.ui.components.PillTextField
 import com.bxane.nuvx.ui.components.QrCode
 
-/**
- * Which of the party sheets is up, if any.
- *
- * One nullable value rather than a boolean each: they are alternatives — a
- * create sheet and a join sheet can never both be open — and a set of flags
- * that must not both be true is a bug waiting for the one path that sets the
- * second without clearing the first.
- */
 internal sealed interface PartySheet {
-    /** Name and size, then create. */
     data object Create : PartySheet
 
-    /** Six cells, to look a party up. */
     data object JoinCode : PartySheet
 
-    /**
-     * Who is in the party this device is about to commit a slot to.
-     *
-     * [server] rides along because an invite may point at somebody's own
-     * server, and the join that follows has to go to the same place the
-     * preview came from.
-     */
     data class Confirm(val preview: PartyPreview, val server: String?) : PartySheet
 
-    /** A link and a square, for getting somebody else in. */
     data object Invite : PartySheet
 }
 
-/**
- * This device's own face, lit from behind.
- *
- * The glow is the whole of the decoration on the landing screen, and it is one
- * blurred circle rather than a pattern: the listener's picture is the subject,
- * and a field of shapes around it — the obvious thing to reach for — competes
- * with the one element that is actually about them.
- *
- * It breathes on a long, offset pair of animations so the rise and the fade do
- * not turn over together, which is what a single looping scale reads as: a
- * pulse rather than something lit.
- */
 @Composable
 internal fun GlowingAvatar(
     url: String?,
@@ -115,9 +85,6 @@ internal fun GlowingAvatar(
         initialValue = 0.35f,
         targetValue = 0.6f,
         animationSpec = infiniteRepeatable(
-            // Deliberately not the spread's period: equal periods make the
-            // brightest frame always the widest one, which reads as one object
-            // throbbing instead of light moving.
             animation = tween(3_400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
@@ -132,14 +99,6 @@ internal fun GlowingAvatar(
             modifier = Modifier
                 .size(size * 1.75f)
                 .scale(spread)
-                // Blurred as well as faded to transparent: a radial gradient
-                // alone bands visibly on the dark background at this size.
-                //
-                // Unbounded, which is the whole point: the default edge
-                // treatment clips the blur to the layout rectangle, so a glow
-                // that grows past its own box gets a straight edge sliced
-                // across it — a round light inside a visible square, breathing
-                // in and out of its own corners.
                 .blur(28.dp, BlurredEdgeTreatment.Unbounded)
                 .background(
                     brush = Brush.radialGradient(
@@ -181,14 +140,6 @@ internal fun GlowingAvatar(
     }
 }
 
-/**
- * What the screen is when there is no party yet.
- *
- * Two doors rather than one, and they are not equals: creating is the common
- * case and gets the filled button; joining is what somebody does who already
- * has a code, and a text button is enough for a person who arrived looking for
- * it.
- */
 @Composable
 internal fun PartyLanding(
     avatarUrl: String?,
@@ -250,7 +201,6 @@ internal fun PartyLanding(
     }
 }
 
-/** The shared head of every sheet here: a title, and an optional line under it. */
 @Composable
 private fun SheetHeader(title: String, subtitle: String? = null) {
     Text(
@@ -272,14 +222,6 @@ private fun SheetHeader(title: String, subtitle: String? = null) {
     }
 }
 
-/**
- * Why the last attempt from this sheet did not work, said inside the sheet.
- *
- * On the page behind it there is nothing to read: a drawer covers the bottom
- * half of the screen and a line of red underneath it is a line nobody sees,
- * which is how "no party with that code" turned into a button that appeared to
- * do nothing at all. The message belongs next to the control that produced it.
- */
 @Composable
 private fun SheetError(message: String?) {
     if (message.isNullOrBlank()) return
@@ -293,14 +235,6 @@ private fun SheetError(message: String?) {
     )
 }
 
-/**
- * Name and size, asked once, before a party exists.
- *
- * Both are changeable afterwards from the party's own page — this is not the
- * only chance to set them — but they are the two things somebody starting a
- * party tends to have an opinion about, and asking here costs one sheet rather
- * than a trip into settings after the fact.
- */
 @Composable
 internal fun CreatePartySheet(
     avatarUrl: String?,
@@ -392,7 +326,6 @@ private fun StepperButton(label: String, enabled: Boolean, onClick: () -> Unit) 
     }
 }
 
-/** The avatar as the sheets draw it — larger than a settings row's glyph. */
 @Composable
 private fun PartySheetAvatar(url: String?, size: Dp = 40.dp) {
     if (url != null) {
@@ -419,12 +352,6 @@ private fun PartySheetAvatar(url: String?, size: Dp = 40.dp) {
     }
 }
 
-/**
- * Six characters, and the button that looks them up.
- *
- * Looking up rather than joining: what this sheet hands back is a party to
- * *consider*, and [JoinConfirmSheet] is where the slot is actually taken.
- */
 @Composable
 internal fun JoinPartySheet(
     code: String,
@@ -469,13 +396,6 @@ internal fun JoinPartySheet(
     }
 }
 
-/**
- * The faces already in a party, overlapped, with a count for the rest.
- *
- * Three and a number rather than all of them: the row has to stay the same
- * width at two members and at ten, and past three faces nobody is identifying
- * anyone — they are reading "a few people", which the number says better.
- */
 @Composable
 internal fun MemberAvatarStack(
     members: List<Pair<String, String?>>,
@@ -535,10 +455,6 @@ internal fun MemberAvatarStack(
     }
 }
 
-/**
- * The last step before a device slot is committed: who is in there, and a way
- * out that is not the back button.
- */
 @Composable
 internal fun JoinConfirmSheet(
     preview: PartyPreview,
@@ -569,10 +485,6 @@ internal fun JoinConfirmSheet(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        // Only when the server actually told us. A party looked up on a server
-        // with no preview endpoint comes back as a code and nothing else, and
-        // "0 of 5 listening" would be this screen inventing a fact about a
-        // party it cannot see into. See ListenTogether.previewParty.
         if (preview.memberCount > 0) {
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -649,14 +561,6 @@ internal fun JoinConfirmSheet(
     }
 }
 
-/**
- * How somebody else gets in: a link to send, or a square to point a camera at.
- *
- * No tap-to-join over NFC, which the obvious reference for this sheet has.
- * Android's side of that is a foreground-dispatch dance that needs both phones
- * awake, unlocked, and in the app, which is a lot of explaining for something
- * slower than reading six characters aloud.
- */
 @Composable
 internal fun InviteSheet(
     code: String,
@@ -701,10 +605,6 @@ internal fun InviteSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(10.dp))
-                // The code under the square, because the square is useless to
-                // somebody on the phone the party was made on — reading six
-                // characters out is still the fastest way into a party in the
-                // same room.
                 TextButton(
                     onClick = onCopyCode,
                     contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,

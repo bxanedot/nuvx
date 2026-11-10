@@ -382,11 +382,8 @@ import android.view.WindowManager
 import androidx.lifecycle.lifecycleScope
 import com.bxane.nuvx.data.model.MoodGenre
 
-/** A full first screen of a native YouTube Music radio before AutoPlay tops it up. */
-/** How much of an artist page's header scrolls away before the top fade begins. */
 private const val TOP_FADE_START = 0.55f
 
-/** How much of the header's height the fade takes to reach full strength. */
 private const val TOP_FADE_RAMP = 0.3f
 
 private const val INITIAL_RADIO_TRACKS = 24
@@ -402,7 +399,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // nuvx Car: a head unit is a wide screen that should never go dark mid-drive.
         lifecycleScope.launch {
             AppSettings.carMode.collect { car ->
                 requestedOrientation = if (car) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -411,13 +407,9 @@ class MainActivity : AppCompatActivity() {
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
-        // Before the composition, so a cold launch from a widget's artwork has
-        // the request already standing by the time NuvxApp first reads it.
         PlayerDeepLink.consume(intent)
         JamInviteLink.consume(intent)
-        // Likewise for a link tapped or shared from another app — see [MusicLink].
         MusicLink.consume(intent)
-        // Cold launches from the launcher only: a notification, link or widget opens straight in.
         val playIntro = savedInstanceState == null && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
         setContent {
             var showIntro by rememberSaveable { mutableStateOf(playIntro) }
@@ -437,15 +429,6 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.DARK -> true
             }
             NuvxTheme(darkTheme = darkTheme, font = appFont) {
-                // The glass surfaces sample this layer, and a layer records only
-                // what is drawn into it — which, for nuvx, is a page that
-                // paints no background of its own. Everywhere a page is not
-                // showing artwork the recording is transparent, so the glass had
-                // nothing to blur there and you saw straight through it to the
-                // sharp page underneath: album art came through the bar blurred
-                // and text came through it untouched. The window's background is
-                // the floor the pages have always been drawn against, so it is
-                // laid down here too and the recording is opaque like the screen.
                 val windowBackground = MaterialTheme.colorScheme.background
                 val paintBackdrop: ContentDrawScope.() -> Unit = remember(windowBackground) {
                     {
@@ -459,17 +442,6 @@ class MainActivity : AppCompatActivity() {
                     LocalLiquidGlassEnabled provides liquidGlassEnabled,
                     LocalAppBackdrop provides appBackdrop,
                 ) {
-                // The window's width, measured rather than asked for.
-                //
-                // `Configuration.screenWidthDp` is the wrong question here: in a
-                // freeform or desktop window it can report the display rather
-                // than the window it is actually in, and it lands a beat late
-                // when that window is dragged. The layout downstream splits in
-                // two on the strength of this number and sizes both halves from
-                // it, so a stale one is a player pane sized for a window that no
-                // longer exists and a page squeezed to a sliver to pay for it.
-                // A measured constraint cannot be stale — it is the very width
-                // the split is about to be laid out in.
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     NuvxApp(
                         darkTheme = darkTheme,
@@ -491,22 +463,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * The volume keys move the DAC's own volume while direct USB output owns
-     * it: Android's music stream no longer reaches that DAC, so the system
-     * volume would change nothing anyone hears. Handled here rather than left
-     * to the media session so the app's own HUD answers instead of Android's
-     * remote-volume panel; in the background the session takes them. A sheet
-     * in a window of its own asks the same through [DacVolumeKeys].
-     */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         handleDacVolumeKey(event) || super.dispatchKeyEvent(event)
 
-    /**
-     * Requests a window refresh rate without forcing a display mode or
-     * resolution. Android may still lower it for temperature, battery state or
-     * hardware limits, which is why Settings describes this as a preference.
-     */
     private fun applyPerformanceMode(enabled: Boolean, refreshRate: Int, composeView: View) {
         val supportedRefreshRate = composeView.display.resolvePerformanceRefreshRate(refreshRate)
         window.attributes = window.attributes.apply {
@@ -522,15 +481,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * The other half of the relay. This activity is `singleTask`, so once it is
-     * running a second tap on the widget does not rebuild anything — it arrives
-     * here, and [onCreate] never runs again.
-     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Replaces what getIntent() returns, so the extra this consumes is the
-        // one that just arrived and not the one the task was started with.
         setIntent(intent)
         PlayerDeepLink.consume(intent)
         JamInviteLink.consume(intent)
@@ -542,16 +494,7 @@ class MainActivity : AppCompatActivity() {
 @Composable
 private fun NuvxApp(
     darkTheme: Boolean,
-    /** The width of the window this is laid out in — see the call site. */
     windowWidth: Dp,
-    /**
-     * The window's height, measured the same way and for the same reason as
-     * [windowWidth] — and needed alongside it for exactly one thing: telling
-     * a portrait window apart from a landscape one. Width alone can't; a
-     * big tablet's portrait width comfortably clears a phone's landscape
-     * width, so the two-column player (see [landscapePlayerAvailable])
-     * would fire in portrait too if it only ever asked about width.
-     */
     windowHeight: Dp,
     appBackdrop: LayerBackdrop,
     viewModel: MainViewModel = viewModel(),
@@ -559,53 +502,23 @@ private fun NuvxApp(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val hazeState = remember { HazeState() }
-    // Recording the backdrop layer costs a draw pass, so it only runs when a
-    // liquid-glass surface (the nav bar or artwork-page back button) can sample it.
     val glassActive = LocalLiquidGlassEnabled.current && isGlassSupported()
-    // "Reduce dynamic blur" keeps the glass bar's *shape* — the folding
-    // now-playing-and-tabs component is a layout, not an effect, and dropping
-    // back to the two stacked bars would be answering a question about material
-    // with a different screen. What it drops is the sampling: the surfaces fill
-    // solid (see [Modifier.liquidGlass]) and the whole-page layer recording
-    // below goes with them, which is the part that costs a draw pass.
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
     val glassSamplesBackdrop = glassActive && !reduceDynamicBlur
-    // What folds [GlassNavBar] between its expanded and inline shapes. Held here
-    // rather than inside the bar because the page's scroll is what drives it,
-    // and the page is a sibling of the bar rather than a child.
     val navBarScroll = rememberFloatingTabBarScrollConnection()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    // Explore loads the first time it's shown, not at launch beside Home.
     LaunchedEffect(selectedTab) {
         if (selectedTab == TAB_EXPLORE) viewModel.onExploreShown()
     }
-    /**
-     * Whether the player's sheet is up. The player is always a full-screen
-     * take-over raised over the page, on every window size — the library
-     * stays full-screen behind a mini player rather than losing a lane to a
-     * permanent pane.
-     */
     var showNowPlaying by remember { mutableStateOf(false) }
-    // The DAC's own volume while direct USB output owns it; the full player
-    // has its own bar for that, so the HUD stays out of its way.
     androidx.compose.runtime.SideEffect { VolumeHud.suppressed = showNowPlaying }
-    // The Top Picks and mood artwork loop forever; nobody sees it with the
-    // app in the background or Now Playing pulled up over the page.
     val appForeground = com.bxane.nuvx.ui.rememberIsForeground()
     val artworkMotion = appForeground && !showNowPlaying
-    // Top Picks turns over each hour; coming back to the app after a
-    // turn-over is an open too.
     LaunchedEffect(appForeground) {
         if (appForeground) viewModel.refreshTopPicksIfStale()
     }
-    // Where the two ends of opening and closing the player meet: the mini
-    // player's cover reports itself here, the sheet its offset, and the player
-    // flies its artwork between them — see [PlayerDock].
     val playerDock = remember { PlayerDock() }
-    // Who moves the player sheet when the app does rather than M3: a tap's
-    // open, the pull up from the mini player, and every close — see
-    // [PlayerSheetMotion].
     val playerSheetScope = rememberCoroutineScope()
     val playerSheetMotion = remember {
         PlayerSheetMotion(
@@ -616,33 +529,15 @@ private fun NuvxApp(
         )
     }
     playerSheetMotion.windowInfo = LocalWindowInfo.current
-    // Whether a portrait player fully up has the page covered. Derived, so the
-    // page's draw below hears when that flips rather than on every frame of the
-    // sheet's travel: read straight off the fraction, each of those frames
-    // redrew the page's whole window behind the player, glass and blurs and all.
     val coveredByPlayer by remember {
         derivedStateOf { showNowPlaying && playerDock.attached && playerDock.openFraction() >= 1f }
     }
-    // "Reduce animation" keeps the player as it always was: M3's own slide up
-    // and down, its own scrim and window animations, no pull from the mini
-    // player and no artwork flying between the two. Everything below that
-    // takes part in the docking asks for [activeDock] / this, never for the
-    // dock or the motion directly.
     val reducePlayerMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val activeDock = playerDock.takeIf { !reducePlayerMotion }
     playerSheetMotion.flingVelocity = with(LocalDensity.current) { PLAYER_PULL_FLING_VELOCITY.toPx() }
-    // How the app takes the player down, whatever for: a back press, or a page
-    // opened from inside it. Set straight to false, the sheet left in one frame
-    // on its window's own exit animation — the old fast drop, with a copy of the
-    // artwork slipping down out of the mini player's cover after it.
     val dismissPlayer: () -> Unit = {
         if (reducePlayerMotion) showNowPlaying = false else playerSheetMotion.close()
     }
-    // The far end of the relay from a widget's artwork. Cleared here rather than
-    // where it was set, so the request is spent by being served — see
-    // [PlayerDeepLink.handled]. The sheet itself is gated on there being a track,
-    // so on a cold launch this simply arms it and it opens as the controller
-    // connects.
     val openPlayerRequested by PlayerDeepLink.pending.collectAsStateWithLifecycle()
     LaunchedEffect(openPlayerRequested) {
         if (openPlayerRequested) {
@@ -650,38 +545,20 @@ private fun NuvxApp(
             PlayerDeepLink.handled()
         }
     }
-    /**
-     * What the in-app browser is open for, or null while it is closed —
-     * signing in, or picking a channel in YouTube Music's own Accounts list.
-     */
     var webSession by remember { mutableStateOf<WebSessionMode?>(null) }
-    // Replay: the page (a route on the back stack — see [AppNavigator]), the
-    // stories over it, and the share sheet over those. Closing one has to
-    // reveal what it was opened from.
-    // Library cards use the same Replay page as every other entry point, but
-    // category cards ask it to start at their matching ranked section.
     var replayLandingPage by rememberSaveable { mutableStateOf(ReplayStoryPage.INTRO) }
     var replayStory by rememberSaveable { mutableStateOf<ReplayStoryPage?>(null) }
     var showReplayShare by rememberSaveable { mutableStateOf(false) }
-    /** Which story card the share sheet is for, or null for the whole Replay. */
     var replaySharePage by rememberSaveable { mutableStateOf<ReplayStoryPage?>(null) }
     var showSpotifyCanvasAuth by remember { mutableStateOf(false) }
 
-    // Hosted here rather than inside SourcesScreen so its frosted card has
-    // something to blur: that screen is drawn inside the `hazeSource` subtree,
-    // and a haze effect sampling the layer it is itself part of renders with no
-    // background at all. Hosting it here also puts the scrim over the tab bar
-    // and the mini player, like every other alert in the app.
     var editingSource by remember { mutableStateOf<SourceConfig?>(null) }
     var choosingSourceQuality by remember { mutableStateOf<SourceConfig?>(null) }
-    /** An addon whose "Outdated addon" line was tapped; see [SourceConfig.needsAddonUpdate]. */
     var explainingOutdatedAddon by remember { mutableStateOf<SourceConfig?>(null) }
     var confirmJioSaavn by remember { mutableStateOf(false) }
     var confirmBitPerfect by remember { mutableStateOf<BitPerfectMode?>(null) }
     var confirmFixedVolume by remember { mutableStateOf(false) }
-    /** An addon search row tapped while the quality setting skips its addon; see [AddonBlockedAlert]. */
     var blockedAddonSong by remember { mutableStateOf<com.bxane.nuvx.data.model.Song?>(null) }
-    /** An addon a download just went ahead without, and why; see [SourceRegistry.addonsLeftOutOfDownloads]. */
     var addonLeftOutOfDownload by remember {
         mutableStateOf<Pair<String, SourceRegistry.DownloadExclusion>?>(null)
     }
@@ -696,99 +573,38 @@ private fun NuvxApp(
     var showLastfmLogin by remember { mutableStateOf(false) }
     var showWebDavEditor by remember { mutableStateOf(false) }
     var showSmbEditor by remember { mutableStateOf(false) }
-    // Discord Rich Presence: its own page under Account & integrations (a
-    // route), its own full-screen sign-in, and one slot for whichever of its
-    // alerts is open. The alerts live out here rather than on the page because
-    // their scrim has to cover the tab bar and mini player, which are drawn
-    // after it.
     var showDiscordLogin by remember { mutableStateOf(false) }
     var showSpotifyLogin by remember { mutableStateOf(false) }
     var discordDialog by remember { mutableStateOf<DiscordDialog?>(null) }
     var songActions by remember { mutableStateOf<Song?>(null) }
     var showLyricsOffset by remember { mutableStateOf(false) }
-    /**
-     * Whether the track menu that is up was opened from the player.
-     *
-     * Its copy of the menu carries rows nothing else offers — a sleep timer,
-     * the track log, share — and until now "opened from the player" and "the
-     * player is on screen" were the same sentence, because the player was a
-     * sheet and nothing else could be up behind it. On a tablet the player is
-     * never *the* thing on screen: it is always beside whatever is, so the
-     * question has to be answered by whoever opened the menu.
-     */
     var menuFromPlayer by remember { mutableStateOf(false) }
-    /** Whether the track menu was opened from the History screen. */
     var menuFromHistory by remember { mutableStateOf(false) }
-    /**
-     * The row or card that was held to open the track menu, or null when it
-     * was opened any other way. Non-null lifts that item into
-     * [HeldContextMenu]; null hangs the menu off [songMenuAnchor] instead —
-     * which is what the ⋮ on the very same row opens.
-     */
     var songMenuOrigin by remember { mutableStateOf<HeldItem?>(null) }
-    /** The ⋮ or ⋯ the track menu was opened from, for [IosMenuPopover] to hang off. */
     var songMenuAnchor by remember { mutableStateOf<Rect?>(null) }
-    /**
-     * A still of the player for its ⋯ menu to blur — see the player's sheet
-     * below. Up here so the tap that opens the menu can ask for it: asked any
-     * later, the picture is read back on a frame of the menu's spring.
-     */
     val playerBackdrop = rememberSnapshotBackdrop()
-    /**
-     * The player live instead, while it is a full-screen Spotify Canvas: that
-     * keeps playing under the ⋯ menu, and a still of it would freeze under the
-     * panel. Recorded only while that is the case — see the player's sheet.
-     */
     val livePlayerBackdrop = rememberLayerBackdrop()
     var playerLiveCanvas by remember { mutableStateOf(false) }
-    /**
-     * The same for a ⋮ or ⋯ menu over a page: a still of everything under it —
-     * the page, its bars, the mini player — blurred under the panel. The
-     * page's live haze, under a panel growing on a spring, was re-cut and
-     * rescaled with it on every frame: the blur swam against the panel's
-     * growth, and the whole page was rendered again for it each time.
-     */
     val pageBackdrop = rememberSnapshotBackdrop()
-    /** Holding a row anywhere but the player — the menu without the player's rows. */
     val openSongMenu: (Song) -> Unit = { song ->
         menuFromPlayer = false
         songMenuOrigin = LongPressOrigin.consume()
         songMenuAnchor = MenuAnchor.consume()
         songActions = song
     }
-    // Whether the player's album/artist lookup (below, for the current track)
-    // is still in flight — read by the long-press sheet so it can show a
-    // loading row instead of the two just being absent while it waits.
     var linksLoading by remember { mutableStateOf(false) }
-    // Which track the playlist picker is adding, or null when it's closed.
-    // Separate from [songActions] so the menu can close behind it — the picker
-    // is the next step, not a second sheet stacked on the first.
     var playlistTarget by remember { mutableStateOf<Song?>(null) }
-    // The picker opened from the Library tab, where there is no track and
-    // creating the playlist is the whole errand.
     var creatingPlaylist by remember { mutableStateOf(false) }
-    // The same two, over the device's own playlists — for a track that is a
-    // file on it, and for "New playlist" on Local Music's Playlists tab.
     var offlinePlaylistTarget by remember { mutableStateOf<Song?>(null) }
     var creatingOfflinePlaylist by remember { mutableStateOf(false) }
     var showSpotifyImportDialog by remember { mutableStateOf(false) }
-    // Which album or playlist the collection menu is open on, or null when it
-    // is shut. One slot for every surface that can open it — the shelves on
-    // three tabs, the search rows, the artist page's carousels, the release
-    // page's own overflow — because only one of them can be held at a time.
     var browseActions by remember { mutableStateOf<BrowseTarget?>(null) }
-    /** The card held to open [browseActions] — see [songMenuOrigin]. */
     var browseMenuOrigin by remember { mutableStateOf<HeldItem?>(null) }
-    /** The ⋯ [browseActions] was opened from — see [songMenuAnchor]. */
     var browseMenuAnchor by remember { mutableStateOf<Rect?>(null) }
-    /** Rename asked for from the menu, which hands it on to a sheet holding only the form. */
     var browseRenameInSheet by remember { mutableStateOf(false) }
-    /** The playlist being rearranged, or null when the reorder page is shut. */
     var reorderTarget by remember { mutableStateOf<UserPlaylist?>(null) }
-    /** Its entries as YouTube has them now — fetched fresh when the sheet opens. */
     var reorderEntries by remember { mutableStateOf<UiState<List<Song>>>(UiState.Loading) }
     var reorderSaving by remember { mutableStateOf(false) }
-    /** An album or playlist: lifted when it was a hold, else hung off the ⋯ that was tapped. */
     val openBrowseMenu: (BrowseTarget) -> Unit = { target ->
         browseMenuOrigin = LongPressOrigin.consume()
         browseMenuAnchor = MenuAnchor.consume()
@@ -797,41 +613,19 @@ private fun NuvxApp(
     }
     val autoplay by AppSettings.autoplay.collectAsStateWithLifecycle()
     val partyState by ListenTogether.state.collectAsStateWithLifecycle()
-    // The same answer the playback service acts on, rather than a second one
-    // derived here — see [autoplayEnabledFor]. Drawing the local preference in
-    // a party made the toggle lie in both directions: a listener whose own
-    // switch was on sat under "AutoPlay on" in a party that had it off, got no
-    // suggestions, and pressing the button appeared to do nothing, because it
-    // turned the party's setting on while the label already said so.
     val autoplayEnabled = autoplayEnabledFor(partyState, autoplay)
     val partyServerStatus by ListenTogether.serverConnectionState.collectAsStateWithLifecycle()
     val listenBrainzToken by AppSettings.listenBrainzToken.collectAsStateWithLifecycle()
-    // Set each time the search tab is tapped, which SearchScreen uses as a
-    // signal to focus the input field.
     var searchFocusRequested by remember { mutableStateOf(false) }
     val searchFieldFocus = remember { FocusRequester() }
-    // Invalidates an in-flight radio lookup when a later play request wins.
     var playRequestGeneration by remember { mutableIntStateOf(0) }
-    // Starting radio from the item already playing must not replace that media
-    // item just to add UI metadata. This temporary label covers that seed; all
-    // following radio items carry radioName in their MediaItem extras.
     var activeRadioSeed by remember { mutableStateOf<Pair<String, String>?>(null) }
 
-    // The modal player owns light status glyphs and its own contrast scrim.
-    // Every other surface follows the theme; Replay's page and stories remain
-    // dark artwork either way. So is the welcome, drawn over all of it.
     val onboardingComplete by AppSettings.onboardingComplete.collectAsStateWithLifecycle()
-    // Held through the slide away as well, so the glyphs don't turn dark over
-    // the mesh while it is still on its way off the screen.
     val onboardingShown = remember { MutableTransitionState(!onboardingComplete) }
     onboardingShown.targetState = !onboardingComplete
     val onboardingVisible = onboardingShown.currentState || onboardingShown.targetState
 
-    // ---- Diwali (greeting once after the welcome, golden home wordmark) ----
-    // Indian users only, by the device timezone alone, and only on Diwali
-    // itself (see DiwaliGate). Asked again each time the app comes to the
-    // front, so one left open overnight into the day still greets — and one
-    // left open past it lets the gold go.
     val diwaliFestive = remember(appForeground) {
         DiwaliGate.isIndianTimezone() && DiwaliGate.isDiwaliDay()
     }
@@ -844,30 +638,15 @@ private fun NuvxApp(
         }
     }
 
-    // ---- Navigation ----
-    // One back stack for every page: the routes pushed over the tabs, and the
-    // album / artist / playlist pages interleaved with them — see
-    // [AppNavigator]. Whatever was opened last is what is on screen, and back
-    // (the gesture or the bar's button alike) undoes exactly that.
     val navigator = viewModel.navigator
     val detailStack by viewModel.detailStack.collectAsStateWithLifecycle()
     val topEntry = navigator.visibleEntry(detailStack.size)
-    // An artist's open shelf is drawn by the artist page itself, so it is not a
-    // route the page area switches to — only the shelf the page is showing.
     val artistShelfRoute = topEntry?.route as? AppRoute.ArtistShelf
     val visibleEntry = topEntry?.takeIf { artistShelfRoute == null }
     val detailActiveShelf = artistShelfRoute?.shelf
-    /** The route on screen, or null when a release page or a tab is. */
     val route = visibleEntry?.route
-    /**
-     * The release page at the top of its stack, whether or not a route
-     * covers it. Most things want [detail] — the one actually on screen.
-     */
     val topDetail = detailStack.lastOrNull()
-    /** The release page on screen, or null when a route or a tab is. */
     val detail = topDetail?.takeIf { visibleEntry == null }
-    // The reorder list lives on its playlist's page; leaving that page by any
-    // route — Back, a tab, another page over it — puts the list away with it.
     LaunchedEffect(detail?.browseId) {
         if (reorderTarget?.browseId != detail?.browseId) reorderTarget = null
     }
@@ -881,7 +660,6 @@ private fun NuvxApp(
     val hideHomeVideos by AppSettings.hideHomeVideos.collectAsStateWithLifecycle()
     val hideTopPicks by AppSettings.hideTopPicks.collectAsStateWithLifecycle()
     val hideHomeMoods by AppSettings.hideHomeMoods.collectAsStateWithLifecycle()
-    // Only what Home draws: Top Picks reads the unfiltered feed from the view model.
     val visibleHomeState = remember(homeState, hideHomeVideos, hideRecents) {
         val loaded = homeState as? UiState.Success
         if (loaded != null && (hideHomeVideos || hideRecents)) {
@@ -898,20 +676,11 @@ private fun NuvxApp(
     val topPicks by viewModel.topPicks.collectAsStateWithLifecycle()
     val topPicksLoading by viewModel.topPicksLoading.collectAsStateWithLifecycle()
 
-    // The top bar's icon is the quiet, always-there nudge; this is the
-    // once-per-launch popup version of the same news. `updateDialogShown`
-    // rides out configuration changes on rememberSaveable so a rotation
-    // doesn't bring it back — only a fresh launch does.
     var updateDialogShown by rememberSaveable { mutableStateOf(false) }
     var showUpdateDialog by remember { mutableStateOf(false) }
     var showRecognizer by remember { mutableStateOf(false) }
     val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
 
-    /**
-     * The single gate both surfaces read, so the icon can't announce the update
-     * a beat before the popup does — they're one piece of news, and staggering
-     * them made the top bar look like it had caught something the app hadn't.
-     */
     val updateNotice = updateAvailable
 
     LaunchedEffect(updateNotice) {
@@ -930,8 +699,6 @@ private fun NuvxApp(
     val searchSource by viewModel.searchSource.collectAsStateWithLifecycle()
     val libraryResults by viewModel.libraryResults.collectAsStateWithLifecycle()
     val addonResults by viewModel.addonResults.collectAsStateWithLifecycle()
-    // Collected rather than read once, so addon rows in search re-dim the
-    // moment the quality setting, the connection or the watch's cap moves.
     val addonCeiling = AppSettings.ceilingFor(
         wifi = AppSettings.audioQualityWifi.collectAsStateWithLifecycle().value,
         cellular = AppSettings.audioQualityCellular.collectAsStateWithLifecycle().value,
@@ -944,9 +711,6 @@ private fun NuvxApp(
     var activeJamInviteCode by rememberSaveable { mutableStateOf<String?>(null) }
     var activeJamInviteServer by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // An invite is navigation and an action: reveal the Jam settings page now,
-    // then let that page join once an account is available. Keeping the code
-    // here lets a sign-in round trip return to the invite it started from.
     LaunchedEffect(incomingJamInvite) {
         val invite = incomingJamInvite ?: return@LaunchedEffect
         activeJamInviteCode = invite.code
@@ -978,30 +742,11 @@ private fun NuvxApp(
     val searchLoadingMore by viewModel.searchLoadingMore.collectAsStateWithLifecycle()
     val searchScrollReset by viewModel.searchScrollReset.collectAsStateWithLifecycle()
     val releaseLibrary by viewModel.releaseLibrary.collectAsStateWithLifecycle()
-    // Local Music, Downloads and the other device folders draw as release
-    // pages, but they have no artwork to wash the top inset in, so they keep
-    // the plain bar; their top bar trades the overflow for a sort-and-view
-    // menu, and keeps the account photo.
-    //
-    // A downloaded playlist's page is under `local:` too and is none of that: it
-    // has a cover and a track list, so it takes the bar every other release page
-    // takes — as does an album or artist opened out of a folder. Hence the
-    // folder question rather than the prefix.
     val isLocalDetail = detail?.browseId.isDeviceFolder()
-    // An album or playlist page: the one whose top bar carries its search,
-    // sort and overflow controls.
     val isReleaseDetail = detail != null && !isLocalDetail && detail.type != BrowseType.ARTIST
-    // Not keyed on the browse id and not remembered here: each page's choice
-    // lives in AppSettings keyed by that page — Spotify-style, one playlist's
-    // order never imposes itself on another, and every page keeps its own
-    // across visits.
     val detailSongSorts by AppSettings.detailSongSorts.collectAsStateWithLifecycle()
     val songSort = topDetail?.browseId?.let { detailSongSorts[it] } ?: SongSort.DEFAULT
     var songSortMenuOpen by remember { mutableStateOf(false) }
-    // A device folder's equivalents — its sort and whether it is a grid —
-    // kept apart for Downloads and shared by every other folder, as they
-    // always were. Up here because both the page and the top bar's menu read
-    // them.
     val downloadedMusicSort by AppSettings.downloadedMusicSort.collectAsStateWithLifecycle()
     val localMusicSort by AppSettings.localMusicSort.collectAsStateWithLifecycle()
     val downloadedMusicViewType by AppSettings.downloadedMusicViewType.collectAsStateWithLifecycle()
@@ -1013,14 +758,8 @@ private fun NuvxApp(
         if (id == "local:downloads") downloadedMusicViewType else localMusicViewType
     }
     var folderMenuOpen by remember { mutableStateOf(false) }
-    // Whether the open release page's filter box is up. Held out here with the
-    // sort control because the button that opens it sits in the top bar beside
-    // it, and reset with the page so a filter never follows you to the next one.
     var detailSearching by rememberSaveable(topDetail?.browseId) { mutableStateOf(false) }
     val likeStatuses by viewModel.likeStatuses.collectAsStateWithLifecycle()
-    // A device file's heart is the device's Liked playlist, not a YouTube
-    // rating: the file has no identity there to rate. One rule for every
-    // surface that draws a heart — the player and the track menu alike.
     val offlineLiked by OfflinePlaylists.liked.collectAsStateWithLifecycle()
     val offlinePlaylists by OfflinePlaylists.playlists.collectAsStateWithLifecycle()
     val offlinePlaylistGroups = remember(offlinePlaylists) { offlinePlaylists.map { it.toGroup() } }
@@ -1034,37 +773,21 @@ private fun NuvxApp(
     val toggleLikeOf: (Song) -> Unit = { song ->
         if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId)
     }
-    // Which tracks are being held on YouTube's own upload, so the player's menu
-    // offers the way back out of a revert rather than the revert again.
     val pinnedToOriginal by OriginalVersion.pinned.collectAsStateWithLifecycle()
     val qualityUpgradesInFlight by NerdStats.racingLossless.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val playlistsLoading by viewModel.playlistsLoading.collectAsStateWithLifecycle()
 
-    // The Downloads page is a snapshot of the folder, taken when it was opened.
-    // Saving a track or deleting one while it is on screen changes what belongs
-    // on it — and now that the page groups by artist and album, a stale list is
-    // stale counts and a missing row in three places rather than one. So it is
-    // taken again whenever the record of what's on disk changes.
     val savedDownloads by Downloads.saved.collectAsStateWithLifecycle()
     val localMusicFolderUri by AppSettings.localMusicFolderUri.collectAsStateWithLifecycle()
     val filterNonMusicAudio by AppSettings.filterNonMusicAudio.collectAsStateWithLifecycle()
     val webdavUrl by AppSettings.webdavUrl.collectAsStateWithLifecycle()
     val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
     val librarySort by AppSettings.librarySort.collectAsStateWithLifecycle()
-    // The releases those files were asked for as — read here rather than in the
-    // page so the Downloads folder recomposes when one is added, the same way it
-    // does when a file is.
     val savedCollections by Downloads.collections.collectAsStateWithLifecycle()
-    // The playlists and albums among them, for the Library page's On Device
-    // shelf. Read off both records: the collection record is what says a
-    // release was downloaded whole, and what is on disk is what says it still
-    // has anything left to open.
     val downloadedReleases = remember(savedCollections, savedDownloads) {
         Downloads.savedReleases()
     }
-    // Playlists imported without (or instead of) a YouTube Music account live
-    // in the app's own store, and sit on the same shelf as the downloaded ones.
     val localPlaylists by com.bxane.nuvx.data.spotify.LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
     val localPlaylistItems = localPlaylists.map { playlist ->
         ShelfItem(
@@ -1075,22 +798,12 @@ private fun NuvxApp(
             browseId = playlist.browseId,
         )
     }
-    // What a browse id is recorded under in Downloads.collections, when it names
-    // a release downloaded whole — see BrowseTarget.downloadId. A downloaded
-    // playlist's own page and its card both carry the id under the
-    // `local:playlist:` prefix; a release still reachable by its real id (an
-    // album's own page, a search hit) is looked up directly under that instead.
     val downloadIdFor: (String?) -> String? = { id ->
         id?.let { Downloads.recordIdOf(it) ?: it }?.takeIf { it in savedCollections }
     }
     LaunchedEffect(savedDownloads, savedCollections, topDetail?.browseId) {
         val openPage = topDetail ?: return@LaunchedEffect
         val open = openPage.browseId
-        // A downloaded playlist's page is a snapshot of the same folder and goes
-        // stale for the same reasons — and it is the one page a delete can empty
-        // out entirely, which is worth saying rather than leaving rows behind
-        // that play nothing.
-        // An album or artist out of one of those folders goes stale with it.
         val folder = LocalGroups.folderOf(open) ?: open
         if (openPage.songs !is UiState.Loading &&
             (folder == "local:downloads" || folder == CACHE_FOLDER_BROWSE_ID || Downloads.recordIdOf(open) != null ||
@@ -1099,9 +812,6 @@ private fun NuvxApp(
             viewModel.reloadLocalDetail(open)
         }
     }
-    // An offline playlist's page is the store's, and follows it: a track
-    // removed from its menu, or a like from the player, leaves no stale row.
-    // Apart from the effect above so a like never re-lists the Downloads folder.
     LaunchedEffect(topDetail?.browseId, offlinePlaylists) {
         val openPage = topDetail ?: return@LaunchedEffect
         if (openPage.songs !is UiState.Loading && OfflinePlaylists.isOfflinePlaylist(openPage.browseId)) {
@@ -1126,21 +836,12 @@ private fun NuvxApp(
     }
     val controller = rememberMediaController()
     val player = rememberPlayerState(controller)
-    // A music video's picture follows this controller's clock — see [MusicVideoEngine].
     DisposableEffect(controller) {
         MusicVideoEngine.attach(controller)
         onDispose { MusicVideoEngine.attach(null) }
     }
-    // A resume in a party is performed on the instant the server schedules, not
-    // when it was pressed, and nothing about the player moves in between — so
-    // the transport spends that round trip drawn as though the tap never landed.
-    // Folded into the buffering flag every play button already answers to, since
-    // to a listener the two are the same fact: it is coming, wait.
     val awaitingPartyStart by ListenTogether.awaitingStart.collectAsStateWithLifecycle()
     val playPauseBusy = player.isLoading || awaitingPartyStart
-    // Listening in a party whose host has taken the controls. Read once here
-    // and handed to every surface, so the player, the mini player and the glass
-    // bar can never disagree about whether this device may drive the music.
     val controlsLocked = partyState.controlsLocked
     var queueNotice by remember { mutableStateOf<QueueActionNotice?>(null) }
     var queueNoticeId by remember { mutableIntStateOf(0) }
@@ -1153,37 +854,15 @@ private fun NuvxApp(
         delay(3_000)
         if (queueNotice?.id == shown.id) queueNotice = null
     }
-    // Why a control did nothing, on the same strip above the mini player that
-    // already answers "added to queue". Reached from every surface that had a
-    // control taken away — see [ListenTogether.State.controlsLocked].
     val hostOnlyMessage = stringResource(R.string.listen_together_host_only_notice)
     val showHostOnlyNotice: () -> Unit = { showQueueNotice(hostOnlyMessage) }
 
-    /**
-     * Whether the host has taken the music, and say so if they have.
-     *
-     * Every way the app starts or reorders playback funnels through one of the
-     * lambdas below, and each asks this first. Checked here rather than left to
-     * the player: the service refuses these actions anyway, but by then the tap
-     * has already been half-applied — a queue swapped with nothing to play it,
-     * or a resume of whatever the party was on — which is what a listener saw
-     * as the music flickering on and off.
-     */
     val refusedByHost: () -> Boolean = {
         val locked = ListenTogether.state.value.controlsLocked
         if (locked) showHostOnlyNotice()
         locked
     }
 
-    /**
-     * The one play/pause every surface presses.
-     *
-     * In a locked party this still works — it stops and starts *this* device
-     * without touching the party, which is the whole of what a listener is
-     * left with. The exception is a party that is itself paused: there is
-     * nothing to join and nothing to hold out of, so the tap says why instead
-     * of starting a second of audio that [PartySync] then has to stop.
-     */
     val togglePlayPause: () -> Unit = {
         controller?.let { c ->
             val party = ListenTogether.state.value
@@ -1197,32 +876,16 @@ private fun NuvxApp(
         }
     }
     val shuffleEnabled by QueueShuffle.enabled.collectAsStateWithLifecycle()
-    // For the version switch's "there is no other version" notice.
     val versionContext = LocalContext.current
-    // Tracks whose other cut a switch looked for and didn't find: their menu
-    // row reads "not found" from then on instead of offering it again.
     val missingVersions = remember { mutableStateListOf<String>() }
-    // A conversion is deliberately scoped to the current listening session.
-    // Keeping the complete original row here lets Revert restore the exact
-    // video upload, including its title and playlist identity, rather than
-    // trying to reconstruct it from the catalogue match.
     var convertedFromVideo by remember { mutableStateOf<Song?>(null) }
     var convertedAudioId by remember { mutableStateOf<String?>(null) }
     var switchingAudioVersion by remember { mutableStateOf(false) }
-    // Revert is an explicit choice for this occurrence of the track. Without
-    // remembering it, the automatic preference would see the restored video
-    // as a fresh item and immediately convert it again.
     var keepVideoId by remember { mutableStateOf<String?>(null) }
-    // Track conversion from audio to video (inverse of above)
     var convertedFromAudio by remember { mutableStateOf<Song?>(null) }
     var convertedVideoId by remember { mutableStateOf<String?>(null) }
-    // Optimistically updated track for instant UI updates when switching versions
     var optimisticVersionSong by remember { mutableStateOf<Song?>(null) }
 
-    // Lyrics follow whatever is playing; duration lands a beat after the track.
-    // Keyed on the lyric settings too, so turning a source on or off, reordering
-    // them or changing the syllable preference applies to the track already
-    // playing rather than only the next one.
     val syncedLyricsEnabled by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricsSources by AppSettings.lyricsSources.collectAsStateWithLifecycle()
     val lyricsSourceOrder by AppSettings.lyricsSourceOrder.collectAsStateWithLifecycle()
@@ -1236,11 +899,6 @@ private fun NuvxApp(
                 it.videoId,
                 it.title,
                 it.artist,
-                // The player's own length, and the catalogue's where it has
-                // none yet. Paused, ExoPlayer never finishes preparing the
-                // track it was skipped to, so it reports no duration at all —
-                // and a lookup that waits for one waits for ever, which left
-                // the lyrics of a paused track loading until it was played.
                 player.durationMs.takeIf { ms -> ms > 0L } ?: it.durationMillis(),
                 it.albumName,
                 it.localUri,
@@ -1267,8 +925,6 @@ private fun NuvxApp(
         else -> searchListState
     }
 
-    // Pull-to-refresh: the drag lives with the feed, but the indicator is the
-    // line under the top bar, so the state has to be visible to both.
     val homePull = rememberPullToRefreshState()
     val explorePull = rememberPullToRefreshState()
     val libraryPull = rememberPullToRefreshState()
@@ -1280,12 +936,8 @@ private fun NuvxApp(
         selectedTab == TAB_LIBRARY -> MainViewModel.Feed.LIBRARY
         else -> null
     }
-    // The lead shelf is listening history, so opening Home after playing
-    // something is exactly when it needs re-fetching.
     LaunchedEffect(currentFeed) {
         if (currentFeed == MainViewModel.Feed.HOME) viewModel.onHomeShown()
-        // Likewise for Library: a playlist created or a song liked since it
-        // was last fetched is a change to exactly this page.
         if (currentFeed == MainViewModel.Feed.LIBRARY) viewModel.onLibraryShown()
     }
 
@@ -1302,17 +954,6 @@ private fun NuvxApp(
         }
     }
 
-    // A pushed album/artist/playlist page has a large header of its own — the
-    // sleeve, or an artist's photo running edge to edge — which owns the title
-    // until it is scrolled away, exactly as a tab's big heading does. The state
-    // is hoisted because the bar lives beside that page rather than inside it,
-    // and is rebuilt per page: pushing a second one must not inherit the
-    // first's scroll offset.
-    // As [detailListState], for Replay: its own large heading owns the title
-    // until it is scrolled away, and the bar lives out here rather than on the
-    // page. Rebuilt per opening so reopening starts at the top, but kept while
-    // that opening is on the stack, so back from a page opened off it returns
-    // to where it was.
     val replayEntryId = navigator.entries.lastOrNull { it.route == AppRoute.Replay }?.id
     val replayListState = remember(replayEntryId, replayLandingPage) { LazyListState() }
     val replayScrolled by remember(replayListState) {
@@ -1322,28 +963,16 @@ private fun NuvxApp(
         }
     }
 
-    // AnimatedContent keeps the outgoing page composed during its fade. A
-    // single state remembered from only the *current* detail id is therefore
-    // handed to both the outgoing and incoming LazyColumns for that interval.
-    // Compose lazy state is one-layout state: sharing it between those lists
-    // can leave the incoming album attached to the disappearing artist/grid
-    // layout and unable to consume scroll gestures. Keep one state per page
-    // while it is on the navigation stack instead.
     val detailListStates = remember { mutableMapOf<String, LazyListState>() }
     val detailListState = topDetail?.browseId?.let { browseId ->
         detailListStates.getOrPut(browseId) { LazyListState() }
     } ?: remember { LazyListState() }
-    // A device folder's tab and selection, kept the same way and for the same
-    // reason: an album opened from the folder replaces its page until Back.
     val localFolderStates = remember { mutableMapOf<String, LocalFolderState>() }
     LaunchedEffect(detailStack.map { it.browseId }) {
         val open = detailStack.mapTo(HashSet()) { it.browseId }
         detailListStates.keys.retainAll(open)
         localFolderStates.keys.retainAll(open)
     }
-    // Each pushed page's saved state (see the page switcher below), held while
-    // the page is on the stack and dropped as it leaves it, so the next visit
-    // to the same route starts fresh.
     val pageStates = rememberSaveableStateHolder()
     val pageKeysSeen = remember { mutableSetOf<String>() }
     val livePageKeys = navigator.entries.map { AppDestination.Route(it).key } +
@@ -1361,13 +990,6 @@ private fun NuvxApp(
         }
     }
 
-    // Held, not rebuilt. `listOf` hands back a new instance on every pass, and a
-    // List is not a type the compiler can call stable, so under strong skipping
-    // the bar this is handed to compares it by identity, never matches, and so
-    // can never skip. This composable re-runs on every frame of a scroll — it
-    // reads [scrolled] — which made the whole floating bar, both of its states
-    // and every glass surface on them recompose once per frame for the length of
-    // a fold. Keyed on the labels so a locale change still rebuilds it.
     val homeLabel = stringResource(R.string.home)
     val playLabel = stringResource(R.string.play)
     val exploreLabel = stringResource(R.string.explore)
@@ -1393,11 +1015,9 @@ private fun NuvxApp(
     val hideRadioTab by AppSettings.hideRadioTab.collectAsStateWithLifecycle()
     val hidePodcastsTab by AppSettings.hidePodcastsTab.collectAsStateWithLifecycle()
     val youtubeSearch by AppSettings.youtubeSearch.collectAsStateWithLifecycle()
-    // Switched off with YouTube's results up: back to YouTube Music's.
     LaunchedEffect(youtubeSearch) {
         if (!youtubeSearch && viewModel.filter.value == SearchFilter.YOUTUBE) viewModel.onFilterChange(SearchFilter.ALL)
     }
-    // The bars index what they draw; this maps those back to the TAB_ constants.
     val navTabIds = remember(hideRadioTab, hidePodcastsTab) {
         listOf(TAB_HOME, TAB_LIBRARY, TAB_RADIO, TAB_PODCASTS, TAB_EXPLORE, TAB_SEARCH)
             .filter { (it != TAB_RADIO || !hideRadioTab) && (it != TAB_PODCASTS || !hidePodcastsTab) }
@@ -1406,9 +1026,6 @@ private fun NuvxApp(
 
     val scope = rememberCoroutineScope()
 
-    // Copies tracks to the WebDAV server, leaving the local files alone.
-    // A clash suspends the batch on WebDavUploads.conflict until the dialog
-    // above answers it, so this needs nothing more than the summary.
     fun uploadToWebDav(songs: List<Song>) {
         scope.launch {
             val summary = com.bxane.nuvx.data.webdav.WebDavUploads.upload(context, songs)
@@ -1430,15 +1047,6 @@ private fun NuvxApp(
         }
     }
 
-    /**
-     * Resolve and apply the catalogue release without replacing the video row
-     * up front. That makes the video's title/artwork visible immediately and
-     * leaves it in place as the fallback if matching fails.
-     *
-     * Automatic requests temporarily hold playback because the music-only
-     * preference is the version the listener asked to hear. Manual requests
-     * preserve the old behaviour and let the video keep playing meanwhile.
-     */
     suspend fun switchToMusicOnly(song: Song, pauseWhileResolving: Boolean) {
         val c = controller ?: return
         val index = c.currentMediaItemIndex
@@ -1459,11 +1067,8 @@ private fun NuvxApp(
             val stillCurrent = c.currentMediaItemIndex == index &&
                 c.currentMediaItem?.mediaId == song.videoId
 
-            // The original MediaItem was never removed, so failure only needs
-            // to release the loading state and resume it immediately.
             if (audio == null || audio.videoId == song.videoId) {
                 TrackLog.w("Player", "audio switch found no distinct official song", song.videoId)
-                // The switch is always offered now, so say when there was nothing to switch to.
                 if (song.videoId !in missingVersions) missingVersions += song.videoId
                 if (stillCurrent) showQueueNotice(versionContext.getString(R.string.no_audio_version))
                 if (stillCurrent && resumeAfterResolution) c.play()
@@ -1492,12 +1097,6 @@ private fun NuvxApp(
             ) {
                 optimisticVersionSong = target
             }
-            // Let go of the bar *before* the command goes out: the service
-            // raises it again the moment its own job starts, and releasing
-            // first is what makes the handover correct whichever way that
-            // command dispatches — inline or on the next turn of the loop.
-            // The same line in the finally is the catch-all for every path
-            // that never got this far, where nothing else would release it.
             if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = false
             c.swapToVersion(target)
         } finally {
@@ -1506,10 +1105,6 @@ private fun NuvxApp(
         }
     }
 
-    /**
-     * Resolve and apply the video version without replacing the audio row
-     * up front. This is the inverse of switchToMusicOnly.
-     */
     suspend fun switchToVideo(song: Song, pauseWhileResolving: Boolean) {
         val c = controller ?: return
         val index = c.currentMediaItemIndex
@@ -1520,10 +1115,6 @@ private fun NuvxApp(
 
         val resumeAfterResolution = pauseWhileResolving && c.playWhenReady
         switchingAudioVersion = true
-        // Mirrors the music-only path: the bar lights up for the resolve and
-        // the service keeps it lit through the measure-and-cut, and the row
-        // stays on the audio version until that swap actually commits — see
-        // [alignmentPending] at the toggle.
         val holdUntilAligned = AppSettings.smartVersionAlignment.value
         if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = true
         if (pauseWhileResolving) c.pause()
@@ -1556,18 +1147,12 @@ private fun NuvxApp(
                 playbackSourceType = song.playbackSourceType,
                 playbackSourceId = song.playbackSourceId,
             )
-            // Not while an alignment is still owed: claiming the video here
-            // would show a version the player is not playing yet, and would
-            // make the switch look finished before it had begun.
             if (!holdUntilAligned ||
                 VersionAudioAligner.getCachedOffsetMs(song.videoId, target.videoId) != null ||
                 YtMusicRepository.versionTimeMap(song.videoId, target.videoId) != null
             ) {
                 optimisticVersionSong = target
             }
-            // Released before the handover for the same reason as the
-            // music-only path above: the service owns the flag from here, and
-            // the finally only exists for the paths that never send.
             if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = false
             c.swapToVersion(target)
         } finally {
@@ -1583,8 +1168,6 @@ private fun NuvxApp(
         boundedContext: Boolean = false,
         continuationToken: String? = null,
     ) {
-        // A Spotify page lists songs it has not found on YouTube Music yet (or
-        // never will); those can't be queued, so play the rest in their order.
         if (allSongs.getOrNull(allIndex)?.isUnresolvedSpotify == true) return
         val songs = allSongs.filterNot { it.isUnresolvedSpotify }
         val index = songs.indexOf(allSongs.getOrNull(allIndex)).coerceAtLeast(0)
@@ -1614,14 +1197,6 @@ private fun NuvxApp(
                 )
                 c.playSongs(timeline, 0)
             } else {
-                // A Cast session still owns the full queue on the phone so the
-                // receiver can follow its existing queue semantics. The bounded
-                // service path is local-player-only; the service repeats this
-                // guard for commands that race a newly connected receiver.
-                //
-                // Any list too long to fit the window goes this way too, whatever
-                // page it came from: a whole library in the player is a whole
-                // library re-sent to every media controller on each queue edit.
                 val bounded = boundedContext || songs.size > BoundedQueuePlanner.MAX_PHYSICAL_CONTEXT
                 if (bounded && !CastController.state.value.casting) {
                     c.playBoundedContext(songs, index, source, continuationToken)
@@ -1636,13 +1211,8 @@ private fun NuvxApp(
                     c.playSongs(result.timeline, result.startIndex)
                 }
             }
-            // Start playback in the mini-player; the user opens the full view by tapping it.
         }
     }
-    // Kept for entry points whose rows already carry their origin (notably a
-    // collection action fetched before this callback). The explicit wrappers
-    // below are preferred because a track's album is not necessarily where it
-    // was played from.
     val play: (List<Song>, Int) -> Unit = { songs, index ->
         val first = songs.getOrNull(index)
         val source = QueueSource(
@@ -1672,13 +1242,6 @@ private fun NuvxApp(
         }
     }
 
-    /**
-     * A song picked on its own — off a home card or a search hit — starts a
-     * station rather than queueing the list it was shown in. Searching
-     * "Perfect" and tapping the top hit otherwise queues twenty covers and
-     * remixes of the same song. Album, artist and playlist pages keep [play],
-     * where the surrounding list *is* the thing the user asked for.
-     */
     val playRadio: (Song, QueueSource) -> Unit = { song, source ->
         playRequestGeneration++
         activeRadioSeed = null
@@ -1695,25 +1258,13 @@ private fun NuvxApp(
                 source = source,
             )
             c.playSongs(oneOffQueue, 0)
-            // Start radio in the mini-player; the user opens the full view by tapping it.
         }
     }
 
-    /**
-     * Starts the explicit station offered by every song overflow menu.
-     *
-     * The related tracks come from YouTube Music's own RDAMVM watch queue.
-     * Loading happens before the player is touched so a failed request cannot
-     * destroy the queue already playing. Once ready, the whole old queue is
-     * replaced in one Media3 operation.
-     */
     val startRadio: (Song) -> Unit = { song ->
         val originalController = controller
         if (originalController != null && !refusedByHost()) {
             val request = ++playRequestGeneration
-            // Ignore AutoPlay's tail: it may legitimately grow while the
-            // request is in flight and does not mean the listener chose a
-            // different queue. A new album/song queue does.
             val originalManualQueue = (0 until originalController.mediaItemCount)
                 .map { originalController.getMediaItemAt(it) }
                 .filterNot { it.fromAutoplay }
@@ -1749,18 +1300,10 @@ private fun NuvxApp(
                 if (request != playRequestGeneration || activeManualQueue != originalManualQueue) {
                     return@launch
                 }
-                // Cancel any armed crossfade/AutoPlay work and erase the old
-                // cold-start snapshot before the visible queue is replaced.
                 activeController.beginRadioQueue()
                 val currentIndex = activeController.currentMediaItemIndex
                 val currentItem = activeController.currentMediaItem
                 if (currentIndex >= 0 && currentItem?.mediaId == song.videoId) {
-                    // Keep the current MediaItem itself untouched. Replacing it,
-                    // even with the same song, reparses the source at position
-                    // zero and audibly stops/restarts the track.
-                    // Station first, old tail after: removing first leaves the
-                    // current track briefly last, and AutoPlay answers that by
-                    // appending this same radio a second time.
                     activeController.addMediaItems(currentIndex + 1, related.map { it.toMediaItem() })
                     val oldTail = currentIndex + 1 + related.size
                     if (oldTail < activeController.mediaItemCount) {
@@ -1772,8 +1315,6 @@ private fun NuvxApp(
                     activeRadioSeed = null
                     activeController.playSongs(listOf(seed) + related, 0)
                 }
-                // Make this station — never the queue from before it — what a
-                // fresh process restores, even if it is killed immediately.
                 activeController.commitRadioQueue()
                 Toast.makeText(
                     context,
@@ -1783,15 +1324,6 @@ private fun NuvxApp(
             }
         }
     }
-    /**
-     * A Top Picks card: opens the release, or starts the station behind it.
-     *
-     * A station is YouTube Music's own queue for it — the Supermix, the
-     * artist's Mix, a mood playlist's radio — fetched only now, on the tap,
-     * and loaded before the player is touched so a failed request leaves the
-     * current queue playing. It then replaces the queue the way [startRadio]
-     * does, and AutoPlay carries it on past its last track.
-     */
     val openTopPick: (TopPick, String) -> Unit = { pick, label ->
         val browseId = pick.browseId
         if (pick.kind == TopPickKind.LATEST_RELEASE && browseId != null) {
@@ -1827,11 +1359,6 @@ private fun NuvxApp(
             }
         }
     }
-    /**
-     * A Find Your Mood tile, on Home or on its Show all grid: that mood's
-     * station, steered by the same scene words the Mood for You card was
-     * built with.
-     */
     val playMood: (TopPickMood, String) -> Unit = { mood, title ->
         val hints = topPicks?.firstOrNull { it.kind == TopPickKind.MOOD }?.hints
         openTopPick(
@@ -1842,8 +1369,6 @@ private fun NuvxApp(
     val addToQueue: (Song) -> Unit = { song ->
         scope.launch {
             if (refusedByHost()) return@launch
-            // The end of what the user queued, not the end of the queue: a song
-            // asked for by name outranks whatever AutoPlay lined up behind it.
             controller?.let {
                 if (ListenTogether.state.value.inParty) {
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
@@ -1905,23 +1430,6 @@ private fun NuvxApp(
         if (AppSettings.swipeToPlayNext.value) playNext(song) else addToQueue(song)
     }
 
-    /**
-     * Opens an artist or release page given its browse id — or, failing that,
-     * its name.
-     *
-     * Replay's charts are the reason this exists. An artist there is counted by
-     * *name*, because a name is the only thing every track carries: a browse id
-     * rides along only when the row that queued the track happened to have one,
-     * which for a home-feed card or an AutoPlay suggestion it does not. So half
-     * the rows on a chart would have nothing to open, and a row that does
-     * nothing when tapped is worse than a row that isn't tappable — it reads as
-     * the app having failed rather than as the app not offering.
-     *
-     * Searching for the name is what the user would do next anyway, and it is
-     * what the app already does to find a video's catalogue release (see
-     * [YtMusicRepository.resolveAudio]). A search that finds nothing says so,
-     * which is at least an answer.
-     */
     fun openByName(
         browseId: String?,
         name: String,
@@ -1965,29 +1473,12 @@ private fun NuvxApp(
         }
     }
 
-    /**
-     * A whole album, playlist or library list onto the queue in one go.
-     *
-     * [next] picks which of the two positions the single-track menu already
-     * offers it lands in — straight after the current track, or behind
-     * everything else the user queued but still ahead of AutoPlay (see
-     * [addToQueue]). The list keeps its own running order either way: this
-     * *adds* a release, it doesn't start one, so [QueueShuffle] has no say here.
-     *
-     * There is usually nothing on screen to show for it — the queue panel is
-     * shut, the current track carries on — so the count is said out loud, the
-     * same way a batch download is.
-     */
     val queueSongs: (List<Song>, Boolean) -> Unit = { songs, next ->
         if (songs.isNotEmpty()) {
             scope.launch {
                 if (refusedByHost()) return@launch
                 val c = controller
                 if (c == null || c.mediaItemCount == 0) {
-                    // Nothing to queue behind. "Add to queue" on a silent
-                    // player can only mean start here — and adding without
-                    // preparing would leave the list sitting in a player that
-                    // never gets round to it.
                     play(songs, 0)
                 } else {
                     val toAdd = if (ListenTogether.state.value.inParty) {
@@ -2034,23 +1525,9 @@ private fun NuvxApp(
     val addSongsToQueue: (List<Song>) -> Unit = { songs -> queueSongs(songs, false) }
     val playSongsNext: (List<Song>) -> Unit = { songs -> queueSongs(songs, true) }
 
-    // ---- Links from outside the app ----
-
-    /**
-     * A YouTube Music link tapped elsewhere on the device, a link shared into
-     * nuvx, or "play something" said to the assistant — see [MusicLink].
-     *
-     * Keyed on the controller as well as the request, because a link is as
-     * often as not what cold-starts the app: the session it has to play into is
-     * still connecting the first time this runs, and returning empty-handed
-     * without spending the request is what lets the second run serve it.
-     */
     val linkRequest by MusicLink.pending.collectAsStateWithLifecycle()
     LaunchedEffect(linkRequest, controller) {
         val request = linkRequest ?: return@LaunchedEffect
-        // Nothing here can be served without somewhere to play it — even the
-        // branches that only push a page are a beat away from a tap on one of
-        // its rows, and half-serving a request would spend it.
         val session = controller ?: return@LaunchedEffect
         when (request) {
             is LinkRequest.Track -> {
@@ -2062,9 +1539,6 @@ private fun NuvxApp(
                         Toast.LENGTH_SHORT,
                     ).show()
                 } else {
-                    // A link is one song named on purpose, which is exactly the
-                    // case [playRadio] exists for: play it and let AutoPlay
-                    // carry on, rather than queueing something around it.
                     playRadio(
                         song,
                         QueueSource(sharedLinkLabel, PlaybackSourceType.SHARED_LINK, song.videoId),
@@ -2073,8 +1547,6 @@ private fun NuvxApp(
             }
             is LinkRequest.Page -> {
                 dismissPlayer()
-                // Titled by the page itself once it lands — a link carries a
-                // browse id and nothing else. See MainViewModel.openDetail.
                 viewModel.openDetail(request.browseId, title = "")
             }
             is LinkRequest.Search -> {
@@ -2086,22 +1558,13 @@ private fun NuvxApp(
                 if (top != null) {
                     playRadio(top, QueueSource(searchLabel, PlaybackSourceType.SEARCH))
                 } else {
-                    // Either the link was a search to look at, or "play X"
-                    // found nothing to start — and the results are a better
-                    // answer to a spoken request than silence is.
                     dismissPlayer()
                     navigator.clear()
                     selectedTab = TAB_SEARCH
                     viewModel.searchFor(request.query)
                 }
             }
-            // "Play music", nothing named. The playback service restores its
-            // bounded queue before the controller connects, so this resumes
-            // both a live session and one recovered after process death.
             LinkRequest.Resume -> if (session.mediaItemCount > 0) session.play()
-            // A file from a file manager. The read grant that came with the
-            // intent lasts as long as this task; a persistable one, when the
-            // sender offered it, keeps the track playable after a restart.
             is LinkRequest.LocalFile -> {
                 runCatching {
                     context.contentResolver.takePersistableUriPermission(
@@ -2121,15 +1584,6 @@ private fun NuvxApp(
         MusicLink.handled()
     }
 
-    // ---- Album / playlist menu ----
-
-    /**
-     * Holding an album or playlist card, wherever one is drawn.
-     *
-     * Artists are left out. An artist page is a selection of their work rather
-     * than a running order, and "add Radiohead to the queue" has no answer that
-     * isn't a guess — so holding an artist card does nothing, as it did before.
-     */
     val onBrowseLongPress: (ShelfItem) -> Unit = { item ->
         val id = item.browseId
         val type = id?.let { viewModel.browseTypeOf(it) }
@@ -2147,13 +1601,6 @@ private fun NuvxApp(
         }
     }
 
-    /**
-     * The track a song card stands for, or null if the card is a collection.
-     *
-     * The card's own subtitle is billed as "Song • Chelsea Wolfe"; only the
-     * credit belongs in the field the player, mini player and everything
-     * downstream read.
-     */
     val shelfSong: (ShelfItem) -> Song? = { item ->
         item.videoId?.let { videoId ->
             Song(
@@ -2166,34 +1613,11 @@ private fun NuvxApp(
         }
     }
 
-    /**
-     * Holding a card on a feed whose shelves mix tracks with collections —
-     * Quick picks and Recently played are songs, Listen again is either.
-     *
-     * [onBrowseLongPress] alone answered only half of them: a track card
-     * carries a videoId and no browse id, so holding one fell through its
-     * null check and nothing opened. Dispatched on the same test as the tap
-     * below, so a card that plays a song offers the track menu and a card that
-     * opens a page offers the album / playlist one.
-     */
     val onShelfLongPress: (ShelfItem) -> Unit = { item ->
         val song = shelfSong(item)
         if (song != null) openSongMenu(song) else onBrowseLongPress(item)
     }
 
-    /**
-     * Hands [action] the target's whole track list.
-     *
-     * A card has no tracks behind it — its page was never opened — so the
-     * listing is fetched first, all of it, and the menu that asked has already
-     * closed by the time it lands. A release page's overflow passes the rows it
-     * is already showing and this is immediate.
-     *
-     * Album rows arrive with no album name of their own, the same way they do on
-     * the page (see `withAlbum` below), so the title is stamped on here too —
-     * otherwise a track queued from an album card reaches the player and the
-     * download folder with nothing to file it under.
-     */
     val withBrowseSongs: (BrowseTarget, (List<Song>) -> Unit) -> Unit = { target, action ->
         val stamp: (List<Song>) -> Unit = { songs ->
             action(
@@ -2227,22 +1651,10 @@ private fun NuvxApp(
         }
     }
 
-    // ---- Downloads ----
-    // Two permissions, and never both on one device: writing to the shared
-    // Music folder needs storage access below API 29 and none at all from
-    // 29 on, where MediaStore grants an app its own rows; notifications are
-    // only asked for from API 33. So the branches below are mutually exclusive
-    // by SDK level, and nothing here can stack two dialogs on each other.
-    /**
-     * The batches waiting on the storage-permission dialog, each with what it was
-     * asked for as: the dialog is a round trip through another process, and a
-     * release has to survive it or a whole album granted permission arrives as
-     * forty loose tracks.
-     */
     var downloadPending by remember { mutableStateOf<List<Pair<List<Song>, DownloadTarget?>>>(emptyList()) }
     val notifyPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { /* Refusing costs the progress notification, not the download. */ }
+    ) { }
     val storagePermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -2254,8 +1666,6 @@ private fun NuvxApp(
                 songs.forEach { Downloads.enqueue(context, it, from?.title) }
                 if (from != null) Downloads.markRequested(from.id, songs.map { it.videoId })
             }
-            // The one case where refusing is fatal: below API 29 there is no
-            // other way to reach the Music folder.
             else -> Toast
                 .makeText(context, context.getString(R.string.storage_required_save), Toast.LENGTH_SHORT)
                 .show()
@@ -2277,16 +1687,12 @@ private fun NuvxApp(
     } else {
         Manifest.permission.READ_EXTERNAL_STORAGE
     }
-    // The Search tab's Library source reads the Local Music folder, so it asks
-    // for the same permission opening that folder does.
     val onSearchSourceChange: (SearchSource) -> Unit = { source ->
         if (source == SearchSource.LIBRARY && !LocalMediaRepository.hasStoragePermission(context)) {
             mediaPermissionLauncher.launch(mediaPermission)
         }
         viewModel.setSearchSource(source)
     }
-    // Shared by the Library tab itself and by a shelf's "Show all" page, so a
-    // card opens the same way from either.
     val onLibraryItemClick: (ShelfItem) -> Unit = { item ->
         item.browseId?.let { id ->
             if (id == SPOTIFY_BROWSE_ID) {
@@ -2296,10 +1702,6 @@ private fun NuvxApp(
             if ((id == "local:all" || id == "local:downloads") && !LocalMediaRepository.hasStoragePermission(context)) {
                 mediaPermissionLauncher.launch(mediaPermission)
             }
-            // Opened from a shelf's "Show all" page, it stacks over the grid
-            // exactly as one opened from the Library tab stacks over that, so
-            // back from the release lands on the grid rather than skipping
-            // past it.
             viewModel.openDetail(
                 browseId = id,
                 title = item.title,
@@ -2308,38 +1710,8 @@ private fun NuvxApp(
             )
         }
     }
-    // Takes a list so a single tap on an album/playlist header can queue the
-    // whole thing — the permission dance only needs to happen once for the
-    // batch, not once per track.
-    //
-    // [from] is what the list *is*, when it is a release rather than a
-    // selection: an album or a playlist. It is recorded whole, so the Downloads
-    // page can offer the thing that was tapped back rather than the forty rows
-    // it decomposed into — see [Downloads.rememberCollection]. Null for a single
-    // track, which is not a release however many of them are asked for one at a
-    // time.
-    //
-    // Takes several batches so an artist's catalogue — one per release — asks
-    // for permission and says how many tracks it queued once, not per album.
     val startDownloads: (List<Pair<List<Song>, DownloadTarget?>>) -> Unit = { batches ->
         val saved = Downloads.saved.value
-        // Already on disk, and already queued or running: neither needs asking
-        // again. What's left is what a tap on "Download" actually means.
-        //
-        // The release's cover is stamped onto any row that hasn't got one, as a
-        // last check before the tap becomes a file.
-        //
-        // An album page bills its artwork once, in the header — its track rows
-        // carry no thumbnail at all, see [InnertubeParser.parseResponsiveListItem]
-        // — and a row that reaches [MediaTagger.artworkFor] with a null url is a
-        // track saved with no cover in the file and none in [SavedSongMetadata]
-        // either, so nothing downstream can draw one afterwards.
-        // `MainViewModel.withArtwork` normally fills those in as a page loads and
-        // covers the usual route here; this is the backstop for a list that
-        // reached this function some other way, and it is worth having precisely
-        // because the failure is silent and permanent — the file is written
-        // without a cover, and re-downloading adopts the untagged copy rather
-        // than replacing it.
         val todo = batches.map { (requested, from) ->
             requested
                 .filter { it.videoId !in saved }
@@ -2352,17 +1724,7 @@ private fun NuvxApp(
                     }
                 } to from
         }
-        // Once each: an artist's catalogue lists every track again over its albums.
         val songs = todo.flatMap { it.first }.distinctBy { it.videoId }
-        // Asked here as well as inside [Downloads.enqueue] — not instead of it.
-        // Enqueue is the invariant and has to refuse whoever calls it, including
-        // the storage-permission continuation below, which resumes long enough
-        // after this check for the connection to have changed under it. This is
-        // the one place that knows the tap was for forty tracks and can say so
-        // once, rather than leaving forty identical failed rows to be read.
-        // A copy out of the song cache spends no data, so Wi-Fi only does not
-        // refuse a batch that has one — [Downloads.enqueue] still refuses the
-        // tracks in it that would need the network.
         val blocked = songs.isNotEmpty() && !AppSettings.downloadsAllowedNow &&
             songs.none { Downloads.servableFromCache(it.videoId) }
         if (songs.isNotEmpty() && !blocked) {
@@ -2372,9 +1734,6 @@ private fun NuvxApp(
                     Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 ) != PackageManager.PERMISSION_GRANTED
 
-            // Asked for here rather than at launch because here is where it means
-            // something: a download is the first thing this app does that the user
-            // is expected to walk away from.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(
                     context,
@@ -2385,7 +1744,6 @@ private fun NuvxApp(
             }
 
             if (needsStorage) {
-                // One dialog for whatever piles up while it is open.
                 val ask = downloadPending.isEmpty()
                 downloadPending = downloadPending + todo.filter { it.first.isNotEmpty() }
                 if (ask) storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -2395,28 +1753,15 @@ private fun NuvxApp(
                     if (from != null) Downloads.markRequested(from.id, batch.map { it.videoId })
                 }
             }
-            // Said once per addon and reason per session, and only for a batch
-            // that will reach the sources at all — a copy out of the song cache
-            // never asks them. Without it the addon was passed over in silence
-            // and the file simply arrived from JioSaavn or YouTube.
             if (!songs.all { Downloads.servableFromCache(it.videoId) }) {
                 SourceRegistry.addonsLeftOutOfDownloads()
                     .firstOrNull { (config, why) -> explainedDownloadExclusions.add("${config.id}:$why") }
                     ?.let { (config, why) -> addonLeftOutOfDownload = config.displayName to why }
             }
         }
-        // Recorded for everything that was asked for, not just what still has to
-        // be fetched: a release whose tracks are already on the device is still
-        // that release, and the point of the record is to group them. Skipped
-        // only when the whole batch was refused, since then there will be
-        // nothing on disk for it to group.
         if (!blocked) batches.forEach { (requested, from) ->
             if (from == null) return@forEach
             Downloads.rememberCollection(from, requested)
-            // A collection cover is not part of any audio file. Cache the
-            // header image separately so its Downloads card still has artwork
-            // with no connection, then atomically replace the remote URL in
-            // the persisted collection record.
             if (!from.thumbnailUrl.isNullOrBlank()) {
                 scope.launch(Dispatchers.IO) {
                     MediaTagger.cacheArtwork(context.applicationContext, from.thumbnailUrl)
@@ -2425,10 +1770,6 @@ private fun NuvxApp(
             }
         }
         when {
-            // The row's own icon reports a queued download, so a single tap
-            // normally needs no toast — but a refused one leaves the row exactly
-            // as it was, and a button that visibly does nothing is worse than a
-            // long message. So this one is said whatever the count.
             blocked -> Toast.makeText(
                 context,
                 context.getString(R.string.wifi_only_download_refusal),
@@ -2451,11 +1792,6 @@ private fun NuvxApp(
     val startDownload: (List<Song>, DownloadTarget?) -> Unit = { requested, from ->
         startDownloads(listOf(requested to from))
     }
-    // An artist page's catalogue button: every album and single on it, each
-    // filed as its own release, and all of it marked as asked for by the artist
-    // page so its button can show the whole catalogue's progress. The artist
-    // itself is recorded last, over all of it, so the Library gets one card for
-    // the artist — its tracks are already queued under their albums by then.
     val downloadCatalog: (DetailPage) -> Unit = { page ->
         viewModel.collectCatalog(page) { releases ->
             if (releases.isEmpty()) {
@@ -2482,35 +1818,18 @@ private fun NuvxApp(
             }
         }
     }
-    // The Cached songs folder's download buttons. The song cache already holds
-    // these tracks, so they are saved from its copy — no data spent, no
-    // connection needed — rather than fetched afresh at the Download quality
-    // setting. See [Downloads.preferCachedCopy]. The folder's own second line
-    // ("YouTube · 4.2 MB") is the cache's, not the file's, and stays behind.
     val downloadFromCache: (List<Song>) -> Unit = { songs ->
         val cleaned = songs.map { it.copy(downloadFormat = null, localDateAddedSeconds = null) }
         Downloads.preferCachedCopy(cleaned.map { it.videoId })
         startDownload(cleaned, null)
     }
     val removedFromCacheMessage = stringResource(R.string.removed_from_cache)
-    // Takes tracks out of the song cache — the folder's selection, or one
-    // song's menu. The open folder re-reads itself off [AudioCache.contentsChanged].
     val removeFromCache: (List<Song>) -> Unit = { songs ->
         scope.launch {
             val removed = songs.sumOf { AudioCache.remove(it.videoId) }
             if (removed > 0) showQueueNotice(removedFromCacheMessage)
         }
     }
-    /**
-     * One track on its own, which is never a release.
-     *
-     * A track reached through AutoPlay or a radio queue often has no duration
-     * string at all — YouTube's watch-queue rows don't always send
-     * `lengthText` — while the player itself knows exactly how long the same
-     * track runs once it has loaded. Backfilled from there when it's the song
-     * on screen, so downloading it isn't handed a duration of zero and
-     * silently skipped for lyrics — see [LyricsTag.forTrack].
-     */
     val downloadSong: (Song) -> Unit = { song ->
         val withDuration = if (song.durationMillis() <= 0L &&
             player.song?.videoId == song.videoId && player.durationMs > 0L
@@ -2522,27 +1841,11 @@ private fun NuvxApp(
         startDownload(listOf(withDuration), null)
     }
 
-    // Content padding leaves room for the frosted bar above and the tab bar
-    // (plus mini player) below, so nothing is ever trapped under the glass.
-    //
-    // The top is measured off the bar rather than guessed at: the bar is pinned
-    // under the status bar inset, and that inset varies by device and by window,
-    // so a fixed number only ever lines up on the one device it was picked on.
-    // See [topBarContentPadding].
     val listPadding = PaddingValues(
         top = topBarContentPadding(),
         bottom = if (player.song != null) 210.dp else 140.dp,
     )
 
-    // What colour the page currently under the bars is. The fades either end
-    // of the screen are flat colour wherever their blur has least to say, so
-    // handing them the theme's background puts a black band on a page that is
-    // washed in an artwork's colour instead. Off a detail page this resolves
-    // to the theme's background anyway, which is exactly right there.
-    //
-    // An artist page is coloured from Apple's art when it has some, so this has
-    // to read the same source the page does or the bars stay the YouTube photo's
-    // colour while the page beneath them has moved on.
     val appleArtVersion by AppleArtistArtRepository.updates.collectAsStateWithLifecycle()
     val detailApple = remember(topDetail?.browseId, topDetail?.type, appleArtVersion) {
         topDetail?.takeIf { it.type == BrowseType.ARTIST }
@@ -2553,10 +1856,6 @@ private fun NuvxApp(
         keyColors = detailApple?.keyColors(),
     )
 
-    // One set of numbers for the cards, the page, the stories and the shared
-    // picture, so they cannot disagree. Read while any of them is on screen —
-    // which includes the Library tab, since the cards live at the top of it.
-    // See [rememberReplayState].
     val replayOpen = route == AppRoute.Replay || replayStory != null || showReplayShare ||
         (selectedTab == TAB_LIBRARY && detail == null && route == null)
     val (replay, setReplayPeriod) = rememberReplayState(replayOpen)
@@ -2564,11 +1863,6 @@ private fun NuvxApp(
         replay.summary?.takeUnless { it.isEmpty }?.cards(context).orEmpty()
     }
 
-    // ---- The track in the player ----
-    // Whatever started this track knew its title and its artwork, but rarely
-    // which album or artist page it belongs to. Fill that in while the player
-    // is actually up — when the sheet is raised, so playing an album from the
-    // mini player still costs nothing.
     val playerShowing = showNowPlaying
     var links by remember { mutableStateOf<Song?>(null) }
     LaunchedEffect(player.song?.videoId, playerShowing) {
@@ -2589,18 +1883,12 @@ private fun NuvxApp(
             albumName = current.albumName ?: extra.albumName,
         )
     }
-    // The three-dot menu snapshots the track into songActions when it's opened,
-    // so a menu opened before the lookup above resolves would otherwise be
-    // stuck without album/artist rows even after the ids come in. Keep it in
-    // sync while it's showing this track.
     LaunchedEffect(playerSong) {
         if (playerSong != null && songActions?.videoId == playerSong.videoId) {
             songActions = playerSong
         }
     }
 
-    // The player's whole parameter list, kept apart from the sheet that
-    // mounts it so the sheet's own setup reads on its own.
     val nowPlaying: @Composable (Song) -> Unit = { song ->
         val effectiveSong = optimisticVersionSong?.takeIf {
             it.videoId == convertedAudioId || it.videoId == convertedVideoId || it.videoId == keepVideoId ||
@@ -2635,8 +1923,6 @@ private fun NuvxApp(
             accountName = account?.name,
             windowWidth = windowWidth,
             windowHeight = windowHeight,
-            // A canvas under the ⋯ menu holds still. Asked, not passed — see
-            // the parameter.
             menuOpen = { songActions != null && menuFromPlayer && songMenuOrigin == null },
             onLiveCanvasChanged = { playerLiveCanvas = it },
             isPlaying = player.isPlaying,
@@ -2653,12 +1939,6 @@ private fun NuvxApp(
             onBlockedControl = showHostOnlyNotice,
             onSeekFraction = { fraction ->
                 controller?.let { player ->
-                    // Read at the moment of the seek, not from the
-                    // polled snapshot the screen draws with: a track
-                    // change updates the current item before it updates
-                    // the duration, so a fraction dropped seconds after
-                    // a transition would otherwise be scaled by the
-                    // previous song's length.
                     val duration = player.duration
                     if (duration > 0) {
                         player.seekTo(
@@ -2670,18 +1950,6 @@ private fun NuvxApp(
             },
             onSeek = { target ->
                 controller?.let { player ->
-                    // Clamped here rather than at each caller because
-                    // not every caller can clamp. The scrubber's target
-                    // is a fraction of the duration and cannot overrun,
-                    // but a tapped lyric line seeks to a timestamp from
-                    // whichever transcription matched on title, artist
-                    // and duration — and a match against a slightly
-                    // longer master puts every line late, so a tap near
-                    // the end asks for a position past the end of this
-                    // stream. Media3 answers that by clamping to the
-                    // final millisecond, which ends the track and starts
-                    // the next one: tapping the last line of a song
-                    // skipped it.
                     val duration = player.duration
                     player.seekTo(
                         if (duration > 0) {
@@ -2702,9 +1970,6 @@ private fun NuvxApp(
             signedIn = signedIn,
             likeStatus = likeStatusOf(song),
             onToggleLike = { toggleLikeOf(song) },
-            // The service owns both the queue and the Shuffle state. Keeping
-            // the toggle on that side prevents the UI from changing the icon
-            // before its asynchronous reorder command has actually landed.
             onToggleShuffle = { controller?.toggleShuffle() },
             onCycleRepeat = {
                 controller?.let {
@@ -2713,27 +1978,15 @@ private fun NuvxApp(
                         Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
                         else -> Player.REPEAT_MODE_OFF
                     }
-                    // Persist the new repeat mode so it survives app restarts.
                     AppSettings.setRepeatMode(next)
-                    // Nothing else to do here: PlaybackService watches the
-                    // repeat mode itself and takes AutoPlay's tracks out of
-                    // the queue for the duration of repeat-all — and, unlike
-                    // this screen, is still around to put them back when the
-                    // loop ends.
                     it.repeatMode = next
                 }
             },
             onToggleAutoplay = {
-                // PlaybackService owns the setting and queue extension so
-                // this path and the notification use exactly one loader.
                 controller?.toggleAutoplay()
             },
             onJumpTo = { index ->
                 controller?.let { c ->
-                    // The session applies the jump plan to its own player (see
-                    // its seekTo override); editing the queue from here would
-                    // round-trip every item through the controller and lose
-                    // their bounded-window metadata.
                     c.seekTo(index, 0L)
                     c.play()
                 }
@@ -2741,20 +1994,13 @@ private fun NuvxApp(
             onRemoveFromQueue = { controller?.removeMediaItem(it) },
             onMoveInQueue = { from, to -> controller?.moveMediaItem(from, to) },
             onQueueDragActiveChange = { active -> controller?.setQueueDragActive(active) },
-            // The enriched copy, not player.song — otherwise the menu
-            // hides the album and artist rows even once their browse
-            // ids have been resolved.
             onOpenMenu = {
                 menuFromPlayer = true
                 songMenuOrigin = null
                 songMenuAnchor = MenuAnchor.consume()
                 songActions = song
-                // Taken on the frame the menu opens on, which is long anyway,
-                // rather than on one of its spring's.
                 if (!AppSettings.reduceDynamicBlur.value && !playerLiveCanvas) playerBackdrop.capture()
             },
-            // Pushed over whatever page is under the player, so back from it
-            // returns there.
             onOpenAlbum = { id ->
                 dismissPlayer()
                 viewModel.openDetail(
@@ -2765,15 +2011,6 @@ private fun NuvxApp(
                     BrowseType.ALBUM,
                 )
             },
-            // A credit with a channel id opens that channel straight away.
-            // YouTube does not give one to every credited artist - on a two-artist
-            // track it linked only the first, and neither the byline nor the
-            // album header had the second - so the rest go by name, through a
-            // lookup that opens a page only when the answer is that name
-            // exactly. Otherwise nothing opens, which beats opening a stranger.
-            //
-            // No artwork: this track's cover isn't the artist's
-            // picture, and the page fills its own in once loaded.
             onOpenArtist = { id, name ->
                 if (id != null) {
                     dismissPlayer()
@@ -2813,8 +2050,6 @@ private fun NuvxApp(
                     ?: queueLabel
                 val sourceId = displayedSong.playbackSourceId
 
-                // A context link is navigation, not another page stacked over
-                // Now Playing. Clear the current route before restoring it.
                 dismissPlayer()
                 navigator.clear()
 
@@ -2850,7 +2085,6 @@ private fun NuvxApp(
                             ),
                         )
                     }
-                    // Handled inside NowPlayingScreen by opening its queue.
                     PlaybackSourceType.QUEUE -> Unit
                 }
             },
@@ -2862,13 +2096,10 @@ private fun NuvxApp(
             lyricsOffsetOpen = showLyricsOffset,
             onDismissLyricsOffset = { showLyricsOffset = false },
             onListenTogether = {
-                // The player is a sheet over the page, so it has to come down
-                // for the page to be read at all.
                 dismissPlayer()
                 navigator.pushAll(AppRoute.Settings, AppRoute.ListenTogether)
             },
             onClearQueue = {
-                // Keep what's playing and context/autoplay; drop user-queued tracks.
                 controller?.let { c ->
                     QueueCoordinator.clearUserQueue(c)
                 }
@@ -2876,11 +2107,6 @@ private fun NuvxApp(
         )
     }
 
-    // One step back, from anywhere: the page on top of the stack, then a mood
-    // or genre opened inside Explore, then any tab but Home back to Home. Only
-    // Home itself hands back to the system, which is what actually closes or
-    // minimizes the app. The gesture and the bar's back button both come here,
-    // so they can never disagree about what is on top.
     val canGoBack = navigator.entries.isNotEmpty() || detailStack.isNotEmpty() ||
         selectedMoodGenre != null || selectedTab != TAB_HOME
     val goBack: () -> Unit = {
@@ -2891,31 +2117,11 @@ private fun NuvxApp(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            // Nothing of the page under a portrait player that is fully up:
-            // that player is its own window, opaque from edge to edge, and
-            // this one drawing on behind it — the page, the glass bar and the
-            // blurs that sample it, a now-playing row's bars — is GPU time
-            // taken from the player on every frame for nothing anyone can see.
-            // The same test the player's own dim skips itself on. Composition
-            // and layout carry on, so the page is current the moment the
-            // player starts to come down and this draws again.
             .drawWithContent {
                 if (!coveredByPlayer) drawContent()
             },
     ) {
-        // A pushed page replaces the tab content but leaves the tab bar and
-        // mini player in place.
-        //
-        // Back handlers answer newest-registered first, so the order below is
-        // the order of precedence, lowest first: the page stack, then what is
-        // drawn over a page, then the alerts drawn over everything. Each sheet
-        // and dialog further down registers its own handler as it opens, and
-        // so outranks all of these while it is up.
         BackHandler(enabled = canGoBack, onBack = goBack)
-        // Replay's stories and its share sheet are drawn over everything, and
-        // unwind in the order they were opened. Only while there is a summary
-        // to draw them from — otherwise back would spend a step closing
-        // something that never appeared.
         val replayDrawable = replay.summary?.isEmpty == false
         BackHandler(enabled = replayDrawable && replayStory != null && !showReplayShare) { replayStory = null }
         BackHandler(enabled = replayDrawable && showReplayShare) { showReplayShare = false }
@@ -2929,15 +2135,6 @@ private fun NuvxApp(
         BackHandler(enabled = editingPartyServer) { editingPartyServer = false }
         BackHandler(enabled = editingSignatureApi) { editingSignatureApi = false }
 
-        // On a tablet the page and the player stand side by side rather than
-        // one over the other: everything a phone stacks in a single column —
-        // the feed, the frosted bars, the tab row — becomes the left half of
-        // a row, and the player is the right. Off a tablet the row has the
-        // one child it always had and changes nothing.
-        //
-        // Everything a page's menu floats over, and so what [pageBackdrop]
-        // takes its still of; the menus themselves are drawn outside it. On the
-        // window's background, which the pages don't paint: see `paintBackdrop`.
         Row(
             Modifier
                 .fillMaxSize()
@@ -2945,34 +2142,12 @@ private fun NuvxApp(
         ) {
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 AnimatedContent(
-                    // Whatever is on top of the back stack — see [AppNavigator].
                     targetState = when {
                         visibleEntry != null -> AppDestination.Route(visibleEntry)
                         detail != null -> AppDestination.Release(detail.browseId)
                         else -> AppDestination.Tab(selectedTab)
                     },
-                    // A route's entry is copied when the release pages under it
-                    // change, which is not a different page.
                     contentKey = { it.key },
-                    // Tabs swap outright; everything else crossfades.
-                    //
-                    // A tab is not a place you travel to — the bar is the whole
-                    // navigation and it carries its own movement — so a fade
-                    // between two of them only ever reads as a stutter. And it
-                    // cannot read as anything else: neither page paints a
-                    // background, so a crossfade dissolves both through to the
-                    // window and the switch dips through a dimmer frame in the
-                    // middle. Pushing a page or raising Settings is a real
-                    // change of context and keeps the fade.
-                    //
-                    // "Show all" swapping with the Library tab underneath it is
-                    // the same case as a tab swap, not a pushed page: it's still
-                    // that tab, just laid out as a grid instead of a row, sharing
-                    // its background rather than painting its own — so this one
-                    // pair gets the tab's no-fade swap too, in both directions, or
-                    // the dip through a dim frame shows up on every hold of a
-                    // card there. A card opened *from* the grid is a real page
-                    // and keeps the fade, same as one opened from the row.
                     transitionSpec = {
                         val initial = initialState
                         val target = targetState
@@ -2993,10 +2168,6 @@ private fun NuvxApp(
                         .then(
                             if (glassActive) {
                                 Modifier
-                                    // Not under "reduce dynamic blur": nothing
-                                    // samples the layer then, and recording a
-                                    // whole page into one for no reader is the
-                                    // cost that setting exists to remove.
                                     .then(
                                         if (glassSamplesBackdrop) {
                                             Modifier.layerBackdrop(appBackdrop)
@@ -3004,9 +2175,6 @@ private fun NuvxApp(
                                             Modifier
                                         },
                                     )
-                                    // Every page's scroll passes through here, so
-                                    // the glass bar collapses on all of them
-                                    // without each one having to know about it.
                                     .nestedScroll(navBarScroll)
                             } else {
                                 Modifier
@@ -3014,28 +2182,14 @@ private fun NuvxApp(
                         ),
                     label = "content",
                 ) { destination ->
-                    // Every branch below reads `destination` rather than the
-                    // stack that produced it. The two are the same thing only
-                    // for the page being entered: the one on its way out is
-                    // still composed, and asking it what is on top *now* has it
-                    // redraw itself as its own replacement — which then fades
-                    // out from under the identical copy fading in behind it.
                     val key = destination.key
                     val pageRoute = (destination as? AppDestination.Route)?.entry?.route
                     val live = (destination as? AppDestination.Release)?.let { release ->
                         detailStack.lastOrNull()?.takeIf { it.browseId == release.browseId }
                     }
-                    // Held for the same reason, one step further on: a popped
-                    // page is off the stack before it has finished animating
-                    // out, so `live` goes null under it and it would spend its
-                    // exit drawing whatever is underneath instead of itself.
-                    // Per slot, since each is remembered against its own key.
                     val held = remember(key) { mutableStateOf(live) }
                     if (live != null) held.value = live
                     val page = held.value
-                    // This state belongs to this AnimatedContent slot, not to
-                    // whichever detail happens to be at the top of the stack
-                    // while the slot is fading out.
                     val pageDetailListState = remember(key) {
                         detailListStates.getOrPut(key) { LazyListState() }
                     }
@@ -3064,8 +2218,6 @@ private fun NuvxApp(
                                     gridState = libraryShowAllGridState,
                                     onItemClick = onLibraryItemClick,
                                     onItemLongPress = onBrowseLongPress,
-                                    // Only the Playlists shelf can grow one — see
-                                    // [PlaylistShelf].
                                     onNewPlaylist = if (shelf.title == YtMusicRepository.PLAYLISTS_SHELF) {
                                         { creatingPlaylist = true }
                                     } else {
@@ -3086,14 +2238,9 @@ private fun NuvxApp(
                                 holder = account?.name.orEmpty(),
                                 onPeriodChange = setReplayPeriod,
                                 onOpenStory = { replayStory = it },
-                                // A track tapped on a chart is one the user already
-                                // knows they like, so it starts a station off itself
-                                // rather than queueing the chart it was on — the
-                                // same reading [playRadio] makes of a search hit.
                                 onPlaySong = { song ->
                                     playRadio(song, QueueSource(replayLabel, PlaybackSourceType.REPLAY))
                                 },
-                                // Pushed over Replay, so back returns to it.
                                 onOpenArtist = { id, name ->
                                     openByName(id, name, null, BrowseType.ARTIST)
                                 },
@@ -3203,8 +2350,6 @@ private fun NuvxApp(
                                 contentPadding = listPadding,
                             )
                         } else if (pageRoute == AppRoute.Settings || pageRoute is AppRoute.SettingsSection) {
-                            // The main page and every category's page are the
-                            // one screen, each showing its own share of the rows.
                             SettingsScreen(
                                 section = (pageRoute as? AppRoute.SettingsSection)?.category,
                                 onOpenSection = { navigator.push(AppRoute.SettingsSection(it)) },
@@ -3236,24 +2381,11 @@ private fun NuvxApp(
                                 contentPadding = listPadding,
                             )
                         } else if (page != null) {
-                            // Local Music, Downloads and the other device folders are
-                            // this same release page: the header any playlist has, then
-                            // Songs / Artists / Albums under it. An album or artist
-                            // picked there opens as a page of its own — see LocalGroups.
                             val folder = if (page.browseId.isDeviceFolder()) {
                                 val isDownloads = page.browseId == "local:downloads"
                                 val isCache = page.browseId == CACHE_FOLDER_BROWSE_ID
-                                // The whole device: the one folder that is an offline
-                                // player in its own right, with playlists of its own
-                                // and the directories the files are kept in.
                                 val isDevice = page.browseId == "local:all"
                                 val folderSongs = (page.songs as? UiState.Success)?.data.orEmpty()
-                                // Only the Downloads folder has releases behind it: Local
-                                // Music is files this app never asked for, so there is
-                                // nothing on record about how they were grouped. Keyed on
-                                // the record as well as the list, so downloading an album
-                                // while its folder is open adds the folder rather than
-                                // waiting for the page to be reopened.
                                 val downloadCollections = remember(folderSongs, savedCollections, isDownloads) {
                                     if (isDownloads) Downloads.collectionsAmong(folderSongs) else emptyList()
                                 }
@@ -3302,12 +2434,6 @@ private fun NuvxApp(
                             } else {
                                 null
                             }
-                            // An album page's rows carry no album name of their own — the
-                            // release is billed once, in the header the rows hang under — so
-                            // the page title is stamped on as they leave for the download
-                            // queue or the track menu. Without it every track saved from an
-                            // album arrives in the Downloads folder with nothing to group it
-                            // under, and its Albums tab stays empty however much is in it.
                             val withAlbum: (Song) -> Song = { song ->
                                 if (page.type == BrowseType.ALBUM) {
                                     song.copy(albumName = song.albumName ?: page.title)
@@ -3315,14 +2441,7 @@ private fun NuvxApp(
                                     song
                                 }
                             }
-                            // The visible list can be one render behind the page
-                            // while fill-in is completing. For a local release
-                            // handoff, cancel that fill and use the newest complete
-                            // page snapshot; Cast deliberately keeps the old full
-                            // queue path.
                             fun playDetailSongs(songs: List<Song>, index: Int) {
-                                // Do not cancel a page's fill-in merely because a
-                                // listener tapped while the host owns playback.
                                 if (ListenTogether.state.value.controlsLocked) {
                                     refusedByHost()
                                     return
@@ -3361,7 +2480,6 @@ private fun NuvxApp(
                                     continuationToken = latestPage?.continuation ?: page.continuation,
                                 )
                             }
-                            // This page's songs being rearranged, drawn in place of its list.
                             val reordering = reorderTarget?.takeIf { it.browseId == page.browseId }
                             DetailScreen(
                                 page = page,
@@ -3373,16 +2491,11 @@ private fun NuvxApp(
                                     if (shelf != null) navigator.push(AppRoute.ArtistShelf(page.browseId, shelf))
                                     else navigator.pop()
                                 },
-                                // Album/playlist playback hands the page snapshot to
-                                // the service, which then owns continuation loading.
                                 onSongClick = ::playDetailSongs,
                                 onSongLongPress = { openSongMenu(withAlbum(it)) },
                                 onSongSwipe = { onSongSwipe(withAlbum(it)) },
                                 onShuffle = { songs ->
                                     if (songs.isNotEmpty()) {
-                                        // Shuffle goes on first so the queue is built shuffled
-                                        // as it is set — the random pick here only decides
-                                        // which track leads it.
                                         QueueShuffle.enableForNextQueue()
                                         playDetailSongs(songs, songs.indices.random())
                                     }
@@ -3390,7 +2503,6 @@ private fun NuvxApp(
                                 onSectionItemClick = { item ->
                                     val video = shelfSong(item)?.takeIf { item.browseId == null }
                                     if (video != null) {
-                                        // An artist's Videos shelf plays, from the page it is on.
                                         playRadio(video, QueueSource(page.title, PlaybackSourceType.BROWSE, page.browseId))
                                     } else {
                                         item.browseId?.let { id ->
@@ -3405,25 +2517,17 @@ private fun NuvxApp(
                                     }
                                 },
                                 onSectionItemLongPress = onShelfLongPress,
-                                // Only the page on its way in answers to the bar's
-                                // search button; one fading out keeps its list whole.
                                 searching = detailSearching && page.browseId == detail?.browseId,
                                 onSearchingChange = { detailSearching = it },
                                 onArtistClick = { id, name ->
                                     viewModel.openDetail(id, name, "Artist", null, BrowseType.ARTIST)
                                 },
                                 onAddSuggested = { song -> viewModel.addSuggestedSong(page.browseId, song) },
-                                // Saving is an account action, so it isn't offered to a
-                                // guest at all — same as the like and add-to-playlist rows
-                                // in the track menu.
                                 onToggleLibrary = if (signedIn) {
                                     { viewModel.toggleLibrary(page.browseId) }
                                 } else {
                                     null
                                 },
-                                // Same rule for the artist page's subscribe circle:
-                                // a channel subscription is the account's, so a
-                                // guest is never shown the button.
                                 onToggleSubscription = if (signedIn) {
                                     { viewModel.toggleSubscription(page.browseId) }
                                 } else {
@@ -3485,9 +2589,6 @@ private fun NuvxApp(
                                 onSignIn = { webSession = WebSessionMode.SIGN_IN },
                                 onItemClick = { item, shelfTitle ->
                                     val song = shelfSong(item)
-                                    // Hoisted because ShelfItem lives in :shared, and
-                                    // Kotlin will not smart-cast a public nullable
-                                    // property declared in another module.
                                     val browseId = item.browseId
                                     when {
                                         song != null -> playRadio(
@@ -3514,11 +2615,9 @@ private fun NuvxApp(
                                 topPicks = topPicks,
                                 topPicksLoading = topPicksLoading,
                                 listenerName = account?.name,
-                                // Neither shelf is drawn without its callback.
                                 onTopPickClick = openTopPick.takeUnless { hideTopPicks },
                                 onMoodClick = playMood.takeUnless { hideHomeMoods },
                                 onMoodsShowAll = { navigator.push(AppRoute.Moods) },
-                                // Nothing on Home is seen while the greeting covers it.
                                 artworkMotion = artworkMotion && !showDiwali,
                                 onTopPickLongPress = { pick ->
                                     pick.browseId?.let { browseId ->
@@ -3595,7 +2694,6 @@ private fun NuvxApp(
                                 currentSong = player.song,
                                 isPlaying = player.isPlaying,
                             )
-                            // A station is its own one-item queue: nothing to build a radio from.
                             TAB_RADIO -> RadioScreen(
                                 playingId = player.song?.videoId,
                                 isPlaying = player.isPlaying,
@@ -3648,8 +2746,6 @@ private fun NuvxApp(
                                 scrollResetTrigger = searchScrollReset,
                                 focusRequested = searchFocusRequested,
                                 onFocusHandled = { searchFocusRequested = false },
-                                // Search hits are alternatives to each other, not a running
-                                // order — play the one tapped and build a station from it.
                                 onSongClick = { songs, index ->
                                     songs.getOrNull(index)?.let { song ->
                                         viewModel.recordEntity(SearchHistoryEntity(
@@ -3707,8 +2803,6 @@ private fun NuvxApp(
                                     )
                                 },
                                 onBrowseLongPress = { item ->
-                                    // A search row does say what it is, so its own type is
-                                    // better than what the browse id can be read to mean.
                                     if (item.type != BrowseType.ARTIST) {
                                         openBrowseMenu(
                                             BrowseTarget(
@@ -3726,16 +2820,10 @@ private fun NuvxApp(
                                 suggestions = searchSuggestions,
                                 typeaheadResults = viewModel.typeaheadResults.collectAsStateWithLifecycle().value,
                                 onSubmit = viewModel::submitSearch,
-                                // Suggestions land in search history via searchFor → recordSearch.
-                                // History items (onHistoryClick) navigate/play without re-logging.
                                 onSuggestionClick = viewModel::searchFor,
                                 onHistoryClick = { entity ->
-                                    // Tap a history entity: navigate to it or play it directly.
-                                    // Do NOT recordEntity here — tapping an existing history item
-                                    // must not update its timestamp and push it to the top.
                                     when (entity.entityType) {
                                         EntityType.TRACK -> {
-                                            // Play the track by its video id
                                             playRadio(
                                                 com.bxane.nuvx.data.model.Song(
                                                     videoId = entity.id,
@@ -3760,14 +2848,8 @@ private fun NuvxApp(
                                 onHistoryClear = viewModel::clearSearchHistory,
                                 onTypeaheadLongPress = openSongMenu,
                                 contentPadding = listPadding,
-                                // Snug under the bar rather than a page's breathing
-                                // gap below it: the field is in the bar (see the bar's
-                                // accessory), so what comes next is the field's own
-                                // suggestions and filters, and a gap reads as a break.
                                 topPadding = topBarHeight() + 4.dp,
                                 showField = false,
-                                // The settings page's own two-state selector, so the
-                                // app has one look for "pick one of these".
                                 sourceSwitcher = {
                                     SegmentedControl(
                                         options = listOf(
@@ -3800,8 +2882,6 @@ private fun NuvxApp(
                                 },
                                 onAddonHistoryRemove = viewModel::removeAddonSearch,
                                 onAddonHistoryClear = viewModel::clearAddonSearchHistory,
-                                // The same queue opening the Local Music folder and
-                                // tapping the row there would give.
                                 onLibrarySongClick = { songs, index ->
                                     playFrom(
                                         songs,
@@ -3827,10 +2907,6 @@ private fun NuvxApp(
                                 state = libraryState,
                                 listState = libraryListState,
                                 onShelfItemClick = onLibraryItemClick,
-                                // Every shelf here has a menu behind it now — the account's
-                                // own playlists get rename and delete on top of what a saved
-                                // album or a Liked Music card gets. Holding an artist still
-                                // does nothing; see [onBrowseLongPress].
                                 onShelfItemLongPress = onBrowseLongPress,
                                 onNewPlaylist = { creatingPlaylist = true },
                                 onImportSpotifyPlaylist = { showSpotifyImportDialog = true },
@@ -3858,14 +2934,6 @@ private fun NuvxApp(
                             )
                         }
                     }
-                    // A pushed page keeps its saved state — a scroll position,
-                    // a search typed into Settings — for as long as it is on
-                    // the stack, so coming back to it finds it as it was left.
-                    // Tabs keep theirs hoisted above, as they always have.
-                    //
-                    // The playing bars hold still with the player up, the app in
-                    // the background, or this page on its way out: each frame of
-                    // them redraws the page under the glass, for nobody.
                     val barsMotion = artworkMotion && transition.targetState == EnterExitState.Visible
                     CompositionLocalProvider(LocalPlayingBarsMotion provides barsMotion) {
                         if (destination is AppDestination.Tab) {
@@ -3877,9 +2945,6 @@ private fun NuvxApp(
                     }
                 }
 
-                // The top-bar footprint is transparent on every page so the
-                // shared app-level gradient is continuous; its controls float
-                // as separate circles in both the glass and blur materials.
                 val isDetailVisible = detail != null &&
                     (detail.type == BrowseType.ALBUM ||
                         detail.type == BrowseType.PLAYLIST ||
@@ -3890,22 +2955,6 @@ private fun NuvxApp(
                 } else {
                     MaterialTheme.colorScheme.background
                 }
-                // Apple's scroll edge: what passes up under the status bar and the
-                // controls is blurred — hardest at the top, none just below the
-                // controls — rather than faded out to the page colour. It is a
-                // Liquid Glass option: with glass off, the Progressive Blur setting
-                // off, or under reduce dynamic blur, the bottom floor's own fade
-                // stands in, turned upside down, so both edges share its curve
-                // and colour.
-                // On an artist page the photograph and logo run up under the status
-                // bar, and either across them would only muddy them. It comes in as
-                // the page scrolls past that header, when content starts passing
-                // under the bar and needs the cover.
-                //
-                // Home's wordmark sits up there too, lifted under the bar by
-                // HOME_TITLE_LIFT, and at rest the fade washed it out. It is held
-                // off the same way, from the first pixel of scroll rather than
-                // partway through, since the wordmark is the top of its heading.
                 val artistListState = detail
                     ?.takeIf { isDetailVisible && it.type == BrowseType.ARTIST }
                     ?.let { detailListStates.getOrPut(it.browseId) { LazyListState() } }
@@ -3942,13 +2991,9 @@ private fun NuvxApp(
                     )
                 }
 
-                // Search's field: up in the top bar with Classic search, else down in the
-                // glass dock that stands in for the tab bar, as Convx has it.
                 val classicSearch = classicSearchOn()
                 val searchHere = selectedTab == TAB_SEARCH && route == null && detail == null && selectedMoodGenre == null
                 val searchField: @Composable () -> Unit = {
-                    // Wherever it sits, the field answers the nav bar's Search tap
-                    // itself: focus and keyboard, the way the page used to.
                     val keyboard = LocalSoftwareKeyboardController.current
                     LaunchedEffect(searchFocusRequested) {
                         if (searchFocusRequested) {
@@ -4002,18 +3047,12 @@ private fun NuvxApp(
                             }
                         }
                     },
-                    // Every page, in either material, uses separated floating
-                    // circles over the shared gradient — no full-width pane.
                     transparentBackdrop = true,
                     artworkPageChrome = true,
                     backButtonHazeState = hazeState,
                     trailingTitle = if (detail != null && detailActiveShelf != null) detail.title else null,
-                    // Search has no large in-list header to hand the title back to —
-                    // the field takes that space — so its bar title is always up.
                     scrolled = {
                         when {
-                            // The page leads with its own large "Replay", so the bar
-                            // stays out of the way until that has been scrolled off.
                             route == AppRoute.Replay -> replayScrolled
                             route != null -> true
                             detail != null && detailActiveShelf != null -> true
@@ -4024,24 +3063,16 @@ private fun NuvxApp(
                     },
                     refreshing = currentFeed != null && currentFeed in refreshing,
                     pullFraction = { currentPull?.distanceFraction ?: 0f },
-                    // The same step the back gesture takes — see [goBack] —
-                    // offered on anything pushed over a tab.
                     onBack = when {
                         route != null || detail != null || selectedMoodGenre != null -> goBack
                         else -> null
                     },
                     modifier = Modifier.align(Alignment.TopCenter),
-                    // Only on the Search tab itself, not on anything pushed over it.
                     accessory = if (searchHere && classicSearch) searchField else null,
-                    // Home's wordmark rides with the bar, as the account photo does; the
-                    // festive gold one stays in the page, where tapping it greets again.
                     leading = if (route == null && detail == null && selectedTab == TAB_HOME && !diwaliFestive) {
                         { TracedMark() }
                     } else null,
                     actions = {
-                        // This is intentionally scoped to Listen together: the
-                        // round-trip time is meaningful while coordinating a
-                        // party, but would be noise in the rest of the app.
                         if (route == AppRoute.ListenTogether) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -4098,17 +3129,10 @@ private fun NuvxApp(
                                 }
                             }
                         }
-                        // Only worth surfacing where there's room for it and it won't
-                        // be mistaken for a per-page action — Home, at rest.
                         if (route == null && detail == null && selectedTab == TAB_HOME) {
                             updateNotice?.let { update ->
                                 IconButton(onClick = { showUpdateDialog = true }) {
                                     Icon(
-                                        // An arrow rising out of a bar, not the
-                                        // little phone-with-an-arrow: at 24dp the
-                                        // handset outline is mush, and the glyph
-                                        // has to read as "newer version" rather
-                                        // than as "something about your device".
                                         SfIcons.Upgrade,
                                         contentDescription = stringResource(R.string.update_available, update.version),
                                         tint = MaterialTheme.colorScheme.primary,
@@ -4116,12 +3140,7 @@ private fun NuvxApp(
                                 }
                             }
                         }
-                        // None on Settings or the pages opened from it: those are
-                        // about the account, and the photo would only reopen them.
                         if (!(route != null && AppRoute.Settings in navigator)) {
-                            // Left of the account photo, and only on Library itself:
-                            // a history is a record of what was played, which reads
-                            // as that tab's business rather than every tab's.
                             if (route == null && detail == null && selectedTab == TAB_LIBRARY) {
                                 IconButton(
                                     onClick = {
@@ -4136,11 +3155,6 @@ private fun NuvxApp(
                                     )
                                 }
                             }
-                            // Left of the account photo, and only on a Library
-                            // "Show all" grid — the same control the Downloads
-                            // folder offers (see `LocalSearchField`), adapted to
-                            // the one thing a playlist or album card carries: a
-                            // title.
                             if (route is AppRoute.LibraryShowAll) {
                                 Box {
                                     IconButton(onClick = { librarySortMenuOpen = true }) {
@@ -4169,15 +3183,6 @@ private fun NuvxApp(
                                     }
                                 }
                             }
-                            // Sort, only on an album or playlist page or a device
-                            // folder — an artist page has no single track list to
-                            // reorder. A folder's opens its own menu: its sort
-                            // orders, and list or grid for its tabs.
-                            //
-                            // Search and the overflow flank it, as the share and
-                            // "…" pair do on Apple Music's album page: the header
-                            // below is left with just the sleeve, the title and
-                            // Shuffle / Play / Add.
                             if ((isReleaseDetail || isLocalDetail) && detail != null) {
                                 val releaseSongs = (detail.songs as? UiState.Success)?.data.orEmpty()
                                 if (releaseSongs.isNotEmpty()) {
@@ -4191,10 +3196,6 @@ private fun NuvxApp(
                                         )
                                     }
                                 }
-                                // The menu itself is [FrostedSortMenu], composed
-                                // with the app's other frosted overlays further
-                                // down — in the main hierarchy, where the haze
-                                // can see the content it blurs.
                                 IconButton(
                                     onClick = { if (isLocalDetail) folderMenuOpen = true else songSortMenuOpen = true },
                                 ) {
@@ -4207,14 +3208,6 @@ private fun NuvxApp(
                                     )
                                 }
                                 if (isReleaseDetail && releaseSongs.isNotEmpty()) {
-                                    // The page's own tracks, in the order the page
-                                    // shows them, so the sheet has them already and
-                                    // Play, Shuffle and Open are the buttons beside
-                                    // the one that opened it rather than rows on it.
-                                    // Download lives in the sheet too — and the
-                                    // tracks arrive stamped with the album they came
-                                    // off, which is what the download record groups
-                                    // them under.
                                     IconButton(
                                         modifier = Modifier.menuAnchor(),
                                         onClick = {
@@ -4244,9 +3237,6 @@ private fun NuvxApp(
                                     }
                                 }
                             }
-                            // Left of the account photo, on an artist page: iOS's
-                            // share glyph, sending the artist's channel link — the
-                            // one YouTube Music itself shares for an artist.
                             if (detail != null && !isLocalDetail && detail.type == BrowseType.ARTIST &&
                                 detailActiveShelf == null && detail.browseId.startsWith("UC")
                             ) {
@@ -4269,19 +3259,10 @@ private fun NuvxApp(
                                     )
                                 }
                             }
-                            // Left of the account photo, and only there while
-                            // there is a batch to report on — see
-                            // [TopBarDownloadButton], which decides that for
-                            // itself rather than being told. Not on the page it
-                            // opens, where it would only lead back to itself.
-                            // Song recognition: out on the tabs themselves, tucked away on pages.
                             TopBarRecognizeButton(visible = route == null && detail == null) { showRecognizer = true }
                             if (route != AppRoute.Downloads) {
                                 TopBarDownloadButton(onClick = { navigator.push(AppRoute.Downloads) })
                             }
-                            // Not on a release page, whose pill already carries
-                            // three of its own controls — Apple Music leaves the
-                            // profile off its album pages too.
                             if (!isReleaseDetail) TopBarAccountButton(
                                 account = account,
                                 onClick = {
@@ -4296,35 +3277,24 @@ private fun NuvxApp(
                     },
                 )
 
-                // Drawn before the bars so their own glass reads on top of it.
                 BottomFadeScrim(
                     withMiniPlayer = player.song != null,
-                    // Not the wash: by the foot of the screen the page has finished
-                    // easing out of it and into this, so this is what is actually
-                    // under the tab bar.
                     pageColor = chromePageColor,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 
-                // Whichever bar is drawing reports its height here, for the
-                // guard to read at layout — never in composition, see the guard.
                 val floatingBarsHeight = remember { mutableIntStateOf(0) }
                 FloatingBarsTapGuard(
                     barsHeight = { floatingBarsHeight.intValue },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 
-                // One tab handler, whichever bar is drawing it.
-                // A tab is a fresh start: everything pushed over the old one —
-                // routes and release pages alike — goes with it.
                 val onTabSelected: (Int) -> Unit = { index ->
                     navigator.clear()
                     viewModel.closeMoodGenre()
                     if (index == TAB_SEARCH && selectedTab != TAB_SEARCH) tabBeforeSearch = selectedTab
                     selectedTab = index
 
-                    // Every search tab tap resets the field, focuses it, and opens
-                    // the keyboard through SearchScreen's focus request.
                     if (index == TAB_SEARCH) {
                         viewModel.onQueryChange("")
                         searchFocusRequested = true
@@ -4351,10 +3321,6 @@ private fun NuvxApp(
                         .onSizeChanged { floatingBarsHeight.intValue = it.height },
                 ) {
                     QueueActionNoticeHost(queueNotice)
-                    // Liquid glass replaces the two stacked bars with the single
-                    // component they are stacked to imitate: the now playing
-                    // controls dock into the tab bar rather than riding above it,
-                    // and the pair folds together on scroll. See [GlassNavBar].
                     GlassNavBar(
                         tabs = navTabs,
                         selectedIndex = navTabIds.indexOf(selectedTab),
@@ -4383,12 +3349,6 @@ private fun NuvxApp(
                 } else Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        // Capped and centred rather than run to the page's edges
-                        // — see [FLOATING_BAR_MAX_WIDTH]. It sits on the Column
-                        // rather than on each bar so the two are held to the same
-                        // width and keep the shared left and right edge they have
-                        // on a phone. Before fillMaxWidth, so the fill has
-                        // already been bounded by the time it is applied.
                         .widthIn(max = FLOATING_BAR_MAX_WIDTH)
                         .fillMaxWidth()
                         .onSizeChanged { floatingBarsHeight.intValue = it.height },
@@ -4433,10 +3393,6 @@ private fun NuvxApp(
 
         val playerRaised = showNowPlaying && playerSong != null
 
-        // ---- The page's still, for a menu hung over it ----
-        // Taken as a ⋮ or ⋯ menu opens over a page, let go once it has played
-        // its way out — see [pageBackdrop]. Read in a scope of its own, as
-        // the menus are below, so a menu opening recomposes only this.
         Isolated {
             val pageMenuUp =
                 (songActions != null && songMenuOrigin == null && !(menuFromPlayer && playerRaised)) ||
@@ -4451,20 +3407,8 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Long-press track actions ----
-        // One body for every frame the track menu comes in: the panel hung off
-        // a ⋮ or the player's ⋯, and the one a held row lifts into. Every
-        // callback below is the same in each; only the frame differs.
         val songMenuBody: @Composable (Song) -> Unit = { heldSong ->
-            // Set by whoever opened it — see [menuFromPlayer]. It cannot be
-            // read off the player's own visibility any more, because on a
-            // tablet the player is visible whatever the menu was opened from.
             val fromPlayer = menuFromPlayer
-            // A row from search results, recents or a feed rarely knows which
-            // album or artist page it belongs to, which left the menu with no
-            // way to get there. Ask as the menu opens, the way the player
-            // backfills its own track — the player's copy is already kept in
-            // sync above, so it is left alone here.
             val needsLinks = !fromPlayer && heldSong.localUri == null &&
                 heldSong.videoId.isNotBlank() &&
                 (heldSong.albumId == null || heldSong.artistId == null)
@@ -4491,26 +3435,12 @@ private fun NuvxApp(
                 context.startActivity(Intent.createChooser(sendIntent, song.title))
                 songActions = null
             }
-            // Navigating has to take the player down with the sheet, or the
-            // page it opens lands behind a still-covering player.
-            // The track's cover stands in for an album's, but never for an
-            // artist's picture — that page loads its own.
             val openPage: (String, String, String, BrowseType) -> Unit = { id, title, sub, type ->
                 songActions = null
                 dismissPlayer()
                 val art = song.thumbnailUrl.takeUnless { type == BrowseType.ARTIST }
                 viewModel.openDetail(id, title, sub, art, type)
             }
-            // Video vs audio, moved here from the player's own controls: it is
-            // the same kind of choice as Revert to original / Upgrade
-            // quality just above it — which recording is playing — so it now
-            // sits in the same list rather than as a control of its own.
-            //
-            // Mirrors what the pill used to compute, keyed to this sheet's
-            // own [song] rather than a `nowPlaying` lambda parameter: an
-            // in-flight optimistic swap is still read off [optimisticVersionSong]
-            // so a menu opened mid-switch describes the version actually
-            // becoming current, not the one about to be left.
             val versionEffectiveSong = optimisticVersionSong?.takeIf {
                 it.videoId == convertedAudioId || it.videoId == convertedVideoId || it.videoId == keepVideoId ||
                     it.videoId == YtMusicRepository.cachedAudioVersion(song.videoId)?.videoId ||
@@ -4525,16 +3455,11 @@ private fun NuvxApp(
             } else {
                 !song.isVideo && convertedVideoId != song.videoId
             }
-            // Offered for the playing track wherever its menu is opened,
-            // whether or not the other version has been found yet: the
-            // switch looks it up, and says so when there isn't one.
             val onToggleVersion: (() -> Unit)? = if (
                 controller?.currentMediaItem?.mediaId == song.videoId
             ) {
                 toggle@{
                     songActions = null
-                    // A party plays one cut for everyone in it — see
-                    // [PlaybackService.smoothSwapCurrentTrackVersion].
                     if (partyState.inParty) {
                         showQueueNotice(versionContext.getString(R.string.version_switch_in_party))
                         return@toggle
@@ -4606,19 +3531,9 @@ private fun NuvxApp(
             } else {
                 null
             }
-            // The library toggle needs tokens only YouTube can mint, and the
-            // rating it comes back with is more authoritative than anything
-            // the library feed knew — so the menu asks as it opens.
             LaunchedEffect(song.videoId) { viewModel.loadSongMenu(song.videoId) }
-            // "Remove from this playlist" is only a sentence on a playlist
-            // page the account can actually edit, and only for a row that
-            // carries the per-entry id a removal is expressed in.
             val editable = viewModel.editablePlaylist(detail?.browseId)
                 ?.takeIf { !fromPlayer && song.setVideoId != null }
-            // Asked of the cache's index off the main thread as the menu opens,
-            // so "Remove from cache" is only offered for a track it holds.
-            // Re-asked when the cache changes, which is what drops the row
-            // once the track has gone.
             val automixOn by AppSettings.smartFadeEnabled.collectAsStateWithLifecycle()
             val cacheVersion by AudioCache.contentsChanged.collectAsStateWithLifecycle()
             val inCache by produceState(false, song.videoId, cacheVersion) {
@@ -4632,11 +3547,6 @@ private fun NuvxApp(
                 onPlayNext = { playNext(song); songActions = null },
                 onAddToQueue = { addToQueue(song); songActions = null },
                 onStartRadio = { startRadio(song); songActions = null },
-                // Stays open: the row it replaces itself with is the
-                // progress, and closing the sheet would hide the only
-                // answer to "did that work?".
-                // From the Cached songs folder, the cache's own copy is the
-                // download — the same as the row's download button there.
                 onDownload = {
                     if (!fromPlayer && detail?.browseId == CACHE_FOLDER_BROWSE_ID) {
                         downloadFromCache(listOf(song))
@@ -4644,9 +3554,6 @@ private fun NuvxApp(
                         downloadSong(song)
                     }
                 },
-                // The other direction: a device file going up to the
-                // server. Closed first, unlike a download — progress and
-                // the summary notice live outside the sheet.
                 onUploadToWebDav =
                     if (com.bxane.nuvx.data.webdav.WebDavConfig.isConfigured(webdavUrl) &&
                         com.bxane.nuvx.data.webdav.WebDavUploads.isUploadable(song)
@@ -4658,8 +3565,6 @@ private fun NuvxApp(
                     } else {
                         null
                     },
-                // The sheet stays up for a rating: it shows the new state
-                // in place, and people often thumb a song and then queue it.
                 onToggleLike = { toggleLikeOf(song) },
                 onToggleDislike = {
                     val previousStatus = viewModel.toggleDislike(song.videoId)
@@ -4723,29 +3628,12 @@ private fun NuvxApp(
                 onOpenArtist = { id ->
                     openPage(id, song.artist, context.getString(R.string.artist), BrowseType.ARTIST)
                 },
-                // The player backfills its own track; any other row is
-                // looked up as the menu opens — see `needsLinks` above.
                 resolvingLinks = if (fromPlayer) linksLoading else needsLinks && menuLinksLoading,
                 showSleepTimer = fromPlayer,
-                // Offered for every playing track with a YouTube upload
-                // behind it, not only for one an upgrade visibly swapped:
-                // a source ranked above YouTube can be playing its own
-                // idea of the song from the first second, and a wrong
-                // match sounds like a wrong match whether or not anything
-                // announced itself. See [Song.hasYouTubeOriginal].
                 onRollbackToOriginal = if (fromPlayer &&
                     song.hasYouTubeOriginal() &&
-                    // Nothing to revert *from*: the listener is hearing a
-                    // file they saved, not a stream anything chose.
                     song.localUri == null &&
-                    // Already there, and the menu says so with the row
-                    // below instead.
                     song.videoId !in pinnedToOriginal &&
-                    // And the same for a track that got back here without
-                    // the listener asking: an upgrade that failed to prove
-                    // itself is reverted automatically and pins nothing, so
-                    // this row was being offered for a track already on
-                    // YouTube's own stream, where it does nothing.
                     !playingYouTubesOwn(song.videoId, controller) &&
                     controller?.currentMediaItem?.mediaId == song.videoId
                 ) {
@@ -4756,22 +3644,11 @@ private fun NuvxApp(
                 } else {
                     null
                 },
-                // The way back, and for a pinned track the only one: it is
-                // held off the automatic search on purpose, so nothing but
-                // this will ever offer it a better copy again. Also shown
-                // for a track whose upgrade failed and was reverted, which
-                // is likewise sitting on YouTube's own stream with nothing
-                // due to look at it again — [QualityUpgrade.refuseUpgrades]
-                // takes a broken track off the automatic path for the rest
-                // of the session, and `askByHand` is what clears that.
                 onUpgradeQuality = if (fromPlayer &&
                     (
                         song.videoId in pinnedToOriginal ||
                             playingYouTubesOwn(song.videoId, controller)
                         ) &&
-                    // A track playing off a file the listener saved is not
-                    // playing a stream anything could upgrade — the pin on
-                    // it is only waiting for the day it is streamed again.
                     song.localUri == null &&
                     controller?.currentMediaItem?.mediaId == song.videoId
                 ) {
@@ -4786,10 +3663,6 @@ private fun NuvxApp(
                 onToggleAudioVersion = onToggleVersion,
                 isAudioVersion = menuIsAudioVersion,
                 audioVersionMissing = song.videoId in missingVersions,
-                // Hidden outright when there's no real YouTube id behind
-                // this row to build a link from — SongActionsMenu already
-                // drops it for a local file via `isOffline`, this catches
-                // the rest.
                 onShare = share.takeIf { song.videoId.isNotBlank() },
                 onCopyLog = if (fromPlayer) {
                     {
@@ -4797,10 +3670,6 @@ private fun NuvxApp(
                         scope.launch {
                             val text = TrackLog.forTrack(song, NerdStats.current.value)
                             clipboard.setText(AnnotatedString(text))
-                            // The line count, not just "copied": it is the
-                            // one thing the system's own paste confirmation
-                            // doesn't say, and an empty log is a real
-                            // outcome worth seeing rather than a silent one.
                             Toast.makeText(
                                 context,
                                 context.resources.getQuantityString(
@@ -4823,8 +3692,6 @@ private fun NuvxApp(
                 } else {
                     null
                 },
-                // The popup lives in the player, so the menu only has to close
-                // and ask for it; it lays the next transition out on its own.
                 onAutomixOverview = if (fromPlayer && automixOn) {
                     {
                         songActions = null
@@ -4835,17 +3702,9 @@ private fun NuvxApp(
                 },
             )
         }
-        // ---- Now Playing ----
         if (playerRaised) {
-            // What rememberModalBottomSheetState builds, but able to start open,
-            // and with every hide routed through [playerSheetMotion] — a drag
-            // released low, a back press, a tap on the scrim. Refused here and
-            // carried out there, on a curve slow enough to watch the artwork
-            // fly home on, rather than on the sheet's own.
             val sheetDensity = LocalDensity.current
             val confirmSheetValue: (SheetValue) -> Boolean = { value ->
-                // Read when asked, not when the sheet was made: the setting
-                // can change while the player is up.
                 if (value == SheetValue.Hidden && !reducePlayerMotion) {
                     playerSheetMotion.close()
                     false
@@ -4866,8 +3725,6 @@ private fun NuvxApp(
                     skipPartiallyExpanded = true,
                     positionalThreshold = { with(sheetDensity) { 56.dp.toPx() } },
                     velocityThreshold = { with(sheetDensity) { 125.dp.toPx() } },
-                    // Already open when the app is the one raising it: its
-                    // content is held down, and slid up, by the motion.
                     initialValue = if (playerSheetMotion.holding) SheetValue.Expanded else SheetValue.Hidden,
                     confirmValueChange = confirmSheetValue,
                 )
@@ -4883,45 +3740,16 @@ private fun NuvxApp(
             ModalBottomSheet(
                 onDismissRequest = { showNowPlaying = false },
                 sheetState = nowPlayingSheetState,
-                // None of M3's: it follows the sheet's own animation, which is
-                // no longer what moves the player. The player draws its own,
-                // off where the player actually is — see the content below.
                 scrimColor = if (reducePlayerMotion) BottomSheetDefaults.ScrimColor else Color.Transparent,
-                // The player fills the screen and paints its own background to
-                // the very top, so the sheet's default 28.dp top corners would
-                // only cut two notches out of the artwork behind the status bar.
-                // Square, and not clipped along its top — see [PlayerSheetShape].
                 shape = PlayerSheetShape,
                 containerColor = Color.Transparent,
                 dragHandle = null,
                 contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
-                // M3 caps a bottom sheet at [BottomSheetDefaults.SheetMaxWidth]
-                // (640.dp) and centres it once the window is wider than that —
-                // built for a sheet that's meant to look like a sheet next to
-                // visible content either side. This one is the whole player;
-                // capped at 640dp on a tablet it renders as a narrow card with
-                // the page it's supposed to be covering visible down both
-                // sides. Unspecified opts out of the cap entirely, so the
-                // sheet always spans the full window this app draws it for.
                 sheetMaxWidth = Dp.Unspecified,
-                // Back is the app's to carry out, like every other close — see
-                // the handler below. Left to M3, a back press is the one close
-                // that never asks `confirmValueChange`: the sheet hides itself
-                // straight away on its own curve, then the window leaves on its
-                // exit animation with the artwork still drawn in it.
                 properties = ModalBottomSheetProperties(shouldDismissOnBackPress = reducePlayerMotion),
             ) {
-                // With M3's own back off, the dialog's dispatcher ends here.
-                // Composed ahead of the player, so the player's own handlers —
-                // the lyrics and the queue putting themselves away first — are
-                // newer and are asked before this one.
                 BackHandler(enabled = !reducePlayerMotion) { playerSheetMotion.close() }
-                // Keeps a sheet still "settling" after a lyrics or queue
-                // scroll from taking the next touch meant for that list.
-                // See [PlayerSheetMotion.attachWindow].
                 val sheetWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-                // The player's window holds focus while it is up, so the volume
-                // keys reach it rather than the activity.
                 DacVolumeKeys()
                 DisposableEffect(sheetWindow, reducePlayerMotion) {
                     if (!reducePlayerMotion) playerSheetMotion.attachWindow(sheetWindow)
@@ -4929,18 +3757,9 @@ private fun NuvxApp(
                 }
                 Box(
                     Modifier
-                        // Where the app is holding the player, if it is — see
-                        // [PlayerSheetMotion.contentOffsetPx]. Placement only.
                         .offset { IntOffset(0, playerSheetMotion.contentOffsetPx()) }
-                        // The dim behind the player, from the window's top to
-                        // its bottom whatever the player's offset, and as deep
-                        // as the player is open.
                         .drawBehind {
                             val open = playerDock.openFraction()
-                            // Not at all under a portrait player that is fully up:
-                            // its own background is opaque, and a full-screen
-                            // blend behind it is paid on every frame the window
-                            // draws for nothing anyone can see.
                             if (!reducePlayerMotion && open > 0f && !(open >= 1f && playerDock.attached)) {
                                 val top = playerSheetMotion.position().takeUnless { it.isNaN() } ?: 0f
                                 drawRect(
@@ -4951,21 +3770,11 @@ private fun NuvxApp(
                             }
                         }
                         .guardSheetFromContentTouches(nowPlayingSheetState)
-                        // The sheet fills the window, so its height is the
-                        // whole of its travel: hidden sits that far down.
                         .onSizeChanged {
                             playerDock.sheetTravel = it.height.toFloat()
                             playerSheetMotion.laidOut = true
                         },
                 ) {
-                    // The still the ⋯ menu below blurs under its panel — taken
-                    // by the tap that opens it (see onOpenMenu), not the player
-                    // live, which re-rendered all of it under the panel on every
-                    // frame anything in it moved (see [SnapshotBackdrop]). Let
-                    // go once the menu has played its way out. Drawn in this
-                    // sheet's own window, as the menu has to be to sit above
-                    // the player. Not under "reduce dynamic blur": the panel
-                    // is opaque then.
                     val playerMenuUp = songActions != null && songMenuOrigin == null && menuFromPlayer
                     LaunchedEffect(playerMenuUp, reduceDynamicBlur) {
                         if (!playerMenuUp || reduceDynamicBlur) {
@@ -4996,11 +3805,6 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Replay stories ----
-        // Mounted out here rather than inside the pane above, because a story
-        // covers the window: on a tablet the page is only the left half of the
-        // row, and a story laid out inside it would run alongside the player
-        // instead of over it.
         replayStory?.let { start ->
             replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
                 ReplayStories(
@@ -5016,15 +3820,10 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Share the Replay ----
         if (showReplayShare) {
             replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
                 ModalBottomSheet(
                     onDismissRequest = { showReplayShare = false },
-                    // Straight to full height. The sheet is a picture and two
-                    // buttons, and half-open it showed the picture with both
-                    // buttons below the fold — a sheet whose only two controls
-                    // need a drag to reach.
                     sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                     containerColor = MaterialTheme.colorScheme.background,
                 ) {
@@ -5039,20 +3838,12 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Track menu ----
-        // In a recompose scope of its own: whether a menu is up is read in
-        // here, and read in the app's own body it recomposed all of the app
-        // on the frame the menu starts to grow — the stutter at the start of
-        // its spring, blur or no blur.
         Isolated {
-            // Drawn over everything, tab bar and mini player included, and kept
-            // composed through its own exit — so it is not gated on songActions.
             HeldContextMenu(
                 item = songActions,
                 held = songMenuOrigin,
                 hazeState = hazeState,
                 onDismiss = { songActions = null },
-                // Tapping the lifted track opens its album, as Apple Music's does.
                 onPreviewClick = { song ->
                     song.albumId?.let { id ->
                         songActions = null
@@ -5062,12 +3853,6 @@ private fun NuvxApp(
             ) { song ->
                 songMenuBody(song)
             }
-            // A tap on a ⋮ — or on the player's ⋯ while the player is part of the
-            // page, as on a tablet — hangs the same menu off that button. While the
-            // player is a sheet the sheet draws its own (above), so it can sit
-            // over the player and blur it.
-            // A player menu goes with the player: left up, it would carry on here,
-            // over the page.
             LaunchedEffect(playerRaised) {
                 if (!playerRaised && menuFromPlayer) songActions = null
             }
@@ -5080,8 +3865,6 @@ private fun NuvxApp(
             ) { song ->
                 songMenuBody(song)
             }
-            // A closed menu forgets where it was held and what it hung off, so
-            // whatever opens it next starts from nothing.
             LaunchedEffect(songActions == null) {
                 if (songActions == null) {
                     songMenuOrigin = null
@@ -5091,10 +3874,6 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Add to playlist / new playlist ----
-        // One sheet for both, because they are one decision: the list of
-        // playlists with a way to make another. `creatingPlaylist` opens it
-        // straight onto the form, which is what the Library tile means.
         if (playlistTarget != null || creatingPlaylist) {
             val target = playlistTarget
             val dismiss = {
@@ -5110,9 +3889,6 @@ private fun NuvxApp(
                 onAdd = { picked ->
                     target?.let { song ->
                         viewModel.addToPlaylists(picked, song) { added, alreadyThere, failed ->
-                            // One line for the whole batch, saying the outcome
-                            // that matters most: what went in, else that it was
-                            // all there already, else that it didn't work.
                             showQueueNotice(
                                 when {
                                     added > 1 -> context.resources.getQuantityString(
@@ -5133,10 +3909,6 @@ private fun NuvxApp(
             )
         }
 
-        // ---- Add to a device playlist / new device playlist ----
-        // The sheet above over the offline player's own playlists, for a track
-        // that is a file on this device. Nothing here waits on a network, so
-        // there is no loading state and the outcome is known on the tap.
         if (offlinePlaylistTarget != null || creatingOfflinePlaylist) {
             val target = offlinePlaylistTarget
             val dismiss = {
@@ -5215,63 +3987,30 @@ private fun NuvxApp(
             )
         }
 
-        // ---- Album / playlist actions ----
-        // Opened by holding a card on any tab, or from the release page's own
-        // overflow. What a track's long-press menu is to one song, this is to
-        // the whole release — the queue rows above all.
-        // One body for every frame alike — see songMenuBody.
         val browseMenuBody: @Composable (BrowseTarget) -> Unit = { target ->
-            // Every row here closes the menu first: the tracks may still have to
-            // be fetched, and leaving the sheet up over a request nothing on it
-            // reports on reads as a tap that didn't land.
             val act: ((List<Song>) -> Unit) -> () -> Unit = { action ->
                 {
                     browseActions = null
                     withBrowseSongs(target, action)
                 }
             }
-            // Whose playlist this is, asked here rather than carried in by
-            // whatever opened the sheet.
-            //
-            // Only the playlist's own page states it (see
-            // InnertubeParser.parsePlaylistOwned), so a card has to send for the
-            // answer and the sheet is already up by the time it lands — hence
-            // read as state rather than settled once when the target was built.
-            // Rename and Delete are absent until the answer says they apply, so
-            // the sheet's worst moment is a beat without them on the user's own
-            // playlist, rather than offering to delete a stranger's.
             LaunchedEffect(target.browseId) {
                 viewModel.resolvePlaylistOwnership(target.browseId)
             }
-            // Spelt out here rather than left to MainViewModel.editablePlaylist,
-            // which is the same rule over the same two lists: that reads them as
-            // plain values, which is right for a click handler and invisible to
-            // Compose. Both are read from collected state so this sheet actually
-            // recomposes when the answer arrives.
             val ownedPlaylists by viewModel.playlistOwned.collectAsStateWithLifecycle()
             val playlist = target.browseId
                 ?.takeIf { signedIn && ownedPlaylists[it] == true }
                 ?.let { id -> playlists.firstOrNull { it.browseId == id } }
             val remote = target.browseId?.startsWith("local:") == false
-            // Spotify playlists saved on this device ("local:playlist:sp_local_…")
-            // carry real YouTube video ids, so they download like a remote
-            // playlist — but they have no YouTube Music page, so Share stays
-            // on [remote] alone. The device-folder ids ("local:downloads",
-            // "local:all", …) are neither.
             val downloadable = remote ||
                 target.browseId?.startsWith("local:playlist:sp_local_") == true
             val pinnedPlaylists by AppSettings.pinnedPlaylists.collectAsStateWithLifecycle()
-            // Device playlists and directories have nowhere on the Library
-            // page to be pinned to that would still mean anything off-device.
             val pinnableId = target.browseId?.takeIf {
                 target.type == BrowseType.PLAYLIST &&
                     !it.startsWith(OfflinePlaylists.PREFIX) && !it.startsWith(LocalGroups.PREFIX)
             }
-            // One of the offline player's own playlists, which are the user's
-            // to rename and delete — all but Liked, which is the app's.
             val offlineEditable = OfflinePlaylists.get(target.browseId)?.takeUnless { it.isLiked }
             BrowseActionsMenu(
-                // The live answer, not the one the target was built with.
                 target = target.copy(
                     playlist = playlist ?: offlineEditable?.let {
                         UserPlaylist(playlistId = it.id, title = it.title, subtitle = "", thumbnailUrl = null)
@@ -5286,9 +4025,6 @@ private fun NuvxApp(
                 onAddToQueue = act(addSongsToQueue),
                 onPlay = act { songs -> play(songs, 0) }.takeIf { target.fromCard },
                 onShuffle = act { songs ->
-                    // As on a release page: shuffle goes on before the queue
-                    // is built, so it is built shuffled rather than played
-                    // out of order.
                     QueueShuffle.enableForNextQueue()
                     play(songs, songs.indices.random())
                 }.takeIf { target.fromCard },
@@ -5306,13 +4042,6 @@ private fun NuvxApp(
                             )
                         }
                     },
-                // The one place a whole release is asked for, from a card and
-                // from the release's own page alike — its header spends that
-                // spot on the search now. Nothing on this device needs
-                // fetching to be on it, so a local page is the exception.
-                // What the target carries that the tracks don't is the
-                // release's own name and cover, which is exactly what the
-                // record wants.
                 onDownloadAll = act { songs ->
                     startDownload(
                         songs,
@@ -5329,12 +4058,6 @@ private fun NuvxApp(
                             },
                     )
                 }.takeIf { downloadable },
-                // The same link a share off YouTube Music's own overflow
-                // gives — built from the browse id rather than fetched,
-                // since nothing about it depends on the tracks or the
-                // account. Left off an artist card (Share there is a
-                // channel link, not a release, and nobody asked for it)
-                // and off anything with no real browse id behind it.
                 onShare = target.browseId
                     ?.takeIf { remote && (target.type == BrowseType.ALBUM || target.type == BrowseType.PLAYLIST) }
                     ?.let { id ->
@@ -5384,8 +4107,6 @@ private fun NuvxApp(
                 onReorder = playlist?.let { p ->
                     {
                         browseActions = null
-                        // Rearranged on the playlist's own page: open it first
-                        // when the menu was raised from anywhere else.
                         if (detail?.browseId != p.browseId) {
                             viewModel.openDetail(
                                 browseId = p.browseId,
@@ -5416,7 +4137,6 @@ private fun NuvxApp(
                 } ?: offlineEditable?.let { p ->
                     {
                         browseActions = null
-                        // Its page has nothing left to show; take it away too.
                         if (detail?.browseId == p.browseId) viewModel.closeDetail()
                         OfflinePlaylists.delete(p.browseId)
                     }
@@ -5429,11 +4149,7 @@ private fun NuvxApp(
                 },
             )
         }
-        // In a recompose scope of its own, as the track menu's is.
         Isolated {
-            // Rename is a text field and a keyboard, which have no place on a menu
-            // floating over the page: the menu hands it on, and the form comes up
-            // here on a sheet of its own.
             browseActions?.takeIf { browseRenameInSheet }?.let { target ->
                 ModalBottomSheet(
                     onDismissRequest = { browseActions = null },
@@ -5447,8 +4163,6 @@ private fun NuvxApp(
                 held = browseMenuOrigin,
                 hazeState = hazeState,
                 onDismiss = { browseActions = null },
-                // Tapping the lifted card opens it, as a tap on it in the list
-                // would have. Not for a Local Music grouping, which has no page.
                 onPreviewClick = { target ->
                     target.browseId?.let { id ->
                         browseActions = null
@@ -5464,7 +4178,6 @@ private fun NuvxApp(
             ) { target ->
                 browseMenuBody(target)
             }
-            // A tap on a ⋯ — the release page's own — hangs the menu off it.
             IosMenuPopover(
                 item = browseActions?.takeIf { browseMenuOrigin == null && !browseRenameInSheet },
                 anchor = browseMenuAnchor,
@@ -5483,9 +4196,6 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Welcome (once; under the sign-in WebView it can open) ----
-        // There from the first frame, so no way in; on the way out it drops
-        // like a dismissed sheet onto the app it was standing in front of.
         AnimatedVisibility(
             visibleState = onboardingShown,
             enter = EnterTransition.None,
@@ -5506,13 +4216,8 @@ private fun NuvxApp(
             )
         }
 
-        // ---- Google sign-in (full screen WebView) ----
         webSession?.let { mode ->
             BackHandler { webSession = null }
-            // Raised by "Use this channel", read by the browser as "take the
-            // session from the page as it now stands". A counter rather than a
-            // flag so a second tap, after a failed first one, is still a new
-            // request rather than a value that was already true.
             var captureRequest by remember(mode) { mutableIntStateOf(0) }
             var captureFailed by remember(mode) { mutableStateOf(false) }
             var pageReady by remember(mode) { mutableStateOf(false) }
@@ -5598,7 +4303,6 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Diwali greeting ----
         AnimatedVisibility(
             visible = showDiwali,
             enter = fadeIn(tween(400)),
@@ -5612,7 +4316,6 @@ private fun NuvxApp(
             DiwaliGreetingScreen(onDismiss = dismissDiwali)
         }
 
-        // ---- Radio's first visit, and now and then a tip or a GitHub star ----
         LaunchedEffect(hideRadioTab, hidePodcastsTab) {
             if (hideRadioTab && selectedTab == TAB_RADIO) selectedTab = TAB_HOME
             if (hidePodcastsTab && selectedTab == TAB_PODCASTS) selectedTab = TAB_HOME
@@ -5635,16 +4338,12 @@ private fun NuvxApp(
             hazeState = hazeState,
         )
 
-        // ---- Update available (once per launch; held until the welcome and Diwali greeting are done) ----
         if (showUpdateDialog && onboardingComplete && !showDiwali) {
             updateNotice?.let { update ->
                 UpdateAvailableDialog(
                     version = update.version,
                     notes = update.notes,
                     hazeState = hazeState,
-                    // A download in progress keeps running behind the closed
-                    // sheet — only the sheet itself goes away. The top bar's
-                    // update icon reopens it onto whatever state it reached.
                     onDismiss = { showUpdateDialog = false },
                     onDownload = {
                         if (update.apkUrl != null) {
@@ -5687,10 +4386,6 @@ private fun NuvxApp(
                     detail?.browseId?.let { AppSettings.setDetailSongSort(it, option) }
                     songSortMenuOpen = false
                 },
-                // Flipping the date direction deliberately leaves the menu up:
-                // closing it here would cut the arrow's rotation animation off
-                // before it played, and the open menu lets the direction flip
-                // read against the list reordering behind the frost.
                 onFlipDateDirection = {
                     detail?.browseId?.let { browseId ->
                         val next = when (songSort) {
@@ -5922,10 +4617,6 @@ private fun NuvxApp(
             )
         }
 
-        // A clash mid-upload, answered here so the scrim covers the tab bar
-        // and mini player like every other alert. Backing out is a skip —
-        // leaving the batch suspended on a dismissed dialog would hang the
-        // upload with no way to reach the question again.
         val uploadConflict by com.bxane.nuvx.data.webdav.WebDavUploads.conflict.collectAsStateWithLifecycle()
         uploadConflict?.let { req ->
             var applyToAll by remember(req) { mutableStateOf(false) }
@@ -5948,7 +4639,6 @@ private fun NuvxApp(
             )
         }
 
-        // ---- Discord sign-in (full screen WebView) ----
         if (showDiscordLogin) {
             BackHandler { showDiscordLogin = false }
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -5983,9 +4673,6 @@ private fun NuvxApp(
             }
         }
 
-        // ---- Spotify sign-in (full screen WebView) ----
-        // Out here with Discord's rather than on the Spotify page itself: see
-        // SpotifyLoginScreen for what the blurred content tree does to a WebView.
         if (showSpotifyLogin) {
             BackHandler { showSpotifyLogin = false }
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -6036,9 +4723,6 @@ private fun NuvxApp(
             )
         }
 
-        // At the root with the source editor, and for the same two reasons: it
-        // is a haze card that has to sample the backdrop it is *not* inside,
-        // and a full-window scrim that has to be full-window.
         if (editingPartyServer) {
             PartyServerEditor(
                 hazeState = hazeState,
@@ -6076,8 +4760,6 @@ private fun NuvxApp(
                 selected = config.activeQuality,
                 label = { it?.label.orEmpty() },
                 onSelect = { option ->
-                    // Off the stored config, not the one this list opened with:
-                    // a probe may have refreshed it since.
                     SourceRegistry.config(config.id)?.let {
                         SourceRegistry.update(it.copy(pickedQuality = option?.value))
                     }
@@ -6140,7 +4822,6 @@ private fun NuvxApp(
             )
         }
 
-        // Over the page and its frosted bars, under nothing but the alerts.
         DacVolumeHud(hazeState)
 
         blockedAddonSong?.let { song ->
@@ -6162,9 +4843,6 @@ private fun NuvxApp(
                         stringResource(R.string.download_addon_needs_lossless_output, addon)
                 },
                 onDismiss = { addonLeftOutOfDownload = null },
-                // A download can be asked for from the player or from either
-                // menu, and each is a window of its own over this one. Drawn
-                // here, the alert opened behind whichever it was.
                 inOwnWindow = playerRaised || songActions != null || browseActions != null,
             )
         }
@@ -6172,14 +4850,8 @@ private fun NuvxApp(
     }
 }
 
-/**
- * The addon exclusions already explained this session, as `configId:reason` —
- * see [SourceRegistry.addonsLeftOutOfDownloads]. Process-wide rather than
- * remembered by the composition, so turning the phone doesn't say it again.
- */
 private val explainedDownloadExclusions = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
-/** UIKit's sheet curve: leaves at once, settles long — a sheet let go of, not pushed. */
 private val OnboardingDismissEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
 private fun tween(durationMillis: Int) =
@@ -6192,13 +4864,6 @@ private fun LibrarySort.localizedLabel(): String = when (this) {
     LibrarySort.TITLE_DESC -> stringResource(R.string.sort_title_descending)
 }
 
-/**
- * The track-list sort menu, styled after the account switcher: a full-screen
- * scrim to catch the dismissal tap, and the options on a frosted panel that
- * blurs the page behind it. Composed here in the main hierarchy rather than
- * as a popup window — which is exactly what lets the haze see the content it
- * is blurring.
- */
 @Composable
 private fun FrostedSortMenu(
     hazeState: HazeState,
@@ -6208,11 +4873,6 @@ private fun FrostedSortMenu(
     onDismiss: () -> Unit,
 ) {
     FrostedMenuPanel(hazeState = hazeState, onDismiss = onDismiss) {
-        // Date added is one row, Spotify-style: the arrow on it shows
-        // the direction — up for newest first, down for oldest — and
-        // tapping flips it, the rotation animating the flip. Up is
-        // also where a fresh activation lands, newest first being the
-        // point of the feature.
         val dateActive = selected == SongSort.DATE_ADDED_ASC ||
             selected == SongSort.DATE_ADDED_DESC
         val arrowRotation by animateFloatAsState(
@@ -6254,10 +4914,6 @@ private fun FrostedSortMenu(
     }
 }
 
-/**
- * A device folder's menu, off the same button: list or grid for its tabs, then
- * its sort orders — the Files app's arrangement, view first and order under it.
- */
 @Composable
 private fun FrostedFolderMenu(
     hazeState: HazeState,
@@ -6290,7 +4946,6 @@ private fun FrostedFolderMenu(
     }
 }
 
-/** The scrim and frosted panel both top-bar menus are drawn on. */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun FrostedMenuPanel(
@@ -6332,7 +4987,6 @@ private fun FrostedMenuPanel(
     }
 }
 
-/** One option on a frosted menu: its label, and a tick or [icon] at the end. */
 @Composable
 private fun FrostedMenuRow(
     label: String,
@@ -6380,31 +5034,11 @@ private fun SongSort.localizedLabel(): String = when (this) {
     SongSort.DATE_ADDED_DESC -> stringResource(R.string.sort_date_added)
 }
 
-/**
- * Whether this page id is one of the device folders — `local:downloads`,
- * `local:all` and the rest, the pages with Songs / Artists / Albums tabs.
- *
- * Asked rather than `startsWith("local:")` because that prefix covers unlike
- * pages: a folder, one downloaded playlist, and an album or artist grouped out
- * of a folder — the last two plain track listings that want the same chrome
- * every other release page gets. See [Downloads.PLAYLIST_PREFIX] and
- * [LocalGroups.PREFIX] for why they share a namespace at all.
- */
 private fun String?.isDeviceFolder(): Boolean =
     this != null && startsWith("local:") &&
         !startsWith(Downloads.PLAYLIST_PREFIX) && !startsWith(LocalGroups.PREFIX) &&
         !startsWith(OfflinePlaylists.PREFIX)
 
-/**
- * Whether [videoId] is the track playing, and is known to be playing YouTube's
- * own copy — which decides whether the player menu leads with "Revert to
- * original" or with "Upgrade quality".
- *
- * See [QualityUpgrade.isKnownToBePlayingYouTubesOwn] for why "known" is doing
- * real work here: an unresolved track playing off the disk cache is judged by
- * the origin its cache entry was tagged with, and keeps the revert on offer
- * only when the entry has none.
- */
 private fun playingYouTubesOwn(videoId: String, controller: MediaController?): Boolean {
     val item = controller?.currentMediaItem?.takeIf { it.mediaId == videoId } ?: return false
     val uri = item.localConfiguration?.uri
@@ -6415,7 +5049,6 @@ private fun playingYouTubesOwn(videoId: String, controller: MediaController?): B
     )
 }
 
-/** `M:SS`/`H:MM:SS`, the same shape [String?.durationMillis] parses back. */
 private fun formatDurationText(ms: Long): String {
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
@@ -6423,82 +5056,38 @@ private fun formatDurationText(ms: Long): String {
     return "%d:%02d".format(Locale.ROOT, minutes, seconds)
 }
 
-/**
- * How far short of the end a seek is allowed to land.
- *
- * Seeking to the final millisecond is indistinguishable from the track running
- * out, so it starts the next song — which is not what anyone dragging to the end
- * of the bar, or tapping the last line of a lyric, is asking for. A second back
- * from the end plays the outro instead.
- */
 private const val SEEK_END_GUARD_MS = 1_000L
 
-/**
- * How far a detail page scrolls before its title moves up into the bar.
- *
- * Roughly the height of the sleeve and the credit stacked above the Play pair,
- * so the two titles hand over as the header one leaves rather than sitting on
- * screen together. The bar cross-fades over 220ms, which absorbs the difference
- * between that estimate and a particular page's real header.
- */
 private val DETAIL_TITLE_DROP = 320.dp
 
-/**
- * How fast, a second, a mini-player pull has to be moving when the finger
- * lifts to decide open or closed on its own, wherever it got to — see
- * [MiniPlayerPull]. A flick is a whole gesture; only a slow pull is judged by
- * the distance it covered.
- */
 private val PLAYER_PULL_FLING_VELOCITY = 400.dp
 
-/** M3's own scrim strength, which the player's dim stands in for. */
 private const val PLAYER_SCRIM_ALPHA = 0.32f
 
-/**
- * [content] in a recompose scope of its own, so state read inside it
- * recomposes it alone rather than everything it is written in.
- */
 @Composable
 private fun Isolated(content: @Composable () -> Unit) = content()
 
-/** Longer than the ⋯ menu's exit, so its panel keeps its frost on the way out. */
 private const val SNAPSHOT_RELEASE_DELAY_MS = 400L
 
-/**
- * The player sheet's shape: square, as [RectangleShape] was, but reaching a
- * whole sheet's height above the sheet's top edge.
- *
- * The sheet's Surface clips its content to this shape, and on the way down to
- * the mini player the artwork travels ahead of the sheet carrying it — up
- * above the sheet's top edge, where a plain rectangle cut it off mid-air,
- * leaving only its lower part to arrive in the bar. Nothing else is drawn
- * outside the sheet (its background is transparent and it casts no shadow),
- * so at rest this is the rectangle it replaces.
- */
 private object PlayerSheetShape : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
         Outline.Rectangle(Rect(0f, -size.height, size.width, size.height))
 }
 
-// Bar order, left to right: Search stays last, it is the standalone circle.
 private const val TAB_HOME = 0
 private const val TAB_LIBRARY = 1
 private const val TAB_RADIO = 2
 private const val TAB_EXPLORE = 3
 private const val TAB_SEARCH = 4
-// Drawn between Radio and Explore (see navTabIds); numbered last so saved tabs keep theirs.
 private const val TAB_PODCASTS = 5
 
-/** The Podcasts tab's glyph, GlyphStudio's microphone. */
 private val PodcastsSymbol: SfSymbol by lazy { SfSymbol.named("microphone")!! }
 
-/** The tab Search was opened from: the circle in Search's dock goes back to it. */
 private var tabBeforeSearch by mutableIntStateOf(TAB_HOME)
 
 @Composable
 private fun classicSearchOn(): Boolean = AppSettings.classicSearch.collectAsStateWithLifecycle().value
 
-/** Explore's moods and genres for Search's tiles, or none with Classic search on. */
 @Composable
 private fun searchCategories(viewModel: MainViewModel): List<MoodGenre> {
     val classic by AppSettings.classicSearch.collectAsStateWithLifecycle()

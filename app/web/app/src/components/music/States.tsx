@@ -1,6 +1,5 @@
 import { PrefetchLink } from '@/components/PrefetchLink';
 
-/** A page-sized message, centred: also the Spotify page's sign-in invitation. */
 export const stateStyles = {
   state: 'mx-auto my-20 flex max-w-[420px] flex-col items-center gap-2 px-(--body-gutter) text-center',
   title: 'type-title-2-emphasized',
@@ -8,7 +7,6 @@ export const stateStyles = {
   button: 'mt-3 inline-flex h-8 items-center rounded-pill bg-key-bg px-4 type-body-emphasized text-white',
 };
 
-/** In place of a YouTube page when the extension isn't installed (prompt §1): an invitation, not an error. */
 export function NeedsExtension({ what = 'YouTube Music' }: { what?: string }) {
   return (
     <div className={stateStyles.state}>
@@ -44,7 +42,6 @@ export function EmptyState({ title, detail }: { title: string; detail?: string }
   );
 }
 
-/** A later page of a long list failed: what's loaded stays, with a way to try again. */
 export function LoadMoreError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex items-center justify-center gap-2.5 px-(--body-gutter) pt-6 pb-10 type-callout text-secondary">

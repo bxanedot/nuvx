@@ -21,7 +21,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-/** A Spotify playlist's page id in the detail stack: this plus the playlist id (or [SpotifyLibrary.LIKED_ID]). */
 const val SPOTIFY_PAGE_PREFIX = "spotify:playlist:"
 
 data class SpotifyPlaylist(
@@ -41,37 +40,27 @@ data class SpotifyTrack(
 )
 
 object SpotifyLibrary {
-    /** The web player's bearer, and its client token when there is one. */
     class Tokens(val bearer: String, val clientToken: String?)
 
-    /**
-     * Where the tokens come from: the phone mints them in a WebView, the desktop in JavaFX's.
-     * Null tokens mean signed out or expired.
-     */
     fun interface Auth {
         suspend fun tokens(): Tokens?
     }
 
-    /** Installed by each application at start-up; until then every call fails as signed out. */
     @Volatile
     var auth: Auth? = null
 
     private const val GQL = "https://api-partner.spotify.com/pathfinder/v2/query"
     private const val LIBRARY = "973e511ca44261fda7eebac8b653155e7caee3675abb4fb110cc1b8c78b091c3"
     private const val PLAYLIST = "346811f856fb0b7e4f6c59f8ebea78dd081c6e2fb01b77c954b26259d5fc6763"
-    /** The pseudo-playlist id for the Liked Songs collection, which has no playlist uri. */
     const val LIKED_ID = "liked"
-    /** Spotify's own Liked Songs artwork, the purple heart; the collection has no cover of its own. */
     private const val LIKED_COVER = "https://misc.scdn.co/liked-songs/liked-songs-640.png"
     private const val LIKED = "087278b20b743578a6262c2b0b4bcd20d879c503cc359a2285baf083ef944240"
-    /** The phone's canvas client sent this one; kept so its requests look unchanged. */
     private const val USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
             "Chrome/122.0.0.0 Safari/537.36"
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val mediaType = "application/json; charset=utf-8".toMediaType()
 
-    /** Every playlist in the library, however many pages it takes. */
     suspend fun playlists(): List<SpotifyPlaylist> = withContext(Dispatchers.IO) {
         val headers = authHeaders()
         val collected = mutableListOf<SpotifyPlaylist>()
@@ -82,16 +71,9 @@ object SpotifyLibrary {
             offset += raw
             if (raw == 0 || offset >= total) break
         }
-        // Liked Songs is not a playlist to Spotify's library query, so it is
-        // always offered first rather than depending on it turning up there.
         listOf(SpotifyPlaylist(id = LIKED_ID, name = "Liked Songs", owner = null, imageUrl = LIKED_COVER)) + collected
     }
 
-    /**
-     * Every track of a playlist, however long. [onPage] gets the running list
-     * after each page, so a thousand-song playlist fills in as it loads
-     * rather than appearing all at once at the end.
-     */
     suspend fun tracks(
         playlistId: String,
         onPage: (List<SpotifyTrack>) -> Unit = {},
@@ -148,11 +130,6 @@ object SpotifyLibrary {
         return parseTrackPage(gql("fetchPlaylist", PLAYLIST, variables, headers))
     }
 
-    /**
-     * The playlist's cover at its largest. The library list only carries a
-     * thumbnail, which looks soft once it fills a playlist page's header, so
-     * the page asks for the real image after it opens.
-     */
     suspend fun cover(playlistId: String): String? = withContext(Dispatchers.IO) {
         if (playlistId == LIKED_ID) return@withContext LIKED_COVER
         val variables = buildJsonObject {
@@ -217,7 +194,6 @@ object SpotifyLibrary {
     }
 }
 
-/** The playlists kept, the library's total, and how many entries the page held before filtering. */
 internal fun parsePlaylistPage(root: JsonObject): Triple<List<SpotifyPlaylist>, Int, Int> {
     val library = root.obj("data")?.obj("me")?.obj("libraryV3")
         ?: throw IllegalStateException("Spotify library response was empty")
@@ -241,7 +217,6 @@ internal fun parsePlaylistPage(root: JsonObject): Triple<List<SpotifyPlaylist>, 
     return Triple(items, library.int("totalCount") ?: rawItems.size, rawItems.size)
 }
 
-/** The tracks kept, the playlist's total, and how many entries the page held before filtering. */
 internal fun parseTrackPage(root: JsonObject): Triple<List<SpotifyTrack>, Int, Int> {
     val content = root.obj("data")?.obj("playlistV2")?.obj("content")
         ?: throw IllegalStateException("Spotify playlist response was empty")
@@ -267,7 +242,6 @@ internal fun parseTrackPage(root: JsonObject): Triple<List<SpotifyTrack>, Int, I
     return Triple(items, content.int("totalCount") ?: rawItems.size, rawItems.size)
 }
 
-/** The Liked Songs page: `me.library.tracks`, each entry wrapping the track under `track`. */
 internal fun parseLikedPage(root: JsonObject): Triple<List<SpotifyTrack>, Int, Int> {
     val tracks = root.obj("data")?.obj("me")?.obj("library")?.obj("tracks")
         ?: throw IllegalStateException("Spotify liked songs response was empty")
@@ -293,11 +267,6 @@ internal fun parseLikedPage(root: JsonObject): Triple<List<SpotifyTrack>, Int, I
     return Triple(items, tracks.int("totalCount") ?: rawItems.size, rawItems.size)
 }
 
-/**
- * The widest source of an image's first entry. Spotify lists a playlist's
- * sizes in no fixed order — a 60px thumbnail can come last — so the list is
- * read by width rather than by position.
- */
 private fun largestSource(images: JsonObject?): String? =
     images?.arr("items")?.firstOrNull()?.jsonObject?.arr("sources")
         ?.mapNotNull { source ->

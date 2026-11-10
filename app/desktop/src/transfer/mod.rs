@@ -1,11 +1,3 @@
-//! Copy a Spotify playlist, or Liked Songs, into YouTube Music (spot2ytm, built in).
-//!
-//! A transfer runs on the network runtime while the app keeps playing: read the
-//! Spotify playlist, search YouTube Music for every song a few at a time, search the
-//! doubtful ones again, let the user review what's still doubtful, then create a
-//! private playlist or like the songs. The UI reads the shared [`Job`] each frame.
-//! Progress is saved as it goes, so quitting or losing the connection never repeats work.
-
 pub mod spotify;
 
 use std::collections::HashSet;
@@ -22,29 +14,18 @@ use crate::ytm;
 use crate::ytmapi::Api;
 use spotify::{Source, Track};
 
-/// Doubtful songs looked up at once for review (two signed-in searches each). More gets
-/// the account rate limited on long lists.
 const CONCURRENCY: usize = 8;
-/// Songs matched at once. Their searches are signed out (see `search_song`), so they
-/// don't count against the account; YouTube refuses some in short bursts, and more at
-/// once keeps the rest going meanwhile (16 matched about a third faster than 8).
 const SEARCHES: usize = 16;
-/// The most songs a YouTube Music playlist holds; longer lists are split into parts.
 const PLAYLIST_MAX: usize = 5000;
-/// How often progress is written while searching or liking.
 const SAVE_EVERY: Duration = Duration::from_secs(5);
-/// The credential the Spotify sign-in (`sp_dc` cookie) is saved under.
 const VAULT: &str = "spotify sp_dc";
 
-/// How a song came out of the search.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Search {
     Pending,
     Found(YtTrack),
-    /// A result whose title or artist doesn't match; offered for review.
     Unsure(YtTrack),
     Missing,
-    /// Left out during the review.
     Skipped,
 }
 
@@ -57,12 +38,9 @@ impl Search {
     }
 }
 
-/// Where the songs go.
 #[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Dest {
-    /// A new private playlist with this name.
     Playlist(String),
-    /// The account's Liked Music.
     Liked,
 }
 
@@ -70,9 +48,7 @@ pub enum Dest {
 pub enum Phase {
     Reading,
     Searching,
-    /// Searching the doubtful songs again, with videos.
     Checking,
-    /// Waiting for the user to go through `doubts`.
     Review,
     Saving,
     Done,
@@ -85,14 +61,11 @@ impl Phase {
     }
 }
 
-/// A song the user picks for: the alternatives found for it and what they chose.
 pub struct Doubt {
     pub index: usize,
     pub candidates: Vec<YtTrack>,
-    /// Which candidates are videos rather than songs.
     pub videos: Vec<bool>,
     pub decision: Option<Decision>,
-    /// A matched song opened for a change: its alternatives are still being searched.
     pub loading: bool,
 }
 
@@ -105,45 +78,33 @@ pub enum Decision {
 
 pub struct Summary {
     pub added: usize,
-    /// Songs that matched the same YouTube Music song as an earlier one.
     pub duplicates: usize,
-    /// Liked Music only: songs that were liked already.
     pub already: usize,
     pub playlists: Vec<String>,
     pub elapsed: Duration,
 }
 
 pub struct Job {
-    /// Adding to Liked Music waits for likes or unlikes the app is still sending.
     pub waiting: bool,
     pub source: Source,
     pub name: String,
     pub dest: Dest,
     pub phase: Phase,
-    /// Spotify songs read, of the total.
     pub read: (usize, usize),
     pub read_secs: Option<f32>,
     pub tracks: Vec<Track>,
     pub results: Vec<Search>,
-    /// Removed songs and podcast episodes in the Spotify playlist.
     pub not_songs: usize,
-    /// When the current search pass started, and how many songs it had left then.
     search_started: Option<(Instant, usize)>,
     pub doubts: Vec<Doubt>,
-    /// Liking or adding: done, of the total.
     pub saving: (usize, usize),
-    /// Liking again the songs YouTube Music dropped: done, of how many.
     pub redo: Option<(usize, usize)>,
     pub summary: Option<Summary>,
     pub paused: bool,
     started: Instant,
-    /// Playlists already created, so a resumed transfer doesn't make them twice.
     created: Vec<String>,
-    /// Songs added to those playlists so far (a batch at a time).
     added: usize,
-    /// Songs this transfer has liked so far.
     liked: usize,
-    /// The review is done; a resumed transfer goes straight to adding.
     reviewed: bool,
 }
 
@@ -156,7 +117,6 @@ impl Job {
         self.results.iter().filter(|r| f(r)).count()
     }
 
-    /// Seconds left in the search, from the pace so far.
     pub fn eta(&self) -> Option<u64> {
         let (at, left_then) = self.search_started?;
         let left = self.results.len() - self.searched();
@@ -165,23 +125,18 @@ impl Job {
         (done >= 8 && secs > 1.0).then(|| (left as f64 * secs / done as f64).ceil() as u64)
     }
 
-    /// The doubt shown now: the first without a decision.
     pub fn current_doubt(&self) -> Option<usize> {
         self.doubts.iter().position(|d| d.decision.is_none())
     }
 }
 
-/// Whether a Spotify playlist is someone's liked songs under another name, which the
-/// transfer offers to add to Liked Music instead of a playlist.
 pub fn is_likes(name: &str) -> bool {
     let n = name.trim().to_lowercase();
     matches!(n.as_str(), "liked songs" | "likes")
 }
 
-/// The Spotify side: the signed-in account and its library.
 #[derive(Clone)]
 pub enum Account {
-    /// Signed in, not read yet (read when the transfer page or Settings first shows it).
     Unknown,
     SignedOut,
     Loading,
@@ -189,7 +144,6 @@ pub enum Account {
     Failed(String),
 }
 
-/// A transfer that stopped part way, from an earlier run.
 #[derive(Clone)]
 pub struct Resumable {
     pub source: Source,
@@ -199,7 +153,6 @@ pub struct Resumable {
     pub total: usize,
 }
 
-/// A pasted playlist link and what it turned out to be (`None` while it's looked up).
 pub type Lookup = (String, Option<Result<spotify::Entry, String>>);
 
 pub struct Transfer {
@@ -207,19 +160,15 @@ pub struct Transfer {
     pub account: Mutex<Account>,
     pub resumable: Mutex<Option<Resumable>>,
     pub lookup: Mutex<Option<Lookup>>,
-    /// Spotify sign-in window open.
     pub signing_in: AtomicBool,
-    /// Bumped on every sign-in or sign-out, so a slow account read can't undo a newer one.
     account_gen: std::sync::atomic::AtomicU64,
     cancel: AtomicBool,
-    /// The YouTube Music sign-in and channel the running job goes to (`Api::epoch`).
     pinned: Mutex<Option<(Arc<Api>, u64)>>,
     review_done: tokio::sync::Notify,
     data_dir: PathBuf,
     wake: Arc<dyn Fn() + Send + Sync>,
 }
 
-/// The progress file: everything needed to pick a transfer up again.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Saved {
     version: u32,
@@ -284,7 +233,6 @@ impl Transfer {
         self.job.lock().unwrap().as_ref().is_some_and(|j| j.phase.running())
     }
 
-    /// Sign the Spotify side in or out; `None` signs out.
     pub fn set_cookie(self: &Arc<Self>, sp_dc: Option<String>, rt: &crate::backend::Backend) {
         match sp_dc {
             Some(c) => {
@@ -303,7 +251,6 @@ impl Transfer {
         }
     }
 
-    /// Where the Spotify sign-in window keeps its browser profile.
     pub fn spotify_profile(&self) -> PathBuf {
         self.data_dir.join("webview-spotify")
     }
@@ -312,7 +259,6 @@ impl Transfer {
         crate::vault::get(VAULT, &self.data_dir).and_then(|b| String::from_utf8(b).ok())
     }
 
-    /// Read the signed-in Spotify account and its playlists.
     pub fn load_account(self: &Arc<Self>, rt: &crate::backend::Backend) {
         let Some(cookie) = self.cookie() else {
             *self.account.lock().unwrap() = Account::SignedOut;
@@ -329,7 +275,7 @@ impl Transfer {
             .await;
             let mut account = this.account.lock().unwrap();
             if this.account_gen.load(Ordering::Relaxed) != generation {
-                return; // signed out or in again meanwhile
+                return;
             }
             *account = match res {
                 Ok(a) => Account::SignedIn { name: a.name, library: a.library },
@@ -347,14 +293,12 @@ impl Transfer {
         });
     }
 
-    /// Read the account the first time something shows it.
     pub fn ensure_account(self: &Arc<Self>, rt: &crate::backend::Backend) {
         if matches!(*self.account.lock().unwrap(), Account::Unknown) {
             self.load_account(rt);
         }
     }
 
-    /// Look up a pasted playlist link (once per link), so the page can show what it is.
     pub fn look_up(self: &Arc<Self>, rt: &crate::backend::Backend, link: &str) {
         let link = link.trim().to_owned();
         {
@@ -400,13 +344,11 @@ impl Transfer {
         }
     }
 
-    /// Stop the transfer and forget its progress.
     pub fn cancel(&self) {
         self.cancel.store(true, Ordering::Relaxed);
         self.review_done.notify_one();
     }
 
-    /// Close a finished or failed transfer, back to the start screen.
     pub fn dismiss(&self) {
         let mut job = self.job.lock().unwrap();
         if job.as_ref().is_some_and(|j| !j.phase.running()) {
@@ -414,7 +356,6 @@ impl Transfer {
         }
     }
 
-    /// Record a review decision for the current doubt.
     pub fn decide(&self, doubt: usize, decision: Decision) {
         let mut guard = self.job.lock().unwrap();
         let Some(job) = guard.as_mut() else { return };
@@ -426,8 +367,6 @@ impl Transfer {
         }
     }
 
-    /// Decide a doubt with a song found by hand (a search outside the candidates): it joins
-    /// the candidates and is picked.
     pub fn decide_with(&self, doubt: usize, track: YtTrack) {
         {
             let mut guard = self.job.lock().unwrap();
@@ -436,7 +375,6 @@ impl Transfer {
             let k = match d.candidates.iter().position(|c| c.id == track.id) {
                 Some(k) => k,
                 None => {
-                    // Search results without an album are videos.
                     d.videos.push(track.album.is_none());
                     d.candidates.push(track);
                     d.candidates.len() - 1
@@ -451,9 +389,6 @@ impl Transfer {
         self.wake();
     }
 
-    /// Open a song that matched for a change: it joins the review (its current match is
-    /// kept unless another is picked) and its alternatives are searched. Returns its place
-    /// in the review.
     pub fn edit_match(self: &Arc<Self>, rt: &crate::backend::Backend, index: usize) -> Option<usize> {
         let track = {
             let mut guard = self.job.lock().unwrap();
@@ -478,7 +413,6 @@ impl Transfer {
         Some(self.job.lock().unwrap().as_ref()?.doubts.len() - 1)
     }
 
-    /// Keep the current picks for every song not reviewed yet.
     pub fn finish_review(&self) {
         let mut guard = self.job.lock().unwrap();
         let Some(job) = guard.as_mut() else { return };
@@ -488,8 +422,6 @@ impl Transfer {
         self.review_done.notify_one();
     }
 
-    /// Start a transfer; `resume` picks up the saved progress for the same source and
-    /// destination, otherwise it starts over.
     pub fn start(self: &Arc<Self>, rt: &crate::backend::Backend, source: Source, dest: Dest, resume: bool) {
         if self.running() {
             return;
@@ -555,7 +487,6 @@ impl Transfer {
         let _ = std::fs::remove_file(self.path(source));
     }
 
-    /// Throw away a stopped transfer's progress.
     pub fn discard_saved(&self, source: &Source) {
         self.forget(source);
         *self.resumable.lock().unwrap() = self.find_resumable();
@@ -604,13 +535,11 @@ impl Transfer {
         f(self.job.lock().unwrap().as_mut().expect("transfer job"))
     }
 
-    /// Cancelled: stop. Paused: wait here.
     async fn checkpoint(&self) -> Result<()> {
         loop {
             if self.cancel.load(Ordering::Relaxed) {
                 bail!("cancelled");
             }
-            // The rest would go to another account or channel than the part done.
             if self.pinned.lock().unwrap().as_ref().is_some_and(|(api, epoch)| api.epoch() != *epoch) {
                 bail!("Stopped: the YouTube Music account or channel changed");
             }
@@ -625,7 +554,6 @@ impl Transfer {
         anyhow::ensure!(api.account().is_some(), "Sign in to YouTube Music first");
         let source = self.with_job(|j| j.source.clone());
 
-        // ---- read the Spotify side, or pick up saved progress (for the same destination)
         let dest = self.with_job(|j| j.dest.clone());
         match self.load_saved(&source).filter(|s| s.dest == dest) {
             Some(s) => self.with_job(|j| {
@@ -653,7 +581,6 @@ impl Transfer {
                     Source::Liked => client.liked(progress).await?,
                 };
                 let mut playlist = playlist;
-                // Dev hook: NUVX_TRANSFER_LIMIT=<n> keeps the first n songs.
                 if let Some(n) = std::env::var("NUVX_TRANSFER_LIMIT").ok().and_then(|n| n.parse().ok()) {
                     playlist.tracks.truncate(n);
                 }
@@ -669,7 +596,6 @@ impl Transfer {
             }
         }
 
-        // ---- search YouTube Music; a pass that hits network trouble leaves songs pending for the next
         self.with_job(|j| j.phase = Phase::Searching);
         self.wake();
         for pass in 0..3 {
@@ -683,7 +609,6 @@ impl Transfer {
         let pending = self.with_job(|j| j.count(|r| *r == Search::Pending));
         anyhow::ensure!(pending == 0, "{pending} songs couldn't be searched (no connection, or YouTube Music is limiting requests)");
 
-        // ---- search the doubtful songs again, with videos, for the review
         let doubtful: Vec<usize> = self.with_job(|j| {
             j.phase = Phase::Checking;
             if j.reviewed {
@@ -707,8 +632,6 @@ impl Transfer {
         found.sort_by_key(|(i, _)| *i);
         self.with_job(|j| {
             for (i, cands) in found {
-                // YouTube's results vary between searches, so the second one often has the exact song,
-                // or at least a likelier pick than the first.
                 let t = &j.tracks[i];
                 let songs: Vec<YtTrack> = cands.iter().filter(|(_, video)| !video).map(|(h, _)| h.clone()).collect();
                 if let Some((hit, sure)) = best(&songs, t) {
@@ -726,7 +649,6 @@ impl Transfer {
         });
         self.save();
 
-        // ---- the user goes through what's still doubtful
         if self.with_job(|j| !j.doubts.is_empty()) {
             self.with_job(|j| j.phase = Phase::Review);
             self.wake();
@@ -747,7 +669,6 @@ impl Transfer {
         self.with_job(|j| j.reviewed = true);
         self.save();
 
-        // ---- add them
         self.with_job(|j| j.phase = Phase::Saving);
         self.wake();
         let (ids, picked, dest) = self.with_job(|j| {
@@ -760,7 +681,6 @@ impl Transfer {
         });
         anyhow::ensure!(!ids.is_empty(), "None of the songs were found on YouTube Music");
         let duplicates = picked - ids.len();
-        // Dev hook: NUVX_TRANSFER_DRY=1 does everything but add the songs.
         let dry = std::env::var_os("NUVX_TRANSFER_DRY").is_some();
         let (playlists, already) = match &dest {
             _ if dry => (Vec::new(), 0),
@@ -778,7 +698,6 @@ impl Transfer {
         Ok(())
     }
 
-    /// One pass over the pending songs; returns how many are still pending (failed).
     async fn search_pass(&self, api: &Api) -> Result<usize> {
         let todo: Vec<(usize, Track)> = self.with_job(|j| {
             let todo: Vec<(usize, Track)> = (0..j.tracks.len()).filter(|&i| j.results[i] == Search::Pending).map(|i| (i, j.tracks[i].clone())).collect();
@@ -812,7 +731,6 @@ impl Transfer {
                 self.save();
                 last_save = Instant::now();
             }
-            // Repaint about 8 times a second, not once a song.
             if last_wake.elapsed() > Duration::from_millis(120) {
                 self.wake();
                 last_wake = Instant::now();
@@ -823,9 +741,6 @@ impl Transfer {
         Ok(failed)
     }
 
-    /// Create the playlist (parts of 5,000 for longer lists) and add the songs a batch at
-    /// a time. Progress is saved after each step, so a retry never makes a second
-    /// playlist or adds a batch twice.
     async fn create_playlists(&self, api: &Api, title: &str, ids: &[String]) -> Result<Vec<String>> {
         const BATCH: usize = 200;
         let parts: Vec<&[String]> = ids.chunks(PLAYLIST_MAX).collect();
@@ -838,7 +753,6 @@ impl Transfer {
                     self.checkpoint().await?;
                     let part_title = if parts.len() > 1 { format!("{title} ({})", n + 1) } else { title.to_owned() };
                     let first = &part[..part.len().min(BATCH)];
-                    // Not retried here: one that timed out may still have made the playlist.
                     let id = ytm::create_playlist_with(api, &part_title, first).await.context("Creating the playlist failed")?;
                     self.with_job(|j| {
                         j.created.push(id.clone());
@@ -857,7 +771,6 @@ impl Transfer {
                 }
                 self.checkpoint().await?;
                 let batch = &part[done..(done + BATCH).min(part.len())];
-                // Adding skips songs already in the playlist, so a repeated batch is harmless.
                 retry(|| ytm::add_videos(api, &id, batch)).await.context("Adding songs to the playlist failed")?;
                 self.with_job(|j| {
                     j.added = base + done + batch.len();
@@ -870,11 +783,7 @@ impl Transfer {
         Ok(self.with_job(|j| j.created.clone()))
     }
 
-    /// Like every song that isn't liked yet, oldest first, so Liked Music ends up in
-    /// Spotify's order (newest at the top). Returns how many were liked before the
-    /// transfer. Resuming skips what's liked by then, this transfer's likes included.
     async fn like_all(&self, api: &Api, ids: &[String]) -> Result<usize> {
-        // Not beside likes or unlikes of a selection in the app: they'd undo each other.
         let _turn = match crate::backend::LIKES.try_lock() {
             Ok(turn) => turn,
             Err(_) => {
@@ -905,17 +814,12 @@ impl Transfer {
                 last_save = Instant::now();
             }
         }
-        // Look again: YouTube Music drops some likes it answered as taken, and songs unliked
-        // just before were skipped above as liked. Like what's missing once more. (Songs
-        // that can't be played are liked but never listed; liking them again is harmless.)
-        // Again while that gets anywhere (unplayable songs stay missing).
         let (mut gone, mut before) = (0, usize::MAX);
         for round in 0..3 {
             tokio::time::sleep(Duration::from_secs(2)).await;
             let now = read_liked().await?;
             let missing: Vec<&String> = ids.iter().rev().filter(|id| !now.contains(*id)).collect();
             if round == 0 {
-                // Of those, the ones skipped as liked count as liked by this transfer now.
                 gone = missing.iter().filter(|id| liked.contains(**id)).count();
                 self.with_job(|j| j.saving.1 += gone);
             }
@@ -937,14 +841,10 @@ impl Transfer {
         Ok((ids.len() - todo.len() - gone).saturating_sub(earlier))
     }
 
-    /// Like one song; `count`: it adds to the transfer's liked songs (not when it's one
-    /// liked once already that YouTube Music dropped).
     async fn like_one(&self, api: &Api, id: &str, count: bool) -> Result<()> {
         self.checkpoint().await?;
         let (mut tries, mut hung) = (0, 0);
         loop {
-            // Refusals are held seconds before they're answered: send a slow one again
-            // right away (it isn't a refusal yet, so no pause).
             let Ok(sent) = tokio::time::timeout(crate::backend::LIKE_WAIT, ytm::set_like(api, id, true)).await else {
                 log::debug!("like {id}: no answer in {:?}; sending it again", crate::backend::LIKE_WAIT);
                 hung += 1;
@@ -985,8 +885,6 @@ impl Source {
     }
 }
 
-/// A signed-in request, tried up to three times: YouTube Music now and then refuses one
-/// (a 403 or a timeout) and takes the same request a moment later.
 async fn retry<T, F: std::future::Future<Output = Result<T>>>(mut f: impl FnMut() -> F) -> Result<T> {
     let mut tries = 0;
     loop {
@@ -1005,10 +903,6 @@ fn signed_out(e: &anyhow::Error) -> bool {
     e.chain().any(|c| c.downcast_ref::<crate::ytmapi::ApiError>().is_some_and(|a| a.status == 401))
 }
 
-/// What to search for, best first: the plain title and the main artist, the way a
-/// person types it ("GO The Kid LAROI"), then everything Spotify lists. YouTube Music
-/// answers a query full of "(feat. ...)" and every featured artist with the featured
-/// artist's other songs, not the song.
 fn queries(t: &Track) -> Vec<String> {
     let title = plain_title(&t.name);
     let first = t.artists.first().map(String::as_str).unwrap_or_default();
@@ -1020,7 +914,6 @@ fn queries(t: &Track) -> Vec<String> {
     out
 }
 
-/// The title without "(feat. ...)", "[Remastered]" or " - 2011 Remaster".
 fn plain_title(s: &str) -> &str {
     let cut = s.find(['(', '[']).into_iter().chain(s.find(" - ")).min().unwrap_or(s.len());
     match s[..cut].trim() {
@@ -1029,15 +922,6 @@ fn plain_title(s: &str) -> &str {
     }
 }
 
-/// The best song result for a Spotify track, and whether it's surely the same song.
-/// YouTube's top hit is sometimes another song by the same artist or someone's cover,
-/// so the first five of each search are ranked by title and artist and the top hit only
-/// wins ties. The fuller query runs only when the plain one finds nothing sure.
-///
-/// Searched signed out first: YouTube refuses far fewer of those (about 1 in 20 against
-/// a quarter or more of an account's when it's busy), and a refusal costs only that
-/// search. Signed-out results miss some major-label releases, so a song still not
-/// found surely gets one signed-in search before settling.
 async fn search_song(api: &Api, t: &Track) -> Result<Option<(YtTrack, bool)>> {
     let mut hits: Vec<YtTrack> = Vec::new();
     let add = |hits: &mut Vec<YtTrack>, found: Vec<YtTrack>| {
@@ -1048,7 +932,6 @@ async fn search_song(api: &Api, t: &Track) -> Result<Option<(YtTrack, bool)>> {
     for q in &queries {
         let found = match ytm::search_songs(api, q, false).await {
             Ok(found) => found,
-            // Refused even after retries: the account's search may still answer.
             Err(e) => {
                 log::debug!("transfer: signed-out search refused ({e:#}); searching signed in");
                 ytm::search_tracks_signed_in(api, q, ytm::Filter::Songs).await?
@@ -1070,31 +953,24 @@ async fn search_song(api: &Api, t: &Track) -> Result<Option<(YtTrack, bool)>> {
 }
 
 fn best(hits: &[YtTrack], t: &Track) -> Option<(YtTrack, bool)> {
-    // max_by_key keeps the last of equal scores, so walk from the bottom up.
     let hit = hits.iter().rev().max_by_key(|h| score(h, t))?;
     Some((hit.clone(), matches(hit, t)))
 }
 
-/// What to offer for a doubtful song: the top songs, likeliest first, then videos.
 async fn candidates(api: &Api, t: &Track) -> Result<Vec<(YtTrack, bool)>> {
     let q = queries(t).swap_remove(0);
     let (songs, videos) = tokio::try_join!(ytm::search_tracks_signed_in(api, &q, ytm::Filter::Songs), ytm::search_tracks_signed_in(api, &q, ytm::Filter::Videos))?;
     let mut out: Vec<(YtTrack, bool)> = Vec::new();
     for (hit, video) in songs.into_iter().take(5).map(|s| (s, false)).chain(videos.into_iter().take(3).map(|v| (v, true))) {
-        // The same song is often listed twice, from the album and a single.
         let label = |t: &YtTrack| (t.title.to_lowercase(), t.artist_line().to_lowercase());
         if !out.iter().any(|(h, _)| h.id == hit.id || (!video && label(h) == label(&hit))) {
             out.push((hit, video));
         }
     }
-    // Likeliest songs first; videos stay last, in YouTube's order.
     out.sort_by_key(|(h, video)| (*video, if *video { 0 } else { -score(h, t) }));
     Ok(out)
 }
 
-/// Whether a result is surely the track: its title, one of its artists (or, when YouTube
-/// writes the artist in another script, the same length to a few seconds), and not a
-/// recording of a very different length.
 fn matches(hit: &YtTrack, t: &Track) -> bool {
     let same_length = gap(hit, t).is_some_and(|g| g <= 3);
     title_matches(hit, t) && !too_long_or_short(hit, t) && (artist_matches(hit, t) || (same_length && other_script(hit, t)))
@@ -1104,9 +980,6 @@ fn title_matches(hit: &YtTrack, t: &Track) -> bool {
     title_score(hit, t) > 0
 }
 
-/// 4 for the same title, 3 for one a letter or so off ("Mais Que Nada" for "Mas Que
-/// Nada"), 2 when one holds the other. YouTube writes Japanese and other titles as
-/// "はつこい - Hatsukoi": either half may be the Spotify title.
 fn title_score(hit: &YtTrack, t: &Track) -> i32 {
     let want = base_title(&t.name);
     let parts = std::iter::once(hit.title.as_str()).chain(hit.title.split(" - "));
@@ -1123,7 +996,6 @@ fn title_score(hit: &YtTrack, t: &Track) -> i32 {
         .unwrap_or(0)
 }
 
-/// At most one edit per seven letters, for titles of six letters or more.
 fn similar(a: &str, b: &str) -> bool {
     let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
     let longest = a.len().max(b.len());
@@ -1147,8 +1019,6 @@ fn artist_matches(hit: &YtTrack, t: &Track) -> bool {
     t.artists.iter().any(|a| same_artist(hit, a))
 }
 
-/// Whether a result credits this artist: by name, give or take "The" and a typo, or as
-/// part of a group ("The Miracles" for "Smokey Robinson & The Miracles").
 fn same_artist(hit: &YtTrack, artist: &str) -> bool {
     let name = |s: &str| {
         let s = s.trim();
@@ -1161,25 +1031,19 @@ fn same_artist(hit: &YtTrack, artist: &str) -> bool {
             || hit.artists.iter().map(|a| name(&a.name)).any(|got| similar(&want, &got) || (members.len() > 1 && members.contains(&got))))
 }
 
-/// One side names the artist in Latin letters and the other doesn't ("Junko Yagami" and
-/// "八神純子"), so the names can't be compared.
 fn other_script(hit: &YtTrack, t: &Track) -> bool {
     let latin = |s: &str| s.chars().any(|c| c.is_ascii_alphabetic());
     latin(&t.artist_line()) != latin(&hit.artist_line())
 }
 
-/// How many seconds apart the two lengths are, when both are known.
 fn gap(hit: &YtTrack, t: &Track) -> Option<u32> {
     Some(hit.duration?.abs_diff(t.duration?))
 }
 
-/// A different recording (a live take, an extended mix), not just another master.
 fn too_long_or_short(hit: &YtTrack, t: &Track) -> bool {
     gap(hit, t).is_some_and(|g| g > 30.max(t.duration.unwrap_or(0) / 5))
 }
 
-/// Lowercase alphanumerics, with "(feat. ...)" / " - Remastered" style suffixes cut off.
-/// A title that starts with brackets keeps them: "(Sittin' On) the Dock of the Bay".
 fn base_title(s: &str) -> String {
     let s = s.trim();
     let from = if s.starts_with(['(', '[']) { s.find([')', ']']).map_or(s.len(), |i| i + 1) } else { 0 };
@@ -1188,14 +1052,11 @@ fn base_title(s: &str) -> String {
     norm(&s[..cut])
 }
 
-/// Lowercase letters and digits, with accents dropped ("RŮDE" is "rude") and full-width
-/// forms made plain. Japanese voicing marks stay: they change the word.
 fn norm(s: &str) -> String {
     use unicode_normalization::UnicodeNormalization;
     s.replace('&', "and").nfkd().filter(|c| !('\u{300}'..='\u{36f}').contains(c) && c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
 }
 
-/// Versions that aren't the original recording unless the Spotify title says so.
 const VARIANTS: &[&str] = &[
     "remix", "edit", "mix", "live", "karaoke", "instrumental", "cover", "sped up", "slowed", "acoustic", "version", "made famous", "originally performed", "in the style of", "tribute", "tv size",
 ];
@@ -1208,14 +1069,12 @@ fn score(hit: &YtTrack, t: &Track) -> i32 {
             score += if i == 0 { 3 } else { 1 };
         }
     }
-    // The length only says something about a song with the title (or the title in another script).
     score += match gap(hit, t) {
         Some(0..=3) if title > 0 => 3,
         Some(4..=10) if title > 0 => 1,
         _ if too_long_or_short(hit, t) => -3,
         _ => 0,
     };
-    // A remix on Spotify should find that remix, and an original shouldn't find one.
     let (spotify, youtube) = (t.name.to_lowercase(), hit.title.to_lowercase());
     for v in VARIANTS {
         score += match (youtube.contains(v), spotify.contains(v)) {
@@ -1253,22 +1112,17 @@ mod tests {
     #[test]
     fn ranking() {
         let pick = |t: &Track, hits: Vec<YtTrack>| best(&hits, t).unwrap().0.id;
-        // Another song by the same artist on top.
         let t = track("One Dance", &["Drake", "Wizkid", "Kyla"]);
         assert_eq!(pick(&t, vec![hit("Passionfruit", "Drake"), hit("One Dance", "Drake, Wizkid & Kyla")]), "One Dance");
-        // A cover or edit by someone else.
         let t = track("No Lie", &["Sean Paul", "Dua Lipa"]);
         assert_eq!(pick(&t, vec![hit("No Lie (Relax Edit)", "Release"), hit("No Lie", "Sean Paul & Dua Lipa")]), "No Lie");
-        // Ties go to YouTube's own order.
         let t = track("Numb", &["Linkin Park"]);
         let (a, mut b) = (hit("Numb", "Linkin Park"), hit("Numb", "Linkin Park"));
         b.id = "second".into();
         assert_eq!(pick(&t, vec![a, b]), "Numb");
-        // Only a different song by the same artist: picked, but flagged for review.
         let t = track("Chimp", &["Juice WRLD"]);
         assert!(!best(&[hit("Lucid Dreams", "Juice WRLD")], &t).unwrap().1);
         assert!(best(&[hit("Chimp", "Juice WRLD")], &t).unwrap().1);
-        // Original-script titles with the romanized one after a dash, and "&" for "and".
         assert!(best(&[hit("死ぬのがいいわ - Shinunoga E-Wa", "Fujii Kaze")], &track("Shinunoga E-Wa", &["Fujii Kaze"])).unwrap().1);
         let t = track("Silk & Cologne (EI8HT & Offset) - Spider-Verse Remix", &["EI8HT", "Offset"]);
         assert!(best(&[hit("Silk and Cologne (Spider-Verse Remix)", "EI8HT & Offset")], &t).unwrap().1);
@@ -1287,33 +1141,24 @@ mod tests {
     #[test]
     fn ranking_with_lengths() {
         let pick = |t: &Track, hits: Vec<YtTrack>| best(&hits, t).map(|(h, sure)| (h.id, sure)).unwrap();
-        // The 1967 single, not a 4:35 compilation recording or a smooth-jazz cover.
         let t = track_of("Respect", &["Aretha Franklin"], 147);
         let hits = vec![timed(hit("Respect", "Aretha Franklin"), "long", 275), timed(hit("Respect", "Smooth Jazz All Stars"), "cover", 180), timed(hit("Respect (Mono)", "Aretha Franklin"), "mono", 146)];
         assert_eq!(pick(&t, hits), ("mono".into(), true));
-        // Only a recording of a very different length: picked, but flagged.
         assert!(!best(&[timed(hit("Respect", "Aretha Franklin"), "long", 275)], &t).unwrap().1);
-        // A spelling a letter off by the right artist beats the exact title by someone else.
         let t = track_of("Mas Que Nada", &["Sergio Mendes & Brasil '66"], 159);
         let hits = vec![timed(hit("Mas Que Nada", "Styline, Raul Mendes"), "styline", 275), timed(hit("Mais Que Nada", "Sergio Mendes & Brasil '66"), "real", 159)];
         assert_eq!(pick(&t, hits), ("real".into(), true));
-        // Accents: "RŮDE" is "Rude.".
         assert!(best(&[hit("Loneliness", "Rude.")], &track("Loneliness", &["RŮDE"])).unwrap().1);
-        // The artist in another script, with the same length.
         let t = track_of("夜空のイヤリング", &["Junko Yagami"], 238);
         assert_eq!(pick(&t, vec![timed(hit("夜空のイヤリング", "八神純子"), "a", 239)]), ("a".into(), true));
-        // ...but not someone else's song of the same name and length in the same script.
         let t = track_of("Come To Me", &["ITSA THEIS"], 250);
         assert!(!pick(&t, vec![timed(hit("Come To Me", "itsnottheis"), "a", 251)]).1);
-        // A cover with the English title vs the artist's own "原題 - English title".
         let t = track_of("Fleeting Lullaby", &["Ado"], 173);
         let hits = vec![timed(hit("Fleeting Lullaby (from \"One Piece Film: Red\")", "AmaLee"), "cover", 173), timed(hit("ウタカタララバイ - Fleeting Lullaby", "Ado"), "ado", 174)];
         assert_eq!(pick(&t, hits), ("ado".into(), true));
-        // The remix Spotify names, not the original.
         let t = track_of("You're My Angel - Hypnose Remix Edit", &["Styles & Breeze", "Hypnose"], 170);
         let hits = vec![timed(hit("You're My Angel", "Styles & Breeze"), "orig", 315), timed(hit("You're My Angel (Hypnose Remix Edit)", "Styles & Breeze"), "remix", 171)];
         assert_eq!(pick(&t, hits), ("remix".into(), true));
-        // A length alone doesn't make an unrelated song likelier than the artist's others.
         let t = track_of("Friends Die", &["F1guss"], 205);
         let hits = vec![timed(hit("Burn", "F1guss"), "same artist", 218), timed(hit("Stolen", "ABress"), "same length", 205)];
         assert_eq!(pick(&t, hits), ("same artist".into(), false));
@@ -1329,7 +1174,6 @@ mod tests {
         assert!(best(&[hit("Who's Lovin' You", "Jackson 5")], &track("Who's Lovin' You", &["The Jackson 5"])).unwrap().1);
         assert!(best(&[hit("The Tracks of My Tears", "The Miracles")], &track("The Tracks Of My Tears", &["Smokey Robinson & The Miracles"])).unwrap().1);
         assert!(best(&[hit("A Natural Woman", "Aretha Frankiln")], &track("A Natural Woman", &["Aretha Franklin"])).unwrap().1);
-        // Someone else whose name is in the group's isn't the group.
         assert!(!best(&[hit("Black Magic Woman", "Madeaux")], &track("Black Magic Woman", &["Santana"])).unwrap().1);
         assert!(!best(&[hit("Found a Way", "Drake")], &track("Found a Way", &["Drake Bell"])).unwrap().1);
     }
@@ -1363,9 +1207,6 @@ mod tests {
 
 #[cfg(test)]
 mod live {
-    /// A signed-in session's health: the validity check the app signs out on, a signed-in
-    /// request, a cookie rotation, then both again.
-    /// `NUVX_DATA_DIR=<profile> cargo test --release -- --ignored session_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn session_live() {
@@ -1393,10 +1234,6 @@ mod live {
         }
     }
 
-    /// The bulk paths end to end on a test account: searches the way a transfer does,
-    /// likes everything found the way a selection or transfer does, then unlikes it all,
-    /// checking Liked Music after each and timing them.
-    /// `NUVX_DATA_DIR=<test profile> cargo test --release -- --ignored bulk_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn bulk_live() {
@@ -1411,7 +1248,6 @@ mod live {
             crate::ytm::playlist(api, "LM", true, None).await.map(|p| p.tracks.into_iter().map(|t| t.id).collect()).unwrap_or_default()
         }
 
-        // Songs to work with, from a few searches.
         let mut tracks: Vec<super::Track> = Vec::new();
         for q in ["drake", "taylor swift", "the weeknd", "kendrick lamar", "billie eilish", "travis scott", "sza", "bad bunny", "doja cat", "post malone", "ariana grande", "frank ocean", "tyler the creator", "lana del rey", "j cole"] {
             for t in crate::ytm::search_songs(&api, q, false).await.unwrap_or_default() {
@@ -1422,7 +1258,6 @@ mod live {
         }
         println!("{} songs to search", tracks.len());
 
-        // Search as a transfer does: SEARCHES songs at once.
         let t = Instant::now();
         let found: Vec<String> = stream::iter(tracks.iter())
             .map(|tr| super::search_song(&api, tr))
@@ -1452,8 +1287,6 @@ mod live {
         println!("unlike: {} taken, {} refused in {:.1}s ({:.2} s/song); Liked Music now {}, {left} of {} still listed", done.len(), failed.len(), t.elapsed().as_secs_f32(), t.elapsed().as_secs_f32() / ids.len().max(1) as f32, now.len(), ids.len());
     }
 
-    /// Unlikes everything in Liked Music the way a selection does, and checks.
-    /// `NUVX_DATA_DIR=<test profile> cargo test --release -- --ignored unlike_all_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn unlike_all_live() {
@@ -1466,9 +1299,6 @@ mod live {
         println!("unlike all: {} listed, {} taken, {} refused in {:.1}s; Liked Music now lists {left}", ids.len(), done.len(), failed.len(), t.elapsed().as_secs_f32());
     }
 
-    /// Read-only, signed out: how often YouTube Music refuses searches sent as the app sends
-    /// them against ones with a browser's headers, alternating, from this connection.
-    /// `cargo test --release -- --ignored refusals_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn refusals_live() {
@@ -1505,10 +1335,6 @@ mod live {
         println!("as the app: {} of {} refused; as a browser: {} of {} refused", ours.1, ours.0, browser.1, browser.0);
     }
 
-    /// Read-only, signed out: matches songs from a saved transfer the way a transfer's
-    /// first pass does, and times it. `NUVX_MATCH_N` songs (200) after `NUVX_MATCH_SKIP` (0),
-    /// `NUVX_CONC` at once (`SEARCHES`).
-    /// `NUVX_SAVED=<transfers/x.json> cargo test --release -- --ignored match_speed_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn match_speed_live() {
@@ -1530,8 +1356,6 @@ mod live {
         println!("{} songs in {secs:.1}s ({:.2} s/song): {sure} sure, {unsure} not sure (these get one signed-in search), {failed} failed", tracks.len(), secs / tracks.len() as f32);
     }
 
-    /// Read-only, signed out: artist thumbnail links from a search.
-    /// `cargo test --release -- --ignored artist_thumbs_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn artist_thumbs_live() {
@@ -1542,8 +1366,6 @@ mod live {
         }
     }
 
-    /// Read-only: what music.youtube.com does from a Liked Music row's menu and like button.
-    /// `NUVX_DATA_DIR=<profile> cargo test --release -- --ignored liked_menu_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn liked_menu_live() {
@@ -1566,10 +1388,6 @@ mod live {
         }
     }
 
-    /// On a test account: likes songs from a radio, then takes them out of Liked Music three
-    /// ways, 20 each (fast unlikes, one playlist edit, unlikes 400 ms apart), and watches
-    /// what Liked Music lists after each.
-    /// `NUVX_DATA_DIR=<test profile> cargo test --release -- --ignored removal_methods_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn removal_methods_live() {
@@ -1652,10 +1470,6 @@ mod live {
         watch(&api, c, t).await;
     }
 
-    /// How YouTube Music takes a run of unlikes: unlikes the newest `NUVX_LAG_N` liked songs
-    /// `NUVX_LAG_GAP` ms apart, watches Liked Music, then likes them again oldest first so
-    /// the order is as before.
-    /// `NUVX_DATA_DIR=<profile> cargo test --release -- --ignored unlike_lag_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn unlike_lag_live() {
@@ -1668,7 +1482,6 @@ mod live {
         async fn listed(api: &crate::ytmapi::Api) -> anyhow::Result<Vec<String>> {
             Ok(crate::ytm::playlist(api, "LM", true, None).await?.tracks.into_iter().map(|t| t.id).collect())
         }
-        // NUVX_LAG_MODE=edit: one edit of the Liked Music playlist taking the entries out.
         let edit = std::env::var("NUVX_LAG_MODE").is_ok_and(|m| m == "edit");
         let lm = crate::ytm::playlist(&api, "LM", true, None).await.unwrap();
         let before: Vec<String> = lm.tracks.iter().map(|t| t.id.clone()).collect();
@@ -1704,7 +1517,6 @@ mod live {
                 Err(e) => println!("{:?}: reading Liked Music: {e:#}", t.elapsed()),
             }
         }
-        // Back as they were: oldest first, so the newest ends up on top again.
         for id in pick.iter().rev() {
             if let Err(e) = crate::ytm::set_like(&api, id, true).await {
                 println!("like {id}: {e:#}");
@@ -1723,7 +1535,6 @@ mod live {
         }
     }
 
-    /// The songs that came back doubtful with the old query: `cargo test --release -- --ignored matching_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn matching_live() {
@@ -1748,7 +1559,6 @@ mod live {
         assert_eq!(sure, songs.len());
     }
 
-    /// `NUVX_DATA_DIR=<profile> cargo test --release -- --ignored liked_music_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn liked_music_live() {

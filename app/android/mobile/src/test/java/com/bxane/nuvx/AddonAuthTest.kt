@@ -18,23 +18,14 @@ import java.security.KeyPairGenerator
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 
-/**
- * The app's half of addon auth, without a device. Real attestation needs
- * secure hardware, so [AddonAuth.testHeaders] stands in for it. What is tested
- * is the wire: who receives credentials, when, and how refusals are handled.
- * The signature encoding is also checked, since addons verify it in other
- * languages.
- */
 class AddonAuthTest {
 
     private lateinit var server: MockWebServer
     private val seen = mutableListOf<RecordedRequest>()
     private var manifest = """{"id":"t","name":"T","resources":["search","stream"]}"""
 
-    /** How /search answers: given the token it got (or null), the response. */
     private var search: (String?) -> MockResponse = { ok() }
 
-    /** Tokens handed out by the stand-in, in order. */
     private val issued = mutableListOf<String>()
 
     private fun ok() = MockResponse().setBody("""{"tracks":[{"id":"1","title":"Song","artist":"Artist"}]}""")
@@ -101,7 +92,6 @@ class AddonAuthTest {
         search = { token -> if (token == null) challenge("missing") else ok() }
         assertTrue(client().search("song", AddonClient.TIER_LOSSLESS).isSuccess)
         assertEquals(1, searches().size)
-        // The manifest itself stays public: it is how the app learns to authenticate at all.
         assertNull(seen.first { it.requestUrl?.encodedPath == "/manifest.json" }.getHeader(AddonAuth.TOKEN_HEADER))
     }
 
@@ -131,7 +121,6 @@ class AddonAuthTest {
     @Test
     fun `DER signatures become the 64-byte r-s form WebCrypto and JOSE verify`() {
         val pair = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
-        // Enough rounds to hit r and s with leading zero bytes, the case naive conversions get wrong.
         repeat(300) { i ->
             val message = "nuvx-addon-proof/v1\naddon.example.com\n$i\nhash".toByteArray()
             val der = Signature.getInstance("SHA256withECDSA").run { initSign(pair.private); update(message); sign() }
@@ -153,7 +142,6 @@ class AddonAuthTest {
         assertEquals("addon.example.com", AddonAuth.normalizeHost(" Addon.Example.COM. "))
     }
 
-    /** Must match normalizeTesterCode in the auth service (src/server.js), or a typed code never matches its hash. */
     @Test
     fun `tester codes ignore case, spaces and dashes like the auth service does`() {
         val code = "K7Q2M-9XW4T-ZD3HP-RN8CV-JB6YF"

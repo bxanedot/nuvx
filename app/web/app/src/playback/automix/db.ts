@@ -3,7 +3,6 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { TrackAnalysis } from './analysis/types';
 
 interface AutomixDB extends DBSchema {
-  /** Keyed by YouTube video id (TrackAnalysis.fileKey). */
   tracks: { key: string; value: TrackAnalysis };
 }
 

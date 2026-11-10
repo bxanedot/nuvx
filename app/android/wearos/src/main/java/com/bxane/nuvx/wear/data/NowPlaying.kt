@@ -6,7 +6,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import com.google.android.gms.wearable.DataMap
 import com.bxane.nuvx.wear.WearProtocol as P
 
-/** What the phone says is playing. Built from a [P.PATH_NOW_PLAYING] DataMap. */
 @Immutable
 data class NowPlaying(
     val mediaId: String,
@@ -22,14 +21,12 @@ data class NowPlaying(
     val hasPrevious: Boolean,
     val hasNext: Boolean,
     val liked: Boolean,
-    /** The phone player's own rule: signed in, and not a local file or download. */
     val canLike: Boolean,
     val shuffle: Boolean,
     val repeatMode: Int,
     val colors: List<Color>,
     val artId: String?,
 ) {
-    /** Where the playhead is now, run on from the phone's last reading while it is moving. */
     fun positionAt(wallMs: Long): Long {
         if (!advancing || durationMs <= 0L) return positionMs
         val ran = ((wallMs - positionAt).coerceAtLeast(0L) * speed).toLong()
@@ -40,7 +37,6 @@ data class NowPlaying(
         if (durationMs <= 0L) 0f else (positionAt(wallMs).toFloat() / durationMs).coerceIn(0f, 1f)
 
     companion object {
-        /** Null for "connected, but nothing queued on the phone". */
         fun from(map: DataMap): NowPlaying? {
             if (!map.getBoolean(P.KEY_HAS_TRACK, false)) return null
             return NowPlaying(
@@ -67,7 +63,6 @@ data class NowPlaying(
     }
 }
 
-/** The phone's media volume, in its own steps. */
 @Immutable
 data class Volume(val level: Int, val max: Int) {
     val fraction: Float get() = if (max <= 0) 0f else level.toFloat() / max
@@ -85,15 +80,12 @@ data class QueueRow(
 data class Queue(val rows: List<QueueRow>, val currentIndex: Int, val mediaId: String)
 
 enum class Link {
-    /** Looking for the phone, or waiting on its first answer. */
     Connecting,
 
-    /** No reachable phone with this build of nuvx on it. */
     NoPhone,
 
     Connected,
 }
 
-/** One of the phone's outputs, as its player lists them. */
 @Immutable
 data class PhoneOutput(val id: Int, val name: String, val kind: String, val active: Boolean)

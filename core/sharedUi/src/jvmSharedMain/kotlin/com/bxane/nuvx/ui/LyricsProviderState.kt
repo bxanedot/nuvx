@@ -1,6 +1,5 @@
 package com.bxane.nuvx.ui
 
-/** What the current track's provider picker already knows without another request. */
 enum class LyricsProviderState {
     NOT_FETCHED,
     FETCHING,

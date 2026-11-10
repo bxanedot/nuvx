@@ -59,23 +59,6 @@ import com.bxane.nuvx.data.model.UserPlaylist
 import com.bxane.nuvx.data.model.artworkAt
 import com.bxane.nuvx.ui.theme.ArtworkPalette
 
-/**
- * Rearranges one of the account's playlists: every entry with a handle to drag
- * it by, and nothing sent until Save.
- *
- * Drawn in place of the playlist page's own track list, on that page's
- * artwork colours ([palette]), rather than in a sheet over it — the page is
- * already the playlist, and a sheet's own drag-to-dismiss was one more
- * gesture competing with the rows'. Back closes it, as the X does.
- *
- * Held locally and saved as one edit, rather than sent a move at a time while
- * dragging, because a drag passes through a dozen positions on the way to the
- * one it was meant for, and each of those would otherwise be a request that
- * could land out of order with the next.
- *
- * [entries] is the playlist as YouTube has it now — loading, failed, or the
- * list to start from. [saving] holds the form while the edit is out.
- */
 @Composable
 fun ReorderPlaylistPage(
     playlist: UserPlaylist,
@@ -120,7 +103,6 @@ fun ReorderPlaylistPage(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            // The page's filled pill — white with dark text, as its Play is.
             Button(
                 onClick = { onSave(order.toList()) },
                 enabled = changed && !saving,
@@ -170,16 +152,6 @@ fun ReorderPlaylistPage(
     }
 }
 
-/**
- * The drag itself, over a lazy list so a playlist of hundreds of tracks
- * doesn't compose all of them at once.
- *
- * The held row keeps two numbers: which entry it is ([held], by set-video-id)
- * and how far it is drawn from its own slot ([offset]). Each time its centre
- * crosses into a neighbour the two trade places in [order], and the offset is
- * reduced by exactly the distance its slot just moved, so the row stays under
- * the finger rather than jumping with the swap.
- */
 @Composable
 private fun ReorderableSongList(
     order: MutableList<Song>,
@@ -201,8 +173,6 @@ private fun ReorderableSongList(
         val dragged = items.firstOrNull { it.key == key } ?: return
         val top = dragged.offset + offset
         val center = top + dragged.size / 2f
-        // Songs only: the footer after the last row is a list item too, and
-        // carrying a row onto it would move it to an index past the end.
         val target = items.firstOrNull { item ->
             item.key != key && item.index < order.size &&
                 center >= item.offset && center <= item.offset + item.size
@@ -211,17 +181,12 @@ private fun ReorderableSongList(
             val from = dragged.index
             val to = target.index
             if (from !in order.indices) return
-            // LazyColumn holds its place by the key of the first visible row;
-            // moving that row would drag the whole list along with it, so the
-            // current position is pinned explicitly across the swap.
             val first = listState.firstVisibleItemIndex
             val firstOffset = listState.firstVisibleItemScrollOffset
             order.add(to, order.removeAt(from))
             if (from == first || to == first) listState.requestScrollToItem(first, firstOffset)
             offset -= (target.offset - dragged.offset).toFloat()
         }
-        // Near either edge the list scrolls under the held row, so a track
-        // can be carried further than one screen.
         val viewport = listState.layoutInfo
         autoScroll = when {
             top < viewport.viewportStartOffset + edgeZone && listState.canScrollBackward -> -edgeSpeed
@@ -245,8 +210,6 @@ private fun ReorderableSongList(
             previous = now
             val scrolled = listState.scrollBy(autoScroll * seconds)
             if (scrolled == 0f) break
-            // The list moved and the finger didn't: the row's slot went with
-            // the list, so the row is drawn that much further from it.
             offset += scrolled
             settle()
         }
@@ -293,9 +256,6 @@ private fun ReorderRow(
     onDragEnd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Holding anywhere on the row picks it up too, not only the handle — the
-    // handle is a small target, and a long press is what lists elsewhere on
-    // the phone teach people to try first.
     val gestures = Modifier.pointerInput(enabled) {
         if (!enabled) return@pointerInput
         detectDragGesturesAfterLongPress(
@@ -311,7 +271,6 @@ private fun ReorderRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // Opaque when lifted: it is drawn over the rows it passes.
             .background(if (lifted) palette.elevated.compositeOver(palette.background) else Color.Transparent)
             .then(gestures)
             .padding(start = 22.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),

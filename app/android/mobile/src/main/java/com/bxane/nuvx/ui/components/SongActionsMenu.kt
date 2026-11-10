@@ -71,32 +71,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-/**
- * Long-press menu for a track, in the shape music apps normally use.
- *
- * The account actions lead — rating, playlists, library — because they are
- * what the menu is opened for; the queue and navigation rows below it were
- * always the fallback for "I meant to do something with this song".
- *
- * Everything that writes to the account is hidden outright when [signedIn] is
- * false rather than shown and refused. A track playing from a local file or a
- * finished download (`song.localUri != null`) carries no YouTube identity to
- * rate, fetch again or share, so it gets the offline player's rows instead:
- * Like and Add to playlist against the device's own playlists (see
- * [com.bxane.nuvx.data.OfflinePlaylists]), signed in or not.
- *
- * [showSleepTimer] and [onShare] are the player's extras: a sleep timer isn't a
- * property of some row in a list, so it only appears where it means something.
- *
- * [onDownload] is only the *start* of a download — cancelling one and deleting
- * a saved file are answered here, because neither needs anything the caller
- * has. Starting one might: below API 29 it needs a storage permission that only
- * an Activity can ask for.
- *
- * Only the rows, in the iOS panel's own colours: the frame is the host's —
- * [IosMenuPopover] hung off the ⋮ or the player's ⋯ that opened it, or
- * [HeldContextMenu] under the row a hold lifted.
- */
 @Composable
 fun SongActionsMenu(
     song: Song,
@@ -106,12 +80,6 @@ fun SongActionsMenu(
     onAddToQueue: () -> Unit,
     onStartRadio: () -> Unit,
     onDownload: () -> Unit,
-    /**
-     * Copies this track to the WebDAV server. Null hides the row — the caller
-     * passes one only for a readable device file while a server is
-     * configured. Uploading while another upload of the same track runs just
-     * re-runs it; the conflict dialog keeps that idempotent.
-     */
     onUploadToWebDav: (() -> Unit)? = null,
     onToggleLike: () -> Unit,
     onToggleDislike: () -> Unit,
@@ -120,94 +88,35 @@ fun SongActionsMenu(
     onOpenArtist: (String) -> Unit,
     modifier: Modifier = Modifier,
     onRemoveFromPlaylist: (() -> Unit)? = null,
-    /**
-     * Takes this track out of the song cache. Null hides the row — the caller
-     * passes one only while the cache actually holds some of it.
-     */
     onRemoveFromCache: (() -> Unit)? = null,
-    /**
-     * Removes this track from the account's listening history. Null hides the
-     * row — the History screen passes one only when the menu is opened there.
-     */
     onRemoveFromHistory: (() -> Unit)? = null,
     showSleepTimer: Boolean = false,
-    /**
-     * Sends the playing track back to YouTube's own upload, and keeps it there.
-     * Offered for any player item that has one behind it — a substituted copy
-     * can be the wrong recording from the first second, not only after a
-     * visible upgrade. See
-     * [com.bxane.nuvx.playback.hasYouTubeOriginal].
-     */
     onRollbackToOriginal: (() -> Unit)? = null,
-    /**
-     * The way back from a revert: available only for a player item the listener
-     * has pinned to YouTube's own upload, where nothing will go looking for a
-     * better copy again until they ask.
-     * See [com.bxane.nuvx.playback.OriginalVersion].
-     */
     onUpgradeQuality: (() -> Unit)? = null,
-    /** Keeps the upgrade row visible but untappable while its lookup is running. */
     upgradeQualityInProgress: Boolean = false,
-    /**
-     * Switches the playing track between its video and audio-only cuts. Null
-     * hides the row — offered for the playing track only. See
-     * [com.bxane.nuvx.playback.PlaybackService.smoothSwapCurrentTrackVersion].
-     */
     onToggleAudioVersion: (() -> Unit)? = null,
-    /** Which cut is playing now, so the row can offer the other one. */
     isAudioVersion: Boolean = false,
-    /**
-     * A switch already looked for the other cut and found none: the row says
-     * so, greyed out, rather than offering the same dead end again.
-     */
     audioVersionMissing: Boolean = false,
     onShare: (() -> Unit)? = null,
-    /**
-     * Copies what the app logged while starting this track. Null everywhere
-     * except the player, where "this track" means something.
-     */
     onCopyLog: (() -> Unit)? = null,
-    /** Opens the timing control offered only by the main player's menu. */
     onLyricsOffset: (() -> Unit)? = null,
-    /**
-     * Opens the Automix mix popup on the next transition. Null hides the row —
-     * the player passes one only while Automix is on.
-     */
     onAutomixOverview: (() -> Unit)? = null,
-    /**
-     * True while a lookup for this track's album/artist ids is still in
-     * flight, so it isn't yet known whether "Open album" and "Open artist"
-     * belong on this menu at all. Only the player ever opens a menu before
-     * it knows; everywhere else this is simply false, and the two rows behave
-     * as before — present when the id is there, absent when it never was.
-     */
     resolvingLinks: Boolean = false,
 ) {
     var showingSongInfo by remember(song.videoId) { mutableStateOf(false) }
     var pickingSleepTimer by remember { mutableStateOf(false) }
-    // A menu has no pages to swap, so Song Info opens as a dialog.
     if (showingSongInfo) SongInfoDialog(song) { showingSongInfo = false }
-    // Neutral rather than the sleeve's colours: the panel floats over the page
-    // or the player, and an accent pitched against the artwork's tint is not
-    // guaranteed to read against the panel.
     val palette = neutralMenuPalette()
     val liked = likeStatus == LikeStatus.LIKE
     val disliked = likeStatus == LikeStatus.DISLIKE
-    // A local file or a finished download has no YouTube identity behind it to
-    // rate, save, queue into a playlist, fetch again, or share a link for.
     val isOffline = song.localUri != null
 
     val rows: @Composable ColumnScope.() -> Unit = {
-        // Groups are drawn as they turn out to have something in them, and the
-        // separator goes *before* a group, never after — so a menu whose last
-        // group is empty doesn't end on a stray line.
         var drawnAny = false
         fun startsGroup(): Boolean = drawnAny.also { drawnAny = true }
         val canRate = isOffline || signedIn
         val shareAction = onShare?.takeIf { !isOffline }
 
-        // Leads with the actions it is opened for most, as tiles: the rating
-        // — kept up after a tap, so the new state shows in place — and Share.
         if (canRate || shareAction != null) {
             if (startsGroup()) IosMenuSeparator()
             IosMenuQuickActions {
@@ -219,8 +128,6 @@ fun SongActionsMenu(
                         onClick = onToggleLike,
                     )
                 }
-                // No dislike for a device file: there is no recommendation
-                // feed on the device for one to steer.
                 if (signedIn && !isOffline) {
                     IosMenuQuickAction(
                         icon = if (disliked) BrokenHeart.Fill else BrokenHeart.Outline,
@@ -235,15 +142,6 @@ fun SongActionsMenu(
             }
         }
 
-        // Leads the list whenever it's available: which recording is playing
-        // is the one question that has to be answered before any of the rows
-        // below mean anything — there is no point rating, queueing or
-        // downloading the wrong version of a song.
-        //
-        // The two are never both present — one is offered for a track playing
-        // a substituted copy, the other for a track held on YouTube's own —
-        // and between them they are the whole of the choice, which is why they
-        // sit in the same group.
         if (onRollbackToOriginal != null || onUpgradeQuality != null || onToggleAudioVersion != null) {
             if (startsGroup()) IosMenuSeparator()
             (onRollbackToOriginal ?: onUpgradeQuality)?.let {
@@ -261,9 +159,6 @@ fun SongActionsMenu(
                     onClick = it,
                 )
             }
-            // Which recording, not which quality — a different question from
-            // the row above, so it sits right under it rather than merged
-            // into it.
             onToggleAudioVersion?.let {
                 ActionRow(
                     icon = if (isAudioVersion) SfIcons.Video else SfIcons.MusicNote,
@@ -282,10 +177,6 @@ fun SongActionsMenu(
             }
         }
 
-        // The account's rows, or for a local file or download the offline
-        // player's own pair: a heart that files the track under this device's
-        // Liked playlist, and the device's playlists. [likeStatus] is that
-        // playlist's answer there, not YouTube's, and neither needs an account.
         if (canRate) {
             if (startsGroup()) IosMenuSeparator()
             ActionRow(
@@ -304,9 +195,6 @@ fun SongActionsMenu(
             }
         }
 
-        // Where the track goes next, and what is kept of it. The file rows
-        // ride in this group rather than one of their own because for a
-        // device file they can all be absent, and a group may not be empty.
         if (startsGroup()) IosMenuSeparator()
         ActionRow(
             icon = SfIcons.Shuffle,
@@ -346,7 +234,6 @@ fun SongActionsMenu(
         }
 
         if (startsGroup()) IosMenuSeparator()
-        // Names where each one leads under it, as a menu's "Go to" does.
         when (val id = song.albumId) {
             null -> if (resolvingLinks) {
                 LoadingActionRow(SfIcons.Album, stringResource(R.string.open_album), palette)
@@ -373,8 +260,6 @@ fun SongActionsMenu(
             showingSongInfo = true
         }
 
-        // The player's own: about the track playing right now rather than
-        // about the song as a thing in a library.
         if (showSleepTimer || onLyricsOffset != null || onAutomixOverview != null || onCopyLog != null) {
             if (startsGroup()) IosMenuSeparator()
             if (showSleepTimer) {
@@ -385,8 +270,6 @@ fun SongActionsMenu(
                     accent = palette.accent,
                 ) { pickingSleepTimer = true }
             }
-            // The same popup "Mixing" opens mid-blend, on the transition
-            // still to come.
             onAutomixOverview?.let {
                 ActionRow(
                     icon = SfIcons.GraphicEq,
@@ -395,9 +278,6 @@ fun SongActionsMenu(
                     onClick = it,
                 )
             }
-            // Local files and completed downloads use the same player lyric
-            // clock (including embedded synced lyrics), so they need this
-            // control just as much as streamed songs do.
             onLyricsOffset?.let {
                 ActionRow(
                     icon = SfIcons.Sliders,
@@ -406,7 +286,6 @@ fun SongActionsMenu(
                     onClick = it,
                 )
             }
-            // Last: the one row here nobody reaches for by accident.
             onCopyLog?.let {
                 ActionRow(SfIcons.Bug, stringResource(R.string.copy_log), accent = palette.accent, onClick = it)
             }
@@ -415,8 +294,6 @@ fun SongActionsMenu(
 
     CompositionLocalProvider(LocalActionRowStyle provides ActionRowStyle.Menu) {
         Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-            // The player's menu has the sleep timer, and swaps its rows for
-            // the picker in place.
             if (pickingSleepTimer) {
                 SleepTimerPicker(palette = palette, onBack = { pickingSleepTimer = false })
             } else {
@@ -426,19 +303,10 @@ fun SongActionsMenu(
     }
 }
 
-/**
- * Row density and layout, set by whichever surface the rows are drawn on: the
- * playlist picker's sheet, or a menu panel.
- */
 internal enum class ActionRowStyle { Sheet, Menu }
 
 internal val LocalActionRowStyle = staticCompositionLocalOf { ActionRowStyle.Sheet }
 
-/**
- * The popup's colours: the iOS menu panel's own, so the menu reads the same in
- * light and dark whatever the artwork is. Shaped as an [ArtworkPalette] so every
- * row below takes it exactly as it takes a sleeve's.
- */
 @Composable
 private fun neutralMenuPalette(): ArtworkPalette {
     val accent = MaterialTheme.colorScheme.primary
@@ -456,21 +324,6 @@ private fun neutralMenuPalette(): ArtworkPalette {
     }
 }
 
-/**
- * One row carrying the whole life of a download: start it, watch it, cancel it,
- * and delete what it produced.
- *
- * A row rather than a screen because that is the size of the decision. The
- * files land in the device's own Music folder, which already has a manager
- * — the Files app — and building a second one inside this app would be
- * duplicating it in a worse place. What this app uniquely knows is which *song*
- * a file belongs to, and that is exactly what this row says.
- *
- * The state comes straight from [Downloads] rather than through the caller: it
- * changes while the menu is open, and threading a flow through the menu's
- * signature would buy nothing over reading it where it's drawn — the same
- * arrangement the sleep timer row already uses.
- */
 @Composable
 private fun DownloadRow(song: Song, palette: ArtworkPalette, isOffline: Boolean, onDownload: () -> Unit) {
     val context = LocalContext.current
@@ -478,22 +331,11 @@ private fun DownloadRow(song: Song, palette: ArtworkPalette, isOffline: Boolean,
     val active by Downloads.active.collectAsStateWithLifecycle()
     val saved by Downloads.saved.collectAsStateWithLifecycle()
 
-    // The record is a claim about a folder the user manages themselves, so it
-    // is checked against the disk rather than trusted — re-checked whenever the
-    // record for this track changes, which is what makes the row settle onto
-    // "Saved" the moment a download finishes.
-    //
-    // Seeded with the record rather than with null so that moment isn't a
-    // flicker: a finished download clears the running state and writes the
-    // record in the same breath, and starting pessimistic would show "Download"
-    // again for as long as the check off the main thread takes.
     val recorded = saved[song.videoId]
     val file by produceState(recorded?.let(Uri::parse), song.videoId, recorded) {
         value = Downloads.savedUri(context, song.videoId)
     }
 
-    // A failure is worth stating once. Leaving it set would have the row still
-    // reporting last week's dead connection the next time the menu is opened.
     DisposableEffect(song.videoId) {
         onDispose { Downloads.dismissFailure(song.videoId) }
     }
@@ -509,8 +351,6 @@ private fun DownloadRow(song: Song, palette: ArtworkPalette, isOffline: Boolean,
         is DownloadState.Running -> ActionRow(
             icon = SfIcons.Download,
             label = stringResource(R.string.download_notification_title),
-            // Indeterminate until the first response names a length; a
-            // stuck "0%" reads as broken where a bare label reads as starting.
             value = if (state.fraction > 0f) "${(state.fraction * 100).toInt()}%" else null,
             tint = palette.accent,
             accent = palette.accent,
@@ -520,8 +360,6 @@ private fun DownloadRow(song: Song, palette: ArtworkPalette, isOffline: Boolean,
             icon = SfIcons.ErrorOutline,
             label = state.reason,
             value = stringResource(R.string.retry),
-            // Not the artwork's colour: a failure has to stay legible as a
-            // failure whatever the sleeve happens to be tinted.
             tint = MaterialTheme.colorScheme.error,
             accent = MaterialTheme.colorScheme.error,
             onClick = onDownload,
@@ -546,15 +384,6 @@ private fun DownloadRow(song: Song, palette: ArtworkPalette, isOffline: Boolean,
     }
 }
 
-/**
- * Sends a device file to the WebDAV server. Sits beside the download row
- * because it is the same idea in the other direction — and like that row it
- * reads its state where it is drawn rather than threading it through the
- * menu's signature.
- *
- * Shown only for readable local files. A track already on the server, or a
- * stream with no bytes on this device, has nothing to send up.
- */
 @Composable
 private fun WebDavUploadRow(
     song: Song,
@@ -572,7 +401,6 @@ private fun WebDavUploadRow(
             value = "${(state.fraction * 100).toInt()}%",
             tint = palette.accent,
             accent = palette.accent,
-            // In flight already; there is no cancel, so the row only reports.
             onClick = {},
         )
         is WebDavUploads.TrackState.Failed -> ActionRow(
@@ -592,13 +420,11 @@ private fun WebDavUploadRow(
     }
 }
 
-/** End of track or a duration, plus a way out once one is running. */
 @Composable
 private fun SleepTimerPicker(palette: ArtworkPalette, onBack: () -> Unit) {
     val chosen by SleepTimer.minutes.collectAsStateWithLifecycle()
     val afterTrack by SleepTimer.afterTrack.collectAsStateWithLifecycle()
     val countdown = sleepTimerCountdown()
-    // A running timer no preset matches is a custom one: the row ticks and names it.
     val custom = chosen?.takeIf { it !in SleepTimer.PRESETS }
     var pickingCustom by remember { mutableStateOf(false) }
 
@@ -627,8 +453,6 @@ private fun SleepTimerPicker(palette: ArtworkPalette, onBack: () -> Unit) {
         )
         HorizontalDivider(thickness = 0.5.dp, color = palette.divider)
 
-        // Finishing the song is the one people reach for at the end of a
-        // listen, so it leads rather than sitting under the durations.
         SleepOption(
             label = stringResource(R.string.after_this_song),
             selected = afterTrack,
@@ -667,11 +491,6 @@ private fun SleepTimerPicker(palette: ArtworkPalette, onBack: () -> Unit) {
     }
 }
 
-/**
- * Back arrow, title and a line under it — the top of both sleep timer pages.
- * The title at the size of a menu row's label, as the heading of a menu's own
- * sub-page, not a page's.
- */
 @Composable
 private fun SleepTimerHeader(title: String, subtitle: String, onBack: () -> Unit) {
     val colors = iosMenuColors()
@@ -709,12 +528,6 @@ private fun SleepTimerHeader(title: String, subtitle: String, onBack: () -> Unit
     }
 }
 
-/**
- * Any length up to twelve hours, set the way the player's lyrics offset is:
- * a large readout over the player's own thin slider, with − and + for a
- * single step either way. A page of this menu rather than an alert on top
- * of it, so it stays on the panel like the presets it sits with.
- */
 @Composable
 private fun CustomSleepTimerPage(
     palette: ArtworkPalette,
@@ -798,7 +611,6 @@ private fun StepButton(
     }
 }
 
-/** "45 min", or "1h 25m" from an hour up. */
 @Composable
 private fun sleepDuration(minutes: Int): String = if (minutes >= 60) {
     stringResource(R.string.hours_minutes_short, minutes / 60, minutes % 60)
@@ -813,7 +625,6 @@ private fun SleepOption(
     accent: Color,
     onClick: () -> Unit,
 ) {
-    // The tick leads, in the glyph column, as a menu's picker marks its choice.
     IosMenuRow(
         label = label,
         icon = if (selected) SfIcons.Check else null,
@@ -822,14 +633,12 @@ private fun SleepOption(
     )
 }
 
-/** What the sleep timer row shows on the right, or null when none is armed. */
 @Composable
 private fun sleepTimerStatus(): String? {
     val afterTrack by SleepTimer.afterTrack.collectAsStateWithLifecycle()
     return sleepTimerCountdown() ?: stringResource(R.string.after_this_song).takeIf { afterTrack }
 }
 
-/** Live "m:ss" until the sleep timer fires, or null when none is running. */
 @Composable
 private fun sleepTimerCountdown(): String? {
     val deadline by SleepTimer.deadline.collectAsStateWithLifecycle()
@@ -846,17 +655,6 @@ private fun sleepTimerCountdown(): String? {
     }
 }
 
-/**
- * One line of an actions list: an iOS menu row on a menu panel, a full-width
- * row on the playlist picker's sheet — so the two read as the same control
- * rather than as two lists that happen to look alike.
- *
- * [tint] is for rows whose icon carries state — a filled heart on a liked
- * track — and is otherwise the ordinary foreground. [accent] colours the
- * trailing [value], and defaults to the app's own red; a surface with an
- * accent of its own passes that instead, so the row belongs to what it is
- * drawn on.
- */
 @Composable
 internal fun ActionRow(
     icon: ImageVector,
@@ -865,7 +663,6 @@ internal fun ActionRow(
     tint: Color? = null,
     accent: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
-    /** A dimmer second line — only the popup draws it, as iOS menus do. */
     description: String? = null,
     onClick: () -> Unit,
 ) {
@@ -916,12 +713,6 @@ internal fun ActionRow(
     }
 }
 
-/**
- * Stands in for [ActionRow] while whether it belongs on the menu at all is
- * still unknown — "Open album" or "Open artist" before the lookup for their
- * ids has come back. A spinner rather than the row simply being missing, so
- * it doesn't read as decided against until it actually is.
- */
 @Composable
 private fun LoadingActionRow(icon: ImageVector, label: String, palette: ArtworkPalette) {
     IosMenuRow(label = label, icon = icon, onClick = null, enabled = false) {
@@ -933,13 +724,6 @@ private fun LoadingActionRow(icon: ImageVector, label: String, palette: ArtworkP
     }
 }
 
-/**
- * The track the playlist picker is adding, drawn at its head — the same track
- * the menu it was opened from was about.
- *
- * [subtitleColor] is for ground other than the flat theme background, where
- * the usual dim grey may not hold.
- */
 @Composable
 internal fun SheetTrackHeader(
     song: Song,
@@ -980,7 +764,6 @@ internal fun SheetTrackHeader(
     }
 }
 
-/** The heading over a sheet's second half — "Add to playlist". */
 @Composable
 internal fun SheetHeading(text: String) {
     Text(

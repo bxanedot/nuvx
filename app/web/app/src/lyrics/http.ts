@@ -1,19 +1,6 @@
 import { BridgeCallError } from '@nuvx/shared/bridge';
 import { getBridge } from '@/extension/bridge';
 
-/**
- * The providers' one way out (LyricsHttp.kt): a GET that answers with the body
- * or null, never an exception. They're raced against each other, so the
- * deadline is short: a lyric that arrives after the second chorus is no use.
- *
- * - `direct`: from the page, for the hosts that allow cross-site requests;
- *   if the browser blocks it anyway (BetterLyrics allows some origins and
- *   not others), it's retried through the extension.
- * - `extension`: always through the extension's `lyrics.fetch`, for hosts
- *   that send no CORS headers or need headers a page can't set.
- */
-
-/** Hosts the page can't reach itself: KuGou, Musixmatch, Genius and Apple's catalogue (for PaxSenix). */
 export const LYRIC_EXTENSION_ORIGINS = [
   'https://mobileservice.kugou.com',
   'https://lyrics.kugou.com',
@@ -30,7 +17,6 @@ export const LYRIC_EXTENSION_ORIGINS = [
 const DIRECT_TIMEOUT_MS = 6000;
 const EXTENSION_TIMEOUT_MS = 15_000;
 
-/** Lyric hosts the extension was refused for: the panel offers to allow them. */
 export const ungrantedOrigins = new Set<string>();
 const listeners = new Set<() => void>();
 export function onUngrantedChange(listener: () => void): () => void {
@@ -39,17 +25,11 @@ export function onUngrantedChange(listener: () => void): () => void {
 }
 
 const grantListeners = new Set<() => void>();
-/** Called once a refused host has been allowed, so the lookups it failed can run again. */
 export function onGranted(listener: () => void): () => void {
   grantListeners.add(listener);
   return () => grantListeners.delete(listener);
 }
 
-/**
- * Asks the extension which refused hosts it may reach now. The grant happens
- * on the extension's own page in another tab, so this runs when nuvx's
- * tab comes back.
- */
 export async function recheckGrants(): Promise<void> {
   const bridge = getBridge();
   if (!bridge || !ungrantedOrigins.size) return;
@@ -68,7 +48,6 @@ if (typeof window !== 'undefined') {
 export interface GetOptions {
   route?: 'direct' | 'extension';
   headers?: Record<string, string>;
-  /** Longer deadline for authenticated routes that look things up upstream (PaxSenix). */
   patient?: boolean;
 }
 
@@ -105,13 +84,11 @@ export async function lyricsGet(url: string, { route = 'direct', headers, patien
     });
     return response.ok ? await response.text() : null;
   } catch (error) {
-    // A CORS refusal looks like a network error from here; the extension isn't bound by it.
     if (error instanceof TypeError) return viaExtension(url, headers);
     return null;
   }
 }
 
-/** A URL with query parameters, skipping empty ones. */
 export function urlWith(base: string, params: Record<string, string | number | null | undefined>): string {
   const url = new URL(base);
   for (const [key, value] of Object.entries(params)) {

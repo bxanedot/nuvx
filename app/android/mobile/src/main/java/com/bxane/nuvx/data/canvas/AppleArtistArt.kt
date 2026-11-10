@@ -17,18 +17,6 @@ import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.Locale
 
-/**
- * What Apple Music's artist page shows at the top: a hero photograph, usually
- * the artist's title logo drawn over it as a separate image, and for some
- * artists a looping video that stands in for the photograph.
- *
- * [logoUrl] is a transparent PNG, null for the many artists without one;
- * [logoAspect] is its width over its height, so the caller can size it without
- * waiting for the image to decode. [videoUrl] is an HLS playlist.
- *
- * [background] and [accent] are Apple's own colours for the photograph (as
- * ARGB), so the page can be tinted without decoding the image to find them.
- */
 data class AppleArtistArt(
     val heroUrl: String,
     val logoUrl: String?,
@@ -36,29 +24,11 @@ data class AppleArtistArt(
     val videoUrl: String?,
     val background: Int,
     val accent: Int,
-    /** The colour Apple fills the artist's Play button with; absent for some artists. */
     val keyColor: Int?,
 )
 
-/** Apple's colours for this artist, in the form the palette takes. */
 fun AppleArtistArt.keyColors() = ArtworkKeyColors(Color(background), Color(accent))
 
-/**
- * Finds [AppleArtistArt] from nothing but an artist's name.
- *
- * Two public, unauthenticated requests: the iTunes search API turns the name
- * into an Apple Music artist id, and the artist's own music.apple.com page
- * carries its header art in the JSON it embeds for hydration. That JSON is not
- * an API Apple publishes, so every step here treats a surprise as "no art" —
- * the YouTube header is always underneath.
- *
- * A name is not an identity: Apple has a "Krsna" who is not YouTube's KR$NA,
- * and a search will happily return either. So a same-named Apple artist is only
- * taken when their catalogue shares a song or release title with the YouTube
- * page's own ([appleCatalogue]). Answers are cached per YouTube browse id,
- * since two channels with one name can deserve different answers. Most artists
- * have no logo; those, and every miss, are cached so a revisit costs nothing.
- */
 object AppleArtistArtRepository {
 
     private const val TAG = "AppleArtistArt"
@@ -78,29 +48,11 @@ object AppleArtistArtRepository {
 
     private val _updates = MutableStateFlow(0)
 
-    /**
-     * Ticks whenever a lookup settles. The page that asked for the art is not the
-     * only thing coloured by it — the bars above and below the page are drawn
-     * from outside it — so anything that reads [cached] re-reads on this.
-     */
     val updates: StateFlow<Int> = _updates
 
-    /**
-     * What is already known for the YouTube artist [browseId], without a
-     * request — null for a page never looked up *and* for one known to have
-     * nothing, which is the same thing to a caller that is only deciding what
-     * to draw first.
-     */
     fun cached(browseId: String): AppleArtistArt? =
         synchronized(cache) { cache[browseId] }?.art
 
-    /**
-     * The header art for the YouTube artist [browseId], billed as [artistName],
-     * or null when Apple has none — or none that provably is this artist.
-     * [catalogue] gives the page's own song and release titles, and is only
-     * asked on a cache miss since it may cost a page fetch; with none, nothing
-     * can be proved and nothing is asked. Never throws.
-     */
     suspend fun artFor(
         browseId: String,
         artistName: String,
@@ -112,8 +64,6 @@ object AppleArtistArtRepository {
         val titles = AppleCatalogue.keys(runCatching { catalogue() }.getOrDefault(emptyList()))
         if (titles.isEmpty()) return null
 
-        // Null here is a network hiccup, not an answer — only a settled result
-        // (including a genuine "no logo") is worth remembering.
         val entry = withContext(Dispatchers.IO) {
             runCatching { lookup(artistName, key, titles) }
                 .onFailure { Log.d(TAG, "lookup failed for $artistName: $it") }
@@ -135,14 +85,10 @@ object AppleArtistArtRepository {
             val r = results.getJSONObject(i)
             if (r.optString("artistName").normalized() != key) continue
             val id = r.optLong("artistId").takeIf { it > 0 } ?: continue
-            // Every same-named candidate is checked, not just the first: the one
-            // Apple ranks highest is often the wrong one of two.
             if (!AppleCatalogue.sharesTitles(id, titles)) {
                 Log.d(TAG, "$artistName: Apple ${r.optString("artistName")} ($id) shares no titles, skipped")
                 continue
             }
-            // The link carries the artist's slug; the bare id answers with
-            // a redirect to it, one more round trip for the same page.
             page = r.optString("artistLinkUrl").substringBefore('?').takeIf { it.isNotBlank() }
                 ?: "https://music.apple.com/us/artist/$id"
             break
@@ -162,7 +108,6 @@ object AppleArtistArtRepository {
         val header = findHeader(JSONObject(html.substring(start, end).let { "{\"d\":$it}" }).get("d"))
             ?: return null
 
-        // Absent for most artists: the key is there and null.
         val logo = header.optJSONObject("artistLogo")?.optJSONObject("dictionary")
         val hero = (header.optJSONObject("artwork") ?: header.optJSONObject("colorBackdropArtwork"))
             ?.optJSONObject("dictionary") ?: return null
@@ -183,8 +128,6 @@ object AppleArtistArtRepository {
         val clip = header.optJSONObject("videoArtwork")?.optJSONObject("dictionary")
             ?.optJSONObject("motionArtistSquare1x1")
         val video = clip?.optString("video")?.takeIf { it.startsWith("http") }
-        // The clip is a different picture from the still, with its own colours
-        // — the page has to match whichever one is on screen.
         val colours = clip?.optJSONObject("previewFrame")?.takeIf { video != null } ?: hero
         val background = colours.optString("bgColor").toArgb()
             ?: hero.optString("bgColor").toArgb() ?: return null
@@ -200,7 +143,6 @@ object AppleArtistArtRepository {
         )
     }
 
-    /** The first object anywhere in [node] that has an `artistLogo` key. */
     private fun findHeader(node: Any?): JSONObject? {
         when (node) {
             is JSONObject -> {
@@ -213,7 +155,6 @@ object AppleArtistArtRepository {
         return null
     }
 
-    /** Apple's colours are six hex digits with no prefix. */
     private fun String.toArgb(): Int? =
         takeIf { it.length == 6 }?.toIntOrNull(16)?.let { 0xFF000000.toInt() or it }
 
@@ -236,9 +177,5 @@ object AppleArtistArtRepository {
     private fun String.normalized(): String = AppleCatalogue.matchKey(this)
 }
 
-/**
- * The titles an artist page vouches for, as the evidence
- * [AppleArtistArtRepository.artFor] checks Apple's artist against.
- */
 fun DetailPage.appleCatalogue(): List<String> =
     AppleCatalogue.titlesOf((songs as? UiState.Success)?.data.orEmpty(), sections)

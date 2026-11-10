@@ -3,26 +3,8 @@ package com.bxane.nuvx.data.canvas
 import java.text.Normalizer
 import java.util.Locale
 
-/**
- * Which provider a clip came from — read in one place, by
- * [CanvasArtworkPlayer][com.bxane.nuvx.ui.player.CanvasArtworkPlayer]'s
- * caller, to decide whether the backdrop should keep re-tinting itself off
- * the clip as it loops rather than settling on its first frame. See that
- * call site for why Spotify's Canvas gets the periodic re-tint and the other
- * three don't.
- */
 enum class CanvasSource { SPOTIFY, OTHER }
 
-/**
- * A looping video that stands in for a track's cover art — what Spotify calls
- * a Canvas and Apple calls motion artwork.
- *
- * [url] is what the player mounts; [fallbackUrl] is tried once if that errors,
- * which is how the Apple provider hands over a second rendition of the same
- * clip when the preferred one won't decode. The three metadata fields are not
- * decoration: providers search by free text and will happily return the wrong
- * album's clip, so [matches] re-checks the answer against what's playing.
- */
 data class CanvasArtwork(
     val url: String,
     val fallbackUrl: String? = null,
@@ -30,24 +12,8 @@ data class CanvasArtwork(
     val artist: String? = null,
     val album: String? = null,
     val source: CanvasSource = CanvasSource.OTHER,
-    /**
-     * The same clip framed 3:4, when the provider has one. Only the phone
-     * player takes it (it runs the clip under the whole screen); everywhere
-     * else keeps the square [url].
-     */
     val portraitUrl: String? = null,
 ) {
-    /**
-     * Whether this clip really belongs to the track we asked about.
-     *
-     * Title and artists must match exactly once punctuation, case and accents
-     * are stripped — a near miss here is a different song by the same artist,
-     * which is the one failure mode users notice. The album is only held to
-     * that standard when both sides know it: nuvx resolves a track's album
-     * asynchronously after the player opens, and a track queued from search
-     * may never get one, so requiring it outright would mean no canvas at all
-     * for most of a session.
-     */
     fun matches(wantTitle: String, wantArtist: String, wantAlbum: String?): Boolean {
         val titleOk = title == null || wantTitle.isBlank() ||
             title.normalizeForMatch() == wantTitle.normalizeForMatch()
@@ -65,11 +31,6 @@ data class CanvasArtwork(
     }
 }
 
-/**
- * Case, accents and punctuation all differ between YouTube Music, Apple and
- * Tidal for the same release — "Beyoncé - CRAZY IN LOVE (feat. JAY-Z)" against
- * "Beyonce Crazy in Love feat Jay Z". Fold all three away before comparing.
- */
 fun String.normalizeForMatch(): String =
     Normalizer.normalize(this, Normalizer.Form.NFD)
         .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
@@ -78,11 +39,6 @@ fun String.normalizeForMatch(): String =
         .replace(Regex("\\s+"), " ")
         .trim()
 
-/**
- * One credit string into its individual artists. Every service picks its own
- * separator — commas, ampersands, "feat.", a bare "x" between collaborators —
- * so comparing the joined strings would fail on formatting alone.
- */
 fun splitArtists(raw: String): List<String> =
     raw.split(ARTIST_SEPARATORS)
         .map { it.normalizeForMatch() }

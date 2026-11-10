@@ -71,28 +71,6 @@ import com.bxane.nuvx.ui.components.thumbnailBorder
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-/**
- * Where a track goes: one of the account's playlists, or a new one.
- *
- * Two panels in one sheet rather than a sheet that opens a dialog. Creating a
- * playlist here is nearly always in service of adding the track that opened
- * this — so the form comes back to the same place, and the create request
- * carries the track with it instead of leaving a new empty playlist behind
- * for the user to add to a second time. The sheet is full height from the
- * start, so swapping panels never moves the window.
- *
- * [song] is null when the flow started from the Library tab rather than from a
- * track, which is the one case where the header has no track to draw and
- * "New playlist" is the whole point of the sheet.
- *
- * Playlists are ticked rather than picked: one track often belongs in more
- * than one list, and a sheet that closed on the first tap meant opening it
- * again for each. [onAdd] gets every ticked playlist at once.
- *
- * [offline] is the same sheet over the device's own playlists, for a track
- * that is a file on it: nothing is saved to the account, so the new-playlist
- * form says where it goes instead and has no visibility to pick.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistPickerSheet(
@@ -106,14 +84,10 @@ fun PlaylistPickerSheet(
     offline: Boolean = false,
 ) {
     var creating by remember { mutableStateOf(startCreating) }
-    // By id rather than by value: the list is re-fetched under an open sheet,
-    // and a refreshed row must stay ticked.
     var selected by remember { mutableStateOf(emptySet<String>()) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    // Once only: the sheet is still up, and tappable, while it slides away, and
-    // a second tap on the tick would file the track a second time.
     var closing by remember { mutableStateOf(false) }
     val closeAfter: (() -> Unit) -> Unit = { action ->
         if (!closing) {
@@ -126,14 +100,10 @@ fun PlaylistPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        // It reaches the top of the screen, where corners would only cut two
-        // notches out of the status bar's background.
         shape = RectangleShape,
         containerColor = MaterialTheme.colorScheme.background,
         dragHandle = null,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
-        // Back is this sheet's to carry out, below: left to M3 it closes the whole
-        // sheet from either panel, and takes the ticks with it.
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
     ) {
         BackHandler {
@@ -147,8 +117,6 @@ fun PlaylistPickerSheet(
         ) {
             if (creating) {
                 NewPlaylistForm(
-                    // Nowhere to go back to when the sheet opened straight onto
-                    // the form, so that bar closes it instead.
                     onBack = if (startCreating) null else ({ creating = false }),
                     onClose = { closeAfter {} },
                     onCreate = { name, privacy -> closeAfter { onCreate(name, privacy) } },
@@ -183,9 +151,6 @@ fun PlaylistPickerSheet(
                 )
 
                 when {
-                    // Only while there is nothing to show: re-fetching under a
-                    // list that is already up would replace it with a spinner
-                    // for no gain.
                     loading && playlists.isEmpty() -> Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -233,11 +198,6 @@ fun PlaylistPickerSheet(
     }
 }
 
-/**
- * Way out on the left, tick on the right, and whatever the panel wants to say
- * in between: the sheet's two panels share these, so the tick stays put when
- * one swaps for the other.
- */
 @Composable
 private fun SheetTopBar(
     leadingIcon: ImageVector,
@@ -323,10 +283,6 @@ private fun PlaylistRow(playlist: UserPlaylist, selected: Boolean, onClick: () -
     }
 }
 
-/**
- * Name and visibility, and nothing else. YouTube also takes a description,
- * which nobody fills in from a phone at the moment of saving a song.
- */
 @Composable
 private fun NewPlaylistForm(
     onBack: (() -> Unit)?,
@@ -339,8 +295,6 @@ private fun NewPlaylistForm(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
-    // The form exists to be typed into; opening it with the keyboard already
-    // up saves the tap that would otherwise always follow.
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     val submit: () -> Unit = {
@@ -429,7 +383,6 @@ private fun NewPlaylistForm(
             }
         }
 
-        // A playlist on the device is seen by whoever holds the device.
         if (!offline) {
             SheetHeading(stringResource(R.string.who_can_see_it).uppercase(Locale.getDefault()))
             Row(
@@ -452,12 +405,6 @@ private fun NewPlaylistForm(
     }
 }
 
-/**
- * Renaming one of the account's playlists: what [BrowseActionsMenu]'s Rename
- * hands on to, raised by the host as a sheet of its own — a text field and its
- * keyboard have no place on a floating menu. Same reason the create form lives
- * inside [PlaylistPickerSheet].
- */
 @Composable
 internal fun RenamePlaylistForm(
     playlist: UserPlaylist,
@@ -478,8 +425,6 @@ internal fun RenamePlaylistForm(
         }
     }
 
-    // The form opens with the keyboard already up, which on a bottom sheet
-    // would otherwise sit over the button the form exists to reach.
     Column(
         modifier
             .fillMaxWidth()
@@ -543,11 +488,6 @@ internal fun RenamePlaylistForm(
     }
 }
 
-/**
- * The glyph that says what a visibility actually means — a padlock, a shared
- * link, a globe. Three words that all sound like degrees of the same thing
- * read much faster as three different shapes.
- */
 private val PlaylistPrivacy.icon: ImageVector
     get() = when (this) {
         PlaylistPrivacy.PRIVATE -> SfIcons.Lock
@@ -555,7 +495,6 @@ private val PlaylistPrivacy.icon: ImageVector
         PlaylistPrivacy.PUBLIC -> SfIcons.Public
     }
 
-/** The search filters' pill, carrying an icon ahead of its label. */
 @Composable
 private fun PrivacyPill(
     icon: ImageVector,

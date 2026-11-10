@@ -18,9 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.lang.reflect.Method
 
-/**
- * Realtime telemetry model capturing actual negotiated Bluetooth A2DP codec and transport state.
- */
 data class BluetoothTelemetry(
     val isConnected: Boolean = false,
     val deviceName: String? = null,
@@ -35,11 +32,6 @@ data class BluetoothTelemetry(
     val isHighRes: Boolean
         get() = (sampleRateHz != null && sampleRateHz > 48000) || (bitDepth != null && bitDepth > 16)
 
-    /**
-     * Whether [codecName] names a codec Android actually reported. False for every
-     * placeholder ("System Managed", "Unknown"), so callers never render a stand-in
-     * string as if it were a negotiated codec.
-     */
     val hasNamedCodec: Boolean
         get() = isAuthoritative && codecName.isNotBlank() && codecName != "Unknown"
 
@@ -59,17 +51,6 @@ data class BluetoothTelemetry(
     }
 }
 
-/**
- * Authoritative, non-blocking tracker monitoring Bluetooth A2DP codec and configuration changes.
- *
- * Features:
- * - Listens for [BluetoothA2dp.ACTION_CODEC_CONFIG_CHANGED] broadcasts for realtime updates.
- * - Queries active A2DP profile state using safe reflection across all Android versions.
- * - Extracts actual codec (LDAC, LHDC, aptX HD, aptX, AAC, SBC), sample rate, and bit depth.
- * - For LDAC, inspects vendor-specific bits for exact operational bitrate (990/660/330 kbps or ABR).
- * - NEVER invents, estimates, or infers bitrate from the codec name alone.
- * - Fully isolated from the audio callback thread: state is updated asynchronously and read atomically.
- */
 class BluetoothAudioTracker(private val context: Context) {
 
     private val _telemetry = MutableStateFlow(BluetoothTelemetry())
@@ -135,9 +116,6 @@ class BluetoothAudioTracker(private val context: Context) {
         }
     }
 
-    /**
-     * Starts monitoring Bluetooth codec and connection broadcasts.
-     */
     fun start() {
         if (!isReceiverRegistered) {
             val filter = IntentFilter().apply {
@@ -170,9 +148,6 @@ class BluetoothAudioTracker(private val context: Context) {
         }
     }
 
-    /**
-     * Stops monitoring and releases profile proxies.
-     */
     fun stop() {
         if (isReceiverRegistered) {
             try {
@@ -192,10 +167,6 @@ class BluetoothAudioTracker(private val context: Context) {
         _telemetry.value = BluetoothTelemetry()
     }
 
-    /**
-     * Asynchronously queries the active A2DP device's codec status.
-     * Uses BLUETOOTH_CONNECT permission when granted; falls back safely to AudioManager if not.
-     */
     fun refreshCurrentDevice() {
         val a2dp = a2dpProfile ?: return
 
@@ -239,7 +210,6 @@ class BluetoothAudioTracker(private val context: Context) {
                 "Bluetooth Device"
             }
 
-            // Query codec status via A2DP profile proxy
             val method: Method? = try {
                 a2dp.javaClass.getMethod("getCodecStatus", BluetoothDevice::class.java)
             } catch (_: Throwable) {
@@ -333,9 +303,6 @@ class BluetoothAudioTracker(private val context: Context) {
         val bitsMask = codecConfig.bitsPerSample
         val codecSpecific1 = codecConfig.codecSpecific1
 
-        // API 35's extended type is the only public place a vendor codec —
-        // LHDC, aptX Adaptive/Lossless — is named; the classic codecType has
-        // no constant for any of them.
         val extendedName = if (Build.VERSION.SDK_INT >= 35) {
             runCatching { codecConfig.extendedCodecType?.codecName }.getOrNull()?.takeIf { it.isNotBlank() }
         } else {
@@ -432,7 +399,6 @@ class BluetoothAudioTracker(private val context: Context) {
         const val ACTION_CODEC_CONFIG_CHANGED = "android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED"
         const val EXTRA_CODEC_STATUS = "android.bluetooth.extra.CODEC_STATUS"
 
-        // BluetoothCodecConfig Codec Types
         const val SOURCE_CODEC_TYPE_SBC = 0
         const val SOURCE_CODEC_TYPE_AAC = 1
         const val SOURCE_CODEC_TYPE_APTX = 2
@@ -473,15 +439,6 @@ class BluetoothAudioTracker(private val context: Context) {
             else -> null
         }
 
-        /**
-         * Parses LDAC vendor-specific parameter 1 for the configured nominal quality mode.
-         *
-         * AOSP LDAC values (from a2dp_vendor_ldac_constants.h):
-         * 1000 = High Quality (990 kbps nominal)
-         * 1001 = Standard (660 kbps nominal)
-         * 1002 = Connection Priority (330 kbps nominal)
-         * 1003 = Adaptive Bitrate (ABR)
-         */
         fun parseLdacQualityMode(param1: Long): String? = when (param1) {
             1000L -> "High Quality (990 kbps nominal)"
             1001L -> "Standard (660 kbps nominal)"
@@ -490,11 +447,6 @@ class BluetoothAudioTracker(private val context: Context) {
             else -> null
         }
 
-        /**
-         * Parses LDAC bitrate information.
-         * Nominal mode and realtime bitrate are kept strictly separated:
-         * realtime bitrate is never guessed or faked and remains "Not exposed by Android".
-         */
         fun parseLdacBitrate(param1: Long): Pair<String, String?> {
             return Pair("Not exposed by Android", parseLdacQualityMode(param1))
         }

@@ -23,25 +23,12 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import com.bxane.nuvx.wear.WearProtocol as P
 
-/**
- * What the phone's "nuvx for Wear OS" settings need from this side: which
- * build is installed, and a way to put a newer one on without a computer.
- *
- * The phone carries the watch APK built alongside it and sends it over a
- * Wearable channel; this hands it to the platform installer. Android asks the
- * wearer to confirm the first time — the app was installed by ADB, so it is
- * not yet the installer of record — and a background app may not open that
- * prompt itself, so it is offered as a notification to tap. Once an update has
- * gone through here, nuvx *is* the installer of record and later updates
- * need no tap at all.
- */
 object SelfUpdate {
 
     private const val TAG = "NuvxWear"
     private const val CHANNEL = "updates"
     private const val NOTIFICATION_ID = 2
 
-    /** Answers the phone's [P.PATH_WATCH_INFO_REQUEST]. Blocking: a listener thread. */
     fun publishInfo(context: Context) {
         val app = context.applicationContext
         val info = runCatching { app.packageManager.getPackageInfo(app.packageName, 0) }.getOrNull() ?: return
@@ -49,7 +36,6 @@ object SelfUpdate {
             dataMap.putLong(P.KEY_VERSION_CODE, info.longVersionCode)
             dataMap.putString(P.KEY_VERSION_NAME, info.versionName.orEmpty())
             dataMap.putString(P.KEY_APK_SHA256, apkHash(app, info.lastUpdateTime))
-            // Always a change, so asking twice still answers.
             dataMap.putLong(P.KEY_POSITION_AT, System.currentTimeMillis())
         }
         runCatching {
@@ -57,7 +43,6 @@ object SelfUpdate {
         }.onFailure { Log.w(TAG, "info publish failed: ${it.message}") }
     }
 
-    /** SHA-256 of the installed APK, remembered per install so it is read once. */
     private fun apkHash(context: Context, installedAt: Long): String {
         val prefs = context.getSharedPreferences("self_update", Context.MODE_PRIVATE)
         if (prefs.getLong("hashed_at", -1) == installedAt) prefs.getString("hash", null)?.let { return it }
@@ -77,15 +62,6 @@ object SelfUpdate {
 
     private fun incoming(context: Context) = File(context.cacheDir, "update/nuvx.apk")
 
-    /**
-     * A newer APK arriving on [P.PATH_APK].
-     *
-     * Play services is handed the file to fill rather than this process reading
-     * the stream itself: a Galaxy Watch freezes a background app a few seconds
-     * after it is woken, and a few megabytes over Bluetooth takes longer than
-     * that — read here, the transfer stalled mid-way every time. Play services
-     * is never frozen; it says when it is done ([onReceived]).
-     */
     fun receive(context: Context, channel: ChannelClient.Channel) {
         val app = context.applicationContext
         val file = incoming(app).apply {
@@ -97,7 +73,6 @@ object SelfUpdate {
         }.onFailure { Log.w(TAG, "update receive failed", it) }
     }
 
-    /** The transfer [receive] started has ended; hand a complete file to the installer. */
     fun onReceived(context: Context, channel: ChannelClient.Channel, closeReason: Int) {
         val app = context.applicationContext
         val file = incoming(app)
@@ -109,7 +84,6 @@ object SelfUpdate {
         val installer = app.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(app.packageName)
-            // Silent when allowed — once this app is its own installer of record.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
@@ -138,15 +112,8 @@ object SelfUpdate {
         }
     }
 
-    /**
-     * The installer's prompt, waiting for the app to be on screen to show it.
-     * A Galaxy Watch silences notifications from apps its phone has not
-     * allowed, so the notification below can arrive with no alert at all;
-     * the phone opens the app (see WearActivity) and the app shows this.
-     */
     val pendingConfirm = MutableStateFlow<Intent?>(null)
 
-    /** The installer needs the wearer's yes: held for the app, and offered as a notification too. */
     internal fun askToConfirm(context: Context, confirm: Intent) {
         pendingConfirm.value = confirm
         val manager = NotificationManagerCompat.from(context)
@@ -176,7 +143,6 @@ object SelfUpdate {
     }
 }
 
-/** The installer's answer for [SelfUpdate.receive]'s session. */
 class InstallResultReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {

@@ -1,19 +1,5 @@
 package com.bxane.nuvx.data.settings
 
-/**
- * Stream bitrate ceiling on the YouTube fallback path — MEDIUM, HIGH and
- * LOSSLESS all mean "whatever the best available Opus format is" there; what
- * actually tells them apart is which other sources are allowed to answer
- * *before* YouTube gets asked. That part is [permits], and the rungs read:
- *
- * - [LOSSLESS] — the user's own addons and JioSaavn both asked.
- * - [HIGH] — the addons skipped, JioSaavn asked.
- * - [MEDIUM] and [LOW] — both skipped; YouTube's own Opus ladder is all there
- *   is, capped at [maxKbps].
- *
- * [hourly] is what the ceiling costs in data over an hour of listening, which
- * is the only part of this a user actually cares about on a metered plan.
- */
 enum class AudioQuality(
     val maxKbps: Int,
     val label: String,
@@ -27,19 +13,14 @@ enum class AudioQuality(
     ;
 }
 
-/** What the phone's main player stands on, below the artwork. */
 enum class PlayerTheme {
-    /** The artwork's own colours hung off its bottom edge, as a mesh. */
     DEFAULT,
 
-    /** Four quantised blobs, drifting behind the whole screen. */
     LEGACY,
 
-    /** The cover blurred across the whole screen, as the lyrics and queue are. */
     SIMPLE,
 }
 
-/** The surface that was last open inside the expanded player. */
 enum class LastPlayerScreen {
     MAIN,
     LYRICS,

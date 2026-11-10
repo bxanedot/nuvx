@@ -165,14 +165,11 @@ class BoundedQueuePlannerTest {
         assertTrue(additions.all { it.cycleId == 0L })
 
         window.jumpTo(3)
-        // The player still has bounded history, but no CONTEXT entries after
-        // the current terminal track after AutoPlay is stashed.
         val physicalContextTail = emptyList<QueueWindowEntry>()
         val nextCycle = BoundedQueuePlanner.topUpEntries(window, physicalContextTail, true)
         assertEquals(listOf(0, 1, 2, 3), nextCycle.map { it.canonicalIndex })
         assertTrue(nextCycle.all { it.cycleId == 1L })
 
-        // Once that tail is present, the same repeat-all top-up is idempotent.
         assertTrue(BoundedQueuePlanner.topUpEntries(window, nextCycle, true).isEmpty())
     }
 
@@ -229,8 +226,6 @@ class BoundedQueuePlannerTest {
                 }
                 if (additions.isNotEmpty()) queue.addAll(additions)
 
-                // At exactly low water, leaving the queue short is intentional;
-                // the next transition crosses the refill threshold.
                 assertEquals(desired.take(queue.entries.size), queue.entries)
                 assertTrue(queue.entries.size <= WINDOW_AHEAD)
             }

@@ -47,52 +47,9 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-/**
- * The artwork's own colours, upside down and reduced to a mesh, for the player
- * to stand on.
- *
- * [MeshGradientBackground] answers a different question: it asks the quantiser
- * what colours a sleeve is *about* and paints four blobs of them. That is why a
- * cover that is nine-tenths black with a red stripe came out as a red screen —
- * the quantiser reports red because red is the interesting answer, and nothing
- * downstream knows how little of the picture it was. It also has no idea *where*
- * in the frame that red was.
- *
- * This is the other approach: no quantiser at all. The sleeve is averaged into a
- * [MESH_GRID] square of means; the row against the seam is kept in place, and
- * everything below it is flipped and then rotated sideways — see
- * [rotatedBelowSeam]. What the backdrop holds is the cover's own colours,
- * roughly in the cover's own proportions (nine-tenths black stays nine-tenths
- * black) and with each cell's neighbours exactly what they were in the source,
- * but not lined up in the cover's own *position*: a flip on its own reads as a
- * reflection on any cover with real structure to it — a face, a horizon, a
- * logo — however coarse the grid, because the layout still lines up column for
- * column with what's on screen above it. The rotation is what actually breaks
- * that column-for-column match; the coarseness just keeps any one cell from
- * being recognisable on its own.
- *
- * Held as a tiny bitmap rather than a list of colours because that is exactly
- * what the hardware wants: one [DrawScope.drawImage] with bilinear filtering
- * interpolates the whole mesh in the sampler. The alternative — a blob per cell,
- * as the old backdrop draws — would be thirty-six full-screen radial gradients.
- */
 @Immutable
 class ArtworkMesh internal constructor(internal val image: ImageBitmap)
 
-/**
- * One pre-blurred bitmap for the full-cover player backdrop.
- *
- * This deliberately does not use Compose's full-screen `Modifier.blur`: that is
- * a live RenderEffect and the first frame which makes it visible can pay for a
- * screen-sized blur while the player is already animating. Instead a 128px copy
- * is decoded from Coil's existing artwork request, blurred once on a worker
- * thread, and cached by URL. Drawing it thereafter is one bilinear image sample.
- * The small decode and CPU pass are staggered by the caller after a song change,
- * so they never land on the track hand-off itself.
- *
- * The last cover's blur is held until the new one is ready, so a skip never
- * drops the backdrop to its fallback grey in between.
- */
 @Composable
 fun rememberFullArtworkBlurImage(
     imageUrl: String?,
@@ -109,8 +66,6 @@ fun rememberFullArtworkBlurImage(
         }
         if (!prepare || imageUrl == null) return@LaunchedEffect
         val request = ImageRequest.Builder(context)
-            // Same URL as the player's 1200px sleeve, so this is a small decode
-            // from Coil's shared fetch/disk result rather than another download.
             .data(imageUrl.artworkAt(artPx))
             .size(FULL_BLUR_SOURCE_PX)
             .forPixelAccess()
@@ -125,20 +80,6 @@ fun rememberFullArtworkBlurImage(
     return image
 }
 
-/**
- * The player's backdrop wherever there is no sleeve to hang a mesh off: the
- * lyrics, the queue and a tablet — and the main player too under
- * [PlayerTheme.SIMPLE][com.bxane.nuvx.data.settings.PlayerTheme.SIMPLE]. One
- * copy of the cover cropped across the complete bounds and blurred in place,
- * with any artwork above feathering its own bottom edge into it.
- *
- * The blur is baked into [image] (see [rememberFullArtworkBlurImage]), so this
- * is a plain image draw: nothing here re-blurs while the player moves or a
- * clip plays over it. A new cover crossfades in over the last one.
- *
- * It looks the same in all three states and reads nothing that moves, so moving
- * between them never redraws it: only what sits on top of it changes.
- */
 @Composable
 fun FullArtworkBlurBackdrop(
     image: ImageBitmap?,
@@ -161,55 +102,21 @@ fun FullArtworkBlurBackdrop(
             }
         }
 
-        // Everything on this is white: the lyrics, the queue and the main
-        // player's controls. Preserve the cover's colour and layout, but keep
-        // bright sleeves from lowering contrast.
         Canvas(Modifier.fillMaxSize()) { drawRect(brush = FullArtworkScrim) }
     }
 }
 
-/**
- * The mesh for the artwork at [imageUrl], or null until one has been read.
- *
- * [canvasFrame] — a frame grabbed off a playing motion cover — takes over when
- * one arrives, for the reason [rememberArtworkColors] describes: a clip is
- * frequently graded nothing like the still sleeve it replaces. A caller that
- * keeps sending fresh ones gets a backdrop that follows the clip; see
- * [CanvasArtworkPlayer]'s `frameCapturePx` for what one of them costs.
- */
 @Composable
 fun rememberArtworkMesh(
     imageUrl: String?,
     canvasFrame: ImageBitmap? = null,
-    /**
-     * The artwork size to read, which should be the one the caller already has
-     * on screen. Nothing here survives being averaged into thirty-six cells, so
-     * resolution buys nothing and a shared disk-cache entry buys everything —
-     * ask for a size no one is showing and the backdrop sits flat until a
-     * second copy of the same cover comes over the wire.
-     */
     artPx: Int = CARD_ART_PX,
 ): ArtworkMesh? {
     val context = LocalPlatformContext.current
-    // The last mesh that was on screen, whatever it was read from. A cover
-    // the cache has never seen decodes *over* this instead of blanking the
-    // backdrop to nothing for the beat the decode takes — which is the
-    // flicker a version switch showed every time its cut arrived carrying
-    // its own thumbnail. Wrong colour for one decode is the trade; absent
-    // colour was the flicker.
     val heldMesh = remember { mutableStateOf<ArtworkMesh?>(null) }
-    // Seeded from the cache so a cover that has been seen before is on colour
-    // in its first frame, with nothing to fade in from — and from
-    // [heldMesh] otherwise, carried over for the reason above.
-    // A clip's last mesh comes first: the player reopening on that clip's still
-    // should stand on the clip's colours, not fade to them from the sleeve's.
     var mesh by remember(imageUrl) {
         mutableStateOf(imageUrl?.let { clipMeshFor(it) ?: meshCache[it] } ?: heldMesh.value)
     }
-    // What the mesh on screen was actually read from: null while it is a
-    // carry-over from the previous cover. Without this the guard below would
-    // read the carried mesh as this cover's own answer and never decode the
-    // new one.
     var meshUrl by remember(imageUrl) {
         mutableStateOf(
             if (imageUrl != null && (clipMeshFor(imageUrl) != null || meshCache[imageUrl] != null)) {
@@ -226,14 +133,8 @@ fun rememberArtworkMesh(
         val request = ImageRequest.Builder(context)
             .data(imageUrl.artworkAt(artPx))
             .size(MESH_PX)
-            .forPixelAccess() // the sleeve has to be read back pixel by pixel
+            .forPixelAccess()
             .build()
-        // Tried more than once, because this effect is keyed on the artwork and
-        // nothing else: a read that fails is not retried by Coil and cannot be
-        // re-triggered from here, so one dropped connection used to leave the
-        // backdrop flat — no colour behind the player at all — until the track
-        // changed. The cover on top of it has the same guard for the same
-        // reason; see [NowPlayingScreen]'s artAttempt.
         repeat(MESH_ATTEMPTS) { attempt ->
             if (attempt > 0) delay(MESH_RETRY_DELAY_MS)
             val result = SingletonImageLoader.get(context).execute(request)
@@ -244,8 +145,6 @@ fun rememberArtworkMesh(
                     meshCache[imageUrl] = found
                     mesh = found
                 }
-                // A cover that decoded but had no mesh in it — see [meshOf] —
-                // is an answer, not a failure. Asking again gets the same one.
                 meshUrl = imageUrl
                 return@LaunchedEffect
             }
@@ -254,10 +153,6 @@ fun rememberArtworkMesh(
 
     LaunchedEffect(canvasFrame) {
         val frame = canvasFrame ?: return@LaunchedEffect
-        // Reject frames that are too dark or uniform — they are almost always
-        // the first read after a surface recreation, before ExoPlayer has
-        // decoded real content.  A frame whose mean luminance is below this
-        // threshold is discarded; the last valid mesh is kept instead.
         val found = withContext(Dispatchers.Default) {
             if (isLikelyBlackFrame(frame)) null else meshOf(frame, imageUrl?.hashCode() ?: 0)
         } ?: return@LaunchedEffect
@@ -268,65 +163,26 @@ fun rememberArtworkMesh(
     return mesh
 }
 
-/**
- * The player's backdrop: [mesh] hung from where the artwork stops, and stretched
- * over everything below it.
- *
- * The mesh is anchored rather than centred. Its first row is the sleeve's own
- * bottom edge and it is drawn starting at [seam], so the colour immediately
- * under the artwork is the colour the artwork ended on and there is no join to
- * hide. Above [seam] that first row is simply held — that stretch is behind the
- * artwork, and holding it means the backdrop is continuous everywhere rather
- * than only below the sleeve.
- *
- * ### What this costs
- *
- * One bilinear draw of a 32-texel texture, stretched by the sampler, and no
- * `RenderEffect`. The softness a full-screen blur used to supply is baked into
- * that texture off the main thread when it is read — see [MESH_BLUR_RADIUS] — so
- * nothing here has to be re-blurred as it changes, whatever it is sitting under.
- * A skip or a clip's new colours cost one fade of two such draws, and between
- * them the backdrop is only composited, however the player above it moves.
- *
- * The old backdrop paid a 60Hz blur permanently, for blobs orbiting behind a
- * screen nobody was looking at; see [MeshGradientBackground]'s note.
- */
 @Composable
 fun ArtworkMeshBackdrop(
     mesh: ArtworkMesh?,
     modifier: Modifier = Modifier,
-    /**
-     * How far down the surface the artwork's bottom edge sits. Zero for a
-     * surface with no artwork over it, which puts the whole mesh on screen. Read
-     * in the draw, so a seam that moves costs no composition.
-     */
     seam: () -> Dp = { 0.dp },
-    /** What the surface is before any artwork has been read. */
     fallback: Color = FallbackBackdrop,
 ) {
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
 
-    // The mesh on screen, and the one fading in over it. Two states rather than
-    // one animated value because what crossfades here is a pair of bitmaps, not
-    // a pair of colours: the outgoing one has to stay drawable until the fade
-    // has finished with it.
     var shown by remember { mutableStateOf(mesh) }
     var incoming by remember { mutableStateOf<ArtworkMesh?>(null) }
     val fade = remember { Animatable(0f) }
 
     LaunchedEffect(mesh) {
         val next = mesh ?: return@LaunchedEffect
-        // A change arriving mid-fade. Whatever was fading in has been on screen
-        // for a while and is what the new one should fade *from*; leaving it in
-        // [incoming] would restart the fade from the mesh before it, and a clip
-        // sending frames faster than the fade runs would never settle at all.
         incoming?.let { shown = it }
         incoming = null
         val current = shown
         if (next === current) return@LaunchedEffect
 
-        // Nothing to fade *from* on the first read, and nothing to fade at all
-        // when the user has asked for less motion.
         if (current == null || reduceAnimation) {
             shown = next
             return@LaunchedEffect
@@ -341,20 +197,12 @@ fun ArtworkMeshBackdrop(
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            // A flat opaque floor: the player is a sheet with the app's own pages
-            // behind it, and every pixel here has to be opaque.
             .background(fallback),
     ) {
         val seamY = seam().toPx().coerceIn(0f, size.height)
         shown?.let { drawMesh(it, seamY, alpha = 1f) }
-        // Read here rather than in composition: an Animatable read inside a
-        // draw lambda invalidates the drawing and leaves composition out of it.
         incoming?.let { drawMesh(it, seamY, alpha = fade.value) }
 
-        // Enough of a scrim to keep white text off a bright sleeve, and no
-        // more. The old backdrop needed a heavier one because it lightened
-        // every colour it drew to a fixed band; these are the sleeve's own,
-        // and a sleeve that ends dark should leave a dark screen.
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
@@ -366,18 +214,11 @@ fun ArtworkMeshBackdrop(
     }
 }
 
-/**
- * Paints [mesh] over the whole surface: the grid from [seamY] down, and its
- * first row held from there up. Two draws of one small texture, both stretched
- * by the sampler.
- */
 private fun DrawScope.drawMesh(mesh: ArtworkMesh, seamY: Float, alpha: Float) {
     if (alpha <= 0.001f) return
     val image = mesh.image
     val width = size.width.roundToInt()
 
-    // Above the seam: the sleeve's bottom edge, held. Skipped when the seam is
-    // at the very top, where there is no such stretch to fill.
     if (seamY > 0.5f) {
         drawImage(
             image = image,
@@ -390,7 +231,6 @@ private fun DrawScope.drawMesh(mesh: ArtworkMesh, seamY: Float, alpha: Float) {
         )
     }
 
-    // From the seam down: the mesh itself, stretched over whatever is left.
     drawImage(
         image = image,
         srcOffset = IntOffset.Zero,
@@ -402,26 +242,21 @@ private fun DrawScope.drawMesh(mesh: ArtworkMesh, seamY: Float, alpha: Float) {
     )
 }
 
-/** The shade over the blurred cover, deepening toward the controls at the foot. */
 private val FullArtworkScrim = Brush.verticalGradient(
     0f to Color.Black.copy(alpha = 0.34f),
     0.55f to Color.Black.copy(alpha = 0.48f),
     1f to Color.Black.copy(alpha = 0.64f),
 )
 
-/** Drawn only until an artwork has been read — never a colour anyone chose. */
 private val FallbackBackdrop = Color(0xFF121212)
 
-/** A screen cannot recover detail discarded here; small is the performance feature. */
 private const val FULL_BLUR_SOURCE_PX = 128
 private const val FULL_BLUR_PASSES = 3
 
-/** A handful of recent covers; each entry is only 64 KiB at 128x128 ARGB. */
 private val fullBlurCache = object : LinkedHashMap<String, ImageBitmap>(0, 0.75f, true) {
     override fun removeEldestEntry(eldest: Map.Entry<String, ImageBitmap>) = size > 8
 }
 
-/** Three small box passes approximate a broad Gaussian blur at thumbnail scale. */
 private fun ImageBitmap.boxBlurred(passes: Int): ImageBitmap {
     val width = width
     val height = height
@@ -479,127 +314,41 @@ private fun boxBlurPass(
     }
 }
 
-/**
- * Meshes already read, keyed by artwork URL — the artwork at a URL cannot
- * change, so reading it twice buys a decode and a downsample for the same
- * answer. Touched from composition and from the resumption of
- * [rememberArtworkMesh]'s effect, both on the main thread, so it needs no lock.
- *
- * Clip frames never land here: the next one for the same URL is a different
- * picture, and there would be a new entry several times a second.
- */
 private val meshCache = object : LinkedHashMap<String, ArtworkMesh>(0, 0.75f, true) {
     override fun removeEldestEntry(eldest: Map.Entry<String, ArtworkMesh>) = size > MESH_CACHE_ENTRIES
 }
 
-/** The mesh of the clip last on screen, kept for when the player comes back to it. */
 private class ClipMesh(val imageUrl: String, val mesh: ArtworkMesh)
 
-/** One at a time: a clip's frames only matter for the clip that is playing. */
 private var lastClipMesh: ClipMesh? = null
 
 private fun clipMeshFor(imageUrl: String): ArtworkMesh? =
     lastClipMesh?.takeIf { it.imageUrl == imageUrl }?.mesh
 
-/** A session's worth of covers, at four kilobytes of texture each. */
 private const val MESH_CACHE_ENTRIES = 64
 
-/**
- * What a still sleeve is decoded at before it is averaged down. A whole
- * multiple of [MESH_GRID], so every cell is an equal number of source pixels
- * and no column comes out weighted differently from its neighbour.
- */
 private const val MESH_PX = 120
 
-/**
- * How many goes the backdrop's read gets before it is given up on, and how long
- * it waits between them.
- *
- * Matched to the cover's own retry in [NowPlayingScreen] rather than chosen
- * separately: the two read the same URL out of the same cache, so a run of
- * attempts that gave up at a different point from the cover's would be a way for
- * the backdrop and the artwork on top of it to disagree about whether this track
- * has a picture.
- */
 private const val MESH_ATTEMPTS = 4
 
-/** @see MESH_ATTEMPTS */
 private const val MESH_RETRY_DELAY_MS = 1_500L
 
-/**
- * How many cells across the mesh is.
- *
- * Coarse deliberately — see [ArtworkMesh]. Enough that a cover's layout
- * survives (where the bright part was, how much of the frame it took) and few
- * enough that nothing recognisable does.
- */
 private const val MESH_GRID = 6
 
-/**
- * How far the grid is interpolated on the CPU before the GPU stretches it.
- *
- * Bilinear filtering straight off a 6x6 texture is smooth but not *soft*: it is
- * piecewise-linear, and the eye finds the crease at every cell boundary when
- * they are a hundred and eighty pixels apart. Resampling to this first, with a
- * curve that flattens at each control point, leaves creases too small to see
- * before they are magnified. It costs about a thousand lerps, off the main
- * thread, and the control points come through untouched, so the artwork's
- * proportions are exactly what they were.
- */
 private const val MESH_TEX = 32
 
-/**
- * The mesh's blur, baked in rather than left to a `RenderEffect`: a full-screen
- * one is paid again on every frame the backdrop changes, and keeps a layer the
- * size of the screen the rest of the time. Three box passes of this radius make
- * a Gaussian of about 1.4 texels, the same softness on a phone as the 32dp live
- * blur this replaces, for the same clamped edges and so the same opaque ones.
- */
 private const val MESH_BLUR_RADIUS = 1
 private const val MESH_BLUR_PASSES = 3
 
-/**
- * How long the backdrop takes to change colour, whether that is a track skip or
- * the next frame of a clip playing over the sleeve.
- *
- * Long enough to read as the screen changing colour rather than cutting, and
- * comfortably inside the interval a clip's frames arrive on — see
- * `MESH_REFRESH_MS` in `NowPlayingScreen`. It has to finish before the next one
- * lands, or every fade is cut off partway and the backdrop never settles where
- * a frame actually put it.
- */
 private const val MESH_FADE_MS = 900
 
-/**
- * The most rows and columns of [source] that are actually looked at.
- *
- * A still sleeve is decoded at [MESH_PX] and falls well under this, but a clip
- * frame is whatever size the caller grabbed it at, and every pixel of it would
- * be read to produce thirty-six averages. Sampling on a stride instead bounds
- * the work at a fixed cost per frame however large the frame is, which is what
- * makes it safe to do this several times a second.
- */
 private const val MESH_SAMPLE = 128
 
-/**
- * Averages [source] into the mesh texture, flipped top to bottom and then
- * rotated sideways — see [rotatedBelowSeam] for why the flip alone isn't the
- * finish line.
- *
- * Row 0 of the grid is the sleeve's own bottom edge and later rows run back up
- * into it, which is the order [ArtworkMeshBackdrop] draws down the screen.
- *
- * A mean per cell, not a quantised swatch: what should sit under the artwork is
- * what a blur of the artwork would leave there, and a blur has no opinion about
- * which colour in the frame was the interesting one.
- */
 private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
     val width = source.width
     val height = source.height
     if (width < 1 || height < 1) return null
 
-    // A cell nothing lands in would come out black, so the grid never asks for
-    // more cells than the artwork has pixels.
     val cols = MESH_GRID.coerceAtMost(width)
     val rows = MESH_GRID.coerceAtMost(height)
     val rowStep = (height / MESH_SAMPLE).coerceAtLeast(1)
@@ -611,13 +360,10 @@ private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
     val blue = LongArray(cells)
     val count = IntArray(cells)
 
-    // One row at a time, so the scratch buffer is the width of the artwork
-    // rather than the whole of it. A clip frame read whole is megabytes.
     val line = IntArray(width)
     var y = 0
     while (y < height) {
         source.readPixels(line, startX = 0, startY = y, width = width, height = 1)
-        // Flipped as it is read — see the note above.
         val rowBase = ((height - 1 - y) * rows / height) * cols
         var x = 0
         while (x < width) {
@@ -645,35 +391,6 @@ private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
     return ArtworkMesh(imageBitmapOf(texels, MESH_TEX, MESH_TEX))
 }
 
-/**
- * Every row but row 0 — the seam row [meshOf] keeps literal, for the
- * no-visible-join reason [ArtworkMeshBackdrop] documents — rotated sideways
- * by the same random amount, and mirrored left-to-right half the time.
- *
- * The flip alone reads as a mirror on a cover with any real layout to it: a
- * face, a logo, a horizon line reappears upside down in the same columns it
- * left off in, and that symmetry is what makes the backdrop look like a
- * reflection rather than a colour field. An earlier version broke that by
- * shuffling every cell below the seam independently, which also broke the
- * *mesh*: a photo's neighbouring regions are usually close in colour, and a
- * random per-cell permutation puts wildly different cells next to each other
- * far more often than the photo itself ever did, so the smooth blend between
- * them read as a patchwork of small blended islands — a mosaic — rather than
- * the two or three broad blobs a real mesh gradient has.
- *
- * A cyclic shift doesn't have that problem: every cell keeps the exact
- * neighbours it started with, just carried around the row, so whatever
- * gradient existed between them survives untouched. What moves is *where on
- * screen* that gradient sits — which is exactly enough to stop the column
- * directly under the artwork's face or logo from being the same column that
- * face or logo was in above it, without inventing a single new boundary
- * between colours that weren't adjacent in the source.
- *
- * Seeded rather than re-rolled on every call: the same artwork should land in
- * the same arrangement each time it's read, or a canvas clip refreshing this
- * once a second (see `MESH_REFRESH_MS`) would show its layout visibly turning
- * underneath its own colours instead of just changing hue.
- */
 private fun IntArray.rotatedBelowSeam(cols: Int, rows: Int, seed: Int): IntArray {
     if (rows <= 1) return this
     val random = Random(seed)
@@ -690,10 +407,6 @@ private fun IntArray.rotatedBelowSeam(cols: Int, rows: Int, seed: Int): IntArray
     return out
 }
 
-/**
- * Smoothly resamples a [cols] x [rows] grid of control points up to a
- * [size] x [size] texture — see [MESH_TEX] for why this happens at all.
- */
 private fun IntArray.resampled(cols: Int, rows: Int, size: Int): IntArray {
     val out = IntArray(size * size)
     for (ty in 0 until size) {
@@ -714,7 +427,6 @@ private fun IntArray.resampled(cols: Int, rows: Int, size: Int): IntArray {
     return out
 }
 
-/** Flat at both ends, so no cell boundary shows up as a crease once magnified. */
 private fun smoothstep(t: Float): Float {
     val x = t.coerceIn(0f, 1f)
     return x * x * (3f - 2f * x)
@@ -734,16 +446,6 @@ private fun lerpArgb(from: Int, to: Int, t: Float): Int {
 private fun argb(red: Int, green: Int, blue: Int): Int =
     (0xFF shl 24) or (red shl 16) or (green shl 8) or blue
 
-/**
- * The one liberty taken with the artwork's colours.
- *
- * Saturation is nudged because averaging a block of pixels greys it — the mean
- * of a red stripe and the black around it is a dull maroon, and this puts back
- * roughly what the averaging took, not more. Lightness is only floored, off
- * pure black, which is not so much a colour choice as somewhere for the blur to
- * find an edge. Neither touches the *proportions*, which is the whole point of
- * this backdrop: a sleeve that is mostly black stays mostly black.
- */
 private fun Int.lifted(): Int {
     val hsl = FloatArray(3).also { ColorUtils.colorToHSL(this, it) }
     hsl[1] = (hsl[1] * MESH_VIBRANCE).coerceAtMost(1f)

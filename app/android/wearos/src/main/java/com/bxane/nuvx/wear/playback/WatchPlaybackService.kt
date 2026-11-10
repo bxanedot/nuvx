@@ -12,17 +12,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.bxane.nuvx.wear.WearActivity
 
-/**
- * The watch as the phone's speaker: the player [Speaker] drives.
- *
- * A plain ExoPlayer whose every byte comes from the phone — see
- * [PhoneStreamDataSource] — inside a media session, so it keeps playing with
- * the screen off and a Bluetooth headset's buttons reach it.
- *
- * Buffers deeper than a phone player would: the link to the phone is the slow
- * part, and a minute in hand rides out a Bluetooth hiccup or a phone that is
- * slow to resolve the next track.
- */
 @UnstableApi
 class WatchPlaybackService : MediaSessionService() {
 
@@ -43,8 +32,6 @@ class WatchPlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .setLoadControl(
                 DefaultLoadControl.Builder()
-                    // Start as soon as ExoPlayer normally would; hold more than
-                    // usual once going.
                     .setBufferDurationsMs(30_000, 90_000, 1_000, 2_000)
                     .build(),
             )

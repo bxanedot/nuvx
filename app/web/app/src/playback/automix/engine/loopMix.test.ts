@@ -4,12 +4,10 @@ import type { TrackAnalysis } from '../analysis/types';
 import type { LoopChange, LoopDeck } from './loopDeck';
 import { LOOP_BARS, mixBeatPhaseAt, mixPositionAt, planLoopMix, scheduleLoopMix, sungShare, sungSpansFromLines } from './loopMix';
 
-/** Synced lyrics with nothing sung in the searched stretches: every loop is clear. */
 const CLEAR = { out: [] as [number, number][], in: [] as [number, number][] };
 
 const SR = 1000;
 
-/** An AudioBuffer stand-in: constant loudness except where [quiet] says. */
 function buffer(durationSec: number, quiet: [number, number][] = []): AudioBuffer {
   const data = new Float32Array(Math.round(durationSec * SR)).map((_, i) => {
     const t = i / SR;
@@ -40,7 +38,6 @@ function analysis(key: string, bpm: number, durationSec: number, vocals: TrackAn
   };
 }
 
-/** A vocal window that is [level] everywhere except [clean] spans. */
 function vocals(from: number, to: number, level: number, clean: [number, number][] = []) {
   const fps = 10;
   const curve = Array.from({ length: Math.round((to - from) * fps) }, (_, i) => {
@@ -80,12 +77,10 @@ describe('planLoopMix', () => {
   });
 
   it('prefers bars the vocal mask calls instrumental', () => {
-    // sung throughout except 150-170 s on the way out and 20-35 s on the way in
     const out = analysis('out', 120, 200, [vocals(130, 200, 0.8, [[150, 170]])]);
     const inn = analysis('in', 120, 180, [vocals(0, 45, 0.8, [[20, 35]])]);
     const plan = planLoopMix(out, buffer(200), inn, buffer(180), 0)!;
     expect(plan.out.loop[0]).toBeGreaterThanOrEqual(150);
-    // up to 10% sung is still instrumental (a breath, an ad-lib): 0.8 s of an 8 s loop
     expect(plan.out.loop[1]).toBeLessThanOrEqual(170 + 0.8);
     expect(plan.out.vocal).toBeLessThanOrEqual(0.1);
     expect(plan.in.loop[0]).toBeGreaterThanOrEqual(20);
@@ -102,20 +97,17 @@ describe('planLoopMix', () => {
     const near = planLoopMix(analysis('o', 120, 200), buffer(200), analysis('i', 134, 180), buffer(180), 0, CLEAR)!;
     expect(near.fold).toBe(1);
     expect(near.rampBars).toBe(Math.ceil((134 - 120) / 2.5));
-    // 111 -> 169 is 58 BPM up, but only 26.5 down to 169's half time: that's the ramp taken
     const wide = planLoopMix(analysis('o', 111, 200), buffer(200), analysis('i', 169, 180), buffer(180), 0, CLEAR)!;
     expect(wide.fold).toBe(2);
     expect(wide.rampBars).toBe(Math.ceil((111 - 169 / 2) / 2.5));
     const slow = planLoopMix(analysis('o', 170, 200), buffer(200), analysis('i', 80, 180), buffer(180), 0, CLEAR)!;
     expect(slow.fold).toBe(0.5);
-    // the incoming loop can only let go at its own boundary
     for (const p of [near, wide, slow]) expect(p.totalBars % (LOOP_BARS / p.fold)).toBe(0);
   });
 });
 
 describe('planLoopMix on model beats', () => {
   it('cuts each loop from a detected beat 1 to the detected beat 1 four bars on, tempo drift and all', () => {
-    // a live-played song: the beat stretches 0.5% over the minute, so a constant grid would miss
     const beats: number[] = [];
     for (let t = 140, beat = 60 / 120; t < 199.5; t += beat, beat *= 1.0002) beats.push(t);
     const downbeats = beats.filter((_, i) => i % 4 === 0);
@@ -124,13 +116,11 @@ describe('planLoopMix on model beats', () => {
     expect(downbeats).toContain(plan.out.loop[0]);
     expect(downbeats).toContain(plan.out.loop[1]);
     expect(downbeats.indexOf(plan.out.loop[1]) - downbeats.indexOf(plan.out.loop[0])).toBe(LOOP_BARS);
-    // the loop's tempo is its own length over 16 beats
     expect(plan.out.beatSec).toBeCloseTo((plan.out.loop[1] - plan.out.loop[0]) / 16, 12);
   });
 
   it('never cuts on a downbeat the model put on the wrong beat', () => {
     const beat = 0.5;
-    // every bar line at 140 + 2k s, except the one at 190 s, which the model put two beats late
     const downbeats = Array.from({ length: 30 }, (_, i) => 140 + i * 4 * beat).map((t) => (Math.abs(t - 190) < 0.01 ? 191 : t));
     const out = { ...analysis('out', 120, 200), tailBeats: { beats: downbeats, downbeats, bpm: 120, confidence: 0.9 } };
     const plan = planLoopMix(out, buffer(200), analysis('in', 120, 180), buffer(180), 0, CLEAR)!;
@@ -158,7 +148,6 @@ describe('scheduleLoopMix', () => {
         expect(cur.input).toBeCloseTo(expected, 6);
       }
     }
-    // the tempo arrives: the incoming song ends the ramp at its own speed and lets go from its loop's end
     const release = inDeck.changes.find((c) => c.output === times.releaseAt && !c.loop)!;
     expect(release.input).toBeCloseTo(plan.in.loop[1], 9);
     expect(release.rate).toBe(1);
@@ -220,9 +209,8 @@ describe('mixPositionAt', () => {
 });
 
 describe('loops never hold a sung word', () => {
-  const beat = 0.5; // 120 BPM, bars of 2 s from 0.5 s
+  const beat = 0.5;
   it('skips a loop a synced line overlaps, and one a line is still ending into', () => {
-    // out song: sung until 172.2 s, then a line from 189 s; the latest clean 4 bars end before 189
     const sung: [number, number][] = [[150, 172.2], [189, 199]];
     const plan = planLoopMix(analysis('out', 120, 200), buffer(200), analysis('in', 120, 180), buffer(180), 0, { out: sung, in: [] })!;
     const [a, b] = plan.out.loop;
@@ -239,7 +227,6 @@ describe('loops never hold a sung word', () => {
   });
 
   it('falls back to a 1-bar loop when only one clean bar exists', () => {
-    // sung everywhere in the search but 180.5-182.5 (one bar)
     const sung: [number, number][] = [[100, 180.2], [182.6, 199]];
     const plan = planLoopMix(analysis('out', 120, 200), buffer(200), analysis('in', 120, 180), buffer(180), 0, { out: sung, in: [] })!;
     expect(plan.out.bars).toBe(1);

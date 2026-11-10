@@ -13,38 +13,24 @@ import { TrackMenu } from './TrackMenu';
 type Variant = 'album' | 'playlist';
 
 const ROW_HEIGHT: Record<Variant, number> = { album: 46, playlist: 54 };
-/** Below this, plain rows: an album or a short playlist gains nothing from virtualizing. */
 const VIRTUALIZE_FROM = 80;
 
 interface TrackListProps {
   tracks: Track[];
   variant: Variant;
-  /** Album artwork, for rows that have none of their own (album tracks). */
   fallbackArtwork?: string | null;
-  /** The album's artists, credited when a track has none of its own. */
   fallbackArtists?: ArtistRef[];
-  /** Called when the list nears its end, to load the next page of a long playlist. */
   onNearEnd?: () => void;
-  /** Where the list comes from: playing a row queues the list from there. Without it, a row plays alone. */
   source?: ListContext['source'];
 }
 
-/* Track lists (report §3 album rows, §14 playlist rows). */
-
 const cell = 'flex h-full min-w-0 items-center';
-// 396 / 274 / 274 / 141 at 1440px (report §14).
 const playlistColumns = 'grid-cols-[minmax(0,36.5fr)_minmax(0,25.25fr)_minmax(0,25.25fr)_minmax(0,13fr)]';
-// Artist and album: playlists only, and not below 768px.
 const secondary = `${cell} pe-2.5 max-md:hidden`;
 const tertiary = `${cell} pe-4 max-md:hidden`;
-// A row from another catalogue with no YouTube Music song (yet) is dimmed.
 const dimmed = 'group-data-unavailable/row:opacity-45';
 const link = 'text-inherit hover:underline group-data-current/row:text-primary';
 
-/**
- * A hairline on top of every row, hidden on hover and around the playing row;
- * a fill on hover, a stronger one for the playing row.
- */
 const row = [
   'group/row relative grid items-center bg-transparent hover:bg-tracklist-hover data-unavailable:cursor-default',
   'data-current:bg-[color-mix(in_srgb,var(--systemPrimary)_12%,transparent)]',
@@ -114,7 +100,6 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow }: RowProps)
             <>
               <Artwork src={track.thumbnail ?? fallbackArtwork ?? null} displayWidth={40} radius="var(--radius-artwork-small)" />
               {current && (
-                // The playing row's marker: a still play glyph over the artwork (or where the number was).
                 <span
                   className="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-white group-hover/row:invisible"
                   aria-label="Now playing"
@@ -181,7 +166,6 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow }: RowProps)
         </>
       )}
       <div className={`${cell} ${time[variant]} ${dimmed}`}>
-        {/* The ⋯ button (TrackMenu) takes the time's place on hover, as Apple's rows do. */}
         <span className={unavailable ? undefined : 'group-focus-within/row:invisible group-hover/row:invisible group-has-[[data-open]]/row:invisible'}>
           {unavailable === 'missing' ? 'Not found' : formatDuration(track.durationSec)}
         </span>
@@ -207,14 +191,8 @@ function Header() {
   );
 }
 
-/**
- * Album and playlist track lists (report §3, §14): hairline-divided rows,
- * hover fill, the number (or artwork) turning into a play button. Long lists
- * are virtualized against the page's scroll container (prompt §3).
- */
 export function TrackList({ tracks, variant, fallbackArtwork, fallbackArtists, onNearEnd, source }: TrackListProps) {
   const playRow = (i: number) => {
-    // Rows from another catalogue that found no YouTube Music song stay out of the queue.
     if (source) {
       const playable = tracks.filter((t) => !t.unavailable);
       return playList(playable, Math.max(0, playable.indexOf(tracks[i]!)), { source, fallbackArtwork, fallbackArtists });

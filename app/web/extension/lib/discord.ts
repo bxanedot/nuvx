@@ -3,30 +3,6 @@ import { installDiscordFetchRule } from './rules';
 
 declare const __DISCORD_PRESENCE__: boolean;
 
-/**
- * Discord rich presence (prompt §7.2), behind the DISCORD_PRESENCE build flag.
- *
- * This is user-token automation, as on the phone and the desktop: there is no
- * API for a third-party app to set a user's presence, so the gateway is opened
- * with the account's own token, read from a discord.com tab only when the user
- * clicks "Connect Discord". The token is kept in the extension's storage and
- * never sent to the page.
- *
- * Ports, with what changed:
- * - Gateway: com.my.kizzy.gateway.DiscordWebSocket. The same loop (connect,
- *   pump, back off 1 s doubling to 60 s), the heartbeat watchdog that drops a
- *   socket whose heartbeat went unanswered, and the replay of the last
- *   presence onto a new session. It identifies as Discord's web client, not
- *   as Android or the desktop app: the socket comes from a browser and carries
- *   the browser's own User-Agent, which an extension can't change.
- * - Activity: DiscordRPC.updateSong (timestamps with the rate divided out,
- *   the rate tag, buttons with {song_name} variables, external-asset artwork).
- * - An MV3 worker sleeps after 30 s without events. While the socket is up, a
- *   ping every 20 s keeps it awake (an extension API call resets the idle
- *   timer in Chrome and Firefox; Chrome 116+ also counts socket traffic).
- */
-
-/** nuvx's own Discord application (DiscordApplication.kt). */
 export const APPLICATION_ID = '1543679166967193620';
 const GATEWAY = 'wss://gateway.discord.gg/?v=9&encoding=json';
 const API = 'https://discord.com/api/v9';
@@ -40,7 +16,6 @@ const MAX_RECONNECT_MS = 60_000;
 const STALE_GRACE_MS = 15_000;
 const SESSION_WAIT_MS = 20_000;
 const KEEPALIVE_MS = 20_000;
-/** A cleared card with nothing new for this long: the socket goes too. */
 const IDLE_CLOSE_MS = 5 * 60_000;
 
 const ACCOUNT_KEY = 'discord.account';
@@ -51,8 +26,6 @@ interface Account {
   user: { id: string; name: string; username: string; avatarUrl: string | null };
 }
 
-// ---- Identity ------------------------------------------------------------------
-
 function browserName(): string {
   return import.meta.env.FIREFOX ? 'Firefox' : 'Chrome';
 }
@@ -62,7 +35,6 @@ function osName(): string {
   return /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'Mac OS X' : /Android/.test(ua) ? 'Android' : 'Linux';
 }
 
-/** Built once per worker: a real client never rotates these per request (SuperProperties.kt). */
 let superProperties: string | null = null;
 function superPropertiesBase64(): string {
   superProperties ??= btoa(
@@ -100,7 +72,6 @@ async function api<T>(token: string, path: string, init: RequestInit = {}): Prom
   return (await response.json()) as T;
 }
 
-/** KizzyRPC.getUserInfo. */
 async function userInfo(token: string): Promise<Account['user']> {
   const me = await api<{ id: string; username: string; global_name?: string | null; avatar?: string | null }>(token, '/users/@me');
   return {
@@ -111,7 +82,6 @@ async function userInfo(token: string): Promise<Account['user']> {
   };
 }
 
-/** ExternalAssets.kt: Discord's CDN mirror of an http image, as an `mp:` asset; cached (ArtworkCache). */
 const artwork = new Map<string, string | null>();
 async function externalAsset(token: string, imageUrl: string): Promise<string | null> {
   if (artwork.has(imageUrl)) return artwork.get(imageUrl)!;
@@ -129,8 +99,6 @@ async function externalAsset(token: string, imageUrl: string): Promise<string | 
     return null;
   }
 }
-
-// ---- The gateway (DiscordWebSocket.kt) ---------------------------------------------
 
 type Presence = { activities: unknown[]; afk: boolean; since: number; status: string };
 
@@ -160,15 +128,12 @@ export class Gateway {
   private closed = false;
   private ready = false;
   private readyWaiters: (() => void)[] = [];
-  /** Replayed onto every new session: Discord discards a presence with the session that set it. */
   private lastPresence: Presence | null = null;
-  /** What this session already has, so the replay and a push don't both send it. */
   private delivered: string | null = null;
 
   constructor(
     private readonly token: string,
     private readonly onStatus: (status: DiscordState['gateway'], problem?: string) => void,
-    /** Discord's own gateway; a test points this at a local one. */
     private readonly url = GATEWAY,
   ) {}
 
@@ -178,7 +143,6 @@ export class Gateway {
     this.open();
   }
 
-  /** Cuts a climbing backoff short: there is something to publish now. */
   retryNow(): void {
     if (this.closed || this.socket || !this.looping) return;
     clearTimeout(this.retryTimer);
@@ -197,7 +161,6 @@ export class Gateway {
       this.keepAlive ??= setInterval(() => void browser.runtime.getPlatformInfo(), KEEPALIVE_MS);
     };
     socket.onmessage = (event) => {
-      // Per frame: one payload this build doesn't understand can't take the connection down.
       try {
         this.onMessage(JSON.parse(String(event.data)) as Payload);
       } catch (error) {
@@ -208,13 +171,11 @@ export class Gateway {
       if (this.socket !== socket) return;
       this.teardown();
       if (this.closed) return;
-      // 4004: authentication failed. Retrying with the same token never helps.
       if (event.code === 4004) {
         this.looping = false;
         this.onStatus('error', 'Discord refused the token. Connect the account again.');
         return;
       }
-      // An attempt that never opened is as often a stale resume URL as a dead network.
       if (!opened) this.forgetSession();
       if (this.immediateRetry) {
         this.immediateRetry = false;
@@ -299,7 +260,6 @@ export class Gateway {
   }
 
   private identify(): void {
-    // Identify.toIdentifyPayload, with the web client's properties.
     this.send(OP.IDENTIFY, {
       token: this.token,
       capabilities: 16381,
@@ -322,7 +282,6 @@ export class Gateway {
     this.send(OP.HEARTBEAT, this.sequence || null);
   }
 
-  /** The watchdog: a heartbeat unanswered for a whole interval means the socket is gone. */
   private startHeartbeats(): void {
     clearTimeout(this.heartbeatTimer);
     this.awaitingAck = false;
@@ -333,7 +292,6 @@ export class Gateway {
       this.heartbeat();
       this.heartbeatTimer = setTimeout(beat, this.heartbeatInterval);
     };
-    // Discord asks for the first one after a random fraction of the interval.
     this.heartbeatTimer = setTimeout(beat, this.heartbeatInterval * Math.random());
   }
 
@@ -355,7 +313,6 @@ export class Gateway {
     if (this.send(OP.PRESENCE_UPDATE, presence)) this.delivered = json;
   }
 
-  /** Publishes, waiting a while for a session; a push that times out is replayed when one arrives. */
   async sendActivity(presence: Presence): Promise<void> {
     this.lastPresence = presence;
     if (this.closed) return;
@@ -371,7 +328,6 @@ export class Gateway {
     if (this.ready) this.deliver(presence);
   }
 
-  /** An activity-less presence clears the card; it becomes what a reconnect replays. */
   clearActivity(): void {
     const presence: Presence = { activities: [], afk: true, since: 0, status: 'online' };
     this.lastPresence = presence;
@@ -388,8 +344,6 @@ export class Gateway {
     this.onStatus('off');
   }
 }
-
-// ---- The activity (DiscordRPC.updateSong) -------------------------------------------
 
 function resolveVariables(text: string, track: DiscordNowPlaying): string {
   return text
@@ -408,7 +362,6 @@ export async function buildPresence(token: string, track: DiscordNowPlaying, opt
   if (options.button1Visible) buttons.push([resolveVariables(options.button1Text || DEFAULT_BUTTON_1, track), watchUrl]);
   if (options.button2Visible) buttons.push([resolveVariables(options.button2Text || DEFAULT_BUTTON_2, track), PROJECT_URL]);
   const art = track.artworkUrl?.startsWith('http') ? track.artworkUrl : null;
-  // An unreachable mirror keeps the raw URL, as RpcImage.ExternalImage does.
   const largeImage = art ? ((await externalAsset(token, art)) ?? art) : null;
   return {
     activities: [
@@ -439,8 +392,6 @@ export async function buildPresence(token: string, track: DiscordNowPlaying, opt
   };
 }
 
-// ---- The service ----------------------------------------------------------------
-
 let gateway: Gateway | null = null;
 let gatewayStatus: DiscordState['gateway'] = 'off';
 let gatewayProblem: string | null = null;
@@ -449,7 +400,6 @@ let listener: ((state: DiscordState) => void) | null = null;
 
 export const AVAILABLE = typeof __DISCORD_PRESENCE__ !== 'undefined' && __DISCORD_PRESENCE__;
 
-/** The background broadcasts every change to the open pages. */
 export function onDiscordState(callback: (state: DiscordState) => void): void {
   listener = callback;
 }
@@ -493,7 +443,6 @@ function ensureGateway(token: string): Gateway {
   return gateway;
 }
 
-/** The page reports what's playing; null takes the card down but leaves the socket up for a while. */
 export async function setPresence(track: DiscordNowPlaying | null, options: DiscordPresenceOptions): Promise<void> {
   if (!AVAILABLE) return;
   const held = await account();
@@ -508,7 +457,6 @@ export async function setPresence(track: DiscordNowPlaying | null, options: Disc
   await ensureGateway(held.token).sendActivity(presence);
 }
 
-/** Every nuvx page has gone: nobody is playing, so the card comes down with the socket. */
 export function allPagesClosed(): void {
   gateway?.clearActivity();
   idleTimer = setTimeout(closeGateway, 2_000);
@@ -531,20 +479,12 @@ export async function disconnect(): Promise<DiscordState> {
   return discordState();
 }
 
-// ---- Connecting an account ------------------------------------------------------
-
 export const DISCORD_ORIGINS = ['https://discord.com/*'];
 
-/** Opens the extension's connect page: the permission prompt only follows a click there. */
 export async function openConnectPage(): Promise<void> {
   await browser.tabs.create({ url: browser.runtime.getURL('/discord.html') });
 }
 
-/**
- * DiscordLoginScreen.TOKEN_SNIPPET: Discord takes `localStorage` away from its
- * window once the app boots, but a fresh same-origin iframe still sees it.
- * Runs in the page's own world, only on the user's "Connect Discord".
- */
 function readToken(): string {
   try {
     const frame = document.createElement('iframe');
@@ -558,11 +498,6 @@ function readToken(): string {
   }
 }
 
-/**
- * Reads the token from a signed-in discord.com tab, opening one if there is
- * none, and keeps it once Discord confirms who it belongs to. Polls for two
- * minutes, which covers signing in from scratch in that tab.
- */
 export async function connectFromTab(onProgress: (message: string) => void): Promise<DiscordState> {
   let [tab] = await browser.tabs.query({ url: 'https://discord.com/*' });
   let opened = false;
@@ -587,7 +522,6 @@ export async function connectFromTab(onProgress: (message: string) => void): Pro
         return discordState();
       }
     } catch {
-      // The tab is still loading, or navigating between sign-in pages.
     }
     await new Promise((r) => setTimeout(r, 1000));
   }

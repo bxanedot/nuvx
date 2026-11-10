@@ -1,30 +1,6 @@
 import type { SpotifyAuthState, SpotifyPage, SpotifyPlaylist, SpotifyTrack } from '@nuvx/shared/bridge';
 import { installSpotifyFetchRule } from './rules';
 
-/**
- * Spotify (prompt §7.1), with the user's own open.spotify.com session: the
- * `sp_dc` cookie stays in the browser's jar and the tokens minted from it stay
- * here. The page only gets playlists, tracks and canvas URLs.
- *
- * Ports, with what changed:
- * - Tokens: DesktopSpotifyToken (desktop): the web player's `/api/token` with
- *   `sp_dc` sent as a header,
- *   signed with the TOTP it derives from a secret in its own bundle. The
- *   desktop keeps the secret in a table, which had fallen behind (v12; the
- *   live one was v61 on 2026-10-16), so this reads the current secrets the way
- *   SpotifyCanvasQuery.QueryHashes reads query hashes: out of the web player's
- *   scripts, with the table as the fallback. Android mints in a WebView
- *   because a forged token was refused downstream there; from a real browser
- *   the self-minted token reads the library and canvases (measured 2026-10-16).
- * - Queries: SpotifyLibrary.kt (library, playlist, liked songs, cover) and
- *   SpotifyCanvasQuery.kt (canvas). Their hashes are read live as well, with
- *   the Kotlin constants as fallbacks, and looked up again once on
- *   "PersistedQueryNotFound".
- * - Search: api.spotify.com/v1/search (what DesktopSpotifyCanvas used) answers
- *   the web player's token with 429, signed in or not; this asks the web
- *   player's own `searchTracks` query instead.
- */
-
 const WEB_PLAYER = 'https://open.spotify.com';
 const CDN = 'https://open.spotifycdn.com/cdn/build/web-player/';
 const PATHFINDER = 'https://api-partner.spotify.com/pathfinder/v2/query';
@@ -32,7 +8,6 @@ const CLIENT_TOKEN = 'https://clienttoken.spotify.com/v1/clienttoken';
 
 type Operation = 'libraryV3' | 'fetchPlaylist' | 'fetchLibraryTracks' | 'canvas' | 'searchTracks' | 'profileAttributes';
 
-/** The last hashes known to work (SpotifyLibrary.kt, SpotifyCanvasQuery.kt, and the bundle on 2026-10-16). */
 const KNOWN_HASHES: Record<Operation, string> = {
   libraryV3: '390c78e5b951029bad359785e69b07b536a509c581cbcd0aded5e5067f187455',
   fetchPlaylist: '21ea11a6ac75a5f3e01fd365d29c18e0a4a8b7dc09f89bbb5d73910190c6acaf',
@@ -43,10 +18,8 @@ const KNOWN_HASHES: Record<Operation, string> = {
 };
 const OPERATIONS = Object.keys(KNOWN_HASHES) as Operation[];
 
-/** DesktopSpotifyToken.TOTP_SECRETS: the fallback when the bundle can't be read. */
 const KNOWN_SECRET = { version: 12, codes: [107, 81, 49, 57, 67, 93, 87, 81, 69, 67, 40, 93, 48, 50, 46, 91, 94, 113, 41, 47] };
 
-/** Liked Songs has no playlist uri; SpotifyLibrary.LIKED_ID. */
 export const LIKED_ID = 'liked';
 const LIKED_COVER = 'https://misc.scdn.co/liked-songs/liked-songs-640.png';
 
@@ -57,14 +30,10 @@ export class SpotifyAuthError extends Error {
   readonly code = 'unauthenticated';
 }
 
-// ---- The web player's own values ---------------------------------------------
-
 interface WebPlayer {
   clientVersion: string;
-  /** Character codes of the newest secret, before the XOR the bundle applies. */
   secret: { version: number; codes: number[] };
   hashes: Record<Operation, string>;
-  /** Whether everything came from the live bundle; a partial read is retried sooner. */
   complete: boolean;
   at: number;
 }
@@ -72,10 +41,6 @@ interface WebPlayer {
 const WEB_PLAYER_KEY = 'spotify.webPlayer';
 let webPlayerCache: WebPlayer | null = null;
 
-/**
- * A JavaScript string literal's body, unescaped. The bundle writes its secrets
- * as literals; MV3 forbids `eval`, so this reads the escapes itself.
- */
 export function unescapeJs(body: string): string {
   return body.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[\s\S])/g, (_, esc: string) => {
     if (esc[0] === 'u') return String.fromCodePoint(parseInt(esc.replace(/[u{}]/g, ''), 16));
@@ -84,14 +49,12 @@ export function unescapeJs(body: string): string {
   });
 }
 
-/** `{secret:'…',version:61}` as the bundle declares them, newest first. */
 export function secretsIn(script: string): { version: number; codes: number[] }[] {
   return [...script.matchAll(/\{secret:(['"])((?:\\.|(?!\1).)*)\1,version:(\d+)\}/g)]
     .map((m) => ({ version: Number(m[3]), codes: [...unescapeJs(m[2]!)].map((c) => c.charCodeAt(0)) }))
     .sort((a, b) => b.version - a.version);
 }
 
-/** `"canvas","query","<64 hex>"`: SpotifyCanvasQuery.findQueryHash. */
 export function queryHashIn(script: string, operation: string): string | null {
   return script.match(new RegExp(`["']${operation}["']\\s*,\\s*["']query["']\\s*,\\s*["']([0-9a-f]{64})["']`))?.[1] ?? null;
 }
@@ -113,13 +76,10 @@ async function readWebPlayer(): Promise<WebPlayer> {
     try {
       clientVersion = (JSON.parse(atob(config)) as { clientVersion?: string }).clientVersion ?? '';
     } catch {
-      /* stays empty */
     }
   }
   const bundleUrl = html.match(/https:\/\/open\.spotifycdn\.com\/cdn\/build\/web-player\/web-player\.[0-9a-f]+\.js/)?.[0];
   const bundle = bundleUrl ? ((await text(bundleUrl)) ?? '') : '';
-  // searchTracks is declared in the search route's chunk, which the player
-  // loads on demand; its file name comes from the bundle's chunk table.
   let searchChunk = '';
   const searchId = bundle.match(/(\d+):"xpui-routes-search"/)?.[1];
   if (searchId) {
@@ -141,7 +101,6 @@ async function readWebPlayer(): Promise<WebPlayer> {
   };
 }
 
-/** Kept in storage, not just memory: the bundle is 4 MB, and the worker restarts often. */
 async function webPlayer(force = false): Promise<WebPlayer> {
   if (!force) {
     webPlayerCache ??= ((await browser.storage.local.get(WEB_PLAYER_KEY))[WEB_PLAYER_KEY] as WebPlayer | undefined) ?? null;
@@ -153,9 +112,6 @@ async function webPlayer(force = false): Promise<WebPlayer> {
   return webPlayerCache;
 }
 
-// ---- TOTP (DesktopSpotifyToken.totp) -----------------------------------------------
-
-/** Six digits over SHA-1, thirty-second steps, from the secret's codes XORed with their index. */
 export async function totp(codes: number[], epochMs: number): Promise<string> {
   const key = new TextEncoder().encode(codes.map((code, i) => code ^ ((i % 33) + 9)).join(''));
   const counter = new ArrayBuffer(8);
@@ -168,20 +124,16 @@ export async function totp(codes: number[], epochMs: number): Promise<string> {
   return String(binary % 1_000_000).padStart(6, '0');
 }
 
-// ---- Tokens ------------------------------------------------------------------------
-
 interface AccessToken {
   token: string;
   expiresAt: number;
   clientId: string | null;
-  /** The `sp_dc` it was minted from: another one means another sign-in. */
   cookie: string;
 }
 
 let spotifyRules: Promise<void> | null = null;
 let access: AccessToken | null = null;
 let client: { token: string; expiresAt: number } | null = null;
-/** After a failed mint, how long before asking again (DesktopSpotifyToken.RETRY_MS, shortened: the user is waiting). */
 let retryAfter = 0;
 const RETRY_MS = 60_000;
 
@@ -190,15 +142,8 @@ function invalidateTokens() {
   client = null;
 }
 
-/**
- * The web player's bearer for the signed-in user, or a `SpotifyAuthError`.
- * Anonymous tokens are refused: they can't read a library or a canvas.
- * Concurrent callers share one mint.
- */
 let minting: Promise<AccessToken> | null = null;
 async function accessToken(): Promise<AccessToken> {
-  // Checked on every use rather than left to cookies.onChanged, which didn't
-  // fire in testing: a token from another sign-in must never be used.
   const cookie = await browser.cookies.get({ url: `${WEB_PLAYER}/`, name: 'sp_dc' }).catch(() => null);
   if (access && access.cookie !== cookie?.value) invalidateSession();
   if (access && Date.now() < access.expiresAt - 30_000) return access;
@@ -206,13 +151,6 @@ async function accessToken(): Promise<AccessToken> {
   return minting;
 }
 
-/**
- * `credentials: 'include'` from the worker did not carry `sp_dc` in testing
- * (Chromium sent the request without it under every SameSite setting), so the
- * cookie goes as an explicit header, as DesktopSpotifyToken sends it: read
- * through the cookies API and set by a session rule that matches only this
- * extension's own token request, for as long as that request takes.
- */
 async function withSessionCookie<T>(value: string, run: () => Promise<T>): Promise<T> {
   await browser.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [TOKEN_COOKIE_RULE_ID],
@@ -263,7 +201,6 @@ async function mint(): Promise<AccessToken> {
         },
       };
     });
-    // The web player reads this flag to learn its secret has been retired.
     if (body.totpVerExpired && !force) continue;
     if (status === 401) throw new SpotifyAuthError('Your Spotify session has expired. Sign in again at open.spotify.com.');
     if (body.isAnonymous) throw new SpotifyAuthError('Not signed in to Spotify in this browser');
@@ -296,7 +233,6 @@ function platformOs(): string {
   return /Windows/.test(ua) ? 'windows' : /Mac OS/.test(ua) ? 'macos' : 'linux';
 }
 
-/** SpotifyToken.clientToken: best-effort, a request without it is still sent. */
 async function clientToken(): Promise<string | null> {
   if (client && Date.now() < client.expiresAt - 30_000) return client.token;
   const bearer = await accessToken();
@@ -305,7 +241,6 @@ async function clientToken(): Promise<string | null> {
   try {
     const response = await fetch(CLIENT_TOKEN, {
       method: 'POST',
-      // The bare type, deliberately: clienttoken 400s on a charset suffix.
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_data: {
@@ -334,8 +269,6 @@ async function clientToken(): Promise<string | null> {
   }
 }
 
-// ---- Pathfinder -----------------------------------------------------------------
-
 type Json = Record<string, unknown>;
 
 async function gql(operation: Operation, variables: Json, retried = false): Promise<Json> {
@@ -363,7 +296,6 @@ async function gql(operation: Operation, variables: Json, retried = false): Prom
   }
   const body = (await response.json().catch(() => null)) as Json | null;
   const errors = (body?.errors as { message?: string }[] | undefined)?.map((e) => e.message ?? '') ?? [];
-  // A rebuilt web player retires the old hash: look it up again once.
   if (errors.some((m) => /PersistedQueryNotFound/i.test(m)) && !retried) {
     await webPlayer(true);
     return gql(operation, variables, true);
@@ -374,15 +306,12 @@ async function gql(operation: Operation, variables: Json, retried = false): Prom
   return body;
 }
 
-// ---- Parsing (SpotifyLibrary.kt) -------------------------------------------------
-
 const obj = (v: unknown): Json | null => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Json) : null);
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
 const path = (v: unknown, ...keys: string[]): unknown => keys.reduce<unknown>((at, key) => obj(at)?.[key], v);
 
-/** The widest source: Spotify lists sizes in no fixed order (SpotifyLibrary.largestSource). */
 function largest(sources: unknown): string | null {
   let best: { url: string; width: number } | null = null;
   for (const source of arr(sources)) {
@@ -393,7 +322,6 @@ function largest(sources: unknown): string | null {
   return best?.url ?? null;
 }
 
-/** The smallest source at least `min` wide, else the widest: list rows don't need 640px. */
 function sized(sources: unknown, min = 300): string | null {
   const list = arr(sources)
     .map((s) => ({ url: str(path(s, 'url')), width: num(path(s, 'width')) ?? 0 }))
@@ -480,13 +408,10 @@ export function parseSearchTracks(root: Json): SpotifyTrack[] {
   });
 }
 
-/** SpotifyCanvasQuery.parse: a playable `.mp4`, or null. */
 export function parseCanvas(root: Json): string | null {
   const url = str(path(root, 'data', 'trackUnion', 'canvas', 'url'));
   return url?.startsWith('https://') && /\.mp4(?:[?#]|$)/i.test(url) ? url : null;
 }
-
-// ---- What the bridge serves -------------------------------------------------------
 
 export async function playlists(offset: number): Promise<SpotifyPage<SpotifyPlaylist>> {
   const page = parsePlaylistPage(
@@ -503,7 +428,6 @@ export async function playlists(offset: number): Promise<SpotifyPage<SpotifyPlay
       includeFoldersWhenFlattening: false,
     }),
   );
-  // Liked Songs is not a playlist to the library query; it always comes first.
   if (offset === 0) page.items.unshift({ id: LIKED_ID, name: 'Liked Songs', owner: null, imageUrl: LIKED_COVER });
   return page;
 }
@@ -515,7 +439,6 @@ export async function tracks(playlistId: string, offset: number): Promise<Spotif
   );
 }
 
-/** A playlist's name and cover at full size (the library list only carries a thumbnail). */
 export async function playlistInfo(playlistId: string): Promise<{ name: string; owner: string | null; imageUrl: string | null; total: number }> {
   if (playlistId === LIKED_ID) {
     const page = parseLikedPage(await gql('fetchLibraryTracks', { offset: 0, limit: 1 }));
@@ -545,12 +468,9 @@ export async function searchTracks(query: string): Promise<SpotifyTrack[]> {
   );
 }
 
-/** A track's canvas by Spotify id. Signed in only: anonymous tokens are shown none. */
 export async function canvas(trackId: string): Promise<string | null> {
   return parseCanvas(await gql('canvas', { trackUri: `spotify:track:${trackId}` }));
 }
-
-// ---- Sign-in state ---------------------------------------------------------------
 
 interface Prefs {
   connected: boolean;
@@ -570,7 +490,6 @@ export async function setConnected(connected: boolean): Promise<SpotifyAuthState
   return authState();
 }
 
-/** `sp_dc` arriving or leaving is a Spotify sign-in or sign-out. */
 export function isSessionCookie(cookie: Browser.cookies.Cookie): boolean {
   return cookie.name === 'sp_dc' && cookie.domain.endsWith('spotify.com');
 }

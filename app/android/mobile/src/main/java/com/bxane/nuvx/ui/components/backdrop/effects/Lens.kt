@@ -1,10 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-/*
- * Vendored so the library ships as source with this app (binary AARs compiled
- * against older Compose broke at runtime) and to add a backdrop resolution
- * scale for cheaper effect rendering. KMP expect/actual declarations were
- * merged into this single Android source set. Package renamed accordingly.
- */
 package com.bxane.nuvx.ui.components.backdrop.effects
 
 import androidx.annotation.FloatRange
@@ -65,9 +59,6 @@ fun BackdropEffectScope.lens(
     effect(effect)
 }
 
-// Vendored change: support for io.github.kyant0:shapes' RoundedRectangularShape was
-// dropped so the vendored sources have no external dependency; this app only passes
-// CornerBasedShape here.
 private val BackdropEffectScope.cornerRadii: FloatArray?
     get() = when (val shape = shape) {
         is AbsoluteRoundedCornerShape -> {

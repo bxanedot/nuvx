@@ -46,11 +46,6 @@ import com.bxane.nuvx.ui.tv.theme.TvGlass
 import com.bxane.nuvx.ui.tv.theme.TvType
 import kotlinx.coroutines.launch
 
-/**
- * Explore, laid out as the phone's: every mood and genre in one grid (the
- * server's sections only decide the order), each a colour-striped duotone
- * sleeve. Choosing one opens its playlists as shelves; Back returns to the grid.
- */
 @Composable
 fun TvExploreScreen(
     viewModel: MainViewModel,
@@ -185,6 +180,5 @@ private fun TvMoodPage(
     }
 }
 
-/** The phone's own floor for a mood card's width; the grid fits as many columns as that allows. */
 private val MOOD_MIN_WIDTH = 176.dp
 private val MOOD_SPACING = 14.dp

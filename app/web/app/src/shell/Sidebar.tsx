@@ -50,13 +50,10 @@ const LIBRARY: NavItem[] = (Object.keys(LIBRARY_ICONS) as (keyof typeof LIBRARY_
   Icon: LIBRARY_ICONS[section],
 }));
 
-// A sidebar row; NavLink sets aria-current on the page's own row.
 const item =
   'group flex h-9 items-center gap-2 mb-0.5 p-1 rounded-nav type-body-reduced text-primary hover:bg-quinary aria-[current=page]:bg-nav-selected';
-// Apple's glyphs, drawn at 24px (their 24-unit box), which the user preferred to Apple's own 28px.
 const icon = 'inline-grid size-6 flex-none place-items-center text-primary';
 const navLabel = 'min-w-0 truncate';
-// "Library", "Playlists" (report §1: 12px/15px 600, secondary, padding 4px 8px).
 const sectionHeader = 'mt-4 px-2 py-1 type-callout-emphasized text-secondary';
 const list = 'flex flex-col';
 
@@ -75,7 +72,6 @@ function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate: () => vo
   );
 }
 
-/** Library and Playlists (report §1), once YouTube requests are made as the user. */
 function LibraryNav({ onNavigate }: { onNavigate: () => void }) {
   const playlists = useLibraryPlaylists();
   return (
@@ -105,7 +101,6 @@ function LibraryNav({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
-/** Spotify's playlists, once the extension can read them as the user (prompt §7.1). */
 function SpotifyNav({ onNavigate }: { onNavigate: () => void }) {
   const playlists = useSpotifyPlaylists();
   return (
@@ -133,7 +128,6 @@ function SpotifyNav({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
-/** The left glass sidebar (report §1). */
 export function Sidebar() {
   const drawerOpen = useUi((s) => s.drawerOpen);
   const setDrawerOpen = useUi((s) => s.setDrawerOpen);
@@ -144,7 +138,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Below 484px the sidebar is a drawer opened from the top bar's menu button. */}
       <nav
         className="absolute inset-y-0 left-0 z-(--z-web-chrome) flex w-(--web-navigation-width) flex-col glass-material max-sm:w-[min(300px,82vw)] max-sm:-translate-x-full max-sm:shadow-glass max-sm:transition-transform max-sm:duration-(--duration-panel) max-sm:ease-panel max-sm:data-[open=true]:translate-none"
         data-open={drawerOpen}
@@ -152,7 +145,6 @@ export function Sidebar() {
       >
         <div className="mt-2 ml-2 flex h-18 items-center px-5">
           <PrefetchLink to="/home" className="inline-flex items-center gap-2 rounded-[6px]" aria-label="nuvx, Home" onClick={close}>
-            {/* White on dark, as Apple's own wordmark; it follows the label colour so it stays visible in light. */}
             <LogoMark size={22} className="text-primary" />
             <span className="type-[700_19px/24px] tracking-[-0.01em]">nuvx</span>
           </PrefetchLink>
@@ -163,7 +155,6 @@ export function Sidebar() {
           {spotifySignedIn && <SpotifyNav onNavigate={close} />}
         </div>
         <div className="flex flex-col gap-2 pt-3 pr-3 pb-5 pl-5">
-          {/* A way back out to the website, for whoever arrived from it. */}
           <a href="https://nuvx.lol" className={item}>
             <span className={icon}>
               <ArrowLeft size={18} strokeWidth={1.9} />
@@ -177,7 +168,6 @@ export function Sidebar() {
             <span className={navLabel}>Guide</span>
           </PrefetchNavLink>
           <PrefetchNavLink to="/extension" className={item} onClick={close}>
-            {/* Chrome's own toolbar glyph for extensions (Material "extension"). */}
             <span className={icon}>
               <MdOutlineExtension size={18} />
             </span>

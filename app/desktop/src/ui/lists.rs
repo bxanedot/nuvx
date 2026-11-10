@@ -1,43 +1,27 @@
-//! Albums and playlists: the copies kept for going back to, the loads under way, and
-//! the edits made here that YouTube Music doesn't list yet. Only the state: the app
-//! sends the requests these ask for and shows the pages.
-
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use crate::backend::Collection;
 use crate::model::Track;
 
-/// Liked Music's playlist id.
 pub const LIKED_MUSIC: &str = "LM";
 
-/// Going back to a kept album or playlist reloads it when it's older than this. Edits
-/// made here show at once anyway, and a Spotify transfer reloads Liked Music when done.
 const REFRESH_EVERY: Duration = Duration::from_secs(5 * 60);
 
-/// How many albums and playlists stay kept. The page on screen, what's playing, one
-/// still loading and Liked Music aren't the ones dropped.
 const KEEP_OPENED: usize = 8;
 
-/// An album or playlist page kept for going back to.
 pub struct Opened {
     pub c: Collection,
-    /// The load it came from; only that load's next pages are added.
     pub load: u64,
-    /// When that load came in.
     at: Instant,
 }
 
-/// An album or playlist load under way (one each at a time). A playlist not kept yet
-/// comes in page by page; a kept one is swapped for the new copy once all of it is in.
 struct ListLoad {
     load: u64,
     album: bool,
-    /// It changed meanwhile, so it's loaded again afterwards.
     stale: bool,
 }
 
-/// A load to ask for. `stream`: a playlist with no kept copy comes page by page.
 #[derive(Debug, PartialEq)]
 pub struct Start {
     pub id: String,
@@ -46,45 +30,30 @@ pub struct Start {
     pub stream: bool,
 }
 
-/// How a load ended.
 #[derive(Debug, PartialEq)]
 pub enum Done {
     Kept,
-    /// It changed while loading: load it again.
     Reload(Start),
-    /// Nothing of it is kept: it failed before anything came (or was dropped for room
-    /// as it ended).
     NotKept,
 }
 
-/// An album or playlist (or a playlist's first page) that came in.
 #[derive(Debug, PartialEq)]
 pub enum Arrival {
-    /// More pages follow.
     More,
     Done(Done),
 }
 
-/// A playlist's next page, as taken.
 pub struct Page {
-    /// The songs left after the edits made here: they go to the queue too when it's
-    /// filling from this load.
     pub tracks: Vec<Track>,
-    /// They were added to the kept copy (one being replaced takes them when complete).
     pub kept: bool,
     pub done: Option<Done>,
 }
 
 #[derive(Default)]
 pub struct Lists {
-    /// Most recent first.
     opened: Vec<Opened>,
-    /// Numbers the loads. Never reset, so an answer from before `clear` can't pass for a new one.
     loads: u64,
-    /// The loads under way: only their answers are taken.
     running: HashMap<String, ListLoad>,
-    /// Likes and playlist removals made here lately. YouTube Music goes on listing the
-    /// old state for a while after it takes an edit, so lists that arrive are corrected with these.
     pub edits: RecentEdits,
 }
 
@@ -97,17 +66,14 @@ impl Lists {
         self.opened.iter_mut().find(|o| o.c.id == id).map(|o| &mut o.c)
     }
 
-    /// A load of it is under way.
     pub fn loading(&self, id: &str) -> bool {
         self.running.contains_key(id)
     }
 
-    /// More of the kept copy is still coming in, page by page.
     pub fn receiving(&self, id: &str) -> bool {
         self.running.get(id).is_some_and(|l| self.get(id).is_some_and(|o| o.load == l.load))
     }
 
-    /// Opening its page: it's the most recent.
     pub fn move_to_front(&mut self, id: &str) {
         if let Some(i) = self.opened.iter().position(|o| o.c.id == id) {
             let o = self.opened.remove(i);
@@ -115,8 +81,6 @@ impl Lists {
         }
     }
 
-    /// Load an album or playlist, unless a load of it is under way. `changed`: if one is,
-    /// it's loaded once more afterwards.
     pub fn load(&mut self, id: &str, album: bool, changed: bool) -> Option<Start> {
         if let Some(l) = self.running.get_mut(id) {
             l.stale |= changed;
@@ -130,7 +94,6 @@ impl Lists {
         Some(Start { id: id.to_owned(), load, album, stream: !album && self.get(id).is_none() })
     }
 
-    /// Opening an album or playlist page: loaded unless a copy from the last few minutes is kept.
     pub fn visit(&mut self, id: &str, album: bool, now: Instant) -> Option<Start> {
         match self.get(id).map(|o| now.saturating_duration_since(o.at)) {
             Some(age) if age <= REFRESH_EVERY => {
@@ -141,9 +104,6 @@ impl Lists {
         }
     }
 
-    /// An album or playlist (or a playlist's first page) came in; `keep`: the lists not to
-    /// drop for room (the page on screen, what's playing). Only the load under way counts:
-    /// one from before a sign-in change or a deletion is dropped (`None`).
     pub fn arrived(&mut self, load: u64, mut c: Collection, more: bool, keep: &[&str]) -> Option<Arrival> {
         if self.running.get(&c.id).is_none_or(|l| l.load != load) {
             return None;
@@ -164,8 +124,6 @@ impl Lists {
         self.done(&id, keep).map(Arrival::Done)
     }
 
-    /// A playlist's next page: onto the kept copy when it's from that load. An empty last
-    /// one also ends a load that failed. `None` when it isn't from the load under way.
     pub fn page(&mut self, id: &str, load: u64, tracks: Vec<Track>, set_ids: Vec<Option<String>>, more: bool, keep: &[&str]) -> Option<Page> {
         if self.running.get(id).is_none_or(|l| l.load != load) {
             return None;
@@ -176,7 +134,6 @@ impl Lists {
         let (mut tracks, mut set_ids): (Vec<Track>, Vec<Option<String>>) = tracks.into_iter().zip(set_ids).filter(|(t, set)| edits.keeps(id, t, set.as_deref())).unzip();
         let kept = match self.opened.iter_mut().find(|o| o.c.id == id && o.load == load) {
             Some(o) => {
-                // Liked Music has each song once; one liked here meanwhile is at its top already.
                 if id == LIKED_MUSIC {
                     (tracks, set_ids) = tracks.into_iter().zip(set_ids).filter(|(t, _)| !o.c.tracks.iter().any(|x| x.id == t.id)).unzip();
                 }
@@ -194,7 +151,6 @@ impl Lists {
         Some(Page { tracks, kept, done })
     }
 
-    /// A load ended: load it again if it changed meanwhile.
     fn done(&mut self, id: &str, keep: &[&str]) -> Option<Done> {
         let l = self.running.remove(id)?;
         self.trim(keep);
@@ -205,8 +161,6 @@ impl Lists {
         })
     }
 
-    /// Drop the oldest kept albums and playlists beyond `KEEP_OPENED`, but not those in
-    /// `keep`, one loading or Liked Music.
     fn trim(&mut self, keep: &[&str]) {
         let mut i = self.opened.len();
         while self.opened.len() > KEEP_OPENED && i > 0 {
@@ -218,8 +172,6 @@ impl Lists {
         }
     }
 
-    /// Likes made here show at once in Liked Music as kept. (A whole reload asked for just
-    /// before can still come back without them.)
     pub fn set_liked(&mut self, tracks: &[Track], like: bool) {
         for t in tracks {
             self.edits.like(&t.id, like, Some(t.clone()));
@@ -238,36 +190,28 @@ impl Lists {
         }
     }
 
-    /// Kept, or loading.
     pub fn known(&self, id: &str) -> bool {
         self.get(id).is_some() || self.loading(id)
     }
 
-    /// A deleted playlist: its copy and its load go.
     pub fn forget(&mut self, id: &str) {
         self.opened.retain(|o| o.c.id != id);
         self.running.remove(id);
     }
 
-    /// Another account: everything goes but the edits.
     pub fn clear(&mut self) {
         self.opened.clear();
         self.running.clear();
     }
 }
 
-/// How long YouTube Music may go on listing the old state after taking an edit.
 const EDIT_LAG: Duration = Duration::from_secs(180);
-/// How long a removal counts while YouTube Music hasn't answered (one it refused shows only
-/// as an error), and likes, which a few hundred at a time take a while.
 const REMOVAL_UNANSWERED: Duration = Duration::from_secs(60);
 const LIKE_UNANSWERED: Duration = Duration::from_secs(600);
 
 #[derive(Default)]
 pub struct RecentEdits {
-    /// Song: liked or not, the song when known (to put back a like the list lacks yet), and when.
     likes: HashMap<String, (bool, Option<Track>, EditAge)>,
-    /// Playlist: the entries (`setVideoId`s) taken out of it, and when.
     removals: HashMap<String, (HashSet<String>, EditAge)>,
 }
 
@@ -323,16 +267,12 @@ impl RecentEdits {
         self.removals.retain(|_, (_, age)| age.live(REMOVAL_UNANSWERED));
     }
 
-    /// Whether a song row YouTube Music sent still stands: not taken out of that
-    /// playlist, nor unliked when it's Liked Music.
     fn keeps(&self, list: &str, t: &Track, set_id: Option<&str>) -> bool {
         let unliked = list == LIKED_MUSIC && self.likes.get(&t.id).is_some_and(|(like, _, _)| !*like);
         let taken = set_id.is_some_and(|s| self.removals.get(list).is_some_and(|(r, _)| r.contains(s)));
         !unliked && !taken
     }
 
-    /// A list as YouTube Music sent it, with the edits made here since; Liked Music also
-    /// gets the songs liked here that it doesn't list yet, at the top.
     fn correct_collection(&mut self, c: &mut Collection) {
         self.prune();
         log::debug!(
@@ -390,7 +330,6 @@ mod tests {
         lists.get(id).map(|o| o.c.tracks.iter().map(|t| t.id.clone()).collect()).unwrap_or_default()
     }
 
-    /// A playlist loaded whole.
     fn load_whole(lists: &mut Lists, id: &str, songs: &[&str], keep: &[&str]) {
         let s = lists.load(id, false, false).unwrap();
         assert_eq!(lists.arrived(s.load, collection(id, songs), false, keep), Some(Arrival::Done(Done::Kept)));
@@ -405,9 +344,7 @@ mod tests {
         let mut lists = Lists::default();
         let s = lists.load("PL1", false, false).unwrap();
         assert_eq!(s, Start { id: "PL1".into(), load: 1, album: false, stream: true });
-        // One load at a time.
         assert_eq!(lists.load("PL1", false, false), None);
-        // An answer from another load is dropped.
         assert_eq!(lists.arrived(7, collection("PL1", &["a"]), true, &[]), None);
         assert!(lists.get("PL1").is_none());
 
@@ -420,7 +357,6 @@ mod tests {
         assert_eq!(page.done, Some(Done::Kept));
         assert_eq!(songs(&lists, "PL1"), ["a", "b"]);
         assert!(!lists.receiving("PL1") && !lists.loading("PL1"));
-        // Its last page came: a late one is dropped.
         let (t, set) = page_of(&["c"]);
         assert!(lists.page("PL1", 1, t, set, false, &[]).is_none());
     }
@@ -431,12 +367,9 @@ mod tests {
         let s = lists.load("PL1", false, false).unwrap();
         assert_eq!(lists.load("PL1", false, true), None);
         let again = lists.arrived(s.load, collection("PL1", &["a"]), false, &[]).unwrap();
-        // Kept now, so the next one comes whole.
         assert_eq!(again, Arrival::Done(Done::Reload(Start { id: "PL1".into(), load: 2, album: false, stream: false })));
         assert!(lists.loading("PL1"));
 
-        // A playlist streaming in that changes, and whose load then fails: what came is
-        // kept, and it's loaded again.
         let s = lists.load("PL2", false, false).unwrap();
         lists.arrived(s.load, collection("PL2", &["a"]), true, &[]).unwrap();
         assert_eq!(lists.load("PL2", false, true), None);
@@ -449,20 +382,17 @@ mod tests {
     fn a_load_that_fails_before_anything_came() {
         let mut lists = Lists::default();
         let s = lists.load("PL1", false, false).unwrap();
-        // The backend ends a failed load with an empty last page.
         let page = lists.page("PL1", s.load, vec![], vec![], false, &[]).unwrap();
         assert!(!page.kept);
         assert_eq!(page.done, Some(Done::NotKept));
         assert!(!lists.known("PL1"));
 
-        // One that fails after its first page keeps that page.
         let s = lists.load("PL3", false, false).unwrap();
         lists.arrived(s.load, collection("PL3", &["a"]), true, &[]).unwrap();
         assert_eq!(lists.page("PL3", s.load, vec![], vec![], false, &[]).unwrap().done, Some(Done::Kept));
         assert_eq!(songs(&lists, "PL3"), ["a"]);
         assert!(!lists.receiving("PL3"));
 
-        // A reload that fails keeps the copy there was.
         load_whole(&mut lists, "PL2", &["a"], &[]);
         let s = lists.load("PL2", false, false).unwrap();
         assert_eq!(lists.page("PL2", s.load, vec![], vec![], false, &[]).unwrap().done, Some(Done::Kept));
@@ -473,14 +403,11 @@ mod tests {
     fn a_kept_copy_is_swapped_when_the_new_one_is_in() {
         let mut lists = Lists::default();
         load_whole(&mut lists, "PL1", &["a", "b"], &[]);
-        // A kept playlist reloads whole, not page by page.
         let s = lists.load("PL1", false, false).unwrap();
         assert!(!s.stream);
         assert_eq!(lists.arrived(s.load, collection("PL1", &["x", "a"]), false, &[]), Some(Arrival::Done(Done::Kept)));
         assert_eq!(songs(&lists, "PL1"), ["x", "a"]);
 
-        // Should a page of the new load come anyway, it doesn't go onto the old copy (it's
-        // still handed on for the queue).
         let s = lists.load("PL1", false, false).unwrap();
         let (t, set) = page_of(&["y"]);
         let page = lists.page("PL1", s.load, t, set, true, &[]).unwrap();
@@ -497,7 +424,6 @@ mod tests {
         let mut lists = Lists::default();
         let s = lists.load(LIKED_MUSIC, false, false).unwrap();
         lists.arrived(s.load, collection(LIKED_MUSIC, &["a"]), true, &[]).unwrap();
-        // Liked here while it loads: at the top at once, and not twice when its page comes.
         lists.set_liked(&[track("z")], true);
         lists.set_liked(&[track("u")], false);
         assert_eq!(songs(&lists, LIKED_MUSIC), ["z", "a"]);
@@ -506,7 +432,6 @@ mod tests {
         assert_eq!(page.tracks.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), ["b"]);
         assert_eq!(songs(&lists, LIKED_MUSIC), ["z", "a", "b"]);
 
-        // An entry taken out of a playlist here stays out of a page still listing it.
         let s = lists.load("PL1", false, false).unwrap();
         lists.edits.remove("PL1", ["set-c".to_owned()]);
         lists.arrived(s.load, collection("PL1", &["c", "d"]), true, &[]).unwrap();
@@ -525,8 +450,6 @@ mod tests {
         for i in 2..10 {
             load_whole(&mut lists, &format!("PL{i}"), &["a"], &["PL0"]);
         }
-        // Kept: Liked Music, the page or song in use (PL0), the one still loading (PL1)
-        // and the newest others, eight in all.
         let kept: Vec<&str> = lists.opened.iter().map(|o| o.c.id.as_str()).collect();
         assert_eq!(kept, ["PL9", "PL8", "PL7", "PL6", "PL5", "PL1", "PL0", LIKED_MUSIC]);
 
@@ -536,19 +459,16 @@ mod tests {
     fn a_load_ending_with_no_room_left_is_dropped() {
         let mut lists = Lists::default();
         load_whole(&mut lists, LIKED_MUSIC, &["a"], &[]);
-        // Nine playlists streaming in at once: all held while they load, past the limit.
         let keep = ["PL9", "PL8"];
         let starts: Vec<_> = (1..=9).map(|i| lists.load(&format!("PL{i}"), false, false).unwrap()).collect();
         for s in &starts {
             lists.arrived(s.load, collection(&s.id, &["a"]), true, &keep).unwrap();
         }
         assert_eq!(lists.opened.len(), 10);
-        // The oldest ends: no longer held, it makes the room, even though it changed meanwhile.
         assert_eq!(lists.load("PL1", false, true), None);
         let page = lists.page("PL1", starts[0].load, vec![], vec![], false, &keep).unwrap();
         assert_eq!(page.done, Some(Done::NotKept));
         assert!(!lists.known("PL1"));
-        // What's on screen or playing stays when its load ends, however full it is.
         let page = lists.page("PL8", starts[7].load, vec![], vec![], false, &keep).unwrap();
         assert_eq!(page.done, Some(Done::Kept));
         assert_eq!(lists.opened.len(), 9);
@@ -572,11 +492,9 @@ mod tests {
         let s = lists.load("PL2", false, false).unwrap();
         lists.clear();
         assert!(!lists.known("PL1") && !lists.known("PL2"));
-        // The old account's answer is dropped, also once the same list loads again.
         let again = lists.load("PL2", false, false).unwrap();
         assert_ne!(again.load, s.load);
         assert_eq!(lists.arrived(s.load, collection("PL2", &["a"]), false, &[]), None);
-        // A deleted playlist: its load's answer is dropped too.
         lists.forget("PL2");
         assert_eq!(lists.arrived(again.load, collection("PL2", &["a"]), false, &[]), None);
     }
@@ -591,7 +509,6 @@ mod tests {
         assert_eq!(c.tracks.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), ["a", "d"]);
         assert_eq!(c.set_ids, [Some("set-a".to_owned()), Some("set-d".to_owned())]);
         assert_eq!(c.count, Some(2));
-        // Another playlist is left alone.
         let mut other = collection("PL2", &["b"]);
         edits.correct_collection(&mut other);
         assert_eq!(other.tracks.len(), 1);
@@ -602,12 +519,10 @@ mod tests {
         edits.confirm_likes(&["x".to_owned(), "y".to_owned()], &["z".to_owned()]);
         let mut lm = collection("LM", &["x", "z", "w"]);
         edits.correct_collection(&mut lm);
-        // x unliked; y liked but not listed yet; z's unlike was refused, so it stays.
         assert_eq!(lm.tracks.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), ["y", "z", "w"]);
         assert_eq!(lm.set_ids.len(), 3);
         assert_eq!(lm.count, Some(3));
         assert_eq!(lm.byline(), "3 songs");
-        // A later page drops an unliked song too.
         assert!(!edits.keeps("LM", &track("x"), Some("set-x")));
         assert!(edits.keeps("PL9", &track("x"), Some("set-x")));
     }

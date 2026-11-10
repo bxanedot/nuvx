@@ -10,11 +10,6 @@ import { TrackMenu } from './TrackMenu';
 
 type Option = { kind: 'query'; text: string; typed: string; rest: string } | { kind: 'item'; item: MusicItem };
 
-/**
- * The centred search field and its suggestions (report §6): a pill field, and
- * a glass dropdown of completions, then artist, album and song suggestions.
- * Arrow keys move through it; Enter picks; Escape closes.
- */
 export function SearchField({ initial, onSearch }: { initial: string; onSearch: (query: string) => void }) {
   const [value, setValue] = useState(initial);
   const [open, setOpen] = useState(false);
@@ -23,11 +18,6 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
   const listId = useId();
   const navigate = useNavigate();
   const suggestions = useSuggestions(open ? value : '');
-  // A suggestion's track menu takes focus when it opens (Menu focuses its
-  // first item), which would otherwise read as the field blurring and close
-  // the dropdown under the open menu. While a menu is open the blur close is
-  // held off; when the menu closes, its pick is done, so the dropdown
-  // closes with it.
   const menuOpen = useRef(false);
   const onMenuOpenChange = useCallback((isOpen: boolean) => {
     const wasOpen = menuOpen.current;
@@ -115,7 +105,6 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
         )}
       </form>
       {showList && (
-        // The dropdown: 302px of glass, 3px under the field.
         <ul
           id={listId}
           className="absolute top-[calc(100%+3px)] left-0 z-(--z-contextual-menus) max-h-[min(700px,70vh)] w-[302px] overflow-y-auto rounded-[9px] border border-[#00000033] bg-thick-material py-1.5 shadow-[inset_0_0_0_1px_#ffffff33,0_8px_40px_#0000008c] [backdrop-filter:blur(60px)_saturate(2.2)]"
@@ -175,7 +164,6 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
   );
 }
 
-// A suggestion row; hover or keyboard selection paints it in the key colour, white text.
 const optionRow = 'group/option mx-1.5 cursor-default rounded-[3px] data-active:bg-key-bg data-active:text-white';
 const hint = `${optionRow} grid grid-cols-[16px_minmax(0,1fr)] items-center p-1 type-body text-secondary`;
 const lockup = `${optionRow} mt-1.5 grid items-center gap-x-2.5 p-1.5`;

@@ -4,7 +4,6 @@ import { LoadError, NeedsExtension } from '@/components/music/States';
 import { useExplore, useYouTubeReady } from '@/data/music/queries';
 import { NewSkeleton } from '@/skeletons/PageSkeletons';
 
-/** New: YouTube Music's Explore (new albums and singles, trending, new videos). */
 export default function NewPage() {
   const { missing } = useYouTubeReady();
   const explore = useExplore();

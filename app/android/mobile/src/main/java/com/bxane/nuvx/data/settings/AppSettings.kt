@@ -18,98 +18,32 @@ import com.bxane.nuvx.playback.EqualizerPreset
 import kotlinx.coroutines.flow.MutableStateFlow
 
 
-/**
- * Whether a stream started under this ceiling may be served by [kind].
- *
- * Asked per stream rather than written into
- * [SourceConfig.enabled][com.bxane.nuvx.data.sources.SourceConfig.enabled],
- * which is what this used to do — an `applyQualityPreset` call flipped the
- * module and JioSaavn switches the moment a rung was picked. Two things
- * were wrong with that and both were reported together: picking a rung for
- * *mobile data* turned the sources off while sitting on Wi-Fi, and nothing
- * turned them back on when the connection changed, so a Wi-Fi ceiling of
- * Lossless still had no lossless source to reach. A ceiling is a property
- * of the connection in force; the switches on the Sources screen are the
- * user's standing choice. Storing the first in the second lost the second.
- *
- * [SourceKind.YOUTUBE] is permitted on every rung: it is what [maxKbps]
- * caps, and it is the only source that can answer at all when the ones
- * above it are skipped.
- */
 fun AudioQuality.permits(kind: SourceKind): Boolean = when (this) {
     AudioQuality.LOSSLESS -> true
-    // No lossless answer is wanted here, and a source that can serve one is
-    // the slow half of the list: an addon fronting several catalogues walks
-    // all of them before it answers, which is seconds spent to land on a
-    // transcode JioSaavn already has at 320.
     AudioQuality.HIGH -> !kind.canServeLossless
     AudioQuality.MEDIUM, AudioQuality.LOW -> kind == SourceKind.YOUTUBE
 }
 
-/**
- * PCM format requested from Media3's AudioTrack sink.
- *
- * FLOAT_32 is not a cosmetic "hi-res" switch: it makes Media3 convert
- * high-resolution integer PCM to IEEE-754 float and configure AudioTrack for
- * PCM_FLOAT. Android may still route/resample it according to the selected
- * output device, which is why the player exposes the negotiated format.
- */
 enum class OutputPcmMode(val label: String) {
     PCM_16("16-bit PCM"),
     FLOAT_32("32-bit float"),
 }
 
-/**
- * Which exclusive output, if any, a track is sent to unchanged. Declared in
- * the order the settings picker lists them; persisted by name, so the order
- * can change freely.
- *
- * Bit-perfect output bypasses the equalizer, loudness normalization,
- * crossfade, Automix, playback speed and software volume: any of them would
- * change the samples. Volume belongs to the DAC.
- *
- * See [com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput].
- */
 enum class BitPerfectMode {
     OFF,
 
-    /**
-     * nuvx's own USB Audio Class driver on libusb: any Android version,
-     * volume set on the DAC itself. Requires USB permission.
-     */
     USB_DIRECT,
 
-    /** An AAudio exclusive stream to a built-in DAC, for digital audio players. */
     DAP_EXCLUSIVE,
 
-    /** Android 14's bit-perfect mixer for a USB DAC. */
     USB_ANDROID,
 }
 
-/**
- * What to keep when a track is saved to the device.
- *
- * Deliberately not [AudioQuality]. That enum budgets a *stream*, and is priced
- * per hour because the same bytes are spent again on every replay. A download is
- * the opposite trade — paid for once, kept, played from disk forever after — so
- * the figure that decides it is what one track costs, and the rung worth
- * defaulting to is the top one rather than the cheap one.
- *
- * The rungs themselves differ too. On the YouTube fallback path a download is
- * Opus-in-WebM (see
- * [StreamResolver.resolveForDownload][com.bxane.nuvx.data.innertube.StreamResolver.resolveForDownload]),
- * while configured sources can supply their own AAC or lossless copy. And
- * [LOSSLESS] has no streaming counterpart at all: it is the only rung that lets
- * a configured source's bit-exact file end up as a file on disk.
- */
 enum class DownloadQuality(
-    /** Ceiling for the YouTube Opus ladder. [Int.MAX_VALUE] means "whichever rung is best". */
     val maxKbps: Int,
     val label: String,
     val detail: String,
-    /** Roughly what one four-minute track costs at this rung, sans unit context. */
     val perTrack: String,
-    /** Whether a source's bit-exact file is worth keeping, or a transcode will do. */
     val keepsLossless: Boolean,
 ) {
     STANDARD(128, "Standard", "~128 kbps Opus · fits more on the device", "~4 MB", false),
@@ -127,29 +61,14 @@ enum class ThemeMode(val label: String) {
     SYSTEM("System"), LIGHT("Light"), DARK("Dark")
 }
 
-/**
- * How the app's SF Pro Display is set. [DEFAULT] draws each weight one cut
- * lighter and spaces it to Apple Music's own screens; [LEGACY] is the cut the
- * app shipped with before that, every weight its own and spaced tight.
- */
 enum class AppFont { DEFAULT, LEGACY }
 
-/**
- * Which of the equaliser's two tabs is driving the sound.
- *
- * One at a time rather than both at once: they are two ways of describing the
- * same curve, and summing them would mean a tone pad sitting at dead centre
- * still quietly altering whatever the sliders said.
- */
 enum class EqualizerMode {
-    /** The tone pad: tilt, contour, and how wide each is. */
     DYNAMIC,
 
-    /** Seven sliders and a preset list. */
     MANUAL,
 }
 
-/** Stable persisted ordering for each on-device music library. */
 enum class LocalMusicSort {
     TITLE_ASC,
     TITLE_DESC,
@@ -157,15 +76,6 @@ enum class LocalMusicSort {
     DATE_MODIFIED,
 }
 
-/**
- * Ordering for the track list on an album or playlist page — the same idea as
- * the Downloads folder's sort, with a date option for the one thing a
- * catalogue row can still be dated by: the position it sits at. A playlist's
- * running order is the order songs were added in — YouTube Music appends each
- * addition at the foot — so read backwards it *is* a date order, newest first.
- * DetailScreen.kt holds the sort itself. Persisted app-wide rather than per
- * page: one choice, kept until the user makes another.
- */
 enum class SongSort {
     DEFAULT,
     TITLE_ASC,
@@ -174,599 +84,217 @@ enum class SongSort {
     DATE_ADDED_DESC,
 }
 
-/**
- * App settings, backed by SharedPreferences and exposed as flows.
- *
- * PlaybackService runs in the same process as the UI, so it observes these
- * same flows and applies changes to the live ExoPlayer instance immediately —
- * no restart, no rebinding.
- */
 object AppSettings {
 
     private lateinit var prefs: SharedPreferences
 
-    /** Only for the Discord, WebDAV and SMB secrets — everything else on here is plain prefs. */
     private lateinit var authStore: AuthStore
 
-    /**
-     * Quality ceilings, one per kind of connection — the point of the split is
-     * that Wi-Fi can stay on Lossless while mobile data is capped. Both
-     * default to Lossless; the mobile plan is the user's to budget, not ours
-     * to assume.
-     */
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
 
-    /** Allowed duration difference when replacing a playing stream with one from a source. */
     val upgradeLengthSlackSeconds = MutableStateFlow(DEFAULT_UPGRADE_LENGTH_SLACK_SECONDS)
 
-    /**
-     * What a saved file should be, answered on its own terms.
-     *
-     * Kept apart from the two ceilings above on purpose. Those are about what
-     * this minute's connection costs, and a download outlives the minute it was
-     * started in — capping a permanent file at whichever network happened to be
-     * in hand bakes a temporary decision into a lasting artefact, and the
-     * reverse (a High ceiling on Wi-Fi implying 35MB FLACs of everything) is
-     * just as wrong in the other direction.
-     *
-     * Data spend on a download is [wifiOnlyDownloads]' problem, not this
-     * setting's, which is what lets this one be purely about the file.
-     *
-     * Defaults to [DownloadQuality.LOSSLESS] because that is what the download
-     * path already did on an uncapped connection, and [migrateDownloadQuality]
-     * keeps it that way for the people it didn't.
-     */
     val downloadQuality = MutableStateFlow(DownloadQuality.LOSSLESS)
 
-    /**
-     * Refuse to start a download while the connection charges for data.
-     *
-     * Metered rather than literally-Wi-Fi, the same test [effectiveAudioQuality]
-     * makes, because the thing worth protecting is the bill and not the radio: a
-     * tethered hotspot is Wi-Fi that costs money, and an unmetered home
-     * connection is worth using whether or not it arrives over Wi-Fi.
-     *
-     * On by default, and that is a deliberate change of behaviour for anyone
-     * updating. [downloadQuality] defaulting to Lossless means a tap that used
-     * to spend four megabytes of mobile data can now spend thirty-five, and of
-     * the two ways to get that wrong — silently overspending a data plan, or
-     * refusing with a sentence naming the switch that would allow it — only the
-     * second is recoverable by the person it happens to.
-     */
     val wifiOnlyDownloads = MutableStateFlow(true)
 
-    /**
-     * Keep ordinary downloads in Music/nuvx where other music apps can see
-     * them. Off (the default) keeps downloads in this app's private storage.
-     * HLS downloads always stay private because they are a playlist package,
-     * not one portable audio file.
-     */
     val exportDownloads = MutableStateFlow(false)
 
-    /**
-     * Check the playlists downloaded whole for newly added songs and download
-     * them, in the background. Off by default: it spends data and storage
-     * without being asked each time. See [com.bxane.nuvx.download.PlaylistSync].
-     */
     val syncDownloadedPlaylists = MutableStateFlow(false)
 
-    /** Whether the active network charges for data. `null` while offline. */
     val meteredConnection = MutableStateFlow<Boolean?>(null)
-
-    // `losslessAudio` used to live here, behind a "Prefer lossless" switch on
-    // the Sources screen. It is gone: sources are asked for their best and each
-    // degrades on its own terms, so the switch's only real effect was to ask a
-    // module for a worse file than it was holding. See
-    // [SourceResolver.requestForNow][com.bxane.nuvx.data.sources.SourceResolver.requestForNow],
-    // which now reads [effectiveAudioQuality] and nothing else.
 
     val crossfadeSeconds = MutableStateFlow(0)
 
-    /**
-     * Lets Automix's analyzer decide the transition's timing and length
-     * from each track's tempo, energy and structure, replacing the fixed
-     * [crossfadeSeconds] window rather than needing it set to anything first
-     * — [crossfadeSeconds] only matters here as a fallback while a pair is
-     * still being analysed. Off by default: analysis costs a background
-     * decode per track.
-     *
-     * See [com.bxane.nuvx.playback.smart.TransitionPlanner].
-     */
     val smartFadeEnabled = MutableStateFlow(false)
 
-    /** The CPU budget used by Beat This! and vocal analysis for Automix. */
     val automixPerformanceMode = MutableStateFlow(AutomixPerformanceMode.BALANCED)
     val skipSilence = MutableStateFlow(false)
 
-    /** eXcor as a second extraction engine after InnerTubeX; off means InnerTubeX (then NewPipe) alone. */
     val excorFallback = MutableStateFlow(true)
 
-    /** Requested PCM representation at the Android AudioTrack boundary. */
     val outputPcmMode = MutableStateFlow(OutputPcmMode.PCM_16)
 
-    /** Prefer an attached USB audio output over the system's normal route. */
     val preferUsbDac = MutableStateFlow(false)
 
-    /** Unprocessed output to a DAC; see [BitPerfectMode]. */
     val bitPerfectMode = MutableStateFlow(BitPerfectMode.OFF)
 
-    /**
-     * Lets direct USB play to a DAC with no volume control nuvx can set:
-     * full scale, with the DAC's own knob (if any) the only volume. Off unless
-     * the listener accepts a second warning.
-     */
     val usbAllowFixedVolume = MutableStateFlow(false)
 
-    /**
-     * Lets the exclusive output convert a track its DAC can't take as it is, to
-     * the DAC's highest format. Off, such a track goes to normal output and no
-     * sample on the exclusive path is ever changed.
-     */
     val convertForLimitedDac = MutableStateFlow(false)
 
-    /**
-     * Level every track to the same loudness, using YouTube's own
-     * normalization figure for it — see
-     * [com.bxane.nuvx.playback.PlaybackService.setupLoudnessEnhancer].
-     *
-     * On by default, which is the one genuinely contentious thing about it.
-     * The case for it: a queue drawn from several sources is a queue of
-     * several mastering eras, and the gap between a 1980s CD transfer and a
-     * modern master is routinely fifteen decibels — loud enough that the
-     * listener's own volume control is the wrong tool, because the setting
-     * that suits one track hurts at the next. Every streaming service
-     * normalizes by default for the same reason.
-     *
-     * The case against it is that a constant gain is still a multiplication,
-     * so this is the first thing in nuvx that is *on* out of the box and
-     * alters samples. Rather than hide that, the Audio Pipeline readout names
-     * it: its Bit-exact row reports the first stage in the chain that is
-     * altering samples, and switching this off is the first thing a listener
-     * chasing an untouched signal would do.
-     */
     val loudnessNormalization = MutableStateFlow(true)
 
-    /** Skip loudness normalization while the active output is the phone's own speaker. */
     val loudnessOffOnSpeaker = MutableStateFlow(true)
 
-    /**
-     * Whether a source offering a Dolby Atmos rendition is allowed to serve it.
-     *
-     * On by default: where the device can decode it, Atmos is the premium
-     * rendition the catalogue holds and the one most people are paying a
-     * subscription for.
-     *
-     * Off is a real preference and not just a safety valve. Atmos is E-AC-3,
-     * which is *lossy* — a track with an Atmos master is frequently also held
-     * as a FLAC, and someone listening on wired headphones may well prefer the
-     * bit-exact stereo copy to a spatial mix their output can't render. Turning
-     * this off is how they say so; see
-     * [ModuleSource.unplayable][com.bxane.nuvx.data.sources.ModuleSource],
-     * which is where the refusal is applied.
-     *
-     * Independent of whether the device *can* decode it — that question is
-     * [DeviceCodecs.playsDolbyAtmos][com.bxane.nuvx.data.sources.DeviceCodecs],
-     * and the two are deliberately not folded together: this one is the
-     * listener's answer, is persisted, and must survive being read on a phone
-     * that cannot honour it (a restored backup, a swapped device) without
-     * quietly rewriting itself.
-     */
     val dolbyAtmos = MutableStateFlow(true)
 
-    /**
-     * Play a YouTube-queued track straight from an addon ranked above YouTube,
-     * rather than starting it on YouTube and swapping up mid-song.
-     *
-     * Also narrows read-ahead to the next track only, and only once the
-     * playing one is within [DirectSourceGate.WINDOW_MS][com.bxane.nuvx.playback.DirectSourceGate.WINDOW_MS]
-     * of its transition — see [DirectSourceGate][com.bxane.nuvx.playback.DirectSourceGate].
-     * Automix analysis is untouched: it keeps reading its own YouTube Opus copy.
-     */
     val directSourceStream = MutableStateFlow(false)
 
-    /**
-     * Widens stereo output via [com.bxane.nuvx.playback.SpatialAudioProcessor],
-     * a stereo widening + cross-feed effect running inside ExoPlayer's own
-     * pipeline. Not true object-based spatial audio — YouTube only ever hands
-     * us a stereo stream, so there's no Atmos-style source to render.
-     */
     val spatialAudio = MutableStateFlow(true)
 
-    /**
-     * The app's own equaliser, master switch.
-     *
-     * Separate from the system equaliser row beside it, which is still there and
-     * still opens the device's panel. The two stack rather than compete — this
-     * one runs inside ExoPlayer before the sink, that one hangs off the audio
-     * session after it — so someone who prefers their OEM's can leave this off
-     * and lose nothing.
-     */
     val equalizerEnabled = MutableStateFlow(false)
 
-    /** Which tab is driving it. */
     val equalizerMode = MutableStateFlow(EqualizerMode.DYNAMIC)
 
-    /** Tone pad, horizontal: warm at -5, bright at +5. */
     val equalizerToneX = MutableStateFlow(0)
 
-    /** Tone pad, vertical: scooped at -5, mid-forward at +5. */
     val equalizerToneY = MutableStateFlow(0)
 
-    /** Tone pad bandwidth: Broad when false, Focused when true. */
     val equalizerFocused = MutableStateFlow(false)
 
-    /** Left/right trim, -1 hard left to +1 hard right. Applies to both tabs. */
     val equalizerBalance = MutableStateFlow(0f)
 
-    /** The manual tab's seven gains, in decibels, low to high. */
     val equalizerBands = MutableStateFlow(EqualizerPreset.FLAT.bands)
 
-    /**
-     * Which preset the bands currently are, or [EqualizerPreset.CUSTOM].
-     *
-     * Derived from [equalizerBands] rather than independent of it — see
-     * [setEqualizerBands] — so a slider dragged back to where a preset left it
-     * makes the row say that preset's name again instead of "Custom" forever.
-     */
     val equalizerPreset = MutableStateFlow(EqualizerPreset.FLAT)
 
     val playbackSpeed = MutableStateFlow(1.0f)
     val themeMode = MutableStateFlow(ThemeMode.LIGHT)
     val appFont = MutableStateFlow(AppFont.DEFAULT)
 
-    /** Keep playing similar music once the queue runs out. */
     val autoplay = MutableStateFlow(true)
 
-    /** Whether the queue is held in shuffled order (Mix button). */
     val shuffleEnabled = MutableStateFlow(false)
 
-    /** Repeat mode for the player — Off, All, or One. */
     val repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
 
-    /** Put the playing track's codec, bitrate and sample rate on the player. */
     val showNerdStats = MutableStateFlow(false)
 
-    /** Show the output / Listen Together pill under the player's transport. */
     val showListenTogetherButton = MutableStateFlow(true)
 
-    /** Freezes the main player's mesh gradient instead of letting it drift/crossfade. */
     val reduceAnimation = MutableStateFlow(false)
 
-    /**
-     * Whether the welcome pages (party name, then YouTube sign-in) have been
-     * through. Absent rather than true for anyone updating from a build that
-     * had no onboarding, so they get it once too — they have no party name yet.
-     */
     val onboardingComplete = MutableStateFlow(false)
 
-    /** The plain search page instead of the colour category tiles. */
     val classicSearch = MutableStateFlow(false)
 
-    /** "Enable YouTube Search": a YouTube filter beside YouTube Music's. Off by default. */
     val youtubeSearch = MutableStateFlow(false)
 
-    /** nuvx Car: for car stereos and head units, landscape with the screen kept on. */
     val carMode = MutableStateFlow(false)
 
-    /** Hides the live Radio tab from the nav bar. */
     val hideRadioTab = MutableStateFlow(false)
 
-    /** Whether the first-visit Radio pop-up has been answered. */
     val radioIntroShown = MutableStateFlow(false)
 
-    /** Hides the Podcasts tab from the nav bar. */
     val hidePodcastsTab = MutableStateFlow(false)
 
-    /** Whether the first-visit Podcasts pop-up has been answered. */
     val podcastsIntroShown = MutableStateFlow(false)
 
-    /** "Don't show again" on the occasional tip / GitHub-star pop-up. */
     val supportPromptsOff = MutableStateFlow(false)
 
-    /** Whether the one-time Diwali 2026 greeting has been seen and dismissed. */
     val diwaliGreetingShown = MutableStateFlow(false)
 
-    /** Requests a sustained high-refresh UI. Off keeps Android's automatic policy. */
     val highPerformanceMode = MutableStateFlow(false)
 
-    /** Preferred UI refresh rate while [highPerformanceMode] is enabled. */
     val performanceRefreshRate = MutableStateFlow(DEFAULT_PERFORMANCE_REFRESH_RATE)
 
-    /** Stop playback when the app is swiped away from the recent apps screen. */
     val stopOnTaskRemoved = MutableStateFlow(false)
 
-    /** Hides the volume slider on the main player, leaving the rest of the layout to reflow. */
     val hideVolumeBar = MutableStateFlow(false)
 
-    /** Hides the device status bar (clock, battery, notifications) while the main player is open. */
     val hideStatusBarInPlayer = MutableStateFlow(false)
 
-    /** Hides the "Playing from" / "Played by" caption at the top of the main player. */
     val hideSongStatus = MutableStateFlow(false)
 
     val showQueueHistory = MutableStateFlow(false)
 
-    /** Swiping a song row plays it next instead of adding it to the end of the queue. */
     val swipeToPlayNext = MutableStateFlow(false)
 
-    /** Once a song has been suggested or played this session, AutoPlay won't offer it again. */
     val dontRepeatSuggestions = MutableStateFlow(false)
 
-    /** Music videos play as their audio version — see [com.bxane.nuvx.playback.MusicOnlyPlayback]. */
     val preferMusicOnly = MutableStateFlow(false)
 
-    /** Home's Recents shelf. */
     val hideRecents = MutableStateFlow(false)
 
-    /** Music videos come off the Home feed, along with any shelf left with nothing else on it. */
     val hideHomeVideos = MutableStateFlow(false)
 
-    /** Home's Top Picks for You shelf. */
     val hideTopPicks = MutableStateFlow(false)
 
-    /** Home's Find Your Mood shelf. Explore's moods are a page the listener opened, so they stay. */
     val hideHomeMoods = MutableStateFlow(false)
 
-    /** Music videos are square wherever they show — see [com.bxane.nuvx.ui.components.VideoThumbnails]. */
     val squareVideoThumbnails = MutableStateFlow(false)
 
-    /** Analyzes audio waveform/envelope to align matching playback moment between versions. */
     val smartVersionAlignment = MutableStateFlow(true)
 
-    /** Drops haze blur (status bar, mini player, bottom fade, lyrics focus) for a solid-fill look. */
     val reduceDynamicBlur = MutableStateFlow(false)
 
-    /**
-     * Draws the player's glyphs and text, and the dark menus' rows, in plain white
-     * over what is behind them instead of blending the artwork's colour into them.
-     */
     val disableBlendEffects = MutableStateFlow(false)
 
-    /** Real backdrop-sampled glass (blur, lens refraction) on the floating nav bar, Android 12+ only. */
     val liquidGlass = MutableStateFlow(true)
 
-    /**
-     * Frosts the glass instead of refracting it, for phones the lens shader is too
-     * much for: the bar's rim, shadow, tint and motion all stay. A Liquid Glass
-     * option, honoured only while [liquidGlass] is on.
-     */
     val glassPerformance = MutableStateFlow(true)
 
-    /**
-     * Blurs what scrolls under the status bar and the top controls, easing out
-     * just below them, instead of fading it to the page colour. A Liquid Glass
-     * option, honoured only while [liquidGlass] is on. Off by default: it costs
-     * frames. Reduce dynamic blur overrides it.
-     */
     val progressiveBlur = MutableStateFlow(false)
 
-    /** Blurs unfocused lyric lines, keeping the active line sharp. */
     val lyricsBlur = MutableStateFlow(true)
 
-    /** Positive values delay synced lyrics; negative values bring them forward. */
     val lyricsOffsetMs = MutableStateFlow(0)
 
-    /**
-     * Which language the lyrics translate button translates *into*.
-     *
-     * Blank — the default — means "whatever the app is set to", and is stored
-     * as blank rather than resolved once: someone who has never touched this
-     * has expressed no preference, and switching the app to Spanish should
-     * carry their lyrics with it rather than leaving them on the English they
-     * happened to be reading the day the setting was written.
-     */
     val translationLanguage = MutableStateFlow("")
 
-    /**
-     * Plays a looping video behind the cover art on the player when one is
-     * published for the track — Spotify's Canvas, Apple's motion artwork.
-     *
-     * Costs a video stream on top of the audio one and reaches three
-     * services that have nothing to do with playback, so it stays a switch —
-     * but it is the better default, and most tracks resolve to no canvas at
-     * all. See [CanvasRepository][com.bxane.nuvx.data.canvas.CanvasRepository].
-     */
     val animatedCanvas = MutableStateFlow(true)
 
-    /**
-     * Whether [animatedCanvas] is allowed to actually stream on a metered
-     * connection, as distinct from the switch that turns the feature off
-     * altogether.
-     *
-     * Off by default. A canvas clip loops for as long as its track plays,
-     * and every loop past the first re-fetches the same few seconds of video
-     * — see [CanvasCache][com.bxane.nuvx.data.canvas.CanvasCache] for why
-     * that costs network at all rather than being answered from a buffer —
-     * so a few-second clip behind a four-minute track on cellular is not a
-     * flat video cost, it is that cost repeated dozens of times per song.
-     * That is the shape of the reported 8GB day: still art costs nothing
-     * here and stays up regardless of this setting.
-     */
     val canvasOverCellular = MutableStateFlow(false)
 
-    /** Automatically collapses the lower controls after Spotify Canvas settles. */
     val spotifyCanvasAutoHide = MutableStateFlow(true)
 
-    /** Tries Spotify before Apple Music and the other animated-art providers. */
     val prioritizeSpotifyCanvas = MutableStateFlow(false)
 
-    /**
-     * Secondary artist art: a user-hosted artist-signature API used only when
-     * Apple Music has no title logo. Blank URL means unconfigured and the
-     * lookup is skipped entirely — there is no hosted default.
-     */
     val signatureApiEnabled = MutableStateFlow(false)
     val signatureApiUrl = MutableStateFlow("")
 
-    /**
-     * Blows the player's cover art out to a full-bleed banner running off the
-     * top of the screen, rather than sitting it in a square card.
-     *
-     * The treatment motion artwork has always had, applied to still sleeves too.
-     * Off restores the card: the sleeve keeps its corners, its shadow and its
-     * shrink-while-paused, and only a clip goes full-bleed. Phones only either
-     * way — see the hero notes in
-     * [NowPlayingScreen][com.bxane.nuvx.ui.player.NowPlayingScreen].
-     */
     val fullBleedArtwork = MutableStateFlow(true)
 
-    /**
-     * The album and playlist page's answer to [fullBleedArtwork]: the sleeve
-     * runs edge to edge off the top of the screen and dissolves into the page
-     * colour, instead of sitting framed in the middle. Everything under it —
-     * the page colour, title, credit and buttons — stays as it is. Off by
-     * default, the framed sleeve being the page's own look.
-     */
     val fullBleedDetailArtwork = MutableStateFlow(false)
 
-    /**
-     * What the main player stands on below the artwork.
-     *
-     * [PlayerTheme.DEFAULT] because that is the look people asked to have back,
-     * and because the alternatives each give something up: see
-     * [ArtworkMesh][com.bxane.nuvx.ui.player.ArtworkMesh] for what
-     * [PlayerTheme.LEGACY]'s quantiser does to a cover that is nine-tenths black
-     * with a red stripe (a red screen), and
-     * [ArtworkMeshBackdrop][com.bxane.nuvx.ui.player.ArtworkMeshBackdrop] for
-     * its cost (blobs that drift are a full-screen blur redrawn while they move,
-     * where a mesh is drawn once per track and then composited).
-     */
     val playerTheme = MutableStateFlow(PlayerTheme.DEFAULT)
 
-    /** Restores the expanded player to the surface the listener left open. */
     val lastPlayerScreen = MutableStateFlow(LastPlayerScreen.MAIN)
 
-    /**
-     * Time-synced lyrics on the player, lit up as they are sung.
-     *
-     * On by default — it is most of the point of the player screen — but it
-     * reaches third-party lyric databases for every track played, so it stays
-     * a switch, and [lyricsSources] narrows which of them get asked.
-     */
     val syncedLyrics = MutableStateFlow(true)
 
-    /** The databases [syncedLyrics] may ask. Empty is the same as off. */
     val lyricsSources = MutableStateFlow(LyricsSource.offered.toSet())
 
-    /**
-     * The order [lyricsSources] are asked in — see [LyricsRepository][com.bxane.nuvx.data.lyrics.LyricsRepository]:
-     * every enabled source is asked at once, but a higher-priority one still
-     * pending is never preempted by a lower one that happened to answer first.
-     * Reordered from Settings, so this is a full permutation of
-     * [LyricsSource.offered] rather than a subset — enabling and ordering are
-     * independent choices.
-     */
     val lyricsSourceOrder = MutableStateFlow<List<LyricsSource>>(LyricsSource.offered)
 
-    /**
-     * On (the default), the finest timing wins: syllable, then word, then
-     * line, the rest of [lyricsSourceOrder] still checked until a syllable-
-     * timed answer turns up. Off, the highest-priority source to answer at
-     * all is taken as-is — fewer network calls for those who'd rather.
-     */
     val prioritizeSyllableSync = MutableStateFlow(true)
 
-    /** User-issued credential required by api.paxsenix.org. */
     val paxSenixApiKey = MutableStateFlow("")
 
-    /**
-     * Disk budget for cached audio. [AudioCache][com.bxane.nuvx.playback.AudioCache] evicts past it.
-     * [UNLIMITED_CACHE_LIMIT_BYTES] means no ceiling of the app's own.
-     */
     val audioCacheLimitBytes = MutableStateFlow(DEFAULT_CACHE_LIMIT_BYTES)
 
-    /**
-     * Whether Library's "On device" shelf carries the Cached songs folder —
-     * the YouTube and JioSaavn tracks the song cache is holding. Off by
-     * default: the cache is an implementation detail most people never need
-     * to look inside.
-     */
     val showCacheFolder = MutableStateFlow(false)
 
-    // ── Replay ──────────────────────────────────────────────────────────────
-
-    /**
-     * Whether Replay may work out a genre chart.
-     *
-     * Its own switch because it is the one part of Replay that isn't purely
-     * local: everything else on that page is counted on this device and never
-     * leaves it, while a genre has to be looked up by artist name — see
-     * [ArtistFacts][com.bxane.nuvx.data.stats.ArtistFacts]. On by default,
-     * since it sends a name and nothing else and the answer is what makes a
-     * quarter of the page exist; off, the genre chart simply isn't drawn.
-     */
     val replayGenres = MutableStateFlow(true)
 
-    // ── Library ─────────────────────────────────────────────────────────────
-
-    /** Hides short clips, recorder output and non-music formats from Local Music. */
     val filterNonMusicAudio = MutableStateFlow(true)
 
     val localMusicSort = MutableStateFlow(LocalMusicSort.TITLE_ASC)
     val downloadedMusicSort = MutableStateFlow(LocalMusicSort.TITLE_ASC)
     val localMusicViewType = MutableStateFlow(LibraryViewType.LIST)
     val downloadedMusicViewType = MutableStateFlow(LibraryViewType.LIST)
-    /** Layout used by the Recents shelf on Play; compact tracks are the default. */
     val librarySort = MutableStateFlow(LibrarySort.DEFAULT)
 
-    /**
-     * Each album/playlist page's track-list order, keyed by browse id —
-     * Spotify-style, every page keeps its own. A page never touched reads as
-     * [SongSort.DEFAULT].
-     */
     val detailSongSorts = MutableStateFlow<Map<String, SongSort>>(emptyMap())
 
-    /** Empty means every MediaStore folder; otherwise this is a persisted SAF tree URI. */
     val localMusicFolderUri = MutableStateFlow("")
 
-    // ── WebDAV ────────────────────────────────────────────────────────────
-
-    /**
-     * Remote music library over WebDAV (e.g. Nextcloud's Music folder).
-     *
-     * The URL and username live in plain prefs like every other setting; the
-     * password is mirrored out of [AuthStore] so it stays encrypted at rest
-     * and out of backup exports — see [exportPrefs]. Empty URL means
-     * unconfigured, and the library simply reads as empty.
-     */
     val webdavUrl = MutableStateFlow("")
     val webdavUsername = MutableStateFlow("")
     val webdavPassword = MutableStateFlow("")
 
-    // ── SMB ───────────────────────────────────────────────────────────────
-
-    /**
-     * Remote music library on an SMB file share (a NAS, a Windows box).
-     *
-     * Stored like the WebDAV settings: host, share, base folder and username
-     * in plain prefs, the password mirrored out of [AuthStore] so it stays
-     * encrypted at rest and out of backup exports. Empty host or share means
-     * unconfigured, and the library simply reads as empty.
-     */
     val smbHost = MutableStateFlow("")
     val smbShare = MutableStateFlow("")
     val smbBasePath = MutableStateFlow("")
     val smbUsername = MutableStateFlow("")
     val smbPassword = MutableStateFlow("")
 
-    /**
-     * Browse ids of the playlists pinned to the top of the Library tab, in the
-     * order they were pinned.
-     *
-     * A [List] rather than a [Set]: pin order is part of what a pin means here —
-     * the whole point is a small, hand-picked front row, and a set would leave
-     * that order to hash iteration. Capped at [MAX_PINNED_PLAYLISTS] by
-     * [togglePinnedPlaylist], the only way this is ever written.
-     */
     val pinnedPlaylists = MutableStateFlow<List<String>>(emptyList())
 
-    /** How many playlists [pinnedPlaylists] can hold at once. */
     const val MAX_PINNED_PLAYLISTS = 5
 
-    // ── Scrobbling ──────────────────────────────────────────────────────
-
-    /** One release gate shared by the settings UI and the playback service. */
     val scrobblingAvailable = true
 
     val lastfmEnabled = MutableStateFlow(false)
@@ -786,42 +314,23 @@ object AppSettings {
     val listenBrainzPrimaryArtistOnly = MutableStateFlow(false)
     val spotifySpdcToken = MutableStateFlow("")
 
-    // ── Discord Rich Presence ───────────────────────────────────────────
-
-    /**
-     * The connected Discord account's token, mirrored out of [AuthStore] so
-     * [PlaybackService][com.bxane.nuvx.playback.PlaybackService] can pick
-     * up a login without polling for one. Empty means not connected.
-     *
-     * Only the mirror is here — the persisted copy is encrypted, because unlike
-     * a scrobbler key this one is the account itself.
-     */
     val discordToken = MutableStateFlow("")
 
-    /**
-     * Who the token belongs to, cached at login. Kept so the settings screen
-     * can show the account without a round trip every time it opens, and can
-     * still show it offline.
-     */
     val discordUsername = MutableStateFlow("")
     val discordName = MutableStateFlow("")
     val discordAvatar = MutableStateFlow("")
 
     val discordRpcEnabled = MutableStateFlow(true)
 
-    /** Put the track title on the bold profile line, in place of the artist. */
     val discordUseDetails = MutableStateFlow(false)
 
-    /** Show measured Hi-Res, Lossless, or Dolby specs on the presence card. */
     val discordShowAudioQuality = MutableStateFlow(true)
 
-    /** Reveals the presence-shape controls: status, activity type/name, buttons. */
     val discordAdvancedMode = MutableStateFlow(false)
 
     val discordStatus = MutableStateFlow("online")
     val discordActivityType = MutableStateFlow("listening")
 
-    /** Overrides the "Listening to ___" line; empty means the app's own name. */
     val discordActivityName = MutableStateFlow("")
 
     val discordButton1Text = MutableStateFlow("")
@@ -829,94 +338,32 @@ object AppSettings {
     val discordButton2Text = MutableStateFlow("")
     val discordButton2Visible = MutableStateFlow(true)
 
-    /** The notice about what connecting an account actually does has been read. */
     val discordInfoDismissed = MutableStateFlow(false)
 
-    /** Published by PlaybackService so the UI can open the system equalizer. */
     val audioSessionId = MutableStateFlow(0)
 
-    /**
-     * True only while a Automix transition that is actually *mixing* is
-     * audible — one that beat-matched, cued the incoming track into its
-     * arrangement, or rode a filter.
-     *
-     * Deliberately not "a crossfade is running". The fallback case, where
-     * neither track was analysed in time and the incoming one starts from 0:00
-     * under a plain equal-power fade, is exactly what this must stay dark for:
-     * the whole point is that seeing it means the analysis landed and did
-     * something a plain crossfade could not.
-     */
     val smartMixInProgress = MutableStateFlow(false)
 
-    /**
-     * The Automix blend in flight — its progress and the beat it runs on — or
-     * null between blends. Published by the crossfade controller every fade
-     * tick; read it in draw, not in composition.
-     */
     val smartMixBlend = MutableStateFlow<MixBlend?>(null)
 
-    /** The Automix blend in flight laid out for the mix popup, or null between blends. */
     val smartMixView = MutableStateFlow<MixTransitionView?>(null)
 
-    /** How far through [smartMixView]'s blend playback is, 0..1. Read it in draw. */
     val smartMixProgress = MutableStateFlow(0f)
 
-    /**
-     * The *next* Automix transition laid out for the mix popup, as the plan
-     * stands right now — for a popup opened by hand from the player's menu
-     * between blends. Only published while [mixViewOpen], and null whenever
-     * [smartMixView] has a blend to show instead.
-     */
     val smartMixPreview = MutableStateFlow<MixTransitionView?>(null)
 
-    /** The mix popup is up. Written by the player; tells the crossfade controller someone is looking. */
     val mixViewOpen = MutableStateFlow(false)
 
-    /**
-     * True while a version switch is fetching and analysing the other cut
-     * before playback actually moves. Drains into the loading bar drawn along
-     * the scrubber itself — `ThinSlider.loading` — so the wait reads as work
-     * in progress rather than as a player frozen on a version that is about to
-     * change, and lights the toggle button's spinner through the half of the
-     * switch that has nothing else showing.
-     */
     val versionAlignmentInProgress = MutableStateFlow(false)
 
-    /**
-     * How much of the *upcoming* transition has been analysed, for stats for
-     * nerds. Published by the crossfade controller, which is the only thing
-     * that knows which two tracks the next transition is between.
-     */
     val smartAnalysis = MutableStateFlow(SmartAnalysis())
 
-    /**
-     * Automix's detailed line for stats for nerds: each song's analysis while
-     * it waits, then the planned mix (a loop mix's loops and tempo ramp, a
-     * blend's length and stretch, or why the pair isn't beatmatched). Published
-     * by the crossfade controller; null while Automix is off.
-     */
     val automixDetail = MutableStateFlow<String?>(null)
 
-    /**
-     * Where on the *playing* track the next transition is planned to happen, as
-     * fractions of its duration, or null when there is nothing worth drawing.
-     *
-     * Only published once both tracks are measured. Before that the planner is
-     * still working from a fallback window that moves as evidence arrives, and
-     * a marker that slides around the bar would be worse than no marker.
-     */
     val smartTransitionWindow = MutableStateFlow<TransitionWindow?>(null)
 
-    /**
-     * A temporary cap on [effectiveAudioQuality], for as long as something other
-     * than this phone's own speaker is playing — the nuvx watch app, whose
-     * audio goes over a Bluetooth link that cannot keep up with lossless. Never
-     * persisted, never shown: the listener's own settings are untouched, and
-     * apply again the moment the phone takes the music back.
-     */
     val streamCeilingOverride = MutableStateFlow<AudioQuality?>(null)
 
-    /** The ceiling that applies to a stream started right now. */
     val effectiveAudioQuality: AudioQuality
         get() = ceilingFor(
             wifi = audioQualityWifi.value,
@@ -925,10 +372,6 @@ object AppSettings {
             override = streamCeilingOverride.value,
         )
 
-    /**
-     * [effectiveAudioQuality] from values a caller already holds — a screen
-     * that collected the four flows so it recomposes when any of them moves.
-     */
     fun ceilingFor(
         wifi: AudioQuality,
         cellular: AudioQuality,
@@ -940,22 +383,9 @@ object AppSettings {
         return if (chosen.ordinal > cap.ordinal) cap else chosen
     }
 
-    /**
-     * Whether a download may start on the connection in hand.
-     *
-     * A null [meteredConnection] means there is no active network, and that is
-     * deliberately allowed through: a download with nothing to download over
-     * fails on the network and says so, which is true, where refusing it here
-     * would blame a Wi-Fi setting for an outage.
-     */
     val downloadsAllowedNow: Boolean
         get() = !wifiOnlyDownloads.value || meteredConnection.value != true
 
-    /**
-     * [authStore] is the application's own, passed in rather than opened again:
-     * each open of the encrypted store is a keystore round trip, and a second
-     * one here was a measurable slice of cold start.
-     */
     fun init(context: Context, authStore: AuthStore) {
         prefs = context.getSharedPreferences("nuvx_settings", Context.MODE_PRIVATE)
         this.authStore = authStore
@@ -968,17 +398,6 @@ object AppSettings {
         watchConnection(context)
     }
 
-    /**
-     * Re-reads every setting off disk.
-     *
-     * The one caller is an import ([Backup][com.bxane.nuvx.data.stats.Backup]),
-     * which writes the whole preference file underneath these flows. Nothing
-     * else in the app changes a preference without going through the setter
-     * beside it, so nothing else has a reason to ask.
-     *
-     * Deliberately not re-registering the network callback: that watches the
-     * device, not the preferences, and a second one would have both firing.
-     */
     fun reload() {
         if (!this::prefs.isInitialized) return
         readAll()
@@ -1096,7 +515,6 @@ object AppSettings {
         signatureApiUrl.value = normalizeSignatureApiUrl(prefs.getString(KEY_SIGNATURE_API_URL, "").orEmpty())
         fullBleedArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_ARTWORK, true)
         fullBleedDetailArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_DETAIL_ARTWORK, false)
-        // The old legacy mesh switch answers until a theme has been picked.
         playerTheme.value = runCatching {
             PlayerTheme.valueOf(prefs.getString(KEY_PLAYER_THEME, null).orEmpty())
         }.getOrElse {
@@ -1181,19 +599,6 @@ object AppSettings {
         discordInfoDismissed.value = prefs.getBoolean(KEY_DISCORD_INFO_DISMISSED, false)
     }
 
-    /**
-     * True the first time this is called after [currentVersionCode] rises above
-     * whatever was last recorded — i.e. once per update, on the first launch
-     * after it installs. A fresh install has nothing to compare against, so
-     * the very first call seeds the stored value from [currentVersionCode]
-     * rather than reporting an update.
-     *
-     * nuvx ships sideloaded (see [com.bxane.nuvx.data.AppUpdateChecker]),
-     * so installing a new APK over the old one is the only "update" there is —
-     * app data, this pref included, survives it exactly like a Play Store
-     * update. Call once per process start, before anything reads a cache that
-     * an update should invalidate.
-     */
     fun consumeVersionUpdate(currentVersionCode: Int): Boolean {
         val last = prefs.getInt(KEY_LAST_VERSION_CODE, currentVersionCode)
         if (last != currentVersionCode) {
@@ -1202,11 +607,6 @@ object AppSettings {
         return currentVersionCode > last
     }
 
-    /**
-     * A ceiling saved when there was only one applies to both connections.
-     * Someone who picked Low to protect a data plan would not thank us for
-     * quietly putting Wi-Fi *and* mobile back on High.
-     */
     private fun migrateSingleQuality() {
         val legacy = prefs.getString(KEY_QUALITY_LEGACY, null) ?: return
         prefs.edit()
@@ -1221,26 +621,8 @@ object AppSettings {
         return runCatching { AudioQuality.valueOf(stored) }.getOrDefault(AudioQuality.LOSSLESS)
     }
 
-    /**
-     * Write down what the download path was already doing, before it starts
-     * being asked instead.
-     *
-     * Download quality used to be derived rather than chosen: a lossless copy
-     * was kept when `SourceResolver.requestForNow()` said Lossless, which meant
-     * a download quietly turned on the lossless preference and off again with
-     * it. Someone who switched that off on the Sources screen was getting AAC
-     * downloads on purpose, and defaulting them to Lossless now would answer a
-     * question they had already answered — with thirty-five megabytes a track.
-     *
-     * The ceilings are deliberately *not* consulted. They were only in that
-     * derivation because there was nowhere else to say "not on mobile data",
-     * and [wifiOnlyDownloads] is now where that is said.
-     */
     private fun migrateDownloadQuality() {
         if (prefs.contains(KEY_QUALITY_DOWNLOAD)) return
-        // Was derived from the old `losslessAudio` switch, which defaulted to
-        // on; LOSSLESS is what that produced for all but the few installs that
-        // had turned it off, and is the default a fresh install gets anyway.
         prefs.edit().putString(KEY_QUALITY_DOWNLOAD, DownloadQuality.LOSSLESS.name).apply()
     }
 
@@ -1249,12 +631,6 @@ object AppSettings {
         return runCatching { DownloadQuality.valueOf(stored) }.getOrDefault(DownloadQuality.LOSSLESS)
     }
 
-    /**
-     * Track the active network so [effectiveAudioQuality] can answer without
-     * touching ConnectivityManager. Stream resolution happens off the main
-     * thread mid-playback; a callback keeps that lookup off the hot path and
-     * lets the settings page show which ceiling is currently in force.
-     */
     private fun watchConnection(context: Context) {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return
         val refresh = {
@@ -1391,13 +767,6 @@ object AppSettings {
         prefs.edit().putFloat(KEY_EQ_BALANCE, clamped).apply()
     }
 
-    /**
-     * Writes the manual tab's seven gains, and renames the preset row to suit.
-     *
-     * Stored as text rather than seven keys of their own so that a backup
-     * carries them: [exportPrefs] copies the preference file as it stands, and
-     * one string is one thing to keep in step rather than seven.
-     */
     fun setEqualizerBands(values: List<Float>) {
         val clamped = List(EqLayout.MANUAL_COUNT) {
             values.getOrElse(it) { 0f }.coerceIn(-EqLayout.MANUAL_RANGE_DB, EqLayout.MANUAL_RANGE_DB)
@@ -1407,7 +776,6 @@ object AppSettings {
         prefs.edit().putString(KEY_EQ_BANDS, clamped.joinToString(",")).apply()
     }
 
-    /** Applies a preset's curve. [EqualizerPreset.CUSTOM] carries none, so it does nothing. */
     fun setEqualizerPreset(preset: EqualizerPreset) {
         if (preset == EqualizerPreset.CUSTOM) return
         setEqualizerBands(preset.bands)
@@ -1418,8 +786,6 @@ object AppSettings {
             ?.split(",")
             ?.mapNotNull { it.trim().toFloatOrNull() }
             .orEmpty()
-        // Padded rather than rejected: a backup written by a build with a
-        // different number of bands should restore the ones it does have.
         return List(EqLayout.MANUAL_COUNT) {
             stored.getOrElse(it) { 0f }.coerceIn(-EqLayout.MANUAL_RANGE_DB, EqLayout.MANUAL_RANGE_DB)
         }
@@ -1503,10 +869,6 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_SUPPORT_PROMPTS_OFF, true).apply()
     }
 
-    /**
-     * Counts this launch and says which support pop-up it gets: 0 none, 1 tip, 2 GitHub star.
-     * Launch 8 and every 12th after, alternating, so it is rare and never two launches running.
-     */
     fun nextSupportPrompt(): Int {
         val n = prefs.getInt(KEY_LAUNCHES, 0) + 1
         prefs.edit().putInt(KEY_LAUNCHES, n).apply()
@@ -1650,7 +1012,6 @@ object AppSettings {
         prefs.edit().putInt(KEY_LYRICS_OFFSET_MS, normalized).apply()
     }
 
-    /** Blank restores "follow the app language"; see [translationLanguage]. */
     fun setTranslationLanguage(value: String) {
         translationLanguage.value = value
         prefs.edit().putString(KEY_TRANSLATION_LANGUAGE, value).apply()
@@ -1665,28 +1026,10 @@ object AppSettings {
         lyricsSources.value = value
         prefs.edit()
             .putString(KEY_LYRICS_SOURCES, value.joinToString(",") { it.name })
-            // Everything that was on the list this choice was made from, so a
-            // later build can tell a source the user turned off from one they
-            // have never been shown. See [readLyricsSources].
             .putString(KEY_LYRICS_SOURCES_SEEN, LyricsSource.offered.joinToString(",") { it.name })
             .apply()
     }
 
-    /**
-     * Stored as a joined list of names rather than a string set: a name that
-     * no longer exists — a source dropped in a later build — has to fall out
-     * quietly, and the default when nothing has been saved is "all of them",
-     * which a missing key and an empty set would otherwise be unable to tell
-     * apart.
-     *
-     * A source *added* by an upgrade is enabled rather than left out. Absence
-     * from a saved list is a decision only about the sources that list was
-     * chosen from; a new one was never on it, so its absence says nothing, and
-     * treating it as "off" would ship a source nobody could discover without
-     * first going and looking for it. [KEY_LYRICS_SOURCES_SEEN] is what makes
-     * the two cases distinguishable — before it existed, [LEGACY_SOURCES]
-     * stands in as the list of everything there was to have an opinion about.
-     */
     private fun readLyricsSources(): Set<LyricsSource> {
         val stored = prefs.getString(KEY_LYRICS_SOURCES, null)
             ?: return LyricsSource.offered.toSet()
@@ -1700,11 +1043,6 @@ object AppSettings {
     private fun List<String>.toSources(): Set<LyricsSource> =
         mapNotNull { name -> LyricsSource.entries.firstOrNull { it.name == name } }.toSet()
 
-    /**
-     * The sources that existed before [KEY_LYRICS_SOURCES_SEEN] was written.
-     * Fixed forever: it describes what an old build could have saved, so it
-     * does not grow when [LyricsSource] does.
-     */
     private val LEGACY_SOURCES = setOf(
         LyricsSource.LYRICS_PLUS,
         LyricsSource.PAXSENIX,
@@ -1721,13 +1059,6 @@ object AppSettings {
         prefs.edit().putString(KEY_LYRICS_SOURCE_ORDER, value.joinToString(",") { it.name }).apply()
     }
 
-    /**
-     * A named source dropped from the stored order — an upgrade removed or
-     * hid it since it was saved — falls out on read; one added since slots in
-     * after its declared neighbour (see [LyricsSource.ordered]), so a fresh
-     * install and an upgraded one agree on where a new source lands until the
-     * user says otherwise.
-     */
     private fun readLyricsSourceOrder(): List<LyricsSource> {
         val stored = prefs.getString(KEY_LYRICS_SOURCE_ORDER, null)
             ?: return LyricsSource.offered
@@ -1748,11 +1079,6 @@ object AppSettings {
         com.bxane.nuvx.data.lyrics.PaxSenix.setApiKey(normalized)
     }
 
-    /**
-     * Puts the source list, its order and [prioritizeSyllableSync] back the
-     * way a fresh install finds them. [syncedLyrics] itself is left alone —
-     * this is "start over on *which* lyrics", not "turn lyrics off".
-     */
     fun resetLyricsSourceSettings() {
         setLyricsSources(LyricsSource.offered.toSet())
         setLyricsSourceOrder(LyricsSource.offered)
@@ -1784,7 +1110,6 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_SIGNATURE_API_ENABLED, value).apply()
     }
 
-    /** Normalizes (trim + strip trailing slash); blank forgets the provider. */
     fun setSignatureApiUrl(value: String) {
         val normalized = normalizeSignatureApiUrl(value)
         signatureApiUrl.value = normalized
@@ -1812,10 +1137,6 @@ object AppSettings {
         prefs.edit().putString(KEY_LAST_PLAYER_SCREEN, value.name).apply()
     }
 
-    /**
-     * Clamped to [DEFAULT_CACHE_LIMIT_BYTES]..[MAX_CACHE_LIMIT_BYTES] — the floor is the default, not zero.
-     * Anything past [MAX_CACHE_LIMIT_BYTES] is [UNLIMITED_CACHE_LIMIT_BYTES].
-     */
     fun setAudioCacheLimitBytes(value: Long) {
         val clamped = clampCacheLimit(value)
         audioCacheLimitBytes.value = clamped
@@ -1962,7 +1283,6 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY, value).apply()
     }
 
-    /** Writes through to the encrypted store; pass "" to disconnect. */
     fun setDiscordToken(value: String) {
         discordToken.value = value
         authStore.discordToken = value.ifEmpty { null }
@@ -2101,7 +1421,6 @@ object AppSettings {
         publishWebDavAuth()
     }
 
-    /** Writes through to the encrypted store; pass "" to forget. */
     fun setWebDavPassword(value: String) {
         webdavPassword.value = value
         authStore.webdavPassword = value.ifEmpty { null }
@@ -2142,7 +1461,6 @@ object AppSettings {
         publishSmbAuth()
     }
 
-    /** Writes through to the encrypted store; pass "" to forget. */
     fun setSmbPassword(value: String) {
         smbPassword.value = value
         authStore.smbPassword = value.ifEmpty { null }
@@ -2187,14 +1505,6 @@ object AppSettings {
             ?.let { saved -> LibraryViewType.entries.firstOrNull { it.name == saved } }
             ?: LibraryViewType.LIST
 
-    /**
-     * Pins or unpins [browseId], returning whether it is pinned afterwards.
-     *
-     * Pinning past [MAX_PINNED_PLAYLISTS] is refused rather than evicting the
-     * oldest pin: a silent swap would mean a playlist someone pinned on purpose
-     * disappears from the row without them ever having touched it, the moment
-     * they pin a sixth. Unpinning always succeeds.
-     */
     fun togglePinnedPlaylist(browseId: String): Boolean {
         val current = pinnedPlaylists.value
         val updated = when {
@@ -2223,45 +1533,16 @@ object AppSettings {
         return stored.split(",").filter { it.isNotBlank() }
     }
 
-    /** Forgets the account: token and cached profile. */
     fun clearDiscordAccount() {
         setDiscordToken("")
         setDiscordAccount("", "", null)
     }
 
-    // ── Backup ──────────────────────────────────────────────────────────────
-
-    /**
-     * Every stored preference, for an export.
-     *
-     * Read off the preference file wholesale rather than assembled from the
-     * flows above, so a setting added in a later build is in the backup the day
-     * it is added instead of the day somebody remembers to list it here. What is
-     * *left out* is therefore the part worth stating explicitly, and it is
-     * [SECRETS]: an export is a file the user is about to put in Drive or a
-     * chat, and a scrobbler session key or an API secret in it is a credential
-     * that has left the device in plain text. Signing back in after a restore is
-     * a minute; a leaked session key is not recoverable at all.
-     *
-     * The Discord token is not here for the same reason and one more: it never
-     * reaches this file. It lives in the encrypted store — see [AuthStore] — and
-     * so does the YouTube cookie, which means neither can be exported by
-     * accident.
-     */
     fun exportPrefs(): Map<String, Any?> {
         if (!this::prefs.isInitialized) return emptyMap()
         return prefs.all.filterKeys { it !in SECRETS && it !in DEVICE_LOCAL }
     }
 
-    /**
-     * Replaces the preference file with [values] and re-reads it.
-     *
-     * A replace, not a merge: a partial restore leaves a device holding half of
-     * one configuration and half of another, which is the one outcome nobody
-     * asked for. Keys in [SECRETS] survive untouched — they were never in the
-     * file being restored from, and clearing them would sign the user out of
-     * services the backup has nothing to say about.
-     */
     fun importPrefs(values: Map<String, Any?>) {
         if (!this::prefs.isInitialized) return
         val kept = prefs.all.filterKeys { it in SECRETS || it in DEVICE_LOCAL }
@@ -2283,10 +1564,6 @@ object AppSettings {
         reload()
     }
 
-    /**
-     * Preferences an export must not carry — credentials, not configuration.
-     * See [exportPrefs].
-     */
     private val SECRETS = setOf(
         KEY_LASTFM_SESSION_KEY,
         KEY_LASTFM_API_KEY,
@@ -2296,17 +1573,6 @@ object AppSettings {
         KEY_PAXSENIX_API_KEY,
     )
 
-    /**
-     * Preferences that describe *this device* rather than this configuration,
-     * and so are neither exported nor overwritten by an import.
-     *
-     * [Downloads][com.bxane.nuvx.download.Downloads] keeps its record of
-     * what is saved in this same preference file, and that record is a list of
-     * files on this phone's storage. Carrying it into a backup would restore a
-     * folder full of tracks that are not here; clearing it on import would leave
-     * the files on disk with nothing pointing at them, which is worse — the
-     * Downloads page would read as empty while the space stayed used.
-     */
     private val DEVICE_LOCAL = setOf(
         "downloaded_tracks",
         "downloaded_tracks_metadata",
@@ -2319,7 +1585,6 @@ object AppSettings {
     const val DEFAULT_CACHE_LIMIT_BYTES = 512L * 1024 * 1024
     const val MAX_CACHE_LIMIT_BYTES = 10L * 1024 * 1024 * 1024
 
-    /** The cache limit with no ceiling: only free storage bounds it. */
     const val UNLIMITED_CACHE_LIMIT_BYTES = Long.MAX_VALUE
 
     const val MIN_LYRICS_OFFSET_MS = -5_000

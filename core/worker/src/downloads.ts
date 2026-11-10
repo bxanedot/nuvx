@@ -1,5 +1,4 @@
 const RELEASES_URL = "https://api.github.com/repos/bxanedot/nuvx/releases";
-// shortcut: matches current release filenames, update when adding a package format or naming scheme.
 const APP_PACKAGE = /^nuvx(?:tv|wear)?-(?:(?:setup|portable)-)?v?\d.*\.(?:apk|exe|dmg|zip|tar\.gz)$/i;
 const PAGE_SIZE = 100;
 

@@ -1,7 +1,3 @@
-//! Release notes: a renderer for GitHub release bodies, Markdown or plain text (headings,
-//! paragraphs, lists, quotes, rules, pictures, tables, **bold**, `code`, [links](…)), the dialog shown when an update is ready
-//! (or to read a version's notes), and the card shown after updating.
-
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Color32, Margin, Stroke, Ui, vec2};
 
@@ -10,21 +6,15 @@ use crate::theme::{self, icon};
 
 pub enum Block {
     Heading(String),
-    /// Its lines, joined by line breaks, as GitHub shows a release body.
     Para(String),
     Bullet(String),
-    /// A numbered item, with its number.
     Numbered(String, String),
     Quote(String),
     Rule,
-    /// Pictures side by side: (url, description).
     Images(Vec<(String, String)>),
-    /// A table's rows, the header first.
     Table(Vec<Vec<String>>),
 }
 
-/// The bits of HTML release notes use, as Markdown: `<img>` as a picture (pictures in
-/// one `<p>` stay side by side), `<br>` as a line break, and the wrappers dropped.
 fn normalize(md: &str) -> String {
     let mut out = String::with_capacity(md.len());
     let mut rest = md;
@@ -46,7 +36,6 @@ fn normalize(md: &str) -> String {
             }
             "br" => out.push('\n'),
             "p" | "div" | "center" | "picture" | "span" | "sup" | "sub" | "details" | "summary" => {}
-            // Anything else isn't HTML we know: kept as written.
             _ => out.push_str(tag),
         }
         rest = &rest[end..];
@@ -55,7 +44,6 @@ fn normalize(md: &str) -> String {
     out.replace("&amp;", "&").replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
 }
 
-/// An HTML attribute's value, quoted either way.
 fn attr(tag: &str, name: &str) -> Option<String> {
     let lower = tag.to_ascii_lowercase();
     let at = lower.find(&format!("{name}="))? + name.len() + 1;
@@ -68,7 +56,6 @@ fn attr(tag: &str, name: &str) -> Option<String> {
     }
 }
 
-/// A line that's only pictures (`![alt](url)`, one or more).
 fn images(line: &str) -> Option<Vec<(String, String)>> {
     let mut out = Vec::new();
     let mut rest = line.trim();
@@ -76,7 +63,6 @@ fn images(line: &str) -> Option<Vec<(String, String)>> {
         let r = rest.strip_prefix("![")?;
         let close = r.find("](")?;
         let end = r[close + 2..].find(')')? + close + 2;
-        // `![alt](url "title")`: the url alone.
         let url = r[close + 2..end].split_whitespace().next().unwrap_or("").to_owned();
         out.push((url, r[..close].to_owned()));
         rest = r[end + 1..].trim_start();
@@ -98,7 +84,6 @@ pub fn parse(md: &str) -> Vec<Block> {
         }
         para.clear();
     };
-    // Pictures stay side by side until a blank line, as a `<p>` of them shows.
     let mut pictures_open = false;
     for line in md.lines() {
         let t = line.trim();
@@ -120,7 +105,6 @@ pub fn parse(md: &str) -> Vec<Block> {
         if t.starts_with('|') {
             flush(&mut para, &mut out);
             let row = table_row(t);
-            // The |---|:---:| line under the header.
             if row.iter().all(|c| !c.is_empty() && c.chars().all(|ch| matches!(ch, '-' | ':'))) {
                 continue;
             }
@@ -150,7 +134,6 @@ pub fn parse(md: &str) -> Vec<Block> {
             flush(&mut para, &mut out);
             out.push(Block::Numbered(n.to_owned(), item.trim().to_owned()));
         } else if let (true, Some(Block::Bullet(b) | Block::Numbered(_, b))) = (para.is_empty() && line.starts_with([' ', '\t']), out.last_mut()) {
-            // An indented line goes on with the item above.
             b.push(' ');
             b.push_str(t);
         } else {
@@ -164,8 +147,6 @@ pub fn parse(md: &str) -> Vec<Block> {
     out
 }
 
-/// Inline spans: (text, bold). Links keep their text; code loses its backticks; an
-/// inline picture shows its description.
 fn spans(s: &str) -> Vec<(String, bool)> {
     let mut out: Vec<(String, bool)> = Vec::new();
     let mut push = |t: &str, bold: bool| match out.last_mut() {
@@ -197,7 +178,6 @@ fn spans(s: &str) -> Vec<(String, bool)> {
     out
 }
 
-/// A cell that's a single `[text](url)`: its text and url, to show as a link.
 fn sole_link(s: &str) -> Option<(&str, &str)> {
     let r = s.trim().strip_prefix('[')?.strip_suffix(')')?;
     let (text, url) = r.split_once("](")?;
@@ -223,8 +203,6 @@ fn link_color() -> Color32 {
     if theme::light() { Color32::from_rgb(0, 102, 204) } else { Color32::from_rgb(62, 166, 255) }
 }
 
-/// The notes laid out as the release page shows them: headings, paragraphs with their
-/// line breaks, lists, quotes, rules, pictures and tables.
 pub fn show(ui: &mut Ui, blocks: &[Block], size: f32) {
     let width = ui.available_width();
     let body = body_color();
@@ -270,7 +248,6 @@ pub fn show(ui: &mut Ui, blocks: &[Block], size: f32) {
                 let gap = 8.0;
                 let n = pics.len() as f32;
                 let w = ((width - gap * (n - 1.0)) / n).max(20.0);
-                // Each picture's own shape once it has loaded; until then a banner's.
                 let ctx = ui.ctx().clone();
                 let aspect = |url: &str| match egui::Image::new(url).load_for_size(&ctx, vec2(w, w)) {
                     Ok(egui::load::TexturePoll::Ready { texture }) if texture.size.x > 0.0 => texture.size.y / texture.size.x,
@@ -322,8 +299,6 @@ pub fn show(ui: &mut Ui, blocks: &[Block], size: f32) {
     }
 }
 
-/// The card's short list: feature headings and bullets (first sentence), up to
-/// three, plus how many more there are. A "Fixes" heading isn't an item itself.
 pub fn summary(blocks: &[Block]) -> (Vec<String>, usize) {
     let mut items = Vec::new();
     for b in blocks {
@@ -342,12 +317,10 @@ pub fn summary(blocks: &[Block]) -> (Vec<String>, usize) {
     (items, more)
 }
 
-/// The notes' paragraphs and bullets.
 fn body_color() -> Color32 {
     if theme::light() { theme::text() } else { Color32::from_gray(225) }
 }
 
-/// Lines between parts of the card.
 fn rule_color() -> Color32 {
     if theme::light() { Color32::from_gray(222) } else { Color32::from_gray(44) }
 }
@@ -369,7 +342,6 @@ pub fn github_link(ui: &mut Ui) {
     ui.hyperlink_to(egui::RichText::new("Full release notes on GitHub").font(theme::regular(13.0)).color(if theme::light() { Color32::from_rgb(0, 102, 204) } else { Color32::from_rgb(62, 166, 255) }), crate::update::RELEASES);
 }
 
-/// What the notes dialog shows: a downloaded update (Android's alert), or a version's notes.
 #[derive(Clone)]
 pub struct NotesDialog {
     pub version: String,
@@ -432,9 +404,6 @@ pub fn dialog(app: &mut App, ctx: &egui::Context) {
     }
 }
 
-/// Android's alert: a narrow card with a title, a line of body, anything `content` adds,
-/// and full-width stacked actions under hairlines. Which action was clicked, and whether
-/// it was dismissed (Escape, or a click outside).
 fn alert(ctx: &egui::Context, id: &str, title: &str, body: &str, accent: Color32, content: impl FnOnce(&mut Ui), actions: &[(&str, bool)]) -> (Option<usize>, bool) {
     let mut picked = None;
     let frame = surface().corner_radius(14).shadow(egui::epaint::Shadow { offset: [0, 12], blur: 40, spread: 0, color: theme::shade(0.4) });
@@ -458,7 +427,6 @@ fn alert(ctx: &egui::Context, id: &str, title: &str, body: &str, accent: Color32
     (picked, modal.should_close())
 }
 
-/// A downloaded update, as Android's Software Update alert, with What's New.
 fn update_alert(app: &mut App, ctx: &egui::Context, version: &str) {
     let body = app.updater.as_ref().and_then(|u| u.notes(version));
     let line = format!("nuvx {version} is ready to install. You're on {}.", crate::update::current_version());
@@ -479,7 +447,6 @@ fn update_alert(app: &mut App, ctx: &egui::Context, version: &str) {
     }
 }
 
-/// Radio's or Podcasts' first visit, as Android's Radio: keep the tab, or hide it.
 pub fn tab_intro(app: &mut App, ctx: &egui::Context) {
     let podcasts = matches!(&app.page, super::Page::Mood { browse_id, .. } if browse_id == crate::ytm::PODCASTS);
     let i = match (&app.page, podcasts) {
@@ -508,7 +475,6 @@ pub fn tab_intro(app: &mut App, ctx: &egui::Context) {
     }
 }
 
-/// One of the alert's stacked 44pt buttons, under a hairline.
 fn alert_action(ui: &mut Ui, label: &str, emphasised: bool, accent: Color32) -> egui::Response {
     hline(ui);
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), egui::Sense::click());
@@ -520,7 +486,6 @@ fn alert_action(ui: &mut Ui, label: &str, emphasised: bool, accent: Color32) -> 
     widgets::named(resp, label).on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-/// "Updated to X" in the corner on the first launch of a new version.
 pub fn card(app: &mut App, ctx: &egui::Context) {
     let Some(version) = app.whats_new.clone() else { return };
     let Some(md) = app.updater.as_ref().and_then(|u| u.notes(&version)) else { return };

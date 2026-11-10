@@ -22,7 +22,6 @@ class PartyQueueMoveTest {
     @Test
     fun testDetectSingleMoveForward() {
         val oldList = listOf("A", "B", "C", "D")
-        // Move "B" (index 1) to index 3 -> "A", "C", "D", "B"
         val newList = listOf("A", "C", "D", "B")
         val delta = detectSingleMove(oldList, newList)
 
@@ -35,7 +34,6 @@ class PartyQueueMoveTest {
     @Test
     fun testDetectSingleMoveBackward() {
         val oldList = listOf("A", "C", "D", "B")
-        // Move "B" (index 3) to index 1 -> "A", "B", "C", "D"
         val newList = listOf("A", "B", "C", "D")
         val delta = detectSingleMove(oldList, newList)
 
@@ -48,7 +46,6 @@ class PartyQueueMoveTest {
     @Test
     fun testDetectSingleMoveWithBaseOffset() {
         val oldList = listOf("B", "C", "D")
-        // Move "D" (local index 2) to local index 0 -> "D", "B", "C"
         val newList = listOf("D", "B", "C")
         val delta = detectSingleMove(oldList, newList, baseOffset = 5)
 
@@ -74,7 +71,6 @@ class PartyQueueMoveTest {
     @Test
     fun testMultipleSwapsReturnNull() {
         val oldList = listOf("A", "B", "C", "D")
-        // Two independent swaps: (A, B) and (C, D) -> "B", "A", "D", "C"
         val newList = listOf("B", "A", "D", "C")
         assertNull(detectSingleMove(oldList, newList))
     }
@@ -82,12 +78,10 @@ class PartyQueueMoveTest {
     @Test
     fun testDuplicatesInList() {
         val oldList = listOf("A", "B", "A", "C")
-        // Both moving "B" to index 2 or moving "A" to index 0/1 produce "A", "A", "B", "C"
         val newList = listOf("A", "A", "B", "C")
         val delta = detectSingleMove(oldList, newList)
 
         assertNotNull(delta)
-        // Verify that applying the detected delta produces newList
         val reconstructed = oldList.toMutableList().apply {
             val item = removeAt(delta!!.fromIndex)
             add(delta.toIndex, item)
@@ -124,14 +118,12 @@ class PartyQueueMoveTest {
             positionMs = 12000L,
             anchorMs = 50000L,
         )
-        // A queue move arrives: queueSeq advances, playback seq must remain 5
         val updatedPlayback = initialPlayback.copy(
             queueSeq = initialPlayback.queueSeq + 1,
         )
 
         assertEquals(5L, updatedPlayback.seq)
         assertEquals(2L, updatedPlayback.queueSeq)
-        // Playback anchor and position are untouched
         assertEquals(initialPlayback.anchorMs, updatedPlayback.anchorMs)
         assertEquals(initialPlayback.positionMs, updatedPlayback.positionMs)
     }

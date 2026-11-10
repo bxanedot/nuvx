@@ -15,19 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.ColorUtils
 
-/** nuvx's own colours, for when there is no cover to take them from. */
 val BrandMesh = listOf(Color(0xFFFA2D48), Color(0xFF7B2FF7), Color(0xFFFF7A45), Color(0xFF2E1A8A))
 
-/**
- * The phone player's backdrop, sized for a watch.
- *
- * Same four colours — the phone sends the ones its own player computed — tuned
- * the same way and laid out at the same anchors. What the watch leaves out is
- * the full-screen blur the phone draws them through: on a 450px round screen
- * the radial falloff alone already reads as a mesh, and a blur layer is the one
- * thing that would cost real GPU time here. Drawn from a cache, so it is
- * redrawn only while the colours crossfade on a track change.
- */
 @Composable
 fun MeshBackground(colors: List<Color>, modifier: Modifier = Modifier) {
     val tuned = remember(colors) {
@@ -52,8 +41,6 @@ fun MeshBackground(colors: List<Color>, modifier: Modifier = Modifier) {
                         radius = radius,
                     )
                 }
-                // Darker than the phone's scrim: a watch face is small, often
-                // outdoors, and white text has to hold at a glance.
                 val scrim = Brush.verticalGradient(
                     listOf(Color.Black.copy(alpha = 0.30f), Color.Black.copy(alpha = 0.18f), Color.Black.copy(alpha = 0.55f)),
                 )
@@ -68,7 +55,6 @@ fun MeshBackground(colors: List<Color>, modifier: Modifier = Modifier) {
 
 private const val FADE_MS = 900
 
-/** The phone's anchors, at the phone's settled drift. */
 private val ANCHORS = listOf(
     Offset(0.20f, 0.25f),
     Offset(0.80f, 0.20f),
@@ -76,7 +62,6 @@ private val ANCHORS = listOf(
     Offset(0.25f, 0.75f),
 )
 
-/** The phone's tuning: richer saturation, lightness kept out of the mud and the glare. */
 private fun Color.tuned(): Color {
     val hsl = FloatArray(3)
     ColorUtils.colorToHSL(toArgb(), hsl)

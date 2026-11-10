@@ -10,7 +10,6 @@ import { useYtAuth } from '@/extension/useYtAuth';
 import { PlainSkeleton } from '@/skeletons/PageSkeletons';
 import { seeAllGrid, seeAllTracks } from './pageStyles';
 
-/** Asks for the next page when [target] scrolls into view. */
 function useLoadMore(onVisible: (() => void) | null) {
   const target = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -25,7 +24,6 @@ function useLoadMore(onVisible: (() => void) | null) {
   return target;
 }
 
-/** A library section (prompt §5.3): Recently Played, Artists, Albums, Songs, Made for You, All Playlists. */
 export default function LibraryPage() {
   const section = useParams().section ?? '';
   const { missing } = useYouTubeReady();

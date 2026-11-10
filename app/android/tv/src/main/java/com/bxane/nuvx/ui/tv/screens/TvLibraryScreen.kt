@@ -49,7 +49,6 @@ import com.bxane.nuvx.ui.tv.theme.TvDimensions
 import com.bxane.nuvx.ui.tv.theme.TvGlass
 import kotlinx.coroutines.launch
 
-/** One entry in Library's sidebar. [key] survives the library reloading under it. */
 private sealed class LibraryCategory(val key: String, val title: String) {
     data object RecentlyPlayed : LibraryCategory("recent", "Recently Played")
     data object Liked : LibraryCategory("liked", "Liked Songs")
@@ -57,11 +56,6 @@ private sealed class LibraryCategory(val key: String, val title: String) {
     class Collection(val shelf: HomeShelf) : LibraryCategory("shelf:${shelf.title}", shelf.title)
 }
 
-/**
- * Library, as Apple Music lays it out on tvOS: categories down the left, the
- * focused one's contents on the right. The sidebar follows focus, so moving
- * down it previews each category; Downloaded and On This Device open pages.
- */
 @Composable
 fun TvLibraryScreen(
     viewModel: MainViewModel,
@@ -283,7 +277,6 @@ private fun TvPaneLoading() {
     }
 }
 
-/** The library failed to load; Recently Played still works, so this sits at the bottom instead of replacing it. */
 @Composable
 private fun TvLibraryBanner(message: String, onRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().padding(bottom = 22.dp), contentAlignment = Alignment.BottomCenter) {

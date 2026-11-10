@@ -82,7 +82,6 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** What the player can ask of the phone. */
 class PlayerActions(
     val togglePlay: () -> Unit,
     val next: () -> Unit,
@@ -94,16 +93,6 @@ class PlayerActions(
     val openMore: () -> Unit,
 )
 
-/**
- * The phone's player, on a round screen.
- *
- * The cover *is* the play button: a disc with the progress ring round it, the
- * way a watch reads progress, and the glyph over it. That is what lets title,
- * transport and the three actions all fit a 40mm Galaxy Watch without anything
- * shrinking past legible — every size below is a fraction of the screen.
- *
- * The crown is the phone's volume, as on every watch media app.
- */
 @Composable
 fun NowPlayingScreen(
     np: NowPlaying,
@@ -113,10 +102,8 @@ fun NowPlayingScreen(
 ) {
     val view = LocalView.current
     var rotary by remember { mutableFloatStateOf(0f) }
-    // Bumped on every crown step; the readout shows while it keeps changing.
     var volumeNudge by remember { mutableIntStateOf(0) }
 
-    // Hold-to-seek: the target while the disc is a scrubber, null otherwise.
     var scrubMs by remember { mutableStateOf<Long?>(null) }
     var scrubHeld by remember { mutableStateOf(false) }
     var scrubActivity by remember { mutableIntStateOf(0) }
@@ -130,13 +117,11 @@ fun NowPlayingScreen(
         scrubMs = null
         scrubHeld = false
     }
-    // Let go and left alone for a moment: that is the answer.
     LaunchedEffect(scrubActivity, scrubHeld) {
         if (scrubMs == null || scrubHeld) return@LaunchedEffect
         delay(SCRUB_SETTLE_MS)
         commitScrub()
     }
-    // A new track makes the old target meaningless.
     LaunchedEffect(np.mediaId) {
         scrubMs = null
         scrubHeld = false
@@ -147,8 +132,6 @@ fun NowPlayingScreen(
             .fillMaxSize()
             .onRotaryScrollEvent { event ->
                 val px = event.verticalScrollPixels
-                // A notched bezel reports one big event per detent, a smooth
-                // crown a stream of small ones: one step per detent either way.
                 val steps = if (abs(px) >= ROTARY_STEP_PX) {
                     rotary = 0f
                     if (px > 0) 1 else -1
@@ -157,7 +140,6 @@ fun NowPlayingScreen(
                     (rotary / ROTARY_STEP_PX).toInt().also { rotary -= it * ROTARY_STEP_PX }
                 }
                 if (steps != 0) {
-                    // While scrubbing the bezel seeks instead, five seconds a detent.
                     if (scrubMs != null) {
                         scrubBy(steps * SCRUB_STEP_MS)
                     } else {
@@ -168,8 +150,6 @@ fun NowPlayingScreen(
                 }
                 true
             }
-            // The crown goes to whichever screen is on top, so this one takes
-            // focus back whenever Up Next or More is swiped away.
             .requestFocusOnHierarchyActive()
             .focusable(),
     ) {
@@ -182,7 +162,6 @@ fun NowPlayingScreen(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Below the curved clock.
             Spacer(Modifier.height(h * 0.15f))
             key(np.mediaId) {
                 Text(
@@ -193,8 +172,6 @@ fun NowPlayingScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .widthIn(max = w * 0.72f)
-                        // Twice, then rest: a title that scrolls forever is a
-                        // screen that never stops redrawing.
                         .basicMarquee(iterations = 2, initialDelayMillis = 1_200, repeatDelayMillis = 2_000),
                 )
             }
@@ -253,7 +230,6 @@ fun NowPlayingScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(w * 0.045f)) {
                 val chip = w * 0.155f
                 val glyph = w * 0.075f
-                // Only where the phone's player shows one: signed in, not a local file.
                 if (np.canLike) GlyphButton(
                     icon = if (np.liked) R.drawable.ic_heart_filled else R.drawable.ic_heart,
                     description = stringResource(if (np.liked) R.string.loved else R.string.love),
@@ -286,16 +262,6 @@ fun NowPlayingScreen(
     }
 }
 
-/**
- * The cover, round, with the progress ring outside it and the play glyph on
- * top. While the phone is still finding a stream — play pressed, nothing
- * audible yet — the ring turns instead, so a slow YouTube resolve reads as
- * "working" rather than as a tap that didn't land.
- *
- * Held, it becomes a scrubber, as on Spotify's watch player: drag sideways
- * through the song, or turn the bezel. The ring turns red at the target
- * ([scrubMs]) and the centre reads it out; the caller commits it.
- */
 @Composable
 private fun PlayDisc(
     np: NowPlaying,
@@ -333,7 +299,6 @@ private fun PlayDisc(
         },
         label = "discPress",
     )
-    // Read by the gesture blocks, which live across recompositions.
     val latestScrubbing by rememberUpdatedState(scrubbing)
     val latestDuration by rememberUpdatedState(np.durationMs)
     val toggleLabel = stringResource(if (np.playing) R.string.pause else R.string.play)
@@ -402,15 +367,11 @@ private fun PlayDisc(
                         tryAwaitRelease()
                         pressed = false
                     },
-                    // The drag detector below owns the hold; this is set only
-                    // so a hold is never also taken as a tap when let go.
                     onLongPress = {},
                     onTap = { if (latestScrubbing) onCommit() else onToggle() },
                 )
             }
             .pointerInput(Unit) {
-                // A full screen's width of drag covers half the song, but never
-                // less than a minute, so a short track stays controllable.
                 val screenPx = with(density) { 210.dp.toPx() }
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
@@ -495,19 +456,10 @@ private fun formatTime(ms: Long): String {
 private fun formatDelta(ms: Long): String =
     (if (ms < 0) "−" else "+") + formatTime(abs(ms))
 
-/**
- * The playhead, run on from the phone's last reading.
- *
- * Read only in the ring's draw pass, so a tick redraws one arc and recomposes
- * nothing. Twice a second is a pixel or so of ring on a three-minute song —
- * smooth to the eye at a fraction of a frame-clock's cost — and only while the
- * screen is on.
- */
 @Composable
 private fun rememberProgress(np: NowPlaying): State<Float> {
     val progress = remember { mutableFloatStateOf(np.progressAt(System.currentTimeMillis())) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    // The always-on screen draws its own ring once a minute; this one rests.
     val ambient = LocalAmbient.current.active
     LaunchedEffect(np, ambient) {
         progress.floatValue = np.progressAt(System.currentTimeMillis())
@@ -522,7 +474,6 @@ private fun rememberProgress(np: NowPlaying): State<Float> {
     return progress
 }
 
-/** A round glyph button that dips when pressed instead of rippling. */
 @Composable
 fun GlyphButton(
     @DrawableRes icon: Int,
@@ -566,10 +517,6 @@ fun GlyphButton(
     }
 }
 
-/**
- * The phone's volume as an arc on the right edge, where the crown is — shown
- * while the crown turns and gone a moment after.
- */
 @Composable
 private fun BoxScope.VolumeReadout(volume: Volume?, nudge: Int, edgeInset: Dp) {
     var visible by remember { mutableStateOf(false) }
@@ -592,7 +539,6 @@ private fun BoxScope.VolumeReadout(volume: Volume?, nudge: Int, edgeInset: Dp) {
         val inset = edgeInset.toPx() + stroke / 2f
         val topLeft = Offset(inset, inset)
         val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-        // 0° is three o'clock; the arc is centred on it and fills upwards.
         drawArc(
             color = Color.White.copy(alpha = 0.25f),
             startAngle = VOLUME_ARC / 2f,
@@ -639,7 +585,6 @@ private fun BoxScope.VolumeReadout(volume: Volume?, nudge: Int, edgeInset: Dp) {
     }
 }
 
-/** Crown travel per volume step, for crowns that report a stream of small events. */
 private const val ROTARY_STEP_PX = 48f
 private const val PROGRESS_TICK_MS = 500L
 private const val VOLUME_SHOWN_MS = 1_400L

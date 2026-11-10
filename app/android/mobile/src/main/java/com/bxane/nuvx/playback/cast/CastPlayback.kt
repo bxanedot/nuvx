@@ -29,52 +29,16 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONObject
 import kotlin.coroutines.resume
 
-/** A stream the receiver can open by itself: a URL and what it holds. */
 class CastStream(val url: String, val mimeType: String)
 
-/** Told when the receiver changes something the session player reports as its own. */
 interface CastSink {
-    /** Play state, buffering, or the playhead moved. */
     fun onRemotePlaybackChanged()
 
-    /** The music moved to a receiver, or back. */
     fun onRemoteRouteChanged()
 
-    /** The receiver's volume changed, from here or from its own remote. */
     fun onRemoteVolumeChanged()
 }
 
-/**
- * What plays on the receiver while a Cast session is up.
- *
- * The phone's player stays the owner of the *queue* — every row, reorder,
- * autoplay refill, lyric and widget keeps reading it exactly as before — and is
- * held paused while the receiver is the speaker. The receiver is the owner of
- * the *clock*: [positionMs], [isPlaying] and the rest come from it, and
- * the session player reports them in place of the paused local ones, so the
- * app, the lock screen and the notification all show what the receiver is
- * doing. Two things keep the halves in step:
- *
- *  - The phone moving to another track (a skip, a tap in the queue) loads that
- *    track on the receiver.
- *  - The receiver moving to another track (it finished one, or somebody used
- *    its own remote) moves the phone's player to the same one.
- *
- * Which is which is told by comparing media ids rather than by a flag: the
- * player reports its own moves a beat after they happen, so a flag raised
- * around a seek would already be down by the time the report arrives, whereas
- * "the receiver is already on this track" stays true.
- *
- * A receiver cannot ask the service to resolve a `nuvx://` address, so the
- * stream URL is resolved here, on the phone, and the receiver is handed the
- * finished URL. It cannot send the headers a resolver may have wanted either,
- * and it cannot reach a file on this phone at all; those tracks are refused
- * with a message rather than loaded and left silent.
- *
- * The receiver's queue holds the playing track and a few after it, so that it
- * moves on by itself with no gap and with the phone asleep. Everything runs on
- * the main thread.
- */
 class CastPlayback(
     private val scope: CoroutineScope,
     private val localPlayer: () -> ExoPlayer?,
@@ -89,26 +53,20 @@ class CastPlayback(
         }
     }
 
-    /** Whether the receiver is the speaker. Everything else here is meaningful only while it is. */
     override var active = false
         private set
 
-    /** Set by [CastController.disconnect]: the listener chose this phone, so keep playing on it. */
     var resumeHereOnEnd = false
 
     private var session: CastSession? = null
     private var client: RemoteMediaClient? = null
 
-    /** The listener wants sound; what [playWhenReady] reports. */
     private var wantsPlay = false
 
-    /** A track is on its way to the receiver and nothing has come back yet. */
     private var loading = false
 
-    /** The receiver ran out of queue. */
     private var finished = false
 
-    /** Where a load or a seek asked the receiver to be, until it says where it is. */
     private var requestedPositionMs = 0L
     private var requestedAt = 0L
 
@@ -119,7 +77,6 @@ class CastPlayback(
 
     private var lastItemId = MediaQueueItem.INVALID_ITEM_ID
 
-    /** What the receiver was doing when its session started to end. */
     private var endPositionMs = 0L
     private var endMediaId: String? = null
     private var endWasPlaying = false
@@ -129,7 +86,6 @@ class CastPlayback(
 
     override val playWhenReady: Boolean get() = wantsPlay
 
-    /** In [Player]'s own terms, so the session player can answer with it directly. */
     override val playbackState: Int
         get() = when {
             loading -> Player.STATE_BUFFERING
@@ -144,9 +100,6 @@ class CastPlayback(
         get() {
             val live = client?.takeIf { !loading }?.approximateStreamPosition
             val asked = requestedPositionMs
-            // A seek is asked of the receiver and answered a moment later; in
-            // between, its own clock still reads the old place and the bar would
-            // spring back to it.
             return if (live == null || SystemClock.elapsedRealtime() - requestedAt < SEEK_GRACE_MS) {
                 asked
             } else {
@@ -157,7 +110,6 @@ class CastPlayback(
     override val durationMs: Long
         get() = client?.streamDuration?.takeIf { it > 0 } ?: C.TIME_UNSET
 
-    /** The receiver's own volume as the whole number 0..100 a [Player] device expects. */
     override val deviceVolume: Int get() = (CastController.volume.value * 100f).toInt()
 
     override fun setVolume(fraction: Float) = CastController.setVolume(fraction)
@@ -186,8 +138,6 @@ class CastPlayback(
         sink?.onRemotePlaybackChanged()
     }
 
-    // ---- session lifecycle --------------------------------------------------
-
     private val callback = object : RemoteMediaClient.Callback() {
         override fun onStatusUpdated() = onStatus()
     }
@@ -196,8 +146,6 @@ class CastPlayback(
         try {
             beginSession(newSession, resumed)
         } catch (t: Throwable) {
-            // This runs inside the framework's callback; an exception here ends
-            // the app. A receiver that could not be set up is a failed cast.
             Log.e(TAG, "onSessionBegan threw", t)
             release()
             say(R.string.cast_connect_failed)
@@ -219,15 +167,11 @@ class CastPlayback(
             val wasPlaying = player.playWhenReady && player.playbackState != Player.STATE_ENDED
             val position = player.currentPosition.coerceAtLeast(0L)
             val currentId = player.currentMediaItem?.mediaId
-            // The phone goes quiet first, whatever happens next, so the two
-            // are never both audible.
             player.pause()
             val onReceiver = remote.mediaStatus?.queueItems
                 ?.firstOrNull { it.itemId == remote.mediaStatus?.currentItemId }
                 ?.mediaId()
             if (resumed && currentId != null && currentId == onReceiver) {
-                // A session that survived the app: the receiver is already on
-                // this track, so it keeps going instead of being restarted.
                 lastItemId = remote.mediaStatus?.currentItemId ?: MediaQueueItem.INVALID_ITEM_ID
                 wantsPlay = remote.mediaStatus?.playerState == MediaStatus.PLAYER_STATE_PLAYING
                 scheduleReconcile()
@@ -248,13 +192,6 @@ class CastPlayback(
         endWasPlaying = wantsPlay && remote.mediaStatus?.playerState == MediaStatus.PLAYER_STATE_PLAYING
     }
 
-    /**
-     * The receiver let go. Its place is carried back to the phone's player so
-     * that the track, and the second in it, are still there. Whether sound
-     * follows depends on who asked: a listener who picked "this phone" wants it
-     * to go on playing here; a receiver that was switched off, or a Wi-Fi that
-     * dropped, should not have the phone start playing out loud unprompted.
-     */
     fun onSessionEnded(error: Int) {
         if (!active) return
         val resume = resumeHereOnEnd && endWasPlaying
@@ -274,7 +211,6 @@ class CastPlayback(
 
     fun onConnectFailed() = say(R.string.cast_connect_failed)
 
-    /** Lets go of the receiver without touching the phone's player. */
     fun release() {
         loadJob?.cancel()
         reconcileJob?.cancel()
@@ -288,22 +224,15 @@ class CastPlayback(
         lastItemId = MediaQueueItem.INVALID_ITEM_ID
     }
 
-    // ---- the phone's player moved -------------------------------------------
-
-    /** A new track became the phone's current one. */
     override fun onLocalTransition(item: MediaItem?, reason: Int) {
         if (!active || item == null) return
         val remote = client ?: return
         if (item.mediaId == remoteMediaId()) {
-            // Already there: the receiver moved first and this is the phone
-            // catching up, or a queue edit that left the playing track alone.
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) scheduleReconcile()
             return
         }
         val queued = remote.mediaStatus?.queueItems?.firstOrNull { it.mediaId() == item.mediaId }
         if (queued != null && !loading) {
-            // A track the receiver already holds is a jump, not a reload, and
-            // the jump is instant.
             wantsPlay = true
             finished = false
             requestedPositionMs = 0L
@@ -315,7 +244,6 @@ class CastPlayback(
         }
     }
 
-    /** The phone's queue changed under the playing track. */
     override fun onLocalQueueChanged() = scheduleReconcile()
 
     override fun onLocalRepeatChanged(repeatMode: Int) {
@@ -323,24 +251,16 @@ class CastPlayback(
         client?.queueSetRepeatMode(receiverRepeat(repeatMode), null)
     }
 
-    /**
-     * Something other than the session player started the phone's own player
-     * while the receiver is the speaker. The phone goes quiet again and the
-     * request is made of the receiver instead.
-     */
     override fun onLocalStartedPlaying(player: Player) {
         if (!active) return
         player.pause()
         play()
     }
 
-    // ---- the receiver moved -------------------------------------------------
-
     private fun onStatus() {
         val remote = client ?: return
         val status = remote.mediaStatus ?: return
         val state = status.playerState
-        // Whatever the phone last asked for has been answered by now.
         requestedAt = 0L
 
         when (state) {
@@ -378,26 +298,15 @@ class CastPlayback(
         sink?.onRemotePlaybackChanged()
     }
 
-    /** The receiver played its last queued track to the end. */
     private fun onReceiverFinished() {
         val player = localPlayer() ?: return
         when {
-            // The receiver holds only a few tracks ahead, so running out of
-            // them is not the end of the phone's queue.
             player.hasNextMediaItem() -> player.seekToNextMediaItem()
             player.repeatMode == Player.REPEAT_MODE_ALL && player.mediaItemCount > 0 -> player.seekTo(0, 0L)
             else -> finished = true
         }
     }
 
-    // ---- loading ------------------------------------------------------------
-
-    /**
-     * Puts [item] on the receiver, replacing its queue, and then lets
-     * [reconcile] fill in what follows. Only the playing track is resolved
-     * before the receiver is asked to start: the rest are resolved while it
-     * plays, so a cast begins as quickly as a single stream resolves.
-     */
     private fun load(item: MediaItem?, positionMs: Long, play: Boolean) {
         val remote = client ?: return
         loadJob?.cancel()
@@ -429,8 +338,6 @@ class CastPlayback(
             val queueItem = item?.let { buildQueueItem(it, play) }
             if (generation != loadGeneration || !active) return@run
             if (queueItem == null) {
-                // Nothing to play, so nothing to wait for. The receiver is left
-                // as it was; only the phone's idea of it is corrected.
                 loading = false
                 wantsPlay = false
                 if (item != null) say(R.string.cast_track_unsupported)
@@ -476,8 +383,6 @@ class CastPlayback(
         reconcileJob = scope.launch {
             do {
                 reconcileAgain = false
-                // Let the receiver's own status catch up with whatever just
-                // changed it; reading its queue earlier reads the old one.
                 delay(RECONCILE_DELAY_MS)
                 if (active && !loading) {
                     try {
@@ -492,12 +397,6 @@ class CastPlayback(
         }
     }
 
-    /**
-     * Makes what the receiver has queued after the playing track match what the
-     * phone's queue says comes next — [AHEAD] tracks of it. The matching
-     * prefix is kept (it may already be buffering); the first track that
-     * differs and everything after it is replaced.
-     */
     private suspend fun reconcileOnce() {
         val remote = client ?: return
         val player = localPlayer() ?: return
@@ -554,8 +453,6 @@ class CastPlayback(
         return MediaQueueItem.Builder(info).setAutoplay(autoplay).build()
     }
 
-    // ---- small helpers ------------------------------------------------------
-
     private fun MediaQueueItem.mediaId(): String? = media?.customData?.optString(KEY_MEDIA_ID)?.ifEmpty { null }
 
     private fun remoteMediaId(): String? {
@@ -563,10 +460,6 @@ class CastPlayback(
         return status.getQueueItemById(status.currentItemId)?.mediaId()
     }
 
-    /**
-     * The row of [mediaId] nearest the one playing — a track queued twice is
-     * the case where more than one answers, and the near one is the one meant.
-     */
     private fun indexOfMediaId(player: Player, mediaId: String?): Int? {
         if (mediaId == null) return null
         val at = player.currentMediaItemIndex.coerceAtLeast(0)
@@ -579,16 +472,9 @@ class CastPlayback(
         if (repeatMode == Player.REPEAT_MODE_ONE) {
             MediaStatus.REPEAT_MODE_REPEAT_SINGLE
         } else {
-            // Repeat-all is the phone's to do: the receiver holds a window of
-            // the queue, and looping the window is not looping the queue.
             MediaStatus.REPEAT_MODE_REPEAT_OFF
         }
 
-    /**
-     * Not named `await`: [PendingResult] has a blocking member of that name,
-     * and a member always beats an extension — so the blocking one ran, on the
-     * main thread, and threw.
-     */
     private suspend fun <R : Result> PendingResult<R>.awaitResult(): R =
         suspendCancellableCoroutine { continuation ->
             setResultCallback { continuation.resume(it) }
@@ -599,17 +485,10 @@ class CastPlayback(
         private const val TAG = "NuvxCast"
         private const val KEY_MEDIA_ID = "mediaId"
 
-        /** Tracks kept queued on the receiver after the playing one. */
         private const val AHEAD = 3
         private const val RECONCILE_DELAY_MS = 300L
         private const val SEEK_GRACE_MS = 1_500L
 
-        /**
-         * What a stream is, for a receiver that is told rather than left to
-         * guess. googlevideo URLs say so themselves; the rest are named by
-         * their extension, and an unnamed one is taken to be MP4 audio, which
-         * is what nearly every unnamed stream here is.
-         */
         fun mimeTypeOf(uri: Uri): String {
             uri.getQueryParameter("mime")?.takeIf { it.isNotBlank() }?.let { return it }
             val path = uri.lastPathSegment?.lowercase().orEmpty()

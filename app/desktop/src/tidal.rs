@@ -1,14 +1,8 @@
-//! Tidal's video covers: square looping clips on a lot of what Apple has no motion for,
-//! found through the public search the embed player uses (no account). Android asks the
-//! same way (TidalCanvas.kt); a hit has to match title and artist to count.
-
 use serde_json::Value;
 
 const SEARCH: &str = "https://api.tidal.com/v1/search";
-/// The web embed player's public token, the one Android sends too.
 const TOKEN: &str = "vNVdglQOjFJJGG2U";
 
-/// The clip for a song (`album: None` searches by title alone) or for a release.
 pub async fn cover(http: &reqwest::Client, title: &str, artist: &str, album: Option<&str>, is_album: bool) -> Option<String> {
     let (kind, query) = match (is_album, album.filter(|a| !a.is_empty())) {
         (true, _) => ("ALBUMS", format!("{title} {artist}")),
@@ -29,14 +23,11 @@ pub async fn cover(http: &reqwest::Client, title: &str, artist: &str, album: Opt
     })
 }
 
-/// The full-size clip for a cover id.
 fn clip_url(id: &str) -> Option<String> {
     let parts: Vec<&str> = id.split('-').collect();
     (parts.len() == 5).then(|| format!("https://resources.tidal.com/videos/{}/1280x1280.mp4", parts.join("/")))
 }
 
-/// The same clip at the smallest of Tidal's sizes at least `width` wide; anything not
-/// Tidal's passes through.
 pub fn sized(url: &str, width: u32) -> String {
     let side = [320, 640, 750, 1280].into_iter().find(|&s| s >= width).unwrap_or(1280);
     match url.rsplit_once('/') {
@@ -55,7 +46,6 @@ mod tests {
         assert_eq!(clip_url(id).unwrap(), "https://resources.tidal.com/videos/e9e126a9/97b6/4f99/b7b6/c242cb6eb31d/1280x1280.mp4");
         assert_eq!(sized(&clip_url(id).unwrap(), 600), "https://resources.tidal.com/videos/e9e126a9/97b6/4f99/b7b6/c242cb6eb31d/640x640.mp4");
         assert_eq!(clip_url("not-an-id"), None);
-        // Anything that isn't Tidal's (Apple's playlists) passes through untouched.
         assert_eq!(sized("https://example.com/a.m3u8", 600), "https://example.com/a.m3u8");
     }
 }

@@ -132,7 +132,6 @@ class QueueWindowTest {
         assertFalse(upcoming.contains(first.canonicalIndex))
         assertFalse(upcoming.contains(second.canonicalIndex))
 
-        // Explicit Next is deterministic and may replay the consumed item.
         assertEquals(second.canonicalIndex, window.next()!!.canonicalIndex)
     }
 

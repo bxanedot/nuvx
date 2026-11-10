@@ -1,15 +1,3 @@
-//! Time-synced lyrics from every source the Better Lyrics extension uses, parsed the way
-//! its parsers (`@braccato/parsers`) parse them, so any of them can be shown and the
-//! listener can switch between them.
-//!
-//! - The Better Lyrics API streams its providers as server-sent events: Better Lyrics
-//!   (Apple-style TTML), BiniLyrics (TTML), Musixmatch (word-by-word and line LRC), LRCLib
-//!   (LRC and plain), Legato (KuGou LRC) and Portato (QQ QRC).
-//! - Unison, the community lyrics service, answers a plain GET.
-//!
-//! The API needs a JWT, obtained by exchanging a Cloudflare Turnstile token (see
-//! turnstile.rs). JWTs last 24 h and are cached on disk.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -20,11 +8,8 @@ const API: &str = "https://lyrics.api.dacubeking.com/";
 const UNISON_API: &str = "https://unison.betterlyrics.org/lyrics";
 const LRCRED_API: &str = "https://lrc.red/";
 
-/// lrc.red's free API asks callers to identify themselves with a link.
 const LRCRED_UA: &str = concat!("nuvx/", env!("CARGO_PKG_VERSION"), " (+https://github.com/bxanedot/nuvx)");
 
-/// One source of lyrics, in the extension's default priority order (its
-/// `PROVIDER_CONFIGS`, without the two YouTube sources).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Provider {
     BLyricsRich,
@@ -45,7 +30,6 @@ pub enum Provider {
     LrclibPlain,
 }
 
-/// How finely a provider's lyrics are timed, finest first (the order is the preference).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum SyncKind {
     Syllable,
@@ -55,8 +39,6 @@ pub enum SyncKind {
 }
 
 impl Provider {
-    /// The default order, Android's (`LyricsSource`): lrc.red, then BiniLyrics, Better
-    /// Lyrics, Musixmatch, Unison and LRCLib.
     pub const ALL: [Provider; 16] = [
         Provider::LrcredRich,
         Provider::LrcredSynced,
@@ -76,7 +58,6 @@ impl Provider {
         Provider::LrclibPlain,
     ];
 
-    /// The extension's key for it (also how the order is stored).
     pub fn key(self) -> &'static str {
         match self {
             Provider::BLyricsRich => "bLyrics-richsynced",
@@ -131,7 +112,6 @@ impl Provider {
     }
 }
 
-/// How a set of lines is timed, decided from the lines themselves (`deriveSyncType`).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Sync {
     None,
@@ -139,13 +119,11 @@ pub enum Sync {
     Word,
 }
 
-/// A timed piece of a line: a syllable, a word or several words.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Part {
     pub start: i32,
     pub dur: i32,
     pub text: String,
-    /// Background vocals, shown on their own row under the line.
     pub bg: bool,
 }
 
@@ -154,15 +132,10 @@ pub struct Line {
     pub start: i32,
     pub dur: i32,
     pub text: String,
-    /// Empty for line-synced and plain lyrics.
     pub parts: Vec<Part>,
-    /// Singer: `v1`, `v2`, … or `v1000` for everyone.
     pub agent: Option<String>,
-    /// A gap of more than five seconds nobody sings over.
     pub instrumental: bool,
-    /// Translations shipped with the lyrics, by language.
     pub translations: Vec<(String, String)>,
-    /// Romanization shipped with the lyrics, and its timing when it has some.
     pub romanization: Option<String>,
     pub timed_roman: Vec<Part>,
 }
@@ -178,7 +151,6 @@ pub struct Lyrics {
     pub lines: Vec<Line>,
     pub sync: Sync,
     pub provider: Provider,
-    /// Language the source says the lyrics are in.
     pub language: Option<String>,
     pub songwriters: Vec<String>,
 }
@@ -193,7 +165,6 @@ impl Lyrics {
     }
 }
 
-/// `deriveSyncType`: richsync if any sung line has a part with a duration.
 fn derive_sync(lines: &[Line]) -> Sync {
     if lines.iter().any(|l| !l.instrumental && l.parts.iter().any(|p| p.dur != 0)) {
         Sync::Word
@@ -204,7 +175,6 @@ fn derive_sync(lines: &[Line]) -> Sync {
     }
 }
 
-/// Every source that had lyrics for a song, in default priority order.
 #[derive(Clone, Debug, Default)]
 pub struct LyricsSet {
     pub sources: Vec<Lyrics>,
@@ -216,17 +186,12 @@ impl LyricsSet {
     }
 }
 
-// ------------------------------------------------------------------- API client
-
 pub struct Client {
     http: reqwest::Client,
     jwt_file: PathBuf,
     webview_profile: PathBuf,
     jwt: tokio::sync::Mutex<Option<String>>,
-    /// When the Turnstile challenge last failed; it isn't retried for a while, so
-    /// every new song doesn't start another WebView2.
     challenge_failed: std::sync::Mutex<Option<std::time::Instant>>,
-    /// The last few songs' lyrics, for replays and going back.
     recent: std::sync::Mutex<std::collections::VecDeque<(String, LyricsSet)>>,
 }
 
@@ -255,7 +220,6 @@ impl Client {
         }
     }
 
-    /// Every source's lyrics for a song: the Better Lyrics stream, Unison and lrc.red, together.
     pub async fn fetch(&self, q: &Query<'_>) -> anyhow::Result<LyricsSet> {
         if let Some((_, l)) = self.recent.lock().unwrap().iter().find(|(id, _)| id == q.video_id) {
             return Ok(l.clone());
@@ -330,7 +294,6 @@ impl Client {
         Ok(from_unison(&v["data"], q.duration.unwrap_or(0) as i32 * 1000))
     }
 
-    /// lrc.red: find the track in its catalogue, then fetch its TTML (word or line timed).
     async fn fetch_lrcred(&self, q: &Query<'_>) -> anyhow::Result<Vec<Lyrics>> {
         if q.song.trim().is_empty() {
             return Ok(vec![]);
@@ -367,7 +330,6 @@ impl Client {
             .text()
             .await?;
         let t = parse_ttml(&text, q.duration.unwrap_or(0) as i32 * 1000);
-        // lrc.red declares its own timing on the root; fall back to the parsed spans.
         let word = if text.contains("lrc:timing=\"Line\"") {
             false
         } else if text.contains("lrc:timing=\"Word\"") || text.contains("lrc:timing=\"Syllable\"") {
@@ -379,7 +341,6 @@ impl Client {
         Ok(Lyrics::new(p, t.lines, t.language, t.songwriters).into_iter().collect())
     }
 
-    /// A valid JWT, from cache or by running the Turnstile challenge.
     async fn token(&self, force_new: bool) -> anyhow::Result<String> {
         let mut slot = self.jwt.lock().await;
         if let Some(t) = slot.as_ref().filter(|t| !force_new && jwt_seconds_left(t) > 60) {
@@ -425,9 +386,6 @@ fn jwt_seconds_left(jwt: &str) -> i64 {
     exp - now
 }
 
-// ------------------------------------------------------------------- provider results
-
-/// Every provider's lyrics out of a complete SSE response (`processStreamData`).
 pub fn from_stream(body: &str, q: &Query) -> Vec<Lyrics> {
     let mut out: Vec<Lyrics> = Vec::new();
     let mut dur_ms = q.duration.unwrap_or(0) as i32 * 1000;
@@ -521,7 +479,6 @@ pub fn from_stream(body: &str, q: &Query) -> Vec<Lyrics> {
     out
 }
 
-/// A Unison answer (`unison.ts`): TTML, LRC or plain text.
 fn from_unison(data: &Value, dur_ms: i32) -> Vec<Lyrics> {
     let (Some(format), Some(text)) = (data["format"].as_str(), data["lyrics"].as_str()) else { return vec![] };
     let lyrics = match format {
@@ -540,8 +497,6 @@ fn from_unison(data: &Value, dur_ms: i32) -> Vec<Lyrics> {
     lyrics.into_iter().collect()
 }
 
-/// The lrc.red search hit closest to the track: same title (a remaster or live
-/// suffix aside), a matching artist, and within twenty seconds of the known length.
 fn best_lrcred_hit<'a>(hits: &'a [Value], q: &Query<'_>) -> Option<&'a Value> {
     let title = fold_title(q.song);
     let artist = fold(q.artist);
@@ -571,12 +526,10 @@ fn best_lrcred_hit<'a>(hits: &'a [Value], q: &Query<'_>) -> Option<&'a Value> {
     best.map(|(_, h)| h)
 }
 
-/// Letters and digits only, lower case, single-spaced.
 fn fold(s: &str) -> String {
     s.chars().map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { ' ' }).collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// A title without its bracketed or dashed qualifiers: "(Remastered 2011)", " - Live".
 fn fold_title(s: &str) -> String {
     let s = s.split(" (").next().unwrap_or(s);
     let s = s.split(" [").next().unwrap_or(s);
@@ -584,12 +537,8 @@ fn fold_title(s: &str) -> String {
     fold(s)
 }
 
-// ------------------------------------------------------------------- shared helpers
-
-/// Gaps over this long between sung lines become instrumental lines.
 const INSTRUMENTAL_GAP_MS: i32 = 5000;
 
-/// `et`: instrumental lines for long gaps before, between and after the sung lines.
 fn insert_instrumentals(lines: Vec<Line>, song_ms: i32) -> Vec<Line> {
     if lines.is_empty() {
         return lines;
@@ -617,7 +566,6 @@ fn insert_instrumentals(lines: Vec<Line>, song_ms: i32) -> Vec<Line> {
     out
 }
 
-// Credit lines ("作词 : …", "Written by: …") that some providers put in the lyrics.
 const WRITER_TAGS: &[&str] = &["词", "詞", "作词", "作詞", "曲", "作曲", "词曲", "詞曲", "作词作曲", "作詞作曲", "writtenby", "lyricsby", "composedby", "lyricist", "composer"];
 const CREDIT_TAGS: &[&str] = &[
     "编曲", "編曲", "和声", "和聲", "混音", "吉他", "制作人", "製作人", "演唱", "原唱", "翻唱", "后期", "後期", "和音", "录音", "錄音", "策划", "策劃", "伴奏", "美工", "海报", "海報", "旁白", "producedby",
@@ -638,7 +586,6 @@ fn tag_pieces(n: &str) -> Vec<String> {
     no_latin.split(['/', '&', '、', ',', '，', '・', '·']).filter(|s| !s.is_empty()).map(str::to_owned).collect()
 }
 
-/// `X`: a label that only names credits.
 fn is_credit_label(t: &str) -> bool {
     let n = norm_tag(t);
     if WRITER_TAGS.contains(&n.as_str()) || CREDIT_TAGS.contains(&n.as_str()) {
@@ -660,7 +607,6 @@ fn split_label(t: &str) -> Option<(&str, &str)> {
     (!name.is_empty() && !rest.is_empty()).then_some((name, rest))
 }
 
-/// `yt`: a "Label: names" credit line rather than a lyric.
 fn is_credit_line(t: &str) -> bool {
     split_label(t.trim()).is_some_and(|(name, _)| is_credit_label(name))
 }
@@ -669,7 +615,6 @@ fn split_names(t: &str) -> Vec<String> {
     t.split(['/', '、', '，', ',']).map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned).collect()
 }
 
-/// `tt`: the writers named on a credit line.
 fn writers_on(t: &str) -> Vec<String> {
     match split_label(t.trim()) {
         Some((name, rest)) if is_writer_label(name) => split_names(rest),
@@ -688,9 +633,6 @@ fn dedup(names: Vec<String>) -> Vec<String> {
     out
 }
 
-// ------------------------------------------------------------------- LRC
-
-/// `V`: an LRC timestamp (`mm:ss.xx`, `h:mm:ss.xx` or seconds) in ms.
 fn lrc_time(t: &str) -> i32 {
     let p: Vec<&str> = t.split(':').collect();
     let s = match p.len() {
@@ -704,12 +646,10 @@ fn lrc_time(t: &str) -> i32 {
 
 const LRC_META_TAGS: &[&str] = &["ti", "ar", "al", "au", "lr", "length", "by", "offset", "re", "tool", "ve", "#"];
 
-/// `[mm:ss.xx]` tags: (byte range, time text).
 fn line_stamps(s: &str) -> Vec<(std::ops::Range<usize>, &str)> {
     stamps(s, '[', ']')
 }
 
-/// `<mm:ss.xx>` word stamps.
 fn word_stamps(s: &str) -> Vec<(std::ops::Range<usize>, &str)> {
     stamps(s, '<', '>')
 }
@@ -734,7 +674,6 @@ fn stamps(s: &str, open: char, close: char) -> Vec<(std::ops::Range<usize>, &str
     out
 }
 
-/// Text and stamps alternating, the way JS `split` with a capture group returns them.
 fn split_stamps(s: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut at = 0;
@@ -758,7 +697,6 @@ fn remove_ranges(s: &str, ranges: &[(std::ops::Range<usize>, &str)]) -> String {
     out
 }
 
-/// `parseLRC`: line LRC, enhanced (word-by-word) LRC and `[bg: …]` background vocals.
 pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
     let mut lines: Vec<Line> = Vec::new();
     let mut meta: HashMap<String, String> = HashMap::new();
@@ -780,7 +718,6 @@ pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
         let times: Vec<i32> = ls.iter().map(|(_, t)| lrc_time(t)).collect();
         let (c, u) = (*times.iter().min().unwrap(), *times.iter().max().unwrap());
         let g = remove_ranges(a, &ls).trim().to_owned();
-        // `[bg: …]` at the end of the line.
         let (main, bg) = match g.rfind("[bg:") {
             Some(i) if g[i..].trim_end().ends_with(']') => {
                 let inner = g[i + 4..].trim_end();
@@ -789,7 +726,6 @@ pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
             _ => (g.clone(), None),
         };
         let o = split_stamps(&main);
-        // Whitespace-only text between two stamps: the words are spaced by their own segments.
         let spaced = o.iter().enumerate().any(|(e, w)| e % 2 == 0 && e > 0 && e < o.len() - 1 && !w.is_empty() && w.trim().is_empty());
         let mut parts: Vec<Part> = Vec::new();
         let mut prev: Option<i32> = None;
@@ -869,8 +805,6 @@ pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
     lines
 }
 
-/// `lrcFixers`: Musixmatch word-by-word quirks (spaces carrying a word's tail, and
-/// files where most words were given a token 0–100 ms).
 pub fn lrc_fixers(lines: &mut [Line]) {
     for e in lines.iter_mut() {
         for r in 1..e.parts.len() {
@@ -963,8 +897,6 @@ pub fn parse_plain(text: &str) -> Vec<Line> {
     text.split('\n').map(|s| Line { text: s.to_owned(), ..Default::default() }).collect()
 }
 
-// ------------------------------------------------------------------- QRC
-
 struct QrcLine {
     time: i32,
     duration: i32,
@@ -982,7 +914,6 @@ struct Singers {
 fn qrc_content(t: &str) -> String {
     let Some(i) = t.find("LyricContent=\"") else { return t.to_owned() };
     let rest = &t[i + 14..];
-    // Up to the closing quote that ends the attribute (`"/>`, `">` or `" name=`).
     let mut end = None;
     for (j, _) in rest.match_indices('"') {
         let after = rest[j + 1..].trim_start();
@@ -995,7 +926,6 @@ fn qrc_content(t: &str) -> String {
     rest[..end].replace("&quot;", "\"").replace("&amp;", "&")
 }
 
-/// `[start,duration]` at the start of a QRC line.
 fn qrc_header(t: &str) -> Option<(i32, i32, &str)> {
     let inner = t.strip_prefix('[')?;
     let close = inner.find(']')?;
@@ -1003,7 +933,6 @@ fn qrc_header(t: &str) -> Option<(i32, i32, &str)> {
     Some((a.parse().ok()?, b.parse().ok()?, &inner[close + 1..]))
 }
 
-/// `lt`: `text(start,duration)` syllables.
 fn qrc_syllables(t: &str) -> Vec<(String, i32, i32)> {
     let mut out = Vec::new();
     let mut s = 0;
@@ -1050,7 +979,6 @@ fn retime(line: &mut QrcLine) {
     }
 }
 
-/// `jt`: Sørensen–Dice similarity of character bigrams.
 fn similarity(a: &str, b: &str) -> f32 {
     let (a, b): (Vec<char>, Vec<char>) = (a.to_lowercase().chars().collect(), b.to_lowercase().chars().collect());
     if a.len() < 2 || b.len() < 2 {
@@ -1072,7 +1000,6 @@ fn similarity(a: &str, b: &str) -> f32 {
     hits as f32 * 2.0 / (a.len() + b.len() - 2) as f32
 }
 
-/// `Bt`: keep a QRC line? Drops title/credit lines and pulls "Singer: …" prefixes into agents.
 fn keep_qrc_line(t: &mut QrcLine, st: &mut Singers, early: bool, meta: Option<(&str, &str)>) -> bool {
     if t.syllables.is_empty() {
         if let Some(c) = &st.current {
@@ -1123,7 +1050,6 @@ fn keep_qrc_line(t: &mut QrcLine, st: &mut Singers, early: bool, meta: Option<(&
         return true;
     }
     if after.trim().is_empty() {
-        // "Singer:" on its own.
         if is_credit_label(&name) {
             return false;
         }
@@ -1158,7 +1084,6 @@ fn keep_qrc_line(t: &mut QrcLine, st: &mut Singers, early: bool, meta: Option<(&
     true
 }
 
-/// `parseQRC`: QQ Music's syllable format.
 pub fn parse_qrc(text: &str, song_ms: i32, meta: Option<(&str, &str)>) -> Vec<Line> {
     if text.is_empty() {
         return vec![];
@@ -1216,8 +1141,6 @@ fn qrc_songwriters(text: &str) -> Vec<String> {
     dedup(n)
 }
 
-// ------------------------------------------------------------------- TTML
-
 pub struct Ttml {
     pub lines: Vec<Line>,
     pub word_synced: bool,
@@ -1225,7 +1148,6 @@ pub struct Ttml {
     pub songwriters: Vec<String>,
 }
 
-/// `C` (parseTTMLTime): `1.5s` / `2m` / `1h` / `250ms`, or `h:m:s.fff`.
 pub fn ttml_time(t: &str) -> i32 {
     let t = t.trim();
     if t.is_empty() {
@@ -1249,7 +1171,6 @@ pub fn ttml_time(t: &str) -> i32 {
     ms.round() as i32
 }
 
-/// `At`: declare prefixes the file uses without binding (an XML parser refuses them).
 fn bind_prefixes(t: &str) -> String {
     let Some(start) = t.find("<tt") else { return t.to_owned() };
     let Some(len) = t[start..].find('>') else { return t.to_owned() };
@@ -1263,7 +1184,6 @@ fn bind_prefixes(t: &str) -> String {
     let bytes: Vec<char> = t.chars().collect();
     let mut i = 0;
     while i < bytes.len() {
-        // `<prefix:` / `</prefix:` and ` prefix:attr=`
         let at_tag = bytes[i] == '<' || (bytes[i] == '/' && i > 0 && bytes[i - 1] == '<');
         let at_attr = bytes[i].is_whitespace();
         if at_tag || at_attr {
@@ -1306,7 +1226,6 @@ fn attr<'a>(n: roxmltree::Node<'a, '_>, name: &str) -> Option<&'a str> {
     n.attributes().find(|a| a.name() == name).map(|a| a.value())
 }
 
-/// `D`: text of a node and its spans.
 fn span_text(n: roxmltree::Node) -> String {
     let mut s = String::new();
     for c in n.children() {
@@ -1319,7 +1238,6 @@ fn span_text(n: roxmltree::Node) -> String {
     s
 }
 
-/// `U`: a paragraph's (or transliteration's) children as parts and text.
 fn ttml_parts(node: roxmltree::Node, line_start: i32) -> (Vec<Part>, String, bool) {
     let mut s = String::new();
     let mut e: Vec<Part> = Vec::new();
@@ -1355,8 +1273,6 @@ fn ttml_parts(node: roxmltree::Node, line_start: i32) -> (Vec<Part>, String, boo
     (e, s, timed)
 }
 
-/// `parseTTMLContent`: Apple-style TTML with agents, background vocals, and the
-/// translations and transliterations in its iTunes metadata.
 pub fn parse_ttml(text: &str, song_ms: i32) -> Ttml {
     let empty = |language| Ttml { lines: vec![], word_synced: false, language, songwriters: vec![] };
     let src = bind_prefixes(&text.replace("\\\"", "\""));
@@ -1371,7 +1287,6 @@ pub fn parse_ttml(text: &str, song_ms: i32) -> Ttml {
     let language = attr(tt, "lang").or_else(|| body.and_then(|b| attr(b, "lang"))).map(str::to_owned);
     let Some(body) = body else { return empty(language) };
     let head_meta = tt.children().find(|n| n.tag_name().name() == "head").and_then(|h| h.children().find(|n| n.tag_name().name() == "metadata"));
-    // Agents: people and characters are v1, v2, …; anything else sings for everyone.
     let mut agents: HashMap<String, String> = HashMap::new();
     if let Some(m) = head_meta {
         let mut k = 0;
@@ -1405,7 +1320,6 @@ pub fn parse_ttml(text: &str, song_ms: i32) -> Ttml {
         }
         lines.push(Line { start, dur: end - start, text, parts, agent, ..Default::default() });
     }
-    // Translations and transliterations, matched to lines by key.
     let meta_root = head_meta.and_then(|m| m.descendants().find(|n| n.tag_name().name() == "iTunesMetadata")).or(head_meta);
     if let Some(m) = meta_root {
         if let Some(ts) = m.descendants().find(|n| n.tag_name().name() == "translations") {
@@ -1469,18 +1383,15 @@ mod tests {
         let l = parse_lrc("[00:31.69] <00:31.69> Like <00:35.63>   <00:35.64> the <00:35.69>\n[00:40.00] Next", 60_000);
         assert_eq!(l[0].text, "Like the");
         assert_eq!(l[0].parts[0].start, 31690);
-        // Spaced files: word segments are trimmed, spaces get their own parts.
         assert_eq!(l[0].parts[0].text, "Like");
         assert_eq!(l[0].parts[1].text, " ");
         assert_eq!(l[0].parts[0].dur, 3940);
         assert_eq!(l[1].start, 40000);
-        // Last line runs to the end of the song.
         assert_eq!(l[1].dur, 20000);
     }
 
     #[test]
     fn lrc_skips_credits_and_reads_offset() {
-        // The extension reads `offset` in seconds.
         let l = parse_lrc("[offset:+0.5]\n[00:01.00]作词 : 野田洋次郎\n[00:05.00]Hello\n[00:07.00]World", 10_000);
         assert_eq!(l.len(), 2);
         assert_eq!(l[0].start, 4500);
@@ -1522,7 +1433,6 @@ mod tests {
         assert_eq!(l.translations, vec![("en".to_owned(), "Hello world".to_owned())]);
         assert_eq!(l.romanization.as_deref(), Some("kon nichiwa"));
         assert_eq!(l.timed_roman.len(), 3);
-        // A gap of more than five seconds becomes an instrumental line.
         assert!(t.lines[1].instrumental && t.lines[1].start == 3000);
         assert_eq!(t.lines[2].agent.as_deref(), Some("v2"));
         assert!(t.lines[2].parts.is_empty());

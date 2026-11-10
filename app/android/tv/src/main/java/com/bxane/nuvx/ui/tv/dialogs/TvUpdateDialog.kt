@@ -33,22 +33,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-/**
- * Outlives the alert on purpose: "Hide" closes it, and the download has to keep
- * going behind it. [AppUpdateChecker] holds the one download there can be.
- */
 private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-/**
- * A new nuvx TV release is out: download its APK and hand it to the system
- * installer without leaving the app, as the phone's update sheet does.
- *
- * Closing the alert mid-download only hides it — the download keeps going, and
- * Settings' "Software Update" row reopens the alert onto wherever it got to.
- * A release with no TV APK on it (or a download that can't be installed) has
- * nowhere on a TV to send the user, as most have no browser, so the releases
- * page is offered as a code to scan with a phone instead.
- */
 @Composable
 fun TvUpdateDialog(update: AppUpdateChecker.UpdateInfo, onDismiss: () -> Unit) {
     val state by AppUpdateChecker.download.collectAsState()
@@ -90,9 +76,6 @@ private fun TvUpdateControls(state: DownloadState, notes: String?, onDismiss: ()
         )
     }
 
-    // Keyed on the state's kind, so each new set of buttons comes in with
-    // focus on its first one rather than leaving focus on a button that
-    // has just gone away.
     key(state::class) {
         when (val s = state) {
             DownloadState.Idle -> {
@@ -146,7 +129,6 @@ private fun TvUpdateControls(state: DownloadState, notes: String?, onDismiss: ()
     }
 }
 
-/** A thin rounded bar and the percentage under it. The fill is drawn, not laid out. */
 @Composable
 private fun TvDownloadProgress(fraction: Float) {
     Box(
@@ -171,11 +153,6 @@ private fun TvDownloadProgress(fraction: Float) {
     )
 }
 
-/**
- * The release body is GitHub Markdown; an alert shows it as plain lines —
- * headings and emphasis markers dropped, list items as bullets, links as their
- * text.
- */
 private fun plainNotes(markdown: String): String =
     markdown.lineSequence()
         .map { it.trim() }

@@ -1,6 +1,3 @@
-//! Albums, playlists and Liked Music for the pages and playback: loading them
-//! (see `lists`), and what arrives.
-
 use std::collections::HashSet;
 
 use crate::backend::{Collection, Req};
@@ -11,15 +8,12 @@ use super::queue::QueueFill;
 use super::{App, shuffle};
 
 impl App {
-    /// Load an album or playlist, unless a load of it is under way. `changed`: if one is,
-    /// it's loaded once more afterwards.
     pub(super) fn load_list(&mut self, id: &str, album: bool, changed: bool) {
         if let Some(s) = self.lists.load(id, album, changed) {
             self.start_load(s);
         }
     }
 
-    /// Opening an album or playlist page: loaded unless a copy from the last few minutes is kept.
     pub(super) fn visit_list(&mut self, id: &str, album: bool) {
         if let Some(s) = self.lists.visit(id, album, std::time::Instant::now()) {
             self.start_load(s);
@@ -37,21 +31,16 @@ impl App {
         self.lists.get(id)
     }
 
-    /// More of the kept copy is still coming in, page by page.
     pub(super) fn receiving(&self, id: &str) -> bool {
         self.lists.receiving(id)
     }
 
-    /// Liked Music: kept like any playlist, and also the Library's liked songs and the
-    /// hearts everywhere. `changed`: load it again even if a load is under way.
     pub(super) fn request_liked(&mut self, changed: bool) {
         if self.logged_in {
             self.load_list(LIKED_MUSIC, false, changed);
         }
     }
 
-    /// Likes made here show at once, in the hearts and in Liked Music as kept. (A whole
-    /// reload asked for just before can still come back without them.)
     pub(super) fn set_liked(&mut self, tracks: &[Track], like: bool) {
         log::debug!("like={like}: {} songs, e.g. {:?}", tracks.len(), tracks.iter().take(3).map(|t| &t.id).collect::<Vec<_>>());
         for t in tracks {
@@ -64,8 +53,6 @@ impl App {
         self.lists.set_liked(tracks, like);
     }
 
-    /// Play a kept album or playlist from the start; one still coming in fills the queue
-    /// as the rest arrives.
     pub(super) fn play_opened(&mut self, id: String, shuffled: bool) {
         let Some(o) = self.opened(&id).filter(|o| !o.c.tracks.is_empty()) else { return };
         let mut tracks = o.c.tracks.clone();
@@ -77,14 +64,11 @@ impl App {
         self.play_list_filling(tracks, 0, fill);
     }
 
-    /// The album or playlist on screen.
     pub(super) fn current_collection(&mut self) -> Option<&mut Collection> {
         let id = self.page_list()?.to_owned();
         self.lists.collection_mut(&id)
     }
 
-    /// An album or playlist (or a playlist's first page) came in. Only the load under way
-    /// counts: one from before a sign-in change or a deletion is dropped.
     pub(super) fn collection_in(&mut self, load: u64, c: Collection, more: bool) {
         let id = c.id.clone();
         let keep = self.keep_lists();
@@ -102,7 +86,6 @@ impl App {
         if let Arrival::Done(done) = arrival {
             self.load_done(&id, done);
         }
-        // Its card's play button was pressed before it was here (in someone else's jam the host plays).
         if let Some((Target::Playlist(p), shuffled)) = &self.play_pending
             && *p == id
         {
@@ -114,8 +97,6 @@ impl App {
         }
     }
 
-    /// A playlist's next page: onto the kept copy, and onto the queue when that was played
-    /// before all of it was in. An empty last one also ends a load that failed.
     pub(super) fn collection_more(&mut self, id: String, load: u64, tracks: Vec<Track>, set_ids: Vec<Option<String>>, more: bool) {
         let keep = self.keep_lists();
         let keep: Vec<&str> = keep.iter().map(String::as_str).collect();
@@ -132,8 +113,6 @@ impl App {
         }
     }
 
-    /// An album or playlist load ended. One that changed meanwhile loads again; one that
-    /// failed before anything came leaves its page with the retry.
     fn load_done(&mut self, id: &str, done: Done) {
         match done {
             Done::Kept => {}
@@ -150,7 +129,6 @@ impl App {
         }
     }
 
-    /// The kept albums and playlists not to drop for room: the page on screen and what's playing.
     fn keep_lists(&self) -> Vec<String> {
         let playing = match &self.queue_source {
             Some(Target::Album(id) | Target::Playlist(id)) => Some(id.clone()),
@@ -159,7 +137,6 @@ impl App {
         self.page_list().map(str::to_owned).into_iter().chain(playing).collect()
     }
 
-    /// The next songs of a playlist played before all of it was in join the queue.
     fn fill_queue(&mut self, id: &str, load: u64, tracks: Vec<Track>, more: bool) {
         let playing_it = self.queue_source == Some(Target::Playlist(id.to_owned()));
         let Some(filled) = self.queue.fill_from(id, load, tracks, more, playing_it) else { return };

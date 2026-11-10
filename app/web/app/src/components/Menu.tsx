@@ -5,21 +5,14 @@ import { createPortal } from 'react-dom';
 export type MenuPlacement = 'above-start' | 'above-end' | 'below-end';
 
 interface MenuProps {
-  /** The element the menu opens from. */
   anchor: HTMLElement;
   placement?: MenuPlacement;
   onClose: () => void;
   label: string;
-  /** At least as wide as the anchor (a pop-up button's menu). */
   matchWidth?: boolean;
   children: ReactNode;
 }
 
-/**
- * Apple's contextual menu (report §8): a glass panel, 185px minimum, 13px
- * items, hairline separators, red for destructive items. Closes on Escape, a
- * click outside, or a scroll of the page under it.
- */
 export function Menu({ anchor, placement = 'below-end', onClose, label, matchWidth, children }: MenuProps) {
   const panel = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<React.CSSProperties>({ visibility: 'hidden' });
@@ -76,7 +69,6 @@ export function Menu({ anchor, placement = 'below-end', onClose, label, matchWid
       <div className="fixed inset-0 z-[calc(var(--z-contextual-menus)-1)]" onPointerDown={onClose} aria-hidden="true" />
       <div
         ref={panel}
-        // Apple's amp-contextual-menu (report §8).
         className="fixed z-(--z-contextual-menus) max-w-[300px] min-w-[185px] animate-menu-in overflow-y-auto rounded-[10px] bg-thick-material p-[5px] shadow-[0_0_0_0.5px_var(--vibrantDivider),0_10px_40px_var(--glassMaterialShadowColor)] [backdrop-filter:saturate(2.2)_blur(32px)]"
         style={position}
         role="menu"
@@ -92,11 +84,9 @@ export function Menu({ anchor, placement = 'below-end', onClose, label, matchWid
 interface MenuItemProps {
   onSelect: () => void;
   icon?: ReactNode;
-  /** Shows a checkmark (a radio-style choice); null leaves the space empty. */
   checked?: boolean | null;
   destructive?: boolean;
   disabled?: boolean;
-  /** Extra text at the trailing edge. */
   trailing?: ReactNode;
   children: ReactNode;
 }
@@ -123,7 +113,6 @@ export function MenuSeparator() {
   return <div className="mx-2 my-[5px] border-t-[0.5px] border-t-vibrant-divider" role="separator" />;
 }
 
-/** A non-interactive heading inside a menu. */
 export function MenuHeader({ children }: { children: ReactNode }) {
   return <div className="px-2 pt-1.5 pb-1 type-subhead-emphasized text-secondary">{children}</div>;
 }

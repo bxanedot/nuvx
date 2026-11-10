@@ -13,7 +13,6 @@ import {
 
 declare const __SITE_ORIGINS__: string[];
 
-/** The popup asks the background, like the page does, so both see one state. */
 async function call<M extends BridgeMethod>(method: M, params: ParamsOf<M>): Promise<ResultOf<M>> {
   const response = (await browser.runtime.sendMessage({
     channel: BRIDGE_CHANNEL,
@@ -40,11 +39,9 @@ function simpleRow(name: string, detail: string): HTMLLIElement {
   return row;
 }
 
-/** YouTube Music: who requests act as, and the way to stop (or start) using that session. */
 function youtubeRow(state: YtAuthState | null, refresh: (state: YtAuthState) => void): HTMLLIElement {
   if (!state) return simpleRow('YouTube Music', 'Checking…');
   const row = el('li', 'row account');
-  // A grey disc until there's a picture; an <img> without a src can draw a broken-image glyph.
   let avatar: HTMLElement = el('span', 'avatar');
   const who = el('span', 'who');
   let action: HTMLElement;
@@ -60,7 +57,6 @@ function youtubeRow(state: YtAuthState | null, refresh: (state: YtAuthState) => 
     if (state.problem) detail.title = state.problem;
     who.append(el('span', 'title', 'YouTube Music'), detail);
     if (state.connected) {
-      // Signed in, but the account couldn't be read: say why, and offer another try.
       action = el('button', 'action', 'Retry');
       action.onclick = () => void call('yt.authState', { refresh: true }).then(refresh);
     } else {
@@ -88,7 +84,6 @@ function youtubeRow(state: YtAuthState | null, refresh: (state: YtAuthState) => 
   return row;
 }
 
-/** A connected account's picture, or a grey disc. */
 function avatarOf(url: string | null | undefined): HTMLElement {
   if (!url) return el('span', 'avatar');
   const image = el('img', 'avatar');
@@ -105,7 +100,6 @@ function button(text: string, onClick: () => void, title?: string): HTMLElement 
   return action;
 }
 
-/** Spotify: the browser's open.spotify.com session, as for YouTube. */
 function spotifyRow(state: SpotifyAuthState | null): HTMLLIElement {
   if (!state) return simpleRow('Spotify', 'Checking…');
   const row = el('li', 'row account');
@@ -134,7 +128,6 @@ function spotifyRow(state: SpotifyAuthState | null): HTMLLIElement {
   return row;
 }
 
-/** Discord: connect on the extension's own page; presence itself is switched on in the web player. */
 function discordRow(state: DiscordState | null): HTMLLIElement | null {
   if (state && !state.available) return null;
   if (!state) return simpleRow('Discord', 'Checking…');

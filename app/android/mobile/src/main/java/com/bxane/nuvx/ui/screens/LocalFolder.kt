@@ -79,59 +79,20 @@ import com.bxane.nuvx.ui.components.rememberRemoteArtworkUrl
 import com.bxane.nuvx.ui.components.thumbnailBorder
 import com.bxane.nuvx.ui.theme.ArtworkPalette
 
-/**
- * What a device folder — Downloads, Local Music, the song cache, a file
- * server — adds to the release page it is drawn on. See `folder` on
- * [DetailScreen].
- *
- * A folder *is* a release page now: a cover (the placeholder, since a folder
- * has none), its name, Play and Shuffle, then its tracks — the same page an
- * album or playlist off YouTube gets, so the two can't drift apart. What a
- * folder has that an album hasn't is a choice of how to look at its tracks,
- * Songs, Artists or Albums, on a segmented control under the header. An album
- * or artist tapped there opens as a release page of its own (see
- * [LocalGroups]), which is what makes a Local Music album look like the album
- * it is.
- */
 class LocalFolder(
-    /**
-     * Held by the caller beside the page's scroll position, not remembered by
-     * the page: an album opened from the folder replaces the folder's page
-     * until Back, and the tab it was opened from has to still be showing then.
-     */
     val state: LocalFolderState,
-    /** The running order, from the top bar's sort menu. */
     val sort: LocalMusicSort,
     val viewType: LibraryViewType,
-    /** Downloads only: the releases those files were asked for as — see [LocalGroups.albumsOf]. */
     val collections: List<DownloadedCollection> = emptyList(),
-    /**
-     * Downloads only: holding a song or an album selects it, for [onDelete] and
-     * [onUpload] to act on, and the row's ⋮ carries the actions sheet instead.
-     */
     val selectable: Boolean = false,
     val onOpenGroup: (LocalGroup) -> Unit,
-    /** An album or artist held — its menu, with the rows it covers in hand. */
     val onGroupLongPress: (LocalGroup) -> Unit,
     val onDelete: ((List<Song>) -> Unit)? = null,
-    /** Copies the selection to WebDAV; null (no server configured) hides the action. */
     val onUpload: ((List<Song>) -> Unit)? = null,
-    /**
-     * Cached songs only: saves tracks to Downloads straight from the song
-     * cache. Set, it puts a download button on every row, Download all in the
-     * header, and Download on the selection.
-     */
     val onDownload: ((List<Song>) -> Unit)? = null,
-    /** Cached songs only: takes the selection out of the song cache. */
     val onRemoveFromCache: ((List<Song>) -> Unit)? = null,
-    /** Which ways of looking at the tracks this folder offers, in order. */
     val tabs: List<LocalFolderTab> = LocalFolderTab.BASIC,
-    /**
-     * Local Music only: the offline player's own playlists, Liked first, as
-     * the Playlists tab lists them — see [com.bxane.nuvx.data.OfflinePlaylists].
-     */
     val playlists: List<LocalGroup> = emptyList(),
-    /** Puts "New playlist" at the head of the Playlists tab. */
     val onCreatePlaylist: (() -> Unit)? = null,
 )
 
@@ -140,30 +101,18 @@ enum class LocalFolderTab {
     ARTISTS,
     ALBUMS,
 
-    /** Playlists made on this device, of files on this device. */
     PLAYLISTS,
 
-    /** The device's own directories, as a file manager shows them. */
     FOLDERS,
     ;
 
     companion object {
-        /** Every folder's: the three readings any set of tracks has. */
         val BASIC = listOf(SONGS, ARTISTS, ALBUMS)
 
-        /** Local Music's: the whole device, so its playlists and directories too. */
         val DEVICE = entries.toList()
     }
 }
 
-/**
- * A folder's own state while its page is on the stack: the tab showing, and
- * the Downloads multi-selection.
- *
- * Albums are selected by key as well as by their tracks: different albums can
- * share tracks, so inferring an album's selection from track ids made one held
- * playlist appear to select unrelated albums.
- */
 @Stable
 class LocalFolderState {
     var tab by mutableStateOf(LocalFolderTab.SONGS)
@@ -206,13 +155,6 @@ class LocalFolderState {
     }
 }
 
-/**
- * The Artists or Albums tab's entries, narrowed by [query]; empty on Songs,
- * which lists the page's own filtered tracks.
- *
- * Grouped off [songs] as listed rather than as sorted, so a grouping comes out
- * in the same order its page reads it back in (see [LocalGroups.songsOf]).
- */
 @Composable
 fun rememberLocalFolderGroups(
     browseId: String,
@@ -238,14 +180,6 @@ fun rememberLocalFolderGroups(
     }
 }
 
-/**
- * The folder's part of the release page's list, from the tab control down.
- *
- * [songs] is what the Songs tab lists and a tap there plays: the page's own
- * running order, already narrowed by the filter box. A grid is laid out as rows
- * of cards inside the page's one list, so the header scrolls away with it the
- * way it does on every other release page.
- */
 internal fun LazyListScope.localFolderItems(
     folder: LocalFolder,
     state: LocalFolderState,
@@ -270,8 +204,6 @@ internal fun LazyListScope.localFolderItems(
         )
     }
 
-    // Ahead of the list rather than in the top bar: making a playlist is the
-    // one thing this tab is for before there is anything on it.
     if (state.tab == LocalFolderTab.PLAYLISTS && query.isBlank()) {
         folder.onCreatePlaylist?.let { create ->
             item(key = "folder-new-playlist") {
@@ -303,8 +235,6 @@ internal fun LazyListScope.localFolderItems(
         return
     }
 
-    // Downloads redefines the hold as "select", so the ⋮ has to carry the
-    // actions sheet itself or the page loses it.
     val songClick: (Int) -> Unit = { index ->
         if (state.selecting) state.toggle(songs[index]) else onSongClick(songs, index)
     }
@@ -344,7 +274,6 @@ internal fun LazyListScope.localFolderItems(
                     activeTint = palette.accent,
                     subtitleColor = palette.onBackgroundVariant,
                     rowBackground = Color.Transparent,
-                    // Every row here is on the device already.
                     downloadedTint = null,
                     onClick = { songClick(index) },
                     onLongPress = { songHold(song) },
@@ -439,11 +368,6 @@ private fun NewPlaylistRow(palette: ArtworkPalette, onClick: () -> Unit) {
     }
 }
 
-/**
- * [items] as rows of [columns] cards, each row one item of the page's list.
- * A short last row keeps its cards the width of the rest rather than
- * stretching them across the gap.
- */
 private fun <T> LazyListScope.gridRows(
     items: List<T>,
     columns: Int,
@@ -474,7 +398,6 @@ private fun FolderDivider(palette: ArtworkPalette) {
     )
 }
 
-/** Tinted behind a card that is part of the Downloads selection. */
 @Composable
 private fun selectionFill(selected: Boolean): Color =
     if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent
@@ -543,10 +466,8 @@ private fun SongGridCard(
     }
 }
 
-/** An artist's avatar: the first of their tracks that has a picture, in a circle. */
 @Composable
 private fun ArtistAvatar(group: LocalGroup, modifier: Modifier) {
-    // The downloaded artist's own photo when there is one; else their first cover.
     val art = remember(group) { group.thumbnailUrl ?: group.songs.firstNotNullOfOrNull { it.thumbnailUrl } }
     Box(modifier.clip(CircleShape).thumbnailBorder(CircleShape)) {
         CoverPlaceholder(SfIcons.Person, Modifier.fillMaxSize(), iconFraction = 0.5f)
@@ -628,17 +549,10 @@ private fun ArtistGridCard(
     }
 }
 
-/**
- * "Artist · 12 songs", or "Playlist · 40 songs" — a playlist's tracks are off
- * forty different releases, so the kind of thing it is says more than any one
- * of their artists would.
- */
 @Composable
 private fun LocalGroup.albumSubtitle(): String {
     val count = pluralStringResource(R.plurals.song_count_plural, songs.size, songs.size)
     return when {
-        // A directory's subtitle is where it is, which is what tells two
-        // "Music" folders apart.
         LocalGroups.isDirectory(browseId) -> if (subtitle.isNotBlank()) "$subtitle · $count" else count
         type == BrowseType.PLAYLIST -> "${stringResource(R.string.playlist)} · $count"
         subtitle.isNotBlank() && subtitle != title -> "$subtitle · $count"
@@ -646,10 +560,6 @@ private fun LocalGroup.albumSubtitle(): String {
     }
 }
 
-/**
- * The cover an album row or card shows: the release's own, else — for a
- * file-server track with no thumbnail — the picture embedded in its first file.
- */
 @Composable
 private fun LocalGroup.coverArt(): String? {
     val fetched = rememberRemoteArtworkUrl(songs.firstOrNull())
@@ -669,7 +579,6 @@ private fun AlbumGridCard(
     group: LocalGroup,
     palette: ArtworkPalette,
     selected: Boolean,
-    /** Handed the group with the cover this card found, so its page opens on the same one. */
     onClick: (LocalGroup) -> Unit,
     onLongPress: () -> Unit,
 ) {
@@ -782,7 +691,6 @@ private fun GroupLabels(title: String, subtitle: String, palette: ArtworkPalette
     }
 }
 
-/** A chevron, since the row opens a page — or a tick while it is part of the selection. */
 @Composable
 private fun TrailingGlyph(selected: Boolean, palette: ArtworkPalette) {
     Icon(
@@ -793,16 +701,10 @@ private fun TrailingGlyph(selected: Boolean, palette: ArtworkPalette) {
     )
 }
 
-/**
- * The Downloads selection's actions, floated under the top bar while anything
- * is selected — over the list rather than in it, so it stays in reach however
- * far down the selection was made.
- */
 @Composable
 internal fun LocalFolderSelectionBar(
     folder: LocalFolder,
     state: LocalFolderState,
-    /** Every track in the folder, for Select all and to resolve the selection against. */
     songs: List<Song>,
     modifier: Modifier = Modifier,
 ) {
@@ -874,14 +776,6 @@ internal fun LocalFolderSelectionBar(
     }
 }
 
-/**
- * A Cached songs row's own download button, showing where that track's download
- * stands: tap to save it, a ring while it is queued or saving (tap again to
- * call it off), a tick once it is in Downloads, and a retry after a failure.
- *
- * Read straight from [Downloads] where it is drawn, as the song menu's download
- * row does, so it moves as the download does without the page reloading.
- */
 @Composable
 private fun RowDownloadButton(song: Song, palette: ArtworkPalette, onDownload: () -> Unit) {
     val active by Downloads.active.collectAsStateWithLifecycle()

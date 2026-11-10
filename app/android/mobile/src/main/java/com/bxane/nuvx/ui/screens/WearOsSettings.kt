@@ -48,10 +48,6 @@ import com.bxane.nuvx.wear.WatchInstaller
 import com.bxane.nuvx.wear.WatchPairingState
 import com.bxane.nuvx.wear.WatchUpdateState
 
-/**
- * Settings' way in: one row, with what is true of the watches right now on the
- * right, opening [WearOsScreen].
- */
 @Composable
 internal fun WearOsSettingsRow(onClick: () -> Unit) {
     val context = LocalContext.current
@@ -73,12 +69,6 @@ internal fun WearOsSettingsRow(onClick: () -> Unit) {
     )
 }
 
-/**
- * Settings → nuvx for Wear OS, a page of its own: every watch paired with
- * this phone, whether it has this build of nuvx, and the one action that
- * makes it so. Install switches the page to the steps for it; Back steps out of
- * them before it leaves the page.
- */
 @Composable
 fun WearOsScreen(contentPadding: PaddingValues, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -188,7 +178,6 @@ private fun WatchRow(
     )
 }
 
-/** The trailing action, as the App Store draws GET and UPDATE: a small filled capsule. */
 @Composable
 private fun ActionPill(text: String, onClick: () -> Unit) {
     Box(
@@ -206,12 +195,6 @@ private fun ActionPill(text: String, onClick: () -> Unit) {
     }
 }
 
-/**
- * The first install: what to switch on, on the watch, and the six digits.
- * Everything else — finding the watch on the Wi-Fi, pairing, installing,
- * opening it — is done here, the way `adb pair` and `adb install` would from a
- * computer.
- */
 @Composable
 private fun InstallSteps(nodeId: String, watchName: String, onDone: () -> Unit) {
     val context = LocalContext.current
@@ -322,7 +305,6 @@ private fun StatusLine(state: WatchPairingState) {
     }
 }
 
-/** The page's one big action: full width, fully rounded. */
 @Composable
 private fun PrimaryButton(text: String, enabled: Boolean, onClick: () -> Unit) {
     Box(

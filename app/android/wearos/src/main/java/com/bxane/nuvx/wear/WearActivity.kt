@@ -39,7 +39,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
 class WearViewModel(app: Application) : AndroidViewModel(app) {
-    /** Outlives a rotation-less recreate (theme, locale) so the last state stays drawn. */
     val link = PhoneLink(app, viewModelScope)
 
     override fun onCleared() = link.stop()
@@ -51,11 +50,6 @@ class WearActivity : ComponentActivity() {
 
     private val ambient = mutableStateOf(Ambient())
 
-    /**
-     * Always-on. The activity stays up when the screen dims instead of handing
-     * back to the watch face, and draws the ambient player until it wakes.
-     * Listening carries on through it, so a track change still shows.
-     */
     private val ambientObserver by lazy {
         AmbientLifecycleObserver(
             this,
@@ -82,13 +76,9 @@ class WearActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(ambientObserver)
-        // For the watch-face icon while the phone plays. Asked once; a "no"
-        // only costs that icon — the app itself works the same.
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
         }
-        // Listening follows the screen: on while the app is visible, off the
-        // moment the watch face comes back. Nothing runs in the background.
         lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStart(owner: LifecycleOwner) = model.link.start()
@@ -96,8 +86,6 @@ class WearActivity : ComponentActivity() {
             },
         )
         lifecycleScope.launch {
-            // Whenever the app is on screen, an install waiting on the wearer's
-            // yes is shown — opened by the phone after an update, or by hand.
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 SelfUpdate.pendingConfirm.filterNotNull().collect { confirm ->
                     SelfUpdate.pendingConfirm.value = null
@@ -105,7 +93,6 @@ class WearActivity : ComponentActivity() {
                 }
             }
         }
-        // Cold launches from the launcher only, as on the phone.
         val playIntro = savedInstanceState == null && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
         val vibrator = getSystemService(VibratorManager::class.java)?.defaultVibrator
         val thump = VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)

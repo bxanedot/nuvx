@@ -28,7 +28,6 @@ class MusicOnlyConversionTest {
     fun convertedRowIsAnOrdinaryAudioRow() {
         val converted = audio.copy(isVideoOrigin = true).asMusicOnlyOf(video)
 
-        // Both flags off is what lets Automix and the source upgrade take it.
         assertFalse(converted.isVideo)
         assertFalse(converted.isVideoOrigin)
         assertEquals("audio", converted.videoId)

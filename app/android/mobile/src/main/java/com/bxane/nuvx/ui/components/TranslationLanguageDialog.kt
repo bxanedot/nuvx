@@ -51,23 +51,8 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import java.util.Locale
 
-/** How much of the screen the list may take before it scrolls inside the card. */
 private val LIST_MAX_HEIGHT = 340.dp
 
-/**
- * Which language the lyrics translate button translates into.
- *
- * The same frosted alert as [AppLanguageDialog], with two differences that a
- * hundred and thirty rows force. It scrolls, because the app's alerts are laid
- * out as a plain Column and this list is longer than any phone; and it has a
- * filter field, because scrolling to Vietnamese is not a reasonable way to pick
- * Vietnamese. Selecting a row applies it and closes, same as the app-language
- * picker — one active language, nothing to confirm.
- *
- * The first row is the default and is deliberately not a language: blank means
- * "follow the app", which is a different answer from naming today's app
- * language and having it stick when the app changes.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TranslationLanguageDialog(
@@ -81,9 +66,6 @@ fun TranslationLanguageDialog(
     val appLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault()
     var query by remember { mutableStateOf("") }
 
-    // Names are resolved once per locale rather than per row per frame: the
-    // list is long, the platform lookup is not free, and the filter below reads
-    // every one of them on every keystroke.
     val named = remember(appLocale) {
         TRANSLATION_LANGUAGES.map { it to translationLanguageName(it.code, appLocale) }
     }
@@ -92,8 +74,6 @@ fun TranslationLanguageDialog(
         if (needle.isEmpty()) {
             named
         } else {
-            // Matched against the English name as well as the localised one, so
-            // someone reading the app in Hindi can still type "Japanese".
             named.filter { (language, name) ->
                 name.contains(needle, ignoreCase = true) ||
                     language.fallbackName.contains(needle, ignoreCase = true)
@@ -164,9 +144,6 @@ fun TranslationLanguageDialog(
             AlertRule()
 
             LazyColumn(modifier = Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
-                // Only with an empty field: it is the default rather than a
-                // language, so it has no name to match and filtering it in on a
-                // near-miss would be noise.
                 if (query.isBlank()) {
                     item {
                         LanguageChoiceRow(
@@ -184,10 +161,6 @@ fun TranslationLanguageDialog(
                     AlertRule()
                     LanguageChoiceRow(
                         label = name,
-                        // The English name under the localised one, the way a
-                        // source's detail sits under its label. Reading the app
-                        // in German, "Japanisch" is the row you want but
-                        // "Japanese" is what you were going to type.
                         detail = language.fallbackName.takeIf { !it.equals(name, ignoreCase = true) }
                             ?: language.code,
                         selected = selected.equals(language.code, ignoreCase = true),
@@ -212,8 +185,6 @@ fun TranslationLanguageDialog(
                 }
             }
 
-            // Pinned under the list rather than scrolling away with it: on a
-            // list this long the way out has to stay where it was put.
             AlertRule()
             AlertAction(
                 label = stringResource(R.string.done),
@@ -264,7 +235,6 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     }
 }
 
-/** Label over detail, checkmark on the right — a source row from [LyricsSourcesDialog], without the handle. */
 @Composable
 private fun LanguageChoiceRow(
     label: String,

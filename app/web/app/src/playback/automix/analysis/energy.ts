@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** Per-window RMS energy curve (normalized to peak = 1) + intro/outro detection. */
 
 export function energyCurve(samples: Float32Array, sampleRate: number, windowSec: number): number[] {
   const windowSamples = Math.max(1, Math.round(windowSec * sampleRate));
@@ -19,10 +18,6 @@ export interface IntroOutro {
   outroStartSec: number;
 }
 
-/**
- * Intro = leading low-energy span, outro = trailing low-energy span.
- * "Full energy" = sustained >= 60% of peak for two consecutive windows.
- */
 export function detectIntroOutro(curve: number[], windowSec: number, durationSec: number): IntroOutro {
   const THRESH = 0.6;
   let introEnd = 0;
@@ -39,7 +34,6 @@ export function detectIntroOutro(curve: number[], windowSec: number, durationSec
       break;
     }
   }
-  // sanity clamps: intro within first third, outro within last half
   introEnd = Math.min(introEnd, durationSec / 3);
   outroStart = Math.max(outroStart, durationSec / 2);
   return { introEndSec: introEnd, outroStartSec: outroStart };

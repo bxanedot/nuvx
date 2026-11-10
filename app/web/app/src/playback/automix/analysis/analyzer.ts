@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// nuvx: the audio comes from YouTube (fetchTrackAudio) instead of a local
-// file, the queue is keyed by video id and takes priorities, and results are
-// kept in memory as well as IndexedDB so the mix loop can read them synchronously.
 import { trackLog } from '@/playback/trackLog';
 import { getAnalysis, putAnalysis } from '../db';
 import { fetchTrackAudio, type TrackAudio } from '../fetchAudio';
@@ -12,28 +9,13 @@ import { ANALYSIS_VERSION } from './types';
 
 export type AnalysisStatus = 'pending' | 'analyzing' | 'done' | 'error';
 
-/** A failed analysis is asked for again after this long. */
 const RETRY_FAILED_MS = 60_000;
-const ANALYSIS_SR = 44100; // RhythmExtractor2013 assumes 44.1 kHz
-/** nuvx: Beat This! is run over this much of the opening and of the end: two model chunks. */
+const ANALYSIS_SR = 44100;
 const BEAT_WINDOW_SEC = 59;
-/**
- * nuvx: the phone's models (analysis/models.ts). Beat This! runs from a
- * re-export of the official checkpoint (the phone's beat_this_int8.onnx finds
- * no beats); its beats and downbeats are what the loop mix cuts on, with
- * essentia's grid as the fallback. The open-unmix vocal mask picks the
- * instrumental bars.
- */
 const USE_BEAT_MODEL = true;
 const USE_VOCAL_MODEL = true;
-/** nuvx: compressed audio kept for the loop mix to decode from (current, next, a few around). */
 const KEEP_BYTES_FOR = 6;
 
-/**
- * Sequential analysis queue: fetch -> decode at 44.1k -> mono downmix ->
- * transfer to the essentia worker -> persist TrackAnalysis to IndexedDB. One
- * track at a time keeps peak memory at one decoded file.
- */
 class Analyzer {
   private worker: Worker | null = null;
   private queue: { videoId: string; tags: TrackTags }[] = [];
@@ -43,10 +25,8 @@ class Analyzer {
   private readonly status = new Map<string, AnalysisStatus>();
   private readonly listeners = new Set<() => void>();
   private readonly failedAt = new Map<string, number>();
-  /** nuvx: each recent track's compressed audio (~5 MB), so a mix can decode the bars it loops. */
   private readonly bytes = new Map<string, Promise<TrackAudio>>();
 
-  /** The track's compressed audio: fetched once, kept for the last few tracks. */
   audioBytes(videoId: string): Promise<ArrayBuffer> {
     return this.trackAudio(videoId).then((a) => a.bytes);
   }
@@ -65,7 +45,6 @@ class Analyzer {
     return held;
   }
 
-  /** The analysis of [videoId], if it is done. */
   get(videoId: string): TrackAnalysis | null {
     return this.results.get(videoId) ?? null;
   }
@@ -79,15 +58,9 @@ class Analyzer {
     return () => this.listeners.delete(listener);
   }
 
-  /**
-   * Asks for [videoId] to be analyzed. A cached analysis resolves at once;
-   * `urgent` puts it at the head of the queue (the playing and next tracks
-   * outrank AutoPlay candidates).
-   */
   request(videoId: string, tags: TrackTags, urgent = false): void {
     const known = this.status.get(videoId);
     if (known === 'done' || known === 'analyzing') return;
-    // a failure (a refused download, a network blip) is tried again after a while, not given up on
     if (known === 'error' && Date.now() - (this.failedAt.get(videoId) ?? 0) < RETRY_FAILED_MS) return;
     if (known === 'pending') {
       if (urgent) {
@@ -132,7 +105,6 @@ class Analyzer {
   private async run(): Promise<void> {
     if (this.running) return;
     this.running = true;
-    // Let the cache lookups above answer before downloading anything.
     await new Promise((r) => setTimeout(r, 50));
     while (this.queue.length > 0) {
       const { videoId, tags } = this.queue.shift()!;
@@ -167,10 +139,6 @@ class Analyzer {
 
     const beatWindows: { offsetSec: number; pcm: Float32Array }[] = [];
     const vocalWindows: { offsetSec: number; left: Float32Array; right: Float32Array }[] = [];
-    // nuvx: the phone's models read the opening and the end. Beat This!
-    // wants mono at 22,050 Hz (the browser's resampler, not decimation: an
-    // aliased spectrogram gives a wrong grid, not a noisy one); open-unmix
-    // stereo at 44.1 kHz.
     if (USE_BEAT_MODEL) {
       const beatCtx = new OfflineAudioContext({ numberOfChannels: 1, length: 1, sampleRate: BEAT_SR });
       const mono22 = downmixToMono(await beatCtx.decodeAudioData(arrayBuffer.slice(0)));
@@ -183,8 +151,6 @@ class Analyzer {
     if (USE_VOCAL_MODEL) {
       const left = buffer.getChannelData(0);
       const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : left;
-      // the opening the incoming loop is looked for in (45 s) and the end the
-      // outgoing one is (60 s): two windows and three, where the song is long enough
       const vocalStarts = [0, VOCAL_WINDOW_SEC].filter((s) => s + VOCAL_WINDOW_SEC <= durationSec);
       for (let k = 1; k <= 3; k++) {
         const start = durationSec - k * VOCAL_WINDOW_SEC;

@@ -1,9 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/**
- * Synthesized test loops for beatmatch verification without real music:
- * kick on quarters, hats on offbeat 8ths, a downbeat blip on beat 1 of each
- * bar, and a sustained bass tone. Deterministic and exactly on-grid.
- */
 export interface TestLoopSpec {
   bpm: number;
   bars: number;
@@ -25,7 +20,6 @@ export function makeTestLoop(ctx: BaseAudioContext, { bpm, bars, toneHz }: TestL
     if (beat % 4 === 0) addBlip(data, sr, t0, 880);
   }
 
-  // Bass tone, gated per bar so phrase position is audible.
   const barSec = 4 * beatSec;
   for (let i = 0; i < length; i++) {
     const t = i / sr;

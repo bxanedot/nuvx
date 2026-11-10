@@ -40,7 +40,6 @@ object TvAuthServer {
     private val isRunning = AtomicBoolean(false)
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // Remote callbacks
     var statusProvider: (() -> TvRemoteStatus)? = null
     var onPlayPauseAction: (() -> Unit)? = null
     var onNextAction: (() -> Unit)? = null
@@ -152,7 +151,6 @@ object TvAuthServer {
                 }
 
                 when {
-                    // 1. API: Get Current Status
                     path == "/api/status" -> {
                         val status = statusProvider?.invoke() ?: TvRemoteStatus(false, "No Song Playing", "nuvx TV", null, 0, 0)
                         val json = JSONObject().apply {
@@ -166,7 +164,6 @@ object TvAuthServer {
                         sendJsonResponse(writer, json.toString())
                     }
 
-                    // 2. API: Control Playback Actions
                     path == "/api/action" -> {
                         val action = if (method == "POST") {
                             parseFormParam(requestBody, "action") ?: parseQueryParam(query, "action")
@@ -189,7 +186,6 @@ object TvAuthServer {
                         sendJsonResponse(writer, """{"success":true}""")
                     }
 
-                    // 3. API: Search Music from Phone
                     path == "/api/search" -> {
                         val q = parseQueryParam(query, "q") ?: ""
                         if (q.isBlank()) {
@@ -215,7 +211,6 @@ object TvAuthServer {
                         }
                     }
 
-                    // 4. API: Play Song from Phone Search
                     path == "/api/play" -> {
                         val videoId = parseFormParam(requestBody, "videoId") ?: parseQueryParam(query, "videoId")
                         val title = parseFormParam(requestBody, "title") ?: parseQueryParam(query, "title") ?: "Track"
@@ -229,7 +224,6 @@ object TvAuthServer {
                         sendJsonResponse(writer, """{"success":true}""")
                     }
 
-                    // 5. Auth Cookie Submission
                     path == "/submit" && method == "POST" -> {
                         val cookieValue = parseCookieFromBody(requestBody)
                         if (!cookieValue.isNullOrBlank()) {
@@ -240,12 +234,10 @@ object TvAuthServer {
                         }
                     }
 
-                    // 6. Mobile Web Remote Control Page (/remote)
                     path == "/remote" -> {
                         sendHtmlResponse(writer, getRemoteControlHtml())
                     }
 
-                    // 7. Default Landing & Auth Page (/)
                     else -> {
                         sendHtmlResponse(writer, getAuthHtml())
                     }
@@ -317,10 +309,6 @@ object TvAuthServer {
         }
         return null
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // HTML Templates: Apple TV Mobile Remote & Google Sign-In Pages
-    // ─────────────────────────────────────────────────────────────────────────
 
     private fun getRemoteControlHtml(): String = """
 <!DOCTYPE html>

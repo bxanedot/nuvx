@@ -1,8 +1,3 @@
-//! egui loaders for `https://` thumbnails: the download (on the backend runtime), and
-//! the textures made from them, kept under a memory budget.
-//!
-//! Reusing the backend's reqwest client avoids a second HTTP/TLS stack in the binary.
-
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -12,12 +7,8 @@ use egui::{TextureHandle, TextureOptions, Vec2};
 
 use crate::backend::Backend;
 
-/// A failed download is tried again when it's next needed after this long.
 const RETRY_AFTER: Duration = Duration::from_secs(30);
-/// Thumbnails up to this size are also kept on disk, so the next launch shows them at
-/// once (the account picture, playlist covers, the home feed).
 const DISK_MAX_FILE: usize = 256 * 1024;
-/// The disk cache is trimmed to this, oldest first, at launch.
 const DISK_BUDGET: u64 = 64 * 1024 * 1024;
 
 enum Entry {
@@ -45,7 +36,6 @@ impl HttpImages {
     }
 }
 
-/// Where `uri` is kept on disk. Thumbnail URLs change when the picture does.
 fn disk_path(dir: &std::path::Path, uri: &str) -> std::path::PathBuf {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -53,7 +43,6 @@ fn disk_path(dir: &std::path::Path, uri: &str) -> std::path::PathBuf {
     dir.join(format!("{:016x}", h.finish()))
 }
 
-/// Keep the disk cache under its budget, dropping the least recently used files.
 fn trim(dir: &std::path::Path) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
     let mut files: Vec<_> = rd
@@ -105,7 +94,6 @@ impl BytesLoader for HttpImages {
         let file = disk_path(&self.dir, &uri);
         self.backend.spawn(async move {
             if let Ok(bytes) = std::fs::read(&file) {
-                // Touch it, so trimming drops pictures that aren't used any more.
                 let _ = std::fs::File::options().write(true).open(&file).and_then(|f| f.set_modified(std::time::SystemTime::now()));
                 if let Some(slot) = cache.lock().unwrap().get_mut(&uri) {
                     *slot = Entry::Ready(Arc::from(bytes), None);
@@ -132,7 +120,6 @@ impl BytesLoader for HttpImages {
                 }
                 Err(e) => Entry::Failed(e.to_string(), Instant::now()),
             };
-            // Only store if not forgotten while in flight.
             if let Some(slot) = cache.lock().unwrap().get_mut(&uri) {
                 *slot = entry;
             }
@@ -166,7 +153,6 @@ impl BytesLoader for HttpImages {
     }
 }
 
-/// GPU memory the thumbnails may keep before the least recently drawn are dropped.
 const TEXTURE_BUDGET: usize = 96 * 1024 * 1024;
 
 struct Texture {
@@ -182,11 +168,6 @@ struct TextureState {
     cache: HashMap<String, Texture>,
 }
 
-/// Texture loader for `https://` images (and bundled previews). Unlike egui's default one it drops the
-/// downloaded and decoded copies once the texture exists (only the GPU copy is
-/// needed), and it keeps the textures under [`TEXTURE_BUDGET`] by evicting the ones
-/// not drawn for longest, so browsing for hours doesn't grow without bound and nothing
-/// on screen is ever thrown away.
 #[derive(Default)]
 pub struct Textures {
     state: Mutex<TextureState>,
@@ -198,9 +179,6 @@ impl TextureLoader for Textures {
     }
 
     fn load(&self, ctx: &egui::Context, uri: &str, options: TextureOptions, size_hint: SizeHint) -> TextureLoadResult {
-        // Also the bundled icon previews: egui's own loader would keep each one decoded,
-        // as well as its texture, until the app closes.
-        // `gray:<url>`: the picture desaturated, for the mood tiles' duotone.
         let gray = uri.strip_prefix("gray:");
         let src = gray.unwrap_or(uri);
         if !is_http(src) && !uri.starts_with("bytes://app-icon/") {
@@ -251,7 +229,6 @@ impl TextureLoader for Textures {
         if total <= TEXTURE_BUDGET {
             return;
         }
-        // Oldest first; anything drawn in the last couple of frames stays.
         let mut old: Vec<(u64, String)> = state.cache.iter().filter(|(_, t)| t.last_used + 2 < pass_index).map(|(k, t)| (t.last_used, k.clone())).collect();
         old.sort_unstable();
         for (_, uri) in old {
@@ -269,7 +246,6 @@ impl TextureLoader for Textures {
     }
 }
 
-/// Luminance only (Rec. 709), keeping alpha.
 fn desaturate(image: &egui::ColorImage) -> egui::ColorImage {
     let mut out = image.clone();
     for p in &mut out.pixels {

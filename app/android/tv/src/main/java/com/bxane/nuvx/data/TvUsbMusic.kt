@@ -8,11 +8,6 @@ import com.bxane.nuvx.data.model.Song
 import java.io.File
 import java.util.Locale
 
-/**
- * Music on USB drives and other mounted storage, which MediaStore on a TV box
- * often does not index. Plugged into [LocalMediaRepository.extraLocalMusic], so
- * the phone's MediaStore scan stays the single source for everything else.
- */
 object TvUsbMusic {
     private const val TAG = "nuvx"
     private const val MAX_DEPTH = 4
@@ -25,7 +20,6 @@ object TvUsbMusic {
         LocalMediaRepository.extraLocalMusic = ::withUsbDrives
     }
 
-    /** [found] (what MediaStore knows) plus any audio files on mounted storage it missed. */
     private fun withUsbDrives(context: Context, found: List<Song>): List<Song> {
         val songs = found.toMutableList()
         val knownPaths = found.mapNotNullTo(mutableSetOf()) { it.localPath }
@@ -38,7 +32,6 @@ object TvUsbMusic {
             }
         }.onFailure { Log.w(TAG, "Failed scanning /storage/ for USB drives: ${it.message}") }
 
-        // Drives the app can reach through its own per-volume directories.
         runCatching {
             context.getExternalFilesDirs(null)?.forEach { externalDir ->
                 var root: File = externalDir ?: return@forEach

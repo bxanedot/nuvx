@@ -1,11 +1,3 @@
-//! Apple Music's public web data: motion artwork and artist-page hero clips.
-//!
-//! Nothing here is authenticated on the user's behalf. The catalog API wants a
-//! bearer token even for anonymous reads, and the one the web player mints for
-//! visitors is scraped from its own JS bundle, kept in memory and never logged.
-//! Searches are scored rather than trusted: a plausible-looking wrong album is
-//! worse than none, so a hit has to match the artist and the title to be used.
-
 use std::collections::HashSet;
 use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
@@ -18,21 +10,17 @@ const STOREFRONT: &str = "us";
 const WEB_PLAYER: &str = "https://music.apple.com/us/browse";
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
 
-/// A release's motion clip for sleeves.
 #[derive(Clone, Debug, Default)]
 pub struct Motion {
     pub square: Option<String>,
 }
 
-/// Apple's own page for an artist: their display name and wordmark.
 #[derive(Clone, Debug, Default)]
 pub struct Artwork {
     pub name: String,
-    /// The custom wordmark Apple lettered for the artist, when they have one.
     pub logo: Option<LogoSrc>,
 }
 
-/// The artist's wordmark as Apple's CDN template, `{w}x{h}{c}.{f}` and all.
 #[derive(Clone, Debug)]
 pub struct LogoSrc {
     pub template: String,
@@ -41,7 +29,6 @@ pub struct LogoSrc {
 }
 
 impl LogoSrc {
-    /// The wordmark `height` px tall, keeping Apple's aspect, at the `bb` crop.
     pub fn at_height(&self, height: u32) -> String {
         let height = height.max(1);
         let w = (self.w as u64 * height as u64 / self.h.max(1) as u64).max(1);
@@ -80,11 +67,6 @@ async fn get(http: &reqwest::Client, url: &str, bearer: Option<&str>) -> anyhow:
     Ok((code, resp.text().await?))
 }
 
-// --------------------------------------------------------------- token
-
-/// The anonymous bearer the web player uses for catalog reads. It isn't
-/// published anywhere and rotates, so it's read the way the browser gets it:
-/// load the web player, find the JS bundle it pulls in, take the token out of it.
 async fn token(http: &reqwest::Client) -> Option<String> {
     let now = now_secs();
     if let Some(t) = TOKEN.lock().ok().and_then(|t| t.as_ref().map(|t| (t.jwt.clone(), t.expires))) {
@@ -140,7 +122,6 @@ async fn token(http: &reqwest::Client) -> Option<String> {
     }
 }
 
-/// `/assets/index~<hash>.js` and its legacy twin, as the page names them.
 fn script_paths(html: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut rest = html;
@@ -211,9 +192,6 @@ fn reject(jwt: &str) {
     }
 }
 
-/// An authenticated catalog read. A 401 means the token picked out of the
-/// bundle isn't the one this endpoint honours, so it is struck off and the
-/// next lookup scrapes a different one.
 async fn api(http: &reqwest::Client, path_and_query: &str) -> Option<Value> {
     for _ in 0..2 {
         let jwt = token(http).await?;
@@ -231,8 +209,6 @@ async fn api(http: &reqwest::Client, path_and_query: &str) -> Option<Value> {
     }
     None
 }
-
-// ------------------------------------------------------------- matching
 
 pub(crate) fn norm(s: &str) -> String {
     s.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect()
@@ -252,8 +228,6 @@ fn is_compilation(name: &str) -> bool {
     COMPILATION_MARKERS.iter().any(|m| lower.contains(m))
 }
 
-/// How well a catalog hit lines up with what's asked for, or `None` to reject
-/// it outright: the artist is a gate, the title and album decide the score.
 fn score(title: &str, artist: &str, album: Option<&str>, hit: &Value, album_is_self: bool) -> Option<i32> {
     let a = hit.get("attributes")?;
     let name = a.get("name")?.as_str().unwrap_or_default();
@@ -339,9 +313,6 @@ fn album_id(hit: &Value) -> Option<String> {
     tail.rsplit('/').next().filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit())).map(str::to_owned)
 }
 
-// -------------------------------------------------------------- lookups
-
-/// Motion artwork for a song: the sleeve clip of the album it's on.
 pub async fn song_motion(http: &reqwest::Client, title: &str, artist: &str, album: Option<&str>) -> Option<Motion> {
     let term = match album.filter(|a| !a.is_empty() && !title.to_lowercase().contains(&a.to_lowercase())) {
         Some(a) => format!("{artist} {title} {a}"),
@@ -363,7 +334,6 @@ pub async fn song_motion(http: &reqwest::Client, title: &str, artist: &str, albu
     album_by_id(http, &id).await
 }
 
-/// Motion artwork for a release, by its own name.
 pub async fn album_motion(http: &reqwest::Client, album: &str, artist: &str) -> Option<Motion> {
     let term = if album.to_lowercase().contains(&artist.to_lowercase()) { album.to_owned() } else { format!("{artist} {album}") };
     let q = format!("search?term={}&types=albums&limit=10&extend=editorialVideo", url_escape(&term));
@@ -383,7 +353,6 @@ async fn album_by_id(http: &reqwest::Client, id: &str) -> Option<Motion> {
     album.pointer("/attributes/editorialVideo").map(motion_urls).filter(|m| m.square.is_some())
 }
 
-/// Apple's artist page: their display name and the hero motion clips.
 pub async fn artist(http: &reqwest::Client, name: &str) -> Option<Artwork> {
     let q = format!("search?term={}&types=artists&limit=10", url_escape(name));
     let v = api(http, &q).await?;
@@ -400,10 +369,6 @@ pub async fn artist(http: &reqwest::Client, name: &str) -> Option<Artwork> {
     Some(Artwork { name: shown, logo })
 }
 
-/// The search hit that is this artist: an exact name match first, then one whose
-/// name contains the other's. Apple ranks its hits, so on a tie the earliest is the
-/// artist people mean — it also lists impostor profiles under famous names, and some
-/// of those have no wordmark at all.
 fn artist_hit(hits: &[serde_json::Value], name: &str) -> Option<(String, String)> {
     let want = norm(name);
     hits.iter()
@@ -425,20 +390,14 @@ fn artist_hit(hits: &[serde_json::Value], name: &str) -> Option<(String, String)
         .map(|(_, _, id, n)| (id, n))
 }
 
-/// The `"artistLogo"` block's CDN template and its natural size.
 fn artist_logo(html: &str) -> Option<LogoSrc> {
-    // Anchored on the open brace: `"artistLogo":null` must not fall through to some
-    // neighbouring artwork's URL and be drawn as the artist's name.
     let at = html.find("\"artistLogo\":{")?;
-    // The block is a flat dictionary; a generous window keeps us inside it.
     let block = &html[at..(at + 1400).min(html.len())];
     let template = url_after_key(block, "{", "url")?.replace("\\/", "/");
     let (w, h) = (number_after(block, "\"width\"")?, number_after(block, "\"height\"")?);
-    // Only a real template can be resized; a plain URL is taken as-is.
     (w > 0 && h > 0 && template.contains("{w}")).then(|| LogoSrc { template, w, h })
 }
 
-/// The number after `"key":` in `s`.
 fn number_after(s: &str, key: &str) -> Option<u32> {
     let i = s.find(key)? + key.len();
     let tail = s[i..].trim_start_matches(|c: char| c == ':' || c.is_whitespace());
@@ -455,8 +414,6 @@ fn page_title(html: &str) -> Option<String> {
     Some(t.trim().to_owned()).filter(|t| !t.is_empty())
 }
 
-/// The quoted string after `"key":"…"` within the JSON blob that follows
-/// `anchor` in the page.
 fn url_after_key<'a>(html: &'a str, anchor: &str, key: &str) -> Option<&'a str> {
     let at = html.find(anchor)?;
     let rest = &html[at..];
@@ -479,10 +436,6 @@ fn url_escape(s: &str) -> String {
     out
 }
 
-// ------------------------------------------------------------ HLS picking
-
-/// The best variant of a master playlist no wider than `max_width` (and the
-/// smallest one when they all are), so a sleeve doesn't pull a 1080p clip.
 pub async fn variant(http: &reqwest::Client, master: &str, max_width: u32) -> Option<String> {
     let (code, text) = get(http, master, None).await.ok()?;
     if code != 200 {
@@ -505,7 +458,6 @@ pub async fn variant(http: &reqwest::Client, master: &str, max_width: u32) -> Op
     Some(resolve(master, &uri))
 }
 
-/// The single fragmented MP4 a media playlist's segments all point into.
 pub async fn media_file(http: &reqwest::Client, media: &str) -> Option<String> {
     let (code, text) = get(http, media, None).await.ok()?;
     if code != 200 {
@@ -532,18 +484,14 @@ mod tests {
 
     #[test]
     fn the_first_of_two_profiles_with_one_name_is_the_artist() {
-        // Apple lists a second "Charli xcx" (an impostor profile) after the real one,
-        // and its page has no wordmark: picking the last equal hit loses the lettering.
         let hit = |id: &str, name: &str| serde_json::json!({"id": id, "attributes": {"name": name}});
         let hits = vec![hit("432942256", "Charli xcx"), hit("1845539402", "Charli xcx"), hit("9", "Charli XCX Tribute")];
         assert_eq!(artist_hit(&hits, "Charli XCX").map(|(id, _)| id).as_deref(), Some("432942256"));
-        // An exact name still beats one that merely contains it.
         let hits = vec![hit("1", "Taylor Swift Tribute"), hit("2", "Taylor Swift")];
         assert_eq!(artist_hit(&hits, "Taylor Swift").map(|(id, _)| id).as_deref(), Some("2"));
         assert!(artist_hit(&[hit("3", "Someone Else")], "Charli XCX").is_none());
     }
 
-    /// Live: what the app itself gets back for real artists.
     #[tokio::test]
     #[ignore]
     async fn artist_live() {
@@ -560,7 +508,6 @@ mod tests {
     fn scripts_and_tokens_are_found_without_a_regex() {
         let html = r#"<script src="/assets/index~abc123.js"></script><script src="/assets/index-legacy~de.js"></script>"#;
         assert_eq!(script_paths(html), vec!["/assets/index~abc123.js", "/assets/index-legacy~de.js"]);
-        // Two base64url parts around a payload that names the web player.
         let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(r#"{"iss":"AMPWebPlay","exp":1900000000}"#);
         let header = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(r#"{"kid":"WebPlayKid"}"#);
         let sig = "A".repeat(43);
@@ -578,9 +525,7 @@ mod tests {
         };
         assert!(score("Birds of a Feather", "Billie Eilish", Some("HIT ME HARD AND SOFT"), &hit("Birds of a Feather", "Billie Eilish", "HIT ME HARD AND SOFT"), false).is_some_and(|s| s >= MIN_SCORE));
         assert!(best(&[hit("Birds of a Feather", "Someone Else", "X")], "Birds of a Feather", "Billie Eilish", None, false).is_none());
-        // Same artist, another song: kept out.
         assert!(best(&[hit("Lunch", "Billie Eilish", "HIT ME HARD AND SOFT")], "Birds of a Feather", "Billie Eilish", None, false).is_none());
-        // A playlist dressed up as an album is never it.
         assert!(best(&[hit("Apple Music Essentials", "Billie Eilish", "")], "HIT ME HARD AND SOFT", "Billie Eilish", None, true).is_none());
     }
 
@@ -598,7 +543,6 @@ mod tests {
         let url = logo.at_height(1310);
         assert_eq!(url, "https://is1-ssl.mzstatic.com/image/thumb/Features/v4/ae/d9/28/aed9.png/5760x1310bb.png");
         assert!(artist_logo("{\"artistLogo\":null}").is_none());
-        // A null logo must not borrow the next image on the page.
         let none = r#"{"artistLogo":null}"#.to_owned()
             + r#"{"editorialVideo":{"dictionary":{"url":"https://img/other.png/{w}x{h}{c}.{f}","width":100,"height":100}}}"#;
         assert!(artist_logo(&none).is_none());

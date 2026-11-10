@@ -92,19 +92,9 @@ import com.bxane.nuvx.ui.tv.theme.TvGlass
 import com.bxane.nuvx.ui.tv.theme.TvType
 import kotlin.math.floor
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Focus
-// ─────────────────────────────────────────────────────────────────────────────
-
 private val LiftSpring = spring<Float>(dampingRatio = 0.72f, stiffness = 420f)
 private val LiftDpSpring = spring<Dp>(dampingRatio = 1f, stiffness = 420f)
 
-/**
- * tvOS focus: the focused element lifts towards the viewer — it grows and casts
- * a soft shadow — and is never outlined. Scale and shadow live on one render
- * layer and are read in the draw phase, so focus moves cost no recomposition of
- * anything beneath this modifier.
- */
 @Composable
 fun Modifier.tvLift(
     interactionSource: MutableInteractionSource,
@@ -145,7 +135,6 @@ fun Modifier.tvLift(
         }
 }
 
-/** Click (and optional long-press) with no ripple; on TV this is also the focus target. */
 @OptIn(ExperimentalFoundationApi::class)
 fun Modifier.tvClick(
     interactionSource: MutableInteractionSource,
@@ -160,10 +149,6 @@ fun Modifier.tvClick(
     onClick = onClick,
 )
 
-/**
- * Fills the layer behind the content with the resting colour, or the white platter
- * while focused. The colour animates in the draw phase only.
- */
 @Composable
 fun Modifier.tvPlatter(
     interactionSource: MutableInteractionSource,
@@ -179,7 +164,6 @@ fun Modifier.tvPlatter(
     return drawBehind { drawRect(color.value) }
 }
 
-/** Puts focus here once, when this first enters composition. */
 @Composable
 fun Modifier.tvInitialFocus(enabled: Boolean = true): Modifier {
     if (!enabled) return this
@@ -188,26 +172,14 @@ fun Modifier.tvInitialFocus(enabled: Boolean = true): Modifier {
     return focusRequester(requester)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Chrome: the floating tab bar hides once content scrolls under it
-// ─────────────────────────────────────────────────────────────────────────────
-
 @Stable
 class TvChrome {
-    /** The visible screen has scrolled away from its top; the tab bar steps aside. */
     var contentScrolled by mutableStateOf(false)
 
-    /** Bumped by Back from inside content: the screen scrolls home before the bar takes focus. */
     var scrollToTopRequests by mutableIntStateOf(0)
 
-    /**
-     * Bumped whenever a page comes back into view (a pushed page popped), so
-     * every live page re-reports its scroll state rather than leaving the last
-     * report — the popped page's — standing.
-     */
     var epoch by mutableIntStateOf(0)
 
-    /** Whatever lifted element last had focus — read when a page is pushed, so Back can return to it. */
     var lastFocused: FocusRequester? = null
 }
 
@@ -237,47 +209,23 @@ fun TvChromeScrollEffect(state: LazyGridState) {
     LaunchedEffect(requests) { if (requests != seen) state.animateScrollToItem(0) }
 }
 
-/** For screens that never scroll under the bar (two-pane Library, Settings). */
 @Composable
 fun TvChromePinned() {
     val chrome = LocalTvChrome.current
     LaunchedEffect(chrome.epoch) { chrome.contentScrolled = false }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scrolling: where a focused card is brought to
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Rows scroll themselves ([TvRow]); this keeps Compose's focus-driven scrolling
- * out of their horizontal axis. Requests still travel on to the feed above.
- */
 @OptIn(ExperimentalFoundationApi::class)
 private object TvRowNoScrollSpec : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
 
-/**
- * A feed's vertical scroll: the focused shelf is brought to one fixed line —
- * where the first shelf's cards rest — so the shelf in focus, captions and all,
- * is always wholly on screen, and every shelf stops in the same place.
- */
 @OptIn(ExperimentalFoundationApi::class)
 private class TvFeedScrollSpec(private val anchor: Float) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
         offset - anchor
 }
 
-/**
- * A horizontal row of cards that scrolls by whole cards. It keeps its own index
- * of the first card in view and moves it only when focus passes an edge, then
- * scrolls that card to the leading padding with [LazyListState.animateScrollToItem]
- * — so the first card in view always rests exactly on the margin, and a quick
- * run of presses retargets one animation instead of stranding several.
- *
- * Compose's own bring-into-view isn't used for this axis: driven by focus, it
- * was abandoned part-way when presses came quickly, leaving rows off the grid.
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun <T> TvRow(
@@ -295,8 +243,6 @@ fun <T> TvRow(
     val state = rememberLazyListState()
     var first by remember { mutableIntStateOf(state.firstVisibleItemIndex) }
     var focused by remember { mutableIntStateOf(-1) }
-    // Entering the row from above or below lands on its first card in view —
-    // the one on the margin — never on whichever card happened to be nearest.
     val entry = remember { FocusRequester() }
     val density = LocalDensity.current
 
@@ -340,12 +286,6 @@ fun <T> TvRow(
     }
 }
 
-/**
- * A page that isn't all shelves (an artist page: a hero, then sections): a
- * focused element is scrolled only far enough to sit inside [top] and [bottom]
- * margins — enough below it for a lockup's caption. Always the remaining
- * distance to that edge, so it gives the same answer every frame of the scroll.
- */
 @OptIn(ExperimentalFoundationApi::class)
 private class TvComfortScrollSpec(private val top: Float, private val bottom: Float) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
@@ -358,7 +298,6 @@ private class TvComfortScrollSpec(private val top: Float, private val bottom: Fl
     }
 }
 
-/** Scrolls a focused element in [content] just inside [top] / [bottom]; see [TvComfortScrollSpec]. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProvideTvComfortScrolling(top: Dp, bottom: Dp, content: @Composable () -> Unit) {
@@ -369,7 +308,6 @@ fun ProvideTvComfortScrolling(top: Dp, bottom: Dp, content: @Composable () -> Un
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
 }
 
-/** Brings a focused shelf in [content] to [anchor] from the top; see [TvFeedScrollSpec]. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProvideTvFeedScrolling(anchor: Dp, content: @Composable () -> Unit) {
@@ -378,11 +316,6 @@ fun ProvideTvFeedScrolling(anchor: Dp, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Artwork & lockups
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Artwork at a size worth showing on a 10-foot screen, with a quiet glyph until it loads. */
 @Composable
 fun TvArtwork(
     url: String?,
@@ -415,11 +348,6 @@ fun TvArtwork(
     }
 }
 
-/**
- * The tvOS lockup: artwork that lifts on focus with its caption below. The
- * caption is never on a platter; it brightens and steps down out of the way
- * of the grown artwork instead.
- */
 @Composable
 fun TvLockup(
     title: String,
@@ -439,7 +367,6 @@ fun TvLockup(
     val captionDrop = animateDpAsState(if (focused) 7.dp else 0.dp, LiftDpSpring, label = "captionDrop")
 
     Column(
-        // Dp.Unspecified fills the cell it's given — a grid column rather than a shelf slot.
         modifier = modifier.then(if (width != Dp.Unspecified) Modifier.width(width) else Modifier.fillMaxWidth()),
         horizontalAlignment = if (circle) Alignment.CenterHorizontally else Alignment.Start,
     ) {
@@ -486,7 +413,6 @@ fun TvLockup(
     }
 }
 
-/** A shelf heading, aligned to the safe margin. */
 @Composable
 fun TvShelfTitle(
     title: String,
@@ -522,11 +448,6 @@ fun TvShelfTitle(
     }
 }
 
-/**
- * A titled horizontal shelf. Rows run edge to edge — the first card starts at the
- * safe margin and the rest bleed off the right edge, as on Apple TV — with room
- * above and below for a lifted card's growth and shadow.
- */
 @Composable
 fun <T> TvShelf(
     title: String,
@@ -552,15 +473,6 @@ fun <T> TvShelf(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Controls
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * One segment of the tab bar or a segmented control. Focus inverts it to the
- * white platter; the selected segment keeps a lighter capsule while focus is
- * elsewhere.
- */
 @Composable
 fun TvTabPill(
     label: String,
@@ -573,8 +485,6 @@ fun TvTabPill(
     val focused by interactionSource.collectIsFocusedAsState()
     Row(
         modifier = modifier
-            // No growth on focus: a segment that scaled would pull its rounded
-            // ends off-centre from the capsule around it.
             .height(29.dp)
             .tvLift(interactionSource, CircleShape, focusedScale = 1f, elevation = 0.dp)
             .tvPlatter(interactionSource, resting = if (selected) TvGlass.FillSelected else Color.Transparent)
@@ -597,7 +507,6 @@ fun TvTabPill(
     }
 }
 
-/** A round icon segment, for Search and Settings at the end of the tab bar. */
 @Composable
 fun TvTabIcon(
     icon: ImageVector,
@@ -629,7 +538,6 @@ fun TvTabIcon(
     }
 }
 
-/** A capsule of [TvTabPill]s, for filters and two-or-three-way choices. */
 @Composable
 fun TvSegmented(
     options: List<String>,
@@ -655,10 +563,6 @@ fun TvSegmented(
     }
 }
 
-/**
- * The tvOS list row, as in Settings and in action menus: title on the left,
- * the current value or a glyph on the right, and a white platter on focus.
- */
 @Composable
 fun TvListRow(
     title: String,
@@ -744,7 +648,6 @@ fun TvListRow(
     }
 }
 
-/** Uppercase-free tvOS group header above a run of [TvListRow]s. */
 @Composable
 fun TvListHeader(title: String, modifier: Modifier = Modifier) {
     Text(
@@ -755,10 +658,6 @@ fun TvListHeader(title: String, modifier: Modifier = Modifier) {
     )
 }
 
-/**
- * A track in an album, playlist or library list: number (or artwork), title and
- * artist, duration. Long-press opens the song's actions.
- */
 @Composable
 fun TvSongRow(
     song: Song,
@@ -830,10 +729,6 @@ fun TvSongRow(
     }
 }
 
-/**
- * A mood or genre card — the phone's own sleeve ([MoodGenreSleeve]: colour stripe,
- * duotone cover, title), lifted on focus.
- */
 @Composable
 fun TvMoodCard(
     item: MoodGenre,
@@ -851,11 +746,6 @@ fun TvMoodCard(
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** The tvOS activity indicator: eight spokes with a travelling bright head. */
 @Composable
 fun TvActivityIndicator(
     modifier: Modifier = Modifier,
@@ -888,7 +778,6 @@ fun TvActivityIndicator(
     }
 }
 
-/** Resting placeholders for a shelf that hasn't loaded. Static, so they cost nothing to draw. */
 @Composable
 fun TvShelfPlaceholder(
     modifier: Modifier = Modifier,
@@ -921,15 +810,6 @@ fun TvShelfPlaceholder(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Text entry
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The tvOS text field: a translucent rounded field that turns into the white
- * platter, dark text on it, while focused. Typing goes through the system's TV
- * keyboard.
- */
 @Composable
 fun TvTextField(
     value: String,
@@ -960,10 +840,6 @@ fun TvTextField(
         ),
         keyboardActions = androidx.compose.foundation.text.KeyboardActions(onAny = { onImeAction() }),
         modifier = modifier
-            // One line, so Up and Down have nothing to do inside the field: they
-            // always move focus. Compose only lets them out for key events from a
-            // D-pad device; a keyboard's arrows (BlueStacks, a USB keyboard, some
-            // phone remotes) were kept as cursor moves and left focus stuck here.
             .onPreviewKeyEvent { event ->
                 if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.nativeKeyEvent.keyCode) {

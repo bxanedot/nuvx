@@ -20,30 +20,12 @@ import {
   type PartyTrack,
 } from './models';
 
-/**
- * Listen Together, the client half (ListenTogether.kt): membership, the
- * socket, the clock, and the controls any member may send. It doesn't touch
- * the player. What it publishes is [partyPositionMs], where this device ought
- * to be right now; partySync.ts binds that to the player.
- *
- * Nothing acts on "play now". The server holds a position and the server time
- * it was true at; [clock] measures this device's offset; the playhead is
- * arithmetic. Sequence numbers drop stale states, the server re-states the
- * truth every few seconds, and the socket loop assumes the socket will die.
- *
- * Unlike the phone, a reload doesn't end the party: the code and token are
- * kept for the tab's session (sessionStorage), and the reconnect lands inside
- * the server's 45 s grace, so a refresh is invisible to everyone else.
- */
-
-/** Empty only in a dev build run without VITE_PARTY_SERVER_URL; parties then need a custom server. */
 export const DEFAULT_SERVER = sanitizeServerUrl(config.partyServerUrl) ?? '';
 export const MAX_UPCOMING = 25;
 const PING_INTERVAL_MS = 15_000;
 const REPORT_INTERVAL_MS = 10_000;
 const KICK_BLOCK_MS = 24 * 60 * 60 * 1000;
 const ACTIVITY_LIMIT = 100;
-/** Failed connects in a row before asking the server whether the membership still exists. */
 const CHECK_AFTER_FAILURES = 3;
 const UNREACHABLE = 'Couldn’t reach the party server.';
 
@@ -56,16 +38,12 @@ export interface PartyState {
   maxMembers: number;
   hostOnlyControl: boolean;
   playback: PartyPlayback;
-  /** Held apart from [playback] because it arrives apart; replaced only when it changed. */
   queue: PartyQueue;
   connection: Connection;
-  /** False until the first round trip; the playhead is a guess until then. */
   clockSynced: boolean;
   roundTripMs: number;
   error: string | null;
-  /** The last 100 actions this session. */
   activity: PartyActivity[];
-  /** A resume this device accepted but may not perform yet (partySync owns it). */
   awaitingStart: boolean;
 }
 
@@ -87,7 +65,6 @@ const IDLE: PartyState = {
 
 export const useParty = create<PartyState>()(() => IDLE);
 
-/** True for a listener in a party whose host has taken control of it. */
 export function controlsLocked(state: PartyState = useParty.getState()): boolean {
   return !!state.code && state.hostOnlyControl && state.you?.isHost !== true;
 }
@@ -101,8 +78,6 @@ export class PartyError extends Error {
     super(message);
   }
 }
-
-// ---- Settings: the server, a nickname -------------------------------------------------
 
 const SETTINGS_KEY = 'nuvx:party';
 const SESSION_KEY = 'nuvx:party-session';
@@ -124,12 +99,9 @@ export function savePartySettings(change: Partial<Settings>): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...partySettings(), ...change }));
 }
 
-/** The server parties are made on: the custom one if set, else nuvx's. */
 export function idleServer(): string {
   return sanitizeServerUrl(partySettings().customServer) ?? DEFAULT_SERVER;
 }
-
-// ---- Membership --------------------------------------------------------------------
 
 let token: string | null = null;
 let server: string | null = null;
@@ -149,11 +121,6 @@ async function sha256(value: string): Promise<string> {
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * Who this device jams as: the YouTube Music account it's signed in with
- * (prompt §8; the phone requires a signed-in account too). The id is a hash of
- * the login and channel, never either of them.
- */
 async function identity(): Promise<Omit<JoinRequest, 'maxMembers' | 'autoplayEnabled'>> {
   const auth = ytAuthSnapshot();
   const active = auth.signedIn ? auth.active : null;
@@ -224,11 +191,6 @@ export async function createParty(options: { maxMembers?: number; autoplayEnable
   }
 }
 
-/**
- * Joins [code], on [serverUrl] when an invite named one. Target first, as
- * switchPartyWithRecovery does: the party this device is already in is only
- * given up once the new one has said yes.
- */
 export async function joinParty(rawCode: string, serverUrl?: string | null): Promise<string> {
   const code = cleanCode(rawCode);
   if (!code) throw new PartyError('bad_code', `A party code is ${CODE_LENGTH} letters or digits.`);
@@ -259,7 +221,6 @@ export async function previewParty(rawCode: string, serverUrl?: string | null): 
   try {
     return await request<PartyPreview>(`${base}/api/parties/${code}/preview`);
   } catch (error) {
-    // A server that predates /preview answers its router's plain-text 404: still joinable.
     if (error instanceof PartyError && error.code === 'http_404') {
       return { code, hostName: '', memberCount: 0, maxMembers: 5, isFull: false, members: [] };
     }
@@ -286,7 +247,6 @@ export async function leaveParty(): Promise<void> {
   if (code && held && base) await releaseSlot(base, code, held);
 }
 
-/** Picks a party back up after a reload, inside the server's grace period. */
 export function resumeSession(): void {
   if (useParty.getState().code) return;
   try {
@@ -304,8 +264,6 @@ export function resumeSession(): void {
 export function partyServer(): string | null {
   return server;
 }
-
-// ---- Recent kicks (a door that stays shut on this device for a day) ------------------------
 
 const KICKS_KEY = 'nuvx:party-kicked';
 
@@ -325,8 +283,6 @@ function recordKick(code: string): void {
 function refuseIfRecentlyKicked(code: string): void {
   if (recentKicks()[code]) throw new PartyError('kicked', 'You were removed from this party. You can rejoin tomorrow.');
 }
-
-// ---- Controls (any member, unless the host has taken control) -------------------------------
 
 let socket: WebSocket | null = null;
 
@@ -358,13 +314,6 @@ export const party = {
   setHostOnlyControl: (enabled: boolean) => control('setHostOnlyControl', { enabled }),
 };
 
-// ---- The playhead ------------------------------------------------------------------
-
-/**
- * Where this device should be in the current track, right now, in ms; null
- * without a track. Before the first pong it's the server's own reading at send
- * time: a starting point, not a thing to seek to (wait for clockSynced).
- */
 export function partyPositionMs(): number | null {
   const { playback } = useParty.getState();
   const track = playback.track;
@@ -376,15 +325,12 @@ export function partyPositionMs(): number | null {
   return track.durationMs ? Math.min(position, track.durationMs) : position;
 }
 
-/** How far ahead the party's next resume is scheduled (the play lead), or 0 if it's under way. */
 export function msUntilStart(): number {
   const { playback } = useParty.getState();
   if (!playback.isPlaying) return 0;
   const serverNow = clock.serverNowMs();
   return serverNow === null ? 0 : Math.max(0, playback.anchorMs - serverNow);
 }
-
-// ---- The socket ----------------------------------------------------------------------
 
 let loopId = 0;
 let timers: ReturnType<typeof setTimeout>[] = [];
@@ -402,7 +348,6 @@ function disconnect(): void {
   if (s && s.readyState <= WebSocket.OPEN) s.close(1000, 'left');
 }
 
-/** Connect, pump frames until the socket goes, back off with jitter, go round again. */
 function connect(): void {
   disconnect();
   const id = ++loopId;
@@ -422,7 +367,6 @@ function connect(): void {
       failures = 0;
       backoff = 1000;
       useParty.setState({ connection: 'live', error: null });
-      // A burst on arrival makes the first seconds accurate, then a trickle keeps up with drift.
       for (let i = 0; i < 4; i++) timers.push(setTimeout(ping, i * 300));
       timers.push(setInterval(ping, PING_INTERVAL_MS) as unknown as ReturnType<typeof setTimeout>);
       timers.push(setInterval(report, REPORT_INTERVAL_MS) as unknown as ReturnType<typeof setTimeout>);
@@ -448,11 +392,6 @@ function connect(): void {
   open();
 }
 
-/**
- * A browser can't read why a handshake failed, so after a few failed opens
- * the server is asked whether this membership still exists. A party the
- * server has forgotten (a restart, a sweep) is left rather than redialled forever.
- */
 async function checkMembership(): Promise<void> {
   const { code } = useParty.getState();
   if (!code || !token || !server) return;
@@ -464,7 +403,6 @@ async function checkMembership(): Promise<void> {
       useParty.setState({ error: why.status === 404 ? 'That party has ended.' : why.message });
     }
   } catch {
-    // Unreachable: keep trying.
   }
 }
 
@@ -502,7 +440,6 @@ function onFrame(text: string): void {
         maxMembers: party.maxMembers,
         hostOnlyControl: party.hostOnlyControl,
         playback: party.playback,
-        // The one message that always carries the queue: a new arrival has no other way to learn it.
         queue: party.queue,
         connection: 'live',
         error: null,
@@ -519,10 +456,8 @@ function onFrame(text: string): void {
     }
     case 'state': {
       const playback = playbackOf(frame.playback as never);
-      // Older than what's applied: two controllers pressing at once settle instead of fighting.
       if (playback.seq < state.playback.seq) return;
       useParty.setState({ playback });
-      // A missed queue frame is healed on the next heartbeat rather than lived with.
       if (playback.queueSeq !== useParty.getState().queue.seq) send({ type: 'syncQueue' });
       break;
     }
@@ -535,9 +470,7 @@ function onFrame(text: string): void {
     case 'members': {
       const members = ((frame.members as unknown[]) ?? []).map((m) => memberOf(m as never));
       const maxMembers = typeof frame.maxMembers === 'number' ? frame.maxMembers : state.maxMembers;
-      // Absent on an older server: keep what's held, so an upgrade doesn't silently unlock a party.
       const hostOnlyControl = typeof frame.hostOnlyControl === 'boolean' ? frame.hostOnlyControl : state.hostOnlyControl;
-      // The only place a promotion is announced.
       const you = (state.you && members.find((m) => m.memberId === state.you!.memberId)) ?? state.you;
       useParty.setState({ members, maxMembers, hostOnlyControl, you });
       break;
@@ -552,7 +485,6 @@ function onFrame(text: string): void {
     case 'error': {
       const reason = String(frame.error ?? '');
       useParty.setState({ error: typeof frame.message === 'string' ? frame.message : reason });
-      // Terminal: the party no longer knows this device.
       if (reason === 'bad_token' || reason === 'no_such_party') void leaveParty();
       break;
     }

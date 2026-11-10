@@ -40,22 +40,6 @@ import com.bxane.nuvx.ui.player.PlayerSettings
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 
-/**
- * Apple's segmented control: a squircle track in the tertiary fill, and the
- * selected segment a squircle pill that slides between the others.
- *
- * The proportions are the Liquid Glass mode picker's, but both shapes are flat
- * fills — no backdrop is sampled — so it looks and costs the same whether
- * Liquid Glass is on or off.
- *
- * Every "pick one of these" in the app — Settings' choices, a folder's
- * Songs / Albums / Artists tabs, Search's sources and its YouTube filters.
- *
- * Segments share the track evenly while every label fits its share, take what
- * their labels need and split what is left while the labels fit together, and
- * past that keep their own widths and scroll, faded out at whichever edge has
- * more beyond it. The selection is kept in view.
- */
 @Composable
 fun PillSegmentedControl(
     options: List<String>,
@@ -106,8 +90,6 @@ fun PillSegmentedControl(
         val pillWidth by animateFloatAsState(selected?.let(widths::get) ?: 0f, motion, label = "segmentWidth")
 
         val scroll = rememberScrollState()
-        // The selection centred, as far as the ends allow: there at once the
-        // first time, slid there after.
         val placed = remember { booleanArrayOf(false) }
         LaunchedEffect(selected, natural, viewport) {
             if (!scrolls || selected == null) return@LaunchedEffect
@@ -122,8 +104,6 @@ fun PillSegmentedControl(
                 .fillMaxWidth()
                 .then(
                     if (scrolls) {
-                        // Out at whichever edge has more beyond it, deepening as
-                        // that edge's overflow grows to a fade's width.
                         val fadePx = with(density) { EDGE_FADE.toPx() }
                         Modifier
                             .fadingEdges(
@@ -146,8 +126,6 @@ fun PillSegmentedControl(
                     Box(
                         Modifier
                             .matchParentSize()
-                            // Read here rather than in composition, so the slide
-                            // relays this box out and recomposes nothing.
                             .layout { measurable, constraints ->
                                 val width = pillWidth.roundToInt().coerceAtLeast(0)
                                 val placeable = measurable.measure(Constraints.fixed(width, constraints.maxHeight))
@@ -187,7 +165,6 @@ fun PillSegmentedControl(
     }
 }
 
-/** Placed [x] pixels along. */
 private fun Modifier.atX(x: Float): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints)
     layout(placeable.width, placeable.height) { placeable.place(IntOffset(x.roundToInt(), 0)) }
@@ -196,16 +173,13 @@ private fun Modifier.atX(x: Float): Modifier = layout { measurable, constraints 
 private val TrackShape = SquirclePillShape()
 private val PillShape = SquirclePillShape()
 
-/** Apple's tertiary fill: a grey at a quarter on dark and an eighth on light. */
 private val TRACK_FILL = Color(0xFF767680)
 private const val DARK_TRACK_ALPHA = 0.24f
 private const val LIGHT_TRACK_ALPHA = 0.12f
 
-/** The selected segment on dark, Apple's lifted grey; on light it is white. */
 private val DARK_PILL = Color(0xFF636366)
 
 private val TRACK_PADDING = 4.dp
-/** Air either side of a label: past this a segment reads as a word, not a cramped tab. */
 private val LABEL_PADDING = 18.dp
 private val LABEL_VERTICAL_PADDING = 9.dp
 private val EDGE_FADE = 28.dp

@@ -5,29 +5,17 @@ import com.bxane.nuvx.data.model.QueueTier
 import com.bxane.nuvx.data.model.Song
 import java.util.UUID
 
-/**
- * Information about where a queue or track was started from in the UI.
- */
 data class QueueSource(
     val title: String,
     val type: PlaybackSourceType,
     val id: String? = null,
 )
 
-/**
- * Result of constructing a context queue, containing the reconstructed timeline
- * and the 0-based start index representing the user's tapped track.
- */
 data class ContextQueueResult(
     val timeline: List<Song>,
     val startIndex: Int,
 )
 
-/**
- * Plan for executing a queue jump, indicating whether the operation is a pure seek,
- * the index permutation of original timeline items to keep/reorder, the new target index,
- * and whether the target track should be promoted to [QueueTier.CONTEXT].
- */
 data class JumpOrderPlan(
     val isPureSeek: Boolean,
     val newOrderIndices: List<Int>,
@@ -35,24 +23,8 @@ data class JumpOrderPlan(
     val promoteTargetToContext: Boolean = false,
 )
 
-/**
- * The three-tier queue's rules, as plain list edits.
- *
- * Shared because the phone and the desktop used to run two queues that only
- * looked alike: the desktop gave "Add to queue" no tier at all, so a track
- * queued by hand landed in the album's section, was invisible to a party, and
- * a jump or a clear treated it like any other row. Android's `QueueCoordinator`
- * applies these to an ExoPlayer; the desktop applies them to its own list. Same
- * input, same queue.
- */
 object QueueTimeline {
 
-    /**
-     * Converts a [Song] into a queue entry belonging to [tier].
-     *
-     * Invariant: [Song.queueEntryId] is assigned ONCE when entering the queue and is strictly
-     * immutable across all transformations, upgrades, and round-trips.
-     */
     fun Song.asQueueEntry(tier: QueueTier): Song = copy(
         queueTier = tier,
         queueEntryId = queueEntryId ?: UUID.randomUUID().toString(),
@@ -72,13 +44,6 @@ object QueueTimeline {
         playbackSourceId = source.id,
     )
 
-    /**
-     * Constructs an interleaved queue for starting a Context (Album, Playlist, Artist):
-     *
-     * Invariant: [Preceding Context] + [Selected Track] + [Preserved USER_QUEUE] + [Following Context Tracks].
-     * Playback starts at [ContextQueueResult.startIndex] (= precedingContext.size). Preceding tracks
-     * remain in history for backward navigation and loop around under repeat-all.
-     */
     fun buildContextQueue(
         currentTimeline: List<Song>,
         currentIndex: Int,
@@ -102,11 +67,6 @@ object QueueTimeline {
         )
     }
 
-    /**
-     * Constructs a queue for playing a one-off song (from Search, Home, Explore):
-     *
-     * Invariant: [Tapped Track] + [Preserved USER_QUEUE].
-     */
     fun buildOneOffQueue(
         currentTimeline: List<Song>,
         currentIndex: Int,
@@ -116,14 +76,6 @@ object QueueTimeline {
         listOf(tappedSong.from(source).asQueueEntry(QueueTier.CONTEXT)) +
             upcomingUserQueue(currentTimeline, currentIndex)
 
-    /**
-     * Constructs a single-song playback timeline for Listen Together mode:
-     *
-     * Invariant: [Tapped Track (CONTEXT)] + [Upcoming manual party tracks (USER_QUEUE)].
-     * Preceding and following context tracks from the album/playlist are excluded from the shared
-     * queue, and the previous track's AutoPlay suggestions are dropped. [upcomingPartySongs] is the
-     * party's own queue after its current track, in order.
-     */
     fun buildPartyPlaybackQueue(
         tappedSong: Song,
         source: QueueSource,
@@ -134,13 +86,6 @@ object QueueTimeline {
                 .filterNot { it.fromAutoplay }
                 .map { it.asQueueEntry(QueueTier.USER_QUEUE) }
 
-    /**
-     * Finds the insertion index for user-queued tracks.
-     *
-     * Invariant:
-     * - "Play Next" (isNext = true) inserts at the head of USER_QUEUE (immediately after currentIndex).
-     * - "Add to Queue" (isNext = false) inserts at the tail of USER_QUEUE (ahead of CONTEXT and AUTOPLAY).
-     */
     fun findUserQueueInsertionIndex(
         timeline: List<Song>,
         currentIndex: Int,
@@ -155,19 +100,6 @@ object QueueTimeline {
         return timeline.size
     }
 
-    /**
-     * Computes the jump plan and index permutation for tapping a track at [targetIndex].
-     *
-     * Invariants:
-     * 1. Backward or same track ([targetIndex] <= [currentIndex]): pure seek.
-     * 2. [QueueTier.CONTEXT]:
-     *    - If no [QueueTier.USER_QUEUE] items were crossed: pure seek preserving timeline and all following items.
-     *    - If [QueueTier.USER_QUEUE] items were crossed (Option B): all unplayed [QueueTier.USER_QUEUE] items
-     *      are pinned contiguously immediately after target; preceding context items remain in history.
-     * 3. [QueueTier.USER_QUEUE]: Bypassed manual queue items are pruned; subsequent user queue and context follow.
-     * 4. [QueueTier.AUTOPLAY]: Target is promoted to [QueueTier.CONTEXT] (station pivot); future user queue is
-     *    preserved behind it; old context and bypassed autoplay are dropped.
-     */
     fun computeJumpOrder(
         tiers: List<QueueTier>,
         currentIndex: Int,
@@ -228,10 +160,6 @@ object QueueTimeline {
         }
     }
 
-    /**
-     * Reconstructs the upcoming queue when a listener taps an item in the queue.
-     * Delegates to [computeJumpOrder] to maintain a single authoritative definition of jump ordering.
-     */
     fun buildJumpQueue(
         currentTimeline: List<Song>,
         currentIndex: Int,
@@ -256,25 +184,15 @@ object QueueTimeline {
         }
     }
 
-    /** Indices of the upcoming USER_QUEUE rows — what "Clear" removes. Context and AutoPlay stay. */
     fun upcomingUserQueueIndices(tiers: List<QueueTier>, currentIndex: Int): List<Int> =
         ((currentIndex + 1).coerceAtLeast(0) until tiers.size).filter { tiers[it] == QueueTier.USER_QUEUE }
 
-    /**
-     * Indices of played USER_QUEUE rows to prune once playback has moved into CONTEXT, so repeat-all
-     * only cycles the context. Empty while a hand-queued track (or AutoPlay) is the one playing.
-     */
     fun playedUserQueueIndices(tiers: List<QueueTier>, currentIndex: Int): List<Int> {
         if (currentIndex !in tiers.indices || currentIndex == 0) return emptyList()
         if (tiers[currentIndex] != QueueTier.CONTEXT) return emptyList()
         return (0 until currentIndex).filter { tiers[it] == QueueTier.USER_QUEUE }
     }
 
-    /**
-     * The order a queue goes in when it is started while shuffle is on: the picked track leads, the
-     * listener's own queue stays pinned in order behind it, and the context and AutoPlay sections are
-     * each shuffled among themselves.
-     */
     fun shuffledStartingOrder(songs: List<Song>, startIndex: Int): List<Song> {
         if (songs.isEmpty()) return songs
         val at = startIndex.coerceIn(songs.indices)
@@ -285,10 +203,6 @@ object QueueTimeline {
             rest.filter { it.queueTier == QueueTier.AUTOPLAY }.shuffled()
     }
 
-    /**
-     * Shuffle applied to what is still to come: USER_QUEUE is never shuffled, CONTEXT and AUTOPLAY
-     * are shuffled within their own sections. Returned as a permutation of indices into [upcoming].
-     */
     fun shuffledUpcomingOrder(upcoming: List<QueueTier>): List<Int> {
         val user = upcoming.indices.filter { upcoming[it] == QueueTier.USER_QUEUE }
         val context = upcoming.indices.filter { upcoming[it] == QueueTier.CONTEXT }
@@ -297,19 +211,11 @@ object QueueTimeline {
             avoidIdentityShuffle(autoplay, autoplay.shuffled())
     }
 
-    /**
-     * A permutation that puts restored upcoming rows back in their sections — user queue, then
-     * context, then AutoPlay — keeping the order [restored] gave them within each.
-     */
     fun sectionedOrder(restored: List<Int>, upcoming: List<QueueTier>): List<Int> =
         restored.filter { upcoming[it] == QueueTier.USER_QUEUE } +
             restored.filter { upcoming[it] == QueueTier.CONTEXT } +
             restored.filter { upcoming[it] == QueueTier.AUTOPLAY }
 
-    /**
-     * Never returns a section's unchanged order when at least two tracks can move: an identity
-     * shuffle is common in short queues and reads exactly like the tap was ignored.
-     */
     fun avoidIdentityShuffle(original: List<Int>, shuffled: List<Int>): List<Int> {
         if (original.size <= 1 || shuffled != original) return shuffled
         return shuffled.drop(1) + shuffled.first()

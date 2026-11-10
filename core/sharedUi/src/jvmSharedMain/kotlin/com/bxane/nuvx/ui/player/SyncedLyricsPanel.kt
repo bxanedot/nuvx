@@ -5,11 +5,6 @@ import androidx.compose.ui.Modifier
 import com.bxane.nuvx.data.lyrics.LyricLine
 import com.bxane.nuvx.playback.PlaybackPosition
 
-/**
- * [LyricsPanel] for a screen in another module — the Android TV app's — that
- * only holds a [PlaybackPosition]: builds the lyric playhead from it, so the
- * internal playhead type never has to leave this module.
- */
 @Composable
 fun SyncedLyricsPanel(
     lines: List<LyricLine>,
@@ -18,7 +13,6 @@ fun SyncedLyricsPanel(
     looking: Boolean,
     isPlaying: Boolean,
     onSeekToLine: (Long) -> Unit,
-    /** See [LyricsPanel]'s own: the sung line held mid-panel, not at its top. */
     centerFocus: Boolean = false,
     modifier: Modifier = Modifier,
 ) {

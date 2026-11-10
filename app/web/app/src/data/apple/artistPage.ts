@@ -1,26 +1,10 @@
-/**
- * Reading an Apple Music artist page (no network here, so it can be tested on its own).
- */
-
-/**
- * What Apple Music's artist page shows at the top, as the phone reads it
- * (app/…/data/canvas/AppleArtistArt.kt): the hero photograph, usually the
- * artist's title logo drawn over it as a separate transparent image, and
- * Apple's own colours for that photograph. Most artists have no logo.
- */
 export interface AppleArtistArt {
   heroUrl: string;
-  /** Width over height of the photograph. */
   heroAspect: number;
-  /** A transparent PNG, or null for the many artists without one. */
   logoUrl: string | null;
-  /** Width over height, so the logo can be sized before it decodes. */
   logoAspect: number;
-  /** Apple's `bgColor` for the photograph: what the page is tinted with. */
   background: string;
-  /** Apple's `textColor1`. */
   accent: string;
-  /** The colour Apple fills the artist's Play button with; absent for some artists. */
   keyColor: string | null;
 }
 
@@ -39,25 +23,21 @@ export function parse(text: string): unknown {
   }
 }
 
-/** Case, accents and punctuation are not what makes two names different (AppleArtistArt.kt's normalized()). */
 export function normalized(name: string): string {
   return name.toLowerCase().normalize('NFD').replace(/[^\p{L}\p{N}]/gu, '');
 }
 
-/** Apple's colours are six hex digits with no prefix. */
 function hex(value: unknown): string | null {
   const v = str(value);
   return /^[0-9a-f]{6}$/i.test(v) ? `#${v.toLowerCase()}` : null;
 }
 
-/** Fills Apple's image URL template ({w}x{h}{c}.{f}). */
 function fill(template: unknown, w: number, h: number, format: string): string | null {
   const url = str(template);
   if (!url.includes('{w}')) return null;
   return url.replace('{w}', String(w)).replace('{h}', String(h)).replace('{c}', 'bb').replace('{f}', format);
 }
 
-/** The first object anywhere in [node] that has an `artistLogo` key: the artist page's header. */
 function findHeader(node: unknown): Json | null {
   if (Array.isArray(node)) {
     for (const child of node) {
@@ -76,7 +56,6 @@ function findHeader(node: unknown): Json | null {
   return null;
 }
 
-/** The header art in an artist page's hydration JSON; null when it has none. */
 export function parseArtistPage(html: string): AppleArtistArt | null {
   const marker = html.indexOf('id="serialized-server-data"');
   if (marker < 0) return null;
@@ -86,7 +65,6 @@ export function parseArtistPage(html: string): AppleArtistArt | null {
   const header = findHeader(parse(html.slice(start, end)));
   if (!header) return null;
 
-  // Absent for most artists: the key is there and null.
   const logo = obj(obj(header.artistLogo)?.dictionary);
   const hero = obj(obj(header.artwork)?.dictionary) ?? obj(obj(header.colorBackdropArtwork)?.dictionary);
   if (!hero) return null;

@@ -1,11 +1,5 @@
 package com.bxane.nuvx.data
 
-/**
- * Debug logging for code both applications run.
- *
- * Silent until an application installs a [sink]: the phone routes it to
- * logcat on debug builds only, the desktop to its track log.
- */
 object DebugLog {
     fun interface Sink {
         fun log(level: Char, tag: String, message: String, error: Throwable?)

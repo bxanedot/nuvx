@@ -12,13 +12,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The two manifest switches an addon can set — `allowDownloads` and
- * `checkValidLossless` — and the output test the second one is gated on.
- */
 class AddonPolicyTest {
 
-    // Configured like the client's own, which is the one that reads manifests.
     private val json = Json {
         isLenient = true
         ignoreUnknownKeys = true
@@ -116,13 +111,11 @@ class AddonPolicyTest {
         for (codec in listOf("SSC UHQ", "Samsung UHQ")) {
             assertTrue(codec, LosslessOutput.decide(a2dp, codec, 48_000).capable)
         }
-        // Named for the family only: the rate is what tells UHQ apart.
         for (codec in listOf("SSC", "Samsung Seamless Codec", "Samsung Scalable")) {
             assertTrue(codec, LosslessOutput.decide(a2dp, codec, 96_000).capable)
             assertFalse(codec, LosslessOutput.decide(a2dp, codec, 48_000).capable)
             assertFalse(codec, LosslessOutput.decide(a2dp, codec, null).capable)
         }
-        // A high rate alone proves nothing for anyone else's lossy codec.
         assertFalse(LosslessOutput.decide(a2dp, "aptX Adaptive", 96_000).capable)
     }
 

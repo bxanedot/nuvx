@@ -5,7 +5,6 @@ function warm(to: LinkProps['to']) {
   preloadRoute(typeof to === 'string' ? to : (to.pathname ?? ''));
 }
 
-/** A link that loads its page's chunk on hover or focus (prompt §3, "Prefetch"). */
 export function PrefetchLink({ to, onPointerEnter, onFocus, ...rest }: LinkProps) {
   return (
     <Link

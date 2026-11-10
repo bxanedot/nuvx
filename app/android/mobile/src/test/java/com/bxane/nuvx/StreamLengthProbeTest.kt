@@ -33,14 +33,13 @@ class StreamLengthProbeTest {
 
     @Test
     fun `a 30 second preview cannot pass for a full song`() {
-        val preview = 30L * 128_000 / 8 // 480 kB
+        val preview = 30L * 128_000 / 8
         assertTrue(StreamLengthProbe.tooShort(preview, mp3, expectedSec = 210, slackSec = 5))
         assertTrue(StreamLengthProbe.tooShort(preview, flac, expectedSec = 210, slackSec = 5))
     }
 
     @Test
     fun `a full low-bitrate copy is never refused for an optimistic bitrate claim`() {
-        // Claimed 320 kbps, actually 96: still room for the whole song at the floor.
         val full = 210L * 96_000 / 8
         assertFalse(StreamLengthProbe.tooShort(full, mp3, expectedSec = 210, slackSec = 5))
     }

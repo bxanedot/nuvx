@@ -1,8 +1,3 @@
-/**
- * The lyric providers, in default priority: LyricsSource.kt's declaration
- * order, minus its hidden entries (SimpMusic and Megalobiz). The user can
- * reorder and switch them off, as on the desktop (useLyricsSettings).
- */
 export const LYRICS_SOURCES = [
   { id: 'lrc-red', label: 'lrc.red', detail: 'Apple timings by recording, syllable by syllable', wordSynced: true },
   { id: 'bini', label: 'BiniLyrics', detail: 'The same Apple timings, matched on the recording itself', wordSynced: true },
@@ -25,11 +20,6 @@ export type LyricsSourceId = (typeof LYRICS_SOURCES)[number]['id'];
 
 export const sourceById = (id: string) => LYRICS_SOURCES.find((s) => s.id === id);
 
-/**
- * A saved order brought up to date with this build (LyricsSource.ordered):
- * unknown ids dropped, and a source added since slotted in right after the
- * one it's declared behind, so it lands where a fresh install puts it.
- */
 export function orderedSources(saved: readonly string[]): LyricsSourceId[] {
   const offered = LYRICS_SOURCES.map((s) => s.id);
   const result = [...new Set(saved)].filter((id): id is LyricsSourceId => (offered as readonly string[]).includes(id));
@@ -41,8 +31,6 @@ export function orderedSources(saved: readonly string[]): LyricsSourceId[] {
   return result;
 }
 
-// ---- LyricsQuery.kt -------------------------------------------------------------------
-
 const CREDITS = [
   /\s*[([]\s*(feat|ft|featuring|with)\b[^)\]]*[)\]]/gi,
   /\s+(feat|ft|featuring)\.?\s+.*$/gi,
@@ -50,7 +38,6 @@ const CREDITS = [
   /\s*[([]\s*official\s*[)\]]/gi,
 ];
 
-/** A YouTube title as a lyrics database indexed it: credits and packaging off, version words kept. */
 export function forLyricsSearch(title: string): string {
   let name = title;
   for (const pattern of CREDITS) name = name.replace(pattern, ' ');
@@ -58,7 +45,6 @@ export function forLyricsSearch(title: string): string {
   return cleaned || title.trim();
 }
 
-/** " - Topic" off an auto-generated channel name. */
 export function artistForLyricsSearch(artist: string): string {
   return artist.replace(/ - Topic$/, '').trim() || artist.trim();
 }

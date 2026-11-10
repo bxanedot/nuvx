@@ -51,8 +51,6 @@ class BoundedQueueEditsTest {
         state = BoundedQueueEdits.invalidateContext(state)
         state = BoundedQueueEdits.requestTopUp(state, contextGeneration = 1L)
 
-        // The old callback belongs to generation zero and must not consume the
-        // top-up requested by generation one.
         val stale = BoundedQueueEdits.settle(state, settledGeneration = 0L)
         assertNull(stale.edit)
         assertTrue(stale.state.hasPendingEdits)

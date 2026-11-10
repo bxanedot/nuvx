@@ -29,50 +29,13 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-/**
- * The Replay as one picture, drawn to a bitmap you can send.
- *
- * ## Why this is drawn rather than screenshotted
- *
- * The obvious way to share a story card is to capture the one on screen. It is
- * also the wrong picture: a story card is one fact, and the thing people
- * actually want to send is the whole year — the minutes *and* the five songs
- * *and* the five artists. A screenshot would also carry the status bar, the
- * progress segments and whatever letterboxing that particular phone needed, so
- * the same Replay would come out looking different on every device.
- *
- * ## Why it isn't Compose
- *
- * Composing offscreen means laying out a composition that is not attached to a
- * window and then reading pixels back out of it, which on this app's minimum SDK
- * is a set of caveats about hardware bitmaps and layer support rather than an
- * API. A canvas is a canvas on every version, and the layout below is fixed —
- * nothing here reflows, so nothing here needs a layout system.
- *
- * The size is 1080 × 1920: exactly the 9:16 the story cards are held to (see
- * `StoryFrame`), so what gets shared is the shape of what was being looked at,
- * and it is the size every messaging app and story surface expects.
- */
 suspend fun renderReplayPoster(
     context: Context,
     summary: ReplaySummary,
     holder: String,
     memberSince: String?,
-    /**
-     * Which story card to draw, or null for the whole Replay.
-     *
-     * A card's share button sends the card. That is not the same picture as the
-     * summary and should not be: somebody taps share on the genre card because
-     * the genre surprised them, and receiving a table of every chart instead is
-     * a different message. The Replay page's own button is where "all of it"
-     * lives.
-     */
     page: ReplayStoryPage? = null,
 ): Bitmap = coroutineScope {
-    // The artwork this needs is a dozen small fetches that are all in Coil's
-    // disk cache already — the page they came from has been on screen. Started
-    // together rather than in a loop so a cold cache costs one round trip
-    // rather than twelve.
     val songs = summary.songRows(POSTER_ROWS)
     val artists = summary.artistRows(POSTER_ROWS)
     val albums = summary.albumRows(POSTER_ALBUMS)
@@ -89,8 +52,6 @@ suspend fun renderReplayPoster(
         val canvas = Canvas(bitmap)
         val type = Fonts(context)
 
-        // The same cover and the same turn of the colour wheel the card on
-        // screen was drawn with, so the picture is recognisably that card.
         drawBackdrop(canvas, covers[lit], page?.let(::storyHue) ?: 0f)
         var y = drawHeader(canvas, context, type, summary, holder, memberSince)
         if (page == null) {
@@ -107,17 +68,6 @@ suspend fun renderReplayPoster(
     }
 }
 
-// ── One story card ──────────────────────────────────────────────────────────
-
-/**
- * The body of [page], under its headline.
- *
- * Deliberately not a pixel copy of the composable — a card on screen fills its
- * height with weighted spacers and this cannot, since it has no measurement pass
- * to spend. What it copies is the *content*: the same sentence, the same hero,
- * the same four runners-up, in the same order. Somebody who sends a card and
- * somebody who saw it are looking at the same facts.
- */
 private fun drawCard(
     canvas: Canvas,
     context: Context,
@@ -142,7 +92,6 @@ private fun drawCard(
     }
 }
 
-/** The number one, large, with its runners-up under it. */
 private fun drawLeaderboard(
     canvas: Canvas,
     context: Context,
@@ -200,7 +149,6 @@ private fun drawLeaderboard(
     }
 }
 
-/** The genre card: one word, big, then the rest as a ranked list. */
 private fun drawBigList(canvas: Canvas, context: Context, type: Fonts, rows: List<ReplayRow>, top: Float) {
     val lead = rows.firstOrNull() ?: return
     val word = type.heading(150f, Color.WHITE)
@@ -254,7 +202,6 @@ private fun drawRecap(canvas: Canvas, context: Context, type: Fonts, summary: Re
     summary.genres.firstOrNull()?.let { line(context.getString(R.string.top_genre), it.title) }
 }
 
-/** The scatter of covers the opening cards are built around. */
 private fun drawCollage(
     canvas: Canvas,
     summary: ReplaySummary,
@@ -264,7 +211,6 @@ private fun drawCollage(
     val squares = summary.songs.mapNotNull { it.song.thumbnailUrl }.distinct().take(3)
     val faces = summary.artists.mapNotNull { it.artworkUrl }.distinct()
         .filterNot { it in squares }.take(3)
-    // Fractions of the content box, so the pile keeps its shape at any size.
     val squareAt = listOf(Triple(0.22f, 0.30f, 500f), Triple(0.02f, 0.06f, 260f), Triple(0.66f, 0.00f, 215f))
     val faceAt = listOf(Triple(0.00f, 0.62f, 185f), Triple(0.72f, 0.32f, 225f), Triple(0.46f, 0.76f, 200f))
     val height = 900f
@@ -278,22 +224,6 @@ private fun drawCollage(
     }
 }
 
-// ── Background ──────────────────────────────────────────────────────────────
-
-/**
- * The mesh, by hand.
- *
- * Four wide radial gradients off the leading sleeve's own colours, laid over a
- * dark base and then flattened under a vertical scrim — the same recipe the
- * player's backdrop uses, at a size where the radii can simply be written down
- * instead of derived from a layout.
- *
- * [height] is the canvas it is being drawn on: the poster passes the full
- * frame, a card that grows with its own contents passes whatever it turned out
- * to be. The anchors are fractions of it, so a short card gets the same
- * composition squeezed into its rows rather than the bottom half of a poster
- * left blank.
- */
 internal fun drawBackdrop(
     canvas: Canvas,
     lead: Bitmap?,
@@ -330,7 +260,6 @@ internal fun drawBackdrop(
     }
     paint.shader = null
 
-    // Ink, weighted to the foot where the smaller type is.
     paint.shader = android.graphics.LinearGradient(
         0f,
         0f,
@@ -344,12 +273,6 @@ internal fun drawBackdrop(
     paint.shader = null
 }
 
-/**
- * Four colours off the sleeve, saturated and held to a mid lightness so any
- * artwork yields a rich backdrop rather than a muddy or a blown-out one — the
- * same treatment `MeshGradient` gives its own palette, restated here because
- * this runs nowhere near a composition.
- */
 internal fun paletteOf(bitmap: Bitmap?): List<Int> {
     val fallback = listOf(0xFF3A1C71.toInt(), 0xFFD76D77.toInt(), 0xFF2B5876.toInt(), 0xFFFFAF7B.toInt())
     val source = bitmap ?: return fallback
@@ -362,7 +285,6 @@ internal fun paletteOf(bitmap: Bitmap?): List<Int> {
     return (swatches + fallback).take(4).map(::tuned)
 }
 
-/** [color] turned [degrees] around the wheel, tone untouched — see [storyHue]. */
 private fun rotated(color: Int, degrees: Float): Int {
     if (degrees == 0f) return color
     val hsl = FloatArray(3)
@@ -386,8 +308,6 @@ private fun dimmed(color: Int): Int {
     return ColorUtils.HSLToColor(hsl)
 }
 
-// ── Bands ───────────────────────────────────────────────────────────────────
-
 private fun drawHeader(
     canvas: Canvas,
     context: Context,
@@ -407,9 +327,6 @@ private fun drawHeader(
         textAlign = Paint.Align.RIGHT
     }
     canvas.drawText("nuvx", POSTER_W - MARGIN, 132f, brand)
-    // The mark, to the left of the word, exactly as the story header and the
-    // card carry it. Without it the one artefact of this app that ends up in
-    // somebody else's chat was the only place the logo didn't appear.
     val wordWidth = brand.measureText("nuvx")
     drawLogo(canvas, context, POSTER_W - MARGIN - wordWidth - LOGO_GAP, 132f)
 
@@ -451,13 +368,6 @@ private fun drawTotals(
     return top + 320f
 }
 
-/**
- * The two charts side by side.
- *
- * Songs on the left because that is what people go looking for first, and
- * artists on the right as circles — the one distinction that needs no heading,
- * since every music app on the device makes it.
- */
 private fun drawColumns(
     canvas: Canvas,
     context: Context,
@@ -593,13 +503,6 @@ private fun drawFooter(canvas: Canvas, context: Context, type: Fonts) {
     )
 }
 
-// ── Pieces ──────────────────────────────────────────────────────────────────
-
-/**
- * A cover, cropped square and rounded — or, where one never loaded, the same
- * lettered stand-in the lists use, so a missing sleeve is a deliberate-looking
- * tile rather than a hole.
- */
 internal fun drawArtwork(
     canvas: Canvas,
     bitmap: Bitmap?,
@@ -632,15 +535,6 @@ internal fun drawArtwork(
     }
 }
 
-/**
- * A card's sentence, wrapped, with the emphasised runs in the heavier face.
- *
- * Laid out by hand because a canvas has no notion of a paragraph made of two
- * typefaces: the runs are broken into words, each word keeps the weight of the
- * run it came from, and they are placed greedily until the next one would not
- * fit. Measuring per word rather than per run is what lets a line break in the
- * middle of the bold part — which every one of these sentences does.
- */
 private fun drawRuns(
     canvas: Canvas,
     type: Fonts,
@@ -652,14 +546,6 @@ private fun drawRuns(
     val bold = type.heading(HEADLINE_SIZE, Color.WHITE)
     val plain = type.body(HEADLINE_SIZE, 0x9EFFFFFF.toInt(), bold = true)
 
-    // Flattened first, with a weight remembered per character, and only then
-    // split on whitespace. Splitting the runs individually looked equivalent and
-    // was not: a run ending mid-word — "4 songs" bold followed by ", one was…"
-    // plain — became two tokens with a space invented between them, and the
-    // sentence read "4 songs , one was your anthem". A word that straddles a
-    // weight boundary takes the weight of its first letter, which is why the
-    // comma there comes out bold; that is the right way to be wrong, since the
-    // alternative is a comma floating a space away from what it punctuates.
     val text = StringBuilder()
     val weights = ArrayList<Boolean>()
     runs.forEach { run ->
@@ -691,14 +577,6 @@ private fun drawRuns(
     return y + 24f
 }
 
-/**
- * The nuvx mark, baseline-aligned with the word beside it.
- *
- * The same vector the app draws everywhere, tinted and given bounds rather than
- * rasterised to a PNG first — a vector drawable renders into an ordinary canvas
- * on every version this app supports, so there is nothing to be gained by
- * keeping a second copy of the logo around at a fixed size.
- */
 internal fun drawLogo(canvas: Canvas, context: Context, right: Float, baseline: Float) {
     val logo = runCatching {
         ResourcesCompat.getDrawable(context.resources, R.drawable.ic_logo, null)
@@ -710,7 +588,6 @@ internal fun drawLogo(canvas: Canvas, context: Context, right: Float, baseline: 
     logo.draw(canvas)
 }
 
-/** Trims [text] to [width], with an ellipsis, the way a single-line row would. */
 internal fun ellipsised(text: String, paint: Paint, width: Float): String {
     if (paint.measureText(text) <= width) return text
     var end = text.length
@@ -718,15 +595,6 @@ internal fun ellipsised(text: String, paint: Paint, width: Float): String {
     return text.take(end).trimEnd() + "…"
 }
 
-/**
- * The app's own face, on a canvas.
- *
- * The poster is the one thing from this app that ends up somewhere else, so it
- * has more reason than any screen to be set in the type the app is set in.
- * Falls back to the platform sans if a weight can't be loaded, which keeps a
- * missing font resource a slightly plainer picture rather than a crash on the
- * share button.
- */
 internal class Fonts(context: Context) {
     private val heavy = font(context, R.font.sf_pro_display_heavy) ?: Typeface.DEFAULT_BOLD
     private val semibold = font(context, R.font.sf_pro_display_semibold) ?: Typeface.DEFAULT_BOLD
@@ -754,32 +622,25 @@ internal class Fonts(context: Context) {
 internal suspend fun loadBitmap(context: Context, url: String): Bitmap? = runCatching {
     val request = ImageRequest.Builder(context)
         .data(url.artworkAt(CARD_ART_PX))
-        // Palette needs pixel access, and a hardware bitmap cannot be drawn
-        // into a software canvas at all — which is the whole of this file.
         .allowHardware(false)
         .build()
     (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image?.toBitmap()
 }.getOrNull()
 
-/** 9:16, the shape the story cards are held to — see `StoryFrame`. */
 private const val POSTER_W = 1080
 private const val POSTER_H = 1920
 
 private const val MARGIN = 72f
 
-/** The mark's drawn size. 880×360 in the vector, so this keeps its proportions. */
 private const val LOGO_W = 66f
 private const val LOGO_H = 44f
 private const val LOGO_GAP = 20f
 
-/** The width type and artwork are laid out in. */
 private const val CONTENT_W = POSTER_W - MARGIN * 2
 
-/** Matches the 30sp the card on screen sets its sentence at, at 3x. */
 private const val HEADLINE_SIZE = 88f
 private const val HEADLINE_LEADING = 108f
 
-/** How far down a chart a shared card goes — the same five the card shows. */
 private const val CARD_ROWS = 5
 private const val COLUMN_GAP = 36f
 private const val ROW_HEIGHT = 116f

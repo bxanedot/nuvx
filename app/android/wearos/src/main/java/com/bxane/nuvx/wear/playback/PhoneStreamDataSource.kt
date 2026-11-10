@@ -20,15 +20,6 @@ import java.io.InputStream
 import java.util.concurrent.TimeUnit
 import com.bxane.nuvx.wear.WearProtocol as P
 
-/**
- * Reads a track through the phone.
- *
- * Each [open] is one Wearable channel: the phone resolves the URI with its own
- * player's chain — YouTube, addons, downloads, SMB, its cache — and sends the
- * bytes back. So the watch needs no network, no account and no resolver of its
- * own, and plays whatever the phone could. A seek is a new channel at the new
- * offset, the way an HTTP source would make a new range request.
- */
 @UnstableApi
 class PhoneStreamDataSource(context: Context) : BaseDataSource(true) {
 
@@ -56,7 +47,6 @@ class PhoneStreamDataSource(context: Context) : BaseDataSource(true) {
             val stream = DataInputStream(
                 BufferedInputStream(Tasks.await(channels.getInputStream(opened), OPEN_TIMEOUT_S, TimeUnit.SECONDS), BUFFER),
             )
-            // The phone may spend seconds resolving before it answers.
             if (stream.readUnsignedByte() != P.STREAM_OK) {
                 throw DataSourceException(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS)
             }
@@ -112,7 +102,6 @@ class PhoneStreamDataSource(context: Context) : BaseDataSource(true) {
 
         @Volatile private var phoneNode: String? = null
 
-        /** The phone with this build of nuvx on it. Blocking: loader threads only. */
         fun phoneNode(context: Context): String? {
             phoneNode?.let { return it }
             val info = runCatching {

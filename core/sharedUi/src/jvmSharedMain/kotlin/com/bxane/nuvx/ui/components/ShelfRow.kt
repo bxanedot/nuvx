@@ -12,13 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 
-/**
- * What a sideways shelf is wrapped in, on top of the row itself.
- *
- * Nothing on the phone, where a finger drags the row. A window's mouse can't
- * swipe sideways, so the desktop wraps each row in the arrows it pages with,
- * the drag that pulls it, and the horizontal wheel.
- */
 interface ShelfRowChrome {
     @Composable
     fun Wrap(state: LazyListState, row: @Composable () -> Unit)
@@ -31,11 +24,6 @@ private object NoShelfRowChrome : ShelfRowChrome {
 
 val LocalShelfRowChrome = staticCompositionLocalOf<ShelfRowChrome> { NoShelfRowChrome }
 
-/** A sideways-scrolling shelf, in whatever the platform wraps one in — see [ShelfRowChrome].
- *
- * Snaps to each cell rather than stopping mid-card: a fling always settles with
- * a column aligned to the leading edge instead of leaving items cut in half.
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShelfRow(

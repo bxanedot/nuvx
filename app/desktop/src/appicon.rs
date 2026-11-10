@@ -1,15 +1,7 @@
-//! The app icon for the window, the tray and the Start menu, desktop and pinned
-//! taskbar shortcuts that launch this exe. The exe's own embedded icon (Explorer's
-//! file view) stays the classic one.
-//!
-//! The choice lives in `<data dir>/app_icon` as plain text, so `main` can read it
-//! before the window opens.
-
 use std::path::{Path, PathBuf};
 
 pub struct Variant {
     pub id: &'static str,
-    /// An ICO whose entries are PNGs, from 16 to 256 px.
     ico: &'static [u8],
 }
 
@@ -24,7 +16,6 @@ pub fn get(id: &str) -> &'static Variant {
 }
 
 impl Variant {
-    /// The PNG of the smallest entry at least `size` px wide (else the largest).
     pub fn png(&self, size: u32) -> &'static [u8] {
         let entries = ico_entries(self.ico);
         entries
@@ -35,7 +26,6 @@ impl Variant {
             .map_or(&[][..], |(_, png)| *png)
     }
 
-    /// Pixels at `size` px, for the window and tray icons.
     pub fn rgba(&self, size: u32) -> Option<image::RgbaImage> {
         let img = image::load_from_memory(self.png(size)).ok()?.into_rgba8();
         Some(if img.width() == size { img } else { image::imageops::resize(&img, size, size, image::imageops::FilterType::Lanczos3) })
@@ -47,7 +37,6 @@ impl Variant {
     }
 }
 
-/// (width, PNG bytes) of each entry. A width byte of 0 means 256.
 fn ico_entries(ico: &'static [u8]) -> Vec<(u32, &'static [u8])> {
     let u16_at = |i: usize| ico.get(i..i + 2).map(|b| u16::from_le_bytes([b[0], b[1]]) as usize);
     let u32_at = |i: usize| ico.get(i..i + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
@@ -70,15 +59,12 @@ pub fn load(data_dir: &Path) -> &'static str {
     get(id.trim()).id
 }
 
-/// Show `v` on the window: its title bar (small icon) and taskbar button (big icon).
-/// egui's icon command only sets the small one, so the taskbar kept the old icon.
 #[cfg_attr(not(windows), allow(unused_variables))]
 pub fn set_window_icon(v: &Variant) {
     #[cfg(windows)]
     window::set(v);
 }
 
-/// The main window's handle, from `main`.
 #[cfg_attr(not(windows), allow(unused_variables))]
 pub fn set_hwnd(hwnd: *mut std::ffi::c_void) {
     #[cfg(windows)]
@@ -98,15 +84,12 @@ mod window {
     use super::Variant;
 
     pub static WINDOW: OnceLock<usize> = OnceLock::new();
-    /// The icons set last (as raw handles), destroyed once replaced.
     static OURS: Mutex<Vec<usize>> = Mutex::new(Vec::new());
 
     pub fn set(v: &Variant) {
         let Some(&h) = WINDOW.get() else { return };
         let hwnd = HWND(h as *mut _);
         let mut made = Vec::new();
-        // SAFETY: the handle is the app's own window; each icon is created here and
-        // destroyed only after the window has switched away from it.
         unsafe {
             let dpi = GetDpiForWindow(hwnd);
             for (kind, metric) in [(ICON_BIG, SM_CXICON), (ICON_SMALL, SM_CXSMICON)] {
@@ -126,9 +109,6 @@ mod window {
     }
 }
 
-/// Create the Start menu shortcut and point every shortcut to this exe at the chosen
-/// icon, in the background. The installer rewrites its shortcuts on each update, so
-/// this also runs at launch.
 pub fn sync_shortcuts(id: &'static str, data_dir: &Path) {
     let data_dir = data_dir.to_owned();
     std::thread::Builder::new()
@@ -141,7 +121,6 @@ pub fn sync_shortcuts(id: &'static str, data_dir: &Path) {
         .ok();
 }
 
-/// Where the shortcuts' icon file lives: next to the settings, so updates keep it.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn icon_file(v: &Variant, data_dir: &Path) -> anyhow::Result<PathBuf> {
     let dir = data_dir.join("icons");
@@ -166,11 +145,9 @@ mod shortcuts {
 
     use super::Variant;
 
-    /// How many shortcuts were changed or created.
     pub fn sync(v: &Variant, data_dir: &Path) -> anyhow::Result<usize> {
         let exe = std::env::current_exe()?;
         let icon = if v.id == super::CLASSIC { exe.clone() } else { super::icon_file(v, data_dir)? };
-        // SAFETY: COM on this thread only, for the shell link objects below.
         let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
         if hr.is_err() {
             anyhow::bail!("COM init: {hr:?}");
@@ -185,12 +162,10 @@ mod shortcuts {
             match update(&lnk, &exe, &icon) {
                 Ok(true) => changed.push(lnk),
                 Ok(false) => {}
-                // All-users shortcuts need admin rights; the rest still change.
                 Err(e) => log::debug!("{}: {e}", lnk.display()),
             }
         }
         if !changed.is_empty() {
-            // SAFETY: plain notifications; the path strings outlive the calls.
             unsafe {
                 for lnk in &changed {
                     let p = HSTRING::from(lnk.as_os_str());
@@ -202,16 +177,12 @@ mod shortcuts {
         Ok(changed.len())
     }
 
-    /// The per-user Start menu link, created when missing and repointed when stale.
-    /// Returns the link when it had to be written.
     fn start_menu(exe: &Path, icon: &Path) -> anyhow::Result<Option<PathBuf>> {
         let Some(dir) = known_folder(&FOLDERID_Programs) else { return Ok(None) };
         let lnk = dir.join("nuvx.lnk");
         if lnk.exists() && !points_elsewhere(&lnk, exe) {
-            // The link is ours: only the icon may need catching up with the theme.
             return Ok(update(&lnk, exe, icon)?.then_some(lnk));
         }
-        // SAFETY: COM calls on an object this function owns, with buffers it owns.
         unsafe {
             let link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)?;
             link.SetPath(&HSTRING::from(exe.as_os_str()))?;
@@ -228,7 +199,6 @@ mod shortcuts {
     }
 
     fn points_elsewhere(lnk: &Path, exe: &Path) -> bool {
-        // SAFETY: COM calls on an object this function owns, with buffers it owns.
         unsafe {
             let Ok(link) = CoCreateInstance::<_, IShellLinkW>(&ShellLink, None, CLSCTX_INPROC_SERVER) else { return true };
             let Ok(file) = link.cast::<IPersistFile>() else { return true };
@@ -243,9 +213,7 @@ mod shortcuts {
         }
     }
 
-    /// Set `lnk`'s icon if it launches `exe` and doesn't show `icon` yet.
     fn update(lnk: &Path, exe: &Path, icon: &Path) -> anyhow::Result<bool> {
-        // SAFETY: COM calls on an object this function owns, with buffers it owns.
         unsafe {
             let link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)?;
             let file: IPersistFile = link.cast()?;
@@ -258,7 +226,6 @@ mod shortcuts {
             let mut index = 0;
             link.GetIconLocation(&mut buf, &mut index)?;
             let current = from_wide(&buf);
-            // No icon of its own means the exe's, which is the classic one.
             let showing = if current.as_os_str().is_empty() { exe.to_owned() } else { current };
             if same_file(&showing, icon) && index == 0 {
                 return Ok(false);
@@ -280,8 +247,6 @@ mod shortcuts {
             dirs.push((pinned.join("TaskBar"), 1));
             dirs.push((pinned.join("StartMenu"), 1));
         }
-        // Dev hook: NUVX_SHORTCUT_DIR also looks for shortcuts in that folder, so tests
-        // can check this without touching real shortcuts.
         if let Some(d) = std::env::var_os("NUVX_SHORTCUT_DIR") {
             dirs.push((PathBuf::from(d), 1));
         }
@@ -307,7 +272,6 @@ mod shortcuts {
     }
 
     fn known_folder(id: &GUID) -> Option<PathBuf> {
-        // SAFETY: the returned string is copied, then freed with CoTaskMemFree.
         unsafe {
             let p = SHGetKnownFolderPath(id, KF_FLAG_DEFAULT, None).ok()?;
             let path = PathBuf::from(p.to_string().ok()?);

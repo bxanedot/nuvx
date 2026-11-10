@@ -1,10 +1,3 @@
-//! Looping cover clips (Apple's motion sleeves, Tidal's video covers), played locally.
-//!
-//! Apple's clip is HLS, but each variant's media playlist is a single byte-ranged
-//! fragmented MP4, so it downloads as one file; Tidal's is a plain MP4. Media
-//! Foundation decodes either off the UI thread. Only the newest frame is kept: the UI
-//! turns it into a texture and draws it in place of the still sleeve.
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -28,13 +21,11 @@ impl Motion {
         Self { latest: Mutex::new(None), version: AtomicU64::new(0), stop: Arc::new(AtomicBool::new(false)) }
     }
 
-    /// The newest frame, with the counter that says it changed.
     pub fn latest(&self) -> Option<(u64, Arc<Frame>)> {
         let frame = self.latest.lock().ok()?.clone()?;
         Some((self.version.load(Ordering::Acquire), frame))
     }
 
-    /// Stop decoding: the page that showed this clip is gone.
     pub fn stop(&self) {
         self.stop.store(true, Ordering::Relaxed);
     }
@@ -54,13 +45,10 @@ impl Drop for Motion {
     }
 }
 
-/// Whether this platform can play the clips: Media Foundation is Windows'. Elsewhere
-/// the still art stays, and nothing is looked up.
 pub const SUPPORTED: bool = cfg!(windows);
 
 static STREAMS: LazyLock<Mutex<HashMap<String, Weak<Motion>>>> = LazyLock::new(Default::default);
 
-/// Start (or reuse) the clip at `master`, decoded no wider than `max_width`.
 pub fn play(ctx: &egui::Context, master: &str, max_width: u32) -> Arc<Motion> {
     let key = format!("{max_width}:{master}");
     if let Ok(mut streams) = STREAMS.lock() {
@@ -84,9 +72,6 @@ fn run(motion: Arc<Motion>, ctx: egui::Context, master: String, max_width: u32) 
     decode(&motion, &path, &ctx, None);
 }
 
-/// A music video's picture from its saved file, held to the song's clock as Android's
-/// player does: each frame waits for the audio, and one far off it (a seek) moves the
-/// picture there. The audio stays the clock; the picture plays silent.
 pub fn video(ctx: &egui::Context, path: PathBuf, clock: Arc<crate::audio::AudioStatus>) -> Arc<Motion> {
     let motion = Arc::new(Motion::new());
     let (this, ctx) = (motion.clone(), ctx.clone());
@@ -94,7 +79,6 @@ pub fn video(ctx: &egui::Context, path: PathBuf, clock: Arc<crate::audio::AudioS
     motion
 }
 
-/// Pick a variant and save the clip to the cache; a saved copy is reused.
 fn fetch(master: &str, max_width: u32) -> Option<PathBuf> {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().ok()?;
     rt.block_on(async {
@@ -147,7 +131,6 @@ fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context, clo
         let mut wide: Vec<u16> = path.to_string_lossy().encode_utf16().collect();
         wide.push(0);
         let url = windows::core::PCWSTR(wide.as_ptr());
-        // Each pass plays the clip once; then it starts again from the top.
         for _ in 0..100 {
             if motion.stop.load(Ordering::Relaxed) || !play_once(motion, ctx, url, clock) {
                 break;
@@ -166,7 +149,6 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
         let mut attrs = None;
         MFCreateAttributes(&mut attrs, 1)?;
         let attrs = attrs.unwrap();
-        // Lets the reader hand back RGB32 rather than the decoder's NV12.
         attrs.SetUINT32(&MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1)?;
         let reader = MFCreateSourceReaderFromURL(url, &attrs)?;
         let stream = MF_SOURCE_READER_FIRST_VIDEO_STREAM.0 as u32;
@@ -186,8 +168,6 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
         let row = w * 4;
         let start = Instant::now();
         let mut base: Option<i64> = None;
-        // Following a clock: where the last seek went (frames before it are dropped, as
-        // the reader lands on the keyframe ahead of it), and the last frame's time.
         let mut seeked: Option<i64> = None;
         let mut last = 0i64;
         loop {
@@ -202,7 +182,6 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
             }
             if flags & MF_SOURCE_READERF_ENDOFSTREAM.0 as u32 != 0 {
                 let Some(clock) = clock else { return Ok(true) };
-                // The video has ended: hold the last frame until the song goes back.
                 loop {
                     if motion.stop.load(Ordering::Relaxed) {
                         return Ok(false);
@@ -224,8 +203,6 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
                     if seeked.is_some_and(|to| ts < to - 5_000_000) {
                         continue;
                     }
-                    // The first frame after a start or a seek shows at once: paused, the song
-                    // would never reach it.
                     let first = seeked.take().is_some() || motion.version.load(Ordering::Acquire) == 0;
                     if !first && !wait_for(&reader, motion, clock, ts)? {
                         seeked = Some(song_at(clock));
@@ -234,7 +211,6 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
                 }
                 None => {
                     let base = *base.get_or_insert(ts);
-                    // Timestamps are in 100 ns units.
                     let due = Duration::from_micros(((ts - base).max(0) / 10) as u64);
                     let elapsed = start.elapsed();
                     if due > elapsed {
@@ -281,8 +257,6 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
     }
 }
 
-/// Blank out (rename to `free`) each track's edit list. YouTube's video files carry one
-/// that trims ~40 ms off the start, and Media Foundation's reader stalls on it for good.
 pub fn drop_edit_lists(mp4: &mut [u8]) {
     fn children(d: &[u8], start: usize, end: usize) -> Vec<(usize, usize)> {
         let mut out = Vec::new();
@@ -315,14 +289,11 @@ pub fn drop_edit_lists(mp4: &mut [u8]) {
     }
 }
 
-/// Where the song is, in Media Foundation's 100 ns units.
 #[cfg(windows)]
 fn song_at(clock: &crate::audio::AudioStatus) -> i64 {
     clock.position_smooth().as_micros() as i64 * 10
 }
 
-/// Hold the frame at `ts` until the song reaches it (paused, it waits). False: the song
-/// is elsewhere, half a second behind it or two ahead, and the reader has been sent there.
 #[cfg(windows)]
 unsafe fn wait_for(reader: &windows::Win32::Media::MediaFoundation::IMFSourceReader, motion: &Motion, clock: &crate::audio::AudioStatus, ts: i64) -> windows::core::Result<bool> {
     loop {
@@ -355,10 +326,6 @@ unsafe fn seek(reader: &windows::Win32::Media::MediaFoundation::IMFSourceReader,
 #[cfg(not(windows))]
 fn decode(_motion: &Arc<Motion>, _path: &std::path::Path, _ctx: &egui::Context, _clock: Option<&crate::audio::AudioStatus>) {}
 
-/// The frame buffer's real row length in bytes, and whether its rows run bottom-up. Media
-/// Foundation's video processor pads the frame (a 1080 px clip comes back 1088 px wide, rows
-/// 4352 bytes apart) but still reports the unpadded stride, which would shear every row by
-/// 8 px; the buffer's length gives the padded one away.
 #[cfg(windows)]
 fn layout(w: usize, h: usize, len: usize, reported: i32) -> (usize, bool) {
     let row = w * 4;
@@ -377,8 +344,6 @@ fn layout(w: usize, h: usize, len: usize, reported: i32) -> (usize, bool) {
     (reported.max(row), bottom_up)
 }
 
-/// Media Foundation decoding of a real cached sleeve. Needs a clip in the cache (play
-/// something in the app first): `cargo test --release -- --ignored decodes_a_cached_clip`.
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
@@ -391,7 +356,6 @@ mod tests {
         drop_edit_lists(&mut mp4);
         let text = String::from_utf8_lossy(&mp4);
         assert!(text.contains("free") && text.contains("elst") && text.contains("mdia"));
-        // Only the box inside a track: media data that happens to read "edts" stays.
         assert_eq!(text.matches("edts").count(), 1);
     }
 

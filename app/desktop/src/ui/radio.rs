@@ -1,7 +1,3 @@
-//! The Radio page, as Android's Radio tab: a country strip with flags (the listener's own
-//! country first), that country's most played stations, and a search across all of them.
-//! The heading's broadcast glyph pulses while a station is on air.
-
 use std::collections::{HashMap, HashSet};
 
 use egui::{Rect, Sense, Ui, pos2, vec2};
@@ -12,15 +8,12 @@ use crate::backend::Req;
 use crate::radio::{Country, Station};
 use crate::theme;
 
-/// What the page has loaded, kept while the app runs so coming back doesn't refetch.
 #[derive(Default)]
 pub struct RadioState {
     countries: Option<Result<Vec<Country>, String>>,
     stations: HashMap<String, Result<Vec<Station>, String>>,
-    /// The selected country's code.
     country: Option<String>,
     query: String,
-    /// The search that was submitted; empty shows the country's stations.
     search: String,
     asked: HashSet<String>,
 }
@@ -28,7 +21,6 @@ pub struct RadioState {
 impl RadioState {
     pub fn set_countries(&mut self, list: Result<Vec<Country>, String>) {
         let list = list.map(|mut l| {
-            // The listener's own country leads; the rest by how many stations they have.
             let home = crate::radio::home_country();
             l.sort_by_key(|c| home.as_deref().is_none_or(|h| !c.code.eq_ignore_ascii_case(h)));
             l
@@ -47,7 +39,6 @@ impl RadioState {
         if self.search.is_empty() { self.country.clone() } else { Some(format!("search:{}", self.search)) }
     }
 
-    /// Forget what failed, so it's asked again.
     fn retry(&mut self) {
         self.countries.take_if(|c| c.is_err());
         self.stations.retain(|_, s| s.is_ok());
@@ -112,7 +103,6 @@ pub(super) fn page(app: &mut App, ui: &mut Ui, now: f64) {
 
     ui.add_space(12.0);
     let stations = r.key().and_then(|k| r.stations.get(&k));
-    // Without countries there's nothing to pick from; a search doesn't need them.
     let no_countries = r.search.is_empty() && matches!(r.countries, Some(Err(_)));
     match stations {
         Some(Err(_)) => retry(ui, r),
@@ -138,7 +128,6 @@ pub(super) fn page(app: &mut App, ui: &mut Ui, now: f64) {
     }
 }
 
-/// "Radio", with the broadcast glyph beside it: lighting outward, over and over, while on air.
 fn heading(ui: &mut Ui, on_air: bool) {
     ui.add_space(18.0);
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 42.0), Sense::hover());
@@ -159,12 +148,10 @@ fn retry(ui: &mut Ui, r: &mut RadioState) {
     });
 }
 
-/// The app's accent this frame, as the chips read it.
 fn accent(ui: &Ui) -> egui::Color32 {
     ui.ctx().data(|d| d.get_temp::<egui::Color32>(egui::Id::unique("accent"))).unwrap_or(theme::RED)
 }
 
-/// Shimmering rows while the directory answers.
 fn loading(ui: &mut Ui, now: f64, rows: usize, height: f32) {
     for _ in 0..rows {
         let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
@@ -181,7 +168,6 @@ fn station_row(ui: &mut Ui, s: &Station, on_air: bool, playing: bool) -> egui::R
     }
     let h = theme::anim_bool(ui.ctx(), resp.id.with("h"), resp.hovered(), 0.12);
     ui.painter().rect_filled(rect, 10.0, theme::glass(0.06 * h));
-    // The logo over the broadcast glyph: plenty of stations have none, or one that won't load.
     let art = Rect::from_min_size(pos2(rect.left() + 8.0, rect.center().y - 24.0), vec2(48.0, 48.0));
     ui.painter().rect_filled(art, 10.0, theme::glass(0.07));
     glyphs::draw(ui, art.center(), 22.0, glyphs::RADIO, theme::text_dim());

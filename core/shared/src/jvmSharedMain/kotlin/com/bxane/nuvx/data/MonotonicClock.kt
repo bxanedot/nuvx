@@ -1,10 +1,5 @@
 package com.bxane.nuvx.data
 
-/**
- * Milliseconds on a monotonic clock. The phone installs
- * `SystemClock.elapsedRealtime`, which keeps counting through deep sleep; the
- * desktop keeps the JVM's own.
- */
 object MonotonicClock {
     private val origin = System.nanoTime()
 

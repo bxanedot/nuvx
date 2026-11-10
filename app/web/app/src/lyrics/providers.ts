@@ -3,24 +3,15 @@ import { decodeEntities, parseEnhancedLrc, parseLrc, parseProvider, parseTtml, p
 import { lyricsGet, urlWith } from './http';
 import { appleWebToken } from '@/data/apple/webToken';
 
-/**
- * Every provider, ported from shared/…/data/lyrics/<Name>.kt. Each takes the
- * cleaned query and answers with parsed lines (plus the original TTML where
- * the host sent Apple's), or null for a miss. None of them throws.
- */
-
 export interface LyricsQuery {
   videoId: string;
-  /** Already cleaned for search (sources.forLyricsSearch). */
   title: string;
   artist: string;
   durationMs: number;
   album: string | null;
-  /** The recording, when known (BiniLyrics found it, or a previous lookup did). */
   isrc: string | null;
 }
 
-/** Fetches a document once per lookup, however many providers want it (LyricsRepository.SharedDocuments). */
 export type SharedGet = (url: string) => Promise<string | null>;
 
 const fromTtml = (ttml: string | null): Parsed | null => {
@@ -40,8 +31,6 @@ function json<T>(body: string | null): T | null {
     return null;
   }
 }
-
-// ---- lrc.red (LrcRed.kt) -----------------------------------------------------------------
 
 const LRC_RED = 'https://lrc.red/';
 const ISRC = /^[A-Z]{2}[A-Z0-9]{3}\d{7}$/;
@@ -65,7 +54,6 @@ const VERSION_WORDS = new Set([
 const BRACKETED = /[([][^)\]]*[)\]]/g;
 const ARTIST_SEPARATORS = /\s*(?:,|&|;|\/|\s+and\s+|\s+x\s+|\s+with\s+|\s+feat\.?\s+|\s+ft\.?\s+)\s*/i;
 
-/** Lower case, accents off ("ROSÉ" is "rose"), letters and digits only. */
 const normalized = (value: string) =>
   value
     .normalize('NFD')
@@ -84,7 +72,6 @@ const versionOf = (title: string) =>
 const artistsOf = (artist: string) => new Set(artist.split(ARTIST_SEPARATORS).map(normalized).filter(Boolean));
 const sameSet = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((x) => b.has(x));
 
-/** The hit that is this recording, or null: every test a requirement, the closest length wins. */
 export function bestLrcRedHit(hits: LrcRedHit[], title: string, artist: string, durationMs: number): LrcRedHit | null {
   const wantedTitle = coreOf(title);
   const wantedVersion = versionOf(title);
@@ -115,14 +102,11 @@ export async function lrcRed(q: LyricsQuery, get: SharedGet): Promise<Parsed | n
   return url && url !== known ? fromTtml(await get(url)) : null;
 }
 
-// ---- BiniLyrics (BiniLyrics.kt) ------------------------------------------------------------
-
 export interface BiniHit {
   isrc?: string;
   lyricsUrl?: string;
 }
 
-/** Which recording this is, without fetching its words: the ISRC every other source can use. */
 export async function biniIdentify(q: LyricsQuery): Promise<BiniHit | null> {
   const url = q.isrc
     ? urlWith('https://lyrics-api.binimum.org/', { isrc: q.isrc })
@@ -137,16 +121,12 @@ export async function bini(q: LyricsQuery, get: SharedGet, hit: BiniHit | null):
   return parsed ? { ...parsed, isrc: found.isrc || null } : null;
 }
 
-// ---- BetterLyrics (BetterLyrics.kt) -----------------------------------------------------------
-
 async function betterLyricsAt(endpoint: string, q: LyricsQuery): Promise<Parsed | null> {
   const body = await lyricsGet(urlWith(endpoint, { s: q.title, a: q.artist, d: seconds(q.durationMs), al: q.album }));
   return body ? parseProvider(body) : null;
 }
 export const betterLyrics = (q: LyricsQuery) => betterLyricsAt('https://lyrics-api.boidu.dev/getLyrics', q);
 export const betterLyricsPortato = (q: LyricsQuery) => betterLyricsAt('https://lyrics-api.boidu.dev/qq/getLyrics', q);
-
-// ---- Unison (Unison.kt) -----------------------------------------------------------------------
 
 export async function unison(q: LyricsQuery): Promise<Parsed | null> {
   const body = json<{ success?: boolean; data?: { lyrics?: string; format?: string; syncType?: string } }>(
@@ -160,8 +140,6 @@ export async function unison(q: LyricsQuery): Promise<Parsed | null> {
   const enhanced = parseEnhancedLrc(text);
   return fromLines(enhanced.length ? enhanced : parseLrc(text));
 }
-
-// ---- PaxSenix (PaxSenix.kt) ---------------------------------------------------------------------
 
 interface Candidate {
   id: string;
@@ -226,7 +204,6 @@ function bestCandidate(root: unknown, q: LyricsQuery): Candidate | null {
   return best && best.score >= 10 ? best.c : null;
 }
 
-/** PaxSenix's structured Apple payload, keeping its syllable timings (PaxSenix.parseTimedApple). */
 export function parsePaxSenixTimed(raw: string): LyricLine[] | null {
   const root = json<unknown>(raw);
   const find = (node: unknown): Obj[] | null => {
@@ -305,7 +282,6 @@ async function paxGeneric(q: LyricsQuery, key: string): Promise<Parsed | null> {
   const root = json<{ lyrics?: unknown[] }>(raw);
   const documents = Array.isArray(root?.lyrics) ? root.lyrics : null;
   if (!documents?.length) return paxResponse(raw);
-  // Candidates, not lines: pick one recording before parsing (PaxSenix.parseLrcGet).
   const scored = documents
     .map((document) => {
       const parsed = paxResponse(JSON.stringify(document));
@@ -332,10 +308,6 @@ export async function paxSenixMusixmatch(q: LyricsQuery, key: string): Promise<P
   return found ?? paxGeneric(q, key);
 }
 
-// ---- LyricsPlus (LyricsPlus.kt) ------------------------------------------------------------------
-
-// atomix.one (bad certificate), prjktla.workers.dev (worker deleted) and the
-// two vercel.app deployments (disabled, 402) were dropped on 2026-10-17.
 const MIRRORS = ['https://lyricsplus.prjktla.my.id', 'https://lyricsplus.binimum.org'];
 let lastGoodMirror: string | null = null;
 
@@ -375,7 +347,6 @@ export function parseLyricsPlus(response: LyricsPlusResponse): LyricLine[] {
 
 export async function lyricsPlus(q: LyricsQuery): Promise<Parsed | null> {
   const hosts = lastGoodMirror ? [lastGoodMirror, ...MIRRORS.filter((m) => m !== lastGoodMirror)] : MIRRORS;
-  // All at once; the first mirror with something usable wins (a 404 doesn't).
   return new Promise((resolve) => {
     let pending = hosts.length;
     let done = false;
@@ -395,8 +366,6 @@ export async function lyricsPlus(q: LyricsQuery): Promise<Parsed | null> {
     }
   });
 }
-
-// ---- YouTube (YouTubeLyrics.kt) -----------------------------------------------------------------
 
 function* objectsNamed(node: unknown, name: string): Generator<Obj> {
   if (Array.isArray(node)) for (const n of node) yield* objectsNamed(n, name);
@@ -420,7 +389,6 @@ function youtubeText(node: unknown): string {
   return '';
 }
 
-/** Plain lyrics from the Lyrics tab of the exact playing video. */
 export async function youtubeMusicLyrics(q: LyricsQuery): Promise<Parsed | null> {
   if (!/^[A-Za-z0-9_-]{11}$/.test(q.videoId)) return null;
   try {
@@ -434,13 +402,11 @@ export async function youtubeMusicLyrics(q: LyricsQuery): Promise<Parsed | null>
   }
 }
 
-/** Timed captions for the exact playing video (Innertube.transcript). */
 export async function youtubeCaptions(q: LyricsQuery): Promise<Parsed | null> {
   if (!/^[A-Za-z0-9_-]{11}$/.test(q.videoId)) return null;
   try {
     const { getMusicClient } = await import('@/playback/youtube/innertube');
     const yt = await getMusicClient();
-    // get_transcript takes a tiny protobuf: field 1, length, the video id.
     const id = new TextEncoder().encode(q.videoId);
     const params = btoa(String.fromCharCode(10, id.length, ...id));
     const response = await yt.actions.execute('/get_transcript', { params, client: 'YTMUSIC' });
@@ -458,13 +424,10 @@ export async function youtubeCaptions(q: LyricsQuery): Promise<Parsed | null> {
   }
 }
 
-// ---- KuGou (KuGou.kt) ---------------------------------------------------------------------------
-
 const stripParenthetical = (s: string) => s.replace(/[(（].*?[)）]/g, '').trim() || s;
 const KUGOU_STAMPED = /^\[\d{2}:\d{2}\.\d{2,3}\].*/;
 const KUGOU_CREDIT = /.+\][^[]+[:：].+/;
 
-/** KuGou files open and close with credit lines ("作词: …") stamped like lyrics; cut them. */
 export function stripKugouCredits(lrc: string): string {
   const lines = lrc.split(/\r?\n/).filter((l) => KUGOU_STAMPED.test(l));
   if (!lines.length) return '';
@@ -489,7 +452,6 @@ export function stripKugouCredits(lrc: string): string {
 const KUGOU_STAMP = /\[\d{2}:\d{2}\.\d{2,3}\]/g;
 const KUGOU_INSTRUMENTAL = /纯音乐.*欣赏/;
 
-/** A file holding nothing but KuGou's "纯音乐，请欣赏" ("pure music, please enjoy") notice. */
 export function isKugouInstrumentalNotice(lrc: string): boolean {
   const lines = lrc.split(/\r?\n/).map((l) => l.replace(KUGOU_STAMP, '').trim()).filter(Boolean);
   return lines.length > 0 && lines.every((l) => KUGOU_INSTRUMENTAL.test(l));
@@ -530,8 +492,6 @@ export async function kugou(q: LyricsQuery): Promise<Parsed | null> {
   }
 }
 
-// ---- LRCLIB (LrcLib.kt) ---------------------------------------------------------------------------
-
 const LRCLIB_NOISE = /\((?:from|feat\.?|official|lyrical|video|audio|remix)[^)]*\)|\[[^\]]*\]|\b(?:official (?:video|audio|music video)|lyrical|full song|4k video)\b/gi;
 const lrclibClean = (s: string) => s.replace(LRCLIB_NOISE, ' ').split(' | ')[0]!.replace(/\s+/g, ' ').trim() || s;
 
@@ -551,8 +511,6 @@ export async function lrclib(q: LyricsQuery): Promise<Parsed | null> {
   }
   return synced ? fromLines(parseLrc(synced)) : null;
 }
-
-// ---- Musixmatch (Musixmatch.kt) -------------------------------------------------------------------
 
 const MXM = 'https://apic.musixmatch.com/ws/1.1';
 const MXM_APP = 'mobile-app-v1.0';
@@ -577,7 +535,6 @@ async function musixmatchSecret(): Promise<string> {
   return mxmSecret;
 }
 
-/** Signs `<url><UTC yyyyMMdd>` with HMAC-SHA256, as Musixmatch's web client does. */
 async function mxmSign(url: string, secret: string): Promise<string> {
   const normalizedUrl = url.replace(/%20/g, '+').replace(/ /g, '+');
   const now = new Date();
@@ -603,14 +560,12 @@ async function mxmGet(build: (token: string) => string): Promise<Obj | null> {
     );
     const status = body?.message?.header?.status_code;
     if (body && status !== 401 && status !== 402) return body.message?.body ?? null;
-    // An expired token or rotated key: refresh both once.
     mxmToken = null;
     mxmSecret = null;
   }
   return null;
 }
 
-/** Rich sync, without flattening it through LRC (Musixmatch.parseRichSyncBody). */
 export function parseRichSync(body: string): LyricLine[] {
   const entries = json<{ ts: number; te: number; l?: { c: string; o: number }[]; x?: string }[]>(body) ?? [];
   const lines = entries
@@ -675,8 +630,6 @@ export async function musixmatch(q: LyricsQuery): Promise<Parsed | null> {
   return fromLines(entries.filter((e) => e.text.trim()).map((e) => line(Math.trunc(e.time.total * 1000), e.text.trim())));
 }
 
-// ---- Genius (Genius.kt) ---------------------------------------------------------------------------
-
 const GENIUS_NOISE =
   /\s*[([]\s*(?:from|feat\.?|ft\.?|featuring|with|prod\.?|produced by|official|lyrical|video|audio|remix|music video|visualizer|mv|hd|4k|hq|full song)[^)\]]*[)\]]|\s*\b(?:official\s+(?:music\s+)?(?:video|audio)|lyrical(?:\s+video)?|full\s+song|4k\s+video|hd\s+video|music\s+video)\b/gi;
 const geniusClean = (s: string) =>
@@ -688,7 +641,6 @@ const geniusClean = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim() || s.trim();
 
-/** Genius's page HTML to lines, keeping "[Chorus]" headers and stanza breaks. */
 export function parseGeniusHtml(html: string): LyricLine[] {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let containers = [...doc.querySelectorAll('div[data-lyrics-container="true"]')];

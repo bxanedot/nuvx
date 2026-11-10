@@ -106,21 +106,17 @@ private val ScrimColor = Color.Black.copy(alpha = 0.6f)
 private val PopupColor = Color(0xFF0D0D0D)
 private val PopupMaxWidth = 480.dp
 
-/** The decks' geometry: the whole well, each deck, and the gap between them. */
 private val DecksHeight = 288.dp
 private val DeckHeight = 110.dp
 private val DeckTop = 16.dp
 private val DeckBottomInset = 34.dp
 
-/** The DJ deck palette: lows, mids, highs, the transition frame and the faders. */
 private val LowColor = Color(0xFF2E45E6)
 private val MidColor = Color(0xFFE08B35)
 private val HighColor = Color(0xFFF1DDC4)
 
-/** One deck's waveform layers, lows outermost. */
 private class WaveColors(val low: Color, val mid: Color, val high: Color)
 
-/** The reference palette, until a cover's own colours are in. */
 private val DefaultWaveColors = WaveColors(LowColor, MidColor, HighColor)
 private val FrameColor = Color(0xFF3A9BDC)
 private val FaderColor = Color(0xFFF2C230)
@@ -128,33 +124,17 @@ private val PanelColor = Color(0xFF1E1E1E)
 private val ChipColor = Color(0xFF2A2A2A)
 private val SecondaryText = Color.White.copy(alpha = 0.55f)
 
-/**
- * Where the blend sits across the deck's width. Matches the controller's
- * MIX_VIEW_CONTEXT: the waveforms cover the overlap plus 0.24 of it either side.
- */
 private const val ContextFraction = 0.24f
 private const val BoxStart = ContextFraction / (1f + 2f * ContextFraction)
 private const val BoxEnd = 1f - BoxStart
 
-/** Opacity of audio either side of the blend that is not sounding: the incoming lead-in, the outgoing tail. */
 private const val SilentAlpha = 0.32f
 
-/**
- * The Automix mix view: both tracks' waveforms, lows in blue, mids orange and
- * highs cream, laid over each other where the blend overlaps them, with the
- * faders the blend rides drawn in yellow and the playhead moving through it.
- *
- * A popup card over a dimmed player, opened from the "Mixing" label or the
- * player's menu. [view] is held by the caller while it closes, and is null
- * while a popup opened by hand waits on its first plan; [visible] is what opens
- * and closes it.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 internal fun MixViewPopup(
     view: MixTransitionView?,
     visible: Boolean,
-    /** False once the blend has finished: the popup stays up on its last frame, without a playhead. */
     live: Boolean,
     hazeState: HazeState,
     onDismiss: () -> Unit,
@@ -208,7 +188,6 @@ internal fun MixViewPopup(
                                 .background(PopupColor.copy(alpha = 0.94f))
                         },
                     )
-                    // Taps on the card are the card's, not the scrim's.
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() },
@@ -223,7 +202,6 @@ internal fun MixViewPopup(
     }
 }
 
-/** What the popup draws before its first plan lands: two decks of nothing yet, both still being worked out. */
 private val PlaceholderDeck = MixDeck(
     title = "",
     artist = "",
@@ -248,7 +226,6 @@ private val PlaceholderView = MixTransitionView(
     fadeIn = FloatArray(0),
 )
 
-/** The popup's body: the outgoing track, both decks, the incoming track. */
 @Composable
 internal fun MixViewContent(view: MixTransitionView, progress: State<Float>, live: Boolean = true) {
     val sweep = rememberSkeletonSweep(
@@ -263,7 +240,6 @@ internal fun MixViewContent(view: MixTransitionView, progress: State<Float>, liv
     }
 }
 
-/** The skeletons' sweep, 0..1, running only while something on the card is still coming. */
 @Composable
 private fun rememberSkeletonSweep(active: Boolean): State<Float> {
     if (!active) return remember { mutableFloatStateOf(0f) }
@@ -277,11 +253,9 @@ private fun rememberSkeletonSweep(active: Boolean): State<Float> {
 
 private const val SKELETON_SWEEP_MS = 1400
 
-/** The skeletons' grey on the dark card, and the highlight that sweeps across it. */
 private val SkeletonBase = Color.White.copy(alpha = 0.08f)
 private val SkeletonHighlight = Color.White.copy(alpha = 0.18f)
 
-/** The highlight band across [width] at [sweep]: from fully off one edge to fully off the other. */
 private fun skeletonBrush(width: Float, sweep: Float): Brush {
     val band = width * 0.5f
     val startX = -band + sweep * (width + band * 2)
@@ -292,7 +266,6 @@ private fun skeletonBrush(width: Float, sweep: Float): Brush {
     )
 }
 
-/** A placeholder block, the sweep read in draw so it never recomposes the card. */
 @Composable
 private fun SkeletonBlock(sweep: State<Float>, modifier: Modifier, shape: Shape = RoundedCornerShape(4.dp)) {
     Box(
@@ -304,7 +277,6 @@ private fun SkeletonBlock(sweep: State<Float>, modifier: Modifier, shape: Shape 
 
 @Composable
 private fun DeckHeader(deck: MixDeck, sweep: State<Float>, modifier: Modifier = Modifier) {
-    // Only the placeholder has no title: a real track always knows its own name.
     val unknown = deck.title.isEmpty() && deck.analysing
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -349,8 +321,6 @@ private fun DeckHeader(deck: MixDeck, sweep: State<Float>, modifier: Modifier = 
             }
         }
         Spacer(Modifier.width(12.dp))
-        // Still being analysed: the tempo and key it will have, as skeletons,
-        // beside whatever duration is already known.
         if (deck.analysing) {
             Column(horizontalAlignment = Alignment.End) {
                 SkeletonBlock(sweep, Modifier.width(48.dp).height(13.dp))
@@ -373,7 +343,6 @@ private fun DeckHeader(deck: MixDeck, sweep: State<Float>, modifier: Modifier = 
     }
 }
 
-/** A measured deck's tempo, key and length, right-aligned beside its title. */
 @Composable
 private fun DeckNumbers(deck: MixDeck) {
     Column(horizontalAlignment = Alignment.End) {
@@ -409,7 +378,6 @@ private fun DeckNumbers(deck: MixDeck) {
     }
 }
 
-/** The two waveform decks, the transition frame across them, and the blend's length under them. */
 @Composable
 private fun MixDecks(view: MixTransitionView, progress: State<Float>, live: Boolean, sweep: State<Float>) {
     val outColors = rememberWaveColors(view.outgoing.artworkUrl)
@@ -423,7 +391,6 @@ private fun MixDecks(view: MixTransitionView, progress: State<Float>, live: Bool
         val width = maxWidth
         val panelStart = width * BoxStart
         val panelWidth = width * (BoxEnd - BoxStart)
-        // The grey well behind the overlap, from above the top deck to under the chip.
         Box(
             Modifier
                 .offset(x = panelStart, y = 0.dp)
@@ -438,8 +405,6 @@ private fun MixDecks(view: MixTransitionView, progress: State<Float>, live: Bool
             val bottomDeck = size.height - DeckBottomInset.toPx() - deckHeight
             drawDeck(view, outgoing = true, top = topDeck, height = deckHeight, colors = outColors, sweep = sweep)
             drawDeck(view, outgoing = false, top = bottomDeck, height = deckHeight, colors = inColors, sweep = sweep)
-            // The playhead, through both decks at once: they are the same moment.
-            // Gone once the blend is over rather than parked at its end.
             if (live) {
                 val x = size.width * (BoxStart + (BoxEnd - BoxStart) * progress.value.coerceIn(0f, 1f))
                 drawLine(
@@ -460,7 +425,6 @@ private fun MixDecks(view: MixTransitionView, progress: State<Float>, live: Bool
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            // The blend's length is the planner's guess until both tracks are measured.
             if (pending) {
                 SkeletonBlock(sweep, Modifier.width(44.dp).height(13.dp))
             } else {
@@ -480,14 +444,6 @@ private fun MixDecks(view: MixTransitionView, progress: State<Float>, live: Bool
     }
 }
 
-/**
- * One deck: the waveform across the whole width, its frame over the blend,
- * the beat grid inside the frame and the fader line along it.
- *
- * The outgoing frame is open on the left — the track was already playing — and
- * the incoming one on the right, where it plays on; the fader runs along the
- * frame's edge between full (the centre line) and silent (its floor).
- */
 private fun DrawScope.drawDeck(
     view: MixTransitionView,
     outgoing: Boolean,
@@ -505,7 +461,6 @@ private fun DrawScope.drawDeck(
     val half = height / 2f * 0.86f
     val fader = if (outgoing) view.fadeOut else view.fadeIn
 
-    // The beat grid, under everything.
     clipRect(boxLeft, top, boxRight, floor) {
         view.beatMarks.forEachIndexed { index, mark ->
             val x = boxLeft + boxWidth * mark
@@ -519,7 +474,6 @@ private fun DrawScope.drawDeck(
     }
 
     val bins = deck.low.size
-    // The span of this track the popup shows: the blend plus its context either side.
     val (blendStart, blendEnd) = if (outgoing) view.outStart to view.outEnd else view.inStart to view.inEnd
     val context = (blendEnd - blendStart) * ContextFraction
     val shownStart = blendStart - context
@@ -540,7 +494,6 @@ private fun DrawScope.drawDeck(
                 inBlend -> 0.55f + 0.45f * sample(fader, blend)
                 else -> 1f
             }
-            // The low end belongs to one deck at a time across a bass swap.
             val lowsOn = when {
                 swap < 0f || !inBlend -> true
                 outgoing -> blend < swap
@@ -552,10 +505,8 @@ private fun DrawScope.drawDeck(
             bar(x, width, centre, deck.high[bin] * half, colors.high.copy(alpha = alpha))
         }
     } else if (deck.analysing || deck.decoding) {
-        // Still being analysed or decoded: a skeleton of a waveform where this one will be.
         drawWaveSkeleton(centre, half, sweep.value)
     } else {
-        // Nothing coming — the decode failed: a flat line where the waveform would be.
         drawLine(
             color = colors.mid.copy(alpha = 0.35f),
             start = Offset(0f, centre),
@@ -564,7 +515,6 @@ private fun DrawScope.drawDeck(
         )
     }
 
-    // The frame: top edge, and the side where this track starts or ends.
     val frame = Stroke(width = 2.5.dp.toPx(), join = StrokeJoin.Round)
     val edge = Path().apply {
         if (outgoing) {
@@ -579,7 +529,6 @@ private fun DrawScope.drawDeck(
     }
     drawPath(edge, FrameColor, style = frame)
 
-    // The fader, along the frame.
     if (fader.isNotEmpty()) {
         val line = Path()
         fader.forEachIndexed { index, level ->
@@ -591,17 +540,6 @@ private fun DrawScope.drawDeck(
     }
 }
 
-/**
- * A deck's waveform colours taken from its cover: the most vivid colour on the
- * outside (the lows), the colour furthest from it in hue in the middle, and a
- * pale tint of the first at the core. Each is lifted so it reads on the dark
- * card whatever the sleeve; a black-and-white sleeve gets greys.
- *
- * The reference palette holds until the cover's own colours are actually
- * known, then crossfades into them — never through a stand-in palette, which
- * is what made them look like they snapped in a few seconds late. Kept per
- * cover for the process, so reopening the popup on the same blend is instant.
- */
 @Composable
 private fun rememberWaveColors(artworkUrl: String?): WaveColors {
     val context = LocalPlatformContext.current
@@ -629,17 +567,14 @@ private fun rememberWaveColors(artworkUrl: String?): WaveColors {
     return WaveColors(low, mid, high)
 }
 
-/** Cover colours already worked out, by artwork URL. Two covers a blend; a handful a session. */
 private val WaveColorCache = java.util.concurrent.ConcurrentHashMap<String, WaveColors>()
 
-/** How long a deck's waveform takes to crossfade into its cover's colours. */
 private const val WAVE_COLOR_FADE_MS = 900
 
 private fun waveColorsOf(colors: List<Color>): WaveColors {
     val hsv = colors.map { hsvOf(it) }
     if (hsv.isEmpty()) return DefaultWaveColors
     val vivid = hsv.maxBy { it[1] * (0.4f + it[2]) }
-    // A sleeve with no real colour in it: draw it in greys rather than tint them.
     if (vivid[1] < GREY_SATURATION) {
         return WaveColors(Color(0xFF7D7D86), Color(0xFFB9B9C2), Color(0xFFF2F2F5))
     }
@@ -648,7 +583,6 @@ private fun waveColorsOf(colors: List<Color>): WaveColors {
         .maxByOrNull { hueDistance(it[0], vivid[0]) * it[1] }
         ?.takeIf { hueDistance(it[0], vivid[0]) >= MIN_HUE_GAP }
         ?.get(0)
-        // Nothing far enough round the wheel: a neighbour of the main hue, so the layers still part.
         ?: ((vivid[0] + 40f) % 360f)
     return WaveColors(
         low = Color.hsv(vivid[0], vivid[1].coerceIn(0.55f, 0.9f), 0.88f),
@@ -657,10 +591,8 @@ private fun waveColorsOf(colors: List<Color>): WaveColors {
     )
 }
 
-/** Below this saturation a colour reads as grey. */
 private const val GREY_SATURATION = 0.14f
 
-/** The least hue gap, in degrees, that keeps the mids apart from the lows. */
 private const val MIN_HUE_GAP = 35f
 
 private fun hueDistance(a: Float, b: Float): Float {
@@ -668,7 +600,6 @@ private fun hueDistance(a: Float, b: Float): Float {
     return if (d > 180f) 360f - d else d
 }
 
-/** [color] as hue (degrees), saturation and value. */
 private fun hsvOf(color: Color): FloatArray {
     val r = color.red
     val g = color.green
@@ -685,11 +616,6 @@ private fun hsvOf(color: Color): FloatArray {
     return floatArrayOf(hue, if (max == 0f) 0f else delta / max, max)
 }
 
-/**
- * Grey mirrored columns across the deck, of a made-up but steady shape, with
- * the skeletons' highlight sweeping through them — reads as "a waveform is
- * coming" where a flat line read as silence.
- */
 private fun DrawScope.drawWaveSkeleton(centre: Float, half: Float, sweep: Float) {
     val brush = skeletonBrush(size.width, sweep)
     val column = 2.dp.toPx()
@@ -706,13 +632,11 @@ private fun DrawScope.drawWaveSkeleton(centre: Float, half: Float, sweep: Float)
     }
 }
 
-/** One mirrored column of a waveform layer. */
 private fun DrawScope.bar(x: Float, width: Float, centre: Float, extent: Float, color: Color) {
     if (extent <= 0.3f) return
     drawRect(color, topLeft = Offset(x, centre - extent), size = Size(width, extent * 2f))
 }
 
-/** [curve] read at [at] 0..1, linearly between its samples. */
 private fun sample(curve: FloatArray, at: Float): Float {
     if (curve.isEmpty()) return 1f
     val position = at * (curve.size - 1)
@@ -729,20 +653,16 @@ private fun formatDeckDuration(ms: Long): String {
 
 private class Camelot(val code: String, val color: Color)
 
-/** Pitch classes as the analyzer spells them, sharps and flats both. */
 private val PitchClasses = mapOf(
     "C" to 0, "C♯" to 1, "D♭" to 1, "D" to 2, "D♯" to 3, "E♭" to 3, "E" to 4, "F" to 5,
     "F♯" to 6, "G♭" to 6, "G" to 7, "G♯" to 8, "A♭" to 8, "A" to 9, "A♯" to 10, "B♭" to 10, "B" to 11,
 )
 
-/** Camelot wheel numbers by pitch class: major keys are the B ring, minor keys the A ring. */
 private val MajorCamelot = intArrayOf(8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6, 1)
 private val MinorCamelot = intArrayOf(5, 12, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10)
 
-/** The wheel's hue for each number, 1 through 12. */
 private val CamelotHues = floatArrayOf(165f, 135f, 100f, 55f, 30f, 10f, 345f, 310f, 280f, 245f, 215f, 190f)
 
-/** "F minor" → 4A, tinted the way DJ software colours its key wheel; null for a key it cannot read. */
 private fun camelotOf(key: String): Camelot? {
     val parts = key.trim().replace('#', '♯').replace('b', '♭').split(' ')
     if (parts.size != 2) return null
@@ -758,38 +678,17 @@ private fun camelotOf(key: String): Camelot? {
     return Camelot("$number${if (minor) "A" else "B"}", color)
 }
 
-/**
- * Whether the mix popup has been asked for. Set by tapping the "Mixing" label
- * under the scrubber, or "Automix overview" in the player's menu, and cleared
- * on dismiss. One player per process, so one flag.
- */
 object MixViewRequest {
     var open by mutableStateOf(false)
 }
 
-/** How long the popup waits on a first plan before saying there is nothing to show. */
 private const val PREVIEW_WAIT_MS = 2_500L
 
-/**
- * Shows [MixViewPopup] while [MixViewRequest] asks for it: the blend in flight
- * if there is one, otherwise the next transition as planned. Stays up past the
- * end of a blend, on its last frame, until dismissed — a blend can be over in
- * a few seconds, and the popup closing on its own under a reader is worse.
- *
- * Opened by hand between blends, it asks the host for the plan and shows a
- * skeleton until the first one lands; a track still being analysed keeps its
- * skeleton in the plan, so what is missing reads as work in progress.
- *
- * Collects everything itself, so a blend's waveforms arriving recompose this
- * and not the player it is mounted in.
- */
 @Composable
 internal fun MixViewOverlay(hazeState: HazeState) {
     val blend by PlayerSettings.smartMixView.collectAsStateWithLifecycle()
     val preview by PlayerSettings.smartMixPreview.collectAsStateWithLifecycle()
     var held by remember { mutableStateOf<MixTransitionView?>(null) }
-    // Whether [held] is a blend's: once one has been on screen its last frame
-    // stays, rather than the popup jumping to the plan for the pair after it.
     var heldBlend by remember { mutableStateOf(false) }
     val open = MixViewRequest.open
     val currentBlend = blend
@@ -803,7 +702,6 @@ internal fun MixViewOverlay(hazeState: HazeState) {
                 heldBlend = true
             }
             !open -> {
-                // Kept through the close animation, then let go.
                 delay(240)
                 held = null
                 heldBlend = false
@@ -812,8 +710,6 @@ internal fun MixViewOverlay(hazeState: HazeState) {
             currentPreview != null -> held = currentPreview
         }
     }
-    // Nothing to show after all: no next track, a party, a video — anything
-    // that plans no transition. Said, rather than a skeleton left up forever.
     val unavailable = stringResource(Res.string.automix_overview_unavailable)
     LaunchedEffect(open, held == null) {
         if (!open || held != null) return@LaunchedEffect

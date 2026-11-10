@@ -1,5 +1,3 @@
-//! App chrome: background, sidebar, top bar, player bar, queue drawer, toasts.
-
 use egui::{Align2, Color32, Pos2, Rect, Sense, Ui, Vec2, pos2, vec2};
 
 use super::widgets::{self, icon_at, icon_button, named, paint_cover, text_at};
@@ -8,19 +6,14 @@ use crate::model::Target;
 use crate::shader::Params;
 use crate::theme::{self, icon};
 
-// ------------------------------------------------------------------ background
-
-/// Vertical gradient (top colour → bottom colour) over `rect`.
 pub fn vgradient(painter: &egui::Painter, rect: Rect, top: Color32, bottom: Color32) {
     gradient(painter, rect, [top, top, bottom, bottom]);
 }
 
-/// Horizontal gradient (left colour → right colour) over `rect`.
 pub fn hgradient(painter: &egui::Painter, rect: Rect, left: Color32, right: Color32) {
     gradient(painter, rect, [left, right, left, right]);
 }
 
-/// Corner colours: left top, right top, left bottom, right bottom.
 fn gradient(painter: &egui::Painter, rect: Rect, c: [Color32; 4]) {
     let mut mesh = egui::Mesh::default();
     mesh.colored_vertex(rect.left_top(), c[0]);
@@ -32,8 +25,6 @@ fn gradient(painter: &egui::Painter, rect: Rect, c: [Color32; 4]) {
     painter.add(egui::Shape::mesh(mesh));
 }
 
-/// The background mode browse pages use: the theme's own choice, else whatever now
-/// playing uses.
 fn page_mode(look: &crate::preset::Preset) -> crate::preset::BgMode {
     use crate::preset::{BgMode, PageBg};
     match look.app.page_bg {
@@ -44,15 +35,12 @@ fn page_mode(look: &crate::preset::Preset) -> crate::preset::BgMode {
     }
 }
 
-/// Whether the pages' background moves while music plays (static themes need no frames).
 pub fn pages_bg_moves(look: &crate::preset::Preset) -> bool {
     use crate::preset::BgMode;
     let b = &look.background;
     matches!(page_mode(look), BgMode::Kawarp | BgMode::CoverFullbleed) && b.speed > 0.0 && b.intensity > 0.0
 }
 
-/// `only`: paint just this part (the rest is covered by now playing).
-/// The background's flat colour, under its art and gradients.
 pub fn base_color(app: &App) -> Color32 {
     app.look().solid()
 }
@@ -64,10 +52,8 @@ pub fn background(app: &mut App, ui: &mut Ui, screen: Rect, now: f64, only: Opti
     let look = app.look();
     let b = &look.background;
     let mode = page_mode(look);
-    // Light pages are the art at full strength under a white wash, a pale tint of the cover.
     let light = theme::light();
     let dim = if light { 1.0 } else { look.app.page_dim.unwrap_or(b.page_dim).clamp(0.02, 1.0) };
-    // Now playing animates the shader itself, so keep the clock running for it too.
     let animated = matches!(b.mode, BgMode::Kawarp | BgMode::CoverFullbleed) && b.speed > 0.0;
     let moving = app.anim_bg && animated && app.playing();
     if moving {
@@ -78,7 +64,6 @@ pub fn background(app: &mut App, ui: &mut Ui, screen: Rect, now: f64, only: Opti
         None => ui.painter().clone(),
     };
     if crate::material::see_through() {
-        // Mica or Acrylic is the background: only a veil over it, so text stays readable.
         painter.rect_filled(screen, 0.0, crate::material::veil(light));
         return;
     }
@@ -87,7 +72,6 @@ pub fn background(app: &mut App, ui: &mut Ui, screen: Rect, now: f64, only: Opti
     if let Some(bg) = app.bg.as_ref().filter(|_| art) {
         let blend = theme::ease_in_out(((now - app.art_changed) / 1.4) as f32);
         if blend < 1.0 {
-            // The crossfade to new art finishes even while paused.
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
         }
         let level = if app.reactive_bg && app.playing() { app.audio.status.level() * b.reactive } else { 0.0 };
@@ -105,21 +89,16 @@ pub fn background(app: &mut App, ui: &mut Ui, screen: Rect, now: f64, only: Opti
             },
         );
     } else if mode == BgMode::Solid {
-        // Plain colour: nothing over it.
     } else {
         vgradient(&painter, screen, theme::with_alpha(app.accent_color(), 0.18 * dim / 0.5), look.solid());
     }
     if light {
         painter.rect_filled(screen, 0.0, Color32::from_white_alpha(212));
     } else if mode != BgMode::Solid {
-        // Keep text readable: darken toward the bottom and under the sidebar.
         vgradient(&painter, screen, theme::shade(0.12), theme::shade(0.55));
     }
 }
 
-// ------------------------------------------------------------------ sidebar
-
-/// How the theme draws nav items.
 #[derive(Clone, Copy)]
 struct NavLook {
     style: crate::preset::NavStyle,
@@ -133,8 +112,6 @@ impl NavLook {
     }
 }
 
-/// A nav item's background in the theme's nav style; returns its icon colour.
-/// `h` and `s` are the hover and selected animations (0..1).
 fn nav_bg(ui: &Ui, look: NavLook, rect: Rect, h: f32, s: f32) -> Color32 {
     use crate::preset::NavStyle;
     let (nav_r, accent) = (look.radius, look.accent);
@@ -158,19 +135,14 @@ fn nav_bg(ui: &Ui, look: NavLook, rect: Rect, h: f32, s: f32) -> Color32 {
     }
 }
 
-/// Sidebar width expanded and collapsed to an icon rail (points).
 pub const SIDEBAR_W: f32 = 236.0;
 pub const RAIL_W: f32 = 76.0;
 
-/// How collapsed the sidebar is, 0 (full) to 1 (icon rail), eased over the toggle.
 pub fn sidebar_collapse(app: &App, ctx: &egui::Context) -> f32 {
     let t = ctx.animate_bool_with_time(egui::Id::unique("sidebar-collapse"), app.sidebar_collapsed, 0.28 * theme::speed());
-    // Ease in-out: starts and lands gently in both directions.
     t * t * (3.0 - 2.0 * t)
 }
 
-/// The small chevron pair that walks the page history, on the logo's line at the rail's
-/// top right.
 fn history_button(ui: &mut Ui, glyph: char, name: &str) -> bool {
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(22.0), Sense::click());
     let resp = named(resp, name).on_hover_text(name).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -182,18 +154,13 @@ fn history_button(ui: &mut Ui, glyph: char, name: &str) -> bool {
     resp.clicked()
 }
 
-/// One layout for both states, so collapsing animates: the panel narrows while icons
-/// and covers keep their column (24 pt from the left) and the labels fade and clip.
 pub fn sidebar(app: &mut App, ui: &mut Ui) {
     const ICON_X: f32 = 24.0;
     let t = sidebar_collapse(app, ui.ctx());
     let collapsed = app.sidebar_collapsed;
-    // Labels fade out over the first two thirds of collapsing (and back in late).
     let a = ((1.0 - t) * 1.5 - 0.5).clamp(0.0, 1.0);
-    // Content width when expanded: text keeps its truncation while the panel narrows.
     let full_w = ui.available_width() + (SIDEBAR_W - RAIL_W) * t;
 
-    // Logo, with the page history right-aligned on the same line.
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         if super::titlebar::lights_shown(ui.ctx()) {
@@ -201,7 +168,6 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
             let (r, _) = ui.allocate_exact_size(vec2(52.0, 32.0), Sense::hover());
             super::titlebar::traffic_lights(ui, r);
         } else {
-            // The mark stays: it's the rail's top, centred on the icons below.
             ui.add_space(8.0);
             let (r, resp) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::click());
             mark(ui, Rect::from_center_size(r.center(), vec2(30.0, 20.0)), theme::text());
@@ -210,7 +176,6 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
                 app.actions.push(Action::Go(Page::Home));
             }
         }
-        // The page history fades with the labels: the rail has no room for it.
         if a > 0.0 {
             ui.multiply_opacity(a);
             ui.add_space((ui.available_width() - 48.0).max(0.0));
@@ -223,7 +188,6 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
             }
         }
     });
-    // Rows narrow to a square on the rail, so their highlight stays inside it.
     let row_w = |ui: &Ui| egui::lerp(ui.available_width()..=48.0, t);
     ui.add_space(14.0);
 
@@ -264,7 +228,6 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
         let page = Page::Mood { browse_id: crate::ytm::PODCASTS.into(), params: None, title: "Podcasts".into() };
         nav(ui, glyphs::PODCAST, APPLE, "Podcasts", page, podcasts, &mut go_to);
     }
-    // A tab hidden while it's open: back home, as Android does.
     if (app.hide_radio && p == Page::Radio) || (app.hide_podcasts && podcasts) {
         go_to = Some(Page::Home);
     }
@@ -275,8 +238,6 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
     ui.painter().rect_filled(line, 0.0, theme::glass(0.08));
     ui.add_space(14.0 - 4.0 * t);
 
-    // Playlists that appeared since the order was last changed join it at the end, so a
-    // drag can place any of them.
     if let Some(l) = &app.library {
         for c in &l.playlists {
             if let Target::Playlist(id) = &c.target
@@ -286,17 +247,14 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
             }
         }
     }
-    // Drag-to-reorder and right-click-to-hide results, applied once the rows are done.
     let mut reorder: Option<(String, String)> = None;
     let mut hide: Option<String> = None;
 
     let transferring = super::transfer::sidebar_visible(app, ui.input(|i| i.time));
-    // Room under the list: Settings, the app's sign-off, and the transfer card.
     let bottom_h = if transferring { 112.0 } else { 48.0 };
     let list_h = (ui.available_height() - bottom_h).max(0.0);
     ui.allocate_ui(vec2(ui.available_width(), list_h), |ui| {
         if !app.logged_in {
-            // Too wide to squeeze: cross-fade the message and the rail's icon.
             if t < 0.5 {
                 ui.multiply_opacity(1.0 - 2.0 * t);
                 ui.label(egui::RichText::new("Sign in to see your playlists").color(theme::text_dim()));
@@ -310,16 +268,13 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
             }
             return;
         }
-        // The heading folds away with the labels.
         let (head, _) = ui.allocate_exact_size(vec2(ui.available_width(), 20.0 * (1.0 - t)), Sense::hover());
         if a > 0.0 {
             ui.painter().text(head.left_top() + vec2(8.0, 0.0), Align2::LEFT_TOP, "PLAYLISTS", theme::semibold(11.0), theme::with_alpha(theme::text_faint(), a));
         }
         let bars = if t > 0.0 { egui::scroll_area::ScrollBarVisibility::AlwaysHidden } else { egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded };
         egui::ScrollArea::vertical().id_salt("sidebar-pl").auto_shrink(false).scroll_bar_visibility(bars).show(ui, |ui| {
-            // Last launch's list until the library arrives.
             let Some(playlists) = app.library.as_ref().map(|l| &l.playlists).or(app.sidebar_cache.as_ref()) else {
-                // The spinner animates every frame: give up on a request that never answered.
                 if app.library_requested.elapsed() < std::time::Duration::from_secs(20) {
                     ui.horizontal(|ui| {
                         ui.add_space(ICON_X - 8.0);
@@ -439,8 +394,6 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
     }
     if let Some(page) = go_to {
         if matches!(page, Page::Search(_)) {
-            // Search lands on the search page with the caret in the box; already there,
-            // it just brings the box back.
             app.search_refocus = true;
             if !matches!(app.page, Page::Search(_)) {
                 app.actions.push(Action::Go(Page::Search(String::new())));
@@ -451,12 +404,7 @@ pub fn sidebar(app: &mut App, ui: &mut Ui) {
     }
 }
 
-// ------------------------------------------------------------------ top bar
-
-/// The search pill: typeahead, suggestions and Enter to search. The Search page draws
-/// it; `app.search_rect` anchors the suggestions under it.
 pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
-    // Anywhere on the pill focuses the box, not just on the text area inside it.
     let (rect, field) = ui.allocate_exact_size(vec2(width, 42.0), Sense::click());
     let field = field.on_hover_cursor(egui::CursorIcon::Text);
     let focus = theme::anim_bool(ui.ctx(), "search-focus", app.search_focused, 0.2);
@@ -467,9 +415,6 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
     icon_at(ui, pos2(rect.left() + 22.0, rect.center().y), icon::SEARCH, 17.0, theme::text_dim());
     let clearable = !app.search_text.is_empty();
     let inner = Rect::from_min_max(pos2(rect.left() + 42.0, rect.top() + 4.0), pos2(rect.right() - if clearable { 46.0 } else { 16.0 }, rect.bottom() - 4.0));
-    // Up and Down walk the suggestions (past either end back to what was typed). Taken
-    // before the box sees them, where they'd move the caret. Only bare arrows (Shift
-    // selects text), and only suggestions for what's typed now, not ones still being replaced.
     let fresh = app.suggestions.0 == app.search_text.trim();
     let n = if fresh { app.suggestions.1.len() } else { 0 };
     if app.search_focused && n > 0 && ui.input(|i| i.modifiers.is_none()) {
@@ -514,7 +459,6 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
         }
         icon_at(ui, x.center(), icon::X, 16.0, theme::lerp_color(theme::text_dim(), theme::text(), h));
         if resp.clicked() {
-            // Back to the empty search page: the old results go with the text.
             app.search_text.clear();
             app.search_synced = String::new();
             app.suggestions = Default::default();
@@ -530,7 +474,6 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
     if edit.changed() || edit.gained_focus() || cleared {
         app.suggest_sel = None;
         let now = ui.input(|i| i.time);
-        // Show cached results immediately, then refresh after a short typing pause.
         let first = app.suggestions.1.is_empty();
         let query = app.search_text.trim();
         app.suggestions = app.suggest_cache.iter()
@@ -540,7 +483,6 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
         let delay = if first || cleared || edit.gained_focus() { 0.0 } else { 0.06 };
         app.suggest_due = Some(now + delay);
     }
-    // The event loop can otherwise sleep past the debounce deadline.
     if let Some(due) = app.suggest_due {
         let now = ui.input(|i| i.time);
         ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64((due - now).max(0.0)));
@@ -555,10 +497,8 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
     }
 }
 
-/// Search suggestions dropdown under the search box.
 pub fn suggestions(app: &mut App, ctx: &egui::Context) {
     let Some(rect) = app.search_rect else { return };
-    // Through a press on a remove button too: its release briefly takes the box's focus.
     let show = (app.search_focused || app.forget_held) && !app.suggestions.1.is_empty() && !app.np_open;
     let t = theme::anim_bool(ctx, "suggest-open", show, 0.15);
     if t <= 0.0 {
@@ -579,20 +519,16 @@ pub fn suggestions(app: &mut App, ctx: &egui::Context) {
                     if !ui.input(|i| i.pointer.any_down() || i.pointer.any_released()) {
                         app.forget_held = false;
                     }
-                    // Releasing that press is a click outside the box, which takes its focus
-                    // (and this list) away: give it back until the press is over.
                     if app.forget_held {
                         app.search_refocus = true;
                     }
                     let now = ui.input(|i| i.time);
                     for (i, s) in app.suggestions.1.clone().into_iter().enumerate() {
                         let term = s.text;
-                        // The removed one folds away, and the rows below slide up into its place.
                         if let Some((_, at)) = app.forgetting.as_ref().filter(|(t, _)| s.forget.as_deref() == Some(t.as_str())) {
                             let p = ((now - at) / 0.18).clamp(0.0, 1.0) as f32;
                             let e = 1.0 - (1.0 - p).powi(3);
                             let gap = ui.spacing().item_spacing.y;
-                            // Its spacing folds away with it, so nothing jumps at the end.
                             ui.spacing_mut().item_spacing.y = 0.0;
                             let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), (40.0 + gap) * (1.0 - e)), Sense::hover());
                             ui.spacing_mut().item_spacing.y = gap;
@@ -614,7 +550,6 @@ pub fn suggestions(app: &mut App, ctx: &egui::Context) {
                         icon_at(ui, pos2(r.left() + 20.0, r.center().y), glyph, 15.0, theme::text_dim());
                         let room = if s.forget.is_some() { 88.0 } else { 52.0 };
                         suggestion_text(ui, pos2(r.left() + 42.0, r.center().y - 9.0), &term, &app.suggestions.0, r.width() - room);
-                        // A past search can be removed from the account's history.
                         if let Some(token) = s.forget {
                             let x = Rect::from_center_size(pos2(r.right() - 22.0, r.center().y), Vec2::splat(30.0));
                             let xr = named(ui.interact(x, resp.id.with("forget"), Sense::click()), "Remove from recent searches")
@@ -625,11 +560,8 @@ pub fn suggestions(app: &mut App, ctx: &egui::Context) {
                                 ui.painter().circle_filled(x.center(), 15.0, theme::glass(0.12 * xh));
                             }
                             icon_at(ui, x.center(), icon::TRASH_2, 15.0, theme::lerp_color(theme::text_dim(), theme::text(), xh));
-                            // On the press, and one per press: the next row's button slides
-                            // under the held pointer.
                             if (xr.is_pointer_button_down_on() || xr.clicked()) && !app.forget_held {
                                 app.forget_held = true;
-                                // One still folding away is done.
                                 if let Some((t, _)) = app.forgetting.take() {
                                     app.suggestions.1.retain(|s| s.forget.as_deref() != Some(t.as_str()));
                                 }
@@ -642,7 +574,6 @@ pub fn suggestions(app: &mut App, ctx: &egui::Context) {
                                 app.backend.request(crate::backend::Req::ForgetSearch(token));
                             }
                         }
-                        // Pointer-down, not click: the text box loses focus (hiding this) first.
                         if resp.is_pointer_button_down_on() || resp.clicked() {
                             app.suggestions = Default::default();
                             app.search_focused = false;
@@ -657,7 +588,6 @@ pub fn suggestions(app: &mut App, ctx: &egui::Context) {
         });
 }
 
-/// A suggestion with what's typed in bold and the rest dimmed, as on music.youtube.com.
 fn suggestion_text(ui: &Ui, pos: Pos2, text: &str, typed: &str, width: f32) {
     let n = text.chars().zip(typed.chars()).take_while(|(a, b)| a.to_lowercase().eq(b.to_lowercase())).count();
     let split = if n == typed.chars().count() { text.char_indices().nth(n).map_or(text.len(), |(i, _)| i) } else { 0 };
@@ -670,11 +600,6 @@ fn suggestion_text(ui: &Ui, pos: Pos2, text: &str, typed: &str, width: f32) {
     ui.painter().galley(pos, g, theme::text());
 }
 
-// ------------------------------------------------------------------ player bar
-
-/// The player, as BitChord (and Music on the Mac) lays it out: a toolbar along the top
-/// of the window. Transport on the left; in the middle the glass display with the
-/// sleeve, the song and its seek line; volume, lyrics, up next and the account on the right.
 pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     let full = ui.max_rect();
     let ctx = ui.ctx().clone();
@@ -682,8 +607,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     let cy = full.center().y;
 
     let status = app.audio.status.clone();
-    // An Automix handoff keeps the outgoing song on the display until the next one is
-    // the louder of the two.
     let hold = app.mix_hold().map(|h| (h.total, h.mix, app.mix_hold_pos(h)));
     let track = match &hold {
         Some(_) => app.shown().cloned(),
@@ -702,9 +625,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         named(resp, name).on_hover_text(name).on_hover_cursor(egui::CursorIcon::PointingHand)
     };
 
-    // Laid out as Apple Music for Windows measures: the display about a third of the
-    // toolbar, a little left of its centre; the transport centred (a touch left) in the gap
-    // before it, and volume, lyrics and up next centred in the gap after it.
     const STEP: f32 = 31.5;
     const RSTEP: f32 = 35.0;
     let right = full.right() - super::titlebar::right_gap(&ctx, full, 16.0);
@@ -737,7 +657,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         ui.painter().add(egui::Shape::Path(egui::epaint::PathShape::line(pts, egui::epaint::PathStroke::new(2.0, ink(0.6)))));
         ctx.request_repaint_after(std::time::Duration::from_millis(33));
     } else {
-        // Cross-faded rather than swapped: a hard cut between the two weights flickers.
         let fg = ink(0.55 + 0.45 * h);
         if morph < 1.0 {
             glyphs::draw(ui, c, 17.0, glyphs::PLAY, theme::with_alpha(fg, 1.0 - morph));
@@ -775,7 +694,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         ui.new_child(egui::UiBuilder::new().max_rect(spin)).spinner();
     }
 
-    // Right: the account by the window buttons; volume, lyrics, up next before it.
     account(app, ui, avatar);
     let queue_open = if app.np_open { app.np_tab == NpTab::UpNext } else { app.queue_open };
     let r = btn(ui, rc + RSTEP, "queue", "Up next");
@@ -801,7 +719,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
             app.queue_open &= !app.lyrics_open;
         }
     }
-    // Just the speaker, as Apple Music's: its slider drops down under it on hover.
     let vol = app.audio.volume();
     let r = btn(ui, rc - RSTEP, "vol", "Mute");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
@@ -823,19 +740,14 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         }
     }
 
-    // The display; a window too narrow for one goes without.
     if lcd_w < 160.0 {
         return;
     }
     let lcd_x = lcd_l;
-    // Snapped to whole pixels, flat and hairline-edged like Apple Music's display: no blur.
     let ppp = ctx.pixels_per_point();
     let snap = |v: f32| (v * ppp).round() / ppp;
     let lcd = Rect::from_min_max(pos2(snap(lcd_x), snap(cy - 20.0)), pos2(snap(lcd_x + lcd_w), snap(cy + 20.0)));
-    // Apple's measured: the display is ~7% lighter than the bar, its edge a hair more.
     const R: f32 = 4.0;
-    // Opaque, from the bar's base colour: translucent, the artwork-tinted background shows
-    // through while a song plays and the display reads as glass, unlike Apple's.
     let base = base_color(app);
     let (fill, edge) = if theme::light() {
         (theme::lerp_color(base, Color32::BLACK, 0.055), Color32::from_black_alpha(26))
@@ -850,7 +762,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     let text_w = (text_r - text_l).max(20.0);
     let tcx = (text_l + text_r) / 2.0;
 
-    // Seek: a hairline along the display's foot, thicker while it has the pointer.
     let held = hold.is_some();
     let (total, mix) = match &hold {
         Some((total, mix, _)) => (*total, *mix),
@@ -886,7 +797,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     if enabled {
         ui.painter().rect_filled(line_r, thick / 2.0, theme::glass(0.16));
     }
-    // Automix's handoff window, tinted on the part still to play.
     if mix > 0.5 {
         let edge = sx0 + (sx1 - sx0) * ((total - mix) / total);
         ui.painter().rect_filled(Rect::from_min_max(pos2(edge, line_r.top()), line_r.max), thick / 2.0, theme::with_alpha(accent, 0.30));
@@ -902,8 +812,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
 
     let track = track.map(|t| app.with_cover(&t));
     let Some(t) = &track else {
-        // Nothing yet, as Apple's empty display: a darker sleeve slot holding a note, and
-        // the mark in the middle of the rest.
         let slot = if theme::light() { Color32::from_black_alpha(10) } else { Color32::from_black_alpha(40) };
         ui.painter().rect_filled(cover, egui::CornerRadius { nw: R as u8, sw: R as u8, ne: 0, se: 0 }, slot);
         ui.painter().vline(cover.right(), cover.y_range(), egui::Stroke::new(1.0 / ppp, edge));
@@ -911,7 +819,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         mark(ui, Rect::from_center_size(pos2(tcx, lcd.center().y), vec2(40.0, 16.0)), theme::text_dim().gamma_multiply(0.7));
         return;
     };
-    // Sleeve, flush with the display's left end; a click goes up into now playing.
     widgets::paint_cover_xfade(ui, egui::Id::unique("player-bar-art"), cover, &t.thumbs, R, 1.0);
     let ar = ui.interact(cover, ui.scope_id().with("bar-art"), Sense::click());
     let ar = named(ar, "Open now playing").on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -924,7 +831,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         app.actions.push(Action::OpenNowPlaying(true));
     }
 
-    // Title over artists, centred; the artists give way to the times on the seek hover.
     let g = widgets::galley(ui, &t.title, theme::semibold(12.5), theme::text(), text_w);
     let tp = pos2(tcx - g.size().x / 2.0, cy - 15.0);
     let tr = Rect::from_min_size(tp, g.size());
@@ -958,8 +864,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         ui.painter().galley(pos2(text_r - g.size().x, cy + 1.0), g, col);
     }
 
-    // Favourite, at the display's right end. What's heard, like Now playing's menu: a song
-    // version standing in for the video.
     let heard = if held { track.clone() } else { app.playing_track().cloned().or_else(|| track.clone()) };
     let liked = heard.as_ref().is_some_and(|t| app.liked.contains(&t.id));
     let r = Rect::from_center_size(pos2(star_x, cy - 2.0), Vec2::splat(24.0));
@@ -991,7 +895,6 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     }
 }
 
-/// The account button (the toolbar's right end): the avatar, or a person mark signed out.
 fn account(app: &mut App, ui: &mut Ui, r: Rect) {
     let resp = ui.interact(r, ui.scope_id().with("account"), Sense::click());
     let resp = named(resp, "Account").on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -1013,25 +916,20 @@ fn account(app: &mut App, ui: &mut Ui, r: Rect) {
     }
 }
 
-/// The nuvx mark, fitted inside `r`, tinted `tint`.
 fn mark(ui: &Ui, r: Rect, tint: Color32) {
     glyphs::draw_in(ui, r, glyphs::MARK, tint);
 }
 
-/// Where Mute keeps the volume to go back to (the player bar's and the mini player's).
 pub fn unmute_id() -> egui::Id {
     egui::Id::unique("unmute")
 }
 
-/// The volume slider under the speaker at `anchor`: open while the pointer is on either
-/// (or dragging it), like Apple Music's.
 fn volume_popover(app: &mut App, ui: &mut Ui, anchor: Rect) {
     let ctx = ui.ctx().clone();
     let id = egui::Id::unique("bar-vol-pop");
     let panel = Rect::from_min_size(pos2(anchor.center().x - 80.0, anchor.bottom() + 6.0), vec2(160.0, 34.0));
     let over = |r: Rect| ctx.input(|i| i.pointer.hover_pos()).is_some_and(|p| r.contains(p));
     let was = ctx.data(|d| d.get_temp::<bool>(id).unwrap_or(false));
-    // The gap between the two counts too, so the pointer can cross it.
     let bridge = Rect::from_min_max(pos2(anchor.left(), anchor.center().y), pos2(anchor.right(), panel.top() + 2.0));
     let open = over(anchor.expand(2.0)) || (was && (over(panel) || over(bridge) || ctx.input(|i| i.pointer.any_down())));
     ctx.data_mut(|d| d.insert_temp(id, open));
@@ -1047,7 +945,6 @@ fn volume_popover(app: &mut App, ui: &mut Ui, anchor: Rect) {
     });
 }
 
-/// The volume track: click or drag to set, scroll over it to nudge.
 fn volume_slider(app: &mut App, ui: &mut Ui, slider: Rect, salt: &str) {
     let vol = app.audio.volume();
     let vresp = ui.interact(slider, ui.scope_id().with(salt), Sense::click_and_drag()).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -1071,9 +968,6 @@ fn volume_slider(app: &mut App, ui: &mut Ui, slider: Rect, salt: &str) {
     }
 }
 
-// ------------------------------------------------------------------ lyrics drawer
-
-/// The lyrics beside the page, BitChord's: the same view as now playing's, in a column.
 pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new("Lyrics").font(theme::bold(20.0)));
@@ -1093,13 +987,10 @@ pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
     super::nowplaying::lyrics_panel(app, ui, rect, now, true);
 }
 
-// ------------------------------------------------------------------ queue drawer
-
 pub fn queue_drawer(app: &mut App, ui: &mut Ui) {
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new("Up next").font(theme::bold(20.0)));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            // Left of the window buttons, which sit over the drawer's top right.
             ui.add_space(super::titlebar::right_gap(ui.ctx(), ui.max_rect(), 0.0));
             if icon_button(ui, icon::X, 16.0, "Close queue", false).clicked() {
                 app.queue_open = false;
@@ -1110,7 +1001,6 @@ pub fn queue_drawer(app: &mut App, ui: &mut Ui) {
     queue_list(app, ui, "drawer");
 }
 
-/// Current track plus everything after it. Shared by the drawer and now playing.
 pub fn queue_list(app: &mut App, ui: &mut Ui, salt: &str) {
     let rows = super::pages::Rows::new(app, ui.input(|i| i.time));
     egui::ScrollArea::vertical().id_salt(("queue", salt)).auto_shrink(false).show(ui, |ui| {
@@ -1125,16 +1015,13 @@ pub fn queue_list(app: &mut App, ui: &mut Ui, salt: &str) {
         widgets::visible_rows(ui, queue.len() - start, |ui, k| {
             let i = start + k;
             let t = &queue[i];
-            // The first row is the current song.
             let current = k == 0 && has_current;
             let o = widgets::RowOpts { current, added_by: by.get(&t.id).cloned(), ..rows.opts(liked, t, None, false) };
             let resp = widgets::track_row(ui, t, &o, acts);
             if resp.clicked() {
-                // The playing row pauses/resumes instead of doing nothing.
                 acts.push(if current { Action::TogglePlay } else { Action::QueueJump(i) });
             }
             if !current && ui.rect_contains_pointer(Rect::from_min_max(resp.rect.min, pos2(resp.rect.right() + 42.0, resp.rect.bottom()))) {
-                // Remove button over the duration column.
                 let x = Rect::from_center_size(resp.rect.right_center() - vec2(26.0, 0.0), Vec2::splat(28.0));
                 let xr = named(ui.interact(x, resp.id.with("rm"), Sense::click()), "Remove from queue").on_hover_cursor(egui::CursorIcon::PointingHand);
                 ui.painter().circle_filled(x.center(), 14.0, theme::panel(0.6));
@@ -1147,8 +1034,6 @@ pub fn queue_list(app: &mut App, ui: &mut Ui, salt: &str) {
     });
 }
 
-// ------------------------------------------------------------------ toast
-
 pub fn toast(app: &mut App, ctx: &egui::Context, now: f64) {
     let Some((msg, shown)) = &app.toast else { return };
     if *shown < 0.0 {
@@ -1160,7 +1045,6 @@ pub fn toast(app: &mut App, ctx: &egui::Context, now: f64) {
     egui::Area::new(egui::Id::unique("toast"))
         .order(egui::Order::Tooltip)
         .pivot(Align2::CENTER_BOTTOM)
-        // Near the bottom; in the mini player, over the strip's middle.
         .fixed_pos(Pos2::new(screen.center().x, if screen.height() < 200.0 { screen.center().y + 22.0 } else { screen.bottom() - 48.0 } + 14.0 * (1.0 - t)))
         .show(ctx, |ui| {
             ui.set_opacity(t);
@@ -1174,7 +1058,6 @@ pub fn toast(app: &mut App, ctx: &egui::Context, now: f64) {
                     ui.label(egui::RichText::new(msg.as_str()).font(theme::regular(14.0)).color(theme::text()));
                 });
         });
-    // Frames only while it fades in or out; in between it just waits.
     if (0.25..4.1).contains(&age) {
         ctx.request_repaint_after(std::time::Duration::from_secs_f32(4.1 - age));
     } else {

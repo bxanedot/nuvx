@@ -46,14 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.R
 
-/**
- * One-time Diwali greeting: the illustration full-bleed, with the wish set at
- * the foot of it in the welcome screen's own type — [displayLarge] heading,
- * [bodyLarge] subtitle, full-width capsule — all in white.
- *
- * The foot of the painting is the brightest part of it (the rangoli and its
- * diyas), so a deep scrim rises from the bottom for the white type to sit on.
- */
 @Composable
 fun DiwaliGreetingScreen(
     onDismiss: () -> Unit,
@@ -63,11 +55,8 @@ fun DiwaliGreetingScreen(
         modifier
             .fillMaxSize()
             .background(Color(0xFF2A1430))
-            // Swallows every touch so nothing reaches the app underneath.
             .pointerInput(Unit) { detectTapGestures { } },
     ) {
-        // Decoded off the main thread: a ~1600px JPEG decoded inline cost the
-        // opening fade its first frames, every time the logo reopens this.
         val context = LocalContext.current
         val art by produceState<ImageBitmap?>(null) {
             value = withContext(Dispatchers.IO) {
@@ -107,9 +96,6 @@ fun DiwaliGreetingScreen(
             contentAlignment = Alignment.BottomCenter,
         ) {
             Column(
-                // Capped first, then filled: the other way round the fill's
-                // full width wins and a tablet or landscape phone gets a
-                // screen-wide button.
                 Modifier
                     .widthIn(max = 520.dp)
                     .fillMaxWidth()
@@ -143,7 +129,6 @@ fun DiwaliGreetingScreen(
     }
 }
 
-/** The welcome screen's capsule, in frosted white with white type. */
 @Composable
 private fun WhitePill(label: String, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }

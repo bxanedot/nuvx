@@ -61,7 +61,7 @@ class AndroidAutoMediaLibraryTest {
     @Test
     fun testGetLibraryRoot() = runBlocking {
         val rootResult = withContext(Dispatchers.Main) {
-            mediaBrowser.getLibraryRoot(/* params = */ null).get(10, TimeUnit.SECONDS)
+            mediaBrowser.getLibraryRoot(null).get(10, TimeUnit.SECONDS)
         }
         assertNotNull("Library root result must not be null", rootResult)
         assertNotNull("Library root item must not be null", rootResult.value)
@@ -72,7 +72,7 @@ class AndroidAutoMediaLibraryTest {
     @Test
     fun testGetTopLevelChildren() = runBlocking {
         val childrenResult = withContext(Dispatchers.Main) {
-            mediaBrowser.getChildren("root", /* page = */ 0, /* pageSize = */ 20, /* params = */ null)
+            mediaBrowser.getChildren("root", 0, 20, null)
                 .get(10, TimeUnit.SECONDS)
         }
         assertNotNull("Children result must not be null", childrenResult)
@@ -143,7 +143,6 @@ class AndroidAutoMediaLibraryTest {
             mediaBrowser.search("Adele", null)
         }
 
-        // Wait for search result notification
         searchLatch.await(10, TimeUnit.SECONDS)
 
         val results = withContext(Dispatchers.Main) {

@@ -14,12 +14,6 @@ const toggle = 'flex min-w-0 flex-1 cursor-pointer items-center gap-2.5';
 const checkbox = 'size-4 accent-key';
 const moveButton = 'grid size-[26px] place-items-center rounded-[6px] text-secondary enabled:hover:bg-quaternary disabled:opacity-30';
 
-/**
- * Lyric providers, as the desktop's settings have them: switch each on or
- * off, put them in order, prefer syllable timing, and the PaxSenix key. Plus
- * the one thing only the web needs: letting the extension reach the hosts a
- * page can't.
- */
 export function LyricsSettings({ onClose }: { onClose: () => void }) {
   const { order, disabled, preferSyllables, paxsenixKey, setEnabled, move, setPreferSyllables, setPaxsenixKey, reset } =
     useLyricsSettings();
@@ -45,7 +39,6 @@ export function LyricsSettings({ onClose }: { onClose: () => void }) {
   const missing = granted ? EXTENSION_ORIGINS.filter((o) => !granted.includes(o)) : [];
 
   return createPortal(
-    // A modal (report §8): scrim, 14px card radius, fade with a slight zoom, 30px close circle.
     <div className="fixed inset-0 z-(--z-modal) grid animate-fade place-items-center bg-scrim" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         className="flex max-h-[min(720px,calc(100vh-48px))] w-[min(520px,calc(100vw-32px))] animate-zoom flex-col rounded-[14px] bg-page shadow-glass"

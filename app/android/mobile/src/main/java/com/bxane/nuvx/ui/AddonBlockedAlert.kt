@@ -10,16 +10,6 @@ import com.bxane.nuvx.data.sources.SourceRegistry
 import com.bxane.nuvx.ui.components.InfoAlert
 import dev.chrisbanes.haze.HazeState
 
-/**
- * Says why an addon row in the search results won't play, in an alert rather
- * than a toast, because the answer names the setting to change and a toast is
- * gone before it can be read.
- *
- * Two different reasons, told apart by asking what the listener chose for
- * this connection: anything below Lossless is theirs to change, while a
- * Lossless choice that still blocks the addon can only be the watch's
- * temporary cap — see [AppSettings.streamCeilingOverride].
- */
 @Composable
 fun AddonBlockedAlert(hazeState: HazeState, song: Song, onDismiss: () -> Unit) {
     val addon = SourceRegistry.parseTrackKey(song.videoId)

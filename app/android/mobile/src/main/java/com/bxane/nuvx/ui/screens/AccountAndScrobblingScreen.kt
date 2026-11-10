@@ -70,8 +70,6 @@ fun AccountAndScrobblingScreen(
     ) {
         SettingsPageTitle(stringResource(R.string.account_integrations))
 
-        // One card: who is signed in, which profile is listening, and the way
-        // out, with the explanation of profiles underneath.
         SettingsGroup(
             footer = if (signedIn) stringResource(R.string.account_profiles_help) else null,
             topSpacing = 0.dp,
@@ -292,9 +290,6 @@ fun AccountAndScrobblingScreen(
                 }
             }
         } else {
-            // Left in place rather than dropped: a section that simply vanishes
-            // reads as a feature that never existed, and this one is coming back.
-            // The rows are dimmed and inert via `enabled = false`.
             SettingsGroup(
                 header = stringResource(R.string.scrobbling),
                 footer = stringResource(R.string.scrobbling_paused_footer),
@@ -319,7 +314,6 @@ fun AccountAndScrobblingScreen(
     }
 }
 
-/** A hairline across the whole card, for setting a destructive row apart from the rows above it. */
 @Composable
 private fun FullWidthDivider() {
     HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline)

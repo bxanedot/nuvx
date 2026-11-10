@@ -1,27 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/*
- * Beat This! beat/downbeat tracking and the open-unmix vocal mask, as the
- * phone runs them: a TypeScript port of nuvx's native front ends
- * (native/analyzer/mel_spectrogram.cpp, vocal_spectrogram.cpp) and of
- * BeatTracker.kt / VocalTracker.kt, which are themselves ported from Orchard
- * (https://github.com/SFG5453/Orchard).
- *
- * Orchard's source is AGPL-3.0-or-later; per AGPLv3 §13 this file is
- * combined into nuvx (GPL-3.0) and remains governed by the AGPLv3. Both
- * models' weights are MIT (Beat This!: CPJKU; open-unmix umxhq: Sony/Inria).
- *
- * Runs inside the analysis worker. Everything here is optional: a model that
- * won't load or infer resolves to null and the caller keeps essentia's answer.
- */
 import * as ort from 'onnxruntime-web/wasm';
-// The runtime's own .wasm, bundled from the package so it always matches the JS.
 import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 
 ort.env.wasm.wasmPaths = { wasm: ortWasmUrl };
-// No cross-origin isolation here, so no SharedArrayBuffer: one thread.
 ort.env.wasm.numThreads = 1;
-
-// ---- FFT (radix-2, in place), as the native code -------------------------------------------
 
 function fft(re: Float64Array, im: Float64Array) {
   const n = re.length;
@@ -58,14 +40,12 @@ function fft(re: Float64Array, im: Float64Array) {
   }
 }
 
-/** Periodic Hann, as torch.hann_window(periodic=True). */
 function hann(size: number): Float64Array {
   const w = new Float64Array(size);
   for (let i = 0; i < size; i++) w[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / size);
   return w;
 }
 
-/** torch.stft(center=True, pad_mode="reflect") padding. */
 function reflectPad(samples: Float32Array, pad: number): Float32Array {
   const out = new Float32Array(samples.length + 2 * pad);
   for (let i = 0; i < pad; i++) out[i] = samples[pad - i]!;
@@ -74,13 +54,11 @@ function reflectPad(samples: Float32Array, pad: number): Float32Array {
   return out;
 }
 
-// ---- Beat This! log-mel front end (mel_spectrogram.cpp) -------------------------------------
-
 export const BEAT_SR = 22050;
 const BEAT_FFT = 1024;
 const BEAT_HOP = 441;
 const BEAT_MELS = 128;
-export const BEAT_FPS = BEAT_SR / BEAT_HOP; // 50
+export const BEAT_FPS = BEAT_SR / BEAT_HOP;
 
 function hzToMel(hz: number): number {
   const fSp = 200 / 3;
@@ -100,7 +78,6 @@ function melToHz(mel: number): number {
 
 let melFilters: { first: number; weights: Float64Array }[] | null = null;
 
-/** Triangular Slaney-scale filters, unit peak (torchaudio norm=None), 30 Hz–11 kHz. */
 function filterbank() {
   if (melFilters) return melFilters;
   const bins = BEAT_FFT / 2 + 1;
@@ -125,7 +102,6 @@ function filterbank() {
   return melFilters;
 }
 
-/** [frames][128] row-major log-mel of mono PCM at 22,050 Hz. */
 export function beatSpectrogram(samples: Float32Array): { values: Float32Array; frames: number } | null {
   const pad = BEAT_FFT / 2;
   if (samples.length <= pad + 1) return null;
@@ -133,7 +109,7 @@ export function beatSpectrogram(samples: Float32Array): { values: Float32Array; 
   const frames = Math.floor((padded.length - BEAT_FFT) / BEAT_HOP) + 1;
   const window = hann(BEAT_FFT);
   const filters = filterbank();
-  const norm = Math.sqrt(BEAT_FFT); // torchaudio normalized=True
+  const norm = Math.sqrt(BEAT_FFT);
   const values = new Float32Array(frames * BEAT_MELS);
   const re = new Float64Array(BEAT_FFT);
   const im = new Float64Array(BEAT_FFT);
@@ -156,14 +132,6 @@ export function beatSpectrogram(samples: Float32Array): { values: Float32Array; 
   return { values, frames };
 }
 
-// ---- Beat This! (BeatTracker.kt) ------------------------------------------------------------
-
-/**
- * Beat This! final0 (the official checkpoint, MIT), exported to ONNX on
- * 2026-10-23 with only its MatMuls quantized to int8 (23 MB). The phone's
- * beat_this_int8.onnx also quantized the convolutions and finds no beats;
- * this one matches the float model on 99-100% of beats and every downbeat.
- */
 const BEAT_MODEL_URL = '/models/beat_this_final0_q8.onnx';
 const CHUNK_FRAMES = 1500;
 const BORDER_FRAMES = 6;
@@ -188,10 +156,6 @@ export interface ModelGrid {
   confidence: number;
 }
 
-/**
- * Beats and downbeats of [pcm] (mono, 22,050 Hz); times offset by
- * [offsetSec]. Null when the model can't load or finds no plausible grid.
- */
 export async function trackBeats(pcm: Float32Array, offsetSec: number): Promise<ModelGrid | null> {
   const spec = beatSpectrogram(pcm);
   if (!spec) return null;
@@ -237,7 +201,6 @@ export async function trackBeats(pcm: Float32Array, offsetSec: number): Promise<
   return { beats, downbeats, bpm, confidence };
 }
 
-/** Local maxima over seven frames with a positive logit, ties collapsed, refined by a parabola. */
 export function pickPeaks(logits: Float32Array): number[] {
   const half = PEAK_WINDOW >> 1;
   const peaks: number[] = [];
@@ -290,7 +253,6 @@ export function tempoFromBeats(beats: number[]): number {
   return bpm >= 40 && bpm <= 220 ? bpm : 0;
 }
 
-/** Regularity of the spacing and decisiveness of the peaks, capped at 0.95 (BeatTracker.gridConfidence). */
 export function gridConfidence(beats: number[], peakLogits: number[]): number {
   if (beats.length < MIN_BEATS) return 0;
   const gaps = beats.slice(1).map((b, i) => b - beats[i]!);
@@ -301,23 +263,16 @@ export function gridConfidence(beats: number[], peakLogits: number[]): number {
   return Math.max(0, Math.min(0.95, 0.35 + 0.4 * regular + 0.25 * strength));
 }
 
-// ---- open-unmix vocal mask (vocal_spectrogram.cpp, VocalTracker.kt) --------------------------
-
 export const VOCAL_SR = 44100;
 const VOCAL_FFT = 4096;
 const VOCAL_HOP = 1024;
 const VOCAL_BINS = VOCAL_FFT / 2 + 1;
 export const VOCAL_FPS = VOCAL_SR / VOCAL_HOP;
-/** The model's fixed input width, ~22.3 s. */
 export const VOCAL_FRAMES = 960;
 export const VOCAL_WINDOW_SEC = ((VOCAL_FRAMES - 2) * VOCAL_HOP) / VOCAL_SR;
 
 let vocalSession: Promise<ort.InferenceSession | null> | null = null;
 
-/**
- * How vocal each STFT frame of a stereo window (44.1 kHz, at most
- * VOCAL_WINDOW_SEC) is, 0–1: the model's vocal mask averaged over 200 Hz–4 kHz.
- */
 export async function vocalCurve(left: Float32Array, right: Float32Array): Promise<Float32Array | null> {
   const pad = VOCAL_FFT / 2;
   if (left.length <= pad + 1 || left.length !== right.length) return null;
@@ -327,7 +282,6 @@ export async function vocalCurve(left: Float32Array, right: Float32Array): Promi
   const s = await vocalSession;
   if (!s) return null;
 
-  // [1, 2, bins, VOCAL_FRAMES], bin-major, zero-padded tail; raw |DFT| (normalized=False).
   const input = new Float32Array(2 * VOCAL_BINS * VOCAL_FRAMES);
   const window = hann(VOCAL_FFT);
   const re = new Float64Array(VOCAL_FFT);
@@ -367,7 +321,6 @@ export async function vocalCurve(left: Float32Array, right: Float32Array): Promi
   return curve;
 }
 
-/** Dev: the raw model run over the first chunk of [pcm], for checking the front end against the phone. */
 export async function debugBeatLogits(pcm: Float32Array, level: 'disabled' | 'basic' | 'extended' | 'all' = 'all') {
   const spec = beatSpectrogram(pcm)!;
   const s = await ort.InferenceSession.create(BEAT_MODEL_URL, { executionProviders: ['wasm'], graphOptimizationLevel: level });

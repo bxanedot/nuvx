@@ -19,10 +19,6 @@ interface PageRoute {
   skeleton: ReactNode;
 }
 
-/**
- * Every page, lazy-loaded behind its own skeleton (prompt §3). `load` is kept
- * so links can warm a route's chunk on hover or focus, before the click.
- */
 export const pages: PageRoute[] = [
   { path: '/home', load: () => import('@/pages/HomePage'), skeleton: <HomeSkeleton /> },
   { path: '/new', load: () => import('@/pages/NewPage'), skeleton: <NewSkeleton /> },
@@ -54,12 +50,10 @@ export function pageElement({ load, skeleton }: PageRoute) {
   );
 }
 
-/** Warms the chunk, and the first query, for whatever page `href` leads to. Safe to call repeatedly. */
 export function preloadRoute(href: string): void {
   const pathname = href.split(/[?#]/)[0] ?? href;
   const page = pages.find((p) => matchPath(p.path, pathname));
   void page?.load().catch(() => {
-    // A failed prefetch is retried by the real navigation.
   });
   prefetchPageData(pathname);
 }

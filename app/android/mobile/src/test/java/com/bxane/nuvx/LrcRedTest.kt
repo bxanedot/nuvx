@@ -9,13 +9,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * lrc.red, against what its host actually returned on 2026-10-04 — search hits
- * trimmed to the first few, TTML trimmed to a couple of paragraphs.
- */
 class LrcRedTest {
 
-    /** `GET https://lrc.red/search.json?q=Bohemian Rhapsody Queen` */
     private val bohemianSearch = """
         {"hits":[
         {"isrc":"GBUM71100986","title":"Bohemian Rhapsody (Operatic Section / 2011 A Cappella Mix)",
@@ -29,7 +24,6 @@ class LrcRedTest {
         ],"next":"p24"}
     """.trimIndent()
 
-    /** `GET https://lrc.red/search.json?q=Tum Hi Ho Mithoon, Arijit Singh` */
     private val tumHiHoSearch = """
         {"hits":[
         {"isrc":"INS181303031","title":"Tum Hi Ho (From \"Aashiqui 2\")","artist":"Arijit Singh",
@@ -81,7 +75,6 @@ class LrcRedTest {
         assertNull(LrcRed.documentUrl(""))
     }
 
-    /** `GET https://lrc.red/s/USUG11904206.ttml`, one paragraph with its echo. */
     private val blindingLights = """
         <tt xmlns="http://www.w3.org/ns/ttml" xmlns:lrc="http://lrc.red/lyric-ttml-internal"
          xmlns:ttm="http://www.w3.org/ns/ttml#metadata" lrc:timing="Word" xml:lang="en"><head><metadata>

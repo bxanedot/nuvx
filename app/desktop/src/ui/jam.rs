@@ -1,6 +1,3 @@
-//! Listen together: the page (start, join, the room), the host sending its playback
-//! to the room, and guests following it. The connection itself is `crate::jam`.
-
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::Ordering;
@@ -16,57 +13,38 @@ use crate::jam::{Cmd, Event, Jam, Member, RoomState, Tick};
 use crate::model::Target;
 use crate::theme::{self, icon};
 
-/// Guests further than this from the host jump to where the host is.
 const MAX_DRIFT: Duration = Duration::from_millis(350);
-/// The host re-sends its position this often while playing, so drift gets corrected.
 const TICK_EVERY: Duration = Duration::from_secs(15);
-/// Songs before / after the current one sent to guests (liked-songs queues are huge).
 const BEFORE: usize = 20;
 const AFTER: usize = 100;
-/// Songs one guest may have waiting in the queue at once.
 const GUEST_WAITING: usize = 5;
 
 #[derive(Default)]
 pub struct Session {
     conn: Option<Jam>,
-    /// We started the room (until the server says who the host is).
     created: bool,
     welcomed: bool,
     reconnecting: bool,
     you: String,
     host: String,
     control: bool,
-    /// Guests may add songs.
     queue: bool,
     members: Vec<Member>,
-    /// Who added which song (video ID → name), for songs guests added.
     pub by: HashMap<String, String>,
-    /// Who added which song (video ID → member ID).
     owner: HashMap<String, String>,
-    /// The code typed on the page.
     code_input: String,
-    /// The name others see (saved); empty: the account's name.
     pub name: String,
     error: Option<String>,
 
-    // host
-    /// Fingerprint of the last state sent, and where playback was then.
     sent_sig: u64,
     sent: Option<(Tick, Instant)>,
-    /// Index in our queue of the first song sent (guests' indexes are relative to it).
     sent_from: usize,
 
-    // guest
-    /// The host's latest position.
     last: Option<(Tick, Instant)>,
-    /// The song we started for the room, and when we asked for it.
     loaded: Option<String>,
-    /// The last song reported to YouTube as played, so pauses don't count it twice.
     reported: Option<String>,
     load_started: Option<Instant>,
-    /// How long songs take to start here, so they're opened that far ahead.
     load_ms: u64,
-    /// Steps of the NUVX_PARTY_SCRIPT dev hook already run.
     script_done: usize,
 }
 
@@ -79,7 +57,6 @@ impl Session {
         self.active() && if self.welcomed { self.you == self.host } else { self.created }
     }
 
-    /// In a room someone else hosts: playback follows the host.
     pub fn guest(&self) -> bool {
         self.active() && !self.is_host()
     }
@@ -94,7 +71,6 @@ fn my_name(app: &App) -> String {
         .unwrap_or_else(|| "Guest".to_owned())
 }
 
-/// A new session, keeping what the page holds (the typed code, the name).
 fn fresh(app: &mut App, created: bool) {
     let code_input = std::mem::take(&mut app.jam.code_input);
     let name = std::mem::take(&mut app.jam.name);
@@ -109,8 +85,6 @@ fn start_with(app: &mut App, code: String) {
     leave(app);
     fresh(app, true);
     app.jam.conn = Some(Jam::start(&app.backend, code, true, my_name(app)));
-    // Guests get the host's exact upload: a song version standing in for a music video
-    // goes back to the video, from the same point.
     app.play_listed_upload();
 }
 
@@ -128,7 +102,6 @@ pub fn join(app: &mut App, code: &str) {
     app.play_listed_upload();
 }
 
-/// Leave the party (if we host it, the longest-present guest takes over). Playback carries on locally.
 pub fn leave(app: &mut App) {
     if let Some(c) = app.jam.conn.take() {
         c.leave();
@@ -136,7 +109,6 @@ pub fn leave(app: &mut App) {
     fresh(app, false);
 }
 
-/// Dev hooks: NUVX_PARTY_HOST=1 starts a party, NUVX_PARTY_JOIN=<code> joins one.
 pub fn dev_hooks(app: &mut App) {
     if super::dev_var("NUVX_PARTY_HOST").is_some() {
         app.go(Page::Jam);
@@ -147,9 +119,6 @@ pub fn dev_hooks(app: &mut App) {
     }
 }
 
-/// Dev hook: NUVX_PARTY_SCRIPT="<secs>:<action>,…" presses buttons at those app times, as
-/// whoever this instance is (a guest's go to the host as requests). Actions: skip, prev,
-/// toggle, seek=<secs>, add=<videoId>, control=on|off.
 pub fn dev_script(app: &mut App, ctx: &egui::Context, now: f64) {
     let Some(script) = super::dev_var("NUVX_PARTY_SCRIPT") else { return };
     for (i, step) in script.split(',').enumerate() {
@@ -159,7 +128,6 @@ pub fn dev_script(app: &mut App, ctx: &egui::Context, now: f64) {
             continue;
         }
         if now < t {
-            // A paused app doesn't redraw on its own.
             ctx.request_repaint_after(Duration::from_secs_f64(t - now));
             break;
         }
@@ -185,13 +153,11 @@ pub fn dev_script(app: &mut App, ctx: &egui::Context, now: f64) {
     }
 }
 
-/// A link (or a code from another launch) asked to join a room.
 pub fn open_link(app: &mut App, code: String) {
     app.go(Page::Jam);
     join(app, &code);
 }
 
-/// Every frame: handle what arrived, then (host) send changes or (guest) catch up.
 pub fn tick(app: &mut App) {
     let Some(conn) = &app.jam.conn else { return };
     let mut events = Vec::new();
@@ -224,7 +190,6 @@ fn on_event(app: &mut App, e: Event) {
             s.control = control;
             s.queue = queue;
             s.members = members;
-            // Send our state straight away when hosting.
             s.sent_sig = 0;
             if !rejoin && s.created {
                 app.toast("Party started: share the code or link");
@@ -246,8 +211,6 @@ fn on_event(app: &mut App, e: Event) {
             s.queue = queue;
         }
         Event::State(state, at) => {
-            // A guest changed the party: the host takes the new queue, and only reloads
-            // the song when it changed (a pause or seek just moves it).
             if s.is_host() && app.current_id() == Some(state.vid.as_str()) {
                 app.jam.loaded = Some(state.vid.clone());
             }
@@ -270,11 +233,6 @@ fn on_event(app: &mut App, e: Event) {
     }
 }
 
-// ------------------------------------------------------------------------ host
-
-/// The part of the queue the room sees, the playing song's position, and a signature
-/// of what would be sent: it runs every frame, so the state itself is only built
-/// (`host_state`) when the signature changed.
 fn host_tick(app: &App) -> (std::ops::Range<usize>, Tick, u64) {
     let index = app.queue.index.unwrap_or(0);
     let from = index.saturating_sub(BEFORE);
@@ -305,7 +263,6 @@ fn host_state(app: &App, range: std::ops::Range<usize>, tick: &Tick) -> RoomStat
 }
 
 fn host_send(app: &mut App) {
-    // A song still loading has no real position yet: send once it plays.
     if app.buffering {
         return;
     }
@@ -332,7 +289,6 @@ fn host_send(app: &mut App) {
         return;
     }
     let Some((sent, at)) = &s.sent else { return };
-    // A seek: the position moved away from where it should be.
     let expected = sent.position_at(*at).as_millis() as i64;
     let jumped = (expected - tick.pos as i64).abs() > 1500;
     if jumped || (tick.playing && at.elapsed() >= TICK_EVERY) {
@@ -342,13 +298,11 @@ fn host_send(app: &mut App) {
     }
 }
 
-/// Songs `member` added that haven't played yet.
 fn waiting(app: &App, member: &str) -> usize {
     let start = app.queue.index.map_or(0, |i| i + 1);
     app.queue.tracks.get(start..).unwrap_or_default().iter().filter(|t| app.jam.owner.get(&t.id).is_some_and(|m| m == member)).count()
 }
 
-/// Host: whether guests may add songs and control playback (one switch on the party server).
 fn set_control(app: &mut App, on: bool) {
     app.jam.control = on;
     app.jam.queue = on;
@@ -356,8 +310,6 @@ fn set_control(app: &mut App, on: bool) {
         c.set_control(on);
     }
 }
-
-// ----------------------------------------------------------------------- guest
 
 fn apply_state(app: &mut App, state: RoomState, at: Instant) {
     let tick = Tick { vid: state.vid.clone(), pos: state.pos, playing: state.playing };
@@ -380,13 +332,11 @@ fn apply_state(app: &mut App, state: RoomState, at: Instant) {
     sync(app);
 }
 
-/// Get playback to where the host is.
 fn sync(app: &mut App) {
     let Some((tick, at)) = app.jam.last.clone() else { return };
     if tick.vid.is_empty() {
         return;
     }
-    // A tick can name a song before its state arrives: wait for the state then.
     if app.current_id() != Some(tick.vid.as_str()) {
         match app.queue.tracks.iter().position(|t| t.id == tick.vid) {
             Some(i) => app.queue.index = Some(i),
@@ -396,16 +346,13 @@ fn sync(app: &mut App) {
     let target = tick.position_at(at);
     if app.jam.loaded.as_deref() != Some(tick.vid.as_str()) || app.resume_at.is_some() {
         if tick.playing {
-            // Opened a little ahead: by the time it starts, the host is there.
             let ahead = Duration::from_millis(app.jam.load_ms);
-            // Joining a song counts as a play; catching up on the same one doesn't.
             let report = app.jam.reported.as_deref() != Some(tick.vid.as_str());
             app.jam.reported = Some(tick.vid.clone());
             app.jam.loaded = Some(tick.vid.clone());
             app.jam.load_started = Some(Instant::now());
             app.play_current_at(target + ahead, report);
         } else if app.jam.loaded.as_deref() != Some(tick.vid.as_str()) || app.resume_at != Some(target) {
-            // Paused: show the song at the host's position without loading it.
             app.audio.send(AudioCmd::Stop);
             app.jam.loaded = None;
             app.resume_at = Some(target);
@@ -431,8 +378,6 @@ fn sync(app: &mut App) {
 }
 
 fn guest_follow(app: &mut App) {
-    // A song we started for the room just began: learn how long that took, and
-    // line up with the host.
     if let Some(t) = app.jam.load_started
         && !app.buffering
         && app.playing()
@@ -448,7 +393,6 @@ fn guest_follow(app: &mut App) {
     }
 }
 
-/// Ask the host to do something (as a guest).
 pub fn request(app: &mut App, cmd: Cmd) {
     if cmd.is_control() && !app.jam.control {
         app.toast("Only the host can control playback");
@@ -473,8 +417,6 @@ pub fn request(app: &mut App, cmd: Cmd) {
     }
 }
 
-/// A guest's action: things that would change the room's playback go to the host
-/// instead. Returns the action if it should run locally.
 pub fn guest_action(app: &mut App, a: Action) -> Option<Action> {
     match a {
         Action::Play(tracks, i) => {
@@ -497,8 +439,6 @@ pub fn guest_action(app: &mut App, a: Action) -> Option<Action> {
     }
     None
 }
-
-// ------------------------------------------------------------------------ page
 
 pub fn page(app: &mut App, ui: &mut Ui) {
     let avail = ui.available_width();
@@ -554,7 +494,6 @@ fn lobby(app: &mut App, ui: &mut Ui) {
         dim(ui, "Type the code from the host, or open the link they shared.");
         ui.add_space(10.0);
         let mut join_now = false;
-        // Button on the right edge, the field filling the rest, both one height.
         ui.allocate_ui_with_layout(vec2(ui.available_width(), 42.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
             join_now |= pill(ui, "Join", None, true).clicked();
             ui.add_space(10.0);

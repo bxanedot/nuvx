@@ -1,12 +1,3 @@
-/**
- * Music Recognition Feature
- * 
- * This feature is based on the original MusicRecognizer project by Aleksey Saenko.
- * Original project: https://github.com/aleksey-saenko/MusicRecognizer
- * 
- * Special thanks to Aleksey Saenko for the music recognition implementation.
- */
-
 package com.bxane.nuvx.recognition
 
 import android.Manifest
@@ -29,18 +20,11 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.nio.ByteOrder
 
-/**
- * Service for recognizing music using audio fingerprinting.
- * Records audio from the microphone, generates a Shazam-compatible fingerprint,
- * and sends it to the Shazam API for recognition.
- */
 object MusicRecognitionService {
     
-    // The fingerprint's own rate, which every Android mic records: no resampling step to go wrong.
     private const val RECORDING_SAMPLE_RATE = VibraSignature.REQUIRED_SAMPLE_RATE
     private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
     private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-    // Use the original recognizer's final 10-second fallback duration.
     private const val RECORDING_DURATION_MS = 10000L
     
     private val _recognitionStatus = MutableStateFlow<RecognitionStatus>(RecognitionStatus.Ready)
@@ -53,10 +37,6 @@ object MusicRecognitionService {
         ) == PackageManager.PERMISSION_GRANTED
     }
     
-    /**
-     * Start the music recognition process.
-     * Records audio, generates fingerprint, and queries Shazam API.
-     */
     @SuppressLint("MissingPermission")
     suspend fun recognize(context: Context): RecognitionStatus = withContext(Dispatchers.IO) {
         if (!hasRecordPermission(context)) {
@@ -71,7 +51,6 @@ object MusicRecognitionService {
             
             _recognitionStatus.value = RecognitionStatus.Processing
             
-            // Resample to mono 16kHz for fingerprinting.
             val decodedAudio = DecodedAudio(
                 data = audioData,
                 channelCount = 1,
@@ -96,7 +75,6 @@ object MusicRecognitionService {
                 resampledAudio.data.size % 2 == 0
             ) { "Invalid audio format for fingerprint generation" }
             
-            // Fingerprint with native library.
             val signature = try {
                 VibraSignature.fromI16(resampledAudio.data)
             } catch (e: Exception) {

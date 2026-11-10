@@ -15,17 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.Executors
 
-/**
- * Which receivers are out there, and which one the music is on.
- *
- * The half of casting the screen talks to. Choosing a receiver is the Cast
- * framework's own business — selecting its route starts a session — so this
- * only lists routes, asks for one to be selected, and reports what the session
- * does about it. What *plays* on the receiver is [CastPlayback]'s, which is
- * handed each session as it begins.
- *
- * Everything here is main-thread, like the router it wraps.
- */
 object CastController {
     private const val TAG = "NuvxCast"
 
@@ -37,7 +26,6 @@ object CastController {
     )
 
     data class State(
-        /** False until the framework is up, and for good where Play Services is missing. */
         val supported: Boolean = false,
         val devices: List<Device> = emptyList(),
         val connectedName: String? = null,
@@ -49,7 +37,6 @@ object CastController {
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    /** The receiver's own volume, 0..1. */
     private val _volume = MutableStateFlow(1f)
     val volume: StateFlow<Float> = _volume.asStateFlow()
 
@@ -59,7 +46,6 @@ object CastController {
     private var started = false
     private var playback: CastPlayback? = null
 
-    /** The session whose volume is being followed, so it can be let go of. */
     private var watched: CastSession? = null
 
     private val volumeListener = object : Cast.Listener() {
@@ -100,16 +86,9 @@ object CastController {
         override fun onSessionResumeFailed(session: CastSession, error: Int) =
             update { it.copy(connecting = false) }
 
-        // A dropped connection the framework is still trying to win back.
-        // Nothing to do: the receiver keeps playing its queue meanwhile.
         override fun onSessionSuspended(session: CastSession, reason: Int) = Unit
     }
 
-    /**
-     * Brings the framework up, once. Safe to call from anywhere, any number of
-     * times; where Google Play Services is absent it settles on unsupported and
-     * the Cast row never appears.
-     */
     fun ensureStarted(context: Context) {
         if (started) return
         started = true
@@ -119,8 +98,6 @@ object CastController {
             return
         }
         try {
-            // The task form, so the framework's start-up work is not on the
-            // main thread of whichever screen happened to ask first.
             CastContext.getSharedInstance(app, Executors.newSingleThreadExecutor())
                 .addOnSuccessListener { ctx -> onReady(app, ctx) }
                 .addOnFailureListener {
@@ -137,13 +114,9 @@ object CastController {
         selector = ctx.mergedSelector
         ctx.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
         update { it.copy(supported = true) }
-        // A session that outlived the process: the framework restores it on its
-        // own and reports it through the listener, but one already live by the
-        // time this runs would be reported to nobody.
         ctx.sessionManager.currentCastSession?.takeIf { it.isConnected }?.let { began(it, resumed = true) }
     }
 
-    /** Binds the service's playback half; it is handed any session already live. */
     fun attach(target: CastPlayback) {
         playback = target
         castContext?.sessionManager?.currentCastSession
@@ -155,12 +128,6 @@ object CastController {
         if (playback === target) playback = null
     }
 
-    /**
-     * Keeps [State.devices] current until the returned function is called.
-     * [active] asks the router to scan rather than merely listen, which finds a
-     * receiver in a couple of seconds instead of a minute — worth it only while
-     * somebody is looking at the list.
-     */
     fun discover(active: Boolean): () -> Unit {
         val router = router ?: return {}
         val selector = selector ?: return {}
@@ -194,11 +161,6 @@ object CastController {
         router.selectRoute(route)
     }
 
-    /**
-     * Ends the session. [resumeHere] says the listener asked to bring the music
-     * back to this phone, rather than the receiver having gone away — see
-     * [CastPlayback.onSessionEnded].
-     */
     fun disconnect(resumeHere: Boolean) {
         playback?.resumeHereOnEnd = resumeHere
         castContext?.sessionManager?.endCurrentSession(true)

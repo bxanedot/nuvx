@@ -19,10 +19,6 @@ import type {
   Track,
 } from './types';
 
-// YouTube.js node → view model. Every function tolerates missing fields: a
-// node YouTube stops sending becomes an empty value, never a thrown error,
-// and the fixture tests (mappers.test.ts) catch a mapping that goes empty.
-
 type AnyNode = { type: string } & Record<string, unknown>;
 type Thumb = { url: string; width: number; height: number };
 type TextLike = { text?: string; runs?: { text: string; bold?: boolean }[] } | undefined | null;
@@ -87,7 +83,6 @@ function kindOf(itemType: string | undefined, id: string | undefined): ItemKind 
   return 'unknown';
 }
 
-/** The second line, as YouTube's own subtitle where it has one, else built from the parts. */
 function subtitleFor(kind: ItemKind, artists: ArtistRef[], album: AlbumRef | null, given: string, extra: string | undefined) {
   if (given) return given;
   const names = artists.map((a) => a.name).join(', ');
@@ -97,8 +92,6 @@ function subtitleFor(kind: ItemKind, artists: ArtistRef[], album: AlbumRef | nul
 }
 
 export function mapResponsiveItem(node: YTNodes.MusicResponsiveListItem): MusicItem | null {
-  // Library artist rows have no id of their own in YouTube.js, only a link to
-  // MPLAUC…, the library's view of the UC… channel; they open as the artist.
   const linked = linkOf(node.endpoint)?.browseId;
   const id = node.id ?? (linked?.startsWith('MPLAUC') ? linked.slice(4) : linked);
   if (!id) return null;
@@ -167,7 +160,6 @@ export function mapTrack(node: unknown): Track | null {
   };
 }
 
-/** Which layout a shelf of these items gets (report §2). */
 function layoutFor(items: MusicItem[], fromList: boolean): ShelfLayout {
   if (!items.length) return 'square';
   const first = items[0]!;
@@ -211,13 +203,10 @@ export function mapShelves(sections: readonly unknown[] | undefined): Shelf[] {
   return (sections ?? []).map(mapShelf).filter((s): s is Shelf => !!s && !!s.title);
 }
 
-// ---- Pages ---------------------------------------------------------------------
-
 export function mapHome(feed: Pick<YTMusic.HomeFeed, 'sections'>): Shelf[] {
   return mapShelves(feed.sections);
 }
 
-/** The "Add to Library" toggle among a header's buttons: a ToggleButton whose endpoint likes a playlist. */
 function libraryToggle(header: YTNodes.MusicResponsiveHeader | null | undefined): HeaderInfo['library'] {
   for (const button of (header?.buttons ?? []) as unknown as AnyNode[]) {
     if (button.type !== 'ToggleButton') continue;
@@ -291,11 +280,6 @@ export function mapArtist(id: string, artist: Pick<YTMusic.Artist, 'header' | 's
   };
 }
 
-/**
- * YouTube Music's search page is a top-result card followed by single-item
- * sections of every kind, interleaved. Apple groups results by kind, so they
- * are grouped here, in the order YouTube ranked them.
- */
 export function mapSearch(search: { contents?: readonly unknown[] | null }): SearchResults {
   const results: SearchResults = { top: [], songs: [], artists: [], albums: [], playlists: [], videos: [] };
   const seen = new Set<string>();
@@ -342,7 +326,6 @@ export function mapSearch(search: { contents?: readonly unknown[] | null }): Sea
     for (const node of ((section.contents as unknown[] | undefined) ?? [])) add(mapItem(node));
   }
 
-  // Apple's Top Results: the card, then the leading result of each kind.
   for (const group of [results.songs, results.albums, results.artists, results.playlists]) {
     const first = group.find((i) => !results.top.some((t) => t.id === i.id));
     if (first && results.top.length < 6) results.top.push(first);
@@ -360,7 +343,6 @@ export function mapSuggestions(sections: readonly unknown[]): Suggestions {
           runs?: { text: string; bold?: boolean }[];
         };
         const runs = suggestion.runs ?? [{ text: suggestion.text ?? '', bold: false }];
-        // YouTube bolds the part that was typed.
         const typed = runs.filter((r) => r.bold).map((r) => r.text).join('');
         const rest = runs.filter((r) => !r.bold).map((r) => r.text).join('');
         out.queries.push({ text: suggestion.text ?? typed + rest, typed, rest });
@@ -373,7 +355,6 @@ export function mapSuggestions(sections: readonly unknown[]): Suggestions {
   return out;
 }
 
-/** ARGB integer (YouTube's stripe colour) → CSS. */
 export function argbToCss(argb: number): string {
   const r = (argb >>> 16) & 0xff;
   const g = (argb >>> 8) & 0xff;
@@ -381,10 +362,6 @@ export function argbToCss(argb: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/**
- * Moods & genres, from the raw browse response: YouTube.js drops the stripe
- * colour each button carries, and it's what colours the tiles.
- */
 export function mapCategories(raw: unknown): CategoryGroup[] {
   const groups: CategoryGroup[] = [];
   const walk = (node: unknown) => {
@@ -422,15 +399,6 @@ export function mapCategories(raw: unknown): CategoryGroup[] {
   return groups;
 }
 
-/**
- * The cover a category tile borrows: the first real artwork on the page the
- * tile opens, as on the phone (YtMusicRepository.moodGenreArtwork). The
- * moods page itself carries no artwork, only titles and stripe colours, so
- * the tile takes its cover from the category's own shelves — playlists
- * first, then a See All grid, then track rows. The shape comes with it:
- * the URL as served is small, so the caller asks the CDN for the size it
- * displays (sizedArtwork) — for square covers, not wide video stills.
- */
 export function firstBrowseArtwork(page: BrowsePage): { thumbnail: string; wide: boolean } | null {
   for (const shelf of page.shelves) {
     for (const item of shelf.items) if (item.thumbnail) return { thumbnail: item.thumbnail, wide: item.wide };
@@ -440,7 +408,6 @@ export function firstBrowseArtwork(page: BrowsePage): { thumbnail: string; wide:
   return null;
 }
 
-/** A See All, mood or genre page: shelves, or a single grid, or a track list. */
 export function mapBrowse(page: { header?: unknown; sections?: readonly unknown[] }, fallbackTitle: string): BrowsePage {
   const sections = (page.sections ?? []) as AnyNode[];
   const grid: MusicItem[] = [];
@@ -458,7 +425,6 @@ export function mapBrowse(page: { header?: unknown; sections?: readonly unknown[
           tracks.push(t);
           continue;
         }
-        // Library artists and albums arrive as list rows, not tiles.
         const other = mapItem(item);
         if (other && other.kind !== 'song' && other.kind !== 'video') grid.push(other);
       }

@@ -24,11 +24,6 @@ import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
 
-/**
- * Search's bottom bar, as Convx has it: the tabs folded into one glass circle
- * holding the tab you came from (tap to go back), beside a glass pill with the
- * search [field]. Same material as the tab bar it stands in for.
- */
 @Composable
 internal fun SearchDock(
     backTab: BottomTab,
@@ -63,5 +58,4 @@ internal fun SearchDock(
     }
 }
 
-/** Apple's inline bar circles are 48pt; a touch more here so the field's text has room. */
 private val SEARCH_DOCK_HEIGHT = 52.dp

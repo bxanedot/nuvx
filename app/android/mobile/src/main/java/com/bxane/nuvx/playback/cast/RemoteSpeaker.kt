@@ -4,57 +4,34 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 
-/**
- * Something other than this phone playing the phone's queue: a Cast receiver,
- * or the nuvx watch app as the speaker.
- *
- * The model is [CastPlayback]'s, and every receiver keeps to it: the phone's
- * player stays the owner of the *queue* and is held paused, the receiver owns
- * the *clock*, and the session player reports the receiver's state in place of
- * the paused local one — so the app, the notification, the widgets and the
- * watch all show what is actually playing. The phone moving to another track
- * loads it on the receiver; the receiver moving on moves the phone.
- */
 interface RemoteSpeaker {
     var sink: CastSink?
 
-    /** Whether this receiver is the speaker. Everything else is meaningful only while it is. */
     val active: Boolean
     val playWhenReady: Boolean
     val isPlaying: Boolean
 
-    /** In [Player]'s own terms. */
     val playbackState: Int
     val positionMs: Long
 
-    /** [C.TIME_UNSET] when the receiver does not know yet. */
     val durationMs: Long
 
-    /** 0..100. */
     val deviceVolume: Int
 
     fun play()
     fun pause()
     fun seekTo(positionMs: Long)
 
-    /** 0..1 of the receiver's own range. */
     fun setVolume(fraction: Float)
 
-    /** A new track became the phone's current one. */
     fun onLocalTransition(item: MediaItem?, reason: Int)
 
-    /** The phone's queue changed under the playing track. */
     fun onLocalQueueChanged()
     fun onLocalRepeatChanged(repeatMode: Int)
 
-    /** Something started the phone's own (paused) player while this is the speaker. */
     fun onLocalStartedPlaying(player: Player)
 }
 
-/**
- * Every receiver, as one: whichever is the speaker answers, and the phone's
- * moves are told to all of them (each ignores them unless it is active).
- */
 class Speakers(private val all: List<RemoteSpeaker>) : RemoteSpeaker {
 
     private val current: RemoteSpeaker get() = all.firstOrNull { it.active } ?: all.first()
@@ -84,7 +61,6 @@ class Speakers(private val all: List<RemoteSpeaker>) : RemoteSpeaker {
     override fun onLocalStartedPlaying(player: Player) = all.forEach { it.onLocalStartedPlaying(player) }
 }
 
-/** A receiver that never is one — the TV build's watch speaker. */
 object NoSpeaker : RemoteSpeaker {
     override var sink: CastSink? = null
     override val active = false

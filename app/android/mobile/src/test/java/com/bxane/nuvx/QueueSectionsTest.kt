@@ -4,13 +4,8 @@ import com.bxane.nuvx.playback.autoplaySectionStart
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * Where the queue's AutoPlay section begins — the index the heading is drawn
- * at, and the one a track queued by hand is inserted at.
- */
 class QueueSectionsTest {
 
-    /** `.` is a track the user queued, `~` one AutoPlay did. */
     private fun start(queue: String, currentIndex: Int) =
         autoplaySectionStart(queue.map { it == '~' }, currentIndex)
 
@@ -26,7 +21,6 @@ class QueueSectionsTest {
 
     @Test
     fun `AutoPlay tracks already played sit above the section, not in it`() {
-        // Playing the third of the mix: the two behind it have had their turn.
         assertEquals(5, start("..~~~~", currentIndex = 4))
     }
 
@@ -37,7 +31,6 @@ class QueueSectionsTest {
 
     @Test
     fun `a track put in by hand mid-mix stays above the section`() {
-        // Play next during the mix: the manual track at 3, heading below it.
         assertEquals(4, start("~~~.~~", currentIndex = 2))
     }
 

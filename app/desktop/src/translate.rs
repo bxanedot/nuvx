@@ -1,9 +1,3 @@
-//! Romanization and translation of lyric lines, the way the better-lyrics extension gets
-//! them (translation.ts): Unison's translate endpoint first, which answers both at once,
-//! then Google Translate's keyless `gtx` endpoint for whatever is still missing. Lyrics
-//! that ship their own (Apple-style TTML) use those instead; see the renderer.
-//! Results are cached on disk per song, source and target language.
-
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -11,16 +5,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 const UNISON_TRANSLATE: &str = "https://unison.betterlyrics.org/translate";
-/// Same API under two client IDs. Google sometimes answers the first with a 429
-/// "automated queries" page for a while; the Chrome dictionary extension's client
-/// keeps working when it does.
 const ENDPOINTS: [(&str, &str); 2] = [
     ("https://translate.googleapis.com/translate_a/single", "gtx"),
     ("https://clients5.google.com/translate_a/single", "dict-chrome-ex"),
 ];
 const BATCH_SEPARATOR: &str = "\n\n;\n\n";
 
-/// Per-line extras, index-aligned with the lines they were asked for.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Extras {
     pub roman: Vec<Option<String>>,
@@ -37,8 +27,6 @@ impl Client {
         Self { http, dir: data_dir.join("translations") }
     }
 
-    /// Romanization (non-Latin lines only) and translation into `target` for `lines`.
-    /// `cache_key` names the song and source; `lang` is the language the lyrics say they're in.
     pub async fn extras(&self, cache_key: &str, lines: &[String], lang: Option<&str>, target: &str) -> Option<Extras> {
         let file = self.dir.join(format!("{}.json", safe_name(&format!("{cache_key}_{target}"))));
         if let Some(e) = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice::<Extras>(&b).ok())
@@ -46,7 +34,6 @@ impl Client {
         {
             return Some(e);
         }
-        // Distinct non-empty lines only; choruses repeat.
         let mut uniq: Vec<&str> = Vec::new();
         for l in lines.iter().map(|l| l.trim()).filter(|l| !l.is_empty() && *l != "♪") {
             if !uniq.contains(&l) {
@@ -74,7 +61,6 @@ impl Client {
             Err(e) => log::info!("unison translate: {e:#}"),
         }
 
-        // Google for the rest.
         let need_roman: Vec<usize> = (0..uniq.len()).filter(|&i| roman[i].is_none() && non_latin(uniq[i])).collect();
         if !need_roman.is_empty() {
             let texts: Vec<&str> = need_roman.iter().map(|&i| uniq[i]).collect();
@@ -93,7 +79,6 @@ impl Client {
         }
         let need_trans: Vec<usize> = (0..uniq.len()).filter(|&i| trans[i].is_none()).collect();
         if !need_trans.is_empty() && lang.is_none_or(|l| !same_lang(l, target) || need_trans.iter().any(|&i| non_latin(uniq[i]))) {
-            // Non-Latin lines first, like the extension, so one language leads detection.
             let mut order = need_trans.clone();
             order.sort_by_key(|&i| !non_latin(uniq[i]));
             let texts: Vec<&str> = order.iter().map(|&i| uniq[i]).collect();
@@ -119,7 +104,6 @@ impl Client {
         Some(e)
     }
 
-    /// Unison answers translation and romanization for every line in one request.
     async fn unison(&self, lines: &[&str], lang: Option<&str>, target: &str) -> anyhow::Result<Vec<(Option<String>, Option<String>)>> {
         let mut body = serde_json::json!({ "lines": lines, "to": target });
         if let Some(l) = lang {
@@ -152,8 +136,6 @@ impl Client {
         Err(last.expect("at least one endpoint").into())
     }
 
-    /// Romanization comes back as one run-on string, so lines are joined with a numeric
-    /// separator that survives (`romanizeBatch`).
     async fn romanize(&self, lines: &[&str], lang: &str) -> anyhow::Result<Vec<Option<String>>> {
         let mut sep = "0000".to_owned();
         while lines.iter().any(|l| l.contains(&sep)) {
@@ -172,7 +154,6 @@ impl Client {
         Ok(out)
     }
 
-    /// `translateBatch`'s Google pass: lines joined with a separator Google keeps.
     async fn translate(&self, lines: &[&str], target: &str) -> anyhow::Result<Vec<Option<String>>> {
         let v = self.call(&[("sl", "auto"), ("tl", target), ("dt", "t")], &lines.join(BATCH_SEPARATOR)).await?;
         let text: String = v[0].as_array().into_iter().flatten().filter_map(|s| s[0].as_str()).collect();
@@ -201,11 +182,8 @@ fn same_lang(a: &str, b: &str) -> bool {
     base(a) == base(b)
 }
 
-/// Languages Google romanizes (`ROMANIZATION_LANGUAGES`).
 const ROMANIZATION_LANGUAGES: &[&str] = &["ja", "ko", "zh", "ru", "hi", "ar", "th", "el", "he", "bn", "ta", "te", "ml", "kn", "gu", "pa", "si", "my", "ka", "km", "lo", "uk", "bg", "sr", "fa", "ur"];
 
-/// `resolveRomanizationLanguage`: the lyrics' language if Google romanizes it, else
-/// the script most lines are written in.
 fn romanization_language(lang: Option<&str>, lines: &[&str]) -> String {
     if let Some(l) = lang.filter(|l| ROMANIZATION_LANGUAGES.iter().any(|r| same_lang(l, r))) {
         return l.to_owned();
@@ -222,7 +200,6 @@ fn romanization_language(lang: Option<&str>, lines: &[&str]) -> String {
     tally.into_iter().max_by_key(|(_, n)| *n).map_or("auto".to_owned(), |(k, _)| k.to_owned())
 }
 
-/// `detectNonLatinLanguage`: the language a script points to, in the same order.
 #[allow(clippy::single_range_in_vec_init)]
 pub fn script_language(s: &str) -> Option<&'static str> {
     let has = |r: &[std::ops::RangeInclusive<u32>]| s.chars().any(|c| r.iter().any(|r| r.contains(&(c as u32))));
@@ -252,7 +229,6 @@ pub fn script_language(s: &str) -> Option<&'static str> {
     table.iter().find(|(r, _)| has(r)).map(|(_, l)| *l)
 }
 
-/// Whether a line has letters outside the Latin script (kana, hangul, Cyrillic, ...).
 pub fn non_latin(s: &str) -> bool {
     s.chars().any(|c| c.is_alphabetic() && !matches!(c as u32, 0..=0x024F | 0x1E00..=0x1EFF | 0x2C60..=0x2C7F | 0xA720..=0xA7FF | 0xFF21..=0xFF5A))
 }

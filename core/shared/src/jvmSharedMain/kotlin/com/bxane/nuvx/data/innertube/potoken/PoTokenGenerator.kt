@@ -10,45 +10,23 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 
-/**
- * One loaded BotGuard: a browser page that has run the challenge, holds an
- * integrity token, and mints PoTokens from it until it expires or dies. The
- * phone's is an Android WebView, the desktop's a JavaFX one; both drive the
- * same [PO_TOKEN_HTML].
- */
 interface PoTokenMinter {
-    /** Past the integrity token's lifetime, less a margin. */
     val isExpired: Boolean
 
-    /** The page crashed, threw after start-up, or a mint timed out. */
     val isDead: Boolean
 
-    /** A PoToken bound to [identifier] — a visitor data or a video id. */
     suspend fun generatePoToken(identifier: String): String
 
-    /** Tears the page down, on whatever thread the browser needs. */
     fun close()
 }
 
-/**
- * BotGuard PoTokens for YouTube's web clients, minted in a browser page.
- *
- * Keeps one loaded page per session (visitor data): the session's streaming
- * token is minted once when the page is made, and each track's player token is
- * minted from the same page. A page that has expired, died or belongs to
- * another session is replaced; a mint that fails on an old page gets one retry
- * on a fresh one.
- *
- * @param createMinter loads a new BotGuard page; the platform's browser.
- * @param available whether this platform can host a page at all.
- */
 class PoTokenGenerator(
     private val createMinter: suspend () -> PoTokenMinter,
     private val available: () -> Boolean = { true },
 ) {
     private val TAG = "PoTokenGenerator"
 
-    private var webViewBadImpl = false // whether the platform's browser turned out to be unusable
+    private var webViewBadImpl = false
 
     private val webPoTokenGenLock = Mutex()
     private var webPoTokenSessionId: String? = null
@@ -147,7 +125,6 @@ class PoTokenGenerator(
         )
     }
 
-    /** This generator as InnerTubeX's token provider, for WEB_REMIX and the other BotGuard clients. */
     fun asTokenProvider(): TokenProvider = object : TokenProvider {
         override val capabilities = TokenProviderCapabilities(
             providers = setOf(PoTokenProviderKind.WEB_BOTGUARD),

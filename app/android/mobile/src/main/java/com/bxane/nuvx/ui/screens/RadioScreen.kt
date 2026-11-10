@@ -68,12 +68,10 @@ import com.composables.sfsymbols.SfWeight
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 
-/** The tab's glyph, GlyphStudio's broadcast symbol (convx uses the same one). */
 val RadioSymbol: SfSymbol by lazy {
     SfSymbol.named("dot.radiowaves.left.and.right") ?: SfSymbol.named("antenna.radiowaves.left.and.right")!!
 }
 
-/** A station as a queue entry: the stream rides in [Song.localUri], see [LIVE_RADIO_PREFIX]. */
 fun RadioStation.toSong(): Song = Song(
     videoId = LIVE_RADIO_PREFIX + id,
     title = name.trim(),
@@ -82,19 +80,12 @@ fun RadioStation.toSong(): Song = Song(
     localUri = streamUrl,
 )
 
-/** What the tab has loaded, kept for the process so switching tabs doesn't refetch. */
 private object RadioDirectory {
     val countries = MutableStateFlow<List<RadioCountry>?>(null)
     val stations = MutableStateFlow<Map<String, List<RadioStation>>>(emptyMap())
     var selected: String? = null
 }
 
-/**
- * Live radio from every country Radio Browser lists: a country strip with
- * flags (the device's own country first), the country's most played stations,
- * and a search across all of them. The heading's broadcast glyph pulses while
- * a station is on air.
- */
 @Composable
 fun RadioScreen(
     playingId: String?,
@@ -118,7 +109,6 @@ fun RadioScreen(
         runCatching { RadioBrowser.countries() }
             .onSuccess { list ->
                 val home = Locale.getDefault().country.uppercase()
-                // The listener's own country leads; the rest by how many stations they have.
                 RadioDirectory.countries.value = list.sortedByDescending { it.code.equals(home, true) }
                 if (selected == null) selected = (list.firstOrNull { it.code.equals(home, true) } ?: list.firstOrNull())?.code
             }
@@ -155,7 +145,6 @@ fun RadioScreen(
                     weight = SfWeight.Semibold,
                     mode = SfRenderingMode.Hierarchical,
                     tint = MaterialTheme.colorScheme.primary,
-                    // The waves light outward, over and over, while something is on air.
                     effect = SfSymbolEffect.VariableColor(),
                     repeat = SfEffectRepeat.Continuous,
                     active = isPlaying && playingId?.startsWith(LIVE_RADIO_PREFIX) == true,

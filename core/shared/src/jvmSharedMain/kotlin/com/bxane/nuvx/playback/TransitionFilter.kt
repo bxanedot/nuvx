@@ -4,7 +4,6 @@ import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.tan
 
-/** The filter a transition rides, shared by both players. */
 class TransitionFilter {
 
     @Volatile
@@ -19,7 +18,6 @@ class TransitionFilter {
     private var currentLowPassHz = OPEN_HZ
     private var currentHighPassHz = OFF_HZ
 
-    /** Two integrator states per second-order section, per channel. */
     private var lowState = FloatArray(0)
     private var highState = FloatArray(0)
 
@@ -34,7 +32,6 @@ class TransitionFilter {
     private var lowOn = false
     private var highOn = false
 
-    /** True while either section is doing something audible. */
     val active: Boolean get() = lowOn || highOn
 
     fun configure(channelCount: Int, sampleRate: Int) {
@@ -46,21 +43,17 @@ class TransitionFilter {
         currentHighPassHz = targetHighPassHz
     }
 
-    /** Aims the filter. */
     fun setCutoffs(lowPassHz: Float, highPassHz: Float) {
         targetLowPassHz = lowPassHz.coerceIn(MIN_HZ, OPEN_HZ)
         targetHighPassHz = highPassHz.coerceIn(OFF_HZ, MAX_HIGH_PASS_HZ)
     }
 
-    /** Parks both sections. */
     fun open() = setCutoffs(OPEN_HZ, OFF_HZ)
 
-    /** Parked at both ends *and* already settled there. */
     val parked: Boolean
         get() = targetLowPassHz >= OPEN_HZ && targetHighPassHz <= OFF_HZ &&
             currentLowPassHz >= OPEN_HZ - SETTLED_HZ && currentHighPassHz <= OFF_HZ + SETTLED_HZ
 
-    /** Moves the cutoffs one sub-block closer to their targets and recomputes coefficients. */
     fun advance() {
         currentLowPassHz = glide(currentLowPassHz, targetLowPassHz)
         currentHighPassHz = glide(currentHighPassHz, targetHighPassHz)
@@ -70,7 +63,6 @@ class TransitionFilter {
         if (highOn) updateHighCoefficients()
     }
 
-    /** One sample of one channel, filtered by whichever sections are engaged. */
     fun filter(channel: Int, input: Float): Float {
         var value = input
         if (lowOn) value = lowPass(channel, value)
@@ -78,7 +70,6 @@ class TransitionFilter {
         return value
     }
 
-    /** Clears the integrators and snaps the cutoffs to their targets. */
     fun flush() {
         lowState.fill(0f)
         highState.fill(0f)
@@ -101,7 +92,6 @@ class TransitionFilter {
         return exp(from + (to - from) * GLIDE_RATE)
     }
 
-    /** Highest cutoff the bilinear transform can still represent without warping to infinity. */
     private fun usableCutoff(hz: Float): Float =
         hz.coerceIn(MIN_HZ, sampleRate * MAX_CUTOFF_FRACTION)
 
@@ -161,33 +151,24 @@ class TransitionFilter {
     }
 
     companion object {
-        /** A low-pass at or above this is doing nothing audible, so it counts as off. */
         const val OPEN_HZ = 20_000f
 
-        /** A high-pass at or below this is doing nothing audible, so it counts as off. */
         const val OFF_HZ = 20f
 
-        /** Nothing musical wants the low end lifted above this, and a typo shouldn't be able to. */
         const val MAX_HIGH_PASS_HZ = 2_000f
 
-        /** Frames between coefficient updates. */
         const val GLIDE_FRAMES = 64
 
         private const val MIN_HZ = 10f
 
-        /** Two cascaded second-order sections: 24 dB/octave, the usual DJ-filter slope. */
         private const val STAGES = 2
 
-        /** Section Qs for a maximally flat (Butterworth) fourth-order response. */
         private val BUTTERWORTH_Q = floatArrayOf(0.54120f, 1.30656f)
 
-        /** Per-sub-block glide fraction. */
         private const val GLIDE_RATE = 0.05f
 
-        /** How close to a parked value counts as parked, so a glide terminates. */
         private const val SETTLED_HZ = 1f
 
-        /** Keeps `tan` away from its pole at Nyquist. */
         private const val MAX_CUTOFF_FRACTION = 0.45f
     }
 }

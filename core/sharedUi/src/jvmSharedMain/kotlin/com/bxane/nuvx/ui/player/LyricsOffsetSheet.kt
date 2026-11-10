@@ -70,7 +70,6 @@ private val DrawerMaxWidth = 640.dp
 private const val StepMs = 100
 private const val DismissDragFraction = 0.25f
 
-/** A player drawer for shifting all synced lyrics against the playback clock. */
 @Composable
 internal fun LyricsOffsetSheet(
     hazeState: HazeState,
@@ -120,8 +119,6 @@ internal fun LyricsOffsetSheet(
                     .onSizeChanged { height = it.height }
                     .offset { IntOffset(0, drawerOffset.roundToInt()) }
                     .clip(DrawerShape)
-                    // The ⋯ menu's frost, as every drawer over the player — see
-                    // [PlayerDrawer].
                     .then(
                         when {
                             reduceDynamicBlur -> Modifier.background(MenuFrostDark)

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { artistCredits, creditSegments, isExactArtistMatch } from './artistCredits';
 
-// The phone's cases (app/src/test/…/ArtistCreditsTest.kt), so the two agree.
 const split = (line: string) => artistCredits(line, []);
 
 describe('artistCredits', () => {

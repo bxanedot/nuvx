@@ -18,33 +18,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 
-/**
- * Writes decoded PCM to a [BitPerfectTransport] untouched.
- *
- * Why not Media3's own sink with a custom `AudioOutputProvider`: that sink
- * converts every 24- and 32-bit stream to float before any output sees it,
- * and fades in the first 20 ms after every start and seek. The first loses
- * 32-bit sources outright; the second changes samples, which a DAC playing
- * DoP turns into a burst of noise. This sink does neither. It does the rest
- * of what a sink must — position from the device's own frame count, gapless
- * continuation while the format holds, a drain and reopen when it changes —
- * and nothing else.
- *
- * Volume, playback speed, silence skipping and audio effects are accepted and
- * ignored. Nothing upstream may scale a sample, and a speed other than 1x
- * would have to be resampled to be heard.
- *
- * The one exception, only with [com.bxane.nuvx.data.settings.AppSettings.convertForLimitedDac]
- * on, is a track the DAC cannot take at all. [DacFormatConverter] then fits it
- * to what the transport opened at, and the status says so.
- *
- * A pause longer than [IDLE_RELEASE_MS] hands a direct USB or AAudio exclusive
- * device back (see [suspend]), so the DAC can power down while nothing plays.
- * What it had been given but not yet played is kept, and play resumes from
- * that exact frame on a reopened device.
- *
- * All calls arrive on the playback thread, as Media3 guarantees for a sink.
- */
 @OptIn(UnstableApi::class)
 internal class BitPerfectAudioSink(
     private val outputs: BitPerfectOutputs,
@@ -62,7 +35,6 @@ internal class BitPerfectAudioSink(
             sampleRate == other.sampleRate && channelCount == other.channelCount
     }
 
-    /** What a reopened transport must match for audio kept from the old one to play on it unchanged. */
     private data class Wire(
         val driver: BitPerfectDriver,
         val sampleRate: Int,
@@ -82,46 +54,32 @@ internal class BitPerfectAudioSink(
     private var listener: AudioSink.Listener? = null
     private var audioAttributes = AudioAttributes.DEFAULT
 
-    /** The most recent [configure]; opened lazily, at its first buffer. */
     private var configured: Input? = null
 
-    /** What [transport] is carrying. */
     private var current: Input? = null
     private var transport: BitPerfectTransport? = null
     private var transportStarted = false
 
-    /** Set only while [transport] could not be opened at the track's own format. */
     private var converter: DacFormatConverter? = null
 
     private var output: ByteBuffer = ByteBuffer.allocateDirect(0)
     private var outputFrameBytes = 0
 
-    /**
-     * Output frames of the stream handed to a transport since the last open or
-     * flush. Audio kept across a [suspend] and handed over again is not counted twice.
-     */
     private var writtenFrames = 0L
 
-    /** Frames [transport] itself has accepted, a resumed tail included; its [BitPerfectTransport.playedFrames] counts within these. */
     private var transportFrames = 0L
 
-    /** Stream frames played before [transport] was opened, on the one a [suspend] released. */
     private var framesBase = 0L
 
-    /** The last bytes [transport] accepted, for [suspend]. Null for a driver that is never released idle. */
     private var recent: RecentBytes? = null
 
-    /** When playing last stopped, or [NOT_PAUSED]. */
     private var pausedAtMs = NOT_PAUSED
 
-    /** The device was handed back during a long pause; [resume] reopens it. */
     private var suspended = false
     private var suspendedWire: Wire? = null
 
-    /** What the released device had accepted but not played, to go to the reopened one first. */
     private var resumeTail: ByteBuffer? = null
 
-    /** Input frames converted since it was opened or flushed, for timestamp checks. */
     private var submittedFrames = 0L
     private var startMediaTimeUs = C.TIME_UNSET
     private var needsResync = false
@@ -133,21 +91,16 @@ internal class BitPerfectAudioSink(
     private var exact = true
     private var advancingReported = false
 
-    /** A transport failure raised where Media3 allows no exception, rethrown at the next buffer. */
     private var pendingFailure: BitPerfectTransportException? = null
 
-    /** Whether this exact stream could be opened now; asks nothing of the device beyond a query. */
     fun canAccept(format: Format): Boolean {
         if (format.sampleMimeType != MimeTypes.AUDIO_RAW) return false
-        // Encoder priming means a lossy codec whose start and end need trimming:
-        // not what bit-perfect output is for, and left to the ordinary path.
         if (format.encoderDelay > 0 || format.encoderPadding > 0) return false
         val bits = BitPerfectPcm.sourceBits(format.pcmEncoding) ?: return false
         if (format.channelCount !in 1..2 || format.sampleRate <= 0) return false
         return outputs.canOpen(format.sampleRate, format.channelCount, bits, this)
     }
 
-    /** Whether normal output must wait for the DAC to come back to Android; see [BitPerfectOutput.normalOutputPending]. */
     fun holdsNormalOutput(): Boolean = outputs.normalOutputPending()
 
     override fun setListener(listener: AudioSink.Listener) {
@@ -169,8 +122,6 @@ internal class BitPerfectAudioSink(
         if (!canAccept(format)) {
             throw AudioSink.ConfigurationException("Bit-perfect output unavailable", format)
         }
-        // Opening waits for the first buffer: whatever is being replaced may
-        // still be playing out into this same device.
         configured = Input(format)
     }
 
@@ -183,7 +134,6 @@ internal class BitPerfectAudioSink(
         releaseIfIdle()
         val input = configured ?: return true
         if (suspended) {
-            // Media3 keeps offering buffers while paused; the device stays released until play.
             if (!playing) return false
             try {
                 resume()
@@ -192,7 +142,7 @@ internal class BitPerfectAudioSink(
                     "Bit-perfect output could not resume: ${error.message}",
                     AudioTrack.STATE_UNINITIALIZED,
                     input.format,
-                    /* isRecoverable = */ true,
+                    true,
                     error,
                 )
             }
@@ -230,7 +180,6 @@ internal class BitPerfectAudioSink(
         } catch (error: BitPerfectTransportException) {
             throw writeException(error)
         }
-        // A trailing partial frame cannot be played; drop it rather than stall.
         buffer.position(buffer.limit())
         currentInput = null
         return true
@@ -286,7 +235,6 @@ internal class BitPerfectAudioSink(
         return held || playedFrames(active) < writtenFrames
     }
 
-    // While suspended there is no device clock; Media3 then holds the position it last had.
     override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
         val active = transport ?: return AudioSink.CURRENT_POSITION_NOT_SET
         if (current == null || startMediaTimeUs == C.TIME_UNSET) return AudioSink.CURRENT_POSITION_NOT_SET
@@ -319,7 +267,6 @@ internal class BitPerfectAudioSink(
         return Util.sampleCountToDurationUs(active.bufferSizeFrames, active.sampleRate)
     }
 
-    // Accepted and ignored: each would have to alter the samples to take effect.
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) = Unit
     override fun getPlaybackParameters(): PlaybackParameters = PlaybackParameters.DEFAULT
     override fun setSkipSilenceEnabled(skipSilenceEnabled: Boolean) = Unit
@@ -351,7 +298,7 @@ internal class BitPerfectAudioSink(
                 "Bit-perfect output unavailable: ${error.message}",
                 AudioTrack.STATE_UNINITIALIZED,
                 input.format,
-                /* isRecoverable = */ true,
+                true,
                 error,
             )
         }
@@ -376,7 +323,6 @@ internal class BitPerfectAudioSink(
         }
         output.clear().limit(0)
         recent = if (opened.driver.releasesWhenIdle) {
-            // Twice what the device buffers: [suspend] needs everything it has not played yet.
             val bytes = (opened.bufferSizeFrames * 2).coerceAtMost(Int.MAX_VALUE.toLong() / outputFrameBytes).toInt() * outputFrameBytes
             recent?.takeIf { it.capacity == bytes } ?: RecentBytes(bytes)
         } else {
@@ -409,35 +355,23 @@ internal class BitPerfectAudioSink(
         output.clear().limit(0)
     }
 
-    /** Releases the device once playing has been stopped for [IDLE_RELEASE_MS]. */
     private fun releaseIfIdle() {
         val active = transport ?: return
         if (playing || !active.driver.releasesWhenIdle) return
-        // Opened without ever playing (a queue restored paused, say): count from now.
         if (pausedAtMs == NOT_PAUSED) pausedAtMs = clock()
         if (clock() - pausedAtMs >= IDLE_RELEASE_MS) suspend()
     }
 
-    /**
-     * Hands the device back during a long pause: a USB DAC returns to
-     * Android's driver and can power down, the native worker stops waking,
-     * and an exclusive AAudio stream is closed. [current], the converter and
-     * the clock stay as they are. What the device had accepted but not
-     * played is copied out of [recent], so [resume] can give it to the
-     * reopened device before anything new.
-     */
     private fun suspend() {
         val active = transport ?: return
         val history = recent ?: return
         val played = runCatching { active.playedFrames() }.getOrDefault(0L).coerceIn(0L, transportFrames)
         val keptBytes = minOf((transportFrames - played) * outputFrameBytes, history.size.toLong()).toInt()
-        // A tail not yet fully handed over to this device comes after what it holds.
         val unwritten = resumeTail
         val tail = ByteBuffer.allocateDirect(keptBytes + (unwritten?.remaining() ?: 0)).order(ByteOrder.LITTLE_ENDIAN)
         history.copyLast(keptBytes, tail)
         unwritten?.let(tail::put)
         tail.flip()
-        // Normally exactly what was played; later if the history could not hold everything unplayed.
         framesBase = writtenFrames - tail.remaining() / outputFrameBytes
         resumeTail = tail.takeIf { it.hasRemaining() }
         suspendedWire = Wire(active)
@@ -450,10 +384,6 @@ internal class BitPerfectAudioSink(
         transportStarted = false
     }
 
-    /**
-     * Reopens what [suspend] released. With nothing kept (it had all played,
-     * or a seek since dropped it), the next buffer opens as any new stream does.
-     */
     private fun resume() {
         val wire = suspendedWire
         suspended = false
@@ -466,7 +396,6 @@ internal class BitPerfectAudioSink(
         val previous = requireNotNull(current)
         val opened = outputs.open(previous.sampleRate, previous.channelCount, previous.sourceBits, this)
         if (Wire(opened) != wire) {
-            // A different DAC, or one now offering another format: the kept audio cannot go to it as it is.
             runCatching { opened.release() }
             outputs.release(this)
             current = null
@@ -476,13 +405,11 @@ internal class BitPerfectAudioSink(
         transport = opened
         transportFrames = 0
         recent?.clear()
-        // stop() went to the device just released; a stream already ended must be told again.
         stopped = false
         Log.i(TAG, "Reopened ${opened.driver.label} on ${opened.deviceName} after a long pause")
         publishStatus()
     }
 
-    /** Gives the reopened device what [suspend] kept; true once all of it is in. */
     private fun writeResumeTail(): Boolean {
         val tail = resumeTail ?: return true
         val active = transport ?: return false
@@ -493,13 +420,8 @@ internal class BitPerfectAudioSink(
         return true
     }
 
-    /** Stream frames played so far, on this device and the ones before it. */
     private fun playedFrames(active: BitPerfectTransport): Long = framesBase + active.playedFrames()
 
-    /**
-     * Plays out the stream the transport was opened for, so a new format can
-     * reopen it. Returns true once nothing of it is left to hear.
-     */
     private fun drainForReconfiguration(): Boolean {
         val active = transport ?: return true
         try {
@@ -514,7 +436,6 @@ internal class BitPerfectAudioSink(
         return playedFrames(active) >= writtenFrames
     }
 
-    /** Hands the transport everything still held on this side of it; true once that is all of it. */
     private fun flushOutput(): Boolean {
         if (!writeResumeTail()) return false
         while (true) {
@@ -535,7 +456,6 @@ internal class BitPerfectAudioSink(
         startIfReady()
     }
 
-    /** Writes what [active] takes of [buffer], keeping a copy in [recent] for a later [suspend]. */
     private fun handOver(active: BitPerfectTransport, buffer: ByteBuffer): Int {
         val start = buffer.position()
         val taken = active.write(buffer)
@@ -546,7 +466,6 @@ internal class BitPerfectAudioSink(
         return taken
     }
 
-    /** Starts the device once it is both wanted and has something to play. */
     private fun startIfReady() {
         val active = transport ?: return
         if (!playing || transportStarted || transportFrames == 0L) return
@@ -558,12 +477,6 @@ internal class BitPerfectAudioSink(
         }
     }
 
-    /**
-     * Keeps [startMediaTimeUs] in step with the renderer's timestamps, the way
-     * Media3's own sink does: set from the first buffer, and moved when a new
-     * buffer arrives more than [MAX_TIMESTAMP_DRIFT_US] from where the frames
-     * already written say it should.
-     */
     private fun syncTimestamp(input: Input, presentationTimeUs: Long) {
         if (startMediaTimeUs == C.TIME_UNSET) {
             startMediaTimeUs = presentationTimeUs
@@ -611,8 +524,6 @@ internal class BitPerfectAudioSink(
         transportFrames = 0
         framesBase = 0
         recent?.clear()
-        // A flush while suspended drops what was kept but leaves the device
-        // released: a seek during a long pause should not reopen it before play.
         resumeTail = null
         submittedFrames = 0
         startMediaTimeUs = C.TIME_UNSET
@@ -628,7 +539,7 @@ internal class BitPerfectAudioSink(
         return AudioSink.WriteException(
             AudioTrack.ERROR_DEAD_OBJECT,
             current?.format ?: configured?.format ?: Format.Builder().build(),
-            /* isRecoverable = */ true,
+            true,
         )
     }
 
@@ -637,13 +548,11 @@ internal class BitPerfectAudioSink(
         private const val OUTPUT_CHUNK_FRAMES = 4096
         private const val MAX_TIMESTAMP_DRIFT_US = 200_000L
 
-        /** A pause this long releases a direct USB or AAudio exclusive device. */
         const val IDLE_RELEASE_MS = 30_000L
         private const val NOT_PAUSED = -1L
     }
 }
 
-/** The last [capacity] bytes recorded, the oldest dropped first. */
 internal class RecentBytes(val capacity: Int) {
     private val ring = ByteBuffer.allocateDirect(capacity)
     private var end = 0
@@ -656,7 +565,6 @@ internal class RecentBytes(val capacity: Int) {
         size = 0
     }
 
-    /** Records [count] bytes of [source] from index [from], leaving its position as it is. */
     fun record(source: ByteBuffer, from: Int, count: Int) {
         if (capacity == 0) return
         var left = minOf(count, capacity)
@@ -675,7 +583,6 @@ internal class RecentBytes(val capacity: Int) {
         }
     }
 
-    /** Appends the newest [count] recorded bytes to [target], oldest first. */
     fun copyLast(count: Int, target: ByteBuffer) {
         require(count in 0..size) { "Only $size bytes recorded" }
         if (count == 0) return

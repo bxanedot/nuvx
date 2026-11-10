@@ -17,49 +17,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-/**
- * Whether the phone has an output connected right now that can carry lossless
- * audio — the test behind an addon's `checkValidLossless`.
- *
- * Lossless here means the file's samples reach the listener's converter
- * without being re-encoded into a lossy format first. A cable does that by
- * construction; Bluetooth only does it — or comes close enough that addons
- * asking for this accept it — on a handful of high-bitrate codecs:
- *
- *  - **Wired:** 3.5mm headphones or headset, analog/digital line out, aux.
- *  - **USB:** USB-C headphones, USB DACs and USB audio accessories.
- *  - **HDMI:** HDMI, ARC and eARC (a TV, receiver or soundbar).
- *  - **Dock:** digital and analog docks.
- *  - **Bluetooth A2DP on LDAC, LHDC (V3/V4/V5), aptX Lossless or Samsung's
- *    SSC UHQ.** SBC, AAC, aptX, aptX HD, LC3 (LE Audio) and Opus are all lossy
- *    at bitrates well below CD audio, and do not count — nor does plain SSC,
- *    which tops out at 512 kbps; only its UHQ mode (24-bit/96 kHz, Galaxy S23
- *    and later with Buds3/Buds4) is in LDAC's class.
- *
- * The phone's own speaker, earpiece, hearing aids, casting and BLE Audio do
- * not count either. Bluetooth is only counted when Android names the codec,
- * which needs the Nearby devices permission on Android 12+; without it the
- * codec is unknown, and an unknown codec is reported as such rather than
- * guessed — see [State.bluetoothCodecUnknown].
- */
 object LosslessOutput {
 
     enum class Kind { WIRED, USB, HDMI, DOCK, BLUETOOTH }
 
     data class State(
         val capable: Boolean = false,
-        /** What qualified, when something did. */
         val via: Kind? = null,
-        /** The Bluetooth codec in use, when Android named one. */
         val bluetoothCodec: String? = null,
-        /** A Bluetooth output is connected but its codec could not be read — usually a missing permission. */
         val bluetoothCodecUnknown: Boolean = false,
     )
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    /** The answer every gate reads. False until [init] has looked. */
     val capable: Boolean get() = _state.value.capable
 
     private var audioManager: AudioManager? = null
@@ -76,19 +47,13 @@ object LosslessOutput {
         val manager = app.getSystemService(AudioManager::class.java) ?: return
         audioManager = manager
         manager.registerAudioDeviceCallback(callback, Handler(Looper.getMainLooper()))
-        // Its own tracker rather than the playback service's: the gate has to
-        // be right on the sources screen with nothing playing, when that one
-        // is not running.
         val bluetooth = BluetoothAudioTracker(app).also { it.start() }
         tracker = bluetooth
-        // Made here, not as a field: plain-JVM tests read [capable] through
-        // the source registry, and have no main dispatcher to build one on.
         CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
             .launch { bluetooth.telemetry.collect { recompute() } }
         recompute()
     }
 
-    /** Asks Bluetooth again — after the Nearby devices permission is granted, say. */
     fun refresh() {
         tracker?.refreshCurrentDevice()
         recompute()
@@ -103,18 +68,11 @@ object LosslessOutput {
         val named = telemetry?.takeIf { it.hasNamedCodec }
         val next = decide(outputs, named?.codecName, named?.sampleRateHz)
         if (next != _state.value) {
-            // The rate is here for codecs we have never seen a phone name —
-            // Wi-Fi earbuds, vendor codecs — so a pasted log shows what to match.
             TrackLog.d(TAG, "lossless output: $next (outputs=$outputs, codecRate=${named?.sampleRateHz})")
             _state.value = next
         }
     }
 
-    /**
-     * The decision itself, from the connected output types and the Bluetooth
-     * codec Android named (null if it named none), with the sample rate that
-     * codec is configured for. Pure, for tests.
-     */
     internal fun decide(outputTypes: Set<Int>, bluetoothCodec: String?, bluetoothSampleRateHz: Int? = null): State {
         val cabled = when {
             outputTypes.any { it in WIRED } -> Kind.WIRED
@@ -134,13 +92,6 @@ object LosslessOutput {
         )
     }
 
-    /**
-     * LDAC, any LHDC generation, aptX Lossless or SSC UHQ — by the name Android
-     * reports. Samsung's codec may be named for the family alone ("SSC",
-     * "Samsung Seamless") whichever mode it is in, so a Samsung name without
-     * "UHQ" still counts when it runs at 88.2 kHz or above: UHQ is the only
-     * Samsung mode that does.
-     */
     internal fun isLosslessBluetoothCodec(name: String, sampleRateHz: Int? = null): Boolean {
         val codec = name.uppercase(Locale.ROOT)
         if ("LDAC" in codec || "LHDC" in codec || ("APTX" in codec && "LOSSLESS" in codec)) return true
@@ -151,9 +102,6 @@ object LosslessOutput {
 
     private val SAMSUNG_NAMES = listOf("SSC", "SAMSUNG", "SCALABLE", "SEAMLESS")
 
-    // AudioDeviceInfo constants, by value so the newer ones compile into older
-    // API levels as the plain ints they are; a phone that predates a type
-    // simply never reports it.
     private val WIRED = setOf(
         AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
         AudioDeviceInfo.TYPE_WIRED_HEADSET,
@@ -169,11 +117,11 @@ object LosslessOutput {
     private val HDMI = setOf(
         AudioDeviceInfo.TYPE_HDMI,
         AudioDeviceInfo.TYPE_HDMI_ARC,
-        29, // TYPE_HDMI_EARC, API 31
+        29,
     )
     private val DOCK = setOf(
         AudioDeviceInfo.TYPE_DOCK,
-        31, // TYPE_DOCK_ANALOG, API 34
+        31,
     )
 
     private const val TAG = "nuvx"

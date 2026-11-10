@@ -18,7 +18,6 @@ import java.nio.ByteOrder
 @androidx.annotation.OptIn(UnstableApi::class)
 class BitPerfectAudioSinkTest {
 
-    /** A DAC that plays only when the test says so, holding [capacityFrames]. */
     internal class FakeTransport(
         override val sampleRate: Int,
         override val channelCount: Int,
@@ -65,7 +64,6 @@ class BitPerfectAudioSinkTest {
         var failOpen = false
         var failures = 0
 
-        /** A DAC that stops here, as one on a capped USB-C dongle does. */
         var dacRate: Int? = null
         var dacBits: Int? = null
         var driver = BitPerfectDriver.ANDROID_MIXER
@@ -98,7 +96,6 @@ class BitPerfectAudioSinkTest {
 
     private fun config(format: Format) = AudioSink.AudioSinkConfig.Builder(format).build()
 
-    /** [frames] stereo 16-bit frames whose samples count up from [start]. */
     private fun pcm16(frames: Int, start: Int = 0): ByteBuffer {
         val buffer = ByteBuffer.allocateDirect(frames * 4).order(ByteOrder.LITTLE_ENDIAN)
         repeat(frames * 2) { buffer.putShort((start + it).toShort()) }
@@ -118,7 +115,6 @@ class BitPerfectAudioSinkTest {
         val transport = outputs.opened.single()
         assertTrue(transport.playing)
         val out = ByteBuffer.wrap(transport.bytes.toByteArray()).order(ByteOrder.LITTLE_ENDIAN)
-        // 16-bit samples left-aligned into the 24-bit wire format.
         repeat(8) { index ->
             val sample = (out.get().toInt() and 255) or ((out.get().toInt() and 255) shl 8) or (out.get().toInt() shl 16)
             assertEquals(index shl 8, sample)
@@ -147,7 +143,6 @@ class BitPerfectAudioSinkTest {
         sink.play()
         sink.configure(config(format()))
         assertTrue(sink.handleBuffer(pcm16(441), 0, 1))
-        // The next track: a new configure, same stream shape.
         sink.configure(config(format().buildUpon().setId("next").build()))
         assertTrue(sink.handleBuffer(pcm16(441), 10_000, 1))
         assertEquals(1, outputs.opened.size)
@@ -203,7 +198,6 @@ class BitPerfectAudioSinkTest {
         val transport = outputs.opened.single()
         assertEquals(8192, transport.written)
         transport.advance(8192)
-        // Re-handed the same buffer, as the renderer does.
         while (!sink.handleBuffer(big, 0, 1)) transport.advance(8192)
         assertEquals(20_000L, transport.written)
         assertFalse(big.hasRemaining())
@@ -266,7 +260,6 @@ class BitPerfectAudioSinkTest {
         assertEquals(96000, status.sourceRateHz)
         assertEquals(24, status.sourceBits)
 
-        // The clock runs at the DAC's rate: half the output frames is 50 ms of the track.
         transport.advance(2400)
         assertEquals(50_000, sink.getCurrentPositionUs(false))
         assertFalse(sink.isEnded())
@@ -315,8 +308,6 @@ class BitPerfectAudioSinkTest {
         }
     }
 
-    // ---- Idle release ---------------------------------------------------------------------
-
     @Test
     fun longPauseReleasesTheDeviceAndResumesAtTheSameFrame() {
         var now = 0L
@@ -329,7 +320,6 @@ class BitPerfectAudioSinkTest {
         first.advance(1200)
         sink.pause()
 
-        // Paused, Media3 keeps offering buffers: taken while there is room, the device kept open.
         now = BitPerfectAudioSink.IDLE_RELEASE_MS - 1
         val more = pcm16(4800, start = 9600)
         assertFalse(sink.handleBuffer(more, 100_000, 1))
@@ -344,13 +334,11 @@ class BitPerfectAudioSinkTest {
         assertFalse(sink.isEnded())
 
         sink.play()
-        // The kept 8192 frames fill the new device; the 208 converted after them wait.
         assertFalse(sink.handleBuffer(more, 100_000, 1))
         val second = outputs.opened.last()
         assertEquals(2, outputs.opened.size)
         assertTrue(second.playing)
         assertEquals(25_000, sink.getCurrentPositionUs(false))
-        // The new device starts with exactly what the old one had not played.
         val kept = first.bytes.toByteArray().copyOfRange(1200 * first.frameBytes, first.bytes.size())
         assertTrue(kept.contentEquals(second.bytes.toByteArray()))
 
@@ -412,9 +400,6 @@ class BitPerfectAudioSinkTest {
         assertTrue(byteArrayOf(6, 7, 8, 9, 10, 11).contentEquals(out.array()))
     }
 
-    // ---- Routing --------------------------------------------------------------------------
-
-    /** Just enough of an AudioSink to see what the router hands it. */
     private class RecordingSink : AudioSink by NoOpSink() {
         var configured: Format? = null
         var buffers = 0
@@ -469,11 +454,9 @@ class BitPerfectAudioSinkTest {
         val normal = RecordingSink()
         val router = BitPerfectRoutingSink(normal, BitPerfectAudioSink(outputs))
         router.play()
-        // A lossy stream on the normal path, still playing out its tail...
         router.configure(config(format(delay = 1105)))
         router.handleBuffer(pcm16(10), 0, 1)
         normal.pending = true
-        // ...when a lossless track arrives.
         router.configure(config(format()))
         assertFalse(router.handleBuffer(pcm16(10), 1_000, 1))
         assertTrue(outputs.opened.isEmpty())
@@ -483,7 +466,6 @@ class BitPerfectAudioSinkTest {
         assertEquals(1, outputs.opened.size)
     }
 
-    /** A local 5.1 file (a Dolby track decoded to PCM, say) after a lossless stereo one. */
     @Test
     fun multichannelLocalTrackPlaysOnNormalOutputAfterBitPerfect() {
         val outputs = FakeOutputs()
@@ -498,7 +480,6 @@ class BitPerfectAudioSinkTest {
         router.configure(config(surround))
         assertFalse(router.isBitPerfect)
         val sixChannels = ByteBuffer.allocateDirect(12 * 4).order(ByteOrder.LITTLE_ENDIAN)
-        // The stereo tail plays out on the DAC first.
         assertFalse(router.handleBuffer(sixChannels, 1_000, 1))
         outputs.opened.single().advance(10)
         assertTrue(router.handleBuffer(sixChannels, 1_000, 1))
@@ -520,7 +501,6 @@ class BitPerfectAudioSinkTest {
     }
 }
 
-/** Every AudioSink method as a harmless default, for fakes to override selectively. */
 @androidx.annotation.OptIn(UnstableApi::class)
 private class NoOpSink : AudioSink {
     override fun setListener(listener: AudioSink.Listener) = Unit

@@ -50,7 +50,7 @@ class BoundedContextPersistenceTest {
             )
         }
         val window = QueueWindow(4, shuffleSeed = 1234L).startAt(2, shuffle = true)
-        window.upcoming(25, repeatAll = true) // materialise a planned cycle
+        window.upcoming(25, repeatAll = true)
         val active = window.snapshot()
         val entries = listOf(
             BoundedContextPersistence.Entry(canonical[2].copy(queueEntryId = "current"), 2, 0L),

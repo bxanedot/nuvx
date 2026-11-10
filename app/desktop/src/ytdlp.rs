@@ -1,11 +1,3 @@
-//! Last-resort stream resolution through yt-dlp: age-restricted songs on accounts
-//! without Premium (whose signed-in web streams need a PO token), or when the native
-//! signed-in path in `webmusic` breaks. yt-dlp solves the URL challenges with Node.
-//!
-//! yt-dlp is downloaded into the app's data folder on first use and refreshed
-//! weekly. The signed-in session is passed as a Netscape cookies file that exists
-//! only for the duration of the call.
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
@@ -32,11 +24,9 @@ pub struct Stream {
     pub size: u64,
     pub duration_ms: u64,
     pub user_agent: String,
-    /// youtube.com cookies yt-dlp saved changed, as `Set-Cookie` lines.
     pub replaced: Vec<String>,
 }
 
-/// Path to an up-to-date yt-dlp, downloading it if missing or stale.
 async fn ensure(http: &reqwest::Client, data_dir: &Path) -> anyhow::Result<PathBuf> {
     let bin = data_dir.join(BIN);
     let fresh = std::fs::metadata(&bin)
@@ -64,10 +54,8 @@ pub async fn resolve(http: &reqwest::Client, data_dir: &Path, cookie: &str, vide
     let data_dir = data_dir.to_owned();
     let (cookie, video_id) = (cookie.to_owned(), video_id.to_owned());
     let mut s = tokio::task::spawn_blocking(move || run(&bin, &data_dir, &video_id, &cookie)).await??;
-    // The range downloader needs the exact size; yt-dlp sometimes only estimates it.
     if s.size == 0 {
         let head = http.head(&s.url).header("User-Agent", &s.user_agent).send().await?.error_for_status()?;
-        // Not `content_length()`: for a HEAD response that reports the empty body.
         let len = head.headers().get(reqwest::header::CONTENT_LENGTH).and_then(|v| v.to_str().ok()?.parse::<u64>().ok());
         s.size = len.filter(|&n| n > 0).ok_or_else(|| anyhow::anyhow!("unknown stream size"))?;
     }
@@ -75,7 +63,6 @@ pub async fn resolve(http: &reqwest::Client, data_dir: &Path, cookie: &str, vide
 }
 
 fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Result<Stream> {
-    // Unique name per call; removed on every exit path by the guard below.
     let nonce = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
     let jar = data_dir.join(format!("cookies-{nonce}.txt"));
     struct Remove<'a>(&'a Path);
@@ -104,15 +91,11 @@ fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Res
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
-    // Its own process group, so the whole tree (the onefile binary unpacks into a child,
-    // plus Node) can be ended together.
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
         cmd.process_group(0);
     }
-    // A stuck run (yt-dlp or its Node child hung on the network) would leave the song
-    // buffering for good: give it a minute and a half, then end its process tree.
     let child = cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn()?;
     let (pid, done) = (child.id(), std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)));
     let watch = done.clone();
@@ -132,7 +115,6 @@ fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Res
             kill.creation_flags(0x0800_0000);
             let _ = kill.status();
         }
-        // The process group it leads (see `process_group` above).
         #[cfg(unix)]
         unsafe {
             libc::killpg(pid as libc::pid_t, libc::SIGKILL);
@@ -147,11 +129,9 @@ fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Res
         anyhow::bail!("{}", line.trim_start_matches("ERROR: ").trim());
     }
     let v: Value = serde_json::from_slice(&out.stdout)?;
-    // yt-dlp writes the cookies back, with any Google replaced while it ran.
     let replaced = std::fs::read_to_string(&jar)
         .unwrap_or_default()
         .lines()
-        // HttpOnly cookies (the session ones) may be written as `#HttpOnly_.youtube.com…`.
         .map(|l| l.strip_prefix("#HttpOnly_").unwrap_or(l))
         .filter(|l| !l.starts_with('#'))
         .filter_map(|l| {

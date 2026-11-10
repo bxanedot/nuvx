@@ -85,8 +85,6 @@ private fun ChannelRow(channel: AccountChannel, selected: Boolean, onClick: () -
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // The handle when there is one; otherwise what kind of channel it
-            // is, which is the part a listener with two of them is choosing by.
             val subtitle = channel.subtitle.ifBlank {
                 if (channel.pageId != null) "Brand channel" else "Your channel"
             }

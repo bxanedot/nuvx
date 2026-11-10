@@ -56,15 +56,12 @@ class GeniusTest {
         assertNotNull(lines)
         val texts = lines!!.map { it.text }
 
-        // Headers excluded
         assertFalse(texts.any { it.contains("Contributors") })
         assertFalse(texts.any { it.contains("Song Bio") })
 
-        // Artifacts stripped
         assertFalse(texts.any { it.contains("You might also like") })
         assertFalse(texts.any { it.contains("Embed") })
 
-        // Sections and lyrics present
         assertTrue(texts.contains("[Intro]"))
         assertTrue(texts.contains("Is this the real life?"))
         assertTrue(texts.contains("Is this just fantasy?"))
@@ -110,10 +107,6 @@ class GeniusTest {
 
     @Test
     fun `live genius search and scraping test with noisy titles`() = kotlinx.coroutines.runBlocking {
-        // Scrapes the real genius.com, which answers a CI runner's datacenter address
-        // with a block or a rate limit (Genius.lyrics turns that into null), so it
-        // would fail the build for reasons that have nothing to do with the code.
-        // Run it by hand with LIVE_TESTS=1.
         assumeTrue("needs the network; set LIVE_TESTS=1", System.getenv("LIVE_TESTS") == "1")
         println("--- TEST 1: Queen - Bohemian Rhapsody (Official Video) ---")
         val lyrics1 = Genius.lyrics("Bohemian Rhapsody (Official Video)", "Queen")

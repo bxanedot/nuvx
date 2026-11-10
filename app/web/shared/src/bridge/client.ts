@@ -13,24 +13,9 @@ import {
   type ResultOf,
 } from './protocol';
 
-/**
- * Page-side bridge. Two transports behind one call (prompt §4.2):
- *
- * - **Chromium**: `externally_connectable` lets the page message the extension
- *   directly with `chrome.runtime.sendMessage(extensionId, …)`. Chrome only
- *   exposes `chrome.runtime` to a page when some installed extension lists the
- *   page's origin, so its absence already means "not installed".
- * - **Firefox** has no `externally_connectable` for web pages. A content script
- *   on our origin relays `window.postMessage` ↔ `runtime.sendMessage`.
- */
 export interface Bridge {
   readonly transport: 'external' | 'relay';
   call<M extends BridgeMethod>(method: M, params: ParamsOf<M>, options?: CallOptions): Promise<ResultOf<M>>;
-  /**
-   * The extension's pushes (auth changes now, Discord status later). Returns
-   * the unsubscribe. Delivery is best effort: an MV3 worker that sleeps drops
-   * its ports, so callers still re-read state when the tab regains focus.
-   */
   subscribe(listener: (event: BridgeEvent) => void): () => void;
 }
 
@@ -63,10 +48,6 @@ function unwrap<M extends BridgeMethod>(response: BridgeResponse<M>): ResultOf<M
   throw new BridgeCallError(response.error.code, response.error.message);
 }
 
-/**
- * Runs `start`, settling with its result unless the timeout or the abort
- * signal fires first. `start` receives `settle` and returns a cleanup.
- */
 function withDeadline<T>(
   options: CallOptions | undefined,
   start: (settle: (outcome: { value: T } | { error: unknown }) => void) => () => void,
@@ -95,8 +76,6 @@ function withDeadline<T>(
   });
 }
 
-// ---- Chromium: externally_connectable ---------------------------------------
-
 interface ChromePortLike {
   onMessage: { addListener(listener: (message: unknown) => void): void };
   onDisconnect: { addListener(listener: () => void): void };
@@ -109,14 +88,8 @@ interface ChromeRuntimeLike {
   readonly lastError?: { message?: string } | undefined;
 }
 
-/** How long a dropped event port waits before reconnecting, while the page is visible. */
 const RECONNECT_MS = 2000;
 
-/**
- * Keeps one event port open while subscribed. When the worker drops it (it
- * sleeps after ~30 s idle), it reconnects, but only while the page is
- * visible: a background tab shouldn't keep waking the extension.
- */
 function keepPortOpen(open: () => ChromePortLike | null, listener: (event: BridgeEvent) => void): () => void {
   let port: ChromePortLike | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -124,7 +97,7 @@ function keepPortOpen(open: () => ChromePortLike | null, listener: (event: Bridg
 
   const connect = () => {
     if (stopped || port) return;
-    if (typeof document !== 'undefined' && document.hidden) return; // resumed by visibilitychange
+    if (typeof document !== 'undefined' && document.hidden) return;
     port = open();
     if (!port) return;
     port.onMessage.addListener((message) => {
@@ -132,7 +105,6 @@ function keepPortOpen(open: () => ChromePortLike | null, listener: (event: Bridg
       if (event && typeof event === 'object' && typeof event.event === 'string') listener(event);
     });
     port.onDisconnect.addListener(() => {
-      // Reading lastError marks the drop as handled (Chrome logs it otherwise).
       void (globalThis as { chrome?: { runtime?: { lastError?: unknown } } }).chrome?.runtime?.lastError;
       port = null;
       if (!stopped) timer = setTimeout(connect, RECONNECT_MS);
@@ -167,7 +139,6 @@ export function externalBridge(extensionId: string): Bridge | null {
       const request = envelope(method, params);
       return withDeadline(options, (settle) => {
         runtime.sendMessage(extensionId, request, (response) => {
-          // Reading lastError is what tells Chrome the failure was handled.
           const failure = runtime.lastError?.message;
           if (failure) return settle({ error: new BridgeCallError('unavailable', failure) });
           if (!isBridgeResponse(response) || response.id !== request.id) {
@@ -194,8 +165,6 @@ export function externalBridge(extensionId: string): Bridge | null {
   };
 }
 
-// ---- Firefox: content-script relay over window.postMessage --------------------
-
 export function relayBridge(target: Window = window): Bridge {
   return {
     transport: 'relay',
@@ -203,7 +172,6 @@ export function relayBridge(target: Window = window): Bridge {
       const request = envelope(method, params);
       return withDeadline(options, (settle) => {
         const onMessage = (event: MessageEvent) => {
-          // Only our own window, and only replies addressed to this request.
           if (event.source !== target || event.origin !== target.location.origin) return;
           if (!isBridgeResponse(event.data) || event.data.id !== request.id) return;
           try {
@@ -218,7 +186,6 @@ export function relayBridge(target: Window = window): Bridge {
       });
     },
     subscribe(listener) {
-      // The relay content script holds the port and forwards each push.
       const onMessage = (event: MessageEvent) => {
         if (event.source !== target || event.origin !== target.location.origin) return;
         if (isBridgeEventMessage(event.data)) listener(event.data.payload);
@@ -229,24 +196,16 @@ export function relayBridge(target: Window = window): Bridge {
   };
 }
 
-// ---- Detection ----------------------------------------------------------------
-
 export interface DetectedExtension {
   bridge: Bridge;
   info: ResultOf<'ping'>;
 }
 
 export interface DetectOptions {
-  /** The Chromium extension id (fixed by the manifest `key` in development). */
   chromiumExtensionId?: string | undefined;
-  /** How long to wait for a `ping` answer on each transport. */
   timeoutMs?: number;
 }
 
-/**
- * Finds the extension by pinging it: the external transport first when Chrome
- * exposes one, then the relay. Resolves `null` when nothing answers.
- */
 export async function detectExtension(options: DetectOptions = {}): Promise<DetectedExtension | null> {
   const timeoutMs = options.timeoutMs ?? 1500;
   const candidates: Bridge[] = [];
@@ -259,7 +218,6 @@ export async function detectExtension(options: DetectOptions = {}): Promise<Dete
       const info = await bridge.call('ping', {}, { timeoutMs });
       return { bridge, info };
     } catch {
-      // Not on this transport; try the next.
     }
   }
   return null;

@@ -6,21 +6,6 @@ import { enabledSources, useLyricsSettings } from './settings';
 import { artistForLyricsSearch, forLyricsSearch, sourceById, type LyricsSourceId } from './sources';
 import { writeTtml } from './ttml';
 
-/**
- * Where the player gets its lyrics: a port of LyricsRepository.kt.
- *
- * - Every enabled source is asked at the same time, but their answers are
- *   taken in priority order: a lower source finishing first never preempts a
- *   higher one still pending.
- * - A word-timed answer wins outright. Otherwise the highest-priority timed
- *   answer is taken, unless "prefer syllable timing" is on, in which case
- *   the search carries on for a word-timed one and the line-timed answer is
- *   kept as a fallback.
- * - Before anyone is asked, BiniLyrics names the recording (an ISRC, in at
- *   most 2.5 s), so lrc.red and LyricsPlus can ask by recording, not name.
- * - Genius (a scraper) is only asked once every source above it has missed.
- */
-
 export interface LyricsTrack {
   videoId: string;
   title: string;
@@ -33,19 +18,16 @@ export interface LyricsResult {
   source: LyricsSourceId;
   label: string;
   lines: LyricLine[];
-  /** What am-lyrics renders: the provider's own TTML, or ours written from the lines. */
   ttml: string;
   wordSynced: boolean;
   synced: boolean;
 }
 
-/** One provider's part in a lookup, for the provider picker. */
 export type SourceState = 'pending' | 'found' | 'missing';
 
 const IDENTIFY_TIMEOUT_MS = 2500;
 const CACHE_TTL_MS = 12 * 60 * 60_000;
 
-/** The recording behind a video id, once something worked it out (bounded, memory only). */
 const isrcs = new Map<string, string>();
 function remember(videoId: string, isrc: string | null | undefined) {
   if (!isrc || !videoId) return;
@@ -56,7 +38,6 @@ function remember(videoId: string, isrc: string | null | undefined) {
 
 const cache = new Map<string, { at: number; result: LyricsResult | null }>();
 
-/** Drops every remembered answer: a newly allowed host may have what was missing. */
 export function forgetLyrics() {
   cache.clear();
 }
@@ -78,7 +59,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 }
 
 export interface LookupOptions {
-  /** Ask this one provider only: the panel's provider picker. */
   only?: LyricsSourceId;
   onSource?: (source: LyricsSourceId, state: SourceState) => void;
 }
@@ -87,7 +67,6 @@ export async function lookupLyrics(track: LyricsTrack, { only, onSource }: Looku
   const sequence = only ? [only] : enabledSources();
   if (!sequence.length) return null;
   const { paxsenixKey, preferSyllables } = useLyricsSettings.getState();
-  // preferSyllables picks a different winner from the same answers, so it is part of the key.
   const key = `${track.videoId}|${track.durationMs}|${track.title}|${track.artist}|${only ?? ''}|${sequence.join(',')}|${preferSyllables}`;
   const cached = cache.get(key);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.result;
@@ -168,7 +147,6 @@ export async function lookupLyrics(track: LyricsTrack, { only, onSource }: Looku
       });
   };
 
-  // Genius starts lazily: only if it's reached.
   const racing = sequence.map((source) => ({ source, job: source === 'genius' ? null : run(source) }));
   let lineSynced: LyricsResult | null = null;
   let plain: LyricsResult | null = null;

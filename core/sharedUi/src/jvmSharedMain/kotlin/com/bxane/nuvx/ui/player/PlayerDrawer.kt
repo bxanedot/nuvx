@@ -63,55 +63,24 @@ import kotlin.math.roundToInt
 
 internal val DRAWER_SHAPE = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
 
-/**
- * The widest the drawer itself gets, however wide the window behind it is.
- *
- * Full-bleed it is fine on a phone and wrong on a tablet: the rows inside are a
- * label and a radio mark, so stretched across a landscape window each one is a
- * word at the far left, a mark at the far right and a hand's width of nothing
- * between them. Matches Material's own [BottomSheetDefaults.SheetMaxWidth], so
- * this drawer and the sheets the rest of the app puts up at the M3 default
- * settle at the same width instead of at two.
- *
- * No effect on a phone, which is narrower than this everywhere it runs.
- */
 internal val DRAWER_MAX_WIDTH = 640.dp
 internal val ROW_SHAPE = RoundedCornerShape(16.dp)
 internal val SCRIM_COLOR = Color.Black.copy(alpha = 0.5f)
 
-/**
- * How much of its own height the drawer has to be dragged before letting go
- * dismisses it rather than springing back. A quarter is enough to be a decision
- * and little enough that a flick reads as one.
- */
 private const val DISMISS_DRAG_FRACTION = 0.25f
 
-/**
- * The bottom-edge drawer shell every player sheet in this package puts up —
- * [AudioOutputSheet] and [ListenTogetherMembersSheet] alike: dark over a
- * scrim, a grab handle, a title, drag down to put it away. Pulled out because
- * the drag gesture, the scrim fade tied to it, and the haze background are
- * identical between the two and worth keeping in exactly one place.
- *
- * Public because a platform's own player sheet draws in it too: the phone's
- * lyrics card goes up in this same shell rather than in a second one that would
- * have to re-learn the drag gesture, the scrim fade and the frosted material.
- */
 @Composable
 fun PlayerDrawer(
     hazeState: HazeState,
     title: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Air between the title and whatever the drawer opens with. */
     titleGap: Dp = 14.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val reduceDynamicBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val frost = LocalPlayerFrost.current
 
-    // How far the drawer has been dragged down, in pixels. Released, it either
-    // springs back or goes — see [DISMISS_DRAG_FRACTION].
     var drag by remember { mutableFloatStateOf(0f) }
     var height by remember { mutableIntStateOf(0) }
     val offset by animateFloatAsState(
@@ -119,26 +88,11 @@ fun PlayerDrawer(
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "playerDrawerOffset",
     )
-    // Fades with the drawer rather than staying at full strength under a sheet
-    // halfway off the screen, which is what makes the drag feel connected.
     val scrimAlpha = if (height > 0) (1f - offset / height).coerceIn(0f, 1f) else 1f
 
-    // Flipped on the first composition so the drawer travels up from the edge
-    // instead of appearing over the player fully formed.
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
 
-    // The drawer's rows scroll, and that scroll takes the finger before the
-    // drag detector below ever sees it. So a pull down past the top of the
-    // list moves the drawer itself — the way a sheet with a list in it
-    // behaves — and pushing back up returns it before the list scrolls again.
-    // Everything left over is kept here rather than handed on to the player's
-    // sheet, which would otherwise be dragged down along with the drawer.
-    //
-    // Only where scrolling is dragging, though: see [drawerFollowsListScroll].
-    // Where it is not, the connection is left off entirely and the drawer
-    // answers to its own drag alone, because a scroll leftover means something
-    // else there and must not be read as a pull.
     val dismissOnRelease: () -> Unit = {
         if (height > 0 && drag > height * DISMISS_DRAG_FRACTION) onDismiss() else drag = 0f
     }
@@ -153,13 +107,6 @@ fun PlayerDrawer(
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 if (source == NestedScrollSource.UserInput && available.y > 0f) drag += available.y
-                // Upward leftover is taken only as far as the drawer has already
-                // been dragged. Returning all of it would hand the player sheet
-                // — the very thing this connection is here to keep clear — the
-                // gesture meant to undo the drag, and the drawer would have no
-                // way back to where it started, because a list resting on its
-                // top consumes nothing and so never produces a pre-scroll to
-                // give back.
                 if (drag > 0f && available.y < 0f) {
                     val used = available.y.coerceAtLeast(-drag)
                     drag += used
@@ -197,21 +144,13 @@ fun PlayerDrawer(
         ) {
         Column(
             modifier = Modifier
-                // Capped so a phone full of rows scrolls inside the drawer
-                // rather than growing one into a full-screen page.
                 .heightIn(max = 560.dp)
-                // Capped before the fill, so [Modifier.fillMaxWidth] fills to
-                // the cap rather than to the window. Centred by the parent's
-                // own BottomCenter alignment once it is narrower.
                 .widthIn(max = DRAWER_MAX_WIDTH)
                 .fillMaxWidth()
                 .onSizeChanged { height = it.height }
                 .offset { IntOffset(0, offset.roundToInt()) }
                 .clip(DRAWER_SHAPE)
                 .then(
-                    // The ⋯ menu's frost, so the drawers and the menu read as one
-                    // material over the player — its own where the player is
-                    // recorded for it, else the same look through the haze.
                     when {
                         reduceDynamicBlur -> Modifier.background(MenuFrostDark)
                         frost != null -> with(frost) {
@@ -225,9 +164,6 @@ fun PlayerDrawer(
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
                 )
-                // Dragged down to dismiss, like every other sheet in the app.
-                // Upward drag is clamped to zero rather than followed: there is
-                // nothing above the drawer to reveal.
                 .then(if (drawerFollowsListScroll) Modifier.nestedScroll(drawerScroll) else Modifier)
                 .pointerInput(height) {
                     detectVerticalDragGestures(
@@ -243,8 +179,6 @@ fun PlayerDrawer(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // The grab handle every sheet here has, and the thing that says the
-            // drawer can be pulled away before anybody tries it.
             Box(
                 Modifier
                     .padding(bottom = 12.dp)

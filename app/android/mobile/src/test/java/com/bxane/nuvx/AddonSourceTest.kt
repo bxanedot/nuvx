@@ -28,24 +28,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * The addon protocol, end to end, against a real HTTP server.
- *
- * Everything here is about the seam between somebody else's server and this
- * app: what nuvx puts on the wire, and what it does with what comes back.
- * That is not a seam a hand-rolled fake can test honestly — a fake client
- * would encode the same assumptions the code under test makes, and the bugs
- * worth catching here all live in the gap between an assumption and an actual
- * response. So the server is real, and the only thing mocked is what it says.
- */
 class AddonSourceTest {
 
     private lateinit var server: MockWebServer
 
-    /** What the server answers, per path, set by each test before it runs. */
     private val routes = mutableMapOf<String, MockResponse>()
 
-    /** Every request the server saw, in order, for assertions about the wire. */
     private val seen = mutableListOf<RecordedRequest>()
 
     @Before
@@ -59,12 +47,8 @@ class AddonSourceTest {
             }
         }
         server.start()
-        // Both are read on every stream answer. Pinned so a test asserting on
-        // format never depends on what the machine running it can decode.
         DeviceCodecs.forced = true
         AppSettings.dolbyAtmos.value = true
-        // Every fixture manifest declares `nuvxAuth`, as an up-to-date
-        // addon must. Attestation needs secure hardware, so this stands in.
         AddonAuth.testHeaders = { _, _ -> mapOf(AddonAuth.TOKEN_HEADER to "test-token", AddonAuth.PROOF_HEADER to "test-proof") }
     }
 
@@ -77,13 +61,6 @@ class AddonSourceTest {
         AddonAuth.refuseForTest(null)
     }
 
-    // ── URL handling ──────────────────────────────────────────────────────
-
-    /**
-     * Both forms of the address people actually paste have to land on the same
-     * base, because both are offered to them: an addon's page prints its root
-     * and the browser's address bar prints the manifest it was just shown.
-     */
     @Test
     fun `normalizeBase accepts every form of the address a user might paste`() {
         val expected = "https://addon.example.com"
@@ -94,10 +71,6 @@ class AddonSourceTest {
         assertEquals(expected, AddonClient.normalizeBase("https://addon.example.com/MANIFEST.JSON"))
     }
 
-    /**
-     * A token lives *in the path*, and every later call has to carry it — so
-     * normalisation may take the manifest suffix off and nothing else.
-     */
     @Test
     fun `normalizeBase keeps a token-bearing path intact`() {
         assertEquals(
@@ -106,11 +79,6 @@ class AddonSourceTest {
         )
     }
 
-    /**
-     * The path is the credential, so the path is what a log line must not
-     * carry. This is the opposite of how a module index is redacted, and the
-     * reason is exactly this test.
-     */
     @Test
     fun `redact hides the token in the path and keeps the host`() {
         assertEquals(
@@ -120,8 +88,6 @@ class AddonSourceTest {
         assertEquals("***", AddonClient.redact("not a url"))
     }
 
-    // ── Manifest ──────────────────────────────────────────────────────────
-
     @Test
     fun `a well-formed manifest reports healthy with its name and version`() = runBlocking {
         route("/manifest.json", manifest())
@@ -130,38 +96,20 @@ class AddonSourceTest {
         assertEquals("Test Addon v2.1.0", (health as SourceHealth.Ok).detail)
     }
 
-    /**
-     * An addon that cannot be *searched* has nothing to offer — every lookup
-     * this app makes starts by asking for a track by name — and saying so while
-     * the user is still looking at the URL they pasted is the entire value of
-     * the Test button. A [SourceHealth.Rejected] rather than
-     * [SourceHealth.Unreachable] because retrying will never change the answer.
-     */
     @Test
     fun `an addon that cannot be searched is rejected, not merely unreachable`() = runBlocking {
         route("/manifest.json", json("""{"id":"x","name":"X","nuvxAuth":true,"resources":["stream"]}"""))
-        // No search endpoint either, so the behavioural fallback cannot save it.
         val health = source().health()
         assertTrue("expected Rejected, got $health", health is SourceHealth.Rejected)
         assertTrue((health as SourceHealth.Rejected).reason.contains("needs search"))
     }
 
-    /**
-     * Stream is not required. A search row may carry its own `streamURL`, so an
-     * addon declaring only search can still play — refusing it would turn away
-     * something that works.
-     */
     @Test
     fun `an addon that declares search but not stream is accepted`() = runBlocking {
         route("/manifest.json", json("""{"id":"x","name":"X","nuvxAuth":true,"resources":["search"]}"""))
         assertTrue(source().health() is SourceHealth.Ok)
     }
 
-    /**
-     * An addon that never published a manifest still answers a search, so it is
-     * healthy. It has nowhere to declare `nuvxAuth`, which the sources row
-     * flags on a line of its own, but that doesn't stop it working.
-     */
     @Test
     fun `an addon with no manifest is healthy when its search endpoint answers`() = runBlocking {
         route("/search", json("""{"tracks":[{"id":"t1","title":"S","artist":"A"}]}"""))
@@ -171,13 +119,10 @@ class AddonSourceTest {
         assertTrue("expected Ok, got $health", health is SourceHealth.Ok)
     }
 
-    // ── Out-of-date addons (no `nuvxAuth`) ────────────────────────────
-
     private fun outdatedManifest() = json(
         """{"id":"com.test.old","name":"Old Addon","version":"1.0.0","resources":["search","stream"]}""",
     )
 
-    /** Flagged on the sources row, not refused: the health line reads as for any working addon. */
     @Test
     fun `a manifest without nuvxAuth is still healthy`() = runBlocking {
         route("/manifest.json", outdatedManifest())
@@ -187,11 +132,6 @@ class AddonSourceTest {
         assertTrue("expected Ok, got $health", health is SourceHealth.Ok)
     }
 
-    /**
-     * Out of date, but working: searched and streamed from as before, with no
-     * credentials sent, and unaffected by this device being refused
-     * verification, since it never asked for it.
-     */
     @Test
     fun `an out-of-date addon is still searched and streamed without credentials`() = runBlocking {
         route("/manifest.json", outdatedManifest())
@@ -206,7 +146,6 @@ class AddonSourceTest {
         assertTrue(sent.none { it.getHeader(AddonAuth.TOKEN_HEADER) != null })
     }
 
-    /** A manifest that says `false` is the same as one that says nothing. */
     @Test
     fun `nuvxAuth false is out of date but still searched`() = runBlocking {
         route(
@@ -218,7 +157,6 @@ class AddonSourceTest {
         assertEquals(1, source().search("S", 10, false, null).size)
     }
 
-    /** The sources screen and the add dialog both read this, so the auth service's reason has to reach it. */
     @Test
     fun `a device the auth service refuses is reported in its words`() = runBlocking {
         route("/manifest.json", manifest())
@@ -243,7 +181,6 @@ class AddonSourceTest {
         assertTrue(source().health() is SourceHealth.Unreachable)
     }
 
-    /** One refusal, not one failed request per query per pass. */
     @Test
     fun `while the device is refused an addon is not asked to search or stream`() = runBlocking {
         route("/manifest.json", manifest())
@@ -262,7 +199,6 @@ class AddonSourceTest {
         assertEquals(1, source.search("S", 10, false, null).size)
     }
 
-    /** A manifest that is down for a minute doesn't stop the addon being searched. */
     @Test
     fun `an addon is still searched while its manifest is down`() = runBlocking {
         route("/manifest.json", MockResponse().setResponseCode(503))
@@ -284,9 +220,7 @@ class AddonSourceTest {
     fun `only an addon known to lack nuvxAuth counts as needing an update`() {
         assertTrue(SourceConfig(kind = SourceKind.ADDON, nuvxAuth = false).needsAddonUpdate)
         assertFalse(SourceConfig(kind = SourceKind.ADDON, nuvxAuth = true).needsAddonUpdate)
-        // Not read yet: the manifest is checked before the first request instead.
         assertFalse(SourceConfig(kind = SourceKind.ADDON, nuvxAuth = null).needsAddonUpdate)
-        // Module indexes are a different protocol and aren't gated.
         assertFalse(SourceConfig(kind = SourceKind.CUSTOM_MODULE, nuvxAuth = false).needsAddonUpdate)
     }
 
@@ -296,25 +230,17 @@ class AddonSourceTest {
         assertTrue(source().health() is SourceHealth.Rejected)
     }
 
-    /**
-     * A missing manifest is the one 404 that is not a miss: everywhere else it
-     * means "I don't hold that track", and here it means "there is no addon
-     * here at all".
-     */
     @Test
     fun `no manifest at the URL is rejected rather than reported as a miss`() = runBlocking {
         val health = source().health()
         assertTrue("expected Rejected, got $health", health is SourceHealth.Rejected)
     }
 
-    /** A server that is simply down is worth trying again, and says so differently. */
     @Test
     fun `a server error reads as unreachable`() = runBlocking {
         route("/manifest.json", MockResponse().setResponseCode(503))
         assertTrue(source().health() is SourceHealth.Unreachable)
     }
-
-    // ── Search ────────────────────────────────────────────────────────────
 
     @Test
     fun `search maps rows to songs tagged with this source`() = runBlocking {
@@ -340,16 +266,13 @@ class AddonSourceTest {
         assertEquals("Album", songs[0].albumName)
         assertEquals("https://cdn/x.jpg", songs[0].thumbnailUrl)
         assertEquals("4:05", songs[0].durationText)
-        // Read off the row's own claim, so the resolver can rank before asking.
         assertEquals("LOSSLESS", songs[0].sourceQuality)
         assertEquals("1:01", songs[1].durationText)
         assertEquals("HIGH", songs[1].sourceQuality)
-        // Packed so that playing one comes back to this source and this id.
         assertTrue(songs[0].videoId.startsWith("src:${config.id}::"))
         assertTrue(songs[0].videoId.endsWith("::t1"))
     }
 
-    /** A row with no id can never be streamed, so it is not offered as a result. */
     @Test
     fun `search drops rows with no id or no title`() = runBlocking {
         route("/manifest.json", manifest())
@@ -387,7 +310,6 @@ class AddonSourceTest {
             "/search",
             json("""{"tracks":[{"id":"recovered","title":"Song","artist":"Artist"}]}"""),
         )
-        // The ordinary path still sees the cached empty answer.
         assertTrue(source.search("song", limit = 5).isEmpty())
 
         source.clearCompletedTrackCalls()
@@ -405,7 +327,6 @@ class AddonSourceTest {
 
         assertEquals("https://cdn/old.flac", source.stream("track", StreamRequest.Lossless)?.url)
         route("/stream/track", json("""{"url":"https://cdn/new.flac","codec":"flac"}"""))
-        // The ordinary path still reuses a recently resolved URL.
         assertEquals("https://cdn/old.flac", source.stream("track", StreamRequest.Lossless)?.url)
 
         source.clearCompletedTrackCalls()
@@ -415,13 +336,6 @@ class AddonSourceTest {
         assertEquals(2, synchronized(seen) { seen.count { it.requestUrl?.encodedPath == "/stream/track" } })
     }
 
-    // ── Settings passthrough ──────────────────────────────────────────────
-
-    /**
-     * A declared default has to reach the addon, because an addon is entitled
-     * to assume the host is sending one — and `quality` has to override it,
-     * because that one is not a preference, it is what this request is for.
-     */
     @Test
     fun `declared setting defaults travel with the request and quality overrides them`() = runBlocking {
         route(
@@ -446,16 +360,9 @@ class AddonSourceTest {
         assertEquals("hello", url.queryParameter("q"))
         assertEquals("US", url.queryParameter("region"))
         assertEquals("true", url.queryParameter("preferOpus"))
-        // Not "normal" — the declared default lost to what was actually asked
-        // for, and not "LOSSLESS" either, because the addon enumerated the
-        // words it understands and that is not one of them.
         assertEquals("lossless", url.queryParameter("quality"))
     }
 
-    /**
-     * With nothing enumerated there is nothing to match against, so the tier
-     * goes as-is — which is what the reference host sends unconditionally.
-     */
     @Test
     fun `an addon that enumerates no options is sent the tier verbatim`() = runBlocking {
         route("/manifest.json", manifest())
@@ -466,7 +373,6 @@ class AddonSourceTest {
         assertEquals("LOSSLESS", requestFor("/stream/t1").queryParameter("quality"))
     }
 
-    /** "lossless" on this list is CD quality, so asking for that word would never reach "max". */
     private fun qualityManifest() = json(
         """
         {"id":"a","name":"A","nuvxAuth":true,"resources":["search","stream"],
@@ -500,7 +406,6 @@ class AddonSourceTest {
         assertEquals("max", requestFor("/stream/t1").queryParameter("quality"))
     }
 
-    /** A download kept at a lower rung has said what the file may cost; the pick does not overrule it. */
     @Test
     fun `a picked quality does not raise a request below the top tier`() = runBlocking {
         route("/manifest.json", qualityManifest())
@@ -542,7 +447,6 @@ class AddonSourceTest {
         assertEquals("LOSSLESS", requestFor("/stream/t1").queryParameter("quality"))
     }
 
-    /** The editor saves what this returns, so an edit there must not lose the pick made on the row. */
     @Test
     fun `re-identifying an addon keeps a pick it still lists and drops one it does not`() = runBlocking {
         route("/manifest.json", qualityManifest())
@@ -560,7 +464,6 @@ class AddonSourceTest {
         route("/manifest.json", MockResponse().setResponseCode(503))
         route("/stream/t1", json("""{"url":"https://cdn/a.flac"}"""))
 
-        // Seen up to date before, so a manifest that is down right now doesn't shut it out.
         AddonSource(config().copy(pickedQuality = "hires", nuvxAuth = true)).stream("t1", StreamRequest.Lossless)
 
         assertEquals("hires", requestFor("/stream/t1").queryParameter("quality"))
@@ -576,13 +479,6 @@ class AddonSourceTest {
         assertEquals("LOW", requestFor("/stream/t1").queryParameter("quality"))
     }
 
-    /**
-     * A search made on behalf of a stream asks at the tier that stream will
-     * actually be opened at. A tier-aware catalogue describes its rows
-     * differently per tier, and ranking a metered listener's candidates on
-     * FLAC rows this app is never going to ask that addon for is ranking on a
-     * claim that will not survive the `/stream` call.
-     */
     @Test
     fun `a search behind a capped request asks the addon at that tier`() = runBlocking {
         route("/manifest.json", manifest())
@@ -593,7 +489,6 @@ class AddonSourceTest {
         assertEquals("LOW", requestFor("/search").queryParameter("quality"))
     }
 
-    /** Nobody is about to stream from the search box, so it asks for the best rows there are. */
     @Test
     fun `a search with no request behind it still asks for lossless`() = runBlocking {
         route("/manifest.json", manifest())
@@ -604,17 +499,6 @@ class AddonSourceTest {
         assertEquals("LOSSLESS", requestFor("/search").queryParameter("quality"))
     }
 
-    // ── Immersive audio ───────────────────────────────────────────────────
-
-    /**
-     * The hint that makes Atmos reachable at all.
-     *
-     * An addon's immersive mix is opt-in by design — the default branch serves
-     * stereo — so a host that never sends `?atmos=` is served stereo forever,
-     * however good its detection of what comes back is. It travels on both
-     * endpoints because the spec has settings travel on every request, and
-     * search is where a row's advertised quality is read.
-     */
     @Test
     fun `the atmos hint travels on search and stream when the device and the user both want it`() =
         runBlocking {
@@ -626,19 +510,10 @@ class AddonSourceTest {
             source.search("x", limit = 5)
             source.stream("t1", StreamRequest.Lossless)
 
-            // Exactly "auto": 1/true select the spec's strict mode, where a
-            // track with no immersive mix is an error rather than a stereo
-            // answer — which would turn every ordinary track into a miss.
             assertEquals("auto", requestFor("/search").queryParameter("atmos"))
             assertEquals("auto", requestFor("/stream/t1").queryParameter("atmos"))
         }
 
-    /**
-     * Switched off in Settings is a real preference — Atmos is lossy E-AC-3,
-     * and a wired-headphones listener may want the bit-exact stereo FLAC. Not
-     * asking is what gets them it, rather than asking and then refusing the
-     * answer.
-     */
     @Test
     fun `no atmos hint is sent when the setting is off`() = runBlocking {
         AppSettings.dolbyAtmos.value = false
@@ -650,7 +525,6 @@ class AddonSourceTest {
         assertNull(requestFor("/stream/t1").queryParameter("atmos"))
     }
 
-    /** A device with no E-AC-3 decoder would only have to refuse what it asked for. */
     @Test
     fun `no atmos hint is sent when the device cannot decode it`() = runBlocking {
         DeviceCodecs.forced = false
@@ -662,10 +536,6 @@ class AddonSourceTest {
         assertNull(requestFor("/stream/t1").queryParameter("atmos"))
     }
 
-    /**
-     * An addon that declared its own `atmos` setting has already said what it
-     * wants. Its default stands; the hint is only ever filling a gap.
-     */
     @Test
     fun `a declared atmos default is not overridden by the hint`() = runBlocking {
         route(
@@ -685,17 +555,6 @@ class AddonSourceTest {
         assertEquals("only", requestFor("/stream/t1").queryParameter("atmos"))
     }
 
-    /**
-     * The whole path, against the payload a real Atmos-capable addon sends —
-     * the hint goes out, the DASH answer comes back, and every field that
-     * identifies it as immersive is one this app reads.
-     *
-     * Note what is *not* in `AUDIO_CODECS`: the underscore spelling
-     * `eac3_joc`. Adding it there would have `formatOf` return it verbatim,
-     * which then misses the hyphenated `DOLBY_ATMOS_CODECS` and silently
-     * breaks [StreamFormat.isDolbyAtmos]. The free-text fallback is the
-     * correct path, and this is what locks it.
-     */
     @Test
     fun `asking for atmos gets an immersive answer the player is told how to open`() = runBlocking {
         val url = "https://cdn.example.com/dash/tidal-atmos"
@@ -708,18 +567,10 @@ class AddonSourceTest {
         assertEquals("eac3-joc", stream.format.codec)
         assertTrue(stream.format.isDolbyAtmos)
         assertEquals("Dolby Atmos", stream.format.summary)
-        // An immersive mix is E-AC-3 with joint object coding. It is not a
-        // bit-exact copy of anything, and ranking it as one would have it beat
-        // the FLAC it is not.
         assertEquals(false, stream.format.isLossless)
         assertEquals("application/dash+xml", StreamContainer.manifestMimeOf(url))
     }
 
-    /**
-     * The same addon, the same track, with the setting off: no hint, so the
-     * server takes its stereo branch and the listener gets the bit-exact copy
-     * they asked for. No silent skip, no fall through to YouTube.
-     */
     @Test
     fun `without the hint the same addon answers with the stereo ladder`() = runBlocking {
         AppSettings.dolbyAtmos.value = false
@@ -733,17 +584,6 @@ class AddonSourceTest {
         assertFalse(stream.format.isDolbyAtmos)
     }
 
-    /**
-     * The two rows a real Tidal-backed addon returns for one song, verbatim
-     * (September 2026). They are the same recording — same 362s runtime — and
-     * the immersive one is a *different track id*, filed under `LOW`.
-     *
-     * Read on `audioQuality` alone the Atmos row is the worst thing in the
-     * list and sorts last, so the lossless stereo row is opened first, answers
-     * with a perfectly good FLAC, and the immersive mix is never requested.
-     * That is not something an `?atmos=` hint can fix: the mix is not a
-     * rendition of the row being asked about.
-     */
     @Test
     fun `a Tidal immersive row is tagged as Atmos and not as its LOW bitrate label`() = runBlocking {
         route("/manifest.json", manifest())
@@ -767,12 +607,9 @@ class AddonSourceTest {
 
         assertEquals(2, songs.size)
         assertEquals("LOSSLESS", songs[0].sourceQuality)
-        // Not "LOW", which is what the row literally says and what would sort
-        // it below every stereo copy of the same recording.
         assertEquals("DOLBY", songs[1].sourceQuality)
     }
 
-    /** `audioModes` alone carries it when no addon sets the explicit flag. */
     @Test
     fun `an immersive row is recognised from audioModes with no atmos flag`() = runBlocking {
         route("/manifest.json", manifest())
@@ -787,7 +624,6 @@ class AddonSourceTest {
         assertEquals("DOLBY", AddonSource(config()).search("s", limit = 5)[0].sourceQuality)
     }
 
-    /** A plain stereo row is untouched by any of this. */
     @Test
     fun `a stereo row keeps the tier its label states`() = runBlocking {
         route("/manifest.json", manifest())
@@ -802,10 +638,6 @@ class AddonSourceTest {
         assertEquals("LOW", AddonSource(config()).search("s", limit = 5)[0].sourceQuality)
     }
 
-    /**
-     * Hi-res is one tier with 16-bit lossless for ranking, but the Addons
-     * search badge tells them apart, so the row has to keep the difference.
-     */
     @Test
     fun `a hi-res row stays lossless but is flagged hi-res for its badge`() = runBlocking {
         route("/manifest.json", manifest())
@@ -826,17 +658,10 @@ class AddonSourceTest {
         assertTrue(songs[0].sourceHiRes)
         assertEquals("LOSSLESS", songs[1].sourceQuality)
         assertFalse(songs[1].sourceHiRes)
-        // An immersive row is badged Dolby Atmos, never also Hi-Res.
         assertEquals("DOLBY", songs[2].sourceQuality)
         assertFalse(songs[2].sourceHiRes)
     }
 
-    /**
-     * The stereo row picked from the Addons search, on an addon that answers
-     * `?atmos=auto` with the immersive mix: asked the ordinary way, the
-     * Lossless row tapped played as Dolby Atmos. Asked as a picked stereo row,
-     * no hint goes out and the FLAC comes back.
-     */
     @Test
     fun `a picked stereo row is asked for without the atmos hint and plays stereo`() = runBlocking {
         server.dispatcher = atmosDispatcher("https://cdn.example.com/dash/tidal-atmos")
@@ -849,7 +674,6 @@ class AddonSourceTest {
         assertEquals("flac", picked.format.codec)
     }
 
-    /** The ordinary path — matching, upgrades — still offers the addon Atmos. */
     @Test
     fun `an unpicked stream still carries the atmos hint`() = runBlocking {
         server.dispatcher = atmosDispatcher("https://cdn.example.com/dash/tidal-atmos")
@@ -861,7 +685,6 @@ class AddonSourceTest {
         assertTrue(stream.format.isDolbyAtmos)
     }
 
-    /** A declared `atmos` setting is turned to its own "off" for a picked stereo row. */
     @Test
     fun `a picked stereo row sends the declared atmos setting's off value`() = runBlocking {
         route(
@@ -881,10 +704,6 @@ class AddonSourceTest {
         assertEquals("off", requestFor("/stream/t1").queryParameter("atmos"))
     }
 
-    /**
-     * A server answering `?atmos=auto` the way the spec describes: the
-     * immersive mix when it was asked for, the stereo ladder when it wasn't.
-     */
     private fun atmosDispatcher(atmosUrl: String) = object : Dispatcher() {
         override fun dispatch(request: RecordedRequest): MockResponse {
             synchronized(seen) { seen += request }
@@ -892,7 +711,6 @@ class AddonSourceTest {
             val path = url?.encodedPath.orEmpty()
             if (!path.startsWith("/stream/")) return routes[path] ?: MockResponse().setResponseCode(404)
             return if (url?.queryParameter("atmos") == "auto") {
-                // Verbatim from an Atmos-capable addon, underscore codec and all.
                 json(
                     """
                     {"url":"$atmosUrl","format":"dash","quality":"Tidal · Dolby Atmos",
@@ -906,7 +724,6 @@ class AddonSourceTest {
         }
     }
 
-    /** An id is a path segment, not string concatenation, or it can rewrite the request. */
     @Test
     fun `a track id containing a slash stays one path segment`() = runBlocking {
         route("/manifest.json", manifest())
@@ -916,8 +733,6 @@ class AddonSourceTest {
 
         assertNotNull("the id was not encoded into a single segment", stream)
     }
-
-    // ── Stream ────────────────────────────────────────────────────────────
 
     @Test
     fun `the routing fields become the format the player is told about`() = runBlocking {
@@ -942,18 +757,12 @@ class AddonSourceTest {
         assertEquals(true, stream.format.isLossless)
     }
 
-    /**
-     * The case the whole `manifest` field exists for: an HLS playlist served
-     * from a path with no extension, reporting `format: "flac"`. Sniffed, that
-     * is a plain FLAC file and the player fails on it. Declared, it isn't.
-     */
     @Test
     fun `an extensionless HLS playlist is declared to the player rather than sniffed`() = runBlocking {
         val url = "https://cdn.example.com/dash/t1"
         route("/manifest.json", manifest())
         route("/stream/t1", json("""{"url":"$url","format":"flac","codec":"flac","manifest":"hls"}"""))
 
-        // Nothing in the URL says HLS, which is the point.
         assertNull(StreamContainer.manifestMimeOf("https://cdn.example.com/dash/never-declared"))
 
         AddonSource(config()).stream("t1", StreamRequest.Lossless)
@@ -972,11 +781,6 @@ class AddonSourceTest {
         assertEquals("application/dash+xml", StreamContainer.manifestMimeOf(url))
     }
 
-    /**
-     * This app never sends `?drm=`, so an encrypted answer is an addon ignoring
-     * the protocol. Refusing lets another source be heard; playing it fails
-     * later and less clearly.
-     */
     @Test
     fun `an encrypted rendition is refused`() = runBlocking {
         route("/manifest.json", manifest())
@@ -994,7 +798,6 @@ class AddonSourceTest {
         assertNotNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
     }
 
-    /** A URL the player's own parser would refuse costs nothing to refuse here. */
     @Test
     fun `a malformed stream URL is refused before the player sees it`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1002,18 +805,12 @@ class AddonSourceTest {
         assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
     }
 
-    /** A 404 on stream is the addon saying it doesn't hold the track. A miss. */
     @Test
     fun `a stream 404 is a miss, not a crash`() = runBlocking {
         route("/manifest.json", manifest())
         assertNull(AddonSource(config()).stream("nope", StreamRequest.Lossless))
     }
 
-    /**
-     * An addon serving permanent direct links may treat `/stream` as optional.
-     * The row's own URL is the last thing to try rather than the first, because
-     * it carries none of the routing metadata the stream call does.
-     */
     @Test
     fun `the search row's own URL is used when the stream endpoint has nothing`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1031,7 +828,6 @@ class AddonSourceTest {
 
         assertEquals("https://cdn.example.com/direct.mp3", stream.url)
         assertEquals("mp3", stream.format.codec)
-        // Carried through so an upgrade can check it against what actually decodes.
         assertEquals(180, stream.durationSec)
     }
 
@@ -1041,10 +837,6 @@ class AddonSourceTest {
         assertNull(AddonSource(config()).stream("unknown", StreamRequest.Best))
     }
 
-    /**
-     * The duration the catalogue claimed travels with the stream, because a
-     * substitute cut into a track already playing is checked against it.
-     */
     @Test
     fun `a searched row's duration reaches the stream it produces`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1057,13 +849,6 @@ class AddonSourceTest {
         assertEquals(242, source.stream("t1", StreamRequest.Lossless)!!.durationSec)
     }
 
-    // ── Rate limiting ─────────────────────────────────────────────────────
-
-    /**
-     * A 429 must not read as "this addon does not have the track" — that is a
-     * different and wrong conclusion, and it drops a working source out of the
-     * walk the moment it gets busy.
-     */
     @Test
     fun `a rate-limited request is waited out and retried`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1088,12 +873,6 @@ class AddonSourceTest {
         assertEquals(0, answers.size)
     }
 
-    // ── Fallback quality inference ────────────────────────────────────────
-
-    /**
-     * An addon that states nothing still has to produce a usable format, or
-     * every ranking decision above this is made on nulls.
-     */
     @Test
     fun `a bare answer still yields what can be inferred from the URL`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1119,11 +898,6 @@ class AddonSourceTest {
         assertEquals(1411, AddonSource(config()).stream("t1", StreamRequest.Lossless)!!.format.kbps)
     }
 
-    /**
-     * An immersive rendition is routinely the only one an addon will give for a
-     * track, so a device that cannot decode it has to refuse here — there is no
-     * lower-ranked sibling for the resolver to fall to.
-     */
     @Test
     fun `an Atmos rendition is refused on a device that cannot decode it`() = runBlocking {
         DeviceCodecs.forced = false
@@ -1143,22 +917,6 @@ class AddonSourceTest {
         assertTrue(stream!!.format.isDolbyAtmos)
     }
 
-    // ── Against what a real addon actually sends ──────────────────────────
-    //
-    // Every payload below is captured verbatim from a live multi-backend addon
-    // in September 2026, trimmed only in length. They are here because the
-    // mocked tests above all pass against a wrong implementation: they assert
-    // that this app reads the spec correctly, and an addon in the field does
-    // not send exactly what the spec describes.
-
-    /**
-     * The one that matters. A Hi-Res FLAC over DASH, and the *only* statement
-     * that it is a manifest at all is the word `dash` in `format` — no
-     * `manifest` field, no `codec`, no `container`, and a URL with no `.mpd`
-     * for anything downstream to sniff.
-     *
-     * Read wrong, this is a DASH document handed to a progressive extractor.
-     */
     @Test
     fun `a real Tidal Hi-Res answer routes to DASH on the strength of its format field`() = runBlocking {
         val url = "https://im-fa.manifest.tidal.com/1/manifests/Egk0MTc1OTQ2NzEYAigBMAJY3onUY2CHaGoIUExBWUJBQ0s"
@@ -1177,18 +935,10 @@ class AddonSourceTest {
 
         assertEquals(url, stream.url)
         assertEquals("application/dash+xml", StreamContainer.manifestMimeOf(url))
-        // Nothing named the codec either; "Hi-Res FLAC" in free text is the
-        // whole of the evidence that this is worth playing over YouTube.
         assertEquals("flac", stream.format.codec)
         assertEquals(true, stream.format.isLossless)
     }
 
-    /**
-     * The same addon's JioSaavn backend answers with `format: "mp4"` — a
-     * container, in the same field the Tidal answer used for a transport. It
-     * must not be mistaken for one, or a plain audio file is opened as a
-     * manifest and nothing plays.
-     */
     @Test
     fun `a container in the format field is not mistaken for a transport`() = runBlocking {
         val url = "https://aac.saavncdn.com/601/b81082b74fa06e4596b5b111b0115d1a_320.mp4"
@@ -1200,17 +950,9 @@ class AddonSourceTest {
         assertNull("mp4 is a container, not a manifest", StreamContainer.manifestMimeOf(url))
         assertEquals(320, stream.format.kbps)
         assertEquals("mp4", stream.format.codec)
-        // Not null. An unknown codec is the answer that would let this stay in
-        // contention against a FLAC, on the grounds nobody could rule it out.
         assertEquals(false, stream.format.isLossless)
     }
 
-    /**
-     * Two of that addon's backends answer a track they cannot serve with
-     * `HTTP 200` and an `error` string rather than a status code. It is a miss
-     * either way — but the second kind is a credential the user can go and set,
-     * and silently falling through to YouTube is how nobody ever finds out.
-     */
     @Test
     fun `a 200 carrying an error and no url is a miss`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1218,7 +960,6 @@ class AddonSourceTest {
         assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
     }
 
-    /** That addon answers an unknown id with a 502, not the 404 the spec implies. */
     @Test
     fun `a gateway error on an unknown id is a miss rather than a crash`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1226,7 +967,6 @@ class AddonSourceTest {
         assertNull(AddonSource(config()).stream("nope", StreamRequest.Lossless))
     }
 
-    /** Real rows: a colon inside the id, and artwork under two different keys. */
     @Test
     fun `real search rows survive their provider-prefixed ids`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1249,14 +989,10 @@ class AddonSourceTest {
         assertEquals(1, songs.size)
         assertEquals("LOSSLESS", songs[0].sourceQuality)
         assertEquals("3:32", songs[0].durationText)
-        // The provider prefix has to survive the round trip through the media
-        // id, or the stream call asks for a track the addon has never heard of.
         assertTrue(songs[0].videoId.endsWith("::tidal:417594671"))
-        // Only albumArtworkURL was sent, and it still has to reach the row.
         assertEquals("https://resources.tidal.com/images/x/1080x1080.jpg", songs[0].thumbnailUrl)
     }
 
-    /** A free-text label is where a Hi-Res addon states its resolution, if anywhere. */
     @Test
     fun `bit depth and sample rate are read out of a free-text quality label`() = runBlocking {
         route("/manifest.json", manifest())
@@ -1271,8 +1007,6 @@ class AddonSourceTest {
         assertEquals(96000, format.sampleRateHz)
     }
 
-    // ── The sniffing that was already there ──────────────────────────────
-
     @Test
     fun `a URL nobody declared is still judged on its extension`() {
         assertEquals(
@@ -1286,8 +1020,6 @@ class AddonSourceTest {
         assertNull(StreamContainer.manifestMimeOf("https://cdn.example.com/audio/track.flac"))
         assertNull(StreamContainer.manifestMimeOf("https://cdn.example.com/audio/track"))
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
 
     private fun route(path: String, response: MockResponse) {
         routes[path] = response
@@ -1308,7 +1040,6 @@ class AddonSourceTest {
 
     private fun source() = AddonSource(config())
 
-    /** The URL of the first request the server saw for [path]. */
     private fun requestFor(path: String) = synchronized(seen) {
         seen.first { it.requestUrl?.encodedPath == path }.requestUrl!!
     }

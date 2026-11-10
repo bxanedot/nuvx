@@ -10,12 +10,6 @@ import org.junit.Test
 class LyricClockTest {
     private val frameMs = 1000.0 / 60
 
-    /**
-     * A song playing at [rate] from [startMs], read every 500 ms. Each reading
-     * is stamped when it is taken, and then reaches the frame loop up to
-     * [maxDelayMs] later — the way a reading did when the main thread was busy
-     * with the recomposition that reading itself had caused.
-     */
     private class Playback(
         val startMs: Long = 44_500L,
         val rate: Double = 1.0,
@@ -33,7 +27,6 @@ class LyricClockTest {
 
         fun trueAt(nowMs: Double) = startMs + nowMs * rate
 
-        /** Advances deliveries to [nowMs]; afterwards [report] and [sampledAt] are what the frame sees. */
         fun deliver(nowMs: Double) {
             while (nextPollMs <= nowMs) {
                 val reading = trueAt(nextPollMs).toLong()
@@ -51,7 +44,6 @@ class LyricClockTest {
 
     private class Run(val frames: List<Double>, val shown: List<Long>, val truth: List<Double>)
 
-    /** Frames at 60 Hz, with a stall of up to [maxStallMs] — no frames at all — now and then. */
     private fun run(playback: Playback, seconds: Double, maxStallMs: Double = 0.0, seed: Int = 11): Run {
         val random = Random(seed)
         val clock = LyricClock(playback.startMs)
@@ -76,7 +68,6 @@ class LyricClockTest {
         }
     }
 
-    /** The bug: readings held up behind a busy main thread rolled the words back. */
     @Test fun lateReadingsNeverMoveTheWordsBack() {
         val run = run(Playback(maxDelayMs = 800.0), seconds = 90.0, maxStallMs = 600.0)
         assertNeverBack(run)
@@ -91,7 +82,6 @@ class LyricClockTest {
         }
     }
 
-    /** The earlier bug: a `maxOf` ratchet froze the words for up to a second. */
     @Test fun lateReadingsNeverStallTheWords() {
         val run = run(Playback(maxDelayMs = 800.0), seconds = 60.0)
         val window = 15
@@ -102,7 +92,6 @@ class LyricClockTest {
         }
     }
 
-    /** A source that cannot stamp its readings still never goes backwards. */
     @Test fun unstampedReadingsNeverMoveTheWordsBack() {
         val run = run(Playback(maxDelayMs = 800.0, stamped = false), seconds = 60.0, maxStallMs = 600.0)
         assertNeverBack(run)
@@ -118,7 +107,6 @@ class LyricClockTest {
         assertNeverBack(run)
     }
 
-    /** Drives a clock on a song at 1x from 10 s, with [readingAt] deciding what each 500 ms reading says. */
     private fun steady(
         until: Double,
         clock: LyricClock = LyricClock(10_000),
@@ -153,7 +141,6 @@ class LyricClockTest {
         assertTrue(abs(last - 18_000) < 40)
     }
 
-    /** Tapping the line before this one: an announced jump, rolled back to rather than cut. */
     @Test fun announcedBackwardSeekGlidesBackAndLands() {
         var shown = 0L
         var largestStep = 0L
@@ -177,7 +164,6 @@ class LyricClockTest {
         assertEquals(4_003L, clock.frame(33.0, 4_000, 30.0, 1))
     }
 
-    /** The song really moved back without saying so: the words slow down to meet it, never reverse. */
     @Test fun unannouncedSmallRewindSlowsDownInsteadOfReversing() {
         var previous = Long.MIN_VALUE
         val last = steady(
@@ -218,7 +204,6 @@ class LyricClockTest {
         assertEquals(10_380.0, clock.displayedMs, 0.0)
     }
 
-    /** A reading taken before a pause is where the song still is when it resumes, however long ago. */
     @Test fun resumingAfterAPauseStartsWhereItStopped() {
         val clock = LyricClock(10_000)
         clock.frame(0.0, 10_000, 0.0, 0)
@@ -228,7 +213,6 @@ class LyricClockTest {
         assertEquals(10_016L, clock.frame(60_016.0, 10_000, 0.0, 0))
     }
 
-    /** Coming back to the app while it played on: the last reading has moved on by its age. */
     @Test fun returningToTheAppExtrapolatesFromTheLastReading() {
         val clock = LyricClock(10_000)
         clock.frame(0.0, 10_000, 0.0, 0)
@@ -236,7 +220,6 @@ class LyricClockTest {
         assertEquals(40_000L, clock.frame(30_000.0, 10_000, 0.0, 0))
     }
 
-    /** Moving the lyrics offset shifts every reading at once; announced, it is a jump and not a fault. */
     @Test fun movingTheOffsetIsFollowed() {
         val last = steady(
             until = 5_000.0,

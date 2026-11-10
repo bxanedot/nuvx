@@ -10,14 +10,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * What "only the host controls the music" means on this side of the wire.
- *
- * The enforcement itself is the server's — see `backend/party.MayControl` — so
- * what is worth pinning down here is the derivation every player surface reads,
- * and the two compatibility cases that decide whether a party is locked or not
- * when the answer is missing.
- */
 class PartyHostOnlyControlTest {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -58,15 +50,11 @@ class PartyHostOnlyControlTest {
 
     @Test
     fun `no party is not a locked party`() {
-        // The setting is meaningless outside a party, and a stale true here
-        // would silently disable the transport for somebody listening alone.
         assertFalse(state(code = null, hostOnly = true).controlsLocked)
     }
 
     @Test
     fun `being promoted to host unlocks the controls`() {
-        // The server hands the role to an arbitrary survivor when a host
-        // leaves, and says so only by reissuing the member list.
         val locked = state(hostOnly = true)
         assertTrue(locked.controlsLocked)
 
@@ -76,8 +64,6 @@ class PartyHostOnlyControlTest {
 
     @Test
     fun `a snapshot from a server without the setting reads as unlocked`() {
-        // Old server, new app: the field is simply absent, and the party has to
-        // behave exactly as it did before the feature existed.
         val snapshot = json.decodeFromString(
             PartySnapshot.serializer(),
             """{"code":"ABC123","maxMembers":5,"members":[]}""",

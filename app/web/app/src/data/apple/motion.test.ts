@@ -25,7 +25,6 @@ describe('Apple motion artwork matching', () => {
     expect(out[0]).toBe(hits[1]);
     expect(out).not.toContain(hits[2]);
     expect(out).not.toContain(hits[3]);
-    // Another song on the right album clears the bar, as on the phone; the re-check is what turns it away.
     expect(matches({ title: 'Lavender Haze', artist: 'Taylor Swift', album: 'Midnights' }, 'Anti-Hero', 'Taylor Swift', 'Midnights')).toBe(false);
   });
 

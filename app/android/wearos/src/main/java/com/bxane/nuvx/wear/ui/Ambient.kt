@@ -25,12 +25,6 @@ import androidx.wear.compose.material3.Text
 import com.bxane.nuvx.wear.R
 import com.bxane.nuvx.wear.data.NowPlaying
 
-/**
- * Always-on state, set by the activity's AmbientLifecycleObserver.
- *
- * [tick] moves on each ambient update — about once a minute — and is the only
- * thing that redraws the ambient player besides the phone changing track.
- */
 @Immutable
 data class Ambient(
     val active: Boolean = false,
@@ -41,23 +35,10 @@ data class Ambient(
 
 val LocalAmbient = compositionLocalOf { Ambient() }
 
-/**
- * The player as the always-on display shows it — the way Spotify's watch app
- * does: the time at the top (the scaffold's own clock), the song and artist in
- * the middle, nuvx's mark at the bottom, and nothing else.
- *
- * Built to the AOD rules rather than dimmed from the live screen: black, text
- * and one small glyph, so a few percent of pixels are lit; no cover, no mesh,
- * no controls (nothing here can be tapped anyway). Moved a few pixels each
- * minute where the panel asks for burn-in protection, and pure white with no
- * greys on a low-bit panel. Redrawn only on a track change or the system's
- * once-a-minute ambient tick.
- */
 @Composable
 fun AmbientPlayer(np: NowPlaying, ambient: Ambient) {
     val primary = if (ambient.lowBit) Color.White else Color.White.copy(alpha = 0.9f)
     val secondary = if (ambient.lowBit) Color.White else Color.White.copy(alpha = 0.55f)
-    // A small orbit rather than a random jump: never more than 6dp from centre.
     val shift = remember(ambient.tick, ambient.burnInProtection) {
         if (!ambient.burnInProtection) {
             Offset.Zero
@@ -101,7 +82,6 @@ fun AmbientPlayer(np: NowPlaying, ambient: Ambient) {
                 modifier = Modifier.widthIn(max = w * 0.68f),
             )
         }
-        // The Home page's mark, as Spotify keeps its own at the foot of the AOD.
         Icon(
             painter = painterResource(R.drawable.ic_logo),
             contentDescription = null,
@@ -115,5 +95,4 @@ fun AmbientPlayer(np: NowPlaying, ambient: Ambient) {
     }
 }
 
-/** ic_logo's viewport, 880 x 360 — as the phone's Home draws it. */
 private const val LOGO_ASPECT = 880f / 360f

@@ -21,7 +21,6 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import kotlin.math.abs
 
-/** Rich word timing, with line-synced fallback, from Musixmatch's web API. */
 object Musixmatch {
 
     private const val BASE = "https://apic.musixmatch.com/ws/1.1"
@@ -31,7 +30,6 @@ object Musixmatch {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
-    // Used only if the public page serving the rotating key is briefly unavailable.
     private const val FALLBACK_SIGNING_SECRET = "f09016176ba43a1cfd1031fbd6b3d26c"
 
     private val tokenMutex = Mutex()
@@ -54,8 +52,6 @@ object Musixmatch {
         val seconds = (durationMs / 1000).toInt()
         val track = bestTrack(title, artist, seconds) ?: return@withContext null
 
-        // The subtitle endpoint is line-timed by design. Prefer the separate rich-sync
-        // tier so tracks that have syllable data do not get flattened on ingestion.
         if (track.hasRichSync != 0) {
             val rich = fetchRichSync(track.trackId)
                 ?.let(::parseRichSyncBody)
@@ -148,10 +144,6 @@ object Musixmatch {
         }.getOrNull()?.message?.body?.richsync?.richsyncBody
     }
 
-    /**
-     * Decodes rich-sync offsets without flattening them through line LRC.
-     * Source order is retained because punctuation and syllable fragments may share a stamp.
-     */
     fun parseRichSyncBody(body: String): List<LyricLine> {
         val entries = runCatching {
             lyricsJson.decodeFromString<List<RichSyncEntry>>(body)
@@ -161,9 +153,6 @@ object Musixmatch {
             val lineStart = secondsToMs(entry.startSeconds)
             val lineEnd = maxOf(lineStart, secondsToMs(entry.endSeconds))
             var previousStart = lineStart
-            // Fragments carry their own spacing, so a fragment with no space
-            // after it is a syllable of a word that carries on — see
-            // [wordsFromRuns].
             val runs = entry.fragments.mapIndexedNotNull { index, fragment ->
                 if (fragment.text.isEmpty()) return@mapIndexedNotNull null
                 val start = maxOf(
@@ -190,7 +179,6 @@ object Musixmatch {
         }.sortedBy { it.timeMs }.withInstrumentalGaps()
     }
 
-    /** Musixmatch's `mxm` subtitle JSON, converted only for the line-sync fallback. */
     private fun subtitleToLrc(subtitleBody: String): String {
         val lines = runCatching { lyricsJson.decodeFromString<List<SubtitleLine>>(subtitleBody) }
             .getOrNull() ?: return ""
@@ -210,7 +198,6 @@ object Musixmatch {
 
     private fun secondsToMs(seconds: Double): Long = (seconds * 1_000.0).toLong()
 
-    /** Signs and issues [buildUrl]; an auth failure refreshes both moving credentials once. */
     private suspend fun signedGet(buildUrl: (token: String) -> okhttp3.HttpUrl): String? {
         val secret = getSecret()
         val token = getToken(secret) ?: return null
@@ -224,7 +211,6 @@ object Musixmatch {
         return apiGet(sign(buildUrl(freshToken).toString(), freshSecret))
     }
 
-    /** Musixmatch reports an expired token inside a successful HTTP response. */
     private fun looksUnauthorized(body: String): Boolean =
         runCatching { lyricsJson.decodeFromString<Envelope<kotlinx.serialization.json.JsonElement>>(body) }
             .getOrNull()?.message?.header?.statusCode?.let { it == 401 || it == 402 } ?: false
@@ -245,7 +231,6 @@ object Musixmatch {
         }.getOrNull()?.message?.body?.userToken
     }
 
-    /** Reads the rotating signing key from the JavaScript linked by the current web client. */
     private fun getSecret(): String = cachedSecret.get() ?: runCatching {
         val page = browserGet(SEARCH_PAGE, "text/html,application/xhtml+xml")
             ?: error("search page unavailable")
@@ -261,7 +246,6 @@ object Musixmatch {
             ?: error("empty signing key")
     }.getOrElse { FALLBACK_SIGNING_SECRET }.also(cachedSecret::set)
 
-    /** Signs `<url><UTC yyyyMMdd>` with HMAC-SHA256, matching the current web client. */
     private fun sign(url: String, secret: String): String {
         val normalized = url.replace("%20", "+").replace(" ", "+")
         val date = SimpleDateFormat("yyyyMMdd", Locale.US).apply {

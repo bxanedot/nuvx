@@ -1,31 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/**
- * Beat-grid derivation: turn essentia's raw beat ticks into a constant-tempo
- * grid (least-squares fit) and find the downbeat phase by testing which of
- * the 4 candidate phases maximizes kick-band energy on beat 1.
- */
 
 export interface GridFit {
   bpm: number;
   beatIntervalSec: number;
-  /** Time of grid beat 0 (not necessarily a downbeat). */
   offsetSec: number;
-  /** RMS residual of ticks vs the fitted grid, in ms. */
   residualMs: number;
 }
 
-/*
- * nuvx change. AutoMix fitted t_i = offset + i * interval by least
- * squares, numbering the ticks consecutively. essentia leaves gaps where a
- * song drops its beat and wanders through a filtered intro, so ticks after a
- * gap got the wrong beat number and the fit fell apart: on Daft Punk's One
- * More Time (rock-steady 123 BPM) the residual came to ~850 ms and the
- * confidence to 4e-8, so nearly every real mix took the plain-crossfade
- * fallback. Here no tick is numbered: the beat period is the one on which the
- * ticks' phases line up best (their circular mean), searched around the
- * median spacing, and the offset is that mean phase. A stray tick counts at
- * most a quarter beat in the residual.
- */
 export function fitGrid(ticks: ArrayLike<number>): GridFit | null {
   const n = ticks.length;
   if (n < 8) return null;
@@ -50,8 +31,6 @@ export function fitGrid(ticks: ArrayLike<number>): GridFit | null {
       if (coherence > best.coherence) best = { interval, coherence, phase: Math.atan2(s, c) };
     }
   };
-  // essentia's ticks sit on an 11.6 ms hop, so the median spacing is only
-  // good to a few percent: scan ±4% in 0.02% steps, then refine.
   scan(median * 0.96, median * 1.04, 400);
   const step = best.interval * 0.0002;
   scan(best.interval - step, best.interval + step, 40);
@@ -69,7 +48,6 @@ export function fitGrid(ticks: ArrayLike<number>): GridFit | null {
   return { bpm: 60 / interval, beatIntervalSec: interval, offsetSec: offset, residualMs };
 }
 
-/** Fold tempo into the 70-180 BPM range (half/double-time disambiguation). */
 export function normalizeTempo(fit: GridFit): GridFit {
   let { bpm, beatIntervalSec } = fit;
   while (bpm < 70) {
@@ -84,9 +62,7 @@ export function normalizeTempo(fit: GridFit): GridFit {
 }
 
 export interface DownbeatResult {
-  /** Time of the first downbeat (>= 0). */
   firstDownbeatSec: number;
-  /** 0-1: separation of the winning phase from the runner-up. */
   confidence: number;
 }
 
@@ -128,7 +104,6 @@ export function findDownbeat(
   return { firstDownbeatSec, confidence };
 }
 
-/** One-pole lowpass (~150 Hz) then squared signal = kick-band energy envelope. */
 function kickBandEnvelope(samples: Float32Array, sampleRate: number): Float32Array {
   const out = new Float32Array(samples.length);
   const alpha = 1 - Math.exp((-2 * Math.PI * 150) / sampleRate);

@@ -28,9 +28,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
-/**
- * Shazam music recognition with built-in rate limiting and queue management
- */
 object Shazam {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -93,7 +90,6 @@ object Shazam {
         "America/Los_Angeles", "Asia/Tokyo", "Asia/Dubai"
     )
 
-    /** Returns a cached result or queues a recognition request. */
     suspend fun recognize(signature: String, sampleDurationMs: Long): Result<RecognitionResult> {
         val cacheKey = generateCacheKey(signature)
         getCachedResult(cacheKey)?.let {
@@ -368,7 +364,6 @@ object Shazam {
         )
     }
 
-    /** Holds the result until the queued recognition request completes. */
     private class PendingRequest(
         val id: Long,
         val signature: String,

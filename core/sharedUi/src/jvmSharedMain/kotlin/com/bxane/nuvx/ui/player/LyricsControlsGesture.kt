@@ -11,39 +11,8 @@ import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 
-/**
- * How far a finger may wander inside a lower-half tap and still be a tap, as a
- * multiple of the platform's own slop.
- *
- * The list underneath starts scrolling at exactly one slop, and it consumes the
- * gesture when it does — so a tap that shifted by a hair more than that was not
- * merely ignored, it was taken by the list and became a browse. Every shortfall
- * here is a tap somebody meant and did not get.
- */
 private const val TAP_SLOP_FACTOR = 2.5f
 
-/**
- * Intercept a lower-half tap before a lyric row can seek; leave real drags to
- * the list.
- *
- * Runs on [PointerEventPass.Initial], which is what makes the disambiguation
- * possible at all: this sees each event before the list does, and while the
- * finger is still inside [TAP_SLOP_FACTOR] it *consumes* the movement, so the
- * list never reaches its own slop and never takes the gesture away. Past that
- * distance the consuming stops, the deltas flow through, and what is left is an
- * ordinary scroll that began a few pixels late.
- *
- * The dead zone that costs only exists while [enabled] — that is, only while
- * the controls are away and a tap has something to do. With them on screen this
- * detector is absent entirely and the list scrolls off its own slop as usual.
- *
- * A mouse is the exception. It has no wobble to absorb and nothing to scroll by
- * dragging, and on the desktop the click on a line *is* the way to jump to it —
- * intercepted, every click in the lower half while the controls were away did
- * nothing visible, and lines only started seeking once the scrubber had been
- * used. So a mouse click goes to the line, and only a click no row claimed
- * brings the controls back.
- */
 @Composable
 internal fun Modifier.revealLyricsControlsOnTap(
     enabled: Boolean,
@@ -78,9 +47,6 @@ internal fun Modifier.revealLyricsControlsOnTap(
                 ) {
                     dragged = true
                 } else if (change.positionChange() != Offset.Zero) {
-                    // Still a tap as far as this is concerned, so hold the list
-                    // still rather than let it read the wobble as the start of a
-                    // scroll it would then own.
                     change.consume()
                 }
                 if (!change.pressed) {
@@ -95,15 +61,6 @@ internal fun Modifier.revealLyricsControlsOnTap(
     }
 }
 
-/**
- * Toggle Spotify Canvas controls from an unhandled video tap.
- *
- * Unlike [revealLyricsControlsOnTap], this observes at the final pointer pass
- * and never consumes the gesture. The compact title/artist row remains on
- * screen while the rest of the player is hidden, so its heart, overflow menu,
- * album and artist targets must receive taps normally. Any empty video space
- * that no child claimed can show or hide the full control deck.
- */
 @Composable
 internal fun Modifier.toggleSpotifyCanvasControlsOnTap(
     enabled: Boolean,

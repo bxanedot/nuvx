@@ -19,18 +19,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import com.bxane.nuvx.wear.WearProtocol as P
 
-/**
- * This watch as the phone's speaker.
- *
- * Not a player with a mind of its own: it holds only the track the phone is on
- * and the next couple, plays what [P.PATH_SPEAKER] messages tell it, and reports
- * back. The phone keeps the queue and decides everything — the same deal a
- * Cast receiver gets — so the watch UI keeps showing the phone's state and
- * every control on it still goes to the phone. Audio comes through the phone
- * too: see [PhoneStreamDataSource].
- *
- * Main thread throughout; the listener service posts here.
- */
 object Speaker {
 
     private val main = Handler(Looper.getMainLooper())
@@ -39,13 +27,10 @@ object Speaker {
     private var app: Context? = null
     private var player: ExoPlayer? = null
 
-    /** A load that arrived before the service had built its player. */
     private var pendingLoad: DataMap? = null
 
-    /** Keeps the service bound, and so alive, while the watch is the speaker. */
     private var binding: ListenableFuture<MediaController>? = null
 
-    /** Brings the playback service up. From the app, while it is on screen. */
     fun prepare(context: Context) {
         val c = context.applicationContext
         app = c
@@ -54,7 +39,6 @@ object Speaker {
             .buildAsync()
     }
 
-    /** The service's player, from its onCreate. */
     fun attach(context: Context, exoPlayer: ExoPlayer) {
         app = context.applicationContext
         player = exoPlayer
@@ -70,7 +54,6 @@ object Speaker {
         main.removeCallbacks(heartbeat)
     }
 
-    /** One message from the phone. Any thread. */
     fun handle(context: Context, command: String, payload: ByteArray?) {
         main.post { handleOnMain(context.applicationContext, command, payload) }
     }
@@ -122,13 +105,6 @@ object Speaker {
         }
     }
 
-    /**
-     * Makes what follows the playing track match [wanted], keeping the part
-     * that already does. Never a blanket remove-and-add: the next track is
-     * usually buffered already — read into, even, for a gapless change — and
-     * removing it throws that away and flushes the audio sink, which is a
-     * stall at every change of song.
-     */
     private fun reconcileAhead(p: ExoPlayer, wanted: List<MediaItem>) {
         val after = p.currentMediaItemIndex + 1
         val held = (after until p.mediaItemCount).map { p.getMediaItemAt(it).mediaId }
@@ -148,10 +124,6 @@ object Speaker {
         report()
     }
 
-    /**
-     * The phone wraps the queue itself, so the watch never loops the few tracks
-     * it holds; only repeat-one, which stays inside the track, is played here.
-     */
     private fun watchRepeat(phoneMode: Int): Int =
         if (phoneMode == Player.REPEAT_MODE_ONE) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
@@ -179,11 +151,8 @@ object Speaker {
         audio.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
     }
 
-    // ---- Telling the phone ----
-
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
-            // Coalesced: one transition is several events in a row.
             main.removeCallbacks(reportNow)
             main.postDelayed(reportNow, REPORT_COALESCE_MS)
         }
@@ -191,7 +160,6 @@ object Speaker {
 
     private val reportNow = Runnable { report() }
 
-    /** While playing, a periodic report keeps the phone's extrapolated playhead honest. */
     private val heartbeat = Runnable { report() }
 
     private fun report() {

@@ -1,17 +1,9 @@
-/**
- * The party server's wire format, one-for-one (PartyModels.kt). The server
- * speaks camelCase and `backend/README.md` is the contract: rename a field on
- * both sides, never paper over it here.
- */
-
-/** A song as the party knows it: enough to name and show it. How each device plays it is its own business. */
 export interface PartyTrack {
   videoId: string;
   title: string;
   artist: string;
   thumbnailUrl: string | null;
   durationMs: number | null;
-  /** Preserves the queue's shared manual/AutoPlay boundary. */
   fromAutoplay: boolean;
 }
 
@@ -21,18 +13,12 @@ export interface PartyMember {
   displayName: string;
   avatarUrl: string | null;
   isHost: boolean;
-  /** Holding a socket right now, not whether they are still in. */
   connected: boolean;
   joinedAtMs: number;
   lastSeenMs: number;
 }
 
-/**
- * Where the party is, as of a server timestamp: [positionMs] at [anchorMs].
- * It becomes a current position only once the reader adds the time since.
- */
 export interface PartyPlayback {
-  /** Only climbs; a state not newer than the one applied is dropped. */
   seq: number;
   track: PartyTrack | null;
   queueSeq: number;
@@ -41,7 +27,6 @@ export interface PartyPlayback {
   isPlaying: boolean;
   positionMs: number;
   anchorMs: number;
-  /** The server's own reading at the instant it sent the frame. */
   effectivePositionMs: number;
   updatedBy: string | null;
   startedBy: string | null;
@@ -84,7 +69,6 @@ export interface PartyMembership {
   serverMs: number;
 }
 
-/** A compact local-only record of a live party action. */
 export interface PartyActivity {
   action: string;
   by: string;
@@ -120,7 +104,6 @@ export const EMPTY_PLAYBACK: PartyPlayback = {
 
 export const EMPTY_QUEUE: PartyQueue = { seq: 0, index: -1, items: [] };
 
-/** Fills what an older server leaves out, as kotlinx's defaults do. */
 export function playbackOf(raw: Partial<PartyPlayback> | null | undefined): PartyPlayback {
   return { ...EMPTY_PLAYBACK, ...raw, track: raw?.track ? trackOf(raw.track) : null };
 }

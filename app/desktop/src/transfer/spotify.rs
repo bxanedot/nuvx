@@ -1,11 +1,3 @@
-//! Spotify the way open.spotify.com's web player reads it (from spot2ytm, after SpotAPI's
-//! `PublicPlaylist`): a TOTP-gated access token, a client token, and persisted GraphQL
-//! queries.
-//!
-//! Anonymously it reads public playlists. With the `sp_dc` cookie the Spotify sign-in
-//! window captures, it reads as that user: their library, Liked Songs and private
-//! playlists, without a developer app or Premium.
-
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -20,32 +12,24 @@ use crate::ytmapi::between;
 
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const SECRETS_URL: &str = "https://code.thetadev.de/ThetaDev/spotify-secrets/raw/branch/main/secrets/secretDict.json";
-/// Used when the secrets list can't be fetched (SpotAPI's fallback, version 61).
 const FALLBACK_SECRET: (u32, &[u8]) = (
     61,
     &[44, 55, 47, 42, 70, 40, 34, 114, 76, 74, 50, 111, 120, 97, 75, 76, 94, 102, 43, 69, 49, 120, 118, 80, 64, 78],
 );
-/// The largest playlist page the pathfinder API serves.
 const PAGE: usize = 343;
-/// Liked Songs and the library come in smaller pages.
 const LIBRARY_PAGE: usize = 50;
 const CDN: &str = "https://open.spotifycdn.com/cdn/build/web-player/";
-/// The persisted queries this reads, found in the web player's bundle.
 const OPERATIONS: [&str; 4] = ["fetchPlaylist", "fetchLibraryTracks", "libraryV3", "profileAttributes"];
-/// Where the query hashes are cached, so a new bundle (several MB) is read once per web-player release.
 const HASH_CACHE: &str = "spotify_queries.json";
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Track {
     pub name: String,
     pub artists: Vec<String>,
-    /// A file from someone's computer, not a Spotify song: just a title and an artist.
     #[serde(default)]
     pub local: bool,
-    /// Album art, about 64 px.
     #[serde(default)]
     pub art: Option<String>,
-    /// Length in seconds, when Spotify gives one.
     #[serde(default)]
     pub duration: Option<u32>,
 }
@@ -59,20 +43,16 @@ impl Track {
 pub struct Playlist {
     pub name: String,
     pub tracks: Vec<Track>,
-    /// Removed songs, podcast episodes and other items with no title or artist.
     pub skipped: usize,
 }
 
-/// What to transfer.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Source {
     Playlist(String),
-    /// The signed-in user's Liked Songs.
     Liked,
 }
 
 impl Source {
-    /// An open.spotify.com playlist link, a `spotify:playlist:` URI, or a bare id.
     pub fn parse(link: &str) -> Result<Self> {
         let link = link.trim();
         if link.ends_with("/collection/tracks") {
@@ -96,7 +76,6 @@ impl Source {
         Ok(Self::Playlist(id.to_owned()))
     }
 
-    /// The key saved progress is filed under.
     pub fn key(&self) -> &str {
         match self {
             Self::Playlist(id) => id,
@@ -105,7 +84,6 @@ impl Source {
     }
 }
 
-/// A playlist in the user's library, as the source list shows it.
 #[derive(Clone, Debug)]
 pub struct Entry {
     pub source: Source,
@@ -115,7 +93,6 @@ pub struct Entry {
     pub art: Option<String>,
 }
 
-/// The signed-in user: their name and library.
 pub struct Account {
     pub name: String,
     pub library: Vec<Entry>,
@@ -131,13 +108,11 @@ pub struct Client {
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct Hashes {
-    /// The bundle they were read from.
     bundle: String,
     ops: std::collections::BTreeMap<String, String>,
 }
 
 impl Client {
-    /// `sp_dc` signs in as the user it belongs to; `None` is anonymous.
     pub async fn connect(sp_dc: Option<&str>, data_dir: &Path) -> Result<Self> {
         let http = crate::proxy::apply(reqwest::Client::builder())
             .user_agent(UA)
@@ -164,7 +139,6 @@ impl Client {
             .context("open.spotify.com has no web-player bundle")?
             .to_owned();
 
-        // The access token, client token and query hashes don't depend on each other.
         let (token, hashes) = tokio::try_join!(access_token(&http, sp_dc, &device_id), query_hashes(&http, &bundle, data_dir))?;
         let (access_token, client_id) = token;
         let client_token = client_token(&http, &client_version, &client_id, &device_id).await?;
@@ -175,7 +149,6 @@ impl Client {
         self.hashes.ops.get(operation).map(String::as_str).ok_or_else(|| anyhow!("couldn't find Spotify's {operation} query"))
     }
 
-    /// One persisted GraphQL query, retried on server errors and rate limits.
     async fn query(&self, operation: &str, variables: Value) -> Result<Value> {
         let extensions = json!({"persistedQuery": {"version": 1, "sha256Hash": self.hash(operation)?}});
         let mut tries = 0;
@@ -202,11 +175,9 @@ impl Client {
         }
     }
 
-    /// The signed-in user's name and their playlists, Liked Songs first.
     pub async fn account(&self) -> Result<Account> {
         let (profile, library) = tokio::join!(self.query("profileAttributes", json!({})), self.library());
         let name = profile.ok().and_then(|p| p["data"]["me"]["profile"]["name"].as_str().map(str::to_owned)).unwrap_or_default();
-        // The Web API lists the same playlists if the library query ever changes shape.
         let mut library = match library {
             Ok(l) if !l.is_empty() => l,
             other => {
@@ -288,7 +259,6 @@ impl Client {
         Ok(playlist.clone())
     }
 
-    /// A playlist's name, owner, size and cover, from its first page.
     pub async fn playlist_info(&self, id: &str) -> Result<Entry> {
         let p = self.page(id, 0, 1).await?;
         let art = p["images"]["items"].as_array().and_then(|i| i.first()).and_then(|i| art(&i["sources"]));
@@ -301,7 +271,6 @@ impl Client {
         })
     }
 
-    /// The signed-in user's Liked Songs: the first page for the total, then the rest at once.
     pub async fn liked(&self, on_progress: impl Fn(usize, usize)) -> Result<Playlist> {
         let page = |offset: usize| async move {
             let body = self.query("fetchLibraryTracks", json!({"offset": offset, "limit": LIBRARY_PAGE})).await?;
@@ -333,7 +302,6 @@ impl Client {
         to_playlist("Liked Songs".to_owned(), &items)
     }
 
-    /// The whole playlist: one page for the name and total, then every other page at once.
     pub async fn playlist(&self, id: &str, on_progress: impl Fn(usize, usize)) -> Result<Playlist> {
         let first = self.page(id, 0, PAGE).await?;
         let name = first["name"].as_str().map(str::trim).filter(|s| !s.is_empty()).context("Spotify returned no playlist name")?.to_owned();
@@ -380,7 +348,6 @@ fn library_entry(item: &Value) -> Option<Entry> {
     }
 }
 
-/// The smallest image at least 60 px wide (Spotify lists 64, 300 and 640).
 fn art(sources: &Value) -> Option<String> {
     let list = sources.as_array()?;
     let width = |s: &Value| s["width"].as_u64().unwrap_or(0);
@@ -431,7 +398,6 @@ fn parse_track(item: &Value) -> Option<Track> {
     (!name.is_empty() && !artists.is_empty()).then(|| Track { name: name.to_owned(), artists, local: false, art, duration })
 }
 
-/// A local file's artist field, which lists every artist in one string.
 fn split_artists(s: &str) -> Vec<String> {
     s.split([',', ';']).map(str::trim).filter(|a| !a.is_empty()).map(str::to_owned).collect()
 }
@@ -462,7 +428,6 @@ async fn access_token(http: &reqwest::Client, sp_dc: Option<&str>, device_id: &s
     Ok((token.to_owned(), client_id.to_owned()))
 }
 
-/// The saved Spotify sign-in has expired or was signed out elsewhere.
 #[derive(Debug)]
 pub struct SignedOut;
 
@@ -474,7 +439,6 @@ impl std::fmt::Display for SignedOut {
 
 impl std::error::Error for SignedOut {}
 
-/// The newest web-player TOTP secret, falling back to a known one.
 async fn totp_secret(http: &reqwest::Client) -> (u32, Vec<u8>) {
     let fetched = async {
         let secrets: serde_json::Map<String, Value> =
@@ -490,9 +454,7 @@ async fn totp_secret(http: &reqwest::Client) -> (u32, Vec<u8>) {
     fetched.await.unwrap_or_else(|_: anyhow::Error| (FALLBACK_SECRET.0, FALLBACK_SECRET.1.to_vec()))
 }
 
-/// RFC 6238 TOTP (SHA-1, 30 s, 6 digits) over Spotify's obfuscated secret.
 fn totp(secret: &[u8], unix: u64) -> String {
-    // The key is the decimal digits of each XOR-ed byte, joined, as ASCII.
     let key: String = secret.iter().enumerate().map(|(i, b)| (b ^ ((i % 33) as u8 + 9)).to_string()).collect();
     let mut mac = Hmac::<Sha1>::new_from_slice(key.as_bytes()).expect("HMAC takes any key length");
     mac.update(&(unix / 30).to_be_bytes());
@@ -522,8 +484,6 @@ async fn client_token(http: &reqwest::Client, client_version: &str, client_id: &
     Ok(resp["granted_token"]["token"].as_str().context("no client token")?.to_owned())
 }
 
-/// The persisted-query hashes, from the cache when the bundle hasn't changed. They live in
-/// the main bundle; older builds kept them in lazy chunks, so those are searched as a fallback.
 async fn query_hashes(http: &reqwest::Client, bundle: &str, data_dir: &Path) -> Result<Hashes> {
     let cache = data_dir.join(HASH_CACHE);
     if let Some(h) = std::fs::read(&cache).ok().and_then(|b| serde_json::from_slice::<Hashes>(&b).ok())
@@ -566,7 +526,6 @@ fn find_hash(js: &str, operation: &str) -> Option<String> {
     (hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit())).then(|| hash.to_owned())
 }
 
-/// Lazy chunk file names, from the bundle's `{id:"name"}` and `{id:"hash"}` maps.
 fn chunk_urls(js: &str) -> Vec<String> {
     let maps: Vec<Vec<(&str, &str)>> = js.match_indices('{').filter_map(|(i, _)| parse_id_map(&js[i..])).collect();
     let is_hash = |v: &str| v.len() == 8 && v.bytes().all(|b| b.is_ascii_hexdigit());
@@ -585,7 +544,6 @@ fn chunk_urls(js: &str) -> Vec<String> {
     urls
 }
 
-/// Parse a `{12:"a",34:"b"}` literal at the start of `s`.
 fn parse_id_map(s: &str) -> Option<Vec<(&str, &str)>> {
     let body = &s[1..s.find('}')?];
     let mut out = Vec::new();
@@ -627,7 +585,6 @@ mod tests {
 
     #[test]
     fn totp_matches_reference() {
-        // Computed independently with Python's hmac, the way pyotp derives it.
         assert_eq!(totp(FALLBACK_SECRET.1, 1_699_999_980), "371599");
         assert_eq!(totp(FALLBACK_SECRET.1, 1_700_000_009), "371599");
     }
@@ -638,7 +595,6 @@ mod tests {
         assert_eq!(chunk_urls(js), vec![format!("{CDN}a.0123abcd.js"), format!("{CDN}b.deadbeef.js")]);
     }
 
-    /// Live: reads a public playlist anonymously (`cargo test -- --ignored spotify_live`).
     #[tokio::test]
     #[ignore]
     async fn spotify_live() {
@@ -655,7 +611,6 @@ mod tests {
 
 #[cfg(test)]
 mod library_live {
-    /// `cargo test --release -- --ignored library_live --nocapture` (uses the saved Spotify sign-in)
     #[tokio::test]
     #[ignore]
     async fn library_live() {

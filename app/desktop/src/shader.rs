@@ -1,9 +1,3 @@
-//! Animated album-art background, a port of Kawarp (MIT © 2026 Better Lyrics), the
-//! effect behind better-lyrics-shaders: the blurred cover is domain-warped by two
-//! octaves of simplex noise, zoomed, vignetted, saturated and dithered. Tracks
-//! crossfade. Everything runs in one fragment pass over a 64×64 texture. The same
-//! shader is written twice: GLSL for OpenGL, WGSL for wgpu (see renderer.rs).
-
 use std::sync::{Arc, Mutex};
 
 use eframe::glow::{self, HasContext};
@@ -97,7 +91,6 @@ void main() {
 }
 "#;
 
-/// [`VERTEX`] and [`FRAGMENT`] in WGSL, for wgpu; keep the two in step.
 const WGSL: &str = r#"
 struct U {
   blend: f32,
@@ -184,13 +177,10 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
 
 pub struct Params {
     pub time: f32,
-    /// 0..1 crossfade from the previous texture to the current one.
     pub blend: f32,
     pub intensity: f32,
     pub saturation: f32,
-    /// Brightness multiplier (lower behind text-heavy pages).
     pub dim: f32,
-    /// Extra zoom (audio-reactive pulse rides on this).
     pub scale: f32,
 }
 
@@ -198,21 +188,16 @@ struct Gl {
     program: glow::Program,
     vao: glow::VertexArray,
     tex: [glow::Texture; 2],
-    /// Index of the texture holding the current art.
     cur: usize,
-    /// Uniform locations, looked up once: u_a, u_b, u_blend, u_time, u_intensity,
-    /// u_scale, u_saturation, u_dim, u_resolution.
     loc: [Option<glow::UniformLocation>; 9],
 }
 
 const UNIFORMS: [&str; 9] = ["u_a", "u_b", "u_blend", "u_time", "u_intensity", "u_scale", "u_saturation", "u_dim", "u_resolution"];
 
-/// The wgpu side, kept in egui-wgpu's callback resources.
 struct Wgpu {
     pipeline: wgpu::RenderPipeline,
     uniforms: wgpu::Buffer,
     tex: [wgpu::Texture; 2],
-    /// Bind group `i` samples `tex[i]` as the current art and the other as the previous.
     groups: [wgpu::BindGroup; 2],
     cur: usize,
 }
@@ -221,7 +206,6 @@ struct Wgpu {
 pub struct Background {
     gl: Arc<Mutex<Option<Gl>>>,
     pending: Arc<Mutex<Option<Art>>>,
-    /// Drawn through wgpu, whose state lives with the renderer (`gl` stays empty).
     wgpu: bool,
 }
 
@@ -307,7 +291,6 @@ impl Background {
                 ],
             })
         });
-        // Both slots start with the idle backdrop.
         let idle = crate::art::idle();
         for t in &tex {
             upload_wgpu(&rs.queue, t, &idle);
@@ -366,7 +349,6 @@ impl Background {
                 pending: Default::default(),
                 wgpu: false,
             };
-            // Both slots start with the idle backdrop.
             let idle = crate::art::idle();
             for t in tex {
                 upload(gl, t, &idle);
@@ -375,7 +357,6 @@ impl Background {
         }
     }
 
-    /// Queue new art; it is uploaded on the GL thread at the next paint.
     pub fn set_art(&self, art: Art) {
         *self.pending.lock().unwrap() = Some(art);
     }
@@ -392,7 +373,6 @@ impl Background {
             let Some(s) = guard.as_mut() else { return };
             unsafe {
                 if let Some(art) = pending.lock().unwrap().take() {
-                    // New art goes into the other slot; the app animates `blend` 0→1.
                     s.cur ^= 1;
                     upload(gl, s.tex[s.cur], &art);
                 }
@@ -450,7 +430,6 @@ impl eframe::egui_wgpu::CallbackTrait for WgpuPaint {
     ) -> Vec<wgpu::CommandBuffer> {
         let Some(s) = resources.get_mut::<Wgpu>() else { return Vec::new() };
         if let Some(art) = self.pending.lock().unwrap().take() {
-            // New art goes into the other slot; the app animates `blend` 0→1.
             s.cur ^= 1;
             upload_wgpu(queue, &s.tex[s.cur], &art);
         }

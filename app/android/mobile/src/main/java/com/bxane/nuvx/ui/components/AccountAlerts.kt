@@ -55,11 +55,6 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 
-/**
- * Same UIAlertController shape as [UpdateAvailableDialog] — frosted card,
- * hairline rules, full-width stacked actions — but with a text field for the
- * one bit of input this alert needs.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ListenBrainzTokenAlert(
@@ -174,14 +169,6 @@ fun LastfmLoginAlert(
     }
 }
 
-/**
- * Manual token entry, for when the in-app login can't run — a WebView an OEM
- * has broken, or a token lifted from a desktop client.
- *
- * [error] carries back what the verification attempt said, because a token that
- * was mistyped or has expired is indistinguishable from one that works until
- * Discord is asked about it.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun DiscordTokenAlert(
@@ -240,12 +227,6 @@ fun DiscordTokenAlert(
     }
 }
 
-/**
- * One free-text presence field — an activity name, a button label.
- *
- * [message] is where the caller explains the field, including which `{...}`
- * variables it accepts, since that is the only place a user would find out.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TextValueAlert(
@@ -257,9 +238,7 @@ fun TextValueAlert(
     onValueChange: (String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit,
-    /** False greys Save out — for a field that isn't worth saving empty. */
     saveEnabled: Boolean = true,
-    /** A third action between Save and Cancel, for a value that can be cleared. */
     onRemove: (() -> Unit)? = null,
 ) {
     AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
@@ -306,12 +285,6 @@ fun TextValueAlert(
     }
 }
 
-/**
- * One field of a server editor: the value, its change handler, the hint, and
- * how the keyboard behaves on it. The last field always gets Done-to-save
- * while the rest advance with Next, which is what every editor below already
- * did by hand.
- */
 data class EditorField(
     val value: String,
     val onChange: (String) -> Unit,
@@ -320,12 +293,6 @@ data class EditorField(
     val isPassword: Boolean = false,
 )
 
-/**
- * The shape every server editor in this app shares: a centered title, the
- * last test result in place of the description, the fields, then Test above
- * Save above Cancel — plus an optional destructive row between Save and
- * Cancel for an entry that can also be removed.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ServerEditorAlert(
@@ -333,16 +300,13 @@ fun ServerEditorAlert(
     title: String,
     description: String,
     fields: List<EditorField>,
-    /** What the last test said, or null before one has been run. */
     status: String?,
     statusIsGood: Boolean,
     testing: Boolean,
-    /** Whether there is enough typed in to be worth testing or saving. */
     canSubmit: Boolean,
     onTest: () -> Unit,
     onSave: () -> Unit,
     removeLabel: String? = null,
-    /** Offered only when there is something stored to remove. */
     onRemove: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
@@ -389,9 +353,6 @@ fun ServerEditorAlert(
             }
         }
         AlertRule()
-        // Above Save rather than beside it: an address is worth checking before
-        // it is stored, and a row of three cramped buttons is what the Material
-        // dialog did badly.
         AlertAction(
             label = if (testing) stringResource(R.string.testing) else stringResource(R.string.test),
             emphasised = false,
@@ -425,10 +386,6 @@ fun ServerEditorAlert(
     }
 }
 
-/**
- * One field of a hosted server editor: the saved value it opens with, the
- * hint, and how the keyboard behaves on it.
- */
 data class FieldConfig(
     val initial: String,
     val placeholder: String,
@@ -436,17 +393,6 @@ data class FieldConfig(
     val isPassword: Boolean = false,
 )
 
-/**
- * A server editor that owns its own state: field values, the last test
- * result and the testing flag. The caller hands over fixed field configs
- * plus what test and save mean for those values, and gets back the same
- * frosted card as [ServerEditorAlert] — without the dozen remembered states
- * each host otherwise repeats.
- *
- * The configs are fixed per call site, so remembering once per opening is
- * sound; the host leaves composition on dismiss, which is when the next
- * opening starts over from the saved values.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ServerEditorHost(
@@ -509,27 +455,6 @@ fun ServerEditorHost(
     )
 }
 
-/**
- * Add or edit a source that has an address — the addon editor.
- *
- * The same frosted card every other alert in this app uses, rather than the
- * Material `AlertDialog` this replaced. That one put a filled `OutlinedTextField`
- * and a row of cramped text buttons in the middle of a screen where nothing
- * else looks like that, and it read as a stock widget dropped into somebody
- * else's design.
- *
- * One field and up to four stacked actions. There is deliberately no name
- * field: an addon states its own name in its manifest, so asking the user to
- * invent one is asking for information the addon is about to supply anyway —
- * and a blank field would leave the row showing a bare hostname next to a
- * perfectly good published name.
- *
- * [status] is the one thing here that no other alert in the file needs:
- * testing an address has *three* outcomes rather than the usual two, and "it
- * answered, but not with something this app can use" is the one worth reading
- * — so a result replaces the description in place, coloured by [statusIsGood],
- * the way [LastfmLoginAlert] surfaces a failed sign-in.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AddonEditorAlert(
@@ -539,23 +464,13 @@ fun AddonEditorAlert(
     urlValue: String,
     onUrlChange: (String) -> Unit,
     urlPlaceholder: String,
-    /** What the last test said, or null before one has been run. */
     status: String?,
     statusIsGood: Boolean,
     testing: Boolean,
-    /** Whether there is enough typed in to be worth testing or saving. */
     canSubmit: Boolean,
     onTest: () -> Unit,
     onSave: () -> Unit,
-    /** Offered only for a source already stored — there is nothing to remove otherwise. */
     onRemove: (() -> Unit)?,
-    /**
-     * What [onRemove] is called, for the callers that are not removing a source.
-     *
-     * The party server's address wears this same card — one field, an address
-     * to test, four stacked actions — and "Remove source" would be the one line
-     * on it still talking about addons.
-     */
     removeLabel: String? = null,
     onDismiss: () -> Unit,
 ) {
@@ -583,15 +498,6 @@ fun AddonEditorAlert(
     )
 }
 
-/**
- * A name clash mid-upload: the server already holds a file under the name a
- * track would land as.
- *
- * Three stacked outcomes rather than a yes/no — overwriting destroys the
- * server copy, so the non-destructive answer leads as the emphasised action.
- * [showApplyToAll] is only true mid-batch, where one answer can carry every
- * clash still queued behind this one.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun WebDavConflictAlert(
@@ -656,11 +562,6 @@ fun WebDavConflictAlert(
     }
 }
 
-/**
- * A two-action confirmation using the same frosted UIAlertController shell as
- * the addon editor. Kept here so warnings opened from settings do not fall back
- * to a visually unrelated Material dialog.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ConfirmationAlert(
@@ -699,12 +600,6 @@ fun ConfirmationAlert(
     }
 }
 
-/**
- * [ConfirmationAlert] with nothing to confirm: a title, an explanation and
- * one OK. For telling the listener why something didn't happen, in the same
- * frosted shell as the rest, rather than in a system dialog that looks like
- * it belongs to another app.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun InfoAlert(
@@ -712,14 +607,6 @@ fun InfoAlert(
     title: String,
     description: String,
     onDismiss: () -> Unit,
-    /**
-     * Opens the alert in a window of its own, above every other window.
-     *
-     * Needed whenever what prompted it can be on screen in another window: the
-     * full player and the track menu are both bottom-sheet dialogs, and an
-     * alert drawn in the activity's window opens *behind* them — found only
-     * once the player was closed, long after the tap it was answering.
-     */
     inOwnWindow: Boolean = false,
 ) {
     if (inOwnWindow) {
@@ -728,7 +615,6 @@ fun InfoAlert(
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
         ) {
             val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-            // The scaffold draws its own flat scrim; the platform's would double it.
             SideEffect { window?.setDimAmount(0f) }
             InfoAlertFrame(hazeState, title, description, onDismiss, frosted = false)
         }
@@ -771,14 +657,6 @@ private fun InfoAlertFrame(
     }
 }
 
-/**
- * Single-select list, ticked like [LyricsSourcesDialog] rather than with radio
- * buttons — same reasoning: a column of Material radios would be the one
- * Material thing left on an otherwise Apple-shaped alert.
- *
- * Picking commits immediately and closes, so there is no Save action to reach
- * for; Cancel is the only one, and it's the dismiss.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun <T> ChoiceAlert(
@@ -842,7 +720,6 @@ private fun ChoiceRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = ACTION_HEIGHT)
-            // iOS washes the whole row instead of drawing a ripple inside it.
             .background(
                 if (pressed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f) else Color.Transparent,
             )
@@ -880,17 +757,11 @@ private fun ChoiceRow(
     }
 }
 
-/** The scrim + frosted card frame shared by every UIAlertController-style dialog. */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 internal fun AlertScaffold(
     hazeState: HazeState,
     onDismiss: () -> Unit,
-    /**
-     * False for an alert in a window of its own, where [hazeState] has nothing
-     * to blur — Haze reads only its own window. The card is then the plain
-     * surface the reduced-blur setting uses; see [InfoAlert]'s `inOwnWindow`.
-     */
     frosted: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {

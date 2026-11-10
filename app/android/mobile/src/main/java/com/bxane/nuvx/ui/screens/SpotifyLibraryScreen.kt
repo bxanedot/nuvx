@@ -47,10 +47,6 @@ import com.bxane.nuvx.data.spotify.SpotifyLibrary
 import com.bxane.nuvx.data.spotify.SpotifyPlaylist
 import com.bxane.nuvx.data.spotify.SpotifyTrack
 
-/**
- * The signed-in Spotify account's playlists. A tap opens one as an ordinary
- * playlist page ([onOpenPlaylist]) — this screen is only the way in.
- */
 @Composable
 fun SpotifyLibraryScreen(
     onOpenPlaylist: (SpotifyPlaylist) -> Unit,

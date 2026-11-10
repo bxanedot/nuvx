@@ -32,7 +32,6 @@ data class BoundedContextPlan(
 }
 
 object BoundedQueuePlanner {
-    /** The most context rows a queue needs in the player: history, current, look-ahead. */
     const val MAX_PHYSICAL_CONTEXT = MAX_QUEUE_HISTORY + 1 + WINDOW_AHEAD
 
     fun buildInitialPlan(
@@ -58,9 +57,6 @@ object BoundedQueuePlanner {
         val state = contextSnapshot.continuationState
         val upcoming = queueWindow.upcoming(
             WINDOW_AHEAD,
-            // A fresh manual start must not expose the next repeat cycle before
-            // the currently selected cycle has actually finished. The top-up
-            // path may materialise that cycle later at the physical boundary.
             repeatAll = false,
         )
         val history = historyBefore(canonical, queueWindow)
@@ -79,11 +75,6 @@ object BoundedQueuePlanner {
         )
     }
 
-    /**
-     * Return only the suffix needed to refill [materialized] to the logical
-     * window. A physical queue is eligible for mutation only below low water;
-     * a stale or reordered prefix is left for the caller's explicit refresh.
-     */
     fun topUpEntries(
         window: QueueWindow,
         materialized: List<QueueWindowEntry>,
@@ -106,24 +97,11 @@ object BoundedQueuePlanner {
         window.upcoming(1, repeatAll = false).isEmpty() &&
         continuationState.isTerminal()
 
-    /** Repeat-all may cross a cycle boundary only after continuation is terminal. */
     fun canRepeat(continuationState: ContinuationState): Boolean = continuationState.isTerminal()
 
-    /**
-     * Keep the physical queue on the active logical cycle until its last entry
-     * is current. Logical look-ahead may inspect a later cycle, but exposing it
-     * in Media3 before this point makes the queue UI show duplicate songs.
-     */
     fun shouldMaterializeNextCycle(window: QueueWindow, repeatAll: Boolean): Boolean =
         repeatAll && window.upcoming(1, repeatAll = false).isEmpty()
 
-    /**
-     * Return a physical look-ahead containing the active cycle and, at the
-     * boundary, at most one following cycle. QueueWindow can logically look
-     * through several repeat cycles to fill [WINDOW_AHEAD]; doing that in the
-     * player would make a small album appear duplicated as soon as Repeat All
-     * rolls over.
-     */
     fun physicalUpcoming(
         window: QueueWindow,
         repeatAll: Boolean,

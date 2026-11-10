@@ -45,25 +45,6 @@ import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/**
- * Where the music is coming out, and how loud.
- *
- * Replaces two things that did not work. On Android 14 and up the headphones
- * glyph opened the *system* output switcher — a panel this app does not control,
- * styled like nothing else here, and one that routes the whole phone rather than
- * this player. Below that it opened a stock [android.app.AlertDialog] driven by
- * [android.media.MediaRouter], whose `selectRoute` is a request the framework is
- * free to ignore, and usually did.
- *
- * This one switches by telling our own player which sink to render into, which
- * is the only routing decision the app owns and the one that actually takes
- * effect — see [AudioRouting].
- *
- * A [PlayerDrawer] off the bottom edge, as the rest of the app's sheets are.
- * Outputs come first and volume follows. Every available device stays visible:
- * on a phone there are usually two, so a disclosure would cost a tap merely to
- * reveal a single row.
- */
 @Composable
 internal fun AudioOutputSheet(
     hazeState: HazeState,
@@ -76,7 +57,6 @@ internal fun AudioOutputSheet(
     val outputs = rememberAudioOutputs()
     val cast by PlayerPlatform.host.castState.collectAsStateWithLifecycle()
     val watch by PlayerPlatform.host.watchOutput.collectAsStateWithLifecycle()
-    // A watch comes and goes; ask again each time the drawer opens.
     LaunchedEffect(Unit) { PlayerPlatform.host.refreshWatchOutput() }
 
     PlayerDrawer(
@@ -85,10 +65,6 @@ internal fun AudioOutputSheet(
         onDismiss = onDismiss,
         modifier = modifier,
     ) {
-        // Flat, with the playing one marked, rather than folded behind a
-        // chevron. There are two outputs on a phone most of the time; one
-        // of them is the answer and the other is the only alternative, so a
-        // disclosure control costs a tap to reveal a single row.
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -100,11 +76,6 @@ internal fun AudioOutputSheet(
                     onSelect = { PlayerPlatform.host.selectAudioOutput(device.id) },
                 )
             }
-            // One more place to send the music, listed with the others. The
-            // receivers behind it are chosen in a popup of their own — there
-            // can be any number of them, and they come and go while it is open.
-            // The watch, when one with nuvx on it is in reach: picked
-            // directly, since there is only ever the one.
             if (watch.available || watch.active) {
                 WatchRow(watch = watch, onClick = { PlayerPlatform.host.selectWatchOutput() })
             }
@@ -119,12 +90,6 @@ internal fun AudioOutputSheet(
     }
 }
 
-/**
- * Drills into [com.bxane.nuvx.ui.components.AudioPipelineDialog] — the
- * subtitle is the negotiated output itself, read live off
- * [AudioOutputStatus], so the row states what's actually leaving the phone
- * before anyone taps in for the rest of the chain.
- */
 @Composable
 private fun AudioPipelineRow(onClick: () -> Unit) {
     val haptics = rememberHaptics()
@@ -187,11 +152,6 @@ private fun AudioPipelineRow(onClick: () -> Unit) {
     }
 }
 
-/**
- * Opens the receiver picker. Lit like the playing output while the music is on
- * a receiver, with that receiver's name in place of the generic title — at that
- * point it *is* the output, and the rows above it are the way back.
- */
 @Composable
 private fun CastRow(cast: CastUi, onClick: () -> Unit) {
     val haptics = rememberHaptics()
@@ -260,11 +220,6 @@ private fun CastRow(cast: CastUi, onClick: () -> Unit) {
     }
 }
 
-/**
- * The nuvx watch app as the speaker. Drawn like an output of this phone —
- * lit, with a check, while it is the one playing — because to the listener that
- * is what it is.
- */
 @Composable
 private fun WatchRow(watch: WatchOutputUi, onClick: () -> Unit) {
     val haptics = rememberHaptics()
@@ -330,10 +285,6 @@ private fun WatchRow(watch: WatchOutputUi, onClick: () -> Unit) {
     }
 }
 
-/**
- * One output. The playing one is lit and says so; the rest are there to be
- * tapped.
- */
 @Composable
 private fun OutputRow(
     device: AudioOutputDevice,
@@ -403,20 +354,6 @@ private fun OutputRow(
     }
 }
 
-/**
- * The phone's media volume, on the player's own slider rather than Material's.
- *
- * Two things move it, and only one of them announces itself. The hardware keys
- * broadcast `VOLUME_CHANGED_ACTION`, which is easy. A *route* change does not:
- * Android keeps one media volume index per output and silently swaps which one
- * is in force, so the number behind this bar changes with no event at all. Read
- * once at composition, as this was, the bar went on showing the level of the
- * device the listener had just moved away from.
- *
- * So [routeKey] — the outputs and the current choice — re-reads it, and re-reads
- * it again a beat later, because the framework swaps the index a moment after
- * the device list changes rather than in the same breath.
- */
 @Composable
 private fun VolumeRow(routeKey: Any) {
     val system = PlayerPlatform.host.volume
@@ -424,9 +361,6 @@ private fun VolumeRow(routeKey: Any) {
     var level by remember(system) { mutableFloatStateOf(systemLevel) }
     var dragging by remember { mutableStateOf(false) }
 
-    // The hardware keys move the system level; follow it, but never over a
-    // finger: the listener's own drag is the one source of truth this must
-    // not fight.
     LaunchedEffect(systemLevel) {
         if (!dragging) level = systemLevel
     }
@@ -472,7 +406,6 @@ private fun iconFor(device: AudioOutputDevice): ImageVector = when (device.kind)
     AudioOutputKind.PHONE -> SfIcons.PhoneIphone
     AudioOutputKind.WIRED -> SfIcons.Headphones
     AudioOutputKind.USB -> SfIcons.Usb
-    // The same reading the output pill draws — see AudioOutputDevice.form.
     AudioOutputKind.BLUETOOTH -> when (device.form) {
         BluetoothForm.BUDS -> SfIcons.Earbuds
         BluetoothForm.HEADPHONES -> SfIcons.Headphones
@@ -484,6 +417,5 @@ private fun iconFor(device: AudioOutputDevice): ImageVector = when (device.kind)
     AudioOutputKind.OTHER -> SfIcons.Speaker
 }
 
-/** How many times the level is re-read after a route change, and how far apart. */
 private const val VOLUME_REREADS = 4
 private const val VOLUME_REREAD_GAP_MS = 250L

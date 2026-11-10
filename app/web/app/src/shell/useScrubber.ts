@@ -7,22 +7,13 @@ export function clock(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-// ---- The Automix pulse (the phone's MixPulse, ThinSlider.kt) -------------------------------
-
-/** How long the fill takes to glide out to full width, and back, around a blend. */
 const COVER_SEC = 0.7;
-/** How long the beat pulse takes to swell in as a blend starts and settle as it ends. */
 const PULSE_FADE_SEC = 0.9;
-/** Opacity between beats, as a share of the fill's own: low enough to read, never gone. */
 const PULSE_REST = 0.1;
-/** Share of the remaining phase error corrected each frame; small enough to be invisible. */
 const PHASE_PULL = 0.06;
-/** Breathing period when the mix's tempo isn't known. */
 const BREATH_SEC = 1.8;
 
-/** The FastOutSlowIn-like ease the phone's tweens use, over a linear 0..1. */
 const ease = (x: number) => x * x * (3 - 2 * x);
-/** A breath on each beat: a raised cosine squared, peaking on the beat. */
 const beatShape = (phase: number) => {
   const c = 0.5 + 0.5 * Math.cos(2 * Math.PI * phase);
   return c * c;
@@ -36,12 +27,6 @@ interface Pulse {
   last: number;
 }
 
-/**
- * One frame of the pulse: the fill claims the whole bar while a blend runs
- * (through the outgoing song and the incoming one) and its brightness
- * breathes on the blend's beat. The phase runs free at the beat and only
- * leans toward the mix's clock, so the clock's wobble never shows as a lurch.
- */
 function stepPulse(p: Pulse, now: number, beat: { phase: number | null } | null, paused: boolean) {
   const dt = Math.min(0.1, Math.max(0, (now - p.last) / 1000));
   p.last = now;
@@ -62,17 +47,10 @@ function stepPulse(p: Pulse, now: number, beat: { phase: number | null } | null,
   return { cover, alpha: 1 + (pulsed - 1) * depth, active: p.cover > 0 || p.depth > 0 };
 }
 
-/**
- * A seek line drawn from the media clock every frame while playing, by writing
- * `--progress` on the bar and the times into their spans: no React state, so
- * nothing re-renders. Pressing or dragging on the scrubber seeks on release.
- * Shared by the LCD and the full-screen player.
- */
 export function useScrubber() {
   const bar = useRef<HTMLDivElement>(null);
   const elapsed = useRef<HTMLSpanElement>(null);
   const remaining = useRef<HTMLSpanElement>(null);
-  /** "Mixing", in the times' place while an Automix blend runs (the phone's MixingLabel). */
   const mixLabel = useRef<HTMLSpanElement>(null);
   const pulse = useRef<Pulse>({ cover: 0, depth: 0, phase: 0, locked: false, last: performance.now() });
   const status = usePlayer((s) => s.status);
@@ -88,7 +66,6 @@ export function useScrubber() {
     let frame = 0;
     const draw = () => {
       const duration = audio.duration;
-      // during a loop mix the element is paused under the decks: the mix's own playhead
       const head = getPlayhead();
       const paused = head?.paused ?? audio.paused;
       const time = dragging !== null && Number.isFinite(duration) ? dragging * duration : (head?.sec ?? audio.currentTime);

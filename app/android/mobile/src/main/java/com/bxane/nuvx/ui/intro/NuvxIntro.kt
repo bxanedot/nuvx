@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Adapted from Convx's ConvxIntro (GPL-3.0, see THIRD_PARTY_NOTICES.md).
 package com.bxane.nuvx.ui.intro
 
 import android.provider.Settings
@@ -36,17 +35,6 @@ import kotlin.math.hypot
 import kotlin.math.pow
 import kotlin.math.sin
 
-/**
- * Cold-start intro, drawn over the already-composed app: a white disc springs in
- * carrying the nuvx signature, beats three times — a wave pumping outwards and
- * [onBeat] (a strong vibration) on the same frame each time — then zooms through
- * the camera and a hole opens from the centre onto the live app underneath.
- *
- * Plain Compose with no project dependencies, so the watch compiles this same
- * file (wearos/build.gradle.kts). One clock drives every layer; it advances per
- * frame, capped at [MAX_STEP_MS], so a startup stall pauses the intro instead of
- * skipping it. Skipped outright when the system animator scale is 0.
- */
 @Composable
 fun NuvxIntro(logo: ImageVector, onBeat: () -> Unit, onFinished: () -> Unit) {
     val context = LocalContext.current
@@ -71,15 +59,12 @@ fun NuvxIntro(logo: ImageVector, onBeat: () -> Unit, onFinished: () -> Unit) {
     }
     if (reducedMotion) return
 
-    // A raw path under a canvas scale: a VectorPainter would re-rasterise a fresh
-    // bitmap every frame of the zoom, which is what makes an intro like this stutter.
     val path = remember(logo) { Path().apply { fillType = PathFillType.EvenOdd; addGroup(logo.root, Offset.Zero) } }
     val aspect = logo.viewportHeight / logo.viewportWidth
     val hole = remember { Path() }
     Canvas(
         Modifier
             .fillMaxSize()
-            // Swallow touches until the app is revealed.
             .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } },
     ) {
         val t = clock.floatValue
@@ -93,7 +78,6 @@ fun NuvxIntro(logo: ImageVector, onBeat: () -> Unit, onFinished: () -> Unit) {
         clipPath(hole, ClipOp.Difference) {
             drawRect(Color.Black)
 
-            // The waves, under the disc: each leaves its edge on its beat.
             BEATS_MS.forEach { b ->
                 val x = (t - b) / RIPPLE_MS
                 if (x in 0f..1f) {
@@ -112,7 +96,6 @@ fun NuvxIntro(logo: ImageVector, onBeat: () -> Unit, onFinished: () -> Unit) {
             drawCircle(Color.White, radius = discR.coerceAtLeast(0f), center = c)
 
             val glyphIn = phase(t, 100f, 550f)
-            // Outgrows the disc while zooming, so the black stroke sweeps past the camera.
             val w = r0 * 2f * 0.72f * outBack(glyphIn) * (1f + 0.1f * pump) * (1f + 16f * zoom.pow(1.6f))
             val spin = -140f * (1f - outCubic(glyphIn)) + 35f * zoom
             if (w > 0f) {
@@ -126,7 +109,6 @@ fun NuvxIntro(logo: ImageVector, onBeat: () -> Unit, onFinished: () -> Unit) {
     }
 }
 
-/** Every path of [group], with its groups' offsets applied (the logo sits in a translated group). */
 private fun Path.addGroup(group: VectorGroup, offset: Offset) {
     val at = offset + Offset(group.translationX, group.translationY)
     for (node in group) when (node) {
@@ -142,10 +124,8 @@ private const val REVEAL_START = 1650f
 private const val RIPPLE_MS = 600f
 private const val PULSE_MS = 220f
 
-/** Most the clock advances per frame (~two 60 Hz frames), so stalls pause rather than skip. */
 private const val MAX_STEP_MS = 34f
 
-/** Three eighth notes at 120 BPM: "da-da-dum". */
 private val BEATS_MS = listOf(600f, 850f, 1100f)
 
 private fun phase(t: Float, start: Float, end: Float) = ((t - start) / (end - start)).coerceIn(0f, 1f)

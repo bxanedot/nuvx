@@ -99,7 +99,6 @@ fun TvHomeScreen(
     }
 }
 
-/** Placeholder shelves while a feed loads. */
 @Composable
 internal fun TvShelvesLoading(modifier: Modifier = Modifier) {
     Column(
@@ -113,11 +112,6 @@ internal fun TvShelvesLoading(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * A vertical run of shelves under the tab bar — Home, an Explore category, an
- * artist's releases. With [picksFirst] the first shelf gets the large Top Picks
- * cards; every other shelf is lockups.
- */
 @Composable
 internal fun TvShelfFeed(
     shelves: List<HomeShelf>,
@@ -143,8 +137,6 @@ internal fun TvShelfFeed(
         LaunchedEffect(nearEnd, shelves.size) { if (nearEnd) onNearEnd() }
     }
 
-    // The first shelf's cards rest just under its title: ContentTop, the title's
-    // line, then the row's own top padding. Every focused shelf stops there.
     ProvideTvFeedScrolling(anchor = TvDimensions.ContentTop + 19.dp + 11.dp) {
     LazyColumn(
         state = listState,

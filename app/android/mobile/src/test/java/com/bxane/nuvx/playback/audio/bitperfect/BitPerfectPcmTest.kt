@@ -82,7 +82,6 @@ class BitPerfectPcmTest {
         assertTrue(exact)
     }
 
-    /** Media3's own int-to-float step multiplies by 1/0x7FFFFFFF, not 2^-31. */
     @Test
     fun media3FloatRoundTripPreservesEveryBitOf24BitSamples() {
         val samples = sweep()
@@ -120,7 +119,6 @@ class BitPerfectPcmTest {
         val input = ByteBuffer.allocate(10).order(ByteOrder.LITTLE_ENDIAN)
         repeat(5) { input.putShort(it.toShort()) }
         input.flip()
-        // Room for one stereo 24-bit frame and a bit more, but not two.
         val output = ByteBuffer.allocate(8)
         BitPerfectPcm.convert(input, C.ENCODING_PCM_16BIT, 2, 24, output)
         assertEquals(6, output.position())

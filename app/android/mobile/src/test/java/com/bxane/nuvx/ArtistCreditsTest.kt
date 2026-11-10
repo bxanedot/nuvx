@@ -13,16 +13,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The credit line's names, where each one's page comes from, and how the line is
- * cut into the stretches that are drawn.
- *
- * Two rules. A track states one navigation endpoint per credited artist, so
- * those names open their own pages with nothing guessed. A row that states none
- * has only a string, and splitting it can produce a name that somebody else
- * also answers to — so those credits carry no id and are not offered as links
- * rather than searched for.
- */
 class ArtistCreditsTest {
     @Before
     fun forgetWhatOtherTestsLearned() = ArtistNameIndex.forget()
@@ -35,8 +25,6 @@ class ArtistCreditsTest {
 
     private fun split(line: String, primaryId: String? = null) =
         artistCredits(artist = line, artists = emptyList(), primaryArtistId = primaryId)
-
-    // --- where the names and their pages come from
 
     @Test
     fun `every stated artist keeps its own page`() {
@@ -72,8 +60,6 @@ class ArtistCreditsTest {
 
     @Test
     fun `stated credits are used even when the credit line says something else`() {
-        // The line is the display string; the endpoints are the truth about who
-        // is on the track, and they are what has to be opened.
         val credits = artistCredits(
             artist = "BedeoSa, 2115, Flexxy",
             artists = listOf(ArtistRef("BedeoSa", "UC_a"), ArtistRef("2115", "UC_b")),
@@ -139,13 +125,8 @@ class ArtistCreditsTest {
         }
     }
 
-    // --- how the line is cut into the stretches that get drawn
-
     @Test
     fun `the stretches redraw the credit line character for character`() {
-        // The whole point of cutting the line rather than joining the names: what
-        // is drawn is what the source said, so a run that joins its artists with
-        // the word draws as the word, in it.
         for (line in listOf(
             "2115, Bedoes 2115, White 2115",
             "Bedoes 2115 and Lanek",
@@ -160,9 +141,6 @@ class ArtistCreditsTest {
 
     @Test
     fun `a live collaboration names every credit and every one is a link`() {
-        // Real search-row text: `2115` is a channel of its own, distinct from
-        // both `Bedoes 2115` and `White 2115`, and reading it as a fragment of
-        // either is how a tap used to land on somebody else entirely.
         val credits = listOf(
             ArtistCredit("2115", "UCeL9Nc_StEiSMV9HVYhkMMA"),
             ArtistCredit("Bedoes 2115", "UCLLUIzfV9aOdnZN9ViIfSDQ"),
@@ -199,9 +177,6 @@ class ArtistCreditsTest {
 
     @Test
     fun `a name the line spells differently is drawn as the line spells it`() {
-        // Case is not what tells two artists apart, so `Bedeosa` and `BedeoSa`
-        // are one artist — but the drawing is still the line's own spelling, and
-        // the tap opens the credit that matched rather than a substring of it.
         val segments = creditSegments(
             "Bedeosa, 2115",
             listOf(ArtistCredit("BedeoSa", "UC_a"), ArtistCredit("2115", "UC_b")),

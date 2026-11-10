@@ -1,27 +1,19 @@
-//! Dolby Atmos out of a DASH manifest: the addon hands over an MPD whose E-AC-3 JOC
-//! rendition is fetched whole, decoded to stereo PCM and wrapped in a WAV, so the
-//! player seeks and mixes it like any other file. Windows has no E-AC-3 decoder of
-//! its own and symphonia doesn't carry one; filmcraft-ac3 does the decode here.
-
 use std::time::Duration;
 
 use filmcraft_ac3::{Decoder, parse_header};
 use futures_util::StreamExt;
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(20);
-/// A rendition bigger than this isn't a song; don't hold it in memory.
 const MAX_BYTES: usize = 96 * 1024 * 1024;
 const PARALLEL: usize = 6;
 
 pub struct Audio {
-    /// Interleaved stereo 16-bit PCM, little-endian.
     pub pcm: Vec<u8>,
     pub sample_rate: u32,
     pub duration_ms: u64,
     pub bitrate_kbps: u32,
 }
 
-/// Fetch the manifest's Dolby (E-)AC-3 rendition and decode it to stereo PCM.
 pub async fn fetch(http: &reqwest::Client, mpd_url: &str) -> anyhow::Result<Audio> {
     let text = http.get(mpd_url).timeout(FETCH_TIMEOUT).header("User-Agent", crate::hires::USER_AGENT).send().await?.error_for_status()?.text().await?;
     let plan = Plan::parse(&text, mpd_url)?;
@@ -52,7 +44,6 @@ async fn get(http: &reqwest::Client, url: &str) -> anyhow::Result<Vec<u8>> {
     Ok(r.bytes().await?.to_vec())
 }
 
-/// The rendition's segment addresses, read out of the MPD.
 struct Plan {
     init: String,
     segments: Vec<String>,
@@ -67,7 +58,6 @@ impl Plan {
         let base = url::Url::parse(mpd_url)?;
         let period = mpd.children().find(|n| n.has_tag_name("Period")).ok_or_else(|| anyhow::anyhow!("the manifest has no period"))?;
         let period_ms = duration_attr(mpd.attribute("mediaPresentationDuration")).or_else(|| duration_attr(period.attribute("duration"))).unwrap_or(0);
-        // The Dolby rendition: E-AC-3 (JOC) first, plain AC-3 as a second choice.
         let mut reps: Vec<roxmltree::Node> = period.children().filter(|n| n.has_tag_name("AdaptationSet")).flat_map(|a| a.children().filter(|n| n.has_tag_name("Representation")).map(move |r| (a, r))).filter(|(a, r)| {
             let mime = r.attribute("mimeType").or_else(|| a.attribute("mimeType")).unwrap_or("");
             mime.is_empty() || mime.starts_with("audio/")
@@ -79,7 +69,6 @@ impl Plan {
         });
         let rep = reps.into_iter().find(|r| r.attribute("codecs").is_some_and(|c| c.contains("ec-3") || c.contains("ac-3"))).ok_or_else(|| anyhow::anyhow!("the manifest has no Dolby rendition"))?;
         let bandwidth = rep.attribute("bandwidth").and_then(|v| v.parse().ok()).unwrap_or(0);
-        // SegmentTemplate and BaseURL may sit on any level from the representation up.
         fn up<'a, 'i>(n: roxmltree::Node<'a, 'i>, tag: &str) -> Option<roxmltree::Node<'a, 'i>> {
             let mut cur = Some(n);
             while let Some(c) = cur {
@@ -110,7 +99,6 @@ impl Plan {
             let mut s = pattern.replace("$RepresentationID$", rep.attribute("id").unwrap_or(""));
             s = s.replace("$Bandwidth$", &bandwidth.to_string());
             s = s.replace("$Time$", &time.to_string());
-            // $Number$ or $Number%05d$.
             while let Some(start) = s.find("$Number") {
                 let end = s[start + 1..].find('$').map(|i| start + i + 2).ok_or_else(|| anyhow::anyhow!("unclosed $Number$"))?;
                 let token = &s[start + 1..end - 1];
@@ -137,7 +125,6 @@ impl Plan {
                 let d: u64 = s.attribute("d").and_then(|v| v.parse().ok()).ok_or_else(|| anyhow::anyhow!("a segment has no duration"))?;
                 let r: i64 = s.attribute("r").and_then(|v| v.parse().ok()).unwrap_or(0);
                 let count = if r < 0 {
-                    // Repeats until the period ends.
                     ((period_ms as u128 * timescale as u128 / 1000).saturating_sub(time as u128) / d as u128) as u64
                 } else {
                     r as u64 + 1
@@ -161,7 +148,6 @@ impl Plan {
     }
 }
 
-/// `PT3M23.648S` and friends, in milliseconds.
 fn duration_attr(v: Option<&str>) -> Option<u64> {
     let s = v?.strip_prefix("PT")?;
     let (mut ms, mut num) = (0u64, String::new());
@@ -177,9 +163,6 @@ fn duration_attr(v: Option<&str>) -> Option<u64> {
     Some(ms)
 }
 
-/// The E-AC-3 syncframes inside the fMP4's mdat boxes, decoded and downmixed to
-/// interleaved stereo i16. Dependent substreams (the JOC objects beyond the 5.1
-/// bed) carry no program of their own and are skipped.
 fn decode(bytes: &[u8]) -> anyhow::Result<(Vec<i16>, u32)> {
     let mut decoder = Decoder::new();
     let mut pcm: Vec<i16> = Vec::new();
@@ -208,8 +191,6 @@ fn decode(bytes: &[u8]) -> anyhow::Result<(Vec<i16>, u32)> {
                     }
                     downmix(&d.channels, &mut pcm);
                 }
-                // Enhanced coupling / AHT and the like: this copy can't play, so the
-                // caller falls back to the addon's next one.
                 Err(filmcraft_ac3::Error::Unsupported(why)) => anyhow::bail!("the Atmos stream uses {why}"),
                 Err(_) => {}
             }
@@ -219,7 +200,6 @@ fn decode(bytes: &[u8]) -> anyhow::Result<(Vec<i16>, u32)> {
     Ok((pcm, rate))
 }
 
-/// Top-level mdat payloads of an (fragmented) MP4.
 fn mdat_payloads(bytes: &[u8]) -> Vec<&[u8]> {
     let mut out = Vec::new();
     let mut i = 0usize;
@@ -242,8 +222,6 @@ fn mdat_payloads(bytes: &[u8]) -> Vec<&[u8]> {
     out
 }
 
-/// The 5.1 bed (WAV order L R C LFE Ls Rs) folded to stereo, centre and surrounds
-/// at -3 dB, LFE left out; smaller layouts keep their front pair.
 fn downmix(channels: &[Vec<f32>], pcm: &mut Vec<i16>) {
     let n = channels.first().map_or(0, Vec::len);
     let mut push = |l: f32, r: f32| {
@@ -255,13 +233,9 @@ fn downmix(channels: &[Vec<f32>], pcm: &mut Vec<i16>) {
         0 => {}
         1 => for i in 0..n { push(channels[0][i], channels[0][i]); },
         2 => for i in 0..n { push(channels[0][i], channels[1][i]); },
-        // L R C
         3 => for i in 0..n { push(channels[0][i] + C * channels[2][i], channels[1][i] + C * channels[2][i]); },
-        // L R Ls Rs
         4 => for i in 0..n { push(channels[0][i] + C * channels[2][i], channels[1][i] + C * channels[3][i]); },
-        // L R C Ls Rs
         5 => for i in 0..n { push(channels[0][i] + C * (channels[2][i] + channels[3][i]), channels[1][i] + C * (channels[2][i] + channels[4][i])); },
-        // L R C LFE Ls Rs
         _ => for i in 0..n { push(channels[0][i] + C * (channels[2][i] + channels[4][i]), channels[1][i] + C * (channels[2][i] + channels[5][i])); },
     }
 }
@@ -310,15 +284,12 @@ mod tests {
     #[test]
     #[ignore]
     fn live_blinding_lights_atmos_decodes_to_playable_pcm() {
-        // Reads the local hires source and fetches a real Tidal Atmos stream.
-        // Never committed with secrets; run manually when debugging.
         let data = std::fs::read(directories::ProjectDirs::from("", "", "nuvx").unwrap().data_dir().join("app.ron")).unwrap();
         let text = String::from_utf8_lossy(&data);
         let base = text.split("\"hires_source\":").nth(1).and_then(|s| s.split('"').nth(1)).unwrap().replace("\\n", "\n").lines().next().unwrap().to_owned();
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let http = reqwest::Client::new();
-            // Search + stream via the same endpoints the app uses.
             let mk = |q: &str| { let mut u = url::Url::parse(&base).unwrap(); { let mut p = u.path_segments_mut().unwrap(); p.pop_if_empty(); p.push("search"); } u.query_pairs_mut().append_pair("q", q).append_pair("quality", "LOSSLESS").append_pair("atmos", "auto"); u };
             let r = http.get(mk("Blinding Lights The Weeknd")).header("User-Agent", crate::hires::USER_AGENT).send().await.unwrap();
             let j: serde_json::Value = r.json().await.unwrap();

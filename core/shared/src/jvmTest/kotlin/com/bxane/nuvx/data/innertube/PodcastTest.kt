@@ -8,7 +8,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
-/** Shapes trimmed from YouTube Music's own responses for a podcast show (`MPSPP…`). */
 class PodcastTest {
 
     private fun json(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
@@ -67,7 +66,6 @@ class PodcastTest {
         assertEquals(listOf("NlVu0P1RdHs", "eYSOabR3YP0"), songs.map { it.videoId })
         assertEquals(listOf("Huberman Lab", "Huberman Lab"), songs.map { it.artist })
         assertEquals(listOf("2:43:00", "34:00"), songs.map { it.durationText })
-        // Widescreen art, but an episode is listened to.
         assertFalse(songs.any { it.isVideo })
         assertEquals("PAGE2", InnertubeParser.continuationToken(showPage))
     }

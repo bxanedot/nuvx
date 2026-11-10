@@ -3,9 +3,6 @@ import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 import { DetailSkeleton } from './DetailSkeleton';
 import { ShelfSkeleton } from './ShelfSkeleton';
 
-// Route fallbacks. They live in the main bundle, so a route's skeleton shows
-// before its own chunk has loaded. The title is real text: it's known up front.
-
 const sectionTitle = 'mx-(--body-gutter) mt-3';
 
 export function HomeSkeleton() {
@@ -64,7 +61,6 @@ export function PlaylistSkeleton() {
 export function ArtistSkeleton() {
   return (
     <div aria-busy="true">
-      {/* The artist hero is ~1.93:1 of the content column (604px tall at 1165px). */}
       <SkeletonBlock className="aspect-[1165/604] max-h-[70vh] w-full" radius={0} />
       <ShelfSkeleton kind="tracks" />
       <ShelfSkeleton kind="square" />

@@ -13,23 +13,6 @@ import okhttp3.Request
 import java.util.Base64
 import java.util.Locale
 
-/**
- * Apple Music's motion artwork — the animated sleeves the web player shows on
- * an album page, exposed on the catalog API as `editorialVideo`.
- *
- * The richest of the three sources and the fussiest to reach. Two problems to
- * solve: the endpoint needs a bearer token, and a free-text search will return
- * a plausible-looking wrong album for almost any query.
- *
- * The token is the same read-only one the web player mints for anonymous
- * visitors, so it is scraped rather than owned — see [token]. The search is
- * scored rather than trusted: results are ranked on how well the artist, track
- * and album line up, compilations and radio-style playlists are dropped
- * outright, and anything that doesn't clear the bar is skipped even if it is
- * the only hit. A wrong canvas is worse than none.
- *
- * The clips are HLS, which is why the app carries the Media3 HLS extension.
- */
 object AppleMusicCanvas {
 
     private const val TAG = "AppleMusicCanvas"
@@ -38,7 +21,6 @@ object AppleMusicCanvas {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    /** Motion artwork is per storefront; use the device's if it looks sane. */
     val storefront: String by lazy {
         Locale.getDefault().country.takeIf { it.length == 2 }?.lowercase(Locale.ROOT) ?: "us"
     }
@@ -46,9 +28,6 @@ object AppleMusicCanvas {
     fun search(title: String, artist: String, album: String?): CanvasArtwork? {
         val bearer = token() ?: return null
 
-        // The catalog search is term-based, so fold everything we know into
-        // the term — an artist name alone pulls in their whole discography and
-        // the scoring below then has to reject all of it.
         val term = buildString {
             if (!title.contains(artist, ignoreCase = true)) append(artist).append(' ')
             append(title)
@@ -89,8 +68,6 @@ object AppleMusicCanvas {
             val songArtist = attributes["artistName"]?.jsonPrimitive?.contentOrNull
             val albumName = attributes["albumName"]?.jsonPrimitive?.contentOrNull
 
-            // Some searches already carry the motion artwork inline, which
-            // saves the album round trip entirely.
             attributes["editorialVideo"]?.jsonObject?.let { video ->
                 motionUrls(video)?.let { (primary, alternate) ->
                     Log.d(TAG, "inline motion artwork for '$songName'")
@@ -107,12 +84,6 @@ object AppleMusicCanvas {
         return null
     }
 
-    /**
-     * Motion artwork for a release rather than a track, for the album page.
-     *
-     * Simpler than the song path: albums carry `editorialVideo` inline on the
-     * search result, so there is no second lookup to resolve an id first.
-     */
     fun searchAlbum(album: String, artist: String): CanvasArtwork? {
         val bearer = token() ?: return null
         val term = if (album.contains(artist, ignoreCase = true)) album else "$artist $album"
@@ -134,8 +105,6 @@ object AppleMusicCanvas {
 
         val ranked = hits.mapNotNull { hit ->
             val record = hit as? JsonObject ?: return@mapNotNull null
-            // An album is its own "album" as far as the scoring goes, which is
-            // what keeps a deluxe edition from outranking the plain one.
             val score = score(record, album, artist, album, albumIsSelf = true)
                 ?: return@mapNotNull null
             score to record
@@ -161,26 +130,13 @@ object AppleMusicCanvas {
         return null
     }
 
-    // ---- Search scoring ------------------------------------------------
-
-    /**
-     * The floor a hit has to clear. An exact artist and an exact title alone
-     * reach 25, so this only ever admits a result that matched on both, or one
-     * that matched the artist plus a fuzzy title and the right album.
-     */
     private const val MIN_SCORE = 12
 
-    /**
-     * How well a search hit lines up with what's playing, or null to reject it
-     * outright. Artist is a gate rather than a score: a clip credited to
-     * someone else is never the right one, however well the title reads.
-     */
     private fun score(
         song: JsonObject,
         title: String,
         artist: String,
         album: String?,
-        // An album result has no `albumName` of its own — it *is* the album.
         albumIsSelf: Boolean = false,
     ): Int? {
         val attributes = song["attributes"]?.jsonObject ?: return null
@@ -206,8 +162,6 @@ object AppleMusicCanvas {
         score += when {
             hitTitle == wantTitle -> 15
             hitTitle.contains(wantTitle) || wantTitle.contains(hitTitle) -> 7
-            // Same artist, different song. Apple returns these freely and
-            // they are exactly the mismatch that has to be kept out.
             else -> -10
         }
 
@@ -221,8 +175,6 @@ object AppleMusicCanvas {
             }
         }
 
-        // A "(Deluxe)" or "(Remastered)" on one side only is a different
-        // master of the same track, and often a different clip.
         for (word in EDITION_WORDS) {
             val inWanted = title.contains(word, ignoreCase = true)
             val inHit = hitName.contains(word, ignoreCase = true)
@@ -235,11 +187,6 @@ object AppleMusicCanvas {
     private val EDITION_WORDS =
         listOf("deluxe", "expanded", "remastered", "remix", "version", "edit", "mix", "bonus")
 
-    /**
-     * Editorial playlists and radio mixes have motion artwork of their own,
-     * and Apple returns them alongside albums. Theirs belongs to the playlist,
-     * not to the track, so putting one behind a sleeve is always wrong.
-     */
     private fun isCompilation(name: String): Boolean {
         val lower = name.lowercase(Locale.ROOT)
         return COMPILATION_MARKERS.any { lower.contains(it) }
@@ -250,8 +197,6 @@ object AppleMusicCanvas {
         "apple music", "today's hits", "session",
     )
 
-    // ---- Album lookup --------------------------------------------------
-
     private fun albumId(song: JsonObject): String? {
         val fromRelationship = song["relationships"]?.jsonObject
             ?.get("albums")?.jsonObject
@@ -259,8 +204,6 @@ object AppleMusicCanvas {
             ?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
         if (fromRelationship != null) return fromRelationship.takeUnless { it.startsWith("pl.") }
 
-        // Not every hit expands its relationships, but the web URL always ends
-        // in the album id: .../album/<slug>/<id>?i=<song id>
         val url = song["attributes"]?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull
             ?: return null
         return url.substringAfter("/album/", "")
@@ -310,16 +253,9 @@ object AppleMusicCanvas {
             ?: asset["url"]?.jsonPrimitive?.contentOrNull
     }?.takeIf { it.isNotBlank() }
 
-    /** The 3:4 rendition Apple's own player runs under its whole phone screen. */
     private fun tallUrl(video: JsonObject): String? =
         link(video, "motionDetailTall") ?: link(video, "motionTallVideo3x4")
 
-    /**
-     * The square rendition first — it fills a square sleeve without cropping.
-     * The tall one is the same clip framed for a phone-shaped surface; the
-     * phone player takes it from [CanvasArtwork.portraitUrl], and it is the
-     * retry everywhere else when the square won't play.
-     */
     private fun motionUrls(video: JsonObject): Pair<String, String?>? {
         val square = link(video, "motionDetailSquare") ?: link(video, "motionSquareVideo1x1")
         val raw = link(video, "motionDetailRaw")
@@ -329,30 +265,12 @@ object AppleMusicCanvas {
         return primary to alternate
     }
 
-    // ---- Token ---------------------------------------------------------
-
     private var cachedToken: String? = null
     private var tokenExpiresAtMs = 0L
     private var retryTokenAfterMs = 0L
 
-    /** Tokens the catalog API has already turned down. See [get]. */
     private val rejected = mutableSetOf<String>()
 
-    /**
-     * The anonymous bearer token the Apple Music web player uses for catalog
-     * reads. It isn't published anywhere and rotates every few weeks, so it is
-     * read the way the browser gets it: load the web player, find the JS
-     * bundle it pulls in, and pick the token out of it. Held until shortly
-     * before it expires.
-     *
-     * The bundle ships several unrelated JWTs and only the web player's own is
-     * accepted here — the others come back 401 — so this picks by issuer
-     * rather than taking the first one that parses.
-     *
-     * A failed scrape backs off for [TOKEN_RETRY_MS] rather than retrying per
-     * track: if Apple has changed the page shape, hammering it on every skip
-     * fixes nothing and makes every canvas lookup pay for the round trip.
-     */
     @Synchronized
     private fun token(): String? {
         val now = System.currentTimeMillis()
@@ -378,8 +296,6 @@ object AppleMusicCanvas {
                 .toList()
             if (candidates.isEmpty()) continue
 
-            // The web player's own token first; anything else is a guess kept
-            // only so a change in how Apple labels it isn't fatal.
             val (jwt, expiresAt) = candidates.firstOrNull { isWebPlayerToken(it.first) }
                 ?: candidates.first()
             cachedToken = jwt
@@ -395,12 +311,6 @@ object AppleMusicCanvas {
 
     private const val TOKEN_RETRY_MS = 30L * 60 * 1000
 
-    /**
-     * An authenticated catalog read. A 401 means the token we picked out of
-     * the bundle isn't the one this endpoint honours, so it is struck off and
-     * the next lookup re-scrapes and picks a different one — the alternative
-     * is being locked out until the app restarts.
-     */
     private fun get(url: String, bearer: String): String? {
         val request = Request.Builder().url(url).apply {
             authHeaders(bearer).forEach { (name, value) -> header(name, value) }
@@ -426,7 +336,6 @@ object AppleMusicCanvas {
         }.getOrNull()
     }
 
-    /** The web player's token names itself in the header `kid` and payload `iss`. */
     private fun isWebPlayerToken(jwt: String): Boolean = runCatching {
         val parts = jwt.split(".")
         val header = String(Base64.getUrlDecoder().decode(parts[0]), Charsets.UTF_8)
@@ -434,7 +343,6 @@ object AppleMusicCanvas {
         header.contains("WebPlayKid") || payload.contains("AMPWebPlay")
     }.getOrDefault(false)
 
-    /** A JWT's `exp` in millis, or null if this isn't one we can read. */
     private fun expiry(jwt: String): Long? = runCatching {
         val payload = String(
             Base64.getUrlDecoder().decode(jwt.split(".")[1]),

@@ -7,7 +7,6 @@ import { forgetLyrics, lookupLyrics, type LyricsResult, type SourceState } from 
 import { useLyricsSettings } from './settings';
 import type { LyricsSourceId } from './sources';
 
-/** Per track: the provider the user picked in the panel, and how each provider's search went. */
 interface LyricsUi {
   picked: Record<string, LyricsSourceId>;
   states: Record<string, Partial<Record<LyricsSourceId, SourceState>>>;
@@ -26,7 +25,6 @@ export const useLyricsUi = create<LyricsUi>()((set) => ({
     }),
 }));
 
-// A host the extension was refused for has been allowed: ask again.
 onGranted(() => {
   forgetLyrics();
   void queryClient.invalidateQueries({ queryKey: ['lyrics'] });
@@ -36,7 +34,6 @@ function reportState(videoId: string, source: LyricsSourceId, state: SourceState
   useLyricsUi.setState((s) => ({ states: { ...s.states, [videoId]: { ...s.states[videoId], [source]: state } } }));
 }
 
-/** The playing track's lyrics, from the provider chain or the provider picked for it. */
 export function useLyrics() {
   const videoId = usePlayer((s) => s.nowPlaying?.videoId ?? null);
   const title = usePlayer((s) => s.nowPlaying?.title ?? '');

@@ -9,11 +9,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Which sources each streaming ceiling pays for — the rule every playback
- * walk filters on, and the one a lowered ceiling has to take back from
- * whatever was already pinned or found under the old one.
- */
 class AudioQualityCeilingTest {
 
     private val lossless = SourceKind.entries.filter { it.canServeLossless }

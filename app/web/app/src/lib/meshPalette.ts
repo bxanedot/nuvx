@@ -2,16 +2,10 @@ import { artworkAtPixels } from './artwork';
 
 export type Rgb = [number, number, number];
 
-/** The mesh is the artwork averaged into a GRID × GRID square of means. */
 export const GRID = 4;
 
 const cache = new Map<string, Rgb[]>();
 
-/**
- * Pushes a cell's colour toward something white text stands on: a little more
- * saturated, and no brighter than a mid-dark tone. Dark cells stay as they are,
- * so a mostly black sleeve still makes a mostly black backdrop.
- */
 function shape([r, g, b]: Rgb): Rgb {
   const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   const saturated = [r, g, b].map((v) => gray + (v - gray) * 1.3) as Rgb;
@@ -20,19 +14,11 @@ function shape([r, g, b]: Rgb): Rgb {
   return saturated.map((v) => Math.round(Math.min(255, Math.max(0, v * k)))) as Rgb;
 }
 
-/**
- * The artwork's colours, roughly where and in the proportions they are on the
- * sleeve, as GRID² cells read row by row (the approach of the desktop's
- * ArtworkMeshBackdrop.kt; no quantiser, so nine-tenths black stays black).
- * YouTube's image hosts send `Access-Control-Allow-Origin: *`, so the canvas
- * stays readable without the extension.
- */
 async function measure(url: string): Promise<Rgb[]> {
   const image = new Image();
   image.crossOrigin = 'anonymous';
   image.referrerPolicy = 'no-referrer';
   image.decoding = 'async';
-  // 60px: a size YouTube's pages request, so the CDN has it cached (lib/artwork.ts).
   image.src = artworkAtPixels(url, 60);
   await image.decode();
   const side = GRID * 3;

@@ -8,7 +8,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
 
-/** The echo-out stage of [TransitionFilterProcessor], driven the way the crossfade drives it. */
 class EchoOutTest {
 
     private val rate = 1_000
@@ -16,7 +15,6 @@ class EchoOutTest {
 
     private fun processor() = TransitionFilterProcessor().apply { configure(rate, 1) }
 
-    /** Runs [frames] of [input] through [filter], one 100-frame block at a time. */
     private fun run(filter: TransitionFilterProcessor, input: FloatArray): FloatArray {
         val out = FloatArray(input.size)
         var at = 0
@@ -40,7 +38,6 @@ class EchoOutTest {
     @Test
     fun `an echo repeats on its delay, each repeat quieter, after the dry signal is gone`() {
         val filter = processor()
-        // Ramp the send and dry in, as the controller does, then feed one click.
         filter.setEcho(delaySeconds = 0.1f, send = 1f, dry = 1f)
         run(filter, FloatArray(100))
         val input = FloatArray(1_000).also { it[0] = 1f }
@@ -51,7 +48,6 @@ class EchoOutTest {
         assertTrue("first repeat at the delay: $first", first > 0.3f)
         assertTrue("each repeat quieter than the last: $first then $second", abs(second) < abs(first))
 
-        // Kill the dry signal and the send: new input is silent, the tail rings on.
         filter.setEcho(delaySeconds = 0.1f, send = 0f, dry = 0f)
         run(filter, FloatArray(100))
         val loud = FloatArray(300) { 1f }

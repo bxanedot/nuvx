@@ -1,17 +1,3 @@
-//! Listen together: a party on nuvx's party server (core/worker, the same one the
-//! Android apps and the web player use) that keeps everyone on the same song at the
-//! same moment.
-//!
-//! No audio goes through the server: each member streams the song from YouTube like
-//! any other. The server holds the party's queue and playback, and every member sends
-//! it controls (`setQueue`, `setTrack`, `play`, `queueAdd`, …). The UI still thinks
-//! in host state and guest requests (`RoomState`, `Cmd`); this module turns those into
-//! controls, sending only what differs from what the server already has, so applying
-//! the server's state never echoes back to it.
-//!
-//! The socket lives on the backend's tokio runtime; the UI talks to it through
-//! channels and is woken when something arrives.
-
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -26,26 +12,18 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use crate::model::{Link, Thumb, Track};
 
-/// The party server. `NUVX_PARTY_SERVER` overrides it (e.g. `http://127.0.0.1:8787` for `wrangler dev`).
 const SERVER: &str = "https://nuvx-listen.bxane.workers.dev";
 
-/// The server's code alphabet (core/worker/src/party.ts): no I, L or O.
 pub const ALPHABET: &str = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ";
 pub const CODE_LEN: usize = 6;
-/// The server anchors a play this far ahead of when it gets it (PLAY_LEAD_MS).
 const PLAY_LEAD_MS: i64 = 350;
-/// Songs after the current one the server keeps (MAX_UPCOMING).
 const MAX_UPCOMING: usize = 25;
-/// The host's position may wander this far from the server's before it re-seeks the room.
 const MAX_HOST_DRIFT_MS: i64 = 1500;
 
-/// The invite link the apps and the web player share (`https://nuvx.lol/invite/CODE`).
 pub fn share_link(code: &str) -> String {
     format!("https://nuvx.lol/invite/{code}")
 }
 
-/// `code` cleaned up the way the server reads it (case, spaces, dashes; I/L as 1, O as 0)
-/// if it's a valid party code.
 pub fn normalize_code(code: &str) -> Option<String> {
     let c: String = code
         .chars()
@@ -65,21 +43,17 @@ pub struct Member {
     pub name: String,
 }
 
-/// The party's queue and playback, as the UI applies it.
 #[derive(Clone, Debug, Default)]
 pub struct RoomState {
     pub queue: Vec<Track>,
     pub index: usize,
-    /// Who added which song (video ID → name). The party server doesn't track it.
     pub by: std::collections::HashMap<String, String>,
     pub owner: std::collections::HashMap<String, String>,
     pub vid: String,
-    /// Position in ms at the `Instant` sent with it.
     pub pos: u64,
     pub playing: bool,
 }
 
-/// Where playback is, without the queue.
 #[derive(Clone, Debug)]
 pub struct Tick {
     pub vid: String,
@@ -88,8 +62,6 @@ pub struct Tick {
 }
 
 impl Tick {
-    /// Position now, given when (locally) it was at `pos`. The server anchors a play a
-    /// moment ahead, so `at` can still be in the future.
     pub fn position_at(&self, at: Instant) -> Duration {
         let pos = Duration::from_millis(self.pos);
         if !self.playing {
@@ -100,11 +72,9 @@ impl Tick {
     }
 }
 
-/// What a guest asks the party to do.
 #[derive(Clone, Debug)]
 pub enum Cmd {
     Add { track: Track },
-    /// Play next.
     Next { track: Track },
     Toggle,
     Skip,
@@ -114,7 +84,6 @@ pub enum Cmd {
 }
 
 impl Cmd {
-    /// Only allowed while the host lets everyone control the music.
     pub fn is_control(&self) -> bool {
         !matches!(self, Cmd::Add { .. } | Cmd::Next { .. })
     }
@@ -122,17 +91,11 @@ impl Cmd {
 
 #[derive(Debug)]
 pub enum Event {
-    /// Joined (or rejoined after a dropped connection).
     Welcome { you: String, host: String, control: bool, queue: bool, members: Vec<Member> },
     Members { host: String, members: Vec<Member> },
-    /// What guests may do: control playback, add songs (one switch on nuvx's server).
     Control { on: bool, queue: bool },
-    /// The party's state, changed by someone else; `Instant` is when (locally)
-    /// playback is at `state.pos`.
     State(RoomState, Instant),
-    /// A control the server turned down, or what someone did; the party keeps going.
     Notice(String),
-    /// The connection is gone for good: a reason to show.
     Closed(String),
     Reconnecting,
 }
@@ -152,7 +115,6 @@ pub struct Jam {
 }
 
 impl Jam {
-    /// Join party `code`, or with `create` start a new one (the server picks its code).
     pub fn start(backend: &crate::backend::Backend, code: String, create: bool, name: String) -> Jam {
         let (out_tx, out_rx) = mpsc::unbounded_channel();
         let (ev_tx, ev_rx) = unbounded();
@@ -173,7 +135,6 @@ impl Jam {
         Jam { code, out: out_tx, events: ev_rx }
     }
 
-    /// The party code ("" until the server has made the party).
     pub fn code(&self) -> String {
         self.code.lock().unwrap().clone()
     }
@@ -190,7 +151,6 @@ impl Jam {
         let _ = self.out.send(Out::Tick(t.clone()));
     }
 
-    /// Host: let guests control playback and add songs (`on`), or only the host.
     pub fn set_control(&self, on: bool) {
         let _ = self.out.send(Out::HostOnly(!on));
     }
@@ -210,7 +170,6 @@ impl Drop for Jam {
     }
 }
 
-/// This install's device ID for parties: rejoining with it keeps our place.
 fn device_id(data_dir: &std::path::Path) -> String {
     let path = data_dir.join("party_device");
     if let Ok(id) = std::fs::read_to_string(&path)
@@ -225,7 +184,6 @@ fn device_id(data_dir: &std::path::Path) -> String {
 
 fn random_hex() -> String {
     use std::hash::{BuildHasher, Hasher};
-    // RandomState is seeded randomly per process; mix in the time.
     let mut out = String::new();
     for i in 0..2u8 {
         let mut h = std::collections::hash_map::RandomState::new().build_hasher();
@@ -240,9 +198,6 @@ fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)
 }
 
-// ---------------------------------------------------------------------- wire
-
-/// A song as the party knows it (core/worker `Track`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct WireTrack {
@@ -344,9 +299,6 @@ fn members_of(m: &[WireMember]) -> (String, Vec<Member>) {
     (host, m.iter().map(|m| Member { id: m.member_id.clone(), name: m.display_name.clone() }).collect())
 }
 
-// ------------------------------------------------------------------ translation
-
-/// What the server has, as far as we've heard.
 #[derive(Clone, Debug, Default)]
 struct Known {
     queue: Vec<WireTrack>,
@@ -394,10 +346,8 @@ impl Known {
     }
 }
 
-/// The controls that bring the server from `k` to the host's state `s`.
 fn host_controls(k: &Known, s: &RoomState, server_now: i64) -> Vec<Value> {
     let mut out = Vec::new();
-    // The server keeps the current song and MAX_UPCOMING after it.
     let keep = s.queue.len().min(s.index + 1 + MAX_UPCOMING);
     let queue: Vec<WireTrack> = s.queue[..keep].iter().map(to_wire).collect();
     if queue.iter().map(|t| &t.video_id).ne(k.queue.iter().map(|t| &t.video_id)) || (!queue.is_empty() && s.index as i64 != k.index) {
@@ -415,7 +365,6 @@ fn host_controls(k: &Known, s: &RoomState, server_now: i64) -> Vec<Value> {
     out
 }
 
-/// Play, pause or seek when the host's position differs from the server's.
 fn tick_controls(k: &Known, t: &Tick, server_now: i64) -> Vec<Value> {
     if t.vid != k.vid || t.vid.is_empty() {
         return vec![];
@@ -432,7 +381,6 @@ fn tick_controls(k: &Known, t: &Tick, server_now: i64) -> Vec<Value> {
     vec![]
 }
 
-/// A guest's request as a control.
 fn cmd_control(k: &Known, cmd: &Cmd, server_now: i64) -> Option<Value> {
     Some(match cmd {
         Cmd::Add { track } if !track.id.is_empty() => json!({ "type": "control", "action": "queueAdd", "track": to_wire(track) }),
@@ -450,7 +398,6 @@ fn cmd_control(k: &Known, cmd: &Cmd, server_now: i64) -> Option<Value> {
     })
 }
 
-/// Words for a server error code.
 fn error_text(code: &str, msg: Option<String>) -> String {
     match code {
         "no_such_party" => "No party with that code. Check it and try again".to_owned(),
@@ -460,15 +407,9 @@ fn error_text(code: &str, msg: Option<String>) -> String {
     }
 }
 
-// ------------------------------------------------------------------ connection
-
-/// Why a connection ended.
 enum End {
-    /// Left, or removed: nothing to retry.
     Done(Option<String>),
-    /// The server refused us (bad code, full…): show it, don't retry.
     Refused(String),
-    /// The network dropped: try again.
     Dropped(String),
 }
 
@@ -480,7 +421,6 @@ struct Conn {
     token: String,
     events: Sender<Event>,
     wake: Arc<dyn Fn() + Send + Sync>,
-    /// Server clock minus ours, in ms.
     offset: Arc<AtomicI64>,
     known: Known,
 }
@@ -495,7 +435,6 @@ impl Conn {
         now_ms() + self.offset.load(Ordering::Relaxed)
     }
 
-    /// When (locally) the server time `ts` is; it can be a moment ahead.
     fn local_instant(&self, ts: i64) -> Instant {
         let d = (ts - self.server_now()).clamp(-60_000, 60_000);
         if d >= 0 { Instant::now() + Duration::from_millis(d as u64) } else { Instant::now() - Duration::from_millis(-d as u64) }
@@ -514,7 +453,6 @@ impl Conn {
         loop {
             let started = Instant::now();
             let end = self.session(&mut out).await;
-            // Drops spread over a long party shouldn't add up to giving up.
             if started.elapsed() > Duration::from_secs(120) {
                 retries = 0;
             }
@@ -547,7 +485,6 @@ impl Conn {
         }
     }
 
-    /// Create or (re)join the party over HTTP: the member token for the socket.
     async fn join(&mut self) -> Result<(), End> {
         let http = Self::http().map_err(|e| End::Dropped(e.to_string()))?;
         let body = json!({ "userId": self.device, "deviceId": self.device, "displayName": self.name });
@@ -580,7 +517,6 @@ impl Conn {
     }
 
     async fn session(&mut self, out: &mut mpsc::UnboundedReceiver<Out>) -> End {
-        // A fresh token each time: rejoining with our device ID keeps our place.
         if let Err(e) = self.join().await {
             return e;
         }
@@ -592,7 +528,6 @@ impl Conn {
             let u = url::Url::parse(&url)?;
             let host = u.host_str().unwrap_or_default().to_owned();
             let port = u.port_or_known_default().unwrap_or(443);
-            // Through the proxy setting, like everything else.
             let tcp = crate::proxy::connect(&host, port).await?;
             anyhow::Ok(tokio_tungstenite::client_async_tls(req, tcp).await?)
         };
@@ -602,8 +537,6 @@ impl Conn {
             Err(_) => return End::Dropped("timed out".into()),
         };
         let (mut tx, mut rx) = ws.split();
-        // Pings keep the socket alive, make the server send its state every few seconds,
-        // and (the first few, close together) sync the clocks: the quickest round trip wins.
         let mut keepalive = tokio::time::interval(Duration::from_secs(10));
         let mut sync = tokio::time::interval(Duration::from_millis(200));
         let mut pings_left = 0u32;
@@ -611,7 +544,6 @@ impl Conn {
         let mut last_rx = Instant::now();
         let mut you = String::new();
         let mut host = String::new();
-        // (seq, queueSeq) of the last state handed to the UI, so heartbeats aren't re-applied.
         let mut shown = (-1i64, -1i64);
         loop {
             let mut send: Vec<Value> = Vec::new();
@@ -651,7 +583,6 @@ impl Conn {
                     };
                     match m {
                         In::Welcome { you: me, party, server_ms } => {
-                            // A first guess until the pings answer.
                             self.offset.store(server_ms - now_ms(), Ordering::Relaxed);
                             pings_left = 5;
                             *self.code.lock().unwrap() = party.code.clone();
@@ -673,7 +604,6 @@ impl Conn {
                         }
                         In::Queue { queue } => self.known.set_queue(&queue),
                         In::State { playback } => {
-                            // Older than what we have: two controllers pressing at once settle.
                             if playback.seq < self.known.seq {
                                 continue;
                             }
@@ -682,7 +612,6 @@ impl Conn {
                                 send.push(json!({ "type": "syncQueue" }));
                             }
                             let fresh = (playback.seq, playback.queue_seq) != shown;
-                            // The host already plays its own changes.
                             let own = you == host && playback.updated_by.as_deref() == Some(you.as_str());
                             if fresh && !own {
                                 shown = (playback.seq, playback.queue_seq);
@@ -748,11 +677,9 @@ mod tests {
     #[test]
     fn host_sends_only_what_differs() {
         let s = RoomState { queue: vec![track("a"), track("b")], index: 0, vid: "a".into(), pos: 1000, playing: true, ..Default::default() };
-        // A fresh party: queue and track.
         let first = host_controls(&Known::default(), &s, 0);
         assert_eq!(first.iter().map(|v| v["action"].as_str().unwrap()).collect::<Vec<_>>(), ["setQueue", "setTrack"]);
         assert_eq!(first[1]["positionMs"], 1000 + PLAY_LEAD_MS);
-        // The server now has it: nothing to send, even a little later.
         let mut k = Known::default();
         k.queue = s.queue.iter().map(to_wire).collect();
         k.index = 0;
@@ -761,7 +688,6 @@ mod tests {
         k.position_ms = 1000;
         k.anchor_ms = 0;
         assert!(host_controls(&k, &RoomState { pos: 1500, ..s.clone() }, 500).is_empty());
-        // Paused here: pause there. Jumped ahead: seek.
         assert_eq!(host_controls(&k, &RoomState { playing: false, ..s.clone() }, 0)[0]["action"], "pause");
         assert_eq!(host_controls(&k, &RoomState { pos: 60_000, ..s.clone() }, 0)[0]["action"], "seek");
     }

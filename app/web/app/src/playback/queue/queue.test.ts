@@ -33,7 +33,6 @@ const song = (id: string, title: string, artist?: string): Candidate => ({ track
 const video = (id: string, title: string, artist?: string): Candidate => ({ track: track(id, title, artist), isVideo: true });
 const ids = (tracks: Track[]) => tracks.map((t) => t.videoId);
 
-// Ported from app/src/test/…/QueueBuilderTest.kt
 describe('extendStation (QueueBuilder)', () => {
   it('leaves out the music video cut of a mix', () => {
     const extra = extendStation([], [song('aaa', 'Dildaara (Stand By Me)', 'Vishal-Shekhar'), video('bbb', 'Lyrical Video: Dildara Song', 'Shafqat Amanat Ali'), song('ccc', 'Sajni')], 10);
@@ -88,7 +87,6 @@ describe('extendStation (QueueBuilder)', () => {
   });
 });
 
-// Ported from app/src/test/…/QueueSectionsTest.kt ("." user, "~" AutoPlay)
 describe('autoplaySectionStart (QueueSections)', () => {
   const start = (queue: string, currentIndex: number) =>
     autoplaySectionStart([...queue].map((c): QueueTier => (c === '~' ? 'autoplay' : 'user')), currentIndex);
@@ -103,7 +101,6 @@ describe('autoplaySectionStart (QueueSections)', () => {
   });
 });
 
-/** "c" context, "u" user, "a" AutoPlay; entry ids are the letter plus position. */
 function timeline(spec: string): QueueEntry[] {
   const tierOf = { c: 'context', u: 'user', a: 'autoplay' } as const;
   return [...spec].map((c, i) => asEntry(track(`${c}${i}`), tierOf[c as 'c' | 'u' | 'a'], null, `${c}${i}`));
@@ -168,7 +165,7 @@ describe('QueueTimeline', () => {
   });
 
   it('never returns an unchanged shuffle', () => {
-    const identity = () => 0.999999; // Fisher-Yates with j = i keeps the order
+    const identity = () => 0.999999;
     const result = shuffledUpcomingOrder(['context', 'context', 'context'], identity);
     expect(result).not.toEqual([0, 1, 2]);
   });

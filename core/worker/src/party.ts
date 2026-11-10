@@ -1,6 +1,3 @@
-// Listen Together party logic, ported from the Go server (backend/party, protocol, codes and main.go's control switch).
-// Free of Cloudflare APIs so it runs under `node --test`. Design: docs/designs/listen-together-worker.md.
-
 export const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ";
 export const CODE_LENGTH = 6;
 export const PLAY_LEAD_MS = 350;
@@ -35,10 +32,7 @@ type Frame = Record<string, unknown>;
 
 export const fail = (status: number, error: string, message: string): Fail => ({ status, error, message });
 
-// --- codes ---
-
 export function newCode(random: (n: number) => Uint8Array): string {
-  // 33 symbols: rejection sampling keeps every symbol equally likely.
   let out = "";
   while (out.length < CODE_LENGTH) for (const b of random(16)) if (b < 231 && out.length < CODE_LENGTH) out += CODE_ALPHABET[b % 33];
   return out;
@@ -52,8 +46,6 @@ export function normaliseCode(code: string): string {
 export const isValidCode = (code: string) => code.length === CODE_LENGTH && [...code].every((c) => CODE_ALPHABET.includes(c));
 
 export const randomHex = (random: (n: number) => Uint8Array, n: number) => [...random(n)].map((b) => b.toString(16).padStart(2, "0")).join("");
-
-// --- validation ---
 
 export function validateJoin(raw: unknown): JoinRequest | Fail {
   const bad = (message: string) => fail(422, "validation_error", message);
@@ -95,8 +87,6 @@ export function trackFromWire(raw: unknown): Track | null {
   return track;
 }
 
-// --- playback ---
-
 export function newParty(code: string, now: number, maxMembers = 5): Party {
   return {
     code, members: [], maxMembers: maxMembers >= 2 && maxMembers <= 10 ? maxMembers : 5, hostOnlyControl: false, createdAtMs: now, emptySinceMs: now,
@@ -114,7 +104,6 @@ export function positionAt(p: Playback, now: number): number {
 const touch = (p: Playback, by: string, now: number) => { p.seq++; p.updatedBy = by; p.updatedAtMs = now; };
 const touchQueue = (p: Playback, by: string, now: number) => { p.queueSeq++; p.updatedBy = by; p.updatedAtMs = now; };
 
-/** The copy of videoId nearest `around`: next slot first, then previous, then nearest either way (behind costs more). */
 export function nearestIndexOf(queue: Track[], videoId: string, around: number): number {
   if (queue[around + 1]?.videoId === videoId && around + 1 >= 0) return around + 1;
   if (around - 1 >= 0 && queue[around - 1]?.videoId === videoId) return around - 1;
@@ -155,7 +144,6 @@ function setQueue(p: Playback, by: string, queue: Track[], queueIndex: number, n
   touchQueue(p, by, now);
 }
 
-/** Drops AutoPlay suggestions already waiting after the current track or repeated in the batch; hand-queued tracks pass. */
 export function withoutQueuedAutoplay(queue: Track[], queueIndex: number, tracks: Track[]): Track[] {
   const waiting = new Set(queue.slice(Math.max(0, queueIndex + 1)).map((t) => t.videoId));
   return tracks.filter((t) => {
@@ -171,7 +159,7 @@ function addUpcoming(p: Playback, by: string, tracks: Track[], playNext: boolean
   const slots = MAX_UPCOMING - upcoming;
   if (slots <= 0) return "queue_full";
   let add = withoutQueuedAutoplay(p.queue, p.queueIndex, tracks);
-  if (add.length === 0 && tracks.length > 0) return null; // all already waiting: not a refusal
+  if (add.length === 0 && tracks.length > 0) return null;
   add = add.slice(0, slots);
   if (add.length === 0) return "no_tracks";
   if (playNext && p.queueIndex >= 0 && p.queueIndex < p.queue.length) p.queue.splice(p.queueIndex + 1, 0, ...add);
@@ -180,9 +168,6 @@ function addUpcoming(p: Playback, by: string, tracks: Track[], playNext: boolean
   return null;
 }
 
-// --- members ---
-
-/** Joins or rejoins (same deviceId keeps the member and rotates its token). */
 export function join(party: Party, req: JoinRequest, random: (n: number) => Uint8Array, now: number): Member | Fail {
   const known = party.members.find((m) => m.deviceId === req.deviceId);
   if (known) {
@@ -198,7 +183,6 @@ export function join(party: Party, req: JoinRequest, random: (n: number) => Uint
   return m;
 }
 
-/** Constant-time token match. */
 export function authenticate(party: Party, token: string): Member | null {
   let found: Member | null = null;
   for (const m of party.members) {
@@ -209,7 +193,6 @@ export function authenticate(party: Party, token: string): Member | null {
   return found;
 }
 
-/** Removes a member; the longest-present remaining member becomes host. */
 export function remove(party: Party, memberId: string): Member | null {
   const i = party.members.findIndex((m) => m.memberId === memberId);
   if (i < 0) return null;
@@ -218,7 +201,6 @@ export function remove(party: Party, memberId: string): Member | null {
   return m;
 }
 
-/** Recomputes emptySinceMs from who is connected right now. */
 export function refreshEmptiness(party: Party, connected: (id: string) => boolean, now: number) {
   if (party.members.some((m) => connected(m.memberId))) party.emptySinceMs = null;
   else party.emptySinceMs ??= now;
@@ -238,19 +220,15 @@ export const freshBuckets = (now: number) => ({ frame: { tokens: FRAME_RATE, at:
 export const isExpired = (party: Party, now: number) =>
   now - party.createdAtMs > PARTY_MAX_AGE_MS || (party.emptySinceMs !== null && now - party.emptySinceMs > EMPTY_PARTY_TTL_MS);
 
-/** Members disconnected longer than the grace period. */
 export const expiredMembers = (party: Party, connected: (id: string) => boolean, now: number) =>
   party.members.filter((m) => !connected(m.memberId) && now - m.lastSeenMs > DISCONNECT_GRACE_MS);
 
-/** When the sweep next has something to do. */
 export function nextExpiry(party: Party, connected: (id: string) => boolean): number {
   const times = [party.createdAtMs + PARTY_MAX_AGE_MS];
   if (party.emptySinceMs !== null) times.push(party.emptySinceMs + EMPTY_PARTY_TTL_MS);
   for (const m of party.members) if (!connected(m.memberId)) times.push(m.lastSeenMs + DISCONNECT_GRACE_MS);
   return Math.min(...times) + 1;
 }
-
-// --- wire ---
 
 const sortedMembers = (party: Party) => [...party.members].sort((a, b) => a.joinedAtMs - b.joinedAtMs);
 
@@ -290,11 +268,8 @@ export function previewWire(party: Party) {
   };
 }
 
-// --- controls ---
-
 const CONTROL_ACTIONS = new Set(["play", "pause", "seek", "setTrack", "setQueue", "queueAdd", "queueRemove", "queueClear", "queueMove", "next", "previous", "setAutoplay"]);
 
-/** What a successful control asks the caller to do beyond broadcasting queue/state/members/activity. */
 export type ControlResult = { ok: true; kicked?: string } | { ok: false; error: string; message: string };
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : null);

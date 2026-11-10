@@ -24,20 +24,14 @@ import androidx.tv.material3.darkColorScheme
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.TvSettings
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Immutable palette data class — one instance per theme variant
-// ─────────────────────────────────────────────────────────────────────────────
-
 @Immutable
 data class TvColorPalette(
-    // Accents
     val accentRed: Color,
     val accentRedGlow: Color,
     val accentPink: Color,
     val accentPurple: Color,
     val accentBlue: Color,
 
-    // Canvas & surfaces
     val background: Color,
     val backgroundElevated: Color,
     val surface: Color,
@@ -45,37 +39,26 @@ data class TvColorPalette(
     val surfaceFocused: Color,
     val surfaceSelected: Color,
 
-    // Text hierarchy
     val textPrimary: Color,
     val textSecondary: Color,
     val textMuted: Color,
 
-    // Borders & focus
     val borderSubtle: Color,
     val borderFocused: Color,
     val borderFocusedWhite: Color,
 
-    // Overlays & scrims
     val scrimDark: Color,
     val glassOverlay: Color,
     val glassOverlayFocused: Color,
 
-    // Background gradient
     val backgroundGradient: Brush,
 
-    // Whether this is a dark palette
     val isDark: Boolean,
 
-    // tvOS canvas: the two ends of the screen-filling background gradient
     val canvasTop: Color = Color(0xFF26272C),
     val canvasBottom: Color = Color(0xFF101012),
-    // Whether the canvas picks up a tint from the playing song's artwork
     val tintsCanvas: Boolean = true,
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. Dark Palette (Dynamic Artwork luxury dark canvas)
-// ─────────────────────────────────────────────────────────────────────────────
 
 val TvDarkPalette = TvColorPalette(
     accentRed = Color(0xFFFFFFFF),
@@ -113,10 +96,6 @@ val TvDarkPalette = TvColorPalette(
 
     isDark = true,
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. Pure Black OLED Palette (True #000000 Canvas for 100% OLED Pixel Shutdown)
-// ─────────────────────────────────────────────────────────────────────────────
 
 val TvOledPalette = TvColorPalette(
     accentRed = Color(0xFFFFFFFF),
@@ -157,10 +136,6 @@ val TvOledPalette = TvColorPalette(
     canvasBottom = Color(0xFF000000),
     tintsCanvas = false,
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. Midnight Palette (Deep Navy / Sapphire Dark Canvas)
-// ─────────────────────────────────────────────────────────────────────────────
 
 val TvMidnightPalette = TvColorPalette(
     accentRed = Color(0xFF0A84FF),
@@ -203,10 +178,6 @@ val TvMidnightPalette = TvColorPalette(
 
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CompositionLocal & Static Accessors
-// ─────────────────────────────────────────────────────────────────────────────
-
 val LocalTvColors = compositionLocalOf { TvDarkPalette }
 
 object TvThemeColors {
@@ -216,10 +187,6 @@ object TvThemeColors {
         get() = LocalTvColors.current
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Font family
-// ─────────────────────────────────────────────────────────────────────────────
-
 val TvSFProDisplay = FontFamily(
     Font(R.font.sf_pro_display_regular, FontWeight.W400),
     Font(R.font.sf_pro_display_medium, FontWeight.W500),
@@ -227,10 +194,6 @@ val TvSFProDisplay = FontFamily(
     Font(R.font.sf_pro_display_bold, FontWeight.W700),
     Font(R.font.sf_pro_display_heavy, FontWeight.W800),
 )
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 10-foot TV typography scale
-// ─────────────────────────────────────────────────────────────────────────────
 
 fun createTvTypography(palette: TvColorPalette): Typography = Typography(
     displayLarge = TextStyle(
@@ -350,31 +313,20 @@ object TvDimensions {
     val ShelfSpacing = 24.dp
     val TopNavBarHeight = 51.dp
 
-    /** Where scrolling content starts so its first row clears the floating tab bar. */
     val ContentTop = 69.dp
 
     val NavigationRailWidth = 61.dp
     val NavigationRailExpandedWidth = 176.dp
 }
 
-/**
- * tvOS "materials" on a dark canvas. Everything is white at an alpha so the same
- * values read correctly on every theme, and nothing here needs a theme lookup.
- */
 object TvGlass {
-    /** Resting fill for buttons, rows, the tab bar's capsule. */
     val Fill = Color.White.copy(alpha = 0.10f)
-    /** Resting fill for a primary button, a touch brighter than [Fill]. */
     val FillStrong = Color.White.copy(alpha = 0.18f)
-    /** The selected-but-unfocused tab or segment. */
     val FillSelected = Color.White.copy(alpha = 0.28f)
-    /** The tab bar's own capsule. */
     val Bar = Color.White.copy(alpha = 0.08f)
-    /** Placeholder behind artwork that hasn't loaded. */
     val Placeholder = Color(0xFF2E2F33)
     val Hairline = Color.White.copy(alpha = 0.10f)
 
-    /** The focused platter: tvOS inverts a focused control to white. */
     val Platter = Color.White
     val OnPlatter = Color(0xFF0C0C0E)
     val OnPlatterSecondary = Color(0xFF0C0C0E).copy(alpha = 0.60f)
@@ -383,12 +335,10 @@ object TvGlass {
     val TextSecondary = Color.White.copy(alpha = 0.60f)
     val TextTertiary = Color.White.copy(alpha = 0.38f)
 
-    /** Apple Music red, kept for the few places that mean "music": playing, liked. */
     val AppleRed = Color(0xFFFA2D48)
     val Destructive = Color(0xFFFF453A)
 }
 
-/** The 10-foot type ramp, in the dp space of a 1080p panel (960 × 540 dp). */
 object TvType {
     val LargeTitle = TextStyle(fontFamily = TvSFProDisplay, fontWeight = FontWeight.W700, fontSize = 29.sp, lineHeight = 34.sp, letterSpacing = (-0.3).sp)
     val Title = TextStyle(fontFamily = TvSFProDisplay, fontWeight = FontWeight.W700, fontSize = 22.sp, lineHeight = 27.sp, letterSpacing = (-0.3).sp)
@@ -400,15 +350,7 @@ object TvType {
     val Tab = TextStyle(fontFamily = TvSFProDisplay, fontWeight = FontWeight.W600, fontSize = 13.sp, lineHeight = 17.sp)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Font Customization & CompositionLocal — Unified Apple SF Pro Display typography
-// ─────────────────────────────────────────────────────────────────────────────
-
 val LocalTvFontFamily = compositionLocalOf { TvSFProDisplay }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Theme wrapper — reacts directly to TvSettings.tvTheme
-// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 fun NuvxTvTheme(
@@ -420,7 +362,7 @@ fun NuvxTvTheme(
     val palette = when (tvThemeId.lowercase()) {
         "pure_black", "oled", "pure_black_oled" -> TvOledPalette
         "midnight" -> TvMidnightPalette
-        else -> TvDarkPalette // Dynamic Artwork (default) — light/white mode removed
+        else -> TvDarkPalette
     }
 
     val colorScheme = darkColorScheme(
@@ -443,7 +385,6 @@ fun NuvxTvTheme(
         createTvTypography(palette)
     }
 
-    // Apply user DPI scale by overriding LocalDensity for the entire TV UI tree
     val baseDensity = LocalDensity.current
     val scaledDensity = remember(baseDensity, tvUiScale) {
         Density(density = baseDensity.density * tvUiScale, fontScale = baseDensity.fontScale * tvUiScale)

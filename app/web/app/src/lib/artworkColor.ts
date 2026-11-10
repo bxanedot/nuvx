@@ -2,25 +2,17 @@ import { useEffect, useState } from 'react';
 import { artworkAtPixels } from './artwork';
 
 export interface ArtworkColor {
-  /** The background colour behind the page ("joe colour", report §3). */
   background: string;
-  /** Whether text on it should be light (a dark colour) or dark. */
   dark: boolean;
 }
 
 const cache = new Map<string, ArtworkColor>();
 
-/**
- * The artwork's average colour, drawn from a tiny copy of it on a canvas.
- * YouTube's image hosts send `Access-Control-Allow-Origin: *`, so the canvas
- * stays readable without the extension.
- */
 async function measure(url: string): Promise<ArtworkColor> {
   const image = new Image();
   image.crossOrigin = 'anonymous';
   image.referrerPolicy = 'no-referrer';
   image.decoding = 'async';
-  // 60px: a size YouTube's pages request, so the CDN has it cached (lib/artwork.ts).
   image.src = artworkAtPixels(url, 60);
   await image.decode();
   const canvas = document.createElement('canvas');
@@ -38,7 +30,6 @@ async function measure(url: string): Promise<ArtworkColor> {
   }
   const n = data.length / 4;
   [r, g, b] = [r / n, g / n, b / n];
-  // Apple darkens the colour behind its dark layout; keep text legible.
   const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
   const dark = luminance < 0.6;
   const k = dark ? Math.min(1, 0.55 / Math.max(luminance, 0.05)) * 0.6 : 1;
@@ -59,7 +50,6 @@ export function useArtworkColor(url: string | null | undefined): ArtworkColor | 
         if (live) setColor(measured);
       })
       .catch(() => {
-        // An unreadable image leaves the page in its normal colours.
       });
     return () => {
       live = false;

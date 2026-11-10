@@ -33,15 +33,6 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 
-/**
- * Lightweight, on-demand lyric translation.
- *
- * Translation models are deliberately not installed on the device. A model for
- * every app language would cost tens of megabytes each; translated lyric text
- * is normally only a few kilobytes. Requests are batched and the compact result
- * is kept in a bounded cache under [Context.getCacheDir], so Android may reclaim
- * it and the feature can never grow without limit.
- */
 object LyricsTranslation {
     sealed interface Result {
         data class Translated(
@@ -67,16 +58,11 @@ object LyricsTranslation {
 
     private const val ENDPOINT = "https://translate.googleapis.com/translate_a/single"
     private const val INPUT_TOOLS_ENDPOINT = "https://inputtools.google.com/request"
-    // Version 3 invalidates answers cached before the Latin-script retry existed;
-    // otherwise a song that once came back untranslated would never take the
-    // repaired path after the app is updated.
     private const val CACHE_VERSION = 3
     private const val CACHE_DIRECTORY = "lyrics_translation_v3"
     private const val MAX_CACHE_BYTES = 2L * 1024L * 1024L
     private const val MAX_BATCH_CHARS = 3_500
     private const val MAX_PARALLEL_REQUESTS = 2
-    // Input Tools changes ASCII digits to the destination script, so match the
-    // private-use wrapper rather than assuming the counter remains ASCII.
     private val markerRegex = Regex("\\uE000[^\\uE001]*\\uE001")
     private val json = Json { ignoreUnknownKeys = true }
     private val diskMutex = Mutex()
@@ -92,10 +78,6 @@ object LyricsTranslation {
         }
     }
 
-    /**
-     * Where translated lyrics are kept between runs — the phone's cache
-     * directory, the desktop's media cache. Null keeps them in memory only.
-     */
     @Volatile
     var cacheDir: File? = null
     private val client by lazy {
@@ -136,11 +118,6 @@ object LyricsTranslation {
         lines: List<LyricLine>,
         targetLanguageTag: String,
     ): Result {
-        // Sent as given rather than reduced to a base language: zh-CN and
-        // zh-TW are the same language in two scripts, and canonicalising either
-        // to "zh" hands back Simplified whichever one was asked for. The
-        // narrowing is still done, but only where it belongs — in
-        // [sameLanguage], which is asking a different question.
         val target = targetLanguageTag.trim()
         if (target.isBlank() || lines.isEmpty()) return Result.Unavailable
 
@@ -164,8 +141,6 @@ object LyricsTranslation {
 
         val batches = batches(slots)
         val answers = coroutineScope {
-            // Two short requests at a time keeps a long lyric fast without
-            // competing with playback for every connection in the pool.
             batches.chunked(MAX_PARALLEL_REQUESTS).flatMap { group ->
                 group.map { batch -> async { requestBatch(batch, target) } }.awaitAll()
             }
@@ -182,14 +157,6 @@ object LyricsTranslation {
         var translated = complete.flatMap { it.translations }
         if (translated.size != slots.size) return Result.Unavailable
 
-        // Google's ordinary auto-detection understands many Latin-script
-        // Hindi/Urdu/Punjabi lyrics, but its NMT occasionally returns whole
-        // phrases unchanged ("tera hone laga hoon" is a common example). If a
-        // sizeable part of a Latin-script source survived untouched, use
-        // Google's Input Tools to restore the detected language's native script
-        // and translate that. Keep the first answer unless the retry actually
-        // transforms more of the song, so names and genuinely bilingual lyrics
-        // do not get worse merely because they contain Latin text.
         if (
             !sameLanguage(source, target) &&
             predominantlyLatin(slots) &&
@@ -233,10 +200,6 @@ object LyricsTranslation {
         if (slots.isEmpty()) return RomanizationResult.Unavailable
         if (!hasNonLatinLetters(slots)) return RomanizationResult.AlreadyRomanized
 
-        // Romanization always ends in Latin script. The translation destination
-        // is still sent as `tl` because the web endpoint requires it, but it is
-        // deliberately excluded from this cache key: changing "translate to"
-        // cannot change how the source language is pronounced.
         val cacheKey = cacheKey(trackId, "romanize", slots)
         val cached = memory.get(cacheKey) ?: readCache(cacheKey)?.also {
             memory.put(cacheKey, it)
@@ -266,9 +229,6 @@ object LyricsTranslation {
         val romanized = complete.flatMap { it.translations }
         if (source.isBlank() || romanized.size != slots.size) return RomanizationResult.Unavailable
         if (unchangedWeight(slots, romanized) == slots.sumOf { it.text.length }) {
-            // Non-Latin input reached this point, so an unchanged response is
-            // an unsupported/failed romanization rather than an already-Latin
-            // lyric. The fast all-Latin check above handles the real no-op case.
             return RomanizationResult.Unavailable
         }
 
@@ -534,11 +494,6 @@ object LyricsTranslation {
         }
     }
 
-    /**
-     * Keep the source vocal bounds without inventing translated word timings.
-     * LyricLine.timingSource projects the original non-uniform character sweep
-     * onto the new text, preserving holds, pauses and the original glow envelope.
-     */
     private fun retimeWords(source: LyricLine, translated: String): List<LyricWord> {
         if (source.words.isEmpty()) return emptyList()
         if (translated.isEmpty()) return emptyList()

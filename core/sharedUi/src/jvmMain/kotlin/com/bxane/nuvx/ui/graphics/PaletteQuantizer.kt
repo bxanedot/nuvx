@@ -6,15 +6,6 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-/**
- * androidx Palette's colour cut, for the desktop, where the library itself
- * (which takes an `android.graphics.Bitmap`) cannot run.
- *
- * Ported step for step from `Palette.Builder.generate` and `ColorCutQuantizer`
- * (palette 1.0.0) so a cover yields the same swatches on both platforms: the
- * same 112x112 nearest-neighbour downscale, the same RGB555 histogram, the same
- * median cut by box volume and the same default filter.
- */
 internal object PaletteQuantizer {
 
     private const val RESIZE_BITMAP_AREA = 112 * 112
@@ -31,7 +22,6 @@ internal object PaletteQuantizer {
         return Quantizer(pixels, maxColors, useDefaultFilter = !clearFilters).quantizedColors
     }
 
-    /** `Palette.Builder.scaleBitmapDown`, then `getPixels`. */
     private fun scaledPixels(image: ImageBitmap): IntArray {
         val source = image.argbPixels()
         val width = image.width
@@ -41,8 +31,6 @@ internal object PaletteQuantizer {
         val ratio = sqrt(RESIZE_BITMAP_AREA / area.toDouble())
         val scaledWidth = ceil(width * ratio).toInt().coerceAtLeast(1)
         val scaledHeight = ceil(height * ratio).toInt().coerceAtLeast(1)
-        // createScaledBitmap(..., filter = false): nearest neighbour, sampled at
-        // each destination pixel's centre.
         val out = IntArray(scaledWidth * scaledHeight)
         for (y in 0 until scaledHeight) {
             val sy = ((y + 0.5) * height / scaledHeight).toInt().coerceIn(0, height - 1)
@@ -206,7 +194,6 @@ internal object PaletteQuantizer {
         private fun shouldIgnoreColor(rgb: Int): Boolean {
             if (!useDefaultFilter) return false
             ColorUtils.colorToHSL(rgb, tempHsl)
-            // Palette.DEFAULT_FILTER: not white, not black, not the red I-line.
             val isBlack = tempHsl[2] <= 0.05f
             val isWhite = tempHsl[2] >= 0.95f
             val nearRedILine = tempHsl[0] in 10f..37f && tempHsl[1] <= 0.82f

@@ -37,34 +37,19 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
-/**
- * True where a search field sits on a surface its host draws — the top bar's
- * pill — so the field draws no fill of its own and takes that surface's height
- * rather than its own 46dp.
- */
 val LocalSearchFieldOnSurface = staticCompositionLocalOf { false }
 
-/**
- * The pill-shaped search field used at the top of the search page — a
- * magnifier that doubles as the submit button, a hint that gives way to typed
- * text, and a clear button once there is something to clear. Reused wherever
- * else the app needs the same "search this" affordance, such as filtering the
- * settings list.
- */
 @Composable
 fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     onSubmit: () -> Unit,
     focusRequester: FocusRequester = remember { FocusRequester() },
-    /** What the empty field says it is for — the one part that changes per screen. */
     placeholder: String = stringResource(Res.string.search_hint),
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    // Both ways of saying "search this" do the same two things, so they're
-    // written once here rather than twice.
     val submit = {
         onSubmit()
         focusManager.clearFocus()
@@ -76,22 +61,14 @@ fun SearchField(
                 if (LocalSearchFieldOnSurface.current) {
                     Modifier.fillMaxHeight()
                 } else {
-                    // Fixed height prevents the row from growing when text is entered
                     Modifier
                         .height(46.dp)
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(11.dp))
                 },
             )
-            // Asymmetric: the magnifier is a button now and wants a real touch
-            // target, so it's given the room by pulling the field's own start
-            // padding in rather than by pushing the glyph and the text along.
             .padding(start = 8.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The search button. It reads as one — a magnifier at the head of a
-        // text field is the search affordance on every platform — and now that
-        // pressing it is the only thing that runs a search, leaving it
-        // decorative would mean the keyboard's own key was the single way in.
         Icon(
             SfIcons.Search,
             contentDescription = stringResource(Res.string.search),
@@ -109,8 +86,6 @@ fun SearchField(
                     text = placeholder,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    // A narrow field (the phone's, beside the account photo)
-                    // must cut the hint short, not wrap it out of the pill.
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -130,8 +105,6 @@ fun SearchField(
                     .focusRequester(focusRequester),
             )
         }
-        // Emptying the field is also how the recent searches are got back to,
-        // so it needs to be one tap rather than a held backspace.
         if (query.isNotEmpty()) {
             Box(
                 modifier = Modifier
@@ -139,8 +112,6 @@ fun SearchField(
                     .clip(CircleShape)
                     .clickable {
                         onQueryChange("")
-                        // Clearing is an edit, not a dismissal: leave the user
-                        // ready to immediately type their next search.
                         focusRequester.requestFocus()
                         keyboardController?.show()
                     },

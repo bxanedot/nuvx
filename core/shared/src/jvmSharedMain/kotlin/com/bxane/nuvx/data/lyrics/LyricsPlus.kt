@@ -16,18 +16,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.concurrent.atomic.AtomicReference
 
-/**
- * Syllable-timed lyrics from LyricsPlus, the open backend behind the YouLy+
- * extension. It aggregates Apple Music, QQ Music and Musixmatch, and its v2
- * response is the finest-grained of the providers here — Apple's own syllable
- * splits, not just word boundaries.
- *
- * The catch is hosting: it runs on volunteer mirrors, and at any given moment
- * most of them are rate-limited, out of Vercel credit or simply gone. The
- * extension's answer, copied here, is to ask all of them at once and take the
- * first real answer. The winner is remembered so the next track goes straight
- * to a host that was up a minute ago instead of paying for the race again.
- */
 object LyricsPlus {
 
     private val MIRRORS = listOf(
@@ -56,9 +44,6 @@ object LyricsPlus {
             host to async(Dispatchers.IO) { fetch(host, title, artist, durationMs, album, isrc) }
         }.toMutableList()
 
-        // Take the first mirror to answer with something usable rather than
-        // the first to answer at all — a mirror that 404s this track shouldn't
-        // beat one that has it.
         try {
             while (pending.isNotEmpty()) {
                 val (host, lines) = select {
@@ -91,9 +76,6 @@ object LyricsPlus {
                 val seconds = durationMs / 1000
                 if (seconds > 0) addQueryParameter("duration", seconds.toString())
                 if (!album.isNullOrBlank()) addQueryParameter("album", album)
-                // Sent alongside the name rather than instead of it: unlike
-                // [BiniLyrics] this backend aggregates several catalogues, and
-                // the ones with no ISRC index still need something to match on.
                 if (!isrc.isNullOrBlank()) addQueryParameter("isrc", isrc)
             }
             .build()
@@ -114,9 +96,6 @@ object LyricsPlus {
                     text = words.joinToString(" ") { it.text },
                     words = words,
                 )
-                // Some sources are only line-synced; still worth showing.
-                // The line's duration is the only end it gets, and without it
-                // an interlude can't be told from a slowly sung line.
                 !line.text.isNullOrBlank() -> LyricLine(
                     timeMs = start,
                     text = line.text.trim(),
@@ -129,10 +108,6 @@ object LyricsPlus {
 
         val sides = lineAlignments(sung.map { singerOf(it.second) }, response.agentTypes())
         return sung.mapIndexed { index, (line, element) ->
-            // A payload that names no voices at all can still mark a line as the
-            // answering side, which is how the older shape of this API said the
-            // same thing. Taken only where the walk found nothing, so a song
-            // that does name its voices is laid out from those.
             val side = if (sides[index] == LyricAlignment.End || element.saysOpposite()) {
                 LyricAlignment.End
             } else {
@@ -142,16 +117,9 @@ object LyricsPlus {
         }.withInstrumentalGaps()
     }
 
-    /**
-     * Who sang a line. `element` is an object carrying a `singer` on the current
-     * shape of the API and a bare array of tags on the older one, so it is read
-     * as raw JSON: declared as either concrete type, a payload using the other
-     * would fail to decode and take the whole track's lyrics down with it.
-     */
     private fun singerOf(element: JsonElement?): String? =
         (element as? JsonObject)?.get("singer")?.let { it as? JsonPrimitive }?.contentOrNull
 
-    /** The older shape: `element` as a list of tags, one of which is the side. */
     private fun cleanContent(primitive: JsonPrimitive): String? =
         if (primitive.isString) primitive.content else null
 
@@ -163,14 +131,6 @@ object LyricsPlus {
         }
     }
 
-    /**
-     * Glues syllables back into words.
-     *
-     * The API's own spacing is the word boundary — it emits `"e"` then
-     * `"nough "`, and the trailing space is the only thing saying those are
-     * one word. Splitting on the syllable instead would render "e nough".
-     * Each syllable's own timing stays on the word for the sweep to follow.
-     */
     private fun mergeSyllables(syllables: List<Syllable>): List<LyricWord> = wordsFromRuns(
         syllables.mapNotNull { syllable ->
             val text = syllable.text ?: return@mapNotNull null
@@ -186,10 +146,6 @@ object LyricsPlus {
         val lyrics: List<Line>? = null,
         val metadata: Metadata? = null,
     ) {
-        /**
-         * The declared voices, keyed the way the lines refer to them — by alias
-         * where one is given, which is what a line's `singer` actually holds.
-         */
         fun agentTypes(): Map<String, String> = buildMap {
             metadata?.agents?.forEach { (id, agent) ->
                 val type = agent.type ?: return@forEach
@@ -215,7 +171,6 @@ object LyricsPlus {
         val duration: Long? = null,
         val text: String? = null,
         @SerialName("syllabus") val syllabus: List<Syllable>? = null,
-        /** Raw: its shape differs between API versions. See [singerOf]. */
         val element: JsonElement? = null,
     )
 

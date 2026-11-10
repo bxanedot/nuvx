@@ -1,19 +1,7 @@
-//! Secrets (the Google and Spotify sign-ins) in the OS credential store: Windows
-//! Credential Manager, encrypted to the signed-in Windows user, on macOS the login
-//! Keychain, or on Linux the Secret Service (GNOME Keyring, KWallet).
-//!
-//! A credential holds at most 2,560 bytes and a Google cookie is close to that, so a
-//! secret is split over numbered entries: `name`, `name #2`, `name #3`, …
-//! Linux without a Secret Service running, a Keychain that refuses, and other
-//! systems keep the secret in a file only this user can read, in the data folder.
-
 use std::path::Path;
 
 const SERVICE: &str = "nuvx";
 
-/// The credential names for `name`, scoped to the data folder when it isn't the
-/// default one (`NUVX_DATA_DIR` dev profiles, tests), so those never share or touch
-/// the real sign-ins.
 fn key(name: &str, data_dir: &Path) -> String {
     let default = directories::ProjectDirs::from("", "", "nuvx").map(|d| d.data_dir().to_path_buf());
     if default.as_deref() == Some(data_dir) {
@@ -25,10 +13,7 @@ fn key(name: &str, data_dir: &Path) -> String {
 
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod store {
-    /// Credential Manager's limit on one secret.
     const CHUNK: usize = 2560;
-    /// One store operation at a time: writes and deletes from several threads at once
-    /// can be lost (stale parts were left behind in testing).
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[cfg(all(test, windows))]
@@ -63,7 +48,6 @@ mod store {
 
     pub fn set(key: &str, secret: &[u8]) -> anyhow::Result<()> {
         let _one = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // A secret of an exact multiple of CHUNK ends with an empty part, so reading knows where it stops.
         let mut parts: Vec<&[u8]> = secret.chunks(CHUNK).collect();
         if secret.len().is_multiple_of(CHUNK) {
             parts.push(&[]);
@@ -79,7 +63,6 @@ mod store {
         delete_from(key, 0)
     }
 
-    /// Delete parts `first..` (left over from a longer secret).
     fn delete_from(key: &str, first: usize) -> anyhow::Result<()> {
         for part in first.. {
             match entry(key, part)?.delete_credential() {
@@ -96,7 +79,6 @@ mod store {
 mod file {
     use std::path::{Path, PathBuf};
 
-    /// No store here: the secret is a file named after its key, in the data folder.
     fn path(key: &str, dir: &Path) -> PathBuf {
         let safe: String = key.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect();
         dir.join(format!("{safe}.secret"))
@@ -125,8 +107,6 @@ mod file {
     }
 }
 
-/// The store everywhere but Windows: the Keychain on macOS or the Secret Service on
-/// Linux when one answers, otherwise the file in `dir`.
 #[cfg(not(windows))]
 mod either {
     use std::path::Path;
@@ -144,7 +124,6 @@ mod either {
     pub fn set(key: &str, dir: &Path, secret: &[u8]) -> anyhow::Result<()> {
         #[cfg(any(target_os = "linux", target_os = "macos"))]
         match super::store::set(key, secret) {
-            // Saved in the keyring: drop any copy an earlier run left in a file.
             Ok(()) => return super::file::delete(key, dir),
             Err(e) => log::info!("no credential store, keeping {key:?} in a file: {e:#}"),
         }
@@ -163,7 +142,6 @@ mod either {
 #[cfg(not(windows))]
 use either as backend;
 
-/// Windows has only the Credential Manager; the data folder is just part of the key.
 #[cfg(windows)]
 mod backend {
     use std::path::Path;
@@ -179,7 +157,6 @@ mod backend {
     }
 }
 
-/// The secret saved under `name`, if any.
 pub fn get(name: &str, data_dir: &Path) -> Option<Vec<u8>> {
     backend::get(&key(name, data_dir), data_dir).unwrap_or_else(|e| {
         log::warn!("couldn't read {name} from the credential store: {e:#}");
@@ -253,7 +230,6 @@ mod unix_tests {
         }
         let in_keyring = super::store::get(&super::key("test", &dir)).ok().flatten().is_some();
         let files: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).collect();
-        // Exactly one copy: in the keyring, or in an owner-only file.
         if in_keyring {
             assert!(files.is_empty(), "keyring secret also left in a file");
         } else {

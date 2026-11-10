@@ -1,8 +1,3 @@
-//! Audio engine: one thread owns the output device and a rodio `Player`.
-//!
-//! The UI talks to it through `AudioHandle`; status flows back through `AudioStatus`
-//! (lock-free reads for the progress bar) plus a `Finished` event for auto-advance.
-
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, OnceLock};
 use std::time::{Duration, Instant};
@@ -17,36 +12,22 @@ use crate::stream::{self, Shared};
 pub use crate::stream::TrackDecoder;
 
 pub enum AudioCmd {
-    /// A decoder is ready for playback generation `generation`; stale generations are dropped.
-    /// A decoder started mid-song (`at` > 0) is the seekable kind.
     Start { generation: u64, decoder: TrackDecoder, shared: Arc<Shared>, at: Duration },
-    /// A decoder positioned at `at`, replacing the current one; only the latest seek's lands.
     Replace { generation: u64, seek: u64, decoder: TrackDecoder, at: Duration, seekable: bool },
     Pause,
     Resume,
     Stop,
-    /// Another song is on its way: with crossfade on, fade this one out instead of
-    /// stopping it, and fade the next one in when it starts.
     Handoff,
     Seek(Duration),
-    /// Seek to where `pos` will have moved on to by the time the seek lands (`pos` was
-    /// current at `at`): following someone else's playback (listen together).
     SeekLive { pos: Duration, at: std::time::Instant },
     Volume(f32),
-    /// The output device failed (unplugged, headphones disconnected): sent by the
-    /// device's error callback so the audio thread reopens one.
     DeviceLost,
-    /// Play through this device (cpal's id) whenever it's connected; None follows the
-    /// system default.
     SetDevice(Option<String>),
 }
 
 pub enum AudioEvent {
     Finished { generation: u64 },
-    /// Close enough to the end that the next song should start, to crossfade into it.
     Ending { generation: u64 },
-    /// The song's download failed, so playback stopped at `at` (or a seek to `at`
-    /// couldn't be served). Reopening the song there resolves a fresh stream.
     Interrupted { generation: u64, at: Duration, reason: String },
     Error(String),
 }
@@ -60,31 +41,19 @@ fn now_ms() -> u64 {
 #[derive(Default)]
 pub struct AudioStatus {
     pub position_ms: AtomicU64,
-    /// When `position_ms` was sampled (ms since EPOCH), for smooth extrapolation.
     sampled_at: AtomicU64,
     pub duration_ms: AtomicU64,
     pub playing: AtomicBool,
-    /// Generation the UI most recently asked for; the engine ignores older decoders.
     pub wanted_gen: AtomicU64,
-    /// f32 bits
     volume: AtomicU32,
-    /// Turn loud tracks down to YouTube's loudness target.
     pub normalize: AtomicBool,
-    /// Widen stereo songs (see `Spatial`).
     spatial: AtomicBool,
-    /// What the equaliser aims at (`Tuning::OFF` when it's off).
     eq: std::sync::Mutex<crate::eq::Tuning>,
-    /// The volume slider follows loudness (cubic) rather than amplitude.
     log_volume: AtomicBool,
-    /// Smoothed output loudness 0..1 (f32 bits), for audio-reactive visuals.
     level: AtomicU32,
-    /// How far the output device runs behind the position (its buffer), in ms.
     latency_ms: AtomicU32,
-    /// Crossfade length in ms; 0 = off.
     crossfade_ms: AtomicU32,
-    /// DJ-style handoff rather than a straight-line crossfade (see `Ramp`).
     automix: AtomicBool,
-    /// Tempo estimate of the playing song in BPM (f32 bits); 0 until one is heard.
     bpm: AtomicU32,
     mix_generation: AtomicU64,
     mix_duration_ms: AtomicU32,
@@ -99,8 +68,6 @@ impl AudioStatus {
         Duration::from_millis(self.position_ms.load(Ordering::Relaxed))
     }
 
-    /// Position extrapolated to now while playing, so progress moves smoothly between
-    /// the engine's 100 ms updates.
     pub fn position_smooth(&self) -> Duration {
         let pos = self.position_ms.load(Ordering::Relaxed);
         if !self.playing.load(Ordering::Relaxed) {
@@ -131,8 +98,6 @@ impl AudioStatus {
         (d > 0).then(|| Duration::from_millis(d))
     }
 
-    /// Automix's handoff window for a song of this length, in seconds: how much of the
-    /// end is given to the next song coming in. 0 when Automix is off.
     pub fn mix_secs(&self, length: Option<Duration>) -> f32 {
         if !self.automix.load(Ordering::Relaxed) {
             return 0.0;
@@ -163,18 +128,14 @@ impl AudioStatus {
     }
 }
 
-/// Sample-counted envelopes; Automix exchanges the lead at 65% of the blend.
 #[derive(Clone, Copy)]
 enum Ramp {
     In { at: u32, len: u32 },
-    /// Down from `from` (a fade-in may have been cut short) to silence, then the source ends.
     Out { from: f32, at: u32, len: u32 },
     MixIn { at: u32, len: u32 },
-    /// Same `from` as `Out`: the song may still be easing in when it's mixed out.
     MixOut { from: f32, at: u32, len: u32 },
 }
 
-/// A smoothstep from 0 to 1, slow at both ends.
 fn smoothstep(x: f32) -> f32 {
     let x = x.clamp(0.0, 1.0);
     x * x * (3.0 - 2.0 * x)
@@ -191,8 +152,6 @@ impl Ramp {
     }
 }
 
-/// How far through an Automix handoff the songs are: nothing for its first 30% (the
-/// outgoing song keeps the floor), then a smooth swap over the rest.
 fn mix_handoff(x: f32) -> f32 {
     smoothstep((x - 0.3) / 0.7)
 }
@@ -286,16 +245,13 @@ impl MixFx {
                 self.bass = if outgoing { 1.0 - 0.85 * smoothstep((x - 0.35) / 0.3) } else { 0.15 + 0.85 * smoothstep((x - 0.58) / 0.25) };
                 self.treble = if outgoing { 1.0 - 0.5 * handoff } else { 0.7 + 0.3 * handoff };
                 self.wet = if outgoing { 0.4 * smoothstep((x - 0.3) / 0.35) } else { 0.0 };
-                // The comb sweeps over two beats, fast enough to hear as a flanger.
                 let phase = self.ticks as f32 / (self.beat * 2.0) * std::f32::consts::TAU;
                 self.flange = self.rate * (0.0006 + 0.0026 * (0.5 + 0.5 * phase.sin()));
             }
             result = input + (self.bass - 1.0) * self.low[c] + (self.treble - 1.0) * (input - self.body[c]);
             if outgoing {
-                // Dry plus its own delayed copy: the swept comb is the flanger.
                 let flanged = 0.5 * (input + self.tap(self.flange));
                 let tail = if self.rhythmic {
-                    // A half-beat repeat stutters the last bar under the flanged comb.
                     0.45 * self.tap(self.beat * 0.5) + 0.55 * flanged
                 } else {
                     let reverb = (self.tap(self.rate * 0.071) + self.tap(self.rate * 0.113) + self.tap(self.rate * 0.173)) / 3.0;
@@ -326,12 +282,9 @@ impl MixFx {
     }
 }
 
-/// Android's "spatial audio": the stereo image widened in mid/side, plus a short, dulled
-/// cross-feed from the other channel, like a far ear hears. O(1) a sample; stereo only.
 struct Spatial<S> {
     inner: S,
     status: Arc<AudioStatus>,
-    /// The right sample of the frame whose left went out last.
     pending: Option<f32>,
     delay: [Vec<f32>; 2],
     at: usize,
@@ -372,7 +325,6 @@ impl<S: rodio::Source> Iterator for Spatial<S> {
         if self.inner.channels().get() != 2 || !self.status.spatial.load(Ordering::Relaxed) {
             return Some(l);
         }
-        // A whole frame at once: the left channel's output needs the right's input.
         let Some(r) = self.inner.next() else { return Some(l) };
         let (l, r) = self.widen(l, r);
         self.pending = Some(r);
@@ -402,15 +354,12 @@ impl<S: rodio::Source> rodio::Source for Spatial<S> {
     }
 }
 
-/// Android's equaliser (see `crate::eq`), fed whole frames. It picks up a new tuning
-/// between frames without ever waiting on the UI's lock.
 struct Eq<S> {
     inner: S,
     status: Arc<AudioStatus>,
     eq: crate::eq::Processor,
     tuning: crate::eq::Tuning,
     frame: Vec<f32>,
-    /// The next sample of `frame` to hand out.
     out: usize,
 }
 
@@ -468,16 +417,12 @@ impl<S: rodio::Source> rodio::Source for Eq<S> {
     }
 }
 
-/// Pass-through source that tracks loudness (RMS over ~23 ms windows, smoothed) and
-/// applies crossfade ramps. `fade_out` is set by the audio thread to the fade-out
-/// length in ms (0 = keep playing); a new value restarts it from the current gain.
 struct Meter<S> {
     inner: S,
     status: Arc<AudioStatus>,
     fade_out: Arc<AtomicU32>,
     seen_out: u32,
     ramp: Option<Ramp>,
-    /// Automix's handoff curves rather than the straight-line fade.
     mix: bool,
     acc: f32,
     n: u32,
@@ -488,15 +433,11 @@ struct Meter<S> {
     fx: Option<MixFx>,
 }
 
-/// Rough tempo tracking for Automix's phrase length: the spacing that repeats most in
-/// the music's loudness impulses over the last few seconds.
 struct Tempo {
     prev: f32,
     hist: [f32; 300],
     count: usize,
-    /// The song's tempo is settled; nothing more to analyse in it.
     done: bool,
-    /// How many ms one loudness reading covers.
     hop_ms: f32,
 }
 
@@ -505,7 +446,6 @@ impl Tempo {
         Self { prev: 0.0, hist: [0.0; 300], count: 0, done: false, hop_ms }
     }
 
-    // One bounded analysis pass, including when no reliable beat is found.
     fn push(&mut self, e: f32) -> Option<f32> {
         if self.done {
             return None;
@@ -528,8 +468,6 @@ impl Tempo {
         if power <= 1e-12 {
             return None;
         }
-        // Beats of 0.30–1.20 s, with the middle of that range preferred so half- and
-        // double-time patterns land on the tempo people would tap.
         let lo = ((0.30 * 1000.0 / self.hop_ms) as usize).max(4);
         let hi = ((1.20 * 1000.0 / self.hop_ms) as usize).min(n / 2);
         let mut best = (0.0f32, 0usize);
@@ -620,10 +558,8 @@ impl<S: rodio::Source> Iterator for Meter<S> {
         self.n += 1;
         if self.n == 2048 {
             let rms = (self.acc / 2048.0).sqrt();
-            // Fast attack, slow release, like a VU meter.
             let k = if rms > self.smooth { 0.6 } else { 0.08 };
             self.smooth += (rms - self.smooth) * k;
-            // A song fading out is no longer the one the visuals follow.
             if self.seen_out == 0 {
                 self.status.level.store(self.smooth.min(1.0).to_bits(), Ordering::Relaxed);
                 if self.status.automix.load(Ordering::Relaxed) && !self.tempo.done {
@@ -689,7 +625,6 @@ impl AudioHandle {
         self.send(AudioCmd::Volume(self.volume()));
     }
 
-    /// Switches the slider's curve, moving it so the music stays as loud as it was.
     pub fn set_log_volume(&self, on: bool) {
         if self.status.log_volume.swap(on, Ordering::Relaxed) != on {
             let v = self.volume();
@@ -712,7 +647,6 @@ impl AudioHandle {
         self.status.crossfade_ms.store(secs * 1000, Ordering::Relaxed);
     }
 
-    /// Automix's handoff shape for the crossfade (see `Ramp::MixIn`).
     pub fn set_automix(&self, on: bool) {
         self.status.automix.store(on, Ordering::Relaxed);
     }
@@ -723,25 +657,18 @@ impl AudioHandle {
     }
 }
 
-/// Volume normalization the way YouTube Music does it: tracks mastered louder than
-/// the -14 LUFS target are turned down by the difference; quieter ones are left alone
-/// (boosting would clip).
-/// A seek that needs a new decoder built over the stream buffer (off the audio thread).
 struct SeekJob {
     shared: Arc<Shared>,
     pos: Duration,
-    /// For a live seek (a jam): the host position and when it was, to catch up after the build.
     live: Option<(Duration, std::time::Instant)>,
     generation: u64,
     seek: u64,
 }
 
-/// Build a decoder for `j` (it may wait for the download) and hand it to the audio thread.
 fn build_seek(j: SeekJob, tx: &Sender<AudioCmd>, events: &Sender<AudioEvent>) {
     let SeekJob { shared, pos, live, generation, seek } = j;
     let seekable = !pos.is_zero();
     let res = stream::decoder(shared.clone(), seekable).map_err(|e| e.to_string()).and_then(|mut d| {
-        // Building it may have waited for the download: catch up.
         let pos = live.map_or(pos, |(p, at)| p + at.elapsed());
         if seekable {
             rodio::Source::try_seek(&mut d, pos).map_err(|e| e.to_string())?;
@@ -763,22 +690,16 @@ fn build_seek(j: SeekJob, tx: &Sender<AudioCmd>, events: &Sender<AudioEvent>) {
     }
 }
 
-/// A song fading out under the next one, kept until it's silent.
 struct Fading {
     player: Player,
     offset: Duration,
     shared: Option<Arc<Shared>>,
     out: Arc<AtomicU32>,
-    /// Still at full volume, waiting for the next song to start (as Morphe does): when
-    /// that was asked for, and how much of this song was left then.
     waiting: Option<(Instant, Option<Duration>)>,
-    /// The song ended on its own rather than being skipped: this handoff gets the whole
-    /// musical phrase.
     natural: bool,
 }
 
 impl Fading {
-    /// Start the fade-out, over what's left of the song if that's shorter. Returns its length.
     fn start(&mut self, crossfade: u32, automix: bool) -> u32 {
         let left = self.waiting.take().and_then(|(at, left)| Some(left?.saturating_sub(at.elapsed())));
         let len = crossfade.min(left.map_or(u32::MAX, |l| l.as_millis() as u32)).max(QUICK_FADE_MS);
@@ -795,25 +716,16 @@ impl Drop for Fading {
     }
 }
 
-/// Fade-outs shorter than this would click: a crossfade cut short by another skip, or
-/// one too close to the end of the song.
 const QUICK_FADE_MS: u32 = 40;
 
-/// How long a song keeps playing at full volume for the next one to load before it
-/// fades out anyway.
 const HANDOFF_WAIT: Duration = Duration::from_secs(3);
 
-/// Automix counts its mix in bars of four beats: eight bars normally, sixteen on a song
-/// long enough to hold them, and never more than 32 — nor longer than this, or than a
-/// third of the song.
 const AUTOMIX_BARS: f32 = 8.0;
 const AUTOMIX_BARS_LONG: f32 = 16.0;
 const AUTOMIX_MAX_BARS: f32 = 32.0;
 const AUTOMIX_MAX_MS: u32 = 45_000;
 const AUTOMIX_MIN_MS: u32 = 4_000;
 
-/// How long the mix runs, in ms. Automix works it out from the bars and the tempo it
-/// hears in the outgoing song; a plain crossfade uses its setting.
 fn mix_ms(status: &AudioStatus, length: Option<Duration>) -> u32 {
     let crossfade = status.crossfade_ms.load(Ordering::Relaxed);
     if !status.automix.load(Ordering::Relaxed) {
@@ -821,19 +733,14 @@ fn mix_ms(status: &AudioStatus, length: Option<Duration>) -> u32 {
     }
     let bpm = f32::from_bits(status.bpm.load(Ordering::Relaxed));
     if !(40.0..=240.0).contains(&bpm) {
-        // Nothing to count bars with yet: the crossfade length stands in.
         return crossfade;
     }
     let bars = if length.is_some_and(|d| d >= Duration::from_secs(240)) { AUTOMIX_BARS_LONG } else { AUTOMIX_BARS };
     let ms = (bars.min(AUTOMIX_MAX_BARS) * 4.0 * 60_000.0 / bpm) as u32;
     let ms = ms.clamp(AUTOMIX_MIN_MS, AUTOMIX_MAX_MS);
-    // A short song saves room for its own mix: a third of it at most.
     length.map_or(ms, |d| ms.min((d.as_millis() as u32 / 3).max(QUICK_FADE_MS)))
 }
 
-/// Gain for a volume slider position. Ears hear amplitude roughly logarithmically,
-/// so on a linear slider nearly all the change is in its bottom few pixels; the cubic
-/// curve (PulseAudio's) spreads it out: half way is -18 dB.
 fn slider_gain(status: &AudioStatus, v: f32) -> f32 {
     if status.log_volume.load(Ordering::Relaxed) { v.powi(3) } else { v }
 }
@@ -845,27 +752,18 @@ fn norm_gain(status: &AudioStatus, shared: Option<&Shared>) -> f32 {
     }
 }
 
-/// The output device. Players play into a mixer of our own that the device pulls
-/// from, so when the device goes away (Bluetooth headphones disconnecting) or the
-/// default changes (them reconnecting), a new one carries on from the same samples
-/// without touching the players or the songs in them.
 struct Output {
     mixer: Mixer,
-    /// Our mixer's output while no device has it; the device's `Bridge` holds it.
     slot: Arc<std::sync::Mutex<Option<MixerSource>>>,
     sink: Option<MixerDeviceSink>,
-    /// The device in use (cpal's id), to notice the default changing.
     device: Option<String>,
-    /// The device the user picked; the default stands in while it's not connected.
     preferred: Option<String>,
-    /// Set by the device's error callback.
     lost: Arc<AtomicBool>,
     checked: Instant,
 }
 
 impl Output {
     fn new(tx: Sender<AudioCmd>, status: &AudioStatus, preferred: Option<String>) -> Self {
-        // Mix at the device's own format, so the usual case needs no conversion.
         let config = target(preferred.as_deref()).and_then(|d| d.default_output_config().ok());
         let channels = config.as_ref().and_then(|c| std::num::NonZero::new(c.channels())).unwrap_or(std::num::NonZero::new(2).unwrap());
         let rate = config.as_ref().and_then(|c| std::num::NonZero::new(c.sample_rate())).unwrap_or(std::num::NonZero::new(48_000).unwrap());
@@ -876,9 +774,7 @@ impl Output {
         out
     }
 
-    /// Opens the picked device, or the default one. False if there's none to open.
     fn open(&mut self, tx: Sender<AudioCmd>, status: &AudioStatus) -> bool {
-        // The old device's stream gives our mixer back when it's dropped.
         self.sink = None;
         self.device = None;
         self.checked = Instant::now();
@@ -901,8 +797,6 @@ impl Output {
                 return false;
             }
         };
-        // A stream that failed on its own hands the mixer back as its thread exits,
-        // which can be just after it reported the error.
         let waited = Instant::now();
         let source = loop {
             if let Some(source) = self.slot.lock().unwrap().take() {
@@ -918,8 +812,6 @@ impl Output {
         sink.log_on_drop(false);
         let channels = rodio::Source::channels(&source).get();
         sink.mixer().add(Bridge { inner: Some(source), slot: self.slot.clone(), channels, n: 0 });
-        // The position counts samples handed to the device; it plays them a buffer later
-        // (rodio asks for ~50 ms), plus the shared-mode device period (~10 ms).
         let rate = sink.config().sample_rate().get().max(1);
         let buffer_ms = match sink.config().buffer_size() {
             rodio::cpal::BufferSize::Fixed(n) => *n as u64 * 1000 / rate as u64,
@@ -932,8 +824,6 @@ impl Output {
         true
     }
 
-    /// Whether the device to play through (the picked one if it's connected, else the
-    /// default) differs from the one in use.
     fn default_changed(&mut self) -> bool {
         self.checked = Instant::now();
         let want = target(self.preferred.as_deref()).and_then(|d| d.id().ok()).map(|i| i.to_string());
@@ -941,7 +831,6 @@ impl Output {
     }
 }
 
-/// The picked device if it's connected, else the system default.
 fn target(preferred: Option<&str>) -> Option<rodio::cpal::Device> {
     let host = rodio::cpal::default_host();
     if let Some(want) = preferred
@@ -952,22 +841,18 @@ fn target(preferred: Option<&str>) -> Option<rodio::cpal::Device> {
     host.default_output_device()
 }
 
-/// An output device to offer in settings.
 #[derive(Clone, PartialEq)]
 pub struct OutputDevice {
-    /// cpal's id: stable across reconnects.
     pub id: String,
     pub name: String,
 }
 
-/// The connected output devices, by the names Windows' sound settings show.
 pub fn output_devices() -> Vec<OutputDevice> {
     let Ok(all) = rodio::cpal::default_host().output_devices() else { return Vec::new() };
     let mut out: Vec<OutputDevice> = all
         .filter_map(|d| {
             let id = d.id().ok()?.to_string();
             let desc = d.description().ok()?;
-            // "Speakers (Realtek(R) Audio)" rather than just "Speakers".
             let name = desc.extended().first().cloned().unwrap_or_else(|| desc.name().to_owned());
             Some(OutputDevice { id, name })
         })
@@ -976,14 +861,10 @@ pub fn output_devices() -> Vec<OutputDevice> {
     out
 }
 
-/// Our mixer's output, as a source in the device's mixer. Never ends, so the device
-/// keeps it; gives the mixer back when the device's stream drops it.
 struct Bridge {
     inner: Option<MixerSource>,
     slot: Arc<std::sync::Mutex<Option<MixerSource>>>,
     channels: u16,
-    /// Samples handed out, to give the mixer back on a frame boundary (else the next
-    /// device would get the channels swapped).
     n: u64,
 }
 
@@ -1022,7 +903,6 @@ impl Drop for Bridge {
     }
 }
 
-/// How often to look for a new default device while playing.
 const DEVICE_CHECK: Duration = Duration::from_secs(1);
 
 pub fn spawn(volume: f32, log_volume: bool, device: Option<String>, events: Sender<AudioEvent>, wake: impl Fn() + Send + 'static) -> AudioHandle {
@@ -1057,33 +937,20 @@ fn run(
     }
     let mut player = Player::connect_new(&output.mixer);
     player.set_volume(slider_gain(&status, volume));
-    // The playing source's fade-out control (see `Meter`).
     let mut fade_out = Arc::new(AtomicU32::new(0));
-    // Songs fading out under the current one (more than one only for a moment).
     let mut fading: Vec<Fading> = Vec::new();
-    // Whether `Ending` went out for this generation.
     let mut ending_sent = false;
-    // The playing song's length. Not `status.duration()` at a handoff: the UI has
-    // already put the next song's there.
     let mut length: Option<Duration> = None;
 
-    // Generation of the source currently in the player (0 = nothing loaded).
     let mut current: u64 = 0;
     let mut shared: Option<Arc<Shared>> = None;
-    // The player counts position from when a source was appended; a swapped-in
-    // seeked decoder starts at `offset`.
     let mut offset = Duration::ZERO;
-    // Whether the playing decoder can seek in place (it indexed the whole file).
     let mut seekable = false;
-    // Latest seek; a slower, older seek's decoder must not land after a newer one.
     let mut seek_seq: u64 = 0;
     let seek_job: Arc<std::sync::Mutex<Option<SeekJob>>> = Default::default();
     let seek_busy = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    // Dev hook: NUVX_DEVICE_LOST=<secs> acts as if the output device disconnected that
-    // long into the first song (the error callback firing for a device that's gone).
     let mut dev_lost = std::env::var("NUVX_DEVICE_LOST").ok().and_then(|v| v.parse::<f32>().ok()).map(Duration::from_secs_f32);
     loop {
-        // Poll while playing so the position stays fresh and the end is noticed; idle otherwise.
         let timeout = if (current != 0 || !fading.is_empty()) && !player.is_paused() { Duration::from_millis(100) } else { Duration::from_secs(3600) };
         match rx.recv_timeout(timeout) {
             Ok(AudioCmd::Start { generation, decoder, shared: s, at }) => {
@@ -1099,13 +966,11 @@ fn run(
                 let gain = norm_gain(&status, Some(&s));
                 log::info!("audio: loudness {:?} dB, normalization gain {gain:.3}", s.loudness_db);
                 player.set_volume(slider_gain(&status, f32::from_bits(status.volume.load(Ordering::Relaxed))) * gain);
-                // Fade in only over a song still playing, both over the same length.
                 fading.retain(|f| !f.player.empty());
                 let skip_len = status.crossfade_ms.load(Ordering::Relaxed);
                 let natural_len = mix_ms(&status, length);
                 let mut fade_in = 0;
                 for f in fading.iter_mut().filter(|f| f.waiting.is_some()) {
-                    // A song that ended on its own gets the full phrase; a skip stays quick.
                     fade_in = f.start(if f.natural { natural_len } else { skip_len }, status.automix.load(Ordering::Relaxed));
                     log::debug!("audio: crossfade into generation {generation} over {fade_in} ms");
                 }
@@ -1117,7 +982,6 @@ fn run(
                 status.mix_generation.store(generation, Ordering::Release);
                 player.append(Meter::new(Eq::new(Spatial::new(decoder, status.clone()), status.clone()), status.clone(), fade_in, fade_out.clone(), mix, s.tempo.clone()));
                 player.play();
-                // 0 means the stream didn't say; keep the length the UI already knows.
                 if s.duration_ms > 0 {
                     status.duration_ms.store(s.duration_ms, Ordering::Relaxed);
                 }
@@ -1154,13 +1018,11 @@ fn run(
                 player.pause();
                 fading.iter().for_each(|f| f.player.pause());
                 status.playing.store(false, Ordering::Relaxed);
-                // So the UI (and the system media controls it syncs) see it even when idle.
                 wake();
             }
             Ok(AudioCmd::Resume) => {
                 log::debug!("audio: resume (generation {current})");
                 if current != 0 {
-                    // Headphones may have come back (or gone) while paused.
                     if output.sink.is_none() || output.default_changed() {
                         output.open(tx.clone(), &status);
                     }
@@ -1170,8 +1032,6 @@ fn run(
                     wake();
                 }
             }
-            // One crossfade at a time: skipping again mid-fade cuts over (below) instead
-            // of piling a third song on.
             Ok(AudioCmd::Handoff)
                 if mix_ms(&status, length) > 0
                     && current != 0
@@ -1179,7 +1039,6 @@ fn run(
                     && !player.empty()
                     && fading.iter().all(|f| f.player.empty()) =>
             {
-                // Keeps playing at full volume until the next song starts (see `Start`).
                 let left = length.map(|d| d.saturating_sub(offset + player.get_pos()));
                 log::debug!("audio: handing off from generation {current}, {left:?} left");
                 let old = std::mem::replace(&mut player, Player::connect_new(&output.mixer));
@@ -1190,9 +1049,6 @@ fn run(
             }
             Ok(cmd @ (AudioCmd::Stop | AudioCmd::Handoff)) => {
                 if matches!(cmd, AudioCmd::Handoff) {
-                    // Skipping again mid-crossfade: everything playing goes, quickly enough
-                    // to sound like a cut but without a click, and the next song comes in
-                    // at full volume.
                     for f in fading.iter_mut() {
                         f.waiting = None;
                         f.out.store(QUICK_FADE_MS, Ordering::Relaxed);
@@ -1212,7 +1068,6 @@ fn run(
                 current = 0;
                 status.mix_active.store(false, Ordering::Relaxed);
                 status.mix_generation.store(0, Ordering::Release);
-                // Also stops a seek still waiting on this download.
                 if let Some(old) = shared.take() {
                     old.cancel();
                 }
@@ -1229,24 +1084,16 @@ fn run(
                 if current == 0 {
                     continue;
                 }
-                // Seeking ends a crossfade: the new song alone from here.
                 for f in &fading {
                     f.out.store(QUICK_FADE_MS, Ordering::Relaxed);
                 }
-                // A seekable decoder already indexed the (fully downloaded) file.
                 if seekable && player.try_seek(pos).is_ok() {
                     log::debug!("audio: seek to {pos:?} in place");
                     offset = Duration::ZERO;
                     status.set_position(pos.as_millis() as u64);
                     continue;
                 }
-                // The playing decoder was opened non-seekable for a fast start. Build a
-                // seekable one over the same buffer off-thread (it needs every fragment
-                // header, so it may wait for the download) and swap it in. Back to the
-                // start, a fresh non-seekable decoder is enough and opens at once.
                 if let Some(s) = shared.clone() {
-                    // One builder at a time, always for the latest seek: a burst of seeks
-                    // (a jam catching up) mustn't pile up threads waiting on the download.
                     *seek_job.lock().unwrap() = Some(SeekJob { shared: s, pos, live, generation: current, seek: seek_seq });
                     if !seek_busy.swap(true, Ordering::AcqRel) {
                         let (job, busy, tx, events) = (seek_job.clone(), seek_busy.clone(), tx.clone(), events.clone());
@@ -1257,7 +1104,6 @@ fn run(
                                     Some(j) => build_seek(j, &tx, &events),
                                     None => {
                                         busy.store(false, Ordering::Release);
-                                        // A seek that came in just now finds `busy` already false, or is taken here.
                                         if job.lock().unwrap().is_none() || busy.swap(true, Ordering::AcqRel) {
                                             break;
                                         }
@@ -1271,8 +1117,6 @@ fn run(
             Ok(AudioCmd::DeviceLost) => {
                 let was = output.device.clone();
                 output.open(tx.clone(), &status);
-                // The device itself went away, not a hiccup on the same one: pause, as
-                // unplugging headphones does, rather than carry on out of the speakers.
                 if output.device != was && !player.is_paused() && (current != 0 || !fading.is_empty()) {
                     log::info!("audio: output device gone, pausing");
                     player.pause();
@@ -1307,8 +1151,6 @@ fn run(
             output.lost.store(true, Ordering::Relaxed);
             let _ = tx.send(AudioCmd::DeviceLost);
         }
-        // Follow the default device while playing (headphones connecting take over).
-        // A failed device is `DeviceLost`'s to handle (it decides whether to pause).
         if (current != 0 || !fading.is_empty())
             && !player.is_paused()
             && output.checked.elapsed() >= DEVICE_CHECK
@@ -1321,7 +1163,6 @@ fn run(
             if let Some(f) = fading.iter().find(|f| f.natural) {
                 status.sample_outgoing(f.offset + f.player.get_pos(), !f.player.is_paused() && !f.player.empty());
             }
-            // The next song is taking too long: don't hold this one up any longer.
             for f in fading.iter_mut().filter(|f| !status.automix.load(Ordering::Relaxed) && f.waiting.is_some_and(|(at, _)| at.elapsed() > HANDOFF_WAIT)) {
                 let len = if f.natural { mix_ms(&status, length) } else { status.crossfade_ms.load(Ordering::Relaxed) };
                 log::debug!("audio: next song not ready, fading out over {} ms", f.start(len, status.automix.load(Ordering::Relaxed)));
@@ -1336,8 +1177,6 @@ fn run(
         if current != 0 {
             let pos = offset + player.get_pos();
             status.set_position(pos.as_millis() as u64);
-            // Start the next song early, to crossfade into it. Not for songs barely
-            // longer than the fade.
             let crossfade = Duration::from_millis(mix_ms(&status, length) as u64);
             if !ending_sent
                 && !crossfade.is_zero()
@@ -1352,7 +1191,6 @@ fn run(
                 wake();
             }
             if player.empty() {
-                // A failed download ends the decoder early: that's not the song ending.
                 let event = match shared.as_ref().and_then(|s| s.error()) {
                     Some(reason) => AudioEvent::Interrupted { generation: current, at: offset + player.get_pos(), reason },
                     None => AudioEvent::Finished { generation: current },
@@ -1393,7 +1231,6 @@ mod tests {
     #[test]
     fn crossfade_ramps_mirror_each_other_and_end_the_fading_song() {
         use std::num::NonZero;
-        // 1 kHz mono of full-scale samples: 1 ms = 1 sample.
         let ones = || rodio::buffer::SamplesBuffer::new(NonZero::new(1).unwrap(), NonZero::new(1000).unwrap(), vec![1.0; 1000]);
         let status = Arc::new(AudioStatus::default());
         let out = Arc::new(AtomicU32::new(0));
@@ -1404,7 +1241,6 @@ mod tests {
         let (a, b): (Vec<f32>, Vec<f32>) = (0..100).map(|_| (incoming.next().unwrap(), outgoing.next().unwrap())).unzip();
         assert_eq!(a[0], 0.0);
         assert_eq!(b[0], 1.0);
-        // One comes up exactly as the other goes down.
         for (x, y) in a.iter().zip(&b) {
             assert!((x + y - 1.0).abs() < 1e-4);
         }
@@ -1424,10 +1260,8 @@ mod tests {
         assert_eq!(outgoing.next(), Some(1.0));
         out.store(100 | AUTOMIX_FADE, Ordering::Relaxed);
         let (a, b): (Vec<f32>, Vec<f32>) = (0..100).map(|_| (incoming.next().unwrap(), outgoing.next().unwrap())).unzip();
-        // The outgoing song keeps the floor through the first third of the overlap.
         assert_eq!(a[25], 0.0);
         assert_eq!(b[25], 1.0);
-        // Then one mirrored swap, with no gap and no step at either end.
         for (x, y) in a.iter().zip(&b) {
             assert!((x + y - 1.0).abs() < 1e-4);
         }
@@ -1464,13 +1298,10 @@ mod tests {
     fn automix_repeat_and_flanger_are_audible() {
         let mut fx = MixFx::new(48_000, 1).unwrap();
         fx.begin(120.0);
-        // Two thirds through the blend: the wet path is up.
         let ramp = Some(Ramp::MixOut { from: 1.0, at: 60_000, len: 100_000 });
         let out: Vec<f32> = (0..30_000).map(|i| fx.process(if i == 0 { 1.0 } else { 0.0 }, ramp)).collect();
-        // The flanger's short comb copy sits a few dozen frames behind the impulse.
         let comb: f32 = out[20..200].iter().map(|x| x.abs()).sum();
         assert!(comb > 0.01, "no flanged comb after the impulse: {comb}");
-        // The beat repeat brings the impulse back a half beat later (12,000 frames).
         let echo: f32 = out[11_950..12_060].iter().map(|x| x.abs()).sum();
         assert!(echo > 0.01, "no half-beat repeat: {echo}");
     }
@@ -1629,7 +1460,6 @@ mod tests {
         status.spatial.store(true, Ordering::Relaxed);
         let on: Vec<f32> = Spatial::new(src(), status).collect();
         assert_eq!(on.len(), frames.len());
-        // Side-only content gets wider; a centred (mono) frame stays centred.
         assert!((on[0] - 0.5 * 2.5 * 0.82).abs() < 1e-6 && (on[1] + 0.5 * 2.5 * 0.82).abs() < 1e-6);
         assert!((on[2] - on[3]).abs() < 1e-6);
     }
