@@ -365,9 +365,40 @@ impl App {
                     }
                 }
             }
-            Resp::AppleCover { key, motion } => {
+            Resp::SongCover { id, song } => {
+                if song.is_some() {
+                    // The square cover came after the video's frame went up: redo the art.
+                    let current = self.current_id() == Some(id.as_str());
+                    self.song_covers.insert(id, song);
+                    if current && let Some(t) = self.shown().cloned() {
+                        self.art_key = None;
+                        self.request_art();
+                        self.show_in_media(&t);
+                    }
+                }
+            }
+            Resp::Video { id, path } => {
+                if let Some((v, state)) = &mut self.video
+                    && *v == id
+                {
+                    *state = Some(path.map_or(super::VideoState::Failed, super::VideoState::Saved));
+                }
+            }
+            Resp::VideoOf { generation, listed, video } => {
+                if generation == self.generation && self.current_id() == Some(listed.as_str()) {
+                    self.video_of = Some((listed, video.clone()));
+                    if std::mem::take(&mut self.video_wanted) {
+                        self.play_video_version();
+                    } else if let Some(v) = video {
+                        // Loaded ahead ("Load songs and videos together"): its audio and picture.
+                        self.backend.request(Req::Prefetch { video_id: v.id.clone(), song_of: None, track: Some(v.clone()) });
+                        self.backend.request(Req::Video { id: v.id, height: self.video_height });
+                    }
+                }
+            }
+            Resp::Canvas { key, url } => {
                 self.apple_waiting.remove(&key);
-                match motion.and_then(|m| m.square) {
+                match url {
                     Some(url) => {
                         self.apple_missed.remove(&key);
                         self.apple_covers.insert(key, Some(url));

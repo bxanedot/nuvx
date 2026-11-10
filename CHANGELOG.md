@@ -2,6 +2,18 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
 
+## 0.7.0
+
+### Desktop
+- Music videos play in Now playing: the picture in a 16:9 frame, in step with the song, through seeks and pauses (Windows).
+- Switch to video and Switch to song, both ways: any song to its music video, any music video to its song.
+- A light glides along the progress line while a song or its video loads.
+- Music video quality, 1080p to 360p, in Now playing's menu and Settings; "Upgrade audio quality" names the audio one.
+- Load songs and videos together (off by default): the other version loads as a track starts, so switching is instant.
+- The real YouTube Music cover instead of the video thumbnail, everywhere a music video shows.
+- Animated artwork for single songs as well as albums, from Apple Music and now Tidal, with a setting to turn it off.
+- Last.fm: Send now playing and Primary artist only.
+
 ## 0.6.0
 
 ### Downloads on desktop

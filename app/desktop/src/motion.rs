@@ -1,9 +1,9 @@
-//! Apple's motion sleeves, played locally.
+//! Looping cover clips (Apple's motion sleeves, Tidal's video covers), played locally.
 //!
-//! The clip is HLS, but each variant's media playlist is a single byte-ranged
-//! fragmented MP4, so it downloads as one file and Media Foundation decodes it
-//! off the UI thread. Only the newest frame is kept: the UI turns it into a
-//! texture and draws it in place of the still sleeve.
+//! Apple's clip is HLS, but each variant's media playlist is a single byte-ranged
+//! fragmented MP4, so it downloads as one file; Tidal's is a plain MP4. Media
+//! Foundation decodes either off the UI thread. Only the newest frame is kept: the UI
+//! turns it into a texture and draws it in place of the still sleeve.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -54,6 +54,10 @@ impl Drop for Motion {
     }
 }
 
+/// Whether this platform can play the clips: Media Foundation is Windows'. Elsewhere
+/// the still art stays, and nothing is looked up.
+pub const SUPPORTED: bool = cfg!(windows);
+
 static STREAMS: LazyLock<Mutex<HashMap<String, Weak<Motion>>>> = LazyLock::new(Default::default);
 
 /// Start (or reuse) the clip at `master`, decoded no wider than `max_width`.
@@ -77,7 +81,17 @@ fn run(motion: Arc<Motion>, ctx: egui::Context, master: String, max_width: u32) 
         log::info!("apple: no motion clip downloaded");
         return;
     };
-    decode(&motion, &path, &ctx);
+    decode(&motion, &path, &ctx, None);
+}
+
+/// A music video's picture from its saved file, held to the song's clock as Android's
+/// player does: each frame waits for the audio, and one far off it (a seek) moves the
+/// picture there. The audio stays the clock; the picture plays silent.
+pub fn video(ctx: &egui::Context, path: PathBuf, clock: Arc<crate::audio::AudioStatus>) -> Arc<Motion> {
+    let motion = Arc::new(Motion::new());
+    let (this, ctx) = (motion.clone(), ctx.clone());
+    let _ = std::thread::Builder::new().name("video".into()).spawn(move || decode(&this, &path, &ctx, Some(&clock)));
+    motion
 }
 
 /// Pick a variant and save the clip to the cache; a saved copy is reused.
@@ -86,8 +100,12 @@ fn fetch(master: &str, max_width: u32) -> Option<PathBuf> {
     rt.block_on(async {
         use sha1::{Digest, Sha1};
         let http = crate::proxy::http();
-        let media = crate::apple::variant(&http, master, max_width).await?;
-        let file = crate::apple::media_file(&http, &media).await?;
+        let file = if master.contains(".m3u8") {
+            let media = crate::apple::variant(&http, master, max_width).await?;
+            crate::apple::media_file(&http, &media).await?
+        } else {
+            crate::tidal::sized(master, max_width)
+        };
         let dir = crate::data_dir().join("motion");
         std::fs::create_dir_all(&dir).ok()?;
         let name = format!("{:x}", Sha1::digest(file.as_bytes()));
@@ -115,7 +133,7 @@ fn fetch(master: &str, max_width: u32) -> Option<PathBuf> {
 }
 
 #[cfg(windows)]
-fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context) {
+fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context, clock: Option<&crate::audio::AudioStatus>) {
     use windows::Win32::Media::MediaFoundation::{MFShutdown, MFStartup, MFSTARTUP_FULL, MF_VERSION};
     use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
     unsafe {
@@ -131,7 +149,7 @@ fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context) {
         let url = windows::core::PCWSTR(wide.as_ptr());
         // Each pass plays the clip once; then it starts again from the top.
         for _ in 0..100 {
-            if motion.stop.load(Ordering::Relaxed) || !play_once(motion, ctx, url) {
+            if motion.stop.load(Ordering::Relaxed) || !play_once(motion, ctx, url, clock) {
                 break;
             }
         }
@@ -141,7 +159,7 @@ fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context) {
 }
 
 #[cfg(windows)]
-unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PCWSTR) -> bool {
+unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PCWSTR, clock: Option<&crate::audio::AudioStatus>) -> bool {
     use windows::Win32::Media::MediaFoundation::*;
     let played = unsafe {
         (|| -> windows::core::Result<bool> {
@@ -168,6 +186,10 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
         let row = w * 4;
         let start = Instant::now();
         let mut base: Option<i64> = None;
+        // Following a clock: where the last seek went (frames before it are dropped, as
+        // the reader lands on the keyframe ahead of it), and the last frame's time.
+        let mut seeked: Option<i64> = None;
+        let mut last = 0i64;
         loop {
             if motion.stop.load(Ordering::Relaxed) {
                 return Ok(false);
@@ -179,15 +201,46 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
                 return Ok(false);
             }
             if flags & MF_SOURCE_READERF_ENDOFSTREAM.0 as u32 != 0 {
-                return Ok(true);
+                let Some(clock) = clock else { return Ok(true) };
+                // The video has ended: hold the last frame until the song goes back.
+                loop {
+                    if motion.stop.load(Ordering::Relaxed) {
+                        return Ok(false);
+                    }
+                    let at = song_at(clock);
+                    if at + 10_000_000 < last {
+                        seek(&reader, at)?;
+                        seeked = Some(at);
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+                continue;
             }
             let Some(sample) = sample else { continue };
-            let base = *base.get_or_insert(ts);
-            // Timestamps are in 100 ns units.
-            let due = Duration::from_micros(((ts - base).max(0) / 10) as u64);
-            let elapsed = start.elapsed();
-            if due > elapsed {
-                std::thread::sleep(due - elapsed);
+            last = ts;
+            match clock {
+                Some(clock) => {
+                    if seeked.is_some_and(|to| ts < to - 5_000_000) {
+                        continue;
+                    }
+                    // The first frame after a start or a seek shows at once: paused, the song
+                    // would never reach it.
+                    let first = seeked.take().is_some() || motion.version.load(Ordering::Acquire) == 0;
+                    if !first && !wait_for(&reader, motion, clock, ts)? {
+                        seeked = Some(song_at(clock));
+                        continue;
+                    }
+                }
+                None => {
+                    let base = *base.get_or_insert(ts);
+                    // Timestamps are in 100 ns units.
+                    let due = Duration::from_micros(((ts - base).max(0) / 10) as u64);
+                    let elapsed = start.elapsed();
+                    if due > elapsed {
+                        std::thread::sleep(due - elapsed);
+                    }
+                }
             }
             let buffer = sample.ConvertToContiguousBuffer()?;
             let (mut src, mut len) = (std::ptr::null_mut(), 0u32);
@@ -228,8 +281,79 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
     }
 }
 
+/// Blank out (rename to `free`) each track's edit list. YouTube's video files carry one
+/// that trims ~40 ms off the start, and Media Foundation's reader stalls on it for good.
+pub fn drop_edit_lists(mp4: &mut [u8]) {
+    fn children(d: &[u8], start: usize, end: usize) -> Vec<(usize, usize)> {
+        let mut out = Vec::new();
+        let mut i = start;
+        while i + 8 <= end {
+            let n = u32::from_be_bytes([d[i], d[i + 1], d[i + 2], d[i + 3]]) as usize;
+            if n < 8 || i + n > end {
+                break;
+            }
+            out.push((i, i + n));
+            i += n;
+        }
+        out
+    }
+    let kind = |d: &[u8], at: usize| <[u8; 4]>::try_from(&d[at + 4..at + 8]).unwrap_or_default();
+    for (m, m_end) in children(mp4, 0, mp4.len()) {
+        if &kind(mp4, m) != b"moov" {
+            continue;
+        }
+        for (t, t_end) in children(mp4, m + 8, m_end) {
+            if &kind(mp4, t) != b"trak" {
+                continue;
+            }
+            for (e, _) in children(mp4, t + 8, t_end) {
+                if &kind(mp4, e) == b"edts" {
+                    mp4[e + 4..e + 8].copy_from_slice(b"free");
+                }
+            }
+        }
+    }
+}
+
+/// Where the song is, in Media Foundation's 100 ns units.
+#[cfg(windows)]
+fn song_at(clock: &crate::audio::AudioStatus) -> i64 {
+    clock.position_smooth().as_micros() as i64 * 10
+}
+
+/// Hold the frame at `ts` until the song reaches it (paused, it waits). False: the song
+/// is elsewhere, half a second behind it or two ahead, and the reader has been sent there.
+#[cfg(windows)]
+unsafe fn wait_for(reader: &windows::Win32::Media::MediaFoundation::IMFSourceReader, motion: &Motion, clock: &crate::audio::AudioStatus, ts: i64) -> windows::core::Result<bool> {
+    loop {
+        if motion.stop.load(Ordering::Relaxed) {
+            return Ok(false);
+        }
+        let at = song_at(clock);
+        if ts < at - 5_000_000 || ts > at + 20_000_000 {
+            unsafe { seek(reader, at)? };
+            return Ok(false);
+        }
+        if ts <= at {
+            return Ok(true);
+        }
+        std::thread::sleep(Duration::from_micros(((ts - at) / 10).min(20_000) as u64));
+    }
+}
+
+#[cfg(windows)]
+unsafe fn seek(reader: &windows::Win32::Media::MediaFoundation::IMFSourceReader, to: i64) -> windows::core::Result<()> {
+    use windows::Win32::System::Com::StructuredStorage::PROPVARIANT;
+    let mut at = PROPVARIANT::default();
+    unsafe {
+        (*at.Anonymous.Anonymous).vt = windows::Win32::System::Variant::VT_I8;
+        (*at.Anonymous.Anonymous).Anonymous.hVal = to.max(0);
+        reader.SetCurrentPosition(&windows::core::GUID::zeroed(), &at)
+    }
+}
+
 #[cfg(not(windows))]
-fn decode(_motion: &Arc<Motion>, _path: &std::path::Path, _ctx: &egui::Context) {}
+fn decode(_motion: &Arc<Motion>, _path: &std::path::Path, _ctx: &egui::Context, _clock: Option<&crate::audio::AudioStatus>) {}
 
 /// The frame buffer's real row length in bytes, and whether its rows run bottom-up. Media
 /// Foundation's video processor pads the frame (a 1080 px clip comes back 1088 px wide, rows
@@ -260,6 +384,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn edit_lists_are_blanked_and_nothing_else() {
+        let b = |kind: &[u8; 4], body: &[u8]| [&((body.len() + 8) as u32).to_be_bytes()[..], kind, body].concat();
+        let trak = b(b"trak", &[b(b"tkhd", &[0; 4]), b(b"edts", &b(b"elst", &[1; 4])), b(b"mdia", &[2; 4])].concat());
+        let mut mp4 = [b(b"ftyp", b"dash"), b(b"moov", &trak), b(b"mdat", b"edts")].concat();
+        drop_edit_lists(&mut mp4);
+        let text = String::from_utf8_lossy(&mp4);
+        assert!(text.contains("free") && text.contains("elst") && text.contains("mdia"));
+        // Only the box inside a track: media data that happens to read "edts" stays.
+        assert_eq!(text.matches("edts").count(), 1);
+    }
+
+    #[test]
     #[ignore]
     fn decodes_a_cached_clip() {
         let dir = crate::data_dir().join("motion");
@@ -272,7 +408,7 @@ mod tests {
         let ctx = egui::Context::default();
         let motion = Arc::new(Motion::new());
         let this = motion.clone();
-        std::thread::spawn(move || decode(&this, &path, &ctx));
+        std::thread::spawn(move || decode(&this, &path, &ctx, None));
         let start = Instant::now();
         while motion.latest().is_none() && start.elapsed() < Duration::from_secs(15) {
             std::thread::sleep(Duration::from_millis(50));
@@ -283,3 +419,5 @@ mod tests {
         assert_eq!(frame.rgba.len(), frame.w * frame.h * 4);
     }
 }
+
+

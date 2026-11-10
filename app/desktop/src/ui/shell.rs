@@ -895,8 +895,12 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     if frac > 0.0 {
         ui.painter().rect_filled(Rect::from_min_size(line_r.min, vec2(line_r.width() * frac, thick)), thick / 2.0, theme::text().gamma_multiply(0.8));
     }
+    if enabled && app.version_loading() {
+        widgets::loading_glow(ui, line_r, now, theme::text());
+    }
     let at = |p: Pos2| (((p.x - sx0) / (sx1 - sx0)).clamp(0.0, 1.0) * total).max(0.0);
 
+    let track = track.map(|t| app.with_cover(&t));
     let Some(t) = &track else {
         // Nothing yet, as Apple's empty display: a darker sleeve slot holding a note, and
         // the mark in the middle of the rest.
