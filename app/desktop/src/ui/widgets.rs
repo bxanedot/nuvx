@@ -587,6 +587,15 @@ pub fn menu_action(ui: &mut Ui, glyph: Option<char>, label: &str) -> bool {
     })
 }
 
+/// A menu row for one of several choices, ticked when it's the one in use.
+pub fn menu_choice(ui: &mut Ui, picked: bool, label: &str) -> bool {
+    menu_row(ui, label, |ui, at, color| {
+        if picked {
+            icon_at(ui, at, icon::CHECK, 16.0, color);
+        }
+    })
+}
+
 /// A menu row marked with one of the app's own glyphs.
 pub fn menu_glyph_action(ui: &mut Ui, glyph: super::glyphs::Glyph, label: &str) -> bool {
     menu_row(ui, label, |ui, at, color| super::glyphs::draw(ui, at, 16.0, glyph, color))
@@ -1016,11 +1025,34 @@ pub fn h_scroll<R>(ui: &mut Ui, id: &str, nudge: i32, count: usize, item_width: 
 
 /// The skeleton's light band sweeping across `r`, for anything still loading.
 pub fn shimmer_band(ui: &Ui, r: Rect, radius: f32, time: f64) {
+    shimmer_band_alpha(ui, r, radius, time, 0.04);
+}
+
+/// A light gliding back and forth along the progress line `r` while what plays is
+/// still loading (asks for the frames it needs).
+pub fn loading_glow(ui: &Ui, r: Rect, time: f64, color: Color32) {
+    let p = (time * 0.7).rem_euclid(2.0) as f32;
+    let t = if p > 1.0 { 2.0 - p } else { p };
+    let t = t * t * (3.0 - 2.0 * t);
+    let len = r.width() * 0.22;
+    let x = r.left() + (r.width() - len) * t;
+    let steps = 12;
+    for i in 0..steps {
+        // Brightest in the middle, fading to both ends.
+        let f = (i as f32 + 0.5) / steps as f32;
+        let a = 1.0 - (f * 2.0 - 1.0).abs();
+        let seg = Rect::from_min_max(pos2(x + len * i as f32 / steps as f32, r.top()), pos2(x + len * (i + 1) as f32 / steps as f32, r.bottom()));
+        ui.painter().rect_filled(seg, 0.0, color.gamma_multiply(a * a));
+    }
+    ui.ctx().request_repaint();
+}
+
+fn shimmer_band_alpha(ui: &Ui, r: Rect, radius: f32, time: f64, alpha: f32) {
     let phase = ((time * 0.8) % 1.6) as f32 - 0.3;
     let x = r.left() + (r.width() + 400.0) * phase - 200.0;
     let band = Rect::from_min_max(pos2((x - 120.0).max(r.left()), r.top()), pos2((x + 120.0).min(r.right()), r.bottom()));
     if band.width() > 0.0 {
-        ui.painter().rect_filled(band, radius, theme::glass(0.04));
+        ui.painter().rect_filled(band, radius, theme::glass(alpha));
     }
 }
 

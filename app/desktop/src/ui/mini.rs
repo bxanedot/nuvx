@@ -479,6 +479,7 @@ pub fn strip(app: &mut App, ui: &mut Ui, now: f64) {
     // An Automix handoff keeps the outgoing song here until the next one is louder.
     let hold = app.mix_hold().is_some();
     let track = if hold { app.shown().cloned() } else { app.current().cloned() };
+    let track = track.map(|t| app.with_cover(&t));
     let pad = 12.0;
     let art = Rect::from_min_size(r.min + Vec2::splat(pad), Vec2::splat(r.height() - 2.0 * pad - 4.0));
     match &track {
@@ -488,14 +489,10 @@ pub fn strip(app: &mut App, ui: &mut Ui, now: f64) {
             icon_at(ui, art.center(), icon::MUSIC, 28.0, theme::text_faint());
         }
     }
-    // Apple's motion sleeve, over the still until its first frame arrives.
-    if let Some(t) = &track
-        && let Some(album) = t.album.as_ref().map(|a| a.name.clone()).filter(|a| !a.is_empty())
-    {
-        let artist = t.artists.first().map(|a| a.name.clone()).unwrap_or_else(|| t.artist_line());
+    // The song's looping clip, over the still until its first frame arrives.
+    if let Some(t) = &track {
         let px = (art.width() * ctx.pixels_per_point()).round().max(256.0) as u32;
-        app.apple_cover(&album, &artist, Some(&t.title));
-        if let Some(s) = app.apple_sprite(&ctx, &album, &artist, px) {
+        if let Some(s) = app.song_canvas(&ctx, t, px) {
             widgets::paint_motion(ui, art, theme::thumb_radius() + 1.0, &s);
         }
     }
