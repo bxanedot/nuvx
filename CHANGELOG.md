@@ -16,20 +16,23 @@ Turn on **Enable YouTube Search** in Settings to add a YouTube switch over your 
 
 - Queue and Lyrics now sit beside Repeat.
 - Shuffle replaces Start radio in the ⋯ menu.
+- On desktop, Lyrics sits on the far left, before Shuffle.
 - On desktop, a music video can switch between the video and the song from the ⋯ menu.
 
 ### Desktop
 
+- The player in the top bar takes after Apple Music's: a sharp display in the middle with the song, its artwork and a thin progress line, the controls to its left, and volume, lyrics and up next to its right. Volume opens its slider when you hover over it.
 - Android's equalizer comes to desktop, with its Dynamic tone pad, seven Manual bands and presets, and balance. Find it in Settings.
 - Desktop gets Android's spatial audio, on by default.
 - The red, yellow and green window buttons close, minimize and maximize, as the Windows buttons do.
 - Scrollbars are gone. Pages still scroll with the wheel, trackpad or touch.
 - The app's own window background is now called Dynamic. Your choice is kept.
+- Ctrl+F opens Search from any page, ready to type. F shows full-screen lyrics whenever a song is loaded, and keeps working after you click a button.
 - Release notes show pictures, tables, numbered lists, quotes and line breaks as GitHub does. Android's notes keep their line breaks and pictures too.
 
 ### Websites
 
-nuvx.lol has this changelog at [nuvx.lol/changelog](https://nuvx.lol/changelog).
+nuvx.lol has this changelog at [nuvx.lol/changelog](https://nuvx.lol/changelog). nuvx.lol and the web player now wear burgundy.
 
 ## 0.4.0
 
