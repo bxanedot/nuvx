@@ -702,23 +702,32 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         named(resp, name).on_hover_text(name).on_hover_cursor(egui::CursorIcon::PointingHand)
     };
 
-    // Left: shuffle · previous · play · next · repeat, centred between the sidebar and the
-    // display, as Apple Music's are. The display is about a third of the window.
-    let lcd_max = (full.width() * 0.32).min(640.0);
-    let x0 = ((full.left() + full.center().x - lcd_max / 2.0) / 2.0 - 70.0).max(full.left() + 22.0);
+    // Laid out as Apple Music for Windows measures: the display about a third of the
+    // toolbar, a little left of its centre; the transport centred (a touch left) in the gap
+    // before it, and volume, lyrics and up next centred in the gap after it.
+    const STEP: f32 = 31.5;
+    const RSTEP: f32 = 35.0;
+    let right = full.right() - super::titlebar::right_gap(&ctx, full, 16.0);
+    let avatar = Rect::from_center_size(pos2(right - 16.0, cy), Vec2::splat(32.0));
+    let lcd_c = full.center().x - full.width() * 0.011;
+    let half_room = (lcd_c - (full.left() + 22.0 + 4.0 * STEP + 54.0)).min(avatar.left() - 12.0 - 2.0 * RSTEP - 54.0 - lcd_c);
+    let lcd_w = (full.width() * 0.344).min(720.0).min(half_room * 2.0);
+    let (lcd_l, lcd_r) = if lcd_w >= 160.0 { (lcd_c - lcd_w / 2.0, lcd_c + lcd_w / 2.0) } else { (avatar.left() - 2.0 * RSTEP - 40.0, avatar.left() - 2.0 * RSTEP - 40.0) };
+    let x0 = ((full.left() + lcd_l) / 2.0 - 20.0 - 2.0 * STEP).max(full.left() + 22.0);
+    let rc = ((lcd_r + right) / 2.0).min(avatar.left() - 12.0 - RSTEP);
     let r = btn(ui, x0, "shuffle", "Shuffle up next");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
     glyphs::draw(ui, r.rect.center(), 15.0, glyphs::SHUFFLE, ink(h));
     if r.clicked() {
         app.shuffle_upcoming();
     }
-    let r = btn(ui, x0 + 36.0, "prev", "Previous");
+    let r = btn(ui, x0 + STEP, "prev", "Previous");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
     glyphs::draw(ui, r.rect.center(), 18.0, glyphs::PREVIOUS, ink(h));
     if r.clicked() && enabled {
         app.prev();
     }
-    let r = btn(ui, x0 + 70.0, "play", if playing { "Pause" } else { "Play" });
+    let r = btn(ui, x0 + 2.0 * STEP, "play", if playing { "Pause" } else { "Play" });
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
     let c = r.rect.center();
     let morph = theme::anim_bool(&ctx, "bar-play-morph", playing || app.buffering, 0.18);
@@ -740,7 +749,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     if r.clicked() && enabled {
         app.toggle();
     }
-    let r = btn(ui, x0 + 104.0, "next", "Next");
+    let r = btn(ui, x0 + 3.0 * STEP, "next", "Next");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
     glyphs::draw(ui, r.rect.center(), 18.0, glyphs::NEXT, ink(h));
     if r.clicked() && enabled {
@@ -751,7 +760,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         Repeat::All => (glyphs::REPEAT, true),
         Repeat::One => (glyphs::REPEAT_ONE, true),
     };
-    let r = btn(ui, x0 + 140.0, "repeat", "Repeat");
+    let r = btn(ui, x0 + 4.0 * STEP, "repeat", "Repeat");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.12);
     glyphs::draw(ui, r.rect.center(), 15.0, glyph, if on { accent } else { ink(h) });
     if r.clicked() {
@@ -761,19 +770,15 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
             Repeat::One => Repeat::Off,
         };
     }
-    let mut left_end = x0 + 160.0;
     if app.loading {
-        let spin = Rect::from_center_size(pos2(left_end + 10.0, cy), Vec2::splat(16.0));
+        let spin = Rect::from_center_size(pos2(x0 + 4.0 * STEP + 30.0, cy), Vec2::splat(16.0));
         ui.new_child(egui::UiBuilder::new().max_rect(spin)).spinner();
-        left_end += 24.0;
     }
 
-    // Right, from the window buttons in: account, up next, lyrics, then the volume.
-    let right = full.right() - super::titlebar::right_gap(&ctx, full, 16.0);
-    let avatar = Rect::from_center_size(pos2(right - 16.0, cy), Vec2::splat(32.0));
+    // Right: the account by the window buttons; volume, lyrics, up next before it.
     account(app, ui, avatar);
     let queue_open = if app.np_open { app.np_tab == NpTab::UpNext } else { app.queue_open };
-    let r = btn(ui, avatar.left() - 22.0, "queue", "Up next");
+    let r = btn(ui, rc + RSTEP, "queue", "Up next");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
     glyphs::draw(ui, r.rect.center(), 16.0, glyphs::QUEUE, if queue_open { accent } else { ink(h) });
     if r.clicked() {
@@ -785,7 +790,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         }
     }
     let lyrics_on = if app.np_open { app.np_tab == NpTab::Lyrics && !app.no_lyrics() } else { app.lyrics_open };
-    let r = btn(ui, avatar.left() - 56.0, "lyrics", "Lyrics");
+    let r = btn(ui, rc, "lyrics", "Lyrics");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
     glyphs::draw(ui, r.rect.center(), 16.0, if lyrics_on { glyphs::LYRICS } else { glyphs::LYRICS_OFF }, if lyrics_on { accent } else { ink(h) });
     if r.clicked() {
@@ -798,7 +803,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     }
     // Just the speaker, as Apple Music's: its slider drops down under it on hover.
     let vol = app.audio.volume();
-    let r = btn(ui, avatar.left() - 92.0, "vol", "Mute");
+    let r = btn(ui, rc - RSTEP, "vol", "Mute");
     let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
     glyphs::draw(ui, r.rect.center(), 16.0, glyphs::VOLUME[glyphs::volume_step(vol)], theme::lerp_color(theme::text_dim(), theme::text(), h));
     volume_popover(app, ui, r.rect);
@@ -817,27 +822,21 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
             app.audio.set_volume(ui.data(|d| d.get_temp::<f32>(stash)).unwrap_or(0.6));
         }
     }
-    let right_start = r.rect.left() - 8.0;
 
-    // The display: centred on the toolbar, or between the two groups when it's tight.
-    let room = (right_start - left_end - 24.0).max(0.0);
-    let lcd_w = room.min(lcd_max);
+    // The display; a window too narrow for one goes without.
     if lcd_w < 160.0 {
         return;
     }
-    let lcd_x = (full.center().x - lcd_w / 2.0).clamp(left_end + 12.0, right_start - 12.0 - lcd_w);
-    let lcd = Rect::from_min_size(pos2(lcd_x, cy - 20.0), vec2(lcd_w, 40.0));
-    const R: f32 = 8.0;
-    match &app.glass {
-        Some(glass) => {
-            let tint = if theme::light() { Color32::from_rgba_unmultiplied(0xFA, 0xFA, 0xFA, 102) } else { Color32::from_rgba_unmultiplied(0x12, 0x12, 0x12, 102) };
-            glass.paint(ui.painter(), lcd, R, tint);
-        }
-        None => {
-            ui.painter().rect_filled(lcd, R, theme::panel(0.7));
-            ui.painter().rect_stroke(lcd, R, egui::Stroke::new(1.0, theme::glass(0.12)), egui::StrokeKind::Inside);
-        }
-    }
+    let lcd_x = lcd_l;
+    // Snapped to whole pixels, flat and hairline-edged like Apple Music's display: no blur.
+    let ppp = ctx.pixels_per_point();
+    let snap = |v: f32| (v * ppp).round() / ppp;
+    let lcd = Rect::from_min_max(pos2(snap(lcd_x), snap(cy - 20.0)), pos2(snap(lcd_x + lcd_w), snap(cy + 20.0)));
+    // Apple's measured: the display is ~7% lighter than the bar, its edge a hair more.
+    const R: f32 = 4.0;
+    let (fill, edge) = if theme::light() { (Color32::from_black_alpha(14), Color32::from_black_alpha(26)) } else { (Color32::from_white_alpha(20), Color32::from_white_alpha(28)) };
+    ui.painter().rect_filled(lcd, R, fill);
+    ui.painter().rect_stroke(lcd, R, egui::Stroke::new(1.0 / ctx.pixels_per_point(), edge), egui::StrokeKind::Inside);
     let cover = Rect::from_min_size(lcd.min, Vec2::splat(lcd.height()));
     let star_x = lcd.right() - 18.0;
     let (text_l, text_r) = (cover.right() + 10.0, star_x - 16.0);
@@ -892,8 +891,13 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     let at = |p: Pos2| (((p.x - sx0) / (sx1 - sx0)).clamp(0.0, 1.0) * total).max(0.0);
 
     let Some(t) = &track else {
-        // Nothing yet: the mark, small, in the middle of the display.
-        mark(ui, Rect::from_center_size(lcd.center(), vec2(40.0, 16.0)), theme::text_dim().gamma_multiply(0.7));
+        // Nothing yet, as Apple's empty display: a darker sleeve slot holding a note, and
+        // the mark in the middle of the rest.
+        let slot = if theme::light() { Color32::from_black_alpha(10) } else { Color32::from_black_alpha(40) };
+        ui.painter().rect_filled(cover, egui::CornerRadius { nw: R as u8, sw: R as u8, ne: 0, se: 0 }, slot);
+        ui.painter().vline(cover.right(), cover.y_range(), egui::Stroke::new(1.0 / ppp, edge));
+        glyphs::draw(ui, cover.center(), 18.0, glyphs::MUSIC_NOTE, theme::text_dim().gamma_multiply(0.6));
+        mark(ui, Rect::from_center_size(pos2(tcx, lcd.center().y), vec2(40.0, 16.0)), theme::text_dim().gamma_multiply(0.7));
         return;
     };
     // Sleeve, flush with the display's left end; a click goes up into now playing.
