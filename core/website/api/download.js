@@ -12,7 +12,32 @@ const files = {
 };
 
 module.exports = async (req, res) => {
-  const platform = new URL(req.url, 'https://www.nuvx.lol').searchParams.get('platform');
+  const params = new URL(req.url, 'https://www.nuvx.lol').searchParams;
+  if (params.get('channel') === 'nightly') {
+    let tag;
+    try {
+      const response = await fetch('https://api.github.com/repos/bxanedot/nuvx/releases?per_page=30', {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (response.ok) {
+        const builds = await response.json();
+        tag = builds
+          .filter((build) => build.prerelease && !build.draft && /^nightly\.\d+\.\d+$/.test(build.tag_name))
+          .map((build) => build.tag_name)
+          .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }))[0];
+      }
+    } catch {
+      // Keep the releases list available when GitHub's API is unavailable.
+    }
+    res.writeHead(302, {
+      Location: tag ? releases + '/tag/' + tag : releases,
+      'Cache-Control': 'no-store',
+      ...(tag && { 'Vercel-CDN-Cache-Control': 's-maxage=60' }),
+    });
+    res.end();
+    return;
+  }
+  const platform = params.get('platform');
   let target = releases + '/latest';
   if (Object.hasOwn(files, platform)) {
     try {
