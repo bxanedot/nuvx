@@ -770,9 +770,8 @@ fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
         Some(o) => (o.c.title.clone(), o.c.artists.first().map(|a| a.name.clone()).unwrap_or_else(|| o.c.byline())),
         None => (String::new(), String::new()),
     };
-    app.apple_cover(&release, &artist, None);
     let px = (232.0 * ui.ctx().pixels_per_point()).round().max(256.0) as u32;
-    let sprite = app.apple_sprite(ui.ctx(), &release, &artist, px);
+    let sprite = app.album_canvas(ui.ctx(), &release, &artist, px);
     let Some(o) = app.lists.get(id) else { return };
     let (c, more) = (&o.c, app.receiving(id));
     let acts = &mut app.actions;
@@ -1543,6 +1542,32 @@ fn settings_playback(app: &mut App, ui: &mut Ui) {
             toggle(ui, &mut app.play_songs, "Play songs, not music videos");
         });
         divider(ui);
+        setting_row(ui, "Load songs and videos together", Some("As a song starts, its music video loads too (and a video's song), so switching between them is instant. Uses the data of both."), |ui| {
+            toggle(ui, &mut app.load_both, "Load songs and videos together");
+        });
+        if crate::motion::SUPPORTED {
+            divider(ui);
+            setting_row(ui, "Music video quality", Some("How sharp a music video's picture is in Now playing. Higher uses more data."), |ui| {
+                let btn = dropdown_button(ui, &format!("{}p", app.video_height), 210.0, "Music video quality");
+                let mut pick = None;
+                egui::Popup::menu(&btn).show(|ui| {
+                    ui.set_width(210.0);
+                    ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                    ui.add_space(4.0);
+                    for q in [1080, 720, 480, 360] {
+                        if option_row(ui, &format!("{q}p"), app.video_height == q).clicked() {
+                            pick = Some(q);
+                            ui.close();
+                        }
+                    }
+                    ui.add_space(4.0);
+                });
+                if let Some(q) = pick {
+                    app.set_video_height(q);
+                }
+            });
+        }
+        divider(ui);
         setting_row(ui, "Output device", Some("Where the music plays. A picked device that isn't connected leaves it to Windows' default until it's back."), |ui| {
             output_device_picker(app, ui);
         });
@@ -2029,6 +2054,12 @@ fn settings_appearance(app: &mut App, ui: &mut Ui) {
         setting_row(ui, "Animated background", Some("The album art slowly drifts behind everything."), |ui| {
             toggle(ui, &mut app.anim_bg, "Animated background");
         });
+        if crate::motion::SUPPORTED {
+            divider(ui);
+            setting_row(ui, "Animated artwork", Some("Covers move where Apple Music or Tidal has a moving version: in Now playing, the player and on album pages."), |ui| {
+                toggle(ui, &mut app.anim_canvas, "Animated artwork");
+            });
+        }
         divider(ui);
         setting_row(ui, "Reduce animation", Some("Panels, menus and pages change at once instead of sliding and fading."), |ui| {
             if toggle(ui, &mut app.reduce_motion, "Reduce animation").changed() {
@@ -2166,6 +2197,16 @@ fn settings_integrations(app: &mut App, ui: &mut Ui) {
         }
         if disconnect {
             app.lastfm_sign_out();
+        }
+        if app.lastfm_user.is_some() {
+            divider(ui);
+            setting_row(ui, "Send now playing", Some("Your Last.fm profile shows the song as it starts, before it's scrobbled."), |ui| {
+                toggle(ui, &mut app.lastfm_now_playing, "Send now playing");
+            });
+            divider(ui);
+            setting_row(ui, "Primary artist only", Some("Scrobble a song under its first artist, not everyone credited on it."), |ui| {
+                toggle(ui, &mut app.lastfm_primary_only, "Primary artist only");
+            });
         }
     });
     if discord_enabled != app.discord_enabled {
