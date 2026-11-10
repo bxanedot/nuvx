@@ -170,7 +170,7 @@ object BoundedContextPersistence {
         }.getOrNull() ?: return null
         val usedIds = (history + current + userTail + autoplayTail)
             .mapTo(HashSet()) { it.song.queueEntryId!! }
-        val retainedAnchors = (history + current)
+        val retainedAnchors = listOf(current)
             .mapNotNull { entry ->
                 val canonicalIndex = entry.canonicalIndex
                 val cycleId = entry.cycleId
@@ -529,6 +529,7 @@ object BoundedContextPersistence {
             state.window.plannedCycles.forEach { add(it.cycleId) }
         }
         val entryIds = HashSet<String>(state.entries.size)
+        val historyAnchors = HashSet<Pair<Int, Long>>()
         val anchors = HashSet<Pair<Int, Long>>()
         state.entries.forEachIndexed { index, entry ->
             val entryId = entry.song.queueEntryId?.takeIf { it.isNotBlank() } ?: return null
@@ -552,7 +553,8 @@ object BoundedContextPersistence {
                 if (cycleId < 0L ||
                     (cycleId !in knownCycles && index >= state.currentIndex)
                 ) return null
-                if (!anchors.add(canonicalIndex to cycleId)) return null
+                val seen = if (index < state.currentIndex) historyAnchors else anchors
+                if (!seen.add(canonicalIndex to cycleId)) return null
                 val expected = canonical[canonicalIndex]
                 if (entry.song.contextEntryKey() != expected.contextEntryKey()) return null
             }
