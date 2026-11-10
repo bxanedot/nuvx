@@ -9,17 +9,6 @@ import com.hierynomus.smbj.share.DiskShare
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/**
- * The one open session to the configured server. Single-server, like the rest
- * of this app's remote libraries: [SmbAuth] publishes the parameters and
- * drops this pool on every edit, so a changed credential can never keep
- * reading on the old session.
- *
- * All share access funnels through [withShare], which reconnects once when
- * the wire died mid-flight. Only transport failures ([IOException]) retry —
- * a status answer from the server (bad password, no such share) is final and
- * fails fast instead of authenticating twice against a lockout counter.
- */
 object SmbConnection {
 
     private var client: SMBClient? = null
@@ -75,12 +64,6 @@ object SmbConnection {
         }
     }
 
-    /**
-     * Never anonymous(): smbj 0.15 derives SMB3 keys from a session key an
-     * anonymous login has none of, and crashes on servers that do not flag
-     * the session as null (Samba) - hierynomus/smbj#872. Guest sends a real
-     * NTLMv2 exchange and lands on the guest path smbj handles.
-     */
     internal fun authFor(username: String, password: String): AuthenticationContext =
         if (username.isBlank() && password.isBlank()) {
             AuthenticationContext.guest()

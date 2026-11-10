@@ -37,7 +37,6 @@ class LocalAlbumTrackNumberTest {
 
     @Test
     fun album_sortsByTagNotTitle() {
-        // Title-sorted incoming order, as the library leaves it.
         val group = listOf(
             song("c", "C Song", track = 3),
             song("a", "A Song", track = 1),
@@ -70,7 +69,6 @@ class LocalAlbumTrackNumberTest {
         assertTrue(
             listOf(song("a", "A", album = "Album", track = 2), song("b", "B", album = "Album", track = 1)).useTrackTags(),
         )
-        // Artist mix across albums keeps positional numbering.
         assertFalse(
             listOf(song("a", "A", album = "One", track = 1), song("b", "B", album = "Two", track = 1)).useTrackTags(),
         )

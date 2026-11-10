@@ -61,28 +61,11 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/**
- * The app's own equaliser, in the two shapes people have already been taught to
- * read one in.
- *
- * **Dynamic** is a tone pad: one puck over a dot grid, tilting the spectrum
- * left-to-right and shaping the middle of it bottom-to-top, with Broad and
- * Focused choosing how wide each move is. Two numbers and a puck, for the
- * majority of people who want it warmer or brighter and have no interest in
- * which decibel went where.
- *
- * **Manual** is the seven-band graphic equaliser, with a preset list over it.
- *
- * Both drive the same filters — see [EqLayout] — so the tab is a way of
- * describing a curve rather than a different piece of audio machinery, and
- * switching between them glides rather than clicks.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EqualizerScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    /** Opens the list of preset curves as a page — see [EqualizerPresetPage]. */
     onOpenPresets: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -129,13 +112,6 @@ fun EqualizerScreen(
             )
         }
 
-        // Off, the whole apparatus below reads as unavailable rather than
-        // merely idle. Each control is told so itself rather than having its
-        // touches swallowed by a layer above: the pad and the faders all claim
-        // the gesture with `awaitFirstDown(requireUnconsumed = false)` — they
-        // have to, or the scrolling page would steal every vertical drag — so
-        // an ancestor's consumption never reaches them. Consuming on the
-        // Initial pass to force it took the page's own scrolling down too.
         val settingsAlpha by animateFloatAsState(
             targetValue = if (enabled) 1f else 0.38f,
             animationSpec = tween(220),
@@ -225,18 +201,6 @@ fun EqualizerScreen(
                 )
             }
 
-            // A stream that never gets decoded to linear PCM — a passthrough or
-            // offload bitstream — reaches the output as the bytes it arrived
-            // as, and there is no sample for a filter to touch. Said plainly
-            // here rather than left as a dead control, because the alternative
-            // is a screen that responds to every touch and changes no sound.
-            //
-            // This tested `actualEncoding == ENCODING_PCM_FLOAT` for a long
-            // while, which was true of the old pipeline and has been wrong
-            // since the DSP chain moved upstream into [PrecisionAudioSink].
-            // Float output does not affect the equaliser at all; it only drops
-            // Media3's *own* processors, which is a claim about silence
-            // skipping and belongs on that setting, not this screen.
             if (!outputStatus.dspAvailable) {
                 SettingsGroup(footer = stringResource(R.string.equalizer_bitstream_footer)) {
                     SettingsRow(
@@ -249,9 +213,6 @@ fun EqualizerScreen(
 
         }
 
-        // Outside the dimmed block on purpose: the device's own panel works
-        // whether or not ours is switched on, and greying out a route to
-        // somebody else's equaliser would be claiming ground we do not hold.
         SettingsGroup(footer = stringResource(R.string.system_equalizer_footer)) {
             SettingsRow(
                 icon = SfIcons.GraphicEq,
@@ -265,21 +226,6 @@ fun EqualizerScreen(
     }
 }
 
-// ---- Tone pad --------------------------------------------------------------
-
-/**
- * The dot grid and its puck.
- *
- * Drawn rather than composed: eleven by eleven is 121 dots, and 121 layout
- * nodes re-measured on every frame of a drag is a stutter on the exact gesture
- * that has to feel direct. One [Canvas] redraws them for the cost of the
- * circles themselves.
- *
- * The puck snaps to whole steps as the finger moves, with a tick at each one,
- * and springs between them rather than teleporting — a control that jumps
- * between dots reads as the touch being dropped, and the spring is what says it
- * was caught.
- */
 @Composable
 private fun TonePad(
     x: Int,
@@ -293,16 +239,10 @@ private fun TonePad(
     val shadowColor = Color.Black.copy(alpha = 0.16f)
     val steps = EqLayout.TONE_STEPS
 
-    // The gesture block below is keyed on something that never changes, so it is
-    // started once and captures whatever was in scope then. Read through these
-    // and a second gesture begins from where the puck actually is, rather than
-    // from where it was the first time this screen composed.
     val latestX by rememberUpdatedState(x)
     val latestY by rememberUpdatedState(y)
     val currentOnChange by rememberUpdatedState(onChange)
 
-    // Spring, not tween: the puck has to keep up with a fast drag and still
-    // settle rather than arrive and stop dead.
     val animatedX by animateFloatAsState(
         targetValue = x.toFloat(),
         animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessHigh),
@@ -322,10 +262,6 @@ private fun TonePad(
             .pointerInput(steps, enabled) {
                 if (!enabled) return@pointerInput
                 awaitEachGesture {
-                    // Claimed on the way down, before the scrolling parent gets
-                    // to count this as the start of a fling. Everything in this
-                    // screen scrolls; a pad that only took the gesture once it
-                    // had moved would lose every vertical drag to the page.
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
                     var lastX = latestX
@@ -363,9 +299,6 @@ private fun TonePad(
 
         for (column in 0..columns) {
             for (row in 0..columns) {
-                // The row and column through dead centre are drawn up, so the
-                // origin is findable without a reading — the same job the
-                // detent does on a balance slider.
                 val onAxis = column == steps || row == steps
                 drawCircle(
                     color = dotColor.copy(alpha = if (onAxis) 0.55f else 0.3f),
@@ -382,8 +315,6 @@ private fun TonePad(
             inset + usableWidth * (animatedX + steps) / columns,
             inset + usableHeight * (steps - animatedY) / columns,
         )
-        // Three soft rings instead of a blur: a real shadow pass on a view this
-        // small costs more than the circles it would be shading.
         for (ring in 3 downTo 1) {
             drawCircle(
                 color = shadowColor.copy(alpha = shadowColor.alpha / ring),
@@ -395,19 +326,16 @@ private fun TonePad(
     }
 }
 
-/** Which step the finger is over, clamped to the grid. */
 private fun stepAt(offset: Offset, size: Size, inset: Float, steps: Int): Pair<Int, Int> {
     val usableWidth = (size.width - inset * 2).coerceAtLeast(1f)
     val usableHeight = (size.height - inset * 2).coerceAtLeast(1f)
     val fractionX = ((offset.x - inset) / usableWidth).coerceIn(0f, 1f)
     val fractionY = ((offset.y - inset) / usableHeight).coerceIn(0f, 1f)
     val x = (fractionX * steps * 2).roundToInt() - steps
-    // Screen coordinates grow downwards and the control does not: up is more.
     val y = steps - (fractionY * steps * 2).roundToInt()
     return x to y
 }
 
-/** The two numbers under the pad: how far it is tilted, and how far contoured. */
 @Composable
 private fun ToneReadout(x: Int, y: Int) {
     Row(
@@ -445,10 +373,8 @@ private fun ToneReadout(x: Int, y: Int) {
     }
 }
 
-/** Zero has no sign; anything else wears one, so the direction reads at a glance. */
 private fun signed(value: Int): String = if (value > 0) "+$value" else value.toString()
 
-/** A row that is one of a set, ticked when it is the one in force. */
 @Composable
 private fun ChoiceRow(
     label: String,
@@ -486,21 +412,6 @@ private fun ChoiceRow(
     }
 }
 
-// ---- Manual bands ----------------------------------------------------------
-
-/**
- * Seven vertical faders, drawn.
- *
- * Material's `Slider` rotated a quarter turn keeps its horizontal touch
- * geometry and its horizontal thumb, which is why every Compose equaliser built
- * that way feels wrong under the finger. These are a track, a fill and a knob
- * on a canvas, taking the gesture on first touch the way [TonePad] does.
- *
- * The fill runs from the centre rather than the bottom because the value it is
- * showing is signed: a band at −6 dB and a band at +6 dB are equal and opposite,
- * and a bar growing from the floor would draw them as a short one and a tall
- * one.
- */
 @Composable
 private fun BandSliders(
     bands: List<Float>,
@@ -561,10 +472,6 @@ private fun BandFader(
     val fillColor = MaterialTheme.colorScheme.primary
     val knobColor = MaterialTheme.colorScheme.background
     val range = EqLayout.MANUAL_RANGE_DB
-    // See [TonePad]: the gesture block outlives the composition that made it.
-    // [onChange] too, and that one matters most: the caller's lambda closes
-    // over the whole band list, so a stale copy writes every *other* band
-    // back to whatever it was when this fader first composed.
     val latest by rememberUpdatedState(value)
     val currentOnChange by rememberUpdatedState(onChange)
 
@@ -585,8 +492,6 @@ private fun BandFader(
                         val raw = (1f - fraction * 2f) * range
                         val snapped = snapGain(raw, range)
                         if (abs(snapped - last) > 0.001f) {
-                            // A tick per step, and the step at zero is the one
-                            // people are aiming for when they undo a band.
                             haptics.play(Haptic.Tick)
                             last = snapped
                             currentOnChange(snapped)
@@ -629,7 +534,6 @@ private fun BandFader(
                 cornerRadius = CornerRadius(trackWidth / 2),
             )
         }
-        // The zero line, drawn over the track so it survives a full-scale fill.
         drawLine(
             color = trackColor.copy(alpha = 0.9f),
             start = Offset(centreX - trackWidth, centreY),
@@ -645,13 +549,6 @@ private fun BandFader(
     }
 }
 
-/**
- * Half-decibel steps, with a wider one at zero.
- *
- * Flat is the value a band gets dragged back to far more often than any other,
- * and it is the one value a finger cannot hit reliably on a 150 dp travel — so
- * it is given a detent to fall into rather than a coordinate to find.
- */
 private fun snapGain(raw: Float, range: Float): Float {
     if (abs(raw) < ZERO_DETENT_DB) return 0f
     return ((raw * 2f).roundToInt() / 2f).coerceIn(-range, range)
@@ -663,7 +560,6 @@ private fun formatGain(value: Float): String = when {
     else -> trimGain(value)
 }
 
-/** "+6" rather than "+6.0", but "+6.5" when the half matters. */
 private fun trimGain(value: Float): String =
     if (abs(value - value.roundToInt()) < 0.05f) {
         value.roundToInt().toString()
@@ -671,20 +567,12 @@ private fun trimGain(value: Float): String =
         String.format(Locale.getDefault(), "%.1f", value)
     }
 
-/** "60", "2.5k", "14k" — the labels a hardware equaliser prints. */
 private fun formatFrequency(hz: Float): String = when {
     hz < 1_000f -> hz.roundToInt().toString()
     hz % 1_000f == 0f -> "${(hz / 1_000f).roundToInt()}k"
     else -> String.format(Locale.getDefault(), "%.1fk", hz / 1_000f)
 }
 
-// ---- Balance ---------------------------------------------------------------
-
-/**
- * L and R with the trim between them, and a detent at centre for the same
- * reason [snapGain] has one: dead centre is where this spends its life, and it
- * is the one position a drag cannot land on by aim alone.
- */
 @Composable
 private fun BalanceControl(
     balance: Float,
@@ -695,7 +583,6 @@ private fun BalanceControl(
     val trackColor = MaterialTheme.colorScheme.outline
     val fillColor = MaterialTheme.colorScheme.primary
     val knobColor = MaterialTheme.colorScheme.background
-    // See [TonePad]: the gesture block outlives the composition that made it.
     val latest by rememberUpdatedState(balance)
     val currentOnChange by rememberUpdatedState(onChange)
 
@@ -789,12 +676,6 @@ private fun BalanceControl(
     }
 }
 
-// ---- Presets ---------------------------------------------------------------
-
-/**
- * The preset curves as a page of their own, opened from the Preset row. A pick
- * applies at once and [onChosen] then leaves the page.
- */
 @Composable
 fun EqualizerPresetPage(
     onChosen: () -> Unit,
@@ -810,8 +691,6 @@ fun EqualizerPresetPage(
     ) {
         SettingsPageTitle(stringResource(R.string.equalizer_preset))
         ChoiceGroup(
-            // Custom is a state the bands can be in, not a curve anyone can
-            // choose, so it is only ever listed when it is the one in force.
             options = EqualizerPreset.entries.filter { it != EqualizerPreset.CUSTOM || selected == EqualizerPreset.CUSTOM },
             selected = selected,
             label = { it.localizedLabel() },
@@ -864,8 +743,6 @@ private val FADER_WIDTH = 34.dp
 private val TRACK_WIDTH = 5.dp
 private val KNOB_RADIUS = 10.dp
 
-/** How close to flat a band has to be dragged before it snaps there. */
 private const val ZERO_DETENT_DB = 0.6f
 
-/** Same, for the balance trim's own centre. */
 private const val BALANCE_DETENT = 0.04f

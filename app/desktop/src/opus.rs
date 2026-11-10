@@ -1,7 +1,3 @@
-//! Opus in WebM (YouTube's itag 251, about 130-160 kbps against AAC's 128): Symphonia
-//! reads the container and `rusty-opus` (pure Rust) decodes the packets. rodio's own
-//! decoder only knows Symphonia's codecs, and Symphonia has no Opus.
-
 use std::io::{Read, Seek, SeekFrom};
 use std::num::NonZero;
 use std::sync::Arc;
@@ -16,15 +12,10 @@ use symphonia::default::formats::MkvReader;
 
 use crate::stream::StreamReader;
 
-/// Opus always decodes at 48 kHz.
 const RATE: u32 = 48_000;
-/// The longest Opus packet: 120 ms at 48 kHz, per channel.
 const MAX_FRAME: usize = 5760;
-/// After a jump the decoder needs about 80 ms of audio to settle (RFC 7845 §4.6): a
-/// seek starts that much earlier and drops it.
 const PREROLL: Duration = Duration::from_millis(80);
 
-/// The buffer as a Symphonia source: seekable, with its full length known.
 struct Media {
     reader: StreamReader,
     len: u64,
@@ -57,22 +48,17 @@ pub struct OpusSource {
     time_base: Option<TimeBase>,
     decoder: OpusDecoder,
     channels: u16,
-    /// Decoded samples (interleaved) not handed out yet, from `pos`.
     buf: Vec<f32>,
     pos: usize,
-    /// Samples (interleaved) still to drop: the encoder's pre-skip, or the preroll before a seek target.
     skip: usize,
     duration: Option<Duration>,
 }
 
 impl OpusSource {
-    /// Reads the WebM header and its seek index (YouTube puts both at the start), so
-    /// it opens after the first block whether or not it'll be seeked.
     pub fn new(reader: StreamReader, len: u64, duration_ms: u64) -> anyhow::Result<Self> {
         let mss = MediaSourceStream::new(Box::new(Media { reader, len }), Default::default());
         let format = MkvReader::try_new(mss, &FormatOptions::default())?;
         let track = format.tracks().iter().find(|t| t.codec_params.codec == CODEC_TYPE_OPUS).ok_or_else(|| anyhow::anyhow!("no Opus track"))?;
-        // OpusHead (RFC 7845 §5.1): channel count at byte 9, pre-skip at 10-11.
         let head = track.codec_params.extra_data.as_deref().unwrap_or_default();
         let channels = head.get(9).map_or(2, |&c| c as u16);
         anyhow::ensure!(matches!(channels, 1 | 2), "{channels}-channel Opus isn't supported");
@@ -91,7 +77,6 @@ impl OpusSource {
         })
     }
 
-    /// Decode the next packet into `buf`; false at the end (or when the download failed).
     fn refill(&mut self) -> bool {
         loop {
             let packet = match self.format.next_packet() {
@@ -113,7 +98,6 @@ impl OpusSource {
                         return true;
                     }
                 }
-                // A damaged packet: skip it rather than end the song.
                 Err(e) => log::debug!("opus: {e:?}"),
             }
         }
@@ -133,9 +117,6 @@ impl Iterator for OpusSource {
 }
 
 impl rodio::Source for OpusSource {
-    /// A span per decoded packet, as rodio's own decoders do. Without an end (`None`),
-    /// the resampler after a player's queue keeps 48 kHz for the songs queued after
-    /// this one, and a 44.1 kHz song then plays 9 % fast.
     fn current_span_len(&self) -> Option<usize> {
         Some((self.buf.len() - self.pos).max(self.channels as usize))
     }
@@ -152,13 +133,11 @@ impl rodio::Source for OpusSource {
         let from = pos.saturating_sub(PREROLL);
         let to = SeekTo::Time { time: Time::from(from.as_secs_f64()), track_id: Some(self.track) };
         let seeked = self.format.seek(SeekMode::Accurate, to).map_err(|e| rodio::source::SeekError::Other(Arc::new(e)))?;
-        // The packet it landed on starts at or before `from`: drop up to `pos`.
         let at = self.time_base.map_or(from.as_secs_f64(), |tb| {
             let t = tb.calc_time(seeked.actual_ts);
             t.seconds as f64 + t.frac
         });
         let ahead = (pos.as_secs_f64() - at).max(0.0);
-        // A fresh decoder: nothing from before the jump carries over.
         if let Ok(d) = OpusDecoder::new(RATE as i32, self.channels as usize) {
             self.decoder = d;
         }
@@ -175,7 +154,6 @@ mod tests {
 
     use rodio::Source;
 
-    /// The first `left` samples of a source, keeping its spans as they are.
     struct Head<S> {
         inner: S,
         left: usize,
@@ -204,9 +182,6 @@ mod tests {
         }
     }
 
-    /// A 44.1 kHz song queued after an Opus one (48 kHz) plays at its own speed: the
-    /// resampler has to see where the Opus song ends to pick up the new rate.
-    /// `cargo test -- --ignored opus_then_aac_rate --nocapture`
     #[tokio::test]
     #[ignore]
     async fn opus_then_aac_rate() {
@@ -220,7 +195,6 @@ mod tests {
         assert_eq!(opus.sample_rate().get(), 48_000);
         let (tx, rx) = rodio::queue::queue(false);
         tx.append(Head { inner: opus, left: 48_000 * 2 });
-        // One second of 44.1 kHz stereo, all ones so it can be told apart from the song.
         let one_sec = rodio::buffer::SamplesBuffer::new(std::num::NonZero::new(2).unwrap(), std::num::NonZero::new(44_100).unwrap(), vec![1.0f32; 44_100 * 2]);
         tx.append(one_sec);
         let out: Vec<f32> = rodio::source::UniformSourceIterator::new(rx, std::num::NonZero::new(2).unwrap(), std::num::NonZero::new(48_000).unwrap()).collect();
@@ -229,8 +203,6 @@ mod tests {
         assert!((second as i64 - 48_000).abs() < 200, "played at the wrong rate: {second} frames, not 48000");
     }
 
-    /// Signed out: plays a song's Opus stream end to end and seeks in it, against its AAC stream.
-    /// `cargo test --release -- --ignored opus_stream_live --nocapture`
     #[tokio::test]
     #[ignore]
     async fn opus_stream_live() {
@@ -262,7 +234,6 @@ mod tests {
                     t.elapsed()
                 );
                 assert!((secs - s.duration_ms as f64 / 1000.0).abs() < 0.5, "length off");
-                // Seek to the middle: what's left should be the second half.
                 let mut d = crate::stream::decoder(shared, true).unwrap();
                 let half = Duration::from_millis(s.duration_ms / 2);
                 d.try_seek(half).unwrap();

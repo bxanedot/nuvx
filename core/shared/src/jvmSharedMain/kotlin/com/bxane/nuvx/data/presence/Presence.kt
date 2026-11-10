@@ -23,19 +23,6 @@ import kotlin.random.Random
 
 enum class PresencePlatform(val wire: String) { Android("android"), Pc("pc") }
 
-/**
- * Tells the nuvx server this install is open, so it can publish how many
- * apps are open right now (`GET /api/stats/live`).
- *
- * While open, one small POST goes out every few minutes. The server sets the
- * interval in each reply, so it can slow every client down without an update.
- * Closing sends one more POST so the count drops straight away; if that one is
- * lost, the server forgets the install a minute or two after its last ping.
- *
- * Only a random per-install UUID and the platform are sent, never anything
- * about the listener or what they play. This always goes to the official
- * server, not a custom Listen Together one, so the public count is only ours.
- */
 class Presence(
     private val platform: PresencePlatform,
     private val installId: String,
@@ -47,9 +34,6 @@ class Presence(
 
     init {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            // collectLatest: a change of state cancels whatever the last one was
-            // still doing, so a close cancels the ping loop and a quick reopen
-            // cancels a pending close.
             open.collectLatest { isOpen ->
                 if (isOpen) {
                     while (true) {
@@ -57,7 +41,6 @@ class Presence(
                         delay(nextDelayMs())
                     }
                 } else if (announced) {
-                    // A window flicker or an activity restart is not a close.
                     delay(CLOSE_DEBOUNCE_MS)
                     send(open = false)
                 }
@@ -69,10 +52,6 @@ class Presence(
         open.value = isOpen
     }
 
-    /**
-     * For process exit, where nothing launched would get to run: sends the close
-     * on the calling thread, giving up after two seconds.
-     */
     fun closeBlocking() {
         open.value = false
         if (announced) send(open = false, timeoutSec = 2)
@@ -80,7 +59,6 @@ class Presence(
 
     private fun nextDelayMs(): Long {
         val base = intervalSec.coerceIn(MIN_INTERVAL_SEC, MAX_INTERVAL_SEC) * 1000L
-        // ±10%, so a release that starts thousands of apps at once spreads out.
         return base + Random.nextLong(-base / 10, base / 10 + 1)
     }
 
@@ -91,8 +69,6 @@ class Presence(
             put("open", open)
         }.toString().toRequestBody(JSON)
         val request = Request.Builder().url(endpoint).post(body).build()
-        // Set before sending: a ping that times out may still have been counted,
-        // so it still needs a close.
         if (open) announced = true
         try {
             val call = Http.client.newCall(request)
@@ -109,7 +85,6 @@ class Presence(
                     ?.let { intervalSec = it }
             }
         } catch (e: Exception) {
-            // Offline, or the server is down. The next ping is soon enough.
             DebugLog.d(TAG, "presence ping failed: ${e.message}")
         }
     }

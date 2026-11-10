@@ -5,13 +5,8 @@ import com.bxane.nuvx.playback.queueStartIndex
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * The reordering behind the shuffle toggle. Playing the queue is ExoPlayer's
- * job; getting the queue into the order it should play in is this one's.
- */
 class QueueShuffleTest {
 
-    /** The upcoming stretch of the queue as turning shuffle off leaves it. */
     private fun restored(upcoming: List<String>, original: List<String>): List<String> =
         QueueShuffle.restoreOrder(upcoming, original).map { upcoming[it] }
 
@@ -81,8 +76,6 @@ class QueueShuffleTest {
 
     @Test
     fun `tracks the old order does not name trail behind the ones it does`() {
-        // "e" was queued after the shuffle, so the restored order says nothing
-        // about it — it stays at the end rather than displacing anything.
         assertEquals(
             listOf("b", "c", "d", "e"),
             restored(upcoming = listOf("e", "d", "b", "c"), original = listOf("a", "b", "c", "d")),
@@ -106,11 +99,6 @@ class QueueShuffleTest {
         }
     }
 
-    /**
-     * The queues this runs on are playlists, and a per-track linear search over
-     * one is quadratic — the shape that used to hang the app. Ten thousand
-     * tracks is a fraction of a second here and minutes if that ever comes back.
-     */
     @Test
     fun `a very long queue is restored without a per-track search`() {
         val original = (0 until 10_000).map { it.toString() }

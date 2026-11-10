@@ -60,24 +60,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 
-/**
- * The picture, and the apps that can take it.
- *
- * Deliberately not the system chooser on its own. A chooser is a modal list of
- * app names with no sight of what is about to be sent, and what is about to be
- * sent here is the entire point — nobody shares a Replay they have not looked
- * at. So the image is the sheet, full size, and the apps sit under it as a row
- * of icons the way every story-sharing surface does.
- *
- * "More" still opens the chooser, because the row is only ever the handful that
- * fit and the right app is sometimes the twelfth one.
- */
 @Composable
 fun ReplayShareSheet(
     summary: ReplaySummary,
     holder: String,
     memberSince: String?,
-    /** The card being sent, or null for the whole Replay. */
     page: ReplayStoryPage?,
     onDismiss: () -> Unit,
 ) {
@@ -118,9 +105,6 @@ fun ReplayShareSheet(
         )
         Spacer(Modifier.height(16.dp))
 
-        // Small enough that the row of apps under it is on screen with it. A
-        // preview that pushes the share targets below the fold is a preview
-        // nobody scrolls past, and the targets are the point of the sheet.
         Box(
             Modifier
                 .fillMaxWidth(0.42f)
@@ -150,19 +134,6 @@ fun ReplayShareSheet(
 
         Spacer(Modifier.height(22.dp))
 
-        // Two buttons, not a row of app icons.
-        //
-        // Resolving the apps that accept an image and drawing their launcher
-        // icons was the first version. It looked like a share sheet because it
-        // was imitating one — and the system already has a share sheet, kept up
-        // to date, ordered by what this user actually shares to, and reachable
-        // in one tap. Reimplementing it meant asking the package manager for
-        // every app on the device, loading five icons out of other APKs, and
-        // still showing a worse list than the one Android would have shown.
-        //
-        // Disabled rather than hidden while the poster renders: buttons that
-        // appear a second after the sheet does are buttons that get tapped at
-        // exactly the moment they move.
         val ready = poster != null
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ShareAction(
@@ -199,15 +170,9 @@ fun ReplayShareSheet(
 internal fun ShareAction(
     label: String,
     icon: ImageVector,
-    /** The one that sends it, which is the one that should be reached for. */
     accent: Boolean,
     enabled: Boolean,
-    /**
-     * The picture has been written out: the button turns into a check and says
-     * so, rather than sitting there offering to do it again.
-     */
     saved: Boolean = false,
-    /** What it says once [saved]; falls back to [label] when null. */
     savedLabel: String? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
@@ -225,16 +190,10 @@ internal fun ShareAction(
             .clip(RoundedCornerShape(14.dp))
             .background(background.copy(alpha = if (enabled) 1f else 0.4f))
             .clickable(enabled = enabled, onClick = onClick)
-            // The sides carried nothing but the label's own advance, so the
-            // words sat against the pill's edges; the vertical rhythm is the
-            // one the Replay's buttons use.
             .padding(horizontal = 18.dp, vertical = 15.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The icon and the word crossfade rather than swap on a frame, so the
-        // change reads as the button settling into its new state instead of
-        // flickering between two unrelated ones.
         Crossfade(targetState = saved, label = "shareAction") { isSaved ->
             Row(
                 horizontalArrangement = Arrangement.Center,
@@ -265,17 +224,6 @@ internal fun sendIntent(uri: Uri) = Intent(Intent.ACTION_SEND)
     .putExtra(Intent.EXTRA_STREAM, uri)
     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
-/**
- * Writes the poster somewhere another app can read it.
- *
- * The app's own cache, exposed through a [FileProvider] rather than by handing
- * out a `file://` path: that has been illegal since API 24, and a content URI is
- * what lets the read grant travel with the intent and expire with it — the other
- * app gets this one picture and nothing else in the folder.
- *
- * Shared with the lyrics card, which writes under its own [fileName] so the two
- * hand-offs can't overwrite each other while the receiving app is still reading.
- */
 internal suspend fun cacheForSharing(
     context: Context,
     bitmap: Bitmap,
@@ -283,23 +231,12 @@ internal suspend fun cacheForSharing(
 ): Uri? = withContext(Dispatchers.IO) {
     runCatching {
         val folder = File(context.cacheDir, SHARE_FOLDER).apply { mkdirs() }
-        // One name, overwritten: the folder is a hand-off point, not an album,
-        // and a file per share would accumulate megabytes nobody ever looks at.
         val file = File(folder, fileName)
         FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }.getOrNull()
 }
 
-/**
- * Saves the poster to the device's pictures, where a gallery will find it.
- *
- * Through MediaStore, which from API 29 needs no permission at all for a row the
- * app created. Below that it writes into the public Pictures folder directly,
- * which is why the legacy branch exists — and why saving is offered rather than
- * assumed: on an older device it can fail on a permission this app doesn't ask
- * for until a download is started.
- */
 internal suspend fun saveToGallery(
     context: Context,
     bitmap: Bitmap,

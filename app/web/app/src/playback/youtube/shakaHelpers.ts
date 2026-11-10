@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: MIT
-// The ytc-bridge proxy helpers are dropped: nuvx's extension supplies
-// headers through declarativeNetRequest rules instead.
 
 import shaka from 'shaka-player/dist/shaka-player.compiled';
 
@@ -25,8 +23,6 @@ export function createRecoverableError(message: string, info?: Record<string, un
 export function headersToGenericObject(headers: Headers): Record<string, string> {
   const headersObj: Record<string, string> = {};
   headers.forEach((value, key) => {
-    // Since Edge incorrectly returns the header with a leading new line
-    // character ('\n'), we trim the header here.
     headersObj[key.trim()] = value;
   });
   return headersObj;
@@ -57,7 +53,6 @@ export function makeResponse(
   try {
     responseText = shaka.util.StringUtils.fromBytesAutoDetect(data);
   } catch {
-    /* no-op */
   }
 
   const severity =
@@ -76,7 +71,6 @@ export function makeResponse(
   );
 }
 
-/** Whether a request goes to googlevideo (SABR or a videoplayback URL); googlevideo 4's helper, which 5 dropped. */
 export function isGoogleVideoURL(url: string): boolean {
   if (url.startsWith('sabr://')) return true;
   const [path = '', query = ''] = url.split('?');

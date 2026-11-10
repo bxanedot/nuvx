@@ -1,5 +1,3 @@
-//! Discord, Last.fm, the system media controls, the app icon, updates and the tray.
-
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -7,15 +5,9 @@ use crate::backend;
 
 use super::{App, dev_var, notes, updatable};
 
-/// A close request this soon after launch is not the user: cancel it and stay up.
-/// (Reports have seen the window vanish into the tray within half a second of
-/// starting, behind an icon that was never drawn.)
 const TRAY_GRACE: Duration = Duration::from_secs(2);
-/// How often, while hidden, the tray icon is registered again. Shell_NotifyIcon can
-/// succeed and the icon still never show; a fresh registration heals that.
 #[cfg_attr(not(windows), allow(dead_code))]
 const TRAY_REREGISTER: Duration = Duration::from_secs(15);
-/// How many frames a show is re-asserted over, for shells that drop the first one.
 const SHOW_ASSERTS: u8 = 8;
 
 impl App {
@@ -33,15 +25,12 @@ impl App {
         }
     }
 
-    /// Mirror playback into Discord. Cheap enough to run every frame: it only sends on a
-    /// new song, play/pause, a seek, or a newly learned duration.
     pub(super) fn sync_discord(&mut self) {
         let Some(d) = &self.discord else { return };
         let track = self.playing_track().filter(|_| self.playing() && !self.buffering);
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
         let start_ms = now - self.audio.status.position().as_millis() as i64;
         let dur = self.audio.status.duration_ms.load(Ordering::Relaxed) as i64;
-        // Position ticks every 100 ms; only a jump of 2 s or more is a real seek.
         let same = match (track, &self.discord_sent) {
             (Some(t), Some(b)) => b.video_id == t.id && (start_ms - b.start_ms).abs() < 2000 && b.end_ms.is_some() == (dur > 0),
             (None, None) => true,
@@ -63,8 +52,6 @@ impl App {
         self.discord_sent = want;
     }
 
-    /// Tell Last.fm what's playing, and scrobble it once it has played half its length
-    /// or 4 minutes (songs under 30 s don't count). Runs every frame, like Discord's.
     pub(super) fn sync_lastfm(&mut self) {
         let result = self.lastfm_result.lock().unwrap().take();
         if let Some(r) = result {
@@ -80,7 +67,6 @@ impl App {
         if self.lastfm_user.is_none() {
             return;
         }
-        // A station isn't a track to scrobble.
         let Some(t) = self.playing_track().filter(|t| self.playing() && !self.buffering && !crate::radio::is_station(&t.id)) else { return };
         let pos = self.audio.status.position();
         let dur = Duration::from_millis(self.audio.status.duration_ms.load(Ordering::Relaxed));
@@ -129,8 +115,6 @@ impl App {
         self.scrobble = None;
     }
 
-    /// Update checks: shortly after launch, then every six hours. A downloaded update is
-    /// only offered as a notice; nothing installs until the user restarts for it.
     pub(super) fn tick_updates(&mut self, ctx: &egui::Context, now: f64) {
         use crate::update::{State, Updater};
         if self.updater.is_none() {
@@ -147,7 +131,6 @@ impl App {
             self.update_checked = Some(now);
             u.check();
         } else if enabled {
-            // An idle app doesn't repaint on its own: wake up when the next check is due.
             let next = self.update_checked.map_or(8.0, |t| t + 6.0 * 3600.0);
             ctx.request_repaint_after(Duration::from_secs_f64((next - now).max(0.5) + 0.1));
         }
@@ -159,40 +142,24 @@ impl App {
         }
     }
 
-    /// Close the app so the downloaded update installs, then relaunch it.
     pub(super) fn restart_to_update(&mut self, ctx: &egui::Context) {
         self.restart_for_update = true;
         self.quit(ctx);
     }
 
-    /// Close and start again, e.g. so a new proxy setting takes effect.
     pub(super) fn restart(&mut self, ctx: &egui::Context) {
         self.restart_app = true;
         self.quit(ctx);
     }
 
-    /// Close the app for real, even with "Close to tray" on.
     pub(super) fn quit(&mut self, ctx: &egui::Context) {
         self.exiting = true;
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 
-    /// "Close to tray": × hides the window behind a tray icon; the icon brings it
-    /// back or quits. eframe keeps running `logic` while the window is hidden.
-    ///
-    /// The hidden window must never become unreachable, so three things hold here:
-    /// a close that arrives moments after launch is treated as stale (reports have
-    /// seen the window vanish into a tray whose icon was never drawn); the icon is
-    /// re-registered while hidden, because on Windows the shell can accept it and
-    /// then never display it (taskbar replacements, a busy tray cache); and if the
-    /// icon can't be had at all, the window comes back instead of staying hidden.
     pub(super) fn tray_window(&mut self, ctx: &egui::Context) {
-        // Shells mid-refresh have been seen to drop a single show request: keep
-        // re-asserting it for a few frames, focus last, once. (Before the early
-        // returns below: after a show, `tray` is None and the rest must not run.)
         if self.show_asserts > 0 {
             if ctx.input(|i| i.viewport().minimized == Some(true)) {
-                // The user minimized it again meanwhile: their call wins.
                 self.show_asserts = 0;
             } else {
                 self.show_asserts -= 1;
@@ -204,9 +171,6 @@ impl App {
             }
         }
         if ctx.input(|i| i.viewport().close_requested()) && self.close_to_tray && !self.exiting {
-            // A real click on × needs the app to have been up for a moment. The
-            // upgrade/install path has been seen to deliver a close request right at
-            // startup; hiding on it leaves just the (possibly undrawn) icon behind.
             if self.started_at.elapsed() < TRAY_GRACE {
                 log::warn!(
                     "ignoring a close request {:.1}s after launch (too early to hide to the tray); keeping the window visible",
@@ -223,16 +187,10 @@ impl App {
                         self.tray = Some(t);
                         self.tray_registered_at = Some(std::time::Instant::now());
                     }
-                    // Without an icon there'd be no way back: just close.
                     Err(e) => log::warn!("tray icon unavailable: {e:#}"),
                 }
             }
         }
-        // While hidden, re-register the icon now and then: Shell_NotifyIcon can
-        // succeed and the icon still never show (the report behind this fix), and
-        // a fresh registration is the only way to heal it. Windows only — macOS's
-        // menu bar item and the GTK icon don't vanish like this, and re-creating
-        // them would only flicker.
         #[cfg(windows)]
         if self.tray.is_some()
             && self.tray_registered_at.is_none_or(|t| t.elapsed() >= TRAY_REREGISTER)
@@ -253,7 +211,6 @@ impl App {
         if self.tray.is_none() {
             return;
         }
-        // The first click decides; the icon goes away with it.
         match crate::tray::take().into_iter().next() {
             Some(crate::tray::Cmd::Show) => self.show_window(ctx),
             Some(crate::tray::Cmd::Quit) => {
@@ -264,27 +221,22 @@ impl App {
         }
     }
 
-    /// Bring the window back (from the tray, or minimized) and to the front.
     pub(super) fn show_window(&mut self, ctx: &egui::Context) {
         if self.tray.take().is_some() {
             log::info!("bringing the window back from the tray");
         }
-        // Re-asserted over the next few frames (see `tray_window`), so one dropped
-        // request doesn't strand the window.
         self.show_asserts = SHOW_ASSERTS;
         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
         ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
     }
 
-    /// Download the media controls' cover through our own client, into a file.
     pub(super) fn fetch_media_cover(&self, video_id: String, url: String) {
         let (slot, b) = (self.media_cover.clone(), self.backend.clone());
         let dir = self.backend.data_dir().join("media-cover");
         self.backend.spawn(async move {
             let res = async {
                 let bytes = b.http().get(&url).send().await?.error_for_status()?.bytes().await?;
-                // A new name per song, so Windows doesn't show a cached older cover.
                 let _ = std::fs::remove_dir_all(&dir);
                 std::fs::create_dir_all(&dir)?;
                 let path = dir.join(format!("{video_id}.jpg"));

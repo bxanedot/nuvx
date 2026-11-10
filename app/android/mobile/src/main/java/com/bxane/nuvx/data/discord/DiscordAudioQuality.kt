@@ -3,13 +3,6 @@ package com.bxane.nuvx.data.discord
 import com.bxane.nuvx.data.NerdStats
 import java.util.Locale
 
-/**
- * The optional audio line shown on nuvx's Discord activity card.
- *
- * Only premium formats earn a line. The values are the decoder's measured
- * figures from [NerdStats], never the quality a source merely advertised, so a
- * lossy fallback cannot continue calling itself Lossless on Discord.
- */
 fun discordAudioQualityLine(stats: NerdStats.Snapshot?): String? {
     stats ?: return null
 
@@ -41,5 +34,4 @@ fun discordAudioQualityLine(stats: NerdStats.Snapshot?): String? {
     }.joinToString(" · ").take(DISCORD_TEXT_LIMIT).trimEnd()
 }
 
-/** Discord caps each activity text field at 128 characters. */
 private const val DISCORD_TEXT_LIMIT = 128

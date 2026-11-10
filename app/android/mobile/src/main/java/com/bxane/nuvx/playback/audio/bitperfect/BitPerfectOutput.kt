@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** What a [BitPerfectAudioSink] asks of [BitPerfectOutput], kept narrow so a test can stand in for it. */
 internal interface BitPerfectOutputs {
     fun canOpen(sampleRate: Int, channels: Int, sourceBits: Int, requester: Any): Boolean
 
@@ -30,23 +29,9 @@ internal interface BitPerfectOutputs {
 
     fun publishIdle()
 
-    /** See [BitPerfectOutput.normalOutputPending]. */
     fun normalOutputPending(): Boolean
 }
 
-/**
- * Process-wide owner of the one exclusive output.
- *
- * Both crossfade players build a [BitPerfectAudioSink], but a DAC opened
- * bit-perfect has room for a single stream: Android's bit-perfect mixer
- * mutes everything else, and a claimed USB interface belongs to one handle.
- * Whichever sink opens first holds it until it releases; the other is told
- * no and stays on the ordinary path.
- *
- * A route that refused to open is remembered until the attached device, the
- * selected mode or [AppSettings.convertForLimitedDac] changes, so a track that
- * keeps failing is not retried on every buffer.
- */
 internal object BitPerfectOutput {
 
     private const val TAG = "BitPerfectOutput"
@@ -61,14 +46,8 @@ internal object BitPerfectOutput {
         val outputBits: Int = 0,
         val sourceBits: Int = 0,
         val sourceRateHz: Int = 0,
-        /** False once any sample of the current track had to be rounded. */
         val exact: Boolean = true,
-        /**
-         * The DAC can't take this track as it is, so it is being converted to
-         * the best format the DAC has. Never [exact]: check this one first.
-         */
         val dacLimited: Boolean = false,
-        /** Why the last attempt fell back to normal output, if it did. */
         val fallbackReason: String? = null,
     )
 
@@ -77,19 +56,10 @@ internal object BitPerfectOutput {
 
     private val _ready = MutableStateFlow(false)
 
-    /**
-     * Whether the selected mode has its device attached, so lossless tracks
-     * will be going to the exclusive output: a USB DAC for either USB mode,
-     * wired headphones for the built-in DAC. What settings fade and what
-     * stops asking for Dolby Atmos follow this, not the bare mode — with the
-     * mode on and nothing plugged in, everything plays as normal and should
-     * look it.
-     */
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
     private var watching = false
 
-    /** Starts following the attached devices; [refreshReady] covers the mode and USB. */
     @Synchronized
     fun watch(context: Context) {
         if (watching) return
@@ -111,8 +81,6 @@ internal object BitPerfectOutput {
             BitPerfectMode.OFF -> false
             BitPerfectMode.USB_ANDROID ->
                 Build.VERSION.SDK_INT >= 34 && audio?.let(MixerTransport::usbDevice) != null
-            // Android's own driver lets go of the DAC while this one streams,
-            // so it is looked for as a USB device, not an audio output.
             BitPerfectMode.USB_DIRECT ->
                 UsbDirectDevices.manager(context)?.let(UsbDirectDevices::audioDevice) != null
             BitPerfectMode.DAP_EXCLUSIVE -> Build.VERSION.SDK_INT >= 27 &&
@@ -127,12 +95,6 @@ internal object BitPerfectOutput {
 
     @Volatile private var attached = false
 
-    /**
-     * Re-derived whenever any of its inputs moves — the mode, the attached
-     * device, or the output opening and closing — rather than only on device
-     * events. Computed once at the moment the mode went off, it caught the
-     * stream that was still closing and stayed true with the mode off.
-     */
     private fun recomputeReady() {
         _ready.value = AppSettings.bitPerfectMode.value != BitPerfectMode.OFF &&
             (attached || _status.value.active)
@@ -160,14 +122,12 @@ internal object BitPerfectOutput {
         }
     }
 
-    /** The DAC's Feature Unit volume while direct USB output is open; null otherwise. */
     private val _hardwareVolume = MutableStateFlow<UsbVolume.Snapshot?>(null)
     val hardwareVolume: StateFlow<UsbVolume.Snapshot?> = _hardwareVolume.asStateFlow()
     private val pendingVolume = AtomicReference<Double?>(null)
     private val volumeExecutor = Executors.newSingleThreadExecutor { Thread(it, "nuvx-USB-volume") }
 
     init {
-        // A detached DAC stops its stream at once rather than at the next write.
         UsbDirectDevices.onDetached = { deviceId ->
             synchronized(this) { (active as? UsbDirectTransport)?.takeIf { it.usbDeviceId == deviceId } }
                 ?.markDetached()
@@ -179,15 +139,6 @@ internal object BitPerfectOutput {
 
     @Volatile private var directReleasedAtMs = 0L
 
-    /**
-     * Whether a track meant for normal output should wait: the direct driver
-     * has just handed the DAC back, and Android's own USB audio driver has
-     * not re-attached to it yet. Until it does the DAC is not an audio output
-     * at all, and a track started now would play from the phone's speaker —
-     * a local Dolby or multichannel file following a lossless one, say.
-     * Waits at most [DIRECT_HANDBACK_MS]; a DAC that never comes back (it was
-     * unplugged) leaves normal output to Android.
-     */
     fun normalOutputPending(context: Context): Boolean {
         val releasedAt = directReleasedAtMs
         if (releasedAt == 0L) return false
@@ -203,7 +154,6 @@ internal object BitPerfectOutput {
     private val failed = HashSet<String>()
     private var failedFor: String? = null
 
-    /** Whether a sink asking for this stream now could get the exclusive output. */
     @Synchronized
     fun canOpen(context: Context, sampleRate: Int, channels: Int, sourceBits: Int, requester: Any): Boolean {
         if (owner != null && owner !== requester) return false
@@ -220,12 +170,8 @@ internal object BitPerfectOutput {
                 }
                 MixerTransport.bestFormat(manager, device, sampleRate, channels, sourceBits, AppSettings.convertForLimitedDac.value) != null
             }
-            // Nothing short of opening a stream says whether Android will grant
-            // exclusive mode, so the first track of each format finds out.
             BitPerfectMode.DAP_EXCLUSIVE -> Build.VERSION.SDK_INT >= 27 &&
                 key(mode, NO_DEVICE, sampleRate, channels, sourceBits) !in currentFailures(mode, NO_DEVICE)
-            // Permission is asked for by the service when the mode is chosen or a
-            // DAC is attached; until it is granted, tracks use normal output.
             BitPerfectMode.USB_DIRECT -> {
                 val usb = UsbDirectDevices.manager(context) ?: return false
                 val device = UsbDirectDevices.audioDevice(usb) ?: return false
@@ -239,7 +185,6 @@ internal object BitPerfectOutput {
         }
     }
 
-    /** Opens the exclusive output for [requester], or throws with the reason. */
     @Synchronized
     fun open(
         context: Context,
@@ -285,10 +230,6 @@ internal object BitPerfectOutput {
         return transport
     }
 
-    /**
-     * A newer request still queued keeps [DacVolume]'s level where it was
-     * dragged to; only the last one's read-back is allowed to move it.
-     */
     private fun publishVolume(snapshot: UsbVolume.Snapshot?) {
         _hardwareVolume.value = snapshot
         DacVolume.onSnapshot(snapshot)
@@ -303,10 +244,6 @@ internal object BitPerfectOutput {
         publishVolume(null)
     }
 
-    /**
-     * Sets the DAC's own volume while direct USB output is open. Requests
-     * arrive as fast as a slider moves; only the latest pending one is sent.
-     */
     fun setHardwareVolume(db: Double) {
         if (pendingVolume.getAndSet(db) != null) return
         volumeExecutor.execute {
@@ -321,7 +258,6 @@ internal object BitPerfectOutput {
         }
     }
 
-    /** Records that this stream could not be opened on the attached device. */
     @Synchronized
     fun markFailed(context: Context, sampleRate: Int, channels: Int, sourceBits: Int, reason: String) {
         val mode = AppSettings.bitPerfectMode.value
@@ -343,7 +279,6 @@ internal object BitPerfectOutput {
         recomputeReady()
     }
 
-    /** Clears an active status, leaving a fallback reason in place for the settings row. */
     fun publishIdle() {
         if (_status.value.active) _status.value = Status()
         recomputeReady()

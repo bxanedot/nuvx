@@ -1,20 +1,3 @@
-//! System tray icon, shown while "Close to tray" has hidden the window.
-//!
-//! The icon must be created on the UI thread (it owns a Win32 message window), so
-//! the app creates and drops it from `logic`. Clicks arrive on that thread's message
-//! loop; they are queued here and the UI is woken to handle them. On macOS it is a
-//! menu bar item, made the same way (AppKit wants it on the main thread, which is the
-//! UI thread there).
-//!
-//! On Linux the icon is a GTK one, and GTK runs its own loop on one thread for the
-//! life of the process (it can't be started twice); the icon is made and dropped there.
-//!
-//! Note that on Windows the shell can accept the icon (so `Tray::new` succeeds) and
-//! then never draw it — taskbar replacements and a busy notification-area cache can
-//! both do that. Callers therefore re-create the icon every so often while hidden
-//! (see `ui::integrations::tray_window`), and recovery never depends on the icon
-//! alone: launching the app again (or `--show`) shows the window regardless.
-
 use std::sync::{Mutex, Once};
 
 use tray_icon::menu::{Menu, MenuEvent, MenuItem};
@@ -34,9 +17,7 @@ pub struct Tray {
 }
 
 impl Tray {
-    /// `wake` is called (from the UI thread's message loop) after each click.
     pub fn new(icon: &crate::appicon::Variant, wake: impl Fn() + Send + Sync + Clone + 'static) -> anyhow::Result<Self> {
-        // The handlers are process-wide and can only be set once.
         static HANDLERS: Once = Once::new();
         HANDLERS.call_once(|| {
             let w = wake.clone();
@@ -96,7 +77,6 @@ mod gtk_thread {
         static ICON: RefCell<Option<TrayIcon>> = const { RefCell::new(None) };
     }
 
-    /// Start GTK's thread once; an error if GTK can't start (no display).
     fn start() -> anyhow::Result<()> {
         static STARTED: OnceLock<Result<(), String>> = OnceLock::new();
         STARTED
@@ -140,7 +120,6 @@ fn push(cmd: Cmd, wake: &impl Fn()) {
     wake();
 }
 
-/// Clicks since the last call.
 pub fn take() -> Vec<Cmd> {
     std::mem::take(&mut *PENDING.lock().unwrap())
 }

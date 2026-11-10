@@ -8,7 +8,6 @@ import android.os.Handler
 import android.os.Looper
 import java.nio.ByteBuffer
 
-/** JNI over `exclusive_output.cpp`. Handles are opaque ids, never pointers. */
 internal object ExclusiveNative {
     init {
         System.loadLibrary("nuvx_exclusive")
@@ -26,18 +25,6 @@ internal object ExclusiveNative {
     external fun close(handle: Long)
 }
 
-/**
- * Exact-rate PCM through an AAudio exclusive stream, for a player whose DAC is
- * built in: a DAP's headphone output or line out. The native side opens the
- * stream at the track's own rate and channel count with conversion disabled,
- * and accepts it only if Android granted exclusive mode exactly as asked. If
- * the track's own format is refused and conversion is allowed, the next best
- * is asked for the same way.
- *
- * The output is pinned to the wired headphone device when there is one, as
- * Mornye does, so a DAP whose default route is its speaker still plays
- * through its DAC.
- */
 internal class ExclusiveTransport private constructor(
     private val manager: AudioManager,
     private var handle: Long,
@@ -53,7 +40,6 @@ internal class ExclusiveTransport private constructor(
 
     @Volatile private var failure: String? = null
 
-    /** AAudio reports no timestamp while paused; the clock must not run backwards meanwhile. */
     private var lastFrames = 0L
 
     private val route = object : AudioDeviceCallback() {
@@ -81,7 +67,6 @@ internal class ExclusiveTransport private constructor(
         lastFrames = 0
     }
 
-    /** The ring simply runs dry; the callback fills with silence that the clock does not count. */
     override fun stop() = Unit
 
     override fun playedFrames(): Long {
@@ -108,13 +93,8 @@ internal class ExclusiveTransport private constructor(
     }
 
     companion object {
-        /** The native side refuses larger single writes. */
         private const val MAX_WRITE = 262_144
 
-        /**
-         * Each attempt opens a real stream on the playback thread, and a device
-         * that never grants exclusive mode refuses them all.
-         */
         private const val MAX_RATE_ATTEMPTS = 3
 
         fun open(manager: AudioManager, rate: Int, channels: Int, sourceBits: Int, convert: Boolean): ExclusiveTransport {

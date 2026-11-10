@@ -40,8 +40,6 @@ class ProviderLyricsTest {
 
     @Test
     fun `a saved order drops hidden sources and puts a new first source on top`() {
-        // What a previous build saved: every source it had, LRCLIB dragged to
-        // the top, and the two now-hidden ones still in it.
         val saved = listOf(LyricsSource.LRCLIB) +
             (LyricsSource.entries - LyricsSource.LRC_RED - LyricsSource.LRCLIB)
         val ordered = LyricsSource.ordered(saved)
@@ -159,8 +157,6 @@ class ProviderLyricsTest {
         assertEquals(listOf("Lyrics"), response.youtubeStrings())
     }
 
-    // ---- Syllables, provider by provider -------------------------------------
-
     private val enoughSyllables = listOf(LyricSyllable(31_839, 31_996, 0, 1), LyricSyllable(31_996, 32_529, 1, 6))
 
     @Test
@@ -184,7 +180,6 @@ class ProviderLyricsTest {
     fun `enhanced lrc glues syllables instead of spacing them apart`() {
         val line = EnhancedLrc.parse("[00:30.18]<00:30.189>long <00:31.839>e<00:31.996>nough<00:32.529>")
             .single { !it.isGap }
-        // Joined with a space per stamp, this used to read "long e nough".
         assertEquals("long enough", line.text)
         assertEquals(enoughSyllables, line.words[1].syllables)
     }
@@ -197,7 +192,6 @@ class ProviderLyricsTest {
         assertEquals("I been tryna", line.text)
     }
 
-    /** The shape the live API returns without `ttml=true`, trimmed. */
     @Test
     fun `PaxSenix part flag joins syllables into one word`() {
         val raw = """
@@ -236,12 +230,10 @@ class ProviderLyricsTest {
         val back = LrcLib.parseLrc(lines.toEnhancedLrc()).filterNot { it.isGap }
         assertEquals(listOf("long enough", "enough"), back.map { it.text })
         assertEquals(listOf("long", "enough"), back[0].words.map { it.text })
-        // Stamps are written in centiseconds, so times come back to the 10 ms.
         assertEquals(
             listOf(LyricSyllable(31_830, 31_990, 0, 1), LyricSyllable(31_990, 32_520, 1, 6)),
             back[0].words[1].syllables,
         )
-        // One split word alone on its line still comes back as one word.
         assertEquals(listOf("enough"), back[1].words.map { it.text })
         assertEquals(2, back[1].words[0].syllables.size)
     }

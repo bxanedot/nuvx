@@ -2,7 +2,6 @@ package com.bxane.nuvx.data.innertube
 
 import java.util.concurrent.ConcurrentHashMap
 
-/** Video ids known to be the signed-in user's own uploads, which need an upload-hinted request. */
 object UploadedTracks {
 
     private const val MAX_REMEMBERED = 20_000
@@ -17,7 +16,6 @@ object UploadedTracks {
 
     fun contains(videoId: String): Boolean = videoId in ids
 
-    /** Forgets everything — an account switch is a different private library. */
     fun clear() {
         ids.clear()
     }

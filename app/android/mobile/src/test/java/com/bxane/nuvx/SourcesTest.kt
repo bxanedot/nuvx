@@ -28,22 +28,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.system.measureTimeMillis
 
-/**
- * The parts of the source layer that can be wrong quietly.
- *
- * The cross-source matcher gets most of the attention because it is the one
- * piece here whose failure isn't visible: a bad match doesn't crash or show an
- * error, it plays a different recording under the right title.
- */
 class SourcesTest {
 
     private companion object {
-        /** What the raced fakes below all claim to hold, so the matcher accepts them. */
         const val RACE_TITLE = "Paniyon Sa"
         const val RACE_ARTIST = "Atif Aslam"
     }
-
-    // ---- Track identity -----------------------------------------------------
 
     @Test
     fun `track key round-trips`() {
@@ -51,29 +41,23 @@ class SourcesTest {
         assertEquals("cfg-1" to "track-42", SourceRegistry.parseTrackKey(key))
     }
 
-    /** A module's own track ids are opaque and some issue ones containing colons. */
     @Test
     fun `track key survives separators inside the track id`() {
         val key = SourceRegistry.trackKey("cfg-1", "al::bum::7")
         assertEquals("cfg-1" to "al::bum::7", SourceRegistry.parseTrackKey(key))
     }
 
-    /** A bare YouTube video id must not be mistaken for a source-backed one. */
     @Test
     fun `plain video ids are not source keys`() {
         assertNull(SourceRegistry.parseTrackKey("dQw4w9WgXcQ"))
         assertNull(SourceRegistry.parseTrackKey(""))
     }
 
-    // ---- Format reporting ---------------------------------------------------
-
     @Test
     fun `lossless is decided by codec, not bitrate`() {
         assertEquals(true, StreamFormat(codec = "flac", kbps = 900).isLossless)
         assertEquals(true, StreamFormat(codec = "alac").isLossless)
-        // A high sample rate does not rescue a lossy codec.
         assertEquals(false, StreamFormat(codec = "opus", sampleRateHz = 192_000).isLossless)
-        // Unknown stays unknown rather than defaulting to "no".
         assertNull(StreamFormat().isLossless)
     }
 
@@ -97,36 +81,17 @@ class SourcesTest {
         assertTrue(SourceResolver.worthSwapping(atmos, StreamFormat(codec = "aac", kbps = 332)))
     }
 
-    /**
-     * ...and premium only where it is allowed to play. E-AC-3 ships with the
-     * vendor image, not with Android, and a module that answers every request
-     * with its Atmos master — the Tidal one does — hands a device without that
-     * decoder a stream that cannot be selected, let alone played. Refusing it
-     * at the source is what sends the track to somebody who can serve it;
-     * nothing downstream gets a second chance to notice.
-     *
-     * The listener's own switch enters by the same door, because refusing for
-     * taste and refusing for hardware have to leave the resolver in the same
-     * state — anything else is a second code path for the rarer case.
-     */
     @Test
     fun `an Atmos rendition is refused when it is not allowed to play`() {
         val atmos = StreamFormat(codec = "eac3-joc")
         assertTrue(ModuleSource.unplayable(atmos, atmosAllowed = false))
         assertFalse(ModuleSource.unplayable(atmos, atmosAllowed = true))
 
-        // Nothing else is affected either way: a FLAC is a FLAC on every phone,
-        // and an undescribed stream is still worth handing to the decoder.
         val flac = StreamFormat(codec = "flac", bitDepth = 16, sampleRateHz = 44_100)
         assertFalse(ModuleSource.unplayable(flac, atmosAllowed = false))
         assertFalse(ModuleSource.unplayable(StreamFormat(), atmosAllowed = false))
     }
 
-    /**
-     * The badge tiers. "Hi-Quality" exists to separate a module's 320kbps
-     * stream from YouTube's 160kbps Opus, which the screen otherwise renders
-     * identically — as nothing at all.
-     */
     @Test
     fun `names a high-bitrate lossy stream without calling it lossless`() {
         val aac320 = NerdStats.Snapshot(mimeType = "audio/mp4a-latm", bitrateKbps = 320, sampleRateHz = 44_100, channels = 2)
@@ -136,18 +101,11 @@ class SourcesTest {
         val opus160 = NerdStats.Snapshot(mimeType = "audio/opus", bitrateKbps = 160, sampleRateHz = 48_000, channels = 2)
         assertFalse(opus160.isHiQuality)
 
-        // Lossless is its own badge and never doubles as this one, however
-        // large the bitrate a FLAC reports.
         val flac = NerdStats.Snapshot(mimeType = "audio/flac", bitrateKbps = 1411, sampleRateHz = 44_100, channels = 2)
         assertTrue(flac.isLossless)
         assertFalse(flac.isHiQuality)
     }
 
-    /**
-     * A tier is earned by the stream, never by the offer. A module that
-     * advertises LOSSLESS and then serves a 128kbps SoundCloud transcode is
-     * the ordinary case, so nothing in [claimed] promotes a badge on its own.
-     */
     @Test
     fun `the declared format never earns a quality tier by itself`() {
         val claimedHiQuality = NerdStats.Snapshot(
@@ -173,11 +131,6 @@ class SourcesTest {
         assertFalse(silent.isHiQuality)
     }
 
-    /**
-     * Hi-Res is drawn off the measured depth and rate, which for a FLAC in MP4
-     * only exist because the stream's own STREAMINFO was read — the container
-     * states the rate as zero. See `PlaybackService.measure`.
-     */
     @Test
     fun `hi-res is decided on measured depth and rate`() {
         val cd = NerdStats.Snapshot(
@@ -199,7 +152,6 @@ class SourcesTest {
         )
         assertTrue(hiRes.isHiRes)
 
-        // Nothing measured yet: no badge, however loud the claim.
         val unmeasured = NerdStats.Snapshot(
             mimeType = null,
             bitrateKbps = null,
@@ -210,8 +162,6 @@ class SourcesTest {
         assertFalse(unmeasured.isLossless)
         assertFalse(unmeasured.isHiRes)
     }
-
-    // ---- Cross-source matching ---------------------------------------------
 
     private fun song(title: String, artist: String, duration: String? = null, album: String? = null) =
         Song(videoId = "x", title = title, artist = artist, thumbnailUrl = null, durationText = duration, albumName = album)
@@ -235,7 +185,6 @@ class SourcesTest {
                 artist = "Post Malone",
             ),
         )
-        // Punctuation and case are not identity.
         assertTrue(
             matches(
                 song("Don't Stop Me Now", "QUEEN"),
@@ -264,12 +213,6 @@ class SourcesTest {
         assertFalse(matches(song("봄날", "Artist"), "봄", "Artist"))
     }
 
-    /**
-     * The one that sent this back for a rewrite. YouTube files the track under
-     * the film it is from and credits the lead singer; the module holds the
-     * same audio under the bare title and credits the duet. Every part of that
-     * disagreement is packaging.
-     */
     @Test
     fun `matches a film credit against a bare catalogue listing`() {
         assertTrue(
@@ -280,8 +223,6 @@ class SourcesTest {
                 durationSec = 247,
             ),
         )
-        // And the other way round, which is how a module-queued track finds
-        // its YouTube seed for radio.
         assertTrue(
             matches(
                 song("Paniyon Sa (From \"Satyameva Jayate\")", "Atif Aslam"),
@@ -291,7 +232,6 @@ class SourcesTest {
         )
     }
 
-    /** The trailing labels an upload hangs on a title with no brackets to hold them. */
     @Test
     fun `strips upload labelling from either side`() {
         assertTrue(matches(song("Tum Hi Ho", "Arijit Singh"), "Tum Hi Ho Full Song", "Arijit Singh"))
@@ -302,7 +242,6 @@ class SourcesTest {
                 artist = "Arijit Singh",
             ),
         )
-        // "Artist - Title" uploads: the head is the credit, not the song.
         assertTrue(
             matches(
                 song("Believer", "Imagine Dragons"),
@@ -323,11 +262,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * The dangerous case: same title, different artist. A cover, a tribute
-     * album, or a completely unrelated song that happens to share a name — all
-     * of which a loose matcher would happily play instead.
-     */
     @Test
     fun `refuses a cover by a different artist`() {
         assertFalse(
@@ -350,12 +284,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * Film catalogues credit from opposite ends: YouTube Music files this
-     * under the composer, every store under the singer, and the two credits
-     * share nothing at all. An exact runtime is what says they are the same
-     * master anyway.
-     */
     @Test
     fun `accepts a composer credit against a singer credit on an exact runtime`() {
         assertTrue(
@@ -366,8 +294,6 @@ class SourcesTest {
                 durationSec = 233,
             ),
         )
-        // The remix and the acoustic cover from the same result set are the
-        // reason this is safe: neither agrees on length.
         assertFalse(
             matches(
                 song("Jhak Maar Ke", "Leo Lz Mix", duration = "4:01"),
@@ -378,11 +304,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * The runtime may only stand in for a credit when there *is* a runtime.
-     * Without one there is nothing corroborating anything, and an unrelated
-     * song sharing a title must still lose.
-     */
     @Test
     fun `will not waive the credit check without a runtime to back it`() {
         assertFalse(matches(song("Jhak Maar Ke", "Neeraj Shridhar"), "Jhak Maar Ke", "Pritam"))
@@ -396,7 +317,6 @@ class SourcesTest {
         )
     }
 
-    /** A properly credited copy always outranks one the runtime merely vouched for. */
     @Test
     fun `prefers a credited match over a runtime-vouched one`() {
         val target = TrackMatcher.Target("Jhak Maar Ke", "Pritam, Neeraj Shridhar", durationSec = 233)
@@ -405,24 +325,17 @@ class SourcesTest {
         assertEquals(credited, TrackMatcher.best(listOf(vouched, credited), target))
     }
 
-    /** A name inside another name is not a shared credit. */
     @Test
     fun `refuses an artist whose name merely contains the one asked for`() {
         assertFalse(matches(song("No One Knows", "Queens of the Stone Age"), "No One Knows", "Queen"))
     }
 
-    /**
-     * A different take is a different recording, and the direction it is asked
-     * for in doesn't change that.
-     */
     @Test
     fun `refuses a different take of the same song`() {
         assertFalse(matches(song("Shape of You (Acoustic)", "Ed Sheeran"), "Shape of You", "Ed Sheeran"))
         assertFalse(matches(song("Shape of You", "Ed Sheeran"), "Shape of You (Acoustic)", "Ed Sheeran"))
         assertFalse(matches(song("Creep (Live)", "Radiohead"), "Creep", "Radiohead"))
         assertFalse(matches(song("Faded", "Alan Walker"), "Faded (Slowed + Reverb)", "Alan Walker"))
-        // A stem carries the right title and the right artist and is not the
-        // song — this one was one candidate away from playing.
         assertFalse(
             matches(
                 song("Apna Bana Le - Arijit Singh Vocals Only", "Arijit Singh, Sachin-Jigar"),
@@ -431,18 +344,15 @@ class SourcesTest {
             ),
         )
         assertFalse(matches(song("Kesariya (Instrumental)", "Arijit Singh"), "Kesariya", "Arijit Singh"))
-        // Both sides saying the same thing is still a match.
         assertTrue(matches(song("Creep (Live)", "Radiohead"), "Creep [Live]", "Radiohead"))
     }
 
-    /** Version-shaped words that describe the ordinary release, not a new take. */
     @Test
     fun `treats an album or radio version as the plain track`() {
         assertTrue(matches(song("Africa", "Toto"), "Africa (Album Version)", "Toto"))
         assertTrue(matches(song("Clocks", "Coldplay"), "Clocks (Radio Edit)", "Coldplay"))
     }
 
-    /** The signal a title can't give: a loop, a snippet, or a whole album side. */
     @Test
     fun `refuses a candidate whose runtime is nowhere near`() {
         assertFalse(
@@ -453,7 +363,6 @@ class SourcesTest {
                 durationSec = 203,
             ),
         )
-        // A few seconds of trimmed silence is not a different recording.
         assertTrue(
             matches(
                 song("Levitating", "Dua Lipa", duration = "3:25"),
@@ -464,19 +373,12 @@ class SourcesTest {
         )
     }
 
-    /** With no artist to check against, the title alone has to carry it. */
     @Test
     fun `falls back to title alone when no artist is known`() {
         assertTrue(matches(song("Clair de Lune", "Debussy"), "Clair de Lune", ""))
         assertFalse(matches(song("Reverie", "Debussy"), "Clair de Lune", ""))
     }
 
-    // ---- Choosing between candidates ---------------------------------------
-
-    /**
-     * Search backends rank however they like. The right copy is the one whose
-     * runtime and credit agree, not the one that came back first.
-     */
     @Test
     fun `picks the closest candidate rather than the first acceptable one`() {
         val target = TrackMatcher.Target("Paniyon Sa", "Atif Aslam", durationSec = 247)
@@ -485,11 +387,6 @@ class SourcesTest {
         assertEquals(right, TrackMatcher.best(listOf(wrongLength, right), target))
     }
 
-    /**
-     * JioSaavn currently lists these as the same title and artist even though
-     * they are different recordings. The requested release must beat the row
-     * whose runtime happens to be closer.
-     */
     @Test
     fun `uses the album to separate duplicate JioSaavn recordings`() {
         val target = TrackMatcher.Target(
@@ -733,8 +630,6 @@ class SourcesTest {
             "Brown Rang",
             "Yo Yo Honey Singh",
             durationSec = 211,
-            // This is the phone's real failure: YouTube presented the official
-            // video as a song row, so the explicit video flag was false.
             isVideo = false,
         )
         val wantedAudio = song("Brown Rang", "Yo Yo Honey Singh", "2:59")
@@ -755,7 +650,6 @@ class SourcesTest {
         val target = TrackMatcher.Target(
             "Big Dawgs",
             "Hanumankind, Kalmi",
-            // A visual short film can be much longer than its song release.
             durationSec = 391,
             isVideo = true,
         )
@@ -764,9 +658,6 @@ class SourcesTest {
         val sameTitleCover = song("Big Dawgs", "Unrelated Cover Artist", "6:31")
             .copy(videoId = "cover")
 
-        // The ordinary source matcher is right to refuse a multi-minute gap;
-        // the explicit video-to-audio action is allowed to use YTM's official
-        // song row after title, version and artist all agree.
         assertNull(TrackMatcher.best(listOf(officialAudio, sameTitleCover), target))
         assertEquals(
             officialAudio,
@@ -774,12 +665,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * A declared tier is a reason to prefer one copy of a recording over
-     * another. It is not a reason to play a different recording — the DJ edit
-     * on a compilation carries the right title and the right artist, and only
-     * its runtime gives it away.
-     */
     @Test
     fun `refuses to let a lossless label outrank the right runtime`() {
         val target = TrackMatcher.Target("Sakhiyaan", "Maninder Buttar", durationSec = 180)
@@ -787,19 +672,14 @@ class SourcesTest {
             .copy(albumName = "Punjabi Dj Holi songs", sourceQuality = "LOSSLESS")
         val albumCut = song("Sakhiyaan", "Maninder Buttar", duration = "3:00")
             .copy(albumName = "Sakhiyaan")
-        // Both are acceptable matches on title and artist alone...
         assertTrue(TrackMatcher.matches(djEdit, target.title, target.artist))
-        // ...and the runtime is the only thing that separates them.
         assertEquals(albumCut, TrackMatcher.best(listOf(djEdit, albumCut), target))
-        // Including when lossless is being asked for and only the wrong cut
-        // claims to have it, which is the case that actually shipped broken.
         assertEquals(
             listOf(albumCut),
             SourceResolver.preferred(listOf(djEdit, albumCut), target, wantsLossless = true),
         )
     }
 
-    /** With no runtime to separate them, the declared tier is the tiebreak again. */
     @Test
     fun `prefers the lossless copy when nothing separates the recordings`() {
         val target = TrackMatcher.Target("Sakhiyaan", "Maninder Buttar", durationSec = 180)
@@ -812,17 +692,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * The case this whole path exists for, and the one it shipped wrong.
-     *
-     * Tidal publishes the immersive mix as its own row — same recording, same
-     * runtime, different id — and files it under `audioQuality: LOW`. Scored
-     * on that label the Atmos mix sorts *below* every stereo row, so
-     * [SourceResolver.streamBest] opens the lossless stereo row, gets a
-     * perfectly good FLAC and returns; the immersive row is never even asked
-     * for. No `?atmos=` hint can rescue that — the mix is not a rendition of
-     * the row being asked about.
-     */
     @Test
     fun `prefers the immersive row over a lossless one when Atmos is wanted`() {
         DeviceCodecs.forced = true
@@ -843,7 +712,6 @@ class SourcesTest {
         }
     }
 
-    /** Switched off, the immersive row is just a row and lossless decides again. */
     @Test
     fun `ignores the immersive row when the Atmos setting is off`() {
         DeviceCodecs.forced = true
@@ -865,34 +733,21 @@ class SourcesTest {
         }
     }
 
-    // ---- Deciding whether an upgrade is worth the seam -----------------------
-
-    /**
-     * Lossless is always worth it — it is what was asked for, and the reason
-     * the second look happens at all.
-     */
     @Test
     fun `always swaps to lossless`() {
         val youtube = StreamFormat(codec = "opus", kbps = 160)
         assertTrue(SourceResolver.worthSwapping(StreamFormat(codec = "flac"), youtube))
-        // Even against a lossy stream that is nominally the higher bitrate.
         assertTrue(
             SourceResolver.worthSwapping(StreamFormat(codec = "flac"), StreamFormat(codec = "aac", kbps = 320)),
         )
     }
 
-    /**
-     * The Shaayraana case: no catalogue had a lossless copy, one had a 320kbps
-     * AAC, and the track played on YouTube's 160kbps Opus because the only
-     * question being asked was "is this lossless".
-     */
     @Test
     fun `swaps to a lossy stream that is clearly better than what is playing`() {
         val youtube = StreamFormat(codec = "opus", kbps = 160)
         assertTrue(SourceResolver.worthSwapping(StreamFormat(codec = "aac", kbps = 320), youtube))
     }
 
-    /** A margin too narrow to hear does not earn a break in the audio. */
     @Test
     fun `refuses a lossy swap that gains little`() {
         assertFalse(
@@ -901,7 +756,6 @@ class SourcesTest {
                 StreamFormat(codec = "aac", kbps = 128),
             ),
         )
-        // And never a downgrade, however the codecs compare.
         assertFalse(
             SourceResolver.worthSwapping(
                 StreamFormat(codec = "mp3", kbps = 128),
@@ -910,10 +764,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * An unstated bitrate on either side is not evidence of an improvement.
-     * Swapping on one would be gambling the listener's audio on a guess.
-     */
     @Test
     fun `refuses a lossy swap it cannot measure`() {
         val playing = StreamFormat(codec = "opus", kbps = 160)
@@ -924,17 +774,6 @@ class SourcesTest {
         )
     }
 
-    // ---- Ranking two copies of the same recording ---------------------------
-
-    /**
-     * The '9:45' case, reduced to the comparison at the heart of it: a module
-     * ranked above JioSaavn offered 128kbps and JioSaavn held 320kbps, and the
-     * walk has to be able to say which of those it would rather have.
-     *
-     * Note this is a different question from [SourceResolver.worthSwapping] —
-     * that one asks whether a difference earns a break in the audio, this one
-     * only asks which is better.
-     */
     @Test
     fun `ranks a higher-bitrate lossy stream above a lower one`() {
         assertTrue(
@@ -951,7 +790,6 @@ class SourcesTest {
         )
     }
 
-    /** Codec decides before bitrate: no lossy rendition outranks a lossless one. */
     @Test
     fun `ranks lossless above any lossy bitrate`() {
         assertTrue(
@@ -968,16 +806,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * Immersive outranks bit-exact, and the order of the two tests inside
-     * [SourceResolver.isBetter] is the whole of it.
-     *
-     * An Atmos stream is E-AC-3 and so answers `isLossless == false`. With the
-     * lossless test first, a FLAC won there and the Atmos test below it could
-     * never run — which meant a track offered as both played as the FLAC
-     * whatever the setting said, and an upgrade pass would cut a FLAC in over
-     * an Atmos stream already playing.
-     */
     @Test
     fun `ranks an immersive mix above a lossless copy`() {
         assertTrue(
@@ -994,12 +822,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * And the same answer mid-playback: a FLAC arriving over a playing Atmos
-     * stream is a better copy of a mix the listener did not choose, which is a
-     * downgrade dressed as an upgrade — and one that costs a seam in the audio
-     * to deliver.
-     */
     @Test
     fun `never swaps away from an immersive mix that is already playing`() {
         assertFalse(
@@ -1008,7 +830,6 @@ class SourcesTest {
                 StreamFormat(codec = "eac3-joc"),
             ),
         )
-        // The reverse still swaps: immersive is what was asked for.
         assertTrue(
             SourceResolver.worthSwapping(
                 StreamFormat(codec = "eac3-joc"),
@@ -1017,20 +838,11 @@ class SourcesTest {
         )
     }
 
-    /**
-     * Nothing to compare against is beaten by anything — this is what makes the
-     * first source's answer the floor rather than a special case.
-     */
     @Test
     fun `anything beats no stream at all`() {
         assertTrue(SourceResolver.isBetter(StreamFormat(codec = "mp3", kbps = 128), null))
     }
 
-    /**
-     * An equal stream does not displace the one already held. The walk asks
-     * sources in rank order, so a tie has to leave the higher-ranked source's
-     * copy in place rather than drifting to whoever answered last.
-     */
     @Test
     fun `an equal stream does not displace the one already held`() {
         assertFalse(
@@ -1044,12 +856,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * An unstated bitrate ranks as nothing rather than as a win. A source that
-     * declines to describe its stream should not be able to displace one that
-     * has stated a good rate — see [StreamFormat] on why null means "not
-     * stated" and is never inferred.
-     */
     @Test
     fun `an undescribed lossy stream does not outrank a stated one`() {
         assertFalse(
@@ -1067,23 +873,11 @@ class SourcesTest {
         assertNull(TrackMatcher.best(emptyList(), target))
     }
 
-    // ---- What a lossy source has to beat to become a file -------------------
-
-    /**
-     * The case the floor exists for: JioSaavn's top rendition is better than
-     * anything YouTube's AAC ladder holds, so a download takes it rather than
-     * filing a copy worse than the one that would have been streamed.
-     */
     @Test
     fun `a 320 from a source is worth keeping over youtube's aac`() {
         assertTrue(SourceResolver.beatsYouTubeAac(StreamFormat(codec = "mp4", kbps = 320)))
     }
 
-    /**
-     * Below the top of YouTube's own ladder, a source's copy is trading one
-     * lossy file for another and giving up the more reliable fetch to do it —
-     * including at 256, where the two are a wash and the tie goes to YouTube.
-     */
     @Test
     fun `a thinner rendition loses to youtube's aac`() {
         assertFalse(SourceResolver.beatsYouTubeAac(StreamFormat(codec = "mp3", kbps = 128)))
@@ -1091,26 +885,12 @@ class SourcesTest {
         assertFalse(SourceResolver.beatsYouTubeAac(StreamFormat(codec = "aac", kbps = 256)))
     }
 
-    /**
-     * A download has to name the file before the first byte lands, so a source
-     * that described its rendition as nothing has said nothing worth keeping —
-     * unlike playback, which can hand the URL to the decoder and find out.
-     */
     @Test
     fun `an unstated rendition is not worth keeping`() {
         assertFalse(SourceResolver.beatsYouTubeAac(StreamFormat()))
         assertFalse(SourceResolver.beatsYouTubeAac(StreamFormat(codec = "mp4")))
     }
 
-    // ---- Which sources are worth asking before a track is played ------------
-
-    /**
-     * Read-ahead resolves the track *after* the one playing, so a source that
-     * needs ten seconds to answer is usually still answering when the listener
-     * arrives — and a wasted module resolve costs a QuickJS engine and several
-     * backend searches, where a wasted JioSaavn one costs a round trip. Only
-     * JioSaavn earns the speculative ask.
-     */
     @Test
     fun `only the quick source is worth resolving ahead of playback`() {
         assertTrue(SourceKind.JIOSAAVN.worthPrefetching)
@@ -1118,26 +898,11 @@ class SourcesTest {
         assertFalse(SourceKind.CUSTOM_MODULE.worthPrefetching)
     }
 
-    /**
-     * YouTube is warmed ahead of time too, but through its own read-ahead,
-     * which speaks video ids and needs no cross-source match. Marking it here
-     * would send it through the substitution path to find itself.
-     */
     @Test
     fun `youtube is not prefetched as a substitute for itself`() {
         assertFalse(SourceKind.YOUTUBE.worthPrefetching)
     }
 
-    // ---- Racing the sources -------------------------------------------------
-
-    /**
-     * A source that answers after [answerAfterMs] with a stream of [format], or
-     * with nothing at all when [format] is null.
-     *
-     * [asked] records that it was reached, which is how the tests below tell a
-     * source that was beaten from one that was never asked — the distinction
-     * the whole '9:45' investigation turned on.
-     */
     private class FakeSource(
         override val displayName: String,
         private val answerAfterMs: Long,
@@ -1184,7 +949,6 @@ class SourcesTest {
 
     private fun raceTarget() = TrackMatcher.Target(RACE_TITLE, RACE_ARTIST, durationSec = 120)
 
-    /** A source holding several rows, each streaming its own format. */
     private class RowSource(
         private val rows: List<Pair<Song, StreamFormat>>,
     ) : MusicSource {
@@ -1206,12 +970,6 @@ class SourcesTest {
                 ?.let { (_, format) -> SourceStream(url = "https://soundlink/$trackId", format = format) }
     }
 
-    /**
-     * The reported case, 'Take on Me' starting on YouTube's 3:45 and looking
-     * for a better copy: the addon holds the 16-bit album cut at 3:45 and a
-     * 24-bit/192 kHz remaster at 3:48, listed in that order, neither row
-     * saying which is hi-res.
-     */
     private fun takeOnMeRows() = RowSource(
         listOf(
             song("Take on Me", "a-ha", "3:45").copy(videoId = "album-cut", sourceQuality = "LOSSLESS") to
@@ -1223,7 +981,6 @@ class SourcesTest {
 
     private val takeOnMe = TrackMatcher.Target("Take on Me", "a-ha", durationSec = 225)
 
-    /** Three seconds out, inside a tolerance of five: the remaster is eligible, and it wins. */
     @Test
     fun `upgrade takes the hi-res copy inside the listener's length tolerance`() = runBlocking {
         val (_, stream) = SourceResolver.bestAcross(
@@ -1239,7 +996,6 @@ class SourcesTest {
         assertEquals(192_000, stream.format.sampleRateHz)
     }
 
-    /** The old fixed bar of two seconds, which is what left it on 16-bit. */
     @Test
     fun `upgrade under a two second bar never sees the remaster`() = runBlocking {
         val (_, stream) = SourceResolver.bestAcross(
@@ -1254,7 +1010,6 @@ class SourcesTest {
         assertEquals(16, stream.format.bitDepth)
     }
 
-    /** Depth, then rate, between two lossless copies — bitrate says nothing there. */
     @Test
     fun `ranks hi-res lossless above CD quality`() {
         val hiRes = StreamFormat("flac", sampleRateHz = 192_000, bitDepth = 24)
@@ -1269,7 +1024,6 @@ class SourcesTest {
         )
     }
 
-    /** A row that says it is hi-res is opened ahead of one that only says lossless. */
     @Test
     fun `prefers the hi-res row among lossless ones`() {
         val target = TrackMatcher.Target("Take on Me", "a-ha", durationSec = 225)
@@ -1296,15 +1050,6 @@ class SourcesTest {
         assertNull(SourceResolver.bestAcross(listOf(source), target, StreamRequest.Best))
     }
 
-    /**
-     * The '9:45' case itself, as a race rather than a queue.
-     *
-     * JioSaavn answered in ~0.4s and the module in ~13.5s. Walked in rank order
-     * the module's slowness was JioSaavn's too, so the whole lookup lost the
-     * race against YouTube and the listener got 160kbps Opus. Raced, the quick
-     * answer is the one that starts the track — and the slow source is left to
-     * [SourceResolver.upgradeFor], which judges it against what is playing.
-     */
     @Test
     fun `takes the quick answer rather than waiting for a slow better one`() = runBlocking {
         val slow = FakeSource("Ricky's Addon", answerAfterMs = 2_000, format = StreamFormat("flac"))
@@ -1316,18 +1061,10 @@ class SourcesTest {
             assertEquals("JioSaavn", source.displayName)
             assertEquals(320, stream.format.kbps)
         }
-        // Nowhere near the slow source's two seconds.
         assertTrue("took ${elapsed}ms, so it waited for the slow source", elapsed < 1_000)
-        // Asked, though — being beaten is not the same as being skipped, and
-        // skipping is the bug this replaced.
         assertTrue(slow.asked)
     }
 
-    /**
-     * A slow source is cancelled once an answer is in hand rather than left
-     * running: nothing is waiting on it, and the second look re-asks it
-     * properly. Left running it would spend a listener's radio for nothing.
-     */
     @Test
     fun `abandons the sources still running once it has an answer`() = runBlocking {
         val slow = FakeSource("Ricky's Addon", answerAfterMs = 2_000, format = StreamFormat("flac"))
@@ -1336,11 +1073,6 @@ class SourcesTest {
         assertTrue("the slow source was left running", slow.cancelled)
     }
 
-    /**
-     * Answers that arrive together are still ranked. Racing gives up ordering
-     * between a fast source and a slow one; it does not give up ordering
-     * between two that answered at the same moment.
-     */
     @Test
     fun `prefers the better of two answers that arrive together`() = runBlocking {
         val worse = FakeSource("Ricky's Addon", answerAfterMs = 5, format = StreamFormat("mp3", kbps = 128))
@@ -1352,12 +1084,6 @@ class SourcesTest {
         assertEquals(320, stream.format.kbps)
     }
 
-    /**
-     * A source that simply doesn't have the track must not end the race. This
-     * is the difference between "nobody has it" and "the first one to answer
-     * didn't have it", and returning null on the latter is how a catalogue that
-     * held the track went unheard.
-     */
     @Test
     fun `keeps waiting when the first source to answer has nothing`() = runBlocking {
         val empty = FakeSource("Ricky's Addon", answerAfterMs = 5, format = null)
@@ -1368,7 +1094,6 @@ class SourcesTest {
         assertEquals("JioSaavn", source.displayName)
     }
 
-    /** Nobody has it: the race ends when the last source has said so. */
     @Test
     fun `has nothing when no source holds the track`() = runBlocking {
         val a = FakeSource("Ricky's Addon", answerAfterMs = 5, format = null)
@@ -1376,11 +1101,6 @@ class SourcesTest {
         assertNull(SourceResolver.bestAcross(listOf(a, b), raceTarget(), StreamRequest.Lossless))
     }
 
-    /**
-     * The background upgrade is deliberately patient. Its source searches have
-     * already been given their full budget, so it must not cancel a slower FLAC
-     * merely because JioSaavn's valid 320kbps answer arrived first.
-     */
     @Test
     fun `patient upgrade chooses the better later answer`() = runBlocking {
         val playing = StreamFormat(codec = "opus", kbps = 141)
@@ -1420,11 +1140,6 @@ class SourcesTest {
         )
     }
 
-    /**
-     * A refused answer is not an answer. When the only quick source is one whose
-     * stream fails the predicate, the race has to keep running rather than
-     * report that nothing was found.
-     */
     @Test
     fun `keeps waiting when the quick answer is refused`() = runBlocking {
         val playing = StreamFormat(codec = "opus", kbps = 141)
@@ -1438,11 +1153,6 @@ class SourcesTest {
         assertEquals("JioSaavn", source.displayName)
     }
 
-    /**
-     * A tie goes to the source ranked first, however late it answers. Arrival
-     * order used to decide it, which handed every 320-against-320 download to
-     * JioSaavn's four tenths of a second over the addon the user put first.
-     */
     @Test
     fun `a tie goes to the higher-ranked source rather than the quicker one`() = runBlocking {
         val addon = FakeSource("Ricky's Addon", answerAfterMs = 150, format = StreamFormat("aac", kbps = 320))
@@ -1456,11 +1166,6 @@ class SourcesTest {
         assertEquals("Ricky's Addon", source.displayName)
     }
 
-    /**
-     * Running out of time decides on what has answered rather than losing it.
-     * Bounded from outside, a slow addon used to take JioSaavn's answer down
-     * with it, and the download went to YouTube's Opus.
-     */
     @Test
     fun `a race that runs out of time keeps the answers already in hand`() = runBlocking {
         val slow = FakeSource("Ricky's Addon", answerAfterMs = 5_000, format = StreamFormat("flac"))
@@ -1479,7 +1184,6 @@ class SourcesTest {
         assertTrue("the slow source was left running", slow.cancelled)
     }
 
-    /** A candidate the caller can't keep never wins, so it can't push out one it can. */
     @Test
     fun `a refined-away candidate leaves the race to the next one`() = runBlocking {
         val unkeepable = FakeSource("Ricky's Addon", answerAfterMs = 5, format = StreamFormat("flac"))
@@ -1494,14 +1198,6 @@ class SourcesTest {
         assertEquals("JioSaavn", source.displayName)
     }
 
-    // ---- Asking ------------------------------------------------------------
-
-    /**
-     * What a source is asked for. The raw title is never one of the queries:
-     * a catalogue that lists "Paniyon Sa" has never stored the film name
-     * YouTube prints alongside it, and scoring against words it doesn't hold
-     * is how a source that had the track answered as if it didn't.
-     */
     @Test
     fun `asks for the title a catalogue would file the track under`() {
         val queries = TrackMatcher.queries(
@@ -1510,7 +1206,6 @@ class SourcesTest {
         assertEquals(listOf("paniyon sa atif aslam", "paniyon sa"), queries)
     }
 
-    /** A version marker is part of what to search for, not packaging to drop. */
     @Test
     fun `keeps the version marker in the query`() {
         assertEquals(
@@ -1525,12 +1220,10 @@ class SourcesTest {
             listOf("o mundo é mal froid", "o mundo é mal"),
             TrackMatcher.queries(TrackMatcher.Target("O Mundo É Mal (part. Clara Lima)", "Froid")),
         )
-        // A numbered part is the title, not a guest credit.
         assertEquals(
             "song part",
             TrackMatcher.queries(TrackMatcher.Target("Song (Part 1)", "")).single(),
         )
-        // Neither is an English title that merely starts with the word.
         assertEquals(
             listOf("part of me"),
             TrackMatcher.queries(TrackMatcher.Target("Part of Me", "")),
@@ -1550,7 +1243,6 @@ class SourcesTest {
         assertTrue(TrackMatcher.queries(TrackMatcher.Target("", "Atif Aslam")).isEmpty())
     }
 
-    /** A mixed-script upload is filed under its transliteration, not its original script. */
     @Test
     fun `asks for the romaji filing of a mixed-script title`() {
         assertEquals(
@@ -1559,7 +1251,6 @@ class SourcesTest {
         )
     }
 
-    /** A pure CJK title is kept rather than emptied into asking for nothing. */
     @Test
     fun `keeps a pure CJK title instead of asking for nothing`() {
         assertEquals(
@@ -1600,7 +1291,6 @@ class SourcesTest {
         )
     }
 
-    /** A CJK head with its Latin filing in brackets is the same title, not packaging. */
     @Test
     fun `matches a bracketed CJK translation against its Latin filing`() {
         assertTrue(
@@ -1619,7 +1309,6 @@ class SourcesTest {
                 durationSec = 174,
             ),
         )
-        // Same-script packaging must not rescue a different title.
         assertFalse(
             matches(
                 song("Film Name", "Some Artist", "4:07"),
@@ -1628,7 +1317,6 @@ class SourcesTest {
                 durationSec = 247,
             ),
         )
-        // One word of a longer aside is not the whole title.
         assertFalse(
             matches(
                 song("Night", "Singer", "4:20"),
@@ -1639,7 +1327,6 @@ class SourcesTest {
         )
     }
 
-    /** The take marker may live on the release: title "KALYANI" + album "KALYANI (Remix)". */
     @Test
     fun `accepts the remix single whose marker lives on the album`() {
         assertTrue(
@@ -1654,7 +1341,6 @@ class SourcesTest {
 
     @Test
     fun `still rejects the original recording for a remix request`() {
-        // Same artists, same length, but neither row nor release names a take.
         assertFalse(
             matches(
                 song("KALYANI", "ARJN, KDS, FIFTY4, Shreya Ghoshal", "4:30", album = "KALYANI"),
@@ -1667,9 +1353,6 @@ class SourcesTest {
 
     @Test
     fun `a plain request ignores the album when the row needs no marker`() {
-        // One-directional rescue: the album only ever completes a wanted
-        // marker, so a plain request keeps today's strict behavior here and
-        // stays accepted rather than gaining a veto it never had.
         assertTrue(
             matches(
                 song("KALYANI", "ARJN, KDS, FIFTY4, Shreya Ghoshal", "4:29", album = "KALYANI (Remix)"),
@@ -1680,7 +1363,6 @@ class SourcesTest {
         )
     }
 
-    /** Same title, same length — only the album says this one has no vocals. */
     @Test
     fun `rejects the instrumental twin for a vocal request`() {
         assertFalse(
@@ -1731,14 +1413,8 @@ class SourcesTest {
         )
     }
 
-    // ---- Non-Latin script accuracy -----------------------------------------
-
     @Test
     fun `matches the plain Mayonaka row across the wave-dash spellings`() {
-        // Mixed kanji+kana titles keep their two as-written queries: the
-        // transliteration is partial (kanji has no reading) and is not asked.
-        // ("with me" is eaten as a feat. marker on both sides alike; the wave
-        // dash is a word break, so the query keeps "stay" a separate word.)
         assertEquals(
             listOf("真夜中のドア stay miki matsubara", "真夜中のドア stay"),
             TrackMatcher.queries(
@@ -1781,7 +1457,6 @@ class SourcesTest {
         )
     }
 
-    /** One extra query in the other script, without the artist — never a second pair. */
     @Test
     fun `asks both scripts for a transliterated pair`() {
         assertEquals(
@@ -1794,7 +1469,6 @@ class SourcesTest {
         )
     }
 
-    /** "Title - Artist" in two scripts is not a transliteration. */
     @Test
     fun `keeps a CJK title whose dash tail is the artist`() {
         assertEquals(
@@ -1813,7 +1487,6 @@ class SourcesTest {
                 durationSec = 159,
             ),
         )
-        // Same title, different recording (Demon Slayer ED): duration vetoes.
         assertFalse(
             matches(
                 song("Koi Kogare", "milet, MAN WITH A MISSION", "3:36"),
@@ -1875,15 +1548,12 @@ class SourcesTest {
         assertEquals("gakkou", TrackMatcher.romajiOf("がっこう"))
         assertEquals("shimbun", TrackMatcher.romajiOf("しんぶん"))
         assertEquals("kyou", TrackMatcher.romajiOf("きょう"))
-        // Kanji passes through (kana around it still resolves); English loans don't.
         assertEquals("第zero感", TrackMatcher.romajiOf("第ゼロ感"))
         assertEquals("doa", TrackMatcher.romajiOf("ドア"))
-        // sh/ch/j carry the glide themselves.
         assertEquals("sharuru", TrackMatcher.romajiOf("シャルル"))
         assertEquals("janki", TrackMatcher.romajiOf("ジャンキ"))
         assertEquals("chotto", TrackMatcher.romajiOf("ちょっと"))
         assertEquals("jetto", TrackMatcher.romajiOf("ジェット"))
-        // No apostrophe after ん: catalogue romaji doesn't write one.
         assertEquals("renai", TrackMatcher.romajiOf("レンアイ"))
     }
 
@@ -1892,7 +1562,6 @@ class SourcesTest {
         assertTrue(matches(song("Renai", "A", "3:30"), "レンアイ", "A", 210))
     }
 
-    /** The album only ever supplies markers the request asked for, never extra ones. */
     @Test
     fun `album naming beyond the wanted take does not refuse the row`() {
         assertTrue(
@@ -1909,37 +1578,25 @@ class SourcesTest {
         )
     }
 
-    /** A version word that is the title's last word is still the title. */
     @Test
     fun `a title ending in a version word does not take the live recording`() {
         assertFalse(matches(song("Let Me Live (Live)", "Queen", "4:45"), "Let Me Live", "Queen", 285))
         assertTrue(matches(song("Let Me Live", "Queen", "4:45"), "Let Me Live", "Queen", 285))
     }
 
-    /** The katakana middle dot joins a transliterated name; it doesn't separate artists. */
     @Test
     fun `a katakana full name is one artist`() {
         assertFalse(TrackMatcher.sharesArtist("ジョン・レノン", "ジョン・ウィリアムズ"))
         assertTrue(TrackMatcher.sharesArtist("ジョン・レノン", "ジョン・レノン、オノ・ヨーコ"))
     }
 
-    // ---- The mid-track swap guard ------------------------------------------
-
-    /**
-     * The check standing between a listener and having their audio cut for a
-     * different recording. Stricter than ordinary matching on purpose, and it
-     * refuses anything it cannot actually check.
-     */
     @Test
     fun `only swaps in a copy of demonstrably the same length`() {
         val playing = TrackMatcher.Target("Jo Tere Sang", "Jeet Gannguli", durationSec = 306)
         assertTrue(TrackMatcher.withinSeconds(song("Jo Tere Sang", "x", "5:06"), playing, 2))
         assertTrue(TrackMatcher.withinSeconds(song("Jo Tere Sang", "x", "5:04"), playing, 2))
         assertFalse(TrackMatcher.withinSeconds(song("Jo Tere Sang", "x", "5:12"), playing, 2))
-        // A candidate that never said how long it is cannot be checked, and an
-        // unverifiable swap is not worth making.
         assertFalse(TrackMatcher.withinSeconds(song("Jo Tere Sang", "x"), playing, 2))
-        // Neither is one where nothing is playing to compare against.
         assertFalse(
             TrackMatcher.withinSeconds(
                 song("Jo Tere Sang", "x", "5:06"),
@@ -1949,14 +1606,6 @@ class SourcesTest {
         )
     }
 
-    // ---- Stream URLs a module should not be trusted with --------------------
-
-    /**
-     * The August 2026 Tidal fault: the module pasted its own origin into the
-     * path of the URL it was building, and the server 404'd every one. Rejected
-     * on sight so the resolver walks on to the next source instead of spending
-     * a playback attempt discovering it.
-     */
     @Test
     fun `rejects a stream URL carrying a second copy of its own origin`() {
         val blob = "eyJhbGciOiJIUzI1NiJ9"
@@ -1966,7 +1615,6 @@ class SourcesTest {
                     "https://sp-ad-fa.audio.tidal.com/mediatracks/$blob/0.mp4?token=1756000000~c2ln",
             ),
         )
-        // The URL the module meant to send, which must still be played.
         assertFalse(
             ModuleSource.malformed(
                 "https://sp-ad-fa.audio.tidal.com/mediatracks/$blob/0.mp4?token=1756000000~c2ln",
@@ -1974,39 +1622,22 @@ class SourcesTest {
         )
     }
 
-    /**
-     * Two schemes in a URL is not the fault — handing a proxy its target is a
-     * legitimate thing for a module to do, in the query or in the path, and
-     * refusing those would take working catalogues offline.
-     */
     @Test
     fun `accepts a URL that passes another URL along to a proxy`() {
         assertFalse(ModuleSource.malformed("https://cdn.example.com/get?url=https://real.host/f.flac"))
         assertFalse(ModuleSource.malformed("https://cdn.example.com/https://real.host/f.flac"))
     }
 
-    /**
-     * The Xiaomi report, which failed a step earlier than the doubled URL: the
-     * player threw `HttpDataSourceException: Malformed URL` out of OkHttp's
-     * parser without making a request. Anything that parser refuses has to be
-     * refused here too, or it becomes an unplayable track.
-     */
     @Test
     fun `rejects a stream URL the player's own parser would refuse`() {
         assertTrue(ModuleSource.malformed("/mediatracks/blob/0.mp4"))
         assertTrue(ModuleSource.malformed("sp-ad-fa.audio.tidal.com/mediatracks/blob/0.mp4"))
         assertTrue(ModuleSource.malformed("nuvx://watch?v=rpemDBaFK0c"))
         assertTrue(ModuleSource.malformed(""))
-        // A module returning its error text, or nothing, in the URL field.
         assertTrue(ModuleSource.malformed("undefined"))
         assertTrue(ModuleSource.malformed("null"))
     }
 
-    /**
-     * A module gets to name a server, not a file on this device. Anything but
-     * http(s) is refused, so a module cannot have the player read local storage
-     * on its behalf.
-     */
     @Test
     fun `refuses to let a module point the player at anything but http`() {
         assertTrue(ModuleSource.malformed("file:///data/data/com.bxane.nuvx/files/x.flac"))
@@ -2016,17 +1647,9 @@ class SourcesTest {
 
     @Test
     fun `accepts an origin with no path of its own`() {
-        // Nothing duplicated and the parser is happy; whether a server answers
-        // it is for the server to say.
         assertFalse(ModuleSource.malformed("https://sp-ad-fa.audio.tidal.com"))
     }
 
-    // ---- Quality tiers -----------------------------------------------------
-
-    /**
-     * Every module spells its quality differently, and the spelling is all
-     * there is to go on when choosing which catalogue to open a track from.
-     */
     @Test
     fun `reads a tier out of whatever a module calls it`() {
         assertEquals("LOSSLESS", ModuleSource.qualityTier("LOSSLESS"))
@@ -2040,7 +1663,6 @@ class SourcesTest {
         assertNull(ModuleSource.qualityTier("Deadbeat"))
     }
 
-    /** The codec wins the tie: a bit depth alongside FLAC is still FLAC. */
     @Test
     fun `does not mistake a bit depth for a bitrate tier`() {
         assertEquals("LOSSLESS", ModuleSource.qualityTier("24-bit / 192 kHz"))
@@ -2051,8 +1673,6 @@ class SourcesTest {
     fun `orders tiers worst to best`() {
         assertEquals(listOf("LOW", "HIGH", "LOSSLESS"), ModuleSource.TIERS)
     }
-
-    // ---- Runtime parsing ---------------------------------------------------
 
     @Test
     fun `reads a runtime off a queue row`() {

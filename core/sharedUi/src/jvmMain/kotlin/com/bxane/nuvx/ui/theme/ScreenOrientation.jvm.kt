@@ -7,6 +7,5 @@ private object NoOrientation : ScreenOrientation {
     override fun portrait() = Unit
 }
 
-// A desktop window has no orientation to turn.
 @Composable
 actual fun rememberScreenOrientation(): ScreenOrientation = NoOrientation

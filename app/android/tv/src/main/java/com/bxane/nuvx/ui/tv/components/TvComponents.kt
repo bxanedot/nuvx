@@ -60,17 +60,8 @@ import com.bxane.nuvx.ui.tv.theme.TvType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Artwork colour
-// ─────────────────────────────────────────────────────────────────────────────
-
 private val cardColorCache = androidx.collection.LruCache<String, Color>(300)
 
-/**
- * A deep, saturated colour taken from the artwork — the footer of a Top Picks
- * card and the tint of the canvas behind everything. Decodes a 24px copy through
- * the app's shared loader, so the disk cache already holding the cover serves it.
- */
 @Composable
 fun rememberDominantCardColor(artworkUrl: String?, defaultColor: Color = Color(0xFF2C2D31)): Color {
     val context = LocalContext.current
@@ -115,8 +106,6 @@ private fun sampleDominantColor(bitmap: Bitmap): Color {
             val pr = (pixel shr 16) and 0xff
             val pg = (pixel shr 8) and 0xff
             val pb = pixel and 0xff
-            // Colourful pixels count for more than greys, so a cover with a
-            // splash of colour on white doesn't average out to beige.
             val chroma = maxOf(pr, pg, pb) - minOf(pr, pg, pb)
             val w = 1L + chroma / 16
             r += pr * w
@@ -133,14 +122,6 @@ private fun sampleDominantColor(bitmap: Bitmap): Color {
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Cards
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The Apple Music "Top Picks" card: artwork over a footer tinted from it, title
- * and subtitle centred in the footer, an optional caption above the card.
- */
 @Composable
 fun TvCard(
     title: String,
@@ -246,15 +227,6 @@ fun TvCard(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Buttons
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The tvOS button: a translucent rounded platter that turns white and lifts on
- * focus. [isPrimary] only brightens the resting fill — on tvOS focus, not colour,
- * is what tells the buttons apart.
- */
 @Composable
 fun TvButton(
     text: String,
@@ -297,10 +269,6 @@ fun TvButton(
         Text(text = text, style = TvType.Body.copy(fontWeight = FontWeight.W600), color = content, maxLines = 1)
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// States
-// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 fun TvErrorState(
@@ -364,15 +332,6 @@ fun TvEmptyState(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Alerts
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The tvOS alert: the app dims away and the alert's content floats centred
- * over it — title, an optional message, then its controls. No card, no border.
- * Back dismisses it.
- */
 @Composable
 fun TvDialog(
     onDismissRequest: () -> Unit,
@@ -439,7 +398,6 @@ fun TvDialog(
     }
 }
 
-/** A full-width alert button, stacked one per row as tvOS alerts do. */
 @Composable
 fun TvDialogButton(
     text: String,

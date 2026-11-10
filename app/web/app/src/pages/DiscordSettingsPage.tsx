@@ -3,7 +3,6 @@ import { useDiscord } from '@/extension/useDiscord';
 import { DiscordIntegration, DiscordSettings } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
 
-/** Discord rich presence (DiscordScreen on the phone): the account, then how the card reads. */
 export default function DiscordSettingsPage() {
   const status = useDiscord();
   return (

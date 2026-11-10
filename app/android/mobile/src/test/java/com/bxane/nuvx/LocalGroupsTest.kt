@@ -94,7 +94,6 @@ class LocalGroupsTest {
         assertEquals(listOf("", "1A2B-3C4D", "Music"), folders.map { it.subtitle })
         val rock = folders.last()
         assertEquals(listOf("a", "b"), rock.songs.map { it.videoId })
-        // The page reads the same rows back off a fresh listing.
         assertEquals(listOf("a", "b"), LocalGroups.songsOf(rock.browseId, tracks).map { it.videoId })
     }
 }

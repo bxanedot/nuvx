@@ -72,9 +72,7 @@ fun ExploreScreen(
     pullState: PullToRefreshState,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    /** The big "Explore" heading; the desktop's pages carry none. */
     showTitle: Boolean = true,
-    /** YouTube Music's own Explore shelves; the first leads as large editorial cards, as Convx has it. */
     shelves: List<HomeShelf> = emptyList(),
     onShelfItemClick: (ShelfItem, String) -> Unit = { _, _ -> },
     onShelfItemLongPress: ((ShelfItem) -> Unit)? = null,
@@ -100,8 +98,6 @@ fun ExploreScreen(
                             text = stringResource(Res.string.explore),
                             style = MaterialTheme.typography.displayLarge,
                             color = MaterialTheme.colorScheme.onBackground,
-                            // 14dp under the title, the same gap Library leaves
-                            // above its first card (8dp title + 6dp Replay row).
                             modifier = Modifier.padding(
                                 start = PAGE_GUTTER,
                                 end = PAGE_GUTTER,
@@ -144,7 +140,6 @@ fun ExploreScreen(
                                 )
                             }
                         }
-                        // Moods and genres: a row of Search's colour tiles per section.
                         state.data.filter { it.items.isNotEmpty() }.forEachIndexed { index, section ->
                             item(key = "explore:moods:$index") {
                                 Column(Modifier.padding(bottom = 26.dp)) {
@@ -167,7 +162,6 @@ fun ExploreScreen(
     }
 }
 
-/** Convx's lead: wide cards, a line of type over each picture, most of a screen across. */
 @Composable
 private fun EditorialRow(
     shelf: HomeShelf,
@@ -224,21 +218,12 @@ private fun EditorialRow(
     }
 }
 
-/** How many of the lead shelf's items get a large card; the rest follow as a normal row. */
 private const val HERO_COUNT = 6
 
 private const val HERO_ART_PX = 1080
 
 private val MOOD_TILE_WIDTH = 180.dp
 
-/**
- * A solid stripe down the left and the category's cover filling the rest,
- * redrawn as a duotone of the stripe's colour so every card reads as one
- * tinted sleeve rather than a photo pasted onto a swatch.
- *
- * Only the artwork: the caller sizes, clips and makes it clickable, which is
- * how the TV app wraps the same sleeve in its own focus treatment.
- */
 @Composable
 fun MoodGenreSleeve(
     item: MoodGenre,
@@ -264,8 +249,6 @@ fun MoodGenreSleeve(
                 )
             }
         }
-        // Pale stripes (Energize's cream, Feel good's mint) would swallow
-        // white type; a soft shade under the title keeps it legible.
         Box(
             Modifier
                 .matchParentSize()
@@ -291,8 +274,6 @@ private class MoodTone(val stripe: Color, val placeholder: Color, val duotone: C
 
 private fun moodTone(item: MoodGenre): MoodTone {
     val base = item.stripeColor?.let { Color(it.toInt()) } ?: fallbackMoodColor(item.title)
-    // YouTube's palette is already pastel; a touch of black keeps it from
-    // glowing against the black page.
     val stripe = lerp(base, Color.Black, .08f)
     val shadow = lerp(base, Color.Black, .68f)
     val highlight = lerp(base, Color.White, .32f)
@@ -303,10 +284,6 @@ private fun moodTone(item: MoodGenre): MoodTone {
     )
 }
 
-/**
- * Maps each pixel's luminance onto the ramp [shadow] to [highlight]. Offsets
- * are in 0..255, which Compose honours on Skia too (it rescales them).
- */
 private fun duotone(shadow: Color, highlight: Color): ColorFilter {
     fun channel(from: Float, to: Float): FloatArray {
         val span = to - from
@@ -322,7 +299,6 @@ private fun duotone(shadow: Color, highlight: Color): ColorFilter {
     )
 }
 
-/** For a button that came without YouTube's colour: muted, never neon. */
 private fun fallbackMoodColor(title: String): Color = when ((title.hashCode() and Int.MAX_VALUE) % 8) {
     0 -> Color(0xFFCC6A55)
     1 -> Color(0xFFC07A92)
@@ -334,24 +310,14 @@ private fun fallbackMoodColor(title: String): Color = when ((title.hashCode() an
     else -> Color(0xFF86B890)
 }
 
-/** Gap between mood cards, in both directions. */
 private val MOOD_SPACING = 12.dp
 
 private val MOOD_CARD_SHAPE = RoundedCornerShape(18.dp)
 
-/** Width over height; a two-column phone row lands at about 100dp tall. */
 const val MOOD_CARD_ASPECT = 1.72f
 
-/** How much of the card the solid stripe covers before the artwork starts. */
 private const val MOOD_STRIPE_FRACTION = .28f
 
-/**
- * The narrowest a mood card is let get before the row drops a column.
- *
- * Pitched so every phone still gets its two (the widest, 448dp, has room for
- * 1.8 of these), while a tablet or a window lays out as many as fit rather
- * than two cards each half a screen wide.
- */
 private val MOOD_MIN_CARD_WIDTH = 220.dp
 
 private const val MOOD_MAX_COLUMNS = 6

@@ -55,29 +55,6 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlin.math.roundToInt
 
-/**
- * The menu a *held* item lifts into, in the shape Apple Music uses: the item
- * itself pops out of its list, the page behind it blurs, and the actions hang
- * off it.
- *
- * What lifts is the item exactly as it was drawn — see [HeldItem] — so a
- * grid tile comes up as that tile and a search row as that row. It sits on a
- * frosted plate so it reads as picked up rather than pasted over the blur.
- *
- * Only a hold opens this. The ⋮ opens the same actions hung off itself instead
- * (see [IosMenuPopover]) — the button is already where the finger is, while a
- * hold on the item itself is a gesture about *that item*, answered by lifting
- * it. The ⋮ is left out of the lifted picture: see [leftOutOfHeldPicture].
- *
- * [item] and [held] come and go together: non-null while the menu is wanted,
- * null once anything has closed it. The last pair is kept here so the menu can
- * play its way back into the list after the caller has already let go of it.
- *
- * Both of the app's accessibility switches are honoured: "Reduce animation"
- * (or the system's animator scale at zero) turns the lift into a short fade
- * with nothing moving, and "Reduce dynamic blur" swaps the blurred page for a
- * plain dimming scrim, which is also the cost that setting exists to remove.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun <T : Any> HeldContextMenu(
@@ -85,7 +62,6 @@ fun <T : Any> HeldContextMenu(
     held: HeldItem?,
     hazeState: HazeState,
     onDismiss: () -> Unit,
-    /** Tapping the lifted item — open what it stands for. Null leaves it inert. */
     onPreviewClick: ((T) -> Unit)?,
     actions: @Composable (T) -> Unit,
 ) {
@@ -116,8 +92,6 @@ fun <T : Any> HeldContextMenu(
                 if (reduceMotion) {
                     tween(durationMillis = 140, easing = LinearEasing)
                 } else {
-                    // Under-damped on purpose: the small overshoot is the "pop"
-                    // of the item coming off the page.
                     spring(dampingRatio = 0.72f, stiffness = 420f)
                 },
             )
@@ -134,14 +108,8 @@ fun <T : Any> HeldContextMenu(
 
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val plain by AppSettings.disableBlendEffects.collectAsStateWithLifecycle()
-    // Plain white or black at half strength, so the blur shows through as
-    // frost rather than the surface greys reading as a flat slab over it. With
-    // no blur behind there is nothing for that to frost, so the plate firms up
-    // to stay legible over the bare scrim.
     val plate = (if (dark) Color.Black else Color.White).copy(alpha = if (reduceDynamicBlur) 0.85f else 0.5f)
     val hairline = if (dark) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.06f)
-    // The scrim does less work when the blur is there to push the page back,
-    // and more when it is the only thing doing it.
     val scrimColor = when {
         reduceDynamicBlur && dark -> Color.Black.copy(alpha = 0.62f)
         reduceDynamicBlur -> Color.Black.copy(alpha = 0.36f)
@@ -150,9 +118,6 @@ fun <T : Any> HeldContextMenu(
     }
     val cardShape = RoundedCornerShape(CARD_RADIUS)
     val platePadding = 8.dp
-    // The picture's corners run parallel to the plate's. It is taken inside
-    // whatever clip the item had, so a card rounded by a parent comes up
-    // square — and a square on a rounded plate reads as cut out of it.
     val pictureShape = RoundedCornerShape(CARD_RADIUS - platePadding)
 
     val insets = WindowInsets.safeDrawing
@@ -162,12 +127,8 @@ fun <T : Any> HeldContextMenu(
         modifier = Modifier
             .fillMaxSize()
             .onGloballyPositioned { overlayOffset = it.positionInWindow() }
-            // Once it is on its way out nothing on it answers any more — a
-            // second tap on a row mid-exit would run its action twice.
             .then(if (open) Modifier else Modifier.pointerInput(Unit) { swallowAll() }),
         content = {
-            // The page, pushed back. One alpha fades the whole of it rather
-            // than a blur radius being animated per frame.
             val backdropAlpha = { progress.value.coerceIn(0f, 1f) }
             Spacer(
                 Modifier
@@ -193,8 +154,6 @@ fun <T : Any> HeldContextMenu(
                         onClick = onDismiss,
                     ),
             )
-            // The held item, on its plate. Sized by the layout below to the
-            // item's own bounds plus the plate's margin.
             Box(
                 Modifier
                     .then(if (reduceMotion) Modifier else Modifier.shadow(20.dp, cardShape, clip = false))
@@ -222,14 +181,10 @@ fun <T : Any> HeldContextMenu(
             }
             Column(
                 Modifier
-                    // Taps between rows land on the menu, not the scrim under it.
                     .pointerInput(Unit) {}
-                    // The same frosted plate the held item sits on, so the
-                    // item and its menu read as one thing lifted off the page.
                     .iosMenuPanel(fillOverride = plate, rimOverride = hairline)
                     .padding(vertical = 8.dp),
             ) {
-                // Added onto the plate, on a dark one only: see [IosMenuPopover].
                 Column(Modifier.additiveChrome(dark && !plain)) {
                     actions(menuItem)
                 }
@@ -246,11 +201,7 @@ fun <T : Any> HeldContextMenu(
 
         val backdrop = measurables[0].measure(Constraints.fixed(width, height))
 
-        // The held item, in this layout's own coordinates.
         val itemBounds = heldItem.bounds.translate(-overlayOffset)
-        // The plate at the item's own size, so at rest the picture on it is
-        // pixel for pixel what was held; a full-width row is then scaled down
-        // just enough for the plate to clear the screen edges.
         val plateW = (itemBounds.width.roundToInt() + pad * 2).coerceAtLeast(1)
         val plateH = (itemBounds.height.roundToInt() + pad * 2).coerceAtLeast(1)
         val card = measurables[1].measure(Constraints.fixed(plateW, plateH))
@@ -264,10 +215,6 @@ fun <T : Any> HeldContextMenu(
             Constraints(minWidth = menuWidth, maxWidth = menuWidth, maxHeight = menuMaxHeight),
         )
 
-        // Where the lifted item rests. It stays where it was held whenever the
-        // menu fits beside it; the menu goes below by preference and above
-        // when the item is low on screen, and only when neither fits does the
-        // item climb to make room.
         val visualLeft = (itemBounds.center.x - visualW / 2f)
             .coerceIn(margin.toFloat(), (width - margin - visualW).coerceAtLeast(margin.toFloat()))
         var visualTop = (itemBounds.center.y - visualH / 2f)
@@ -284,9 +231,6 @@ fun <T : Any> HeldContextMenu(
         val visualCenterX = visualLeft + visualW / 2f
         val visualCenterY = visualTop + visualH / 2f
 
-        // The menu hangs off the item's nearer edge: its start for an item on
-        // the left of the screen, its end for one on the right — a grid's
-        // right-hand column keeps its menu under itself.
         val alignEnd = visualCenterX > width / 2f
         val menuX = (if (alignEnd) visualLeft + visualW - menuWidth else visualLeft).roundToInt()
             .coerceIn(margin, (width - margin - menuWidth).coerceAtLeast(margin))
@@ -296,12 +240,8 @@ fun <T : Any> HeldContextMenu(
             (visualTop - gap - menu.height).roundToInt()
         }
 
-        // The card is placed at its natural size and scaled about its centre,
-        // so its centre is where the visual rectangle's is.
         val cardX = (visualCenterX - plateW / 2f).roundToInt()
         val cardY = (visualCenterY - plateH / 2f).roundToInt()
-        // How far the card travels back to sit over what was held. At rest
-        // in the list it is unscaled, so the picture lands exactly on the item.
         val fromDx = itemBounds.center.x - visualCenterX
         val fromDy = itemBounds.center.y - visualCenterY
 
@@ -319,8 +259,6 @@ fun <T : Any> HeldContextMenu(
                     scaleY = scale
                     translationX = lerp(fromDx, 0f, p)
                     translationY = lerp(fromDy, 0f, p)
-                    // Quick, because it starts over the very item it copies:
-                    // only the plate and shadow arriving are new.
                     alpha = (p * 3f).coerceIn(0f, 1f)
                 }
             }
@@ -328,8 +266,6 @@ fun <T : Any> HeldContextMenu(
                 val p = progress.value
                 alpha = ((p - 0.1f) / 0.9f).coerceIn(0f, 1f)
                 if (!reduceMotion) {
-                    // Grows out of the corner nearest the item, and travels
-                    // with it.
                     transformOrigin = TransformOrigin(
                         pivotFractionX = if (alignEnd) 1f else 0f,
                         pivotFractionY = if (menuBelow) 0f else 1f,

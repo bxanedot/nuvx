@@ -4,12 +4,6 @@ import android.content.SharedPreferences
 import android.os.SystemClock
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Progressive delay throttle for 4-digit PIN verification to mitigate brute-force attempts.
- *
- * Imposes escalating delay between attempts without permanent lockout, ensuring legitimate users
- * can always recover after a cooldown while preventing fast automated enumeration of all 10,000 PINs.
- */
 object TvPinThrottle {
     private var prefs: SharedPreferences? = null
     private val memoryAttempts = ConcurrentHashMap<String, Int>()
@@ -23,41 +17,23 @@ object TvPinThrottle {
     private val memoryLockSince = ConcurrentHashMap<String, Long>()
     private val memoryLockDelay = ConcurrentHashMap<String, Long>()
 
-    /**
-     * Time base for cooldowns. Monotonic, so winding the TV's clock back cannot shorten a wait.
-     * It restarts at boot, which [getDelayRemainingMs] detects and answers with a full wait.
-     */
     private fun monotonicNow(): Long = SystemClock.elapsedRealtime()
 
     fun init(preferences: SharedPreferences) {
         prefs = preferences
     }
 
-    /**
-     * Calculates delay in milliseconds based on consecutive failed attempts.
-     * First 4 attempts have no lockout delay (0s).
-     * Starting at 5 failed attempts:
-     * - 5 attempts: 10 seconds
-     * - 6 attempts: 30 seconds
-     * - 7 attempts: 1 minute
-     * - 8 attempts: 2 minutes
-     * - 9+ attempts: 3 minutes (cap, no permanent lockout)
-     */
     fun calculateDelayMs(failedCount: Int): Long {
         return when {
             failedCount < 5 -> 0L
-            failedCount == 5 -> 10_000L   // 10 seconds
-            failedCount == 6 -> 30_000L   // 30 seconds
-            failedCount == 7 -> 60_000L   // 1 minute
-            failedCount == 8 -> 120_000L  // 2 minutes
-            else -> 180_000L              // 3 minutes (cap)
+            failedCount == 5 -> 10_000L
+            failedCount == 6 -> 30_000L
+            failedCount == 7 -> 60_000L
+            failedCount == 8 -> 120_000L
+            else -> 180_000L
         }
     }
 
-    /**
-     * Formats duration in seconds into human-readable text like Apple
-     * (e.g. "10 seconds", "30 seconds", "1 minute", "2 minutes", "3 minutes").
-     */
     fun formatDuration(seconds: Int): String {
         return when {
             seconds <= 1 -> "1 second"
@@ -69,14 +45,9 @@ object TvPinThrottle {
         }
     }
 
-    /**
-     * Returns remaining delay in milliseconds, or 0 if not currently in cooldown.
-     */
     fun getDelayRemainingMs(key: String, now: Long = monotonicNow()): Long {
         val until = getLockUntil(key)
         if (until == 0L) return 0L
-        // A monotonic clock reading below the one the failure was recorded at means the device
-        // rebooted since, so the deadline is meaningless: make the user wait the full delay again.
         if (now < getLong(key, KEY_LOCK_SINCE_PREFIX, memoryLockSince)) {
             return getLong(key, KEY_LOCK_DELAY_PREFIX, memoryLockDelay)
         }
@@ -84,15 +55,8 @@ object TvPinThrottle {
         return if (remaining > 0L) remaining else 0L
     }
 
-    /**
-     * Returns the number of consecutive failed attempts for [key].
-     */
     fun getFailedAttempts(key: String): Int = getAttempts(key)
 
-    /**
-     * Records a failed attempt for [key], increments failure count, sets cooldown,
-     * and returns the applied delay in milliseconds.
-     */
     fun recordFailure(key: String, now: Long = monotonicNow()): Long {
         val count = getAttempts(key) + 1
         val delayMs = calculateDelayMs(count)
@@ -105,9 +69,6 @@ object TvPinThrottle {
         return delayMs
     }
 
-    /**
-     * Resets throttle state upon successful PIN entry.
-     */
     fun recordSuccess(key: String) {
         reset(key)
     }

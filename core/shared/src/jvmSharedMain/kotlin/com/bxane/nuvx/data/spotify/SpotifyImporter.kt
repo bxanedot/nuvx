@@ -23,13 +23,11 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Single track metadata extracted from a Spotify playlist. */
 data class SpotifyImportTrack(
     val title: String,
     val artist: String,
 )
 
-/** The result of fetching and resolving a Spotify playlist's tracks. */
 data class SpotifyImportResult(
     val title: String,
     val description: String,
@@ -49,13 +47,11 @@ object SpotifyImporter {
         isLenient = true
     }
 
-    /** A Spotify playlist id is 22 base-62 characters. */
     private val PLAYLIST_ID = Regex("""[A-Za-z0-9]{22}""")
 
     private fun isSpotifyHost(host: String) =
         host == "spotify.com" || host.endsWith(".spotify.com")
 
-    /** Parses a raw user string or link into a Spotify playlist ID if valid. */
     fun extractPlaylistId(input: String): String? {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return null
@@ -74,9 +70,6 @@ object SpotifyImporter {
         return segments[playlistIdx + 1].takeIf { PLAYLIST_ID.matches(it) }
     }
 
-    /**
-     * Fetches public Spotify playlist details from Spotify's embed endpoint.
-     */
     suspend fun fetchPlaylistTracks(playlistId: String): Pair<String, List<SpotifyImportTrack>> =
         withContext(Dispatchers.IO) {
             val url = "https://open.spotify.com/embed/playlist/$playlistId"
@@ -93,7 +86,6 @@ object SpotifyImporter {
                 body
             }
 
-            // Extract <script id="__NEXT_DATA__" type="application/json">...</script>
             val scriptRegex = Regex("""<script id="__NEXT_DATA__" type="application/json">(.*?)</script>""", RegexOption.DOT_MATCHES_ALL)
             val match = scriptRegex.find(html)
                 ?: error("Could not parse Spotify playlist metadata. Make sure the playlist is public.")
@@ -137,9 +129,6 @@ object SpotifyImporter {
                 error("No tracks found in public Spotify playlist.")
             }
 
-            // The embed page stops at its first 100 tracks. The web player's
-            // own query, with the anonymous token the embed hands out, pages
-            // through the rest; if it refuses, the 100 already read stand.
             if (tracks.size >= EMBED_TRACK_LIMIT) {
                 val token = props?.get("state")?.jsonObject
                     ?.get("settings")?.jsonObject
@@ -155,11 +144,6 @@ object SpotifyImporter {
             Pair(playlistTitle, tracks)
         }
 
-    /**
-     * The YouTube Music song that is [track], or null if there is none: the
-     * best candidate by title, artist, length and album, and failing that the
-     * search's first hit.
-     */
     suspend fun matchTrack(track: SpotifyTrack): Song? {
         val query = listOf(track.title, track.artist).filter { it.isNotBlank() }.joinToString(" ")
         val candidates = YtMusicRepository.search(query, SearchFilter.SONGS).getOrNull()
@@ -177,13 +161,11 @@ object SpotifyImporter {
         ) ?: candidates.firstOrNull()
     }
 
-    /** Tracks the embed page lists before it cuts off. */
     private const val EMBED_TRACK_LIMIT = 100
     private const val PAGE_SIZE = 100
     private const val PATHFINDER_URL = "https://api-partner.spotify.com/pathfinder/v1/query"
     private const val FETCH_PLAYLIST_HASH = "19ff1327c29e99c208c86d7a9d8f1929cfdf3d3202a0ff4253c821f1901aa94d"
 
-    /** Tracks from [start] to the end of the playlist, a page at a time. */
     private fun fetchRemainingTracks(
         playlistId: String,
         token: String,
@@ -231,11 +213,6 @@ object SpotifyImporter {
         return out
     }
 
-    /**
-     * Resolves a list of Spotify tracks to full Song objects using Innertube search.
-     * Optionally filters or prioritizes matches by specified [language].
-     * Reports real-time progress via [onProgress].
-     */
     suspend fun resolveToSongs(
         tracks: List<SpotifyImportTrack>,
         language: String? = null,
@@ -243,7 +220,7 @@ object SpotifyImporter {
     ): Pair<List<Song>, List<SpotifyImportTrack>> = coroutineScope {
         val total = tracks.size
         val completedCount = AtomicInteger(0)
-        val semaphore = Semaphore(4) // Bounded concurrency for search queries
+        val semaphore = Semaphore(4)
 
         val cleanLang = language?.trim()?.takeIf {
             !it.equals("No Preference", ignoreCase = true) &&

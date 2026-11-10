@@ -265,12 +265,10 @@ class OutputNegotiatorTest {
             requestedMode = OutputPcmMode.PCM_16,
         )
 
-        // Internal DSP MUST remain canonical Float32
         assertEquals("Float32", result.dsp.format)
         assertEquals(96000, result.dsp.sampleRateHz)
         assertEquals(2, result.dsp.channelCount)
 
-        // AudioTrack output encoding MUST strictly honor 16-bit PCM request
         assertEquals(TransportType.AUDIO_TRACK, result.output.transport)
         assertEquals(PcmEncoding.PCM_16BIT, result.output.encoding)
         assertEquals(FallbackReason.NONE, result.output.fallbackReason)
@@ -318,7 +316,6 @@ class OutputNegotiatorTest {
 
     @Test
     fun transitionsBetweenPcm16AndFloat32KeepDspAsFloat32() {
-        // Mode 1: PCM16 requested
         val pcm16Result = OutputNegotiator.negotiate(
             source = flac96kHz24BitSource,
             decoderName = "c2.android.flac.decoder",
@@ -334,7 +331,6 @@ class OutputNegotiatorTest {
         assertEquals("Float32", pcm16Result.dsp.format)
         assertEquals(PcmEncoding.PCM_16BIT, pcm16Result.output.encoding)
 
-        // Mode 2: Switch to Float32 requested
         val floatResult = OutputNegotiator.negotiate(
             source = flac96kHz24BitSource,
             decoderName = "c2.android.flac.decoder",

@@ -1,11 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// nuvx: AutoMix picks every next track from a local library. Here the
-// queue decides what comes next, as on the phone, and only the playing and
-// the next song are analysed, so AutoMix's selector isn't used. Tracks
-// are analyzed from YouTube on the way (analysis/analyzer.ts); a track whose
-// analysis isn't ready in time mixes through AutoMix's own fallback, a plain
-// 12-second equal-power crossfade. The handoff to the incoming track happens
-// at the blend's midpoint, where the phone's CrossfadeController hands over.
 import type { TrackAnalysis } from '../analysis/types';
 import { analyzer } from '../analysis/analyzer';
 import type { Deck } from './deck';
@@ -34,34 +27,17 @@ export interface QueuedTrack {
   artist: string;
 }
 
-/** What the player gives the mix loop: its decks and its queue. */
 export interface AutomixHost {
   ctx: AudioContext;
-  /** The deck in front (the one the app shows and controls). */
   front(): Deck;
   back(): Deck;
-  /** The track in front, if one is playing. */
   current(): QueuedTrack | null;
-  /** What the queue plays next on its own (repeat and AutoPlay applied), or null at the end. */
   next(): QueuedTrack | null;
-  /** Loads [videoId] onto the back deck, paused. Resolves false if it can't play. */
   loadBack(videoId: string): Promise<boolean>;
-  /** The blend's midpoint: the incoming track becomes the one playing, as far as the app knows. */
   handoff(): void;
-  /** The blend is over: the old deck can let go of its track. */
   finished(): void;
-  /** nuvx: the two stretch decks the loop mix plays on (built on first use). */
   loopDecks(): Promise<[LoopDeck, LoopDeck]>;
-  /**
-   * nuvx: where [videoId] is sung, from its synced lyrics; null when it
-   * has none. The loop mix never loops a sung word, and these are its truest
-   * answer (the vocal mask is the fallback).
-   */
   sungSpans(videoId: string): Promise<SungSpans | null>;
-  /**
-   * nuvx: while a loop mix runs, the elements are paused and started by
-   * the mix, not the user; the player must not read that as a pause or an end.
-   */
   hold(on: boolean): void;
 }
 
@@ -71,21 +47,12 @@ export interface AutoDJSnapshot {
   nextKey: string | null;
   nextLoaded: boolean;
   candidates: Candidate[];
-  /** AudioContext time of the next blend start, when scheduled. */
   transitionAt: number | null;
   transitionDuration: number | null;
   plan: TransitionPlan | null;
-  /**
-   * The stretch of the playing (outgoing) track the next blend covers, in its
-   * own seconds: planned while it is ahead, the real one once scheduled. For
-   * the seek bar's highlight, as on the phone.
-   */
   window: MixWindow | null;
-  /** Seconds until the blend starts (negative once it has), when scheduled. */
   startsInSec: number | null;
-  /** The outgoing track's beat at the rate it plays, for a pulse in time with the blend; null without a grid. */
   beatSec: number | null;
-  /** nuvx: the loop mix planned or running, for stats for nerds. */
   loop: LoopMixPlan | null;
 }
 
@@ -96,19 +63,11 @@ export interface MixWindow {
 }
 
 const PRELOAD_WINDOW_SEC = 60;
-/** nuvx: the loop mix is prepared (bars chosen, decks loaded) from this far before the end. */
 const LOOP_PREPARE_SEC = OUT_SEARCH_SEC + 40;
-/** nuvx: the outgoing loop starts at least this far ahead of the playhead when it's planned. */
 const LOOP_SETUP_SEC = 15;
 const SCHEDULE_WINDOW_SEC = 12;
 const EMERGENCY_REMAINING_SEC = 10;
 
-/**
- * The auto-mix loop: preload the queue's next track into the idle deck as
- * the mix-out point approaches, schedule the blend, flip decks, repeat. All
- * timing decisions read the active deck's timeline; the tick only decides,
- * the Web Audio clock executes.
- */
 export class AutoDJ {
   transitionBars = 16;
 
@@ -120,15 +79,12 @@ export class AutoDJ {
   private candidates: Candidate[] = [];
   private plan: TransitionPlan | null = null;
   private blend: { from: Deck; to: Deck; handedOff: boolean } | null = null;
-  /** The deck a finished blend left gliding back to rate 1. */
   private settling: Deck | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private ticking = false;
   private loadToken = 0;
   private window: MixWindow | null = null;
-  /** Both songs of the coming mix are analysed (the seek bar shows nothing until they are). */
   private bothAnalyzed = false;
-  /** nuvx: the loop mix for the coming pair, once its bars are chosen and loaded on the decks. */
   private loopPlan: LoopMixPlan | null = null;
   private loopPreparing: string | null = null;
   private loopTimes: LoopMixTimes | null = null;
@@ -158,11 +114,6 @@ export class AutoDJ {
     };
   }
 
-  /**
-   * Where [videoId] is right now in its own seconds while a loop mix plays it
-   * from a deck (looping, at the ramped tempo); null when its element is
-   * what's playing it. The lyrics, the seek bar and a cancelled mix read this.
-   */
   mixPlayhead(videoId: string): number | null {
     const plan = this.loopPlan;
     const times = this.loopTimes;
@@ -171,10 +122,6 @@ export class AutoDJ {
     return side ? mixPositionAt(plan, times, side, this.host.ctx.currentTime) : null;
   }
 
-  /**
-   * The running mix's beat, for the seek bar's pulse: [phase] 0 on the beat,
-   * rising to 1; null phase when the tempo isn't known. Null between mixes.
-   */
   mixBeat(): { phase: number | null } | null {
     if (this.state !== 'scheduled' || !this.plan) return null;
     const now = this.host.ctx.currentTime;
@@ -190,12 +137,10 @@ export class AutoDJ {
     return { phase: x - Math.floor(x) };
   }
 
-  /** True while a loop mix runs: both elements are held paused and the decks carry the sound. */
   get loopMixing(): boolean {
     return this.state === 'scheduled' && this.loopTimes !== null;
   }
 
-  /** True between scheduling a blend and its handoff: the back deck carries the next track. */
   get mixing(): boolean {
     return this.state === 'scheduled';
   }
@@ -216,20 +161,13 @@ export class AutoDJ {
     this.push();
   }
 
-  /**
-   * The user took over (pause, seek, another track): drop the blend and the
-   * preloaded deck. The deck in front plays on, at full volume and rate 1
-   * once the glide is gone.
-   */
   cancel(): void {
     this.loadToken++;
     if (this.loopTimes && this.blend && this.loopDecks) {
-      // Settle onto the song that's ahead in the mix, where its deck is now.
       const [outDeck, inDeck] = this.loopDecks;
       const onIncoming = this.blend.handedOff;
       const keep = onIncoming ? this.blend.to : this.blend.from;
       const drop = onIncoming ? this.blend.from : this.blend.to;
-      // where the song really is in the mix (the deck's own report lags and starts stale)
       const at =
         this.mixPlayhead((onIncoming ? this.loopPlan?.in.key : this.loopPlan?.out.key) ?? '') ??
         (onIncoming ? this.loopTimes.elementTrackTime : this.loopPlan?.out.loop[0]) ??
@@ -263,7 +201,6 @@ export class AutoDJ {
     this.push();
   }
 
-  /** The outgoing track ran out before the midpoint (a stalled stream): hand over now. */
   forceHandoff(): boolean {
     if (!this.blend || this.blend.handedOff) return false;
     this.blend.handedOff = true;
@@ -296,7 +233,6 @@ export class AutoDJ {
       const front = this.host.front();
       if (!playing || !front.isPlaying) return;
       if (playing.videoId !== this.currentKey) {
-        // A new track in front that this loop didn't mix in (a tap, a skip).
         this.currentKey = playing.videoId;
         this.nextKey = null;
         this.nextLoadedKey = null;
@@ -322,14 +258,8 @@ export class AutoDJ {
         this.loadToken++;
       }
       analyzer.request(queued.videoId, tags(queued), true);
-      // and the playing track ahead of it, if it's still waiting: its mix-out comes first
       analyzer.request(playing.videoId, tags(playing), true);
 
-      // nuvx, as the phone: only with both songs analysed is there a mix
-      // to plan. Until then nothing is drawn on the seek bar, and if they
-      // aren't ready in time the song plays to its end and crossfades there
-      // (a stub has no grid and no outro, so AutoMix's fallback lands at the
-      // last 12 s) rather than cutting away mid-song.
       this.bothAnalyzed = this.currentAnalysis() !== null && analyzer.get(queued.videoId) !== null;
       const cur = asOutgoing(
         this.bothAnalyzed ? this.currentAnalysis()! : stubAnalysis(playing, front.durationSec),
@@ -358,20 +288,18 @@ export class AutoDJ {
     }
   }
 
-  /** Output seconds until the natural blend start on the active deck. */
   private timeToMixOut(cur: TrackAnalysis): number {
     const front = this.host.front();
     const now = this.host.ctx.currentTime;
     const pos = front.expectedTrackTime ?? 0;
     if (this.loopPlan && this.loopPlan.out.loop[0] > pos + 1) {
-      // the loop mix starts where the outgoing loop does; that's the stretch the seek bar shows
       const [start, end] = this.loopPlan.out.loop;
       this.window = { videoId: cur.fileKey, startSec: start, endSec: end };
       this.beatSec = this.loopPlan.out.beatSec;
       const t0 = front.timeline.ctxTimeAt(start, now);
       return t0 === null ? 0 : Math.max(0, t0 - now);
     }
-    if (this.loopPlan) this.loopPlan = null; // the playhead went past it
+    if (this.loopPlan) this.loopPlan = null;
     const grid = gridOf(cur);
     if (!grid || cur.gridConfidence < MIN_GRID_CONFIDENCE) {
       const target = (cur.outroStartSec ?? cur.durationSec) - 12;
@@ -382,7 +310,6 @@ export class AutoDJ {
     const outRate = front.timeline.rateAt(now) || 1;
     const effBpm = grid.bpm * outRate;
     const next = this.nextKey ? analyzer.get(this.nextKey) : null;
-    // the same length the scheduler will choose for this pair (a filter mix runs longer than a weak-grid blend)
     const bars = plannedBars(this.transitionBars, cur, next ?? null, outRate);
     const blendOutputSec = bars * 4 * (60 / effBpm);
     const blendInputSec = blendOutputSec * outRate;
@@ -403,7 +330,7 @@ export class AutoDJ {
   private async loadNext(videoId: string): Promise<void> {
     const token = ++this.loadToken;
     const ok = await this.host.loadBack(videoId);
-    if (token !== this.loadToken) return; // superseded by cancel() or a newer load
+    if (token !== this.loadToken) return;
     if (ok) this.nextLoadedKey = videoId;
     else this.nextKey = null;
   }
@@ -414,7 +341,6 @@ export class AutoDJ {
     const from = this.host.front();
     const to = this.host.back();
     const next = (this.bothAnalyzed ? analyzer.get(this.nextKey) : null) ?? stubAnalysis(queued, to.durationSec);
-    // The outgoing deck runs free (only its scheduled stop applies); the incoming one follows it.
     to.lock(from);
     to.setVolume(1);
     to.eq.reset();
@@ -440,11 +366,6 @@ export class AutoDJ {
     this.onTransition?.(cur, next, this.plan, this.transitionBars);
   }
 
-  /**
-   * nuvx: picks the bars to loop and loads both decks, in the background
-   * while the song plays. Decodes each song once (from the bytes the analysis
-   * kept) and holds only the stretch each deck plays.
-   */
   private async prepareLoopMix(cur: TrackAnalysis, next: TrackAnalysis): Promise<void> {
     const key = `${cur.fileKey}>${next.fileKey}`;
     if (this.loopPreparing === key) return;
@@ -478,7 +399,6 @@ export class AutoDJ {
     }
   }
 
-  /** nuvx: puts the loop mix on the clock: the outgoing element hands over at its loop start. */
   private async scheduleLoop(cur: TrackAnalysis): Promise<void> {
     const plan = this.loopPlan!;
     const queued = this.host.next();
@@ -499,13 +419,11 @@ export class AutoDJ {
     const times = scheduleLoopMix(plan, outDeck, inDeck, t0);
     this.host.hold(true);
 
-    // the outgoing element hands its sound to the deck at the loop start, then pauses
     const og = from.gain.gain;
     og.cancelScheduledValues(now);
     og.setValueAtTime(1, t0 - 0.025);
     og.linearRampToValueAtTime(0, t0);
     from.pauseAt(t0 + 0.06);
-    // the incoming element starts unheard 1.5 s early, held to the deck's clock, and takes over
     const ig = to.gain.gain;
     ig.cancelScheduledValues(now);
     ig.setValueAtTime(0, now);
@@ -545,8 +463,6 @@ export class AutoDJ {
       if (!blend.handedOff) this.host.handoff();
       blend.from.cancel();
       blend.to.unfollow();
-      // the incoming deck keeps its rate glide (posted up to ~24 s ahead); it
-      // releases itself once that is played out
       this.settling = blend.to;
       releaseWhenSettled(blend.to, () => this.settling === blend.to);
       this.host.finished();
@@ -574,7 +490,6 @@ function tags(t: QueuedTrack) {
   return { title: t.title, artist: t.artist };
 }
 
-/** A track with no analysis yet: no grid, so the scheduler takes AutoMix's plain-crossfade fallback. */
 function stubAnalysis(t: QueuedTrack, durationSec: number): TrackAnalysis {
   return {
     fileKey: t.videoId,
@@ -596,7 +511,6 @@ function stubAnalysis(t: QueuedTrack, durationSec: number): TrackAnalysis {
   };
 }
 
-/** The glide's last step lands at blend end + 24 s; hold the servo until no rate change is left ahead. */
 function releaseWhenSettled(deck: Deck, isCurrent: () => boolean) {
   const check = () => {
     if (!isCurrent()) return;

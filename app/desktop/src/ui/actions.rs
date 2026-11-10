@@ -1,5 +1,3 @@
-//! What clicks and keys ask for: the actions pages queue up, and keyboard shortcuts.
-
 use std::time::Duration;
 
 use crate::backend::Req;
@@ -11,7 +9,6 @@ use super::{Action, App, Dialog, LibTab, NpTab, Page, jam, transfer};
 
 impl App {
     pub(super) fn apply(&mut self, a: Action) {
-        // In someone else's jam, playback changes become requests to the host.
         let a = if self.jam.guest() {
             match jam::guest_action(self, a) {
                 Some(a) => a,
@@ -20,15 +17,12 @@ impl App {
         } else {
             a
         };
-        // The first result opened after a search is what Recently Searched remembers.
         self.remember_search_click(&a);
         match a {
-            // Clicking the song that's already playing pauses/resumes it, not restart it.
             Action::Play(tracks, i) if tracks.get(i).is_some_and(|t| self.current_id() == Some(t.id.as_str())) && self.resume_at.is_none() => {
                 self.toggle()
             }
             Action::Play(tracks, i) => {
-                // Play buttons and rows live on the page they play from.
                 self.queue_source = match &self.page {
                     Page::Album(id) => Some(Target::Album(id.clone())),
                     Page::Playlist(id) => Some(Target::Playlist(id.clone())),
@@ -36,7 +30,6 @@ impl App {
                     Page::Artist(id) => Some(Target::Artist(id.clone())),
                     _ => None,
                 };
-                // All of a playlist that's still coming in, in order or shuffled: the rest follows.
                 let fill = self.page_list().filter(|id| self.receiving(id)).and_then(|id| {
                     let o = self.opened(id).filter(|o| o.c.tracks.len() == tracks.len())?;
                     Some(QueueFill { id: id.to_owned(), load: o.load, shuffled: o.c.tracks.iter().zip(&tracks).any(|(a, b)| a.id != b.id), ran_out: false })
@@ -45,7 +38,6 @@ impl App {
             }
             Action::TogglePlay => self.toggle(),
             Action::TransferPick(t) => transfer::use_pick(self, t),
-            // Kept already: at once. A playlist that isn't starts with its first page.
             Action::PlayCollection(Target::Album(id) | Target::Playlist(id), shuffle) if self.opened(&id).is_some() => self.play_opened(id, shuffle),
             Action::PlayCollection(target, shuffle) => {
                 self.toast("Starting playback…");
@@ -105,7 +97,6 @@ impl App {
                     self.toast("Sign in to like songs");
                     return;
                 }
-                // Optimistic: update the like state and the cached Liked songs list now.
                 self.set_liked(std::slice::from_ref(&t), like);
                 self.backend.request(Req::Like { video_id: t.id, like });
             }
@@ -119,12 +110,9 @@ impl App {
                 if like {
                     self.set_liked(&tracks, true);
                 } else {
-                    // Unlikes go a few a second (YouTube Music drops faster ones): each song
-                    // leaves the list when its unlike goes through, not all at once.
                     self.unliking.extend(tracks.iter().map(|t| (t.id.clone(), t.clone())));
                 }
                 if tracks.len() > 10 {
-                    // One at a time, then checked: a few hundred take a few minutes.
                     self.toast(format!("{} {} songs…", if like { "Liking" } else { "Removing likes from" }, tracks.len()));
                 }
                 self.backend.request(Req::LikeMany { video_ids: tracks.into_iter().map(|t| t.id).collect(), like });
@@ -140,7 +128,6 @@ impl App {
             }
             Action::Download(track) => {
                 self.toast(format!("Downloading \u{201c}{}\u{201d}", track.title));
-                // The song version playing for a music video: that video plays the file too.
                 let for_video = if self.playing_as().is_some_and(|s| s.id == track.id) { self.current_id().map(str::to_owned) } else { None };
                 self.backend.request(Req::Download { track, for_video });
             }
@@ -163,7 +150,6 @@ impl App {
                 }
                 let items: Vec<(String, String)> = rows.iter().map(|&i| (c.tracks[i].id.clone(), c.set_ids[i].clone().unwrap_or_default())).collect();
                 let playlist = c.id.clone();
-                // Optimistic: drop the rows now; the playlist reloads once YouTube confirms.
                 c.remove_rows(&rows);
                 log::debug!("list {playlist}: removing {} entries", items.len());
                 self.lists.edits.remove(&playlist, items.iter().map(|(_, set)| set.clone()));
@@ -206,8 +192,6 @@ impl App {
             }
             Action::Mini(on) => self.mini.request(on),
             Action::RevertQuality => {
-                // Mark the playing stream's id (a song version differs from the listed id)
-                // so resolve skips hi-res for it, then replay at the same position.
                 let listed = self.current_id().map(str::to_owned);
                 let playing = self.playing_track().map(|t| t.id.clone()).or(listed.clone());
                 let Some(id) = playing else { return };
@@ -234,12 +218,8 @@ impl App {
 
     pub(super) fn shortcuts(&mut self, ctx: &egui::Context) {
         let typing = ctx.egui_wants_keyboard_input();
-        // In a text box, Ctrl+arrows move the cursor by words (and lines) instead; on a
-        // focused button or slider they still skip and change the volume.
         let editing = ctx.text_edit_focused();
         let i = ctx.input(|i| {
-            // Letters only give way to a text box (a focused button doesn't type), and not
-            // with Ctrl: Ctrl+F is search, not full screen.
             let k = |key| !editing && !i.modifiers.command && i.key_pressed(key);
             let ctrl = |key| !editing && i.modifiers.ctrl && i.key_pressed(key);
             (
@@ -256,13 +236,11 @@ impl App {
                 i.key_pressed(egui::Key::Escape),
                 ctrl(egui::Key::ArrowUp),
                 ctrl(egui::Key::ArrowDown),
-                // Once per press: holding it doesn't flip back and forth.
                 i.events.iter().any(|e| matches!(e, egui::Event::Key { key: egui::Key::M, pressed: true, repeat: false, modifiers, .. } if modifiers.ctrl)),
                 i.modifiers.command && i.key_pressed(egui::Key::F),
             )
         });
         let (space, back, fwd, next, prev, lyr, queue, full, esc, vol_up, vol_down, mini, find) = i;
-        // Ctrl+F from any page: to Search, with the box focused (see `search_field`).
         if find && !self.mini.busy() {
             if !matches!(self.page, Page::Search(_)) {
                 self.actions.push(Action::Go(Page::Search(String::new())));
@@ -273,8 +251,6 @@ impl App {
         if mini {
             self.actions.push(Action::Mini(!self.mini.target()));
         }
-        // The mini player has no pages or now playing to go to, nor does a window on
-        // its way back until it's there.
         let (back, fwd, lyr, queue, full, esc) = if self.mini.busy() { (false, false, false, false, false, false) } else { (back, fwd, lyr, queue, full, esc) };
         if space {
             self.toggle();
@@ -316,7 +292,6 @@ impl App {
         }
     }
 
-    /// Into the mini player or back. Full screen ends first, a frame ahead.
     pub(super) fn set_mini(&mut self, ctx: &egui::Context, on: bool, now: f64) {
         if on == self.mini.active() {
             return;
@@ -331,7 +306,6 @@ impl App {
 
     pub(super) fn set_fullscreen(&mut self, ctx: &egui::Context, on: bool) {
         self.fullscreen = on;
-        // Windows: in one step, without winit's unthemed-frame flash.
         if !crate::fullscreen::set(on) {
             ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(on));
         }

@@ -6,11 +6,6 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-/**
- * The parts of `androidx.core.graphics.ColorUtils` the artwork code uses,
- * ported as written so the phone's numbers do not move: HSL both ways and
- * relative luminance. Colours are packed ARGB ints, as there.
- */
 object ColorUtils {
 
     fun colorToHSL(color: Int, outHsl: FloatArray) {
@@ -107,12 +102,10 @@ object ColorUtils {
         return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
     }
 
-    /** Relative luminance, 0 for black and 1 for white. */
     fun calculateLuminance(color: Int): Double {
         val sr = linear(((color shr 16) and 0xFF) / 255.0)
         val sg = linear(((color shr 8) and 0xFF) / 255.0)
         val sb = linear((color and 0xFF) / 255.0)
-        // The Y of XYZ, which is what ColorUtils returns (divided back out of 100).
         return (100 * (sr * 0.2126 + sg * 0.7152 + sb * 0.0722)) / 100
     }
 

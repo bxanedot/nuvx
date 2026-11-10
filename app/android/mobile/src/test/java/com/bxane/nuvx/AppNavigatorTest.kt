@@ -10,14 +10,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * The app's one back stack, with a list standing in for the view model's
- * release pages.
- *
- * The cases are the ones the old per-page flags got wrong: a page opened from
- * a route has to come back to that route, and a route opened over a page has
- * to come back to that page, however deep the two are interleaved.
- */
 class AppNavigatorTest {
     private val releases = mutableListOf<String>()
     private lateinit var navigator: AppNavigator
@@ -70,7 +62,6 @@ class AppNavigatorTest {
         releases += "album"
         navigator.push(AppRoute.Settings)
         assertEquals(AppRoute.Settings, navigator.visibleRoute())
-        // Already on screen: a second tap on the account button stays put.
         navigator.push(AppRoute.Settings)
         assertEquals(1, navigator.entries.size)
 
@@ -85,7 +76,6 @@ class AppNavigatorTest {
     fun aReleaseRemovedUnderARouteDoesNotHideTheNextOne() {
         releases += "playlist"
         navigator.push(AppRoute.History)
-        // Deleted from under the route, not popped.
         releases.clear()
         navigator.onDetailStackShrunk(0)
 

@@ -1,18 +1,3 @@
-//! Settings › Network › Proxy. Everything nuvx fetches goes through one setting:
-//! the API and song streams, lyrics, translation, updates, the Spotify transfer,
-//! yt-dlp, the sign-in windows and Listen together.
-//!
-//! - System: whatever Windows is set to (Settings › Network › Proxy), else the
-//!   `HTTPS_PROXY`/`HTTP_PROXY` environment variables, else direct.
-//! - Off: always direct.
-//! - Custom: `http://host:port` or `socks5://host:port`, optionally `user:pass@`.
-//!
-//! Streams and the requests that resolve them must leave from the same address (a
-//! stream URL is tied to the IP that asked for it), which one setting for everything
-//! guarantees. The setting is read once at launch; a change applies after a restart.
-//! The mode lives in `<data dir>/proxy`; a custom URL can carry a password, so it's
-//! kept in the credential store.
-
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -37,7 +22,6 @@ impl Setting {
         }
     }
 
-    /// The proxy this setting sends traffic through right now, if any.
     pub fn resolve(&self) -> Option<url::Url> {
         match self {
             Setting::Off => None,
@@ -47,13 +31,11 @@ impl Setting {
     }
 }
 
-/// Environment variable that hands the setting to child processes (sign-in windows).
 const CHILD_ENV: &str = "NUVX_PROXY_CHILD";
 const VAULT: &str = "proxy";
 
 static ACTIVE: OnceLock<Setting> = OnceLock::new();
 
-/// Read the setting once at launch (child processes take their parent's).
 pub fn init(data_dir: &Path) {
     let s = match std::env::var(CHILD_ENV) {
         Ok(v) if v == "off" => Setting::Off,
@@ -67,7 +49,6 @@ pub fn init(data_dir: &Path) {
     let _ = ACTIVE.set(s);
 }
 
-/// The setting in effect for this run.
 pub fn active() -> &'static Setting {
     ACTIVE.get_or_init(Setting::default)
 }
@@ -97,10 +78,8 @@ pub fn save(data_dir: &Path, s: &Setting) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Check a custom proxy URL: scheme, host and port.
 pub fn parse(s: &str) -> anyhow::Result<url::Url> {
     let s = s.trim();
-    // "host:port" alone means an HTTP proxy, as Windows writes it.
     let full = if s.contains("://") { s.to_owned() } else { format!("http://{s}") };
     let u = url::Url::parse(&full).map_err(|_| anyhow::anyhow!("that isn't a proxy address, like http://127.0.0.1:8080"))?;
     anyhow::ensure!(matches!(u.scheme(), "http" | "https" | "socks5" | "socks5h"), "use an http:// or socks5:// address");
@@ -109,7 +88,6 @@ pub fn parse(s: &str) -> anyhow::Result<url::Url> {
     Ok(u)
 }
 
-/// The URL with any password hidden, for logs and the settings page.
 pub fn redact(u: &url::Url) -> String {
     let host = u.host_str().unwrap_or_default();
     let port = u.port_or_known_default().map(|p| format!(":{p}")).unwrap_or_default();
@@ -121,18 +99,13 @@ pub fn redact(u: &url::Url) -> String {
     format!("{}://{user}{host}{port}", u.scheme())
 }
 
-/// Route a client through the active setting.
 pub fn apply(b: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
     apply_with(b, active())
 }
 
-/// Tor gives each SOCKS username a circuit of its own, so a new name is a new exit.
-/// 0 = no name (the proxy's own choice).
 static CIRCUIT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 static HTTP: std::sync::RwLock<Option<reqwest::Client>> = std::sync::RwLock::new(None);
 
-/// The client for YouTube Music and its streams. It's rebuilt when `new_circuit`
-/// picks another exit: pooled connections would otherwise stay on the old one.
 pub fn http() -> reqwest::Client {
     if let Some(c) = HTTP.read().unwrap().as_ref() {
         return c.clone();
@@ -151,22 +124,16 @@ fn build_for(n: u32) -> reqwest::Client {
     };
     b.connect_timeout(Duration::from_secs(if active().resolve().is_some() { 15 } else { 5 }))
         .pool_idle_timeout(Duration::from_secs(30))
-        // A server that stops sending mid-response; streams have their own, tighter check.
         .read_timeout(Duration::from_secs(30))
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36")
         .build()
         .unwrap_or_default()
 }
 
-/// Whether the proxy can be asked for another exit: a SOCKS proxy without a sign-in
-/// of its own, i.e. Tor (which isolates circuits by username).
 pub fn can_switch_exit() -> bool {
     active().resolve().is_some_and(|p| p.scheme().starts_with("socks") && p.username().is_empty())
 }
 
-/// Move to an exit where YouTube Music is offered (it isn't where the current one
-/// is). Asks for a few circuits at once and keeps the first that works; false when
-/// the proxy can't switch or none of them did.
 pub async fn new_circuit(available: impl AsyncFn(&reqwest::Client) -> bool) -> bool {
     use std::sync::atomic::Ordering::Relaxed;
     const AT_ONCE: u32 = 4;
@@ -204,13 +171,10 @@ fn apply_with(b: reqwest::ClientBuilder, s: &Setting) -> reqwest::ClientBuilder 
             }
         },
         (Setting::Off, None) => b.no_proxy(),
-        // System with nothing set in Windows: reqwest still honours HTTPS_PROXY & co.
         _ => b,
     }
 }
 
-/// Hand the active setting to a child process (the sign-in windows). A proxy the
-/// webview can't use itself goes through the local relay instead.
 pub fn pass_to(cmd: &mut std::process::Command) {
     let v = match (active(), RELAY.get()) {
         (Setting::Custom(_), Some(port)) => format!("http://127.0.0.1:{port}"),
@@ -223,15 +187,10 @@ pub fn pass_to(cmd: &mut std::process::Command) {
 
 static RELAY: OnceLock<u16> = OnceLock::new();
 
-/// Whether the sign-in windows need the relay: Chromium can't sign in to a SOCKS
-/// proxy at all, and for an HTTP one it would ask in a box of its own.
 pub fn needs_relay() -> bool {
     matches!(active(), Setting::Custom(_)) && active().resolve().is_some_and(|p| !p.username().is_empty() || p.scheme().starts_with("socks") || p.scheme() == "https")
 }
 
-/// A local, password-free HTTP proxy (CONNECT only) on a random loopback port that
-/// forwards through the custom proxy with its credentials. Runs on the caller's
-/// tokio runtime for the life of the app.
 pub async fn start_relay() -> anyhow::Result<u16> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
@@ -276,15 +235,10 @@ async fn relay_one(client: &mut TcpStream) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// A sign-in window's webview. WebView2 follows Windows' proxy by itself, so only a
-/// custom proxy, or none at all, needs saying. (Chromium takes no password here: an
-/// authenticated proxy asks for it in the window.) `unbound`: no device-bound sessions
-/// (see `login::run`).
 pub fn webview(b: wry::WebViewBuilder<'_>, unbound: bool) -> wry::WebViewBuilder<'_> {
     #[cfg(windows)]
     {
         use wry::WebViewBuilderExtWindows;
-        // wry's own defaults, which these arguments replace.
         const DEFAULT: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
         let features = if unbound { format!("{DEFAULT},DeviceBoundSessions,EnableBoundSessionCredentials") } else { DEFAULT.to_owned() };
         match (active(), active().resolve()) {
@@ -303,7 +257,6 @@ pub fn webview(b: wry::WebViewBuilder<'_>, unbound: bool) -> wry::WebViewBuilder
     b
 }
 
-/// For yt-dlp: `--proxy <url>`, or `--proxy ""` (direct) when the proxy is off.
 pub fn ytdlp_args() -> Vec<String> {
     match (active(), active().resolve()) {
         (_, Some(p)) => vec!["--proxy".into(), p.to_string()],
@@ -312,8 +265,6 @@ pub fn ytdlp_args() -> Vec<String> {
     }
 }
 
-/// A TCP connection to `host:port`, through the active proxy when there is one.
-/// Used for Listen together's WebSocket, which reqwest doesn't carry.
 pub async fn connect(host: &str, port: u16) -> anyhow::Result<TcpStream> {
     let Some(p) = active().resolve().or_else(env_proxy) else {
         return Ok(TcpStream::connect((host, port)).await?);
@@ -338,7 +289,6 @@ async fn http_connect(s: &mut TcpStream, p: &url::Url, host: &str, port: u16) ->
     }
     req += "\r\n";
     s.write_all(req.as_bytes()).await?;
-    // Read the response head byte by byte, so nothing past it is consumed.
     let mut head = Vec::new();
     while !head.ends_with(b"\r\n\r\n") {
         anyhow::ensure!(head.len() < 8192, "proxy sent an oversized response");
@@ -376,7 +326,6 @@ async fn socks5(s: &mut TcpStream, p: &url::Url, host: &str, port: u16) -> anyho
     let mut head = [0u8; 4];
     s.read_exact(&mut head).await?;
     anyhow::ensure!(head[1] == 0, "the SOCKS proxy couldn't connect (code {})", head[1]);
-    // Skip the bound address it reports.
     let skip = match head[3] {
         1 => 4,
         4 => 16,
@@ -392,7 +341,6 @@ fn percent(s: &str) -> String {
     url::form_urlencoded::parse(format!("x={s}").as_bytes()).next().map(|(_, v)| v.into_owned()).unwrap_or_default()
 }
 
-/// `HTTPS_PROXY`/`HTTP_PROXY`, which reqwest honours by itself; Listen together reads them here.
 fn env_proxy() -> Option<url::Url> {
     if matches!(active(), Setting::Off) {
         return None;
@@ -403,8 +351,6 @@ fn env_proxy() -> Option<url::Url> {
         .and_then(|v| parse(&v).ok())
 }
 
-/// The proxy Windows is set to use (Settings › Network › Proxy › Manual), if on.
-/// Setup scripts (PAC) aren't read.
 pub fn system() -> Option<url::Url> {
     #[cfg(windows)]
     {
@@ -412,7 +358,6 @@ pub fn system() -> Option<url::Url> {
         if !enabled || server.trim().is_empty() {
             return None;
         }
-        // "host:port", or per protocol: "http=h:p;https=h:p;socks=h:p".
         let pick = |key: &str| server.split(';').find_map(|part| part.trim().strip_prefix(key).map(str::to_owned));
         let addr = if server.contains('=') {
             pick("https=").or_else(|| pick("http=")).map(|a| format!("http://{a}")).or_else(|| pick("socks=").map(|a| format!("socks5://{a}")))?
@@ -430,7 +375,6 @@ fn windows_proxy() -> Option<(bool, String)> {
     use windows::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RRF_RT_REG_SZ, RegGetValueW};
     use windows::core::w;
     let key = w!(r"Software\Microsoft\Windows\CurrentVersion\Internet Settings");
-    // SAFETY: out-buffers sized to what we pass; the strings are static.
     unsafe {
         let mut enabled = 0u32;
         let mut size = 4u32;
@@ -446,7 +390,6 @@ fn windows_proxy() -> Option<(bool, String)> {
     }
 }
 
-/// Try a setting before saving it: one request through it to YouTube Music.
 pub async fn test(s: &Setting) -> anyhow::Result<Duration> {
     if let Setting::Custom(u) = s {
         parse(u)?;
@@ -457,7 +400,6 @@ pub async fn test(s: &Setting) -> anyhow::Result<Duration> {
         anyhow::bail!(plain(e.without_url(), s.resolve().as_ref()));
     }
     let took = t0.elapsed();
-    // Reaching YouTube isn't enough: where the proxy comes out, YouTube Music must be offered.
     if !crate::ytmapi::offered_through(&http).await {
         let tor = s.resolve().is_some_and(|p| p.scheme().starts_with("socks") && p.username().is_empty());
         anyhow::ensure!(tor, "it connects, but YouTube Music isn't available where this proxy comes out. Try a server in another country.");
@@ -466,7 +408,6 @@ pub async fn test(s: &Setting) -> anyhow::Result<Duration> {
     Ok(took)
 }
 
-/// The usual ways a proxy fails, said plainly.
 fn plain(e: reqwest::Error, proxy: Option<&url::Url>) -> String {
     let mut chain = e.to_string();
     let mut src = std::error::Error::source(&e);

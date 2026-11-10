@@ -49,7 +49,6 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 
-/** Shared compact selector for every visible YouTube account avatar. */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AccountProfileSelector(
@@ -69,9 +68,6 @@ fun AccountProfileSelector(
     val shape = MaterialTheme.shapes.extraLarge
     val surface = MaterialTheme.colorScheme.surface
     val dark = surface.luminance() < 0.5f
-    // The thin material lets too much of the page through behind the text. Dark
-    // mode gets a black wash over it; light mode a white one, which keeps the
-    // dark text readable over a busy cover instead of muddying it.
     val material = HazeMaterials.thin(surface)
     val style = remember(material, dark) {
         HazeStyle(
@@ -107,18 +103,13 @@ fun AccountProfileSelector(
                         )
                     },
                 )
-                // The same hairline the mini player and the nav bar wear.
                 .border(
                     0.5.dp,
-                    // White on dark like the bars; a light surface has nothing
-                    // for a white hairline to show against.
                     if (dark) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.10f),
                     shape,
                 )
                 .clickable(onClick = {}),
         ) {
-            // Room under the last row to match the space between rows, so the
-            // list doesn't stop short against the card's edge.
             LazyColumn(contentPadding = PaddingValues(bottom = 14.dp)) {
                 item { Text(stringResource(R.string.switch_account), style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -170,7 +161,6 @@ fun AccountProfileSelector(
 ) {
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button, onClick = onClick)
         .semantics { contentDescription = label }.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-        // In the avatars' column, so the labels line up with the names above.
         Box(Modifier.width(38.dp), contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(iconSize)) }
         Spacer(Modifier.width(12.dp)); Text(label)
     }

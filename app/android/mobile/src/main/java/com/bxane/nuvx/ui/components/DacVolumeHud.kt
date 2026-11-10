@@ -60,22 +60,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
-/**
- * What the volume keys tell [DacVolumeHud]. Kept apart from [DacVolume] so a
- * level change from anywhere else — the player's bar, the settings slider —
- * moves the level without announcing itself on screen.
- */
 object VolumeHud {
-    /** [direction] of a key press, and whether the level was already at that end. */
     data class Pulse(val direction: Int, val atLimit: Boolean)
 
     private val _pulses = MutableSharedFlow<Pulse>(extraBufferCapacity = 8)
     val pulses: SharedFlow<Pulse> = _pulses.asSharedFlow()
 
-    /**
-     * True while the full player is open: its own volume bar already shows
-     * the level, and two of them would be one too many.
-     */
     @Volatile var suppressed = false
 
     fun pulse(direction: Int, atLimit: Boolean) {
@@ -83,15 +73,6 @@ object VolumeHud {
     }
 }
 
-/**
- * Turns a volume key into a DAC volume step while direct USB output owns the
- * volume. Returns whether the key was taken.
- *
- * Every window that can hold focus has to ask this itself: a key goes to the
- * focused window, and one that lets it through hands it to the media session,
- * which now reports the DAC as a remote device — so Android answers with its
- * own remote-volume panel, the one with a cast icon, instead of this app's.
- */
 fun handleDacVolumeKey(event: KeyEvent): Boolean {
     val code = event.keyCode
     if (code != KeyEvent.KEYCODE_VOLUME_UP && code != KeyEvent.KEYCODE_VOLUME_DOWN) return false
@@ -105,10 +86,6 @@ fun handleDacVolumeKey(event: KeyEvent): Boolean {
     return true
 }
 
-/**
- * [handleDacVolumeKey] for the dialog window this is composed in: the full
- * player and any other sheet that takes focus away from the activity.
- */
 @Composable
 fun DacVolumeKeys() {
     val window = (LocalView.current.parent as? DialogWindowProvider)?.window ?: return
@@ -131,22 +108,6 @@ private val COMPACT_WIDTH = 14.dp
 private val EXPANDED_WIDTH = 50.dp
 private val EDGE_GAP = 10.dp
 
-/**
- * The DAC's volume, the way iOS shows its own: a slim capsule that springs
- * out beside the volume keys, fills from the bottom, stretches like rubber
- * when pushed past either end, widens to a draggable slider under a finger,
- * and tucks itself away again a moment after the last touch.
- *
- * Shown only while direct USB output owns the volume ([DacVolume.level] is
- * not null), and never over the full player.
- *
- * Drawn in the activity's own window, over the whole page, rather than in a
- * popup of its own: [hazeState] can only blur what is in its window, and the
- * light frost behind the capsule is most of what makes it look like iOS. The
- * keys that raise it reach the activity only while its window has focus, so
- * a sheet in a window of its own never had the HUD anyway. Being full-screen
- * also leaves the rubber-band stretch nothing to be clipped against.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun DacVolumeHud(hazeState: HazeState) {
@@ -161,7 +122,6 @@ fun DacVolumeHud(hazeState: HazeState) {
     var present by remember { mutableStateOf(false) }
     var dragging by remember { mutableStateOf(false) }
     var hideJob by remember { mutableStateOf<Job?>(null) }
-    // Off-screen to the right, as a share of the HUD's own width plus its gap.
     val slide = remember { Animatable(1f) }
     val stretch = remember { Animatable(1f) }
     var stretchFromTop by remember { mutableStateOf(false) }
@@ -194,7 +154,6 @@ fun DacVolumeHud(hazeState: HazeState) {
         scheduleHide()
     }
 
-    /** Pulled past an end: stretch away from the bound, then snap back with a little bounce. */
     fun rubberBand(direction: Int) {
         stretchFromTop = direction < 0
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -216,13 +175,10 @@ fun DacVolumeHud(hazeState: HazeState) {
     val reduceBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val offscreenPx = with(density) { (EXPANDED_WIDTH + EDGE_GAP * 2).roundToPx() }
     val heightPx = with(density) { HUD_HEIGHT.toPx() }
-    // Lays out nothing but the capsule, so the page under the rest of the
-    // screen keeps every touch.
     Box(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                // Level with a phone's volume keys, about a fifth of the way down.
                 .padding(top = screenHeight * 0.2f, end = EDGE_GAP)
                 .height(HUD_HEIGHT)
                 .width(EXPANDED_WIDTH),
@@ -234,7 +190,6 @@ fun DacVolumeHud(hazeState: HazeState) {
                         translationX = slide.value * offscreenPx
                         alpha = 1f - slide.value
                         scaleY = stretch.value
-                        // Thinner as it stretches, as rubber does.
                         scaleX = 1f - (stretch.value - 1f) * 1.2f
                         transformOrigin = TransformOrigin(0.5f, if (stretchFromTop) 0f else 1f)
                     }
@@ -246,8 +201,6 @@ fun DacVolumeHud(hazeState: HazeState) {
                         if (reduceBlur) {
                             Modifier.background(Color(0xFF1C1C1E).copy(alpha = 0.82f))
                         } else {
-                            // A light frost, as iOS draws it: the page shows
-                            // through, blurred and only slightly darkened.
                             Modifier.optimizedHazeEffect(
                                 state = hazeState,
                                 style = HazeMaterials.ultraThin(Color(0xFF1C1C1E)),
@@ -280,8 +233,6 @@ fun DacVolumeHud(hazeState: HazeState) {
                             travelled -= dragAmount
                             val wanted = start + travelled / heightPx
                             DacVolume.set(wanted.coerceIn(0f, 1f))
-                            // Past either end the capsule follows the finger a little,
-                            // with diminishing give, then springs back on release.
                             val over = when {
                                 wanted > 1f -> wanted - 1f
                                 wanted < 0f -> -wanted
@@ -307,7 +258,6 @@ fun DacVolumeHud(hazeState: HazeState) {
                             else -> SfIcons.VolumeUp
                         },
                         contentDescription = null,
-                        // Dark where the white fill is behind it, as on iOS.
                         tint = if (fill > 0.12f) Color(0xFF3A3A3C) else Color.White,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)

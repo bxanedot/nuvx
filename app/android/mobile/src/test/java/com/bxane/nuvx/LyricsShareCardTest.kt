@@ -6,13 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The rule that keeps a share card from being handed a verse it could only set
- * in type too small to read — the card draws everything it is given, so the
- * pick is the one place a limit can sit.
- */
 class LyricsShareCardTest {
-    /** At the length a line of a song usually has. */
     private val shortLine = "Nie dzwoń do mnie teraz, nie przeszkadzaj mi"
 
     @Test fun fiveShortLinesStillFit() {

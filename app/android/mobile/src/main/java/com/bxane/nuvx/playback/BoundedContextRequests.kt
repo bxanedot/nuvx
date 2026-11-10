@@ -6,15 +6,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 
-/**
- * Process-local handoff for a bounded-context startup request.
- *
- * Media-session command arguments cross Binder, so only the token is sent in
- * the command. The complete request stays in this process and is consumed by
- * the service through [take]. A single pending request is intentional: if a
- * newer tap wins before the service handles an older command, the older
- * command must not start playback after it.
- */
 object BoundedContextRequests {
     data class Request(
         val songs: List<Song>,
@@ -22,26 +13,15 @@ object BoundedContextRequests {
         val source: QueueSource,
         val continuationToken: String?,
         val shuffle: Boolean,
-        /** Opaque handoff id, filled by [put] and returned by [take]. */
         val handoffToken: String? = null,
     )
 
-    /**
-     * The latest canonical context known by the process.
-     *
-     * The service owns continuation loading after [take]. Publishing its
-     * registry snapshot here lets the UI keep showing the same page as that
-     * context grows, and gives a later tap the newest list and token without
-     * sending the whole list through Binder again.
-     */
     data class Snapshot(
         val request: Request,
         val songs: List<Song>,
         val continuationToken: String?,
         val version: Long,
-        /** The service has taken this context and is walking its continuation. */
         val serviceOwned: Boolean = false,
-        /** The service stopped walking the continuation; the page should resume it. */
         val released: Boolean = false,
     )
 
@@ -56,7 +36,6 @@ object BoundedContextRequests {
 
     private val _snapshot = MutableStateFlow<Snapshot?>(null)
 
-    /** Latest bounded context, including service-side continuation growth. */
     val snapshot: StateFlow<Snapshot?> = _snapshot.asStateFlow()
 
     @Synchronized
@@ -88,11 +67,6 @@ object BoundedContextRequests {
         return current.request
     }
 
-    /**
-     * Replaces the active context's canonical list after the service accepts a
-     * continuation page. [request] is the value returned by [take], so a late
-     * service completion cannot overwrite a newer tap.
-     */
     @Synchronized
     fun publish(
         request: Request,
@@ -120,11 +94,6 @@ object BoundedContextRequests {
         return true
     }
 
-    /**
-     * The service gave up on the active context's continuation (repeated load
-     * failures). Republished without service ownership so the detail page picks
-     * the walk back up from the newest token instead of stopping short.
-     */
     @Synchronized
     fun release(handoffToken: String) {
         val current = active ?: return
@@ -133,17 +102,10 @@ object BoundedContextRequests {
         publishLocked(current.copy(version = version, serviceOwned = false, released = true))
     }
 
-    /** Publishes a shared [ContextRegistry] snapshot without unpacking it first. */
     @Synchronized
     fun publish(request: Request, snapshot: ContextSnapshot): Boolean =
         publish(request, snapshot.songs, snapshot.continuationToken)
 
-    /**
-     * Rehydrates the process-local UI handoff after a service restart.  There
-     * is no pending Binder command in this case, but keeping an active snapshot
-     * lets the detail page observe continuation growth just as it did before
-     * process death.
-     */
     @Synchronized
     fun restore(request: Request): Request {
         val stored = request.copy(
@@ -163,7 +125,6 @@ object BoundedContextRequests {
         return stored
     }
 
-    /** Same as [publish], addressed by the opaque token retained in [Request]. */
     @Synchronized
     fun publish(
         handoffToken: String,
@@ -183,7 +144,6 @@ object BoundedContextRequests {
         }
     }
 
-    /** Clears process-local state; useful when the service abandons a request. */
     @Synchronized
     fun clear() {
         pending = null

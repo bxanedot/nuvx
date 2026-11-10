@@ -1,22 +1,11 @@
-//! Discord Rich Presence: "Listening to <song>" with cover art and a progress bar.
-//!
-//! A worker thread owns the IPC pipe so a missing or restarting Discord never blocks the
-//! UI. The UI sends the wanted state whenever it changes; the worker coalesces bursts
-//! (Discord rate-limits activity updates) and reconnects every 15 s while Discord is
-//! closed.
-
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use discord_rich_presence::activity::{Activity, ActivityType, Assets, Button, StatusDisplayType, Timestamps};
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient};
 
-/// Application ID from the Discord Developer Portal. Its name is what Discord shows
-/// as "Listening to <name>" in the profile card.
-// nuvx's Discord application, shared with the web extension (app/web/extension/lib/discord.ts).
 const CLIENT_ID: &str = "1543679166967193620";
 
-/// The name the profile card shows, in place of the Discord app's registered name.
 const APP_NAME: &str = "nuvx";
 
 const RETRY: Duration = Duration::from_secs(15);
@@ -28,7 +17,6 @@ pub struct Presence {
     pub artist: String,
     pub album: Option<String>,
     pub art: Option<String>,
-    /// Unix ms when the song (virtually) started, so Discord draws elapsed time.
     pub start_ms: i64,
     pub end_ms: Option<i64>,
 }
@@ -45,7 +33,6 @@ impl Discord {
         Some(Self { tx })
     }
 
-    /// `None` clears the status (paused / stopped).
     pub fn set(&self, p: Option<Presence>) {
         let _ = self.tx.send(p);
     }
@@ -59,7 +46,6 @@ fn run(id: &str, rx: Receiver<Option<Presence>>) {
     loop {
         match rx.recv_timeout(RETRY) {
             Ok(p) => {
-                // Let a burst (skip, skip, seek) settle, then send only the last state.
                 std::thread::sleep(Duration::from_millis(400));
                 want = rx.try_iter().last().unwrap_or(p);
                 dirty = true;
@@ -91,8 +77,6 @@ fn run(id: &str, rx: Receiver<Option<Presence>>) {
             Some(p) => c.set_activity(activity(p)),
             None => c.clear_activity(),
         };
-        // Read Discord's reply: it reports rejected payloads there, and leaving
-        // replies unread would fill the pipe over a long session.
         let res = res.and_then(|()| c.recv());
         match res {
             Ok((_, reply)) => {
@@ -130,8 +114,6 @@ fn activity(p: &Presence) -> Activity<'_> {
     }
     let url = format!("https://music.youtube.com/watch?v={}", p.video_id);
     Activity::new()
-        // What the profile card calls the app: the Discord app's own name is fixed by
-        // the client ID, so the activity overrides it.
         .name(APP_NAME)
         .activity_type(ActivityType::Listening)
         .status_display_type(StatusDisplayType::Details)
@@ -143,7 +125,6 @@ fn activity(p: &Presence) -> Activity<'_> {
         .buttons(vec![Button::new("Listen on YouTube Music", url)])
 }
 
-/// Discord rejects text fields shorter than 2 or longer than 128 characters.
 fn field(s: &str) -> String {
     let mut out: String = s.chars().take(128).collect();
     while out.chars().count() < 2 {

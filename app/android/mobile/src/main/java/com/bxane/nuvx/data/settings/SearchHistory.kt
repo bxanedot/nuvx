@@ -11,20 +11,8 @@ import kotlinx.serialization.json.Json
 import com.bxane.nuvx.data.model.SearchHistoryEntity
 import com.bxane.nuvx.data.model.withCorrectedType
 
-/**
- * What's been searched for lately, kept on this device only.
- *
- * YouTube Music has an account-level search history, but reading it back needs
- * a separate signed-in call on every keystroke's worth of empty query — and it
- * would be wrong for a signed-out user. A local list is instant, works either
- * way, and is what Spotify and Apple Music show in the same spot.
- *
- * Stored as JSON rather than a delimited string: a query can contain any
- * character, separators included.
- */
 object SearchHistory {
 
-    /** Deep enough to be useful, shallow enough that the list stays scannable. */
     private const val MAX_ENTRIES = 20
 
     private lateinit var prefs: SharedPreferences
@@ -34,16 +22,10 @@ object SearchHistory {
 
     private val _recent = MutableStateFlow<List<SearchHistoryEntity>>(emptyList())
 
-    /** Most recent first. */
     val recent: StateFlow<List<SearchHistoryEntity>> = _recent.asStateFlow()
 
     private val _addonRecent = MutableStateFlow<List<String>>(emptyList())
 
-    /**
-     * What was typed into the Addons search, most recent first. Text only: an
-     * addon search has no entity worth remembering, and re-running the words
-     * is what a tap on it should do.
-     */
     val addonRecent: StateFlow<List<String>> = _addonRecent.asStateFlow()
 
     fun recordAddonQuery(query: String) {
@@ -66,13 +48,6 @@ object SearchHistory {
         reload()
     }
 
-    /**
-     * Re-reads the list off disk.
-     *
-     * This shares its preference file with [AppSettings], so an import replaces
-     * what is stored here without ever calling [record] — and the flow above
-     * would otherwise go on serving the list the old device had.
-     */
     fun reload() {
         if (!this::prefs.isInitialized) return
         _recent.value = runCatching {
@@ -84,10 +59,6 @@ object SearchHistory {
         }.getOrDefault(emptyList())
     }
 
-    /**
-     * Records [entity], or moves it back to the top if it's already there.
-     * Matching is by id so re-tapping an existing entity updates its timestamp.
-     */
     fun record(entity: SearchHistoryEntity) {
         val deduped = _recent.value.filterNot { it.id.equals(entity.id, ignoreCase = true) }
         save((listOf(entity) + deduped).take(MAX_ENTRIES))

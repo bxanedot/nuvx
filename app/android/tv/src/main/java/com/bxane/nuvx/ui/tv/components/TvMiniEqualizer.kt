@@ -22,10 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * Animated mini 3-bar equalizer indicator that displays next to the active playing song title,
- * 1:1 matching Apple Music TV / nuvx player styling.
- */
 @Composable
 fun TvMiniEqualizer(
     isPlaying: Boolean,

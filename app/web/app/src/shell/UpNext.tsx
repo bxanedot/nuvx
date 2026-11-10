@@ -7,11 +7,9 @@ import { formatDuration } from '@/components/music/links';
 import { autoplaySectionStart, upcomingUserQueueIndices, type QueueEntry } from '@/playback/queue/timeline';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
 
-// The panel's square buttons: AutoPlay (the key colour when on) and the options menu.
 const square = 'grid size-7 place-items-center rounded-[6px] text-secondary hover:bg-quinary aria-pressed:bg-key/20 aria-pressed:text-primary';
 const list = 'flex flex-col';
 
-/** A row: 55px, [art] 40px [title] 1fr [right] 40px, gap 12px, radius 6px; a key-colour line where a drag would drop. */
 function Row({
   entry,
   at,
@@ -55,7 +53,6 @@ function Row({
     >
       <div className="relative size-10">
         <Artwork src={track.thumbnail} displayWidth={40} radius="var(--radius-artwork-small)" />
-        {/* The ✕ over the artwork's top-left, on hover. */}
         <button
           className="absolute -top-1.5 -left-1.5 hidden size-[22px] place-items-center rounded-full bg-thick-material text-primary shadow-[0_1px_3px_#0004] [backdrop-filter:blur(10px)] group-hover/row:grid"
           aria-label={`Remove ${track.title}`}
@@ -102,12 +99,10 @@ function Row({
   );
 }
 
-/** Apple's Up Next (report §7), over the three-tier queue: what's next, then AutoPlay's section. */
 export function UpNext() {
   const queue = usePlayer((s) => s.queue);
   const index = usePlayer((s) => s.index);
   const localAutoplay = usePlayer((s) => s.autoplay);
-  // In a party AutoPlay is the party's setting (Autoplay.autoplayEnabledFor).
   const inParty = useParty((s) => !!s.code);
   const partyAutoplay = useParty((s) => s.playback.autoplayEnabled);
   const autoplay = inParty ? partyAutoplay : localAutoplay;

@@ -4,14 +4,6 @@ import androidx.compose.runtime.Composable
 import com.bxane.nuvx.sharedui.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/**
- * What to call an output on screen.
- *
- * Bluetooth and USB devices carry their own name and keep it. The phone's own
- * speaker and a pair of wired headphones do not — `productName` gives the
- * *phone's* model for both, which is why the caption used to read "SM-S911B"
- * — so those get a label from here instead.
- */
 @Composable
 internal fun outputLabel(device: AudioOutputDevice, accountName: String?): String {
     val firstName = accountName?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.takeIf { it.isNotBlank() }
@@ -25,13 +17,6 @@ internal fun outputLabel(device: AudioOutputDevice, accountName: String?): Strin
     }
 }
 
-/**
- * The name of whatever is playing the music, for the line under the transport.
- *
- * Derived from the same list the picker shows, so the two can never disagree —
- * which they did constantly when this read `android.media.MediaRouter`'s
- * selected route and the picker read the audio devices.
- */
 @Composable
 internal fun rememberAudioOutputName(accountName: String?): String {
     val outputs = rememberAudioOutputs()

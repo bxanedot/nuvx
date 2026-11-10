@@ -16,13 +16,8 @@ import { albumPageFor, artistPageFor } from './nowPlayingLinks';
 import { MixWindowHighlight } from './NerdStats';
 import { useScrubber } from './useScrubber';
 
-// The title and each artist: plain until hovered, then underlined on their own.
 export const pageLink = 'cursor-pointer text-start hover:underline focus-visible:underline aria-busy:cursor-progress';
 
-/**
- * A name in the LCD that opens a page: a plain link when the page is known,
- * else a button that works out where it goes (nowPlayingLinks.ts) and then goes.
- */
 interface PageLinkProps {
   href: string | null;
   resolve: () => Promise<string>;
@@ -57,10 +52,6 @@ export function PageLink({ href, resolve, className, children }: PageLinkProps) 
   );
 }
 
-/**
- * The artists, each its own link, as the phone draws its credit line: the
- * byline as written, with every credited name in it opening that artist's page.
- */
 export function Credits({
   videoId,
   line,
@@ -89,16 +80,13 @@ export function Credits({
   );
 }
 
-// As wide as the name, so only the name opens the album.
 const titleClass = 'min-w-0 max-w-full self-start truncate type-body-emphasized';
 
-/** The now-playing tile inside the pill (report §1, "LCD"). */
 export function Lcd() {
   const nowPlaying = usePlayer((s) => s.nowPlaying);
   const status = usePlayer((s) => s.status);
   const error = usePlayer((s) => s.error);
   const openFullScreen = useUi((s) => s.setFullScreen);
-  // The queue's row for what's playing: it carries the album and each artist's channel.
   const track = usePlayer((s) => {
     const entry = s.queue[s.index]?.track;
     return entry && entry.videoId === s.nowPlaying?.videoId ? entry : null;
@@ -119,9 +107,7 @@ export function Lcd() {
     <div
       className={`group/lcd relative grid h-full items-center gap-x-2 pb-1.5 ${video ? 'grid-cols-[60px_minmax(0,1fr)]' : 'grid-cols-[34px_minmax(0,1fr)]'}`}
     >
-      {/* As Apple's: the artwork opens the full-screen player, with an expand glyph on hover. */}
       <button
-        // A music video plays here in small, at 16:9.
         className={`group/art relative block h-[34px] overflow-hidden rounded-[6px] bg-joe p-0 transition-[filter,opacity] ${video ? 'w-[60px] bg-black' : 'w-[34px]'}`}
         aria-label="Open full screen player"
         onClick={() => openFullScreen(true)}
@@ -140,7 +126,6 @@ export function Lcd() {
         <VideoSurface
           className={`absolute inset-0 transition-opacity duration-300 ${video ? 'opacity-100' : 'opacity-0'}`}
         />
-        {/* Hovering anywhere on the player pill dims the artwork and shows the expand glyph. */}
         <span
           className="absolute inset-0 grid place-items-center bg-[rgb(0_0_0/0.5)] text-white opacity-0 transition-opacity duration-200 group-hover/pill:opacity-100 group-focus-visible/art:opacity-100"
           aria-hidden="true"
@@ -148,10 +133,8 @@ export function Lcd() {
           <Maximize2 size={14} strokeWidth={2.25} />
         </span>
       </button>
-      {/* Over the seek line, the names soften into the background so the times can sit over them. */}
       <div className="flex min-w-0 flex-col transition-[filter,opacity] group-has-[[data-scrubber]:hover]/lcd:opacity-30 group-has-[[data-scrubber]:hover]/lcd:blur-[3px] group-has-[[data-dragging]]/lcd:opacity-30 group-has-[[data-dragging]]/lcd:blur-[3px]">
         {title ? (
-          // The song's name opens its album; an explicit song carries the E after it.
           <div className="flex min-w-0 items-center">
             <PageLink
               className={`${titleClass} ${pageLink}`}
@@ -178,18 +161,12 @@ export function Lcd() {
   );
 }
 
-// Elapsed and remaining, over the line's two ends while the pointer is on it.
 const time =
   'pointer-events-none absolute bottom-[11px] type-[600_11px/13px] tabular-nums text-primary opacity-0 transition-opacity group-hover/scrub:opacity-100 group-data-dragging/scrub:opacity-100';
 
-/**
- * Elapsed time as a 2px line along the LCD's bottom (report §1). Hovering
- * shows the times; pressing or dragging on the line seeks.
- */
 function Progress() {
   const { bar, elapsed, remaining, dragging, handlers } = useScrubber();
   return (
-    // The hit area: taller than the 2px line it carries.
     <div
       className="group/scrub absolute inset-x-0 bottom-0 h-3.5 cursor-pointer touch-none"
       data-scrubber

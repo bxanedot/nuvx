@@ -3,13 +3,6 @@ package com.bxane.nuvx.data.webdav
 import com.bxane.nuvx.data.model.Song
 import java.util.Locale
 
-/**
- * WebDAV music library configuration and mapping.
- *
- * A WebDAV server is treated as a remote folder of audio files: tracks are
- * listed with PROPFIND, streamed over plain HTTPS with Basic auth, and shown
- * in the same Songs / Artists / Albums view as on-device files.
- */
 object WebDavConfig {
 
     const val BROWSE_ID = "local:webdav"
@@ -37,8 +30,6 @@ object WebDavConfig {
         ) {
             return false
         }
-        // "not a url" normalizes to "https://not a url" — only a parseable
-        // host counts as configured.
         return hostOf(normalized) != null
     }
 
@@ -59,10 +50,6 @@ object WebDavConfig {
         return ext in audioExtensions
     }
 
-    /**
-     * Stable track id for a remote file. Prefixed so it never collides with a
-     * YouTube id, a MediaStore content URI, or a module source key.
-     */
     fun idFor(fileUrl: String): String = "webdav:$fileUrl"
 
     fun isWebDavId(videoId: String): Boolean = videoId.startsWith("webdav:")
@@ -70,11 +57,6 @@ object WebDavConfig {
     fun fileUrlOf(videoId: String): String? =
         videoId.removePrefix("webdav:").takeIf { isWebDavId(videoId) && it.startsWith("http") }
 
-    /**
-     * A row for a remote file. Title/artist come from the filename —
-     * "Artist - Title.ext" splits, anything else is a title by an unknown
-     * artist — and the parent folder names the album when there is one.
-     */
     fun songFor(fileUrl: String, albumName: String? = null): Song {
         val decoded = runCatching {
             java.net.URLDecoder.decode(fileUrl.substringAfterLast('/'), "UTF-8")
@@ -90,6 +72,5 @@ object WebDavConfig {
     }
 }
 
-/** Publishes the saved server's credentials to the shared HTTP client. */
 fun WebDavAuth.update(url: String, username: String, password: String) =
     update(WebDavConfig.hostOf(url), WebDavConfig.basicAuthHeader(username, password))

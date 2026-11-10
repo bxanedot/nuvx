@@ -2,7 +2,6 @@ import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 
 const row = 'grid items-center border-t-[0.5px] border-t-divider last:border-b-[0.5px] last:border-b-divider';
 
-/** Album and playlist pages: artwork header, then the track list. */
 export function DetailSkeleton({ rows = 12, rowArtwork = false }: { rows?: number; rowArtwork?: boolean }) {
   return (
     <div aria-busy="true" aria-label="Loading">

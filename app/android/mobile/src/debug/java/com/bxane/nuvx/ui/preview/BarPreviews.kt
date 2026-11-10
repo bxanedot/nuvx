@@ -37,27 +37,6 @@ import com.bxane.nuvx.ui.theme.NuvxTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
-/*
- * Design previews for the two bars and the surfaces behind them.
- *
- * In `src/debug` rather than `src/main` on purpose: the sample data and the
- * scaffolding below are worth nothing to a shipped APK, and the `ui-tooling`
- * renderer that draws them is itself a `debugImplementation`. Android Studio
- * picks these up on any *Debug variant, which is the one being worked in.
- *
- * WHAT THESE DO AND DO NOT SHOW
- *
- * [BottomFadeScrim] is a plain shader over a rect, so what the preview draws is
- * exactly what the device draws — the gradient can be judged here.
- *
- * [TopFadeBlur] and [TopBarBlur] cannot. Haze blurs by way of RenderEffect
- * against a real window, and the preview renderer has none, so the effect comes
- * out as a flat pane or as nothing at all. These previews are the place to
- * settle the bar's layout, type and colour; the blur itself has to be read on a
- * device — `./gradlew :app:installDevDebug`.
- */
-
-/** Stand-in feed rows, so the bars have something to sit over. */
 @Composable
 private fun MockFeed(modifier: Modifier = Modifier) {
     LazyColumn(
@@ -74,9 +53,6 @@ private fun MockFeed(modifier: Modifier = Modifier) {
                     Modifier
                         .size(56.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        // Alternating tones, so the ramp has both a light and a
-                        // dark edge to be judged against rather than one flat
-                        // field that hides where it starts.
                         .background(if (i % 2 == 0) Color(0xFF3A3A3C) else Color(0xFF8E8E93)),
                 )
                 Column(Modifier.padding(start = 12.dp)) {
@@ -92,15 +68,6 @@ private fun MockFeed(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * A track with no artwork URL, deliberately.
- *
- * Coil cannot reach the network from the preview renderer, so a real URL would
- * draw the same empty box this does — only after a failed load rather than
- * instead of one. Nulling it hands the box straight to the placeholder tint
- * [MiniPlayer] already paints under its artwork, which is what the device shows
- * for the beat before the real art arrives anyway.
- */
 private val PreviewSong = Song(
     videoId = "preview",
     title = "Rains Again",
@@ -115,10 +82,6 @@ private val PreviewTabs = listOf(
     BottomTab("Search", SfIcons.Search),
 )
 
-/**
- * The whole chrome stack in the order [com.bxane.nuvx.MainActivity] draws
- * it: feed, bounded top blur, bar, bottom scrim, pill.
- */
 @Composable
 private fun ChromeStack(scrolled: Boolean, withMiniPlayer: Boolean) {
     val hazeState = remember { HazeState() }
@@ -143,9 +106,6 @@ private fun ChromeStack(scrolled: Boolean, withMiniPlayer: Boolean) {
             withMiniPlayer = withMiniPlayer,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-        // The same column MainActivity stacks these in, down to the 8dp gap —
-        // the point of this preview is the spacing between the two bars, so it
-        // has to be the spacing the app actually uses.
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -188,22 +148,12 @@ private fun ChromeLightPreview() {
     NuvxTheme(darkTheme = false) { ChromeStack(scrolled = true, withMiniPlayer = false) }
 }
 
-/** The taller scrim, which the mini player's arrival grows it into. */
 @Preview(name = "Chrome · mini player", device = "id:pixel_8", showBackground = true)
 @Composable
 private fun ChromeMiniPlayerPreview() {
     NuvxTheme(darkTheme = true) { ChromeStack(scrolled = true, withMiniPlayer = true) }
 }
 
-/**
- * The mini player on its own, at the three states the transport slot takes.
- *
- * This is the preview for the pill's geometry: the corner is half the height,
- * so it moves whenever the row's padding or the artwork's size does, and the
- * thing to look at is whether the artwork and the skip glyph still clear the
- * curve at either end. The glass does not render here — what is being judged
- * is the shape and the spacing inside it.
- */
 @Preview(name = "Mini player · dark", widthDp = 400, heightDp = 260)
 @Preview(
     name = "Mini player · light",
@@ -250,12 +200,6 @@ private fun MiniPlayerPreview() {
     }
 }
 
-/**
- * The scrim alone, over a flat field.
- *
- * The stack above shows it in place; this shows the ramp itself, which is what
- * banding would be visible in. Judge it here before judging it there.
- */
 @Preview(name = "Scrim ramp · dark", widthDp = 300, heightDp = 260)
 @Preview(
     name = "Scrim ramp · light",
@@ -267,9 +211,6 @@ private fun MiniPlayerPreview() {
 private fun ScrimRampPreview() {
     NuvxTheme {
         Box(Modifier.fillMaxSize()) {
-            // A mid grey under it: the ramp reads as a ramp against this,
-            // whereas over the theme's own background it is invisible by
-            // construction — it is fading *to* that colour.
             Box(
                 Modifier
                     .fillMaxSize()
@@ -280,13 +221,6 @@ private fun ScrimRampPreview() {
     }
 }
 
-/**
- * The bar's two backdrops side by side.
- *
- * The regular blurred state and Reduce dynamic blur share this exact footprint
- * and hairline. Haze does not render in Preview, so these samples concentrate
- * on the bar's own paint and layout.
- */
 @Preview(name = "Top bar · backdrops", device = "id:pixel_8", showBackground = true)
 @Composable
 private fun TopBarBackdropPreview() {

@@ -2,35 +2,22 @@ package com.bxane.nuvx.playback
 
 import kotlin.random.Random
 
-/** Number of CONTEXT tracks to expose ahead of the currently playing track. */
 const val WINDOW_AHEAD = 25
 
-/** Refill the materialized CONTEXT window when fewer than this many are ahead. */
 const val WINDOW_LOW_WATER = 12
 
-/** Short name for the upcoming-window refill threshold. */
 const val LOW_WATER = WINDOW_LOW_WATER
 
-/**
- * A logical queue item.  [cycleId] is deliberately part of the item: the same canonical track in
- * two repeat-all cycles is two different items as far as a player-window materialization is
- * concerned.
- */
 data class QueueWindowEntry(
     val canonicalIndex: Int,
     val cycleId: Long,
 )
 
-/** A cycle planned for look-ahead but not yet selected for playback. */
 data class QueueWindowCycleSnapshot(
     val cycleId: Long,
     val order: List<Int>,
 )
 
-/**
- * Serializable-in-spirit state for a [QueueWindow].  It contains indices rather than Songs so the
- * logical queue stays independent of the player and of any media model.
- */
 data class QueueWindowSnapshot(
     val canonicalSize: Int,
     val order: List<Int>,
@@ -44,24 +31,6 @@ data class QueueWindowSnapshot(
     val plannedCycles: List<QueueWindowCycleSnapshot> = emptyList(),
 )
 
-/**
- * Pure logical state for the bounded CONTEXT part of a playback queue.
- *
- * [order] is a permutation of canonical indices for the active cycle.  The player only needs a
- * small [slice] of it; this class intentionally does not know about Media3, Songs, or queue tiers.
- * The cursor points at the current item in [order].  For shuffle-off playback [order] remains
- * canonical and the cursor is allowed to point into the middle, which makes `startAt(2)` mean
- * `2, 3, ..., N - 1, 0, ...` without rotating the canonical order when continuation grows.
- *
- * A [slice] can look across a repeat-all boundary when requested.  Such entries carry the planned
- * cycle id, but reading them never changes the cursor; [commit] or one of the traversal methods is
- * the explicit state transition.
- *
- * Look-ahead plans are retained so continuation growth only appends fresh indices, including to
- * already planned cycles. Explicit order changes can invalidate plans; the owner should refresh
- * its materialized upcoming window after manual navigation or a shuffle toggle. Calls must be
- * serialized by the owner, just like the player's timeline mutations.
- */
 class QueueWindow(
     canonicalSize: Int,
     shuffleSeed: Long = DEFAULT_SHUFFLE_SEED,
@@ -83,62 +52,45 @@ class QueueWindow(
     private var lastCycleFinal: Int? = null
     private val plannedCycles = LinkedHashMap<Long, IntArray>()
 
-    /** Number of canonical tracks currently registered. */
     val canonicalSize: Int
         get() = canonicalCount
 
-    /** Alias that reads naturally in code dealing with the canonical registry. */
     val canonicalN: Int
         get() = canonicalCount
 
-    /** Compact alias for the canonical registry size used in queue-window notes. */
     val n: Int
         get() = canonicalCount
 
-    /** The active logical permutation, copied so callers cannot mutate queue state. */
     val order: List<Int>
         get() = logicalOrder.toList()
 
-    /** Inverse permutation: canonical index -> position in [order], or -1 if absent. */
     val posOf: List<Int>
         get() = inversePositions.toList()
 
-    /** Current logical position, or -1 before [startAt] has been called. */
     val cursor: Int
         get() = logicalCursor
 
-    /** Canonical index currently selected, or null before a context has started. */
     val currentCanonicalIndex: Int?
         get() = currentIndex
 
-    /** Active cycle identity.  It advances only when a repeat-all cycle is committed. */
     val cycleId: Long
         get() = activeCycleId
 
-    /** Root seed used to derive deterministic shuffled cycle permutations. */
     val shuffleSeed: Long
         get() = seed
 
     val isShuffleEnabled: Boolean
         get() = shuffled
 
-    /** Alias useful at call sites that use the setting name rather than the predicate form. */
     val shuffle: Boolean
         get() = shuffled
 
-    /** Tracks consumed in the active cycle, exposed as a stable read-only copy. */
     val consumedThisCycle: Set<Int>
         get() = consumed.toSet()
 
     val current: QueueWindowEntry?
         get() = currentIndex?.let { QueueWindowEntry(it, activeCycleId) }
 
-    /**
-     * Start (or restart) the logical context at a canonical item.
-     *
-     * Shuffle OFF keeps canonical [order] and positions the cursor at [canonicalIndex].  Shuffle
-     * ON pins that item at position zero and deterministically permutes every other item.
-     */
     fun startAt(canonicalIndex: Int, shuffle: Boolean = shuffled): QueueWindow {
         require(canonicalIndex in 0 until canonicalCount) {
             "canonicalIndex $canonicalIndex is outside 0 until $canonicalCount"
@@ -161,7 +113,6 @@ class QueueWindow(
         return this
     }
 
-    /** Convenience factory for callers that want a fully started window in one expression. */
     companion object {
         const val WINDOW_AHEAD: Int = com.bxane.nuvx.playback.WINDOW_AHEAD
         const val WINDOW_LOW_WATER: Int = com.bxane.nuvx.playback.WINDOW_LOW_WATER
@@ -249,7 +200,6 @@ class QueueWindow(
         fun fromSnapshot(snapshot: QueueWindowSnapshot): QueueWindow = restore(snapshot)
     }
 
-    /** Add canonical indices [canonicalN, newCanonicalSize) without rebuilding old order. */
     fun extendTo(newCanonicalSize: Int): QueueWindow {
         require(newCanonicalSize >= canonicalCount) {
             "cannot shrink a QueueWindow from $canonicalCount to $newCanonicalSize"
@@ -266,13 +216,6 @@ class QueueWindow(
         return this
     }
 
-    /**
-     * Return logical entries beginning at an order position.
-     *
-     * This is a raw logical slice: unlike [upcoming], it does not remove entries already consumed
-     * after a manual jump.  Set [repeatAll] to include planned entries from later cycles.  The
-     * active cursor and cycle state are never changed.
-     */
     fun slice(
         fromPos: Int,
         count: Int,
@@ -302,13 +245,6 @@ class QueueWindow(
         return result
     }
 
-    /**
-     * Upcoming logical entries, excluding the current item and bounded to [WINDOW_AHEAD].
-     *
-     * In shuffle mode consumed entries are skipped even if a manual jump placed the cursor before
-     * them.  This is what keeps an explicit Previous/Next from silently re-inserting old shuffled
-     * tracks into automatic playback.  In canonical mode the order is intentionally unfiltered.
-     */
     fun upcoming(
         count: Int = WINDOW_AHEAD,
         repeatAll: Boolean = false,
@@ -339,20 +275,13 @@ class QueueWindow(
         return result
     }
 
-    /** Alias that makes the current-track exclusion explicit at call sites. */
     fun upcomingContext(
         count: Int = WINDOW_AHEAD,
         repeatAll: Boolean = false,
     ): List<QueueWindowEntry> = upcoming(count, repeatAll)
 
-    /** Number of entries currently available to [upcoming] without changing state. */
     fun upcomingCount(repeatAll: Boolean = false): Int = upcoming(WINDOW_AHEAD, repeatAll).size
 
-    /**
-     * Automatic forward traversal.  Shuffle mode scans for the next unconsumed item; explicit
-     * navigation may have moved the cursor backwards, so this is deliberately not just cursor + 1.
-     * At a repeat-all boundary a fresh cycle is committed and returned immediately.
-     */
     fun advanceAutomatically(repeatAll: Boolean = false): QueueWindowEntry? {
         currentIndex ?: return null
         if (logicalOrder.isEmpty()) return null
@@ -372,16 +301,10 @@ class QueueWindow(
         return transitionToNextCycle()
     }
 
-    /** Short alias for automatic player-driven advancement. */
     fun advance(repeatAll: Boolean = false): QueueWindowEntry? = advanceAutomatically(repeatAll)
 
-    /** Alias used by integrations that name the operation after the player event. */
     fun nextAutomatic(repeatAll: Boolean = false): QueueWindowEntry? = advanceAutomatically(repeatAll)
 
-    /**
-     * Explicit Next.  It follows the stable logical order even when the target was consumed; an
-     * explicit request is allowed to replay.  No consumed state is cleared or rebuilt.
-     */
     fun next(repeatAll: Boolean = false): QueueWindowEntry? {
         if (currentIndex == null || logicalOrder.isEmpty()) return null
         val nextPosition = logicalCursor + 1
@@ -390,17 +313,11 @@ class QueueWindow(
         return transitionToNextCycle()
     }
 
-    /**
-     * Explicit Previous.  History before the current cursor remains deterministic.  A bounded
-     * window does not synthesize a previous cycle, so Previous at the first logical item returns
-     * null rather than mutating cycle state behind the caller's back.
-     */
     fun previous(): QueueWindowEntry? {
         if (currentIndex == null || logicalCursor <= 0) return null
         return moveWithinCycle(logicalCursor - 1)
     }
 
-    /** Explicitly select a canonical track without rebuilding the active permutation. */
     fun jumpTo(canonicalIndex: Int): QueueWindowEntry {
         require(canonicalIndex in 0 until canonicalCount) {
             "canonicalIndex $canonicalIndex is outside 0 until $canonicalCount"
@@ -411,19 +328,8 @@ class QueueWindow(
         return moveWithinCycle(position)
     }
 
-    /** Alias for integrations that call direct selection a seek. */
     fun seekTo(canonicalIndex: Int): QueueWindowEntry = jumpTo(canonicalIndex)
 
-    /**
-     * Rebuild the upcoming logical order while pinning the current item.
-     *
-     * Turning shuffle off restores canonical order and leaves the cursor at the current canonical
-     * index.  Turning it on keeps cycle-consumed state, so tracks already consumed in this cycle do
-     * not reappear in automatic traversal merely because the setting changed.
-     *
-     * [shuffleSeed] replaces the root seed when shuffle turns on. Without a new seed, turning
-     * shuffle off and on again rebuilds exactly the order it had before.
-     */
     fun setShuffle(enabled: Boolean, shuffleSeed: Long = seed): QueueWindow {
         if (enabled == shuffled) return this
         shuffled = enabled
@@ -446,14 +352,8 @@ class QueueWindow(
         return this
     }
 
-    /** Toggle shuffle and return this window for fluent state transitions. */
     fun toggleShuffle(enabled: Boolean = !shuffled): QueueWindow = setShuffle(enabled)
 
-    /**
-     * Commit a previously planned entry.  Same-cycle commits are explicit seeks.  A next-cycle
-     * entry commits exactly one planned repeat-all transition; reading [slice] or [upcoming] alone
-     * never performs this transition.
-     */
     fun commit(entry: QueueWindowEntry): Boolean {
         if (currentIndex == null || entry.canonicalIndex !in 0 until canonicalCount) return false
 
@@ -472,7 +372,6 @@ class QueueWindow(
         return true
     }
 
-    /** Snapshot state for a later persistence layer without introducing player dependencies. */
     fun snapshot(): QueueWindowSnapshot = QueueWindowSnapshot(
         canonicalSize = canonicalCount,
         order = logicalOrder.toList(),
@@ -492,8 +391,6 @@ class QueueWindow(
         check(position in logicalOrder.indices) { "logical position $position is outside the active order" }
         val previousBoundaryFinal = boundaryFinal()
         if (shuffled && position > logicalCursor) {
-            // Forward explicit selections intentionally skip the crossed entries. Marking those
-            // entries consumed keeps the permutation's prefix coherent after Previous/jump.
             for (skipped in (logicalCursor + 1)..position) consumed += logicalOrder[skipped]
         }
         logicalCursor = position

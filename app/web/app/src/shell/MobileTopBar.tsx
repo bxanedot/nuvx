@@ -3,7 +3,6 @@ import { PrefetchLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
 import { useUi } from '@/state/ui';
 
-/** Below 484px the sidebar folds into this bar and a drawer (report §11). */
 export function MobileTopBar() {
   const setDrawerOpen = useUi((s) => s.setDrawerOpen);
   return (

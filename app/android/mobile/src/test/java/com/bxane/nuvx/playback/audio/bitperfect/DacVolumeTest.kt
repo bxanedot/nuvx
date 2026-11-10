@@ -22,7 +22,6 @@ class DacVolumeTest {
         assertEquals(0.5f, DacVolume.fractionOf(volume), 1e-6f)
         assertEquals(-40.0, DacVolume.dbOf(volume, 0.5f), 1e-9)
         assertEquals(0f, DacVolume.fractionOf(snapshot(-100.0)), 0f)
-        // Only the very bottom is the DAC's own minimum.
         assertEquals(-127.0, DacVolume.dbOf(volume, 0f), 0.0)
     }
 

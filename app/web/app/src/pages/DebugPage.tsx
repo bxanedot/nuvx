@@ -3,12 +3,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { useTrackLog } from '@/playback/trackLog';
 import { usePlayer } from '@/state/player';
 
-/**
- * The phase 3 acceptance set (build prompt §11: old, new, regional, explicit
- * and age-restricted tracks). Ids are YouTube Music's first song result for
- * each query, taken 2026-10-15; the last two are the age-gated videos
- * yt-dlp's own tests use.
- */
 export const TEST_TRACKS: { id: string; label: string }[] = [
   { id: 'ZEcqHA7dbwM', label: 'Frank Sinatra · Fly Me To The Moon (1964)' },
   { id: 'xUNqsfFUwhY', label: 'The Beatles · Here Comes The Sun (1969)' },
@@ -32,7 +26,6 @@ export const TEST_TRACKS: { id: string; label: string }[] = [
   { id: 'HtVdAasjOgU', label: 'Age-restricted: The Witcher 3 trailer' },
 ];
 
-/** A videoId out of whatever was pasted: an id, a watch URL, a youtu.be or music.youtube.com link. */
 export function parseVideoId(input: string): string | null {
   const text = input.trim();
   if (/^[\w-]{11}$/.test(text)) return text;
@@ -47,7 +40,6 @@ export function parseVideoId(input: string): string | null {
 
 const sectionHeader = 'mt-7 mb-2 type-subhead-emphasized uppercase text-secondary';
 
-/** The web equivalent of the app's track log viewer, plus a way to play anything. */
 export default function DebugPage() {
   const [input, setInput] = useState('');
   const [filter, setFilter] = useState<'all' | 'current'>('current');

@@ -6,12 +6,6 @@ import { persist } from 'zustand/middleware';
 import { queryClient } from '@/lib/queryClient';
 import { extensionQueryKey, useExtension } from './useExtension';
 
-/**
- * Discord rich presence (prompt §7.2–7.3). The extension holds the account
- * and the gateway; this page only says what's playing. How the card reads is
- * chosen here, with the phone's options (DiscordScreen) and defaults.
- */
-
 export const discordQueryKey = ['discord', 'state'] as const;
 
 const UNAVAILABLE: DiscordState = { available: false, connected: false, enabled: false, user: null, gateway: 'off', problem: null };
@@ -73,8 +67,6 @@ export function useDiscordDisconnect() {
 export function useDiscordEnabled() {
   return useMutation({ mutationFn: (on: boolean) => bridgeCall().call('discord.setEnabled', { enabled: on }), onSuccess: adopt });
 }
-
-// ---- How the card reads --------------------------------------------------------
 
 export const DEFAULT_DISCORD_OPTIONS: DiscordPresenceOptions = {
   activityType: 'listening',

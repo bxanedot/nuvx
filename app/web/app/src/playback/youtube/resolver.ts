@@ -2,33 +2,15 @@ import type { ApiResponse, Innertube, YT } from 'youtubei.js/web';
 import { trackLog } from '../trackLog';
 import { botguard } from './botguard';
 
-/**
- * Which identity asks YouTube for a track, in order (prompt §5.2 step 5,
- * following StreamResolver.kt / InnerTubeXResolver.kt).
- *
- * InnerTubeX's automatic catalog leads with VISIONOS, then the TV clients,
- * then WEB_REMIX and the other web clients. Measured from a browser-shaped
- * request (text/plain, Chrome UA, 2026-10-15): VISIONOS, YTMUSIC (YouTube.js's
- * name for WEB_REMIX), WEB and MWEB all answer OK with a SABR URL; TV answers
- * "The page needs to be reloaded" and WEB_EMBEDDED "This video is unavailable",
- * so those two are left out. googlevideo's own SABR example uses VISIONOS.
- */
 export const CLIENT_ORDER = ['VISIONOS', 'YTMUSIC', 'WEB', 'MWEB'] as const;
 export type PlayerClientName = (typeof CLIENT_ORDER)[number];
 
-/**
- * The BotGuard (WebPO) clients. As on Android (PoTokenGenerator /
- * InnerTubeX's WEB_BOTGUARD provider), they get two tokens: one bound to the
- * session's visitor data for the player request, and one bound to the
- * videoId for the stream. VISIONOS is not one of them.
- */
 const WEBPO_CLIENTS: ReadonlySet<PlayerClientName> = new Set(['YTMUSIC', 'WEB', 'MWEB']);
 
 export function usesWebPo(client: PlayerClientName): boolean {
   return WEBPO_CLIENTS.has(client);
 }
 
-/** The player-request token for [client], or undefined for a client that doesn't take one. */
 async function playerRequestToken(yt: Innertube, client: PlayerClientName): Promise<string | undefined> {
   if (!WEBPO_CLIENTS.has(client)) return undefined;
   const visitorData = yt.session.context.client.visitorData;
@@ -36,24 +18,14 @@ async function playerRequestToken(yt: Innertube, client: PlayerClientName): Prom
   return botguard.mint(decodeURIComponent(visitorData));
 }
 
-/** StreamResolver: how many clients are worth trying for one track. */
 export const CLIENT_ATTEMPTS = 3;
-/** InnerTubeXResolver.EXCLUDE_MS: a client that refused a track sits out for this long. */
 const EXCLUDE_MS = 10 * 60_000;
-/** StreamResolver.UNPLAYABLE_TTL_MS: a settled "no" isn't asked again for this long. */
 const UNPLAYABLE_TTL_MS = 10 * 60_000;
 const MAX_REMEMBERED = 64;
 
-/**
- * A track no client will play, for a reason that will read the same in ten
- * seconds: an age gate, a region block, a takedown. Its own type so callers
- * can tell it from a failure worth retrying (StreamResolver's
- * PermanentlyUnplayableException).
- */
 export class UnplayableError extends Error {
   override readonly name = 'UnplayableError';
 
-  /** An age gate, which a signed-in request may get past (prompt §5.3). */
   readonly ageGated: boolean;
 
   constructor(message: string, ageGated = false) {
@@ -62,21 +34,14 @@ export class UnplayableError extends Error {
   }
 }
 
-/** A client answered OK, with a stream to play (direct URLs, a SABR URL, or both). */
 export interface ResolvedPlayer {
   videoId: string;
   client: PlayerClientName;
   info: YT.VideoInfo;
-  /** The instance that asked, which SABR's reload requests must use too. */
   yt: Innertube;
-  /** Asked as the signed-in user, through the extension. */
   signed: boolean;
 }
 
-// ---- Verdicts and exclusions ----------------------------------------------------
-
-// Verdicts and exclusions are kept per identity: what YouTube refuses a
-// visitor it may serve the signed-in user, and the other way round.
 const unplayable = new Map<string, { reason: string; at: number; ageGated: boolean }>();
 const excluded = new Map<string, Map<PlayerClientName, number>>();
 
@@ -101,7 +66,6 @@ function rememberUnplayable(videoId: string, signed: boolean, reason: string, ag
   trackLog.w(`not playable${signed ? ' signed in' : ''}: ${reason}; not asking again for 10 minutes`, videoId);
 }
 
-/** Records that [client] failed [videoId], so the next walk skips it for a while. */
 export function excludeClient(videoId: string, client: PlayerClientName, why: string, signed = false) {
   trackLog.w(`${client}${signed ? ' (signed in)' : ''} refused: ${why}; skipping it for this track`, videoId);
   const key = keyOf(videoId, signed);
@@ -114,7 +78,6 @@ export function excludeClient(videoId: string, client: PlayerClientName, why: st
   entries.set(client, Date.now() + EXCLUDE_MS);
 }
 
-/** Debug override (Debug page): localStorage "nuvx:debug:clients" = "YTMUSIC,WEB". */
 export const DEBUG_CLIENTS_KEY = 'nuvx:debug:clients';
 
 function clientOrder(): readonly PlayerClientName[] {
@@ -125,12 +88,6 @@ function clientOrder(): readonly PlayerClientName[] {
   return forced?.length ? forced : CLIENT_ORDER;
 }
 
-/**
- * Signed in, the web clients go first: they are the ones YouTube accepts the
- * SAPISIDHASH session on, and the phone plays age-restricted tracks the same
- * way (WEB_REMIX with cookies, InnerTubeX). VISIONOS follows in case the
- * session is honoured there too.
- */
 const SIGNED_ORDER: readonly PlayerClientName[] = ['YTMUSIC', 'WEB', 'VISIONOS'];
 
 export function clientsFor(videoId: string, signed = false): PlayerClientName[] {
@@ -142,24 +99,11 @@ export function clientsFor(videoId: string, signed = false): PlayerClientName[] 
   });
 }
 
-/** Signing in or out changes what YouTube will serve; old verdicts don't apply (StreamResolver.onSessionChanged). */
 export function onSessionChanged() {
   unplayable.clear();
   excluded.clear();
 }
 
-// ---- The player request ------------------------------------------------------
-
-/**
- * Asks [client] for [videoId]'s player response. The parameters follow
- * googlevideo's example; `reloadPlaybackContext` is set when the SABR server
- * asks for a fresh response mid-stream.
- *
- * No `adPlaybackContext`. Kira sends `{ pyv: true }`, and with it YouTube
- * mints streams that googlevideo cuts off after ~1.3 MB, about 70s of audio
- * (measured 2026-10-15: 4 of 4 VISIONOS URLs refused a range past that point
- * with it, 0 of 4 without; the browser saw the same wall over SABR).
- */
 export async function playerRequest(
   yt: Innertube,
   videoId: string,
@@ -180,7 +124,6 @@ export async function playerRequest(
   });
 }
 
-/** Why a playability status is a verdict on the track rather than on the client, or null if it isn't. */
 const AGE_GATE = /confirm your age|age-restricted|inappropriate for some users|sign in to confirm/;
 
 function permanentReason(status: string | undefined, reason: string | undefined, signedIn: boolean): string | null {
@@ -198,14 +141,6 @@ function permanentReason(status: string | undefined, reason: string | undefined,
   return null;
 }
 
-/**
- * Walks the clients until one answers OK. Each refusal is logged; if every
- * client refuses for a reason that is about the track, the verdict is
- * remembered so retries above this layer are answered without a request.
- *
- * @param skip clients the caller has already seen fail at the streaming stage.
- * @param signed [yt] is the signed-in instance (getSignedInnertube).
- */
 export async function resolvePlayer(
   yt: Innertube,
   videoId: string,

@@ -1,13 +1,3 @@
-//! Cloudflare Turnstile for the Better Lyrics API, completed the same way the browser
-//! extension does: the API's own challenge page runs in a real browser engine
-//! (WebView2) and its widget reports the token. The widget uses
-//! `appearance: interaction-only`, so it normally passes invisibly; if Cloudflare wants
-//! an interaction, the window is shown so the user can complete it. Nothing here
-//! solves or forges the challenge.
-//!
-//! Like the sign-in window, this runs in a child process (`nuvx --turnstile <dir>`)
-//! because tao and winit can't share a process.
-
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -21,13 +11,9 @@ use crate::login::BuildIn;
 
 pub const FLAG: &str = "--turnstile";
 const CHALLENGE: &str = "https://lyrics.api.dacubeking.com/challenge";
-/// How long to wait for an invisible pass before showing the window.
 const SHOW_AFTER: Duration = Duration::from_secs(5);
-/// Give up if nothing happens (e.g. the user ignores a shown challenge).
 const GIVE_UP_AFTER: Duration = Duration::from_secs(120);
 
-/// The challenge page posts to `window.parent`; at top level that is the page itself,
-/// so forward those messages to the native side.
 const BRIDGE: &str = r#"
 window.addEventListener('message', function (e) {
   if (e.data && typeof e.data.type === 'string' && e.data.type.indexOf('turnstile-') === 0) {
@@ -36,7 +22,6 @@ window.addEventListener('message', function (e) {
 });
 "#;
 
-/// Run the challenge in a child process; returns the Turnstile token.
 pub fn obtain(profile_dir: PathBuf) -> anyhow::Result<String> {
     let exe = std::env::current_exe()?;
     let mut cmd = std::process::Command::new(exe);
@@ -58,7 +43,6 @@ pub fn obtain(profile_dir: PathBuf) -> anyhow::Result<String> {
     }
 }
 
-/// Entry point of the child process.
 pub fn child_main(profile_dir: PathBuf) {
     match run(profile_dir) {
         Ok(token) => println!("token {token}"),
@@ -68,7 +52,6 @@ pub fn child_main(profile_dir: PathBuf) {
 
 fn run(profile_dir: PathBuf) -> anyhow::Result<String> {
     let mut event_loop = EventLoopBuilder::<String>::with_user_event().build();
-    // macOS: no Dock icon for a window that's usually never shown.
     #[cfg(target_os = "macos")]
     {
         use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
@@ -113,7 +96,6 @@ fn run(profile_dir: PathBuf) -> anyhow::Result<String> {
                         result = Err(anyhow::anyhow!("challenge timed out"));
                         *flow = ControlFlow::Exit;
                     }
-                    // Expired before use: ask the widget for a fresh one.
                     Some("turnstile-expired") => {
                         let _ = webview.evaluate_script("turnstile.reset()");
                     }
@@ -126,7 +108,6 @@ fn run(profile_dir: PathBuf) -> anyhow::Result<String> {
                     result = Err(anyhow::anyhow!("timed out waiting for verification"));
                     *flow = ControlFlow::Exit;
                 } else if waited > SHOW_AFTER && !window.is_visible() {
-                    // Cloudflare wants an interaction; let the user see the widget.
                     window.set_inner_size(tao::dpi::LogicalSize::new(360.0, 160.0));
                     window.set_visible(true);
                     window.set_focus();

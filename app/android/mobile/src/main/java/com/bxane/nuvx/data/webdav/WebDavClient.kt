@@ -20,15 +20,6 @@ import java.net.URLEncoder
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
 
-/**
- * Minimal WebDAV client: PROPFIND directory listings over the shared
- * [Http.client], with HTTP Basic auth.
- *
- * Depth 1 is used per directory with manual recursion rather than
- * `Depth: infinity`, which many servers (notably Nextcloud) reject. XML is
- * parsed with the platform DOM parser so unit tests run on the JVM without
- * Android.
- */
 object WebDavClient {
 
     data class Entry(
@@ -62,13 +53,6 @@ object WebDavClient {
             }
         }
 
-    /**
-     * Everything a library view needs: the audio plus the pictures filed
-     * beside it. Covers travel as `cover.jpg`/`folder.jpg` next to the music
-     * on every conventional server layout, and the listing that finds the
-     * tracks already walks past them — a second pass would pay the whole
-     * traversal again for files already in hand.
-     */
     data class Listing(val audio: List<Entry>, val images: List<Entry>)
 
     suspend fun listLibrary(
@@ -131,11 +115,6 @@ object WebDavClient {
         return builder.build()
     }
 
-    /**
-     * Whether [fileUrl] already exists. Any answer other than 200/404 is a
-     * failure rather than a guess — treating a 500 as "absent" is how an
-     * upload silently eats a file it was told not to touch.
-     */
     suspend fun exists(fileUrl: String, username: String, password: String): Result<Boolean> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -153,23 +132,9 @@ object WebDavClient {
 
     sealed interface PutResult {
         data object Uploaded : PutResult
-        /** The server refused a non-overwriting PUT because the file is there. */
         data object AlreadyExists : PutResult
     }
 
-    /**
-     * Streams [stream] to [fileUrl] without buffering it in memory — a FLAC
-     * can be a hundred megabytes, and holding two copies (ours plus OkHttp's)
-     * is what gets a background upload killed.
-     *
-     * [contentLength] may be -1 when the size isn't knowable up front (a
-     * `content://` row that won't say); OkHttp then sends chunked, which
-     * Nextcloud and every RFC-compliant server accepts for PUT.
-     *
-     * Without [overwrite], `If-None-Match: *` makes the absence check atomic:
-     * a 412 comes back instead of a clobbered file when something else won
-     * the race between [exists] and this call.
-     */
     suspend fun putFile(
         fileUrl: String,
         stream: InputStream,
@@ -195,11 +160,6 @@ object WebDavClient {
         }
     }
 
-    /**
-     * Creates the collection at [dirUrl], if it isn't one already. 405 means
-     * something is already there, which is the happy path wearing an error
-     * code; anything else out of 2xx is a real failure.
-     */
     suspend fun ensureCollection(dirUrl: String, username: String, password: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -227,11 +187,6 @@ object WebDavClient {
         }
     }
 
-    /**
-     * Parses a PROPFIND multistatus response. Pure function of the XML and the
-     * directory it was asked of — the entry the server echoes back for the
-     * directory itself is dropped.
-     */
     fun parseMultistatus(xml: String, dirUrl: String): List<Entry> {
         if (xml.isBlank()) return emptyList()
         val doc = runCatching {
@@ -268,7 +223,6 @@ object WebDavClient {
         }
         val base = WebDavConfig.normalizeUrl(baseUrl)
         val schemeHost = base.substringBefore('/', "").let {
-            // Keep "https://host" (and port) only.
             val schemeEnd = base.indexOf("://")
             if (schemeEnd < 0) return trimmed
             val pathStart = base.indexOf('/', schemeEnd + 3)
@@ -286,22 +240,11 @@ object WebDavClient {
         URLDecoder.decode(url.trimEnd('/').substringAfterLast('/'), "UTF-8")
     }.getOrDefault(url.trimEnd('/').substringAfterLast('/'))
 
-    /**
-     * `root/<segment>`, with the segment percent-encoded. `URLEncoder` is a
-     * form encoder, so `+` (space) is rewritten to `%20` — a path is not a
-     * query string.
-     */
     fun joinUrl(root: String, segment: String): String {
         val encoded = URLEncoder.encode(segment, "UTF-8").replace("+", "%20")
         return "${root.trimEnd('/')}/$encoded"
     }
 
-    /**
-     * The name a track is stored under: `Artist - Title.ext`, or just the
-     * title when there is no artist worth naming. Filesystem-hostile
-     * characters never reach the server — a `/` in a title would otherwise
-     * file it into a folder nobody asked for.
-     */
     fun uploadFileName(title: String, artist: String, extension: String): String {
         val rawBase = if (artist.isNotBlank() && artist != "Unknown Artist") "$artist - $title" else title
         val clean = rawBase
@@ -314,11 +257,6 @@ object WebDavClient {
         return "$clean.$ext"
     }
 
-    /**
-     * First name in `base`, `base (1)`, `base (2)`, … that isn't in [taken].
-     * Compared case-insensitively: servers that ignore case would otherwise
-     * hand back a "new" name that collides on disk.
-     */
     fun resolveNumberedName(base: String, extension: String, taken: Set<String>): String {
         val lowered = taken.map { it.lowercase(Locale.ROOT) }.toSet()
         var candidate = "$base.$extension"

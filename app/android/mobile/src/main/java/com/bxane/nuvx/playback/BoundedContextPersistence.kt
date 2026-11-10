@@ -13,15 +13,6 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
-/**
- * Durable state for the logical bounded CONTEXT queue.
- *
- * This is deliberately separate from [LastPlayed].  LastPlayed's JSON is an
- * established physical-queue compatibility format and must remain readable by
- * older builds.  This store owns the canonical context and logical window; its
- * physical entries are only the bounded projection needed to restore USER_QUEUE,
- * AUTOPLAY, history, and the exact current item without rebuilding a full list.
- */
 object BoundedContextPersistence {
 
     data class Entry(
@@ -51,26 +42,17 @@ object BoundedContextPersistence {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    /** Test-only dependency injection; production uses [init]. */
     @Synchronized
     internal fun initForTesting(testPrefs: SharedPreferences) {
         prefs = testPrefs
         writer = Executor { it.run() }
     }
 
-    /**
-     * Encoding the canonical list is O(collection) and the service saves on
-     * every track change and queue edit, so [save] only records the newest
-     * state on the caller's (main) thread. One background writer encodes and
-     * stores whatever is newest when it gets there; a burst of saves costs one
-     * encode.
-     */
     private var writer: Executor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "bounded-context-save").apply { isDaemon = true }
     }
     private var pending: State? = null
 
-    /** Bumped by every clear and synchronous write, so an older queued write is dropped. */
     private var generation = 0L
 
     fun save(state: State) {
@@ -110,14 +92,6 @@ object BoundedContextPersistence {
             .putString(KEY_CURRENT_ENTRY_ID, state.entries.getOrNull(state.currentIndex)?.song?.queueEntryId)
             .putLong(KEY_POSITION, state.positionMs.coerceAtLeast(0L))
 
-    /**
-     * Update only the cheap progress scalars for the entry that was persisted.
-     *
-     * A progress callback can race a queue replacement.  Comparing the callback's
-     * entry id with the id written beside the last snapshot prevents an old player
-     * from moving the new queue's position.  Deliberately no state decoding or JSON
-     * encoding happens here.
-     */
     @Synchronized
     fun savePlaybackState(currentEntryId: String?, positionMs: Long) {
         if (currentEntryId.isNullOrBlank() || !prefs.contains(KEY_STATE)) return
@@ -127,7 +101,6 @@ object BoundedContextPersistence {
             .apply()
     }
 
-    /** A malformed snapshot is treated as absent by design. */
     @Synchronized
     fun load(): State? {
         val raw = runCatching { prefs.getString(KEY_STATE, null) }.getOrNull() ?: return null
@@ -154,7 +127,6 @@ object BoundedContextPersistence {
         prefs.edit().clear().commit()
     }
 
-    /** Visible to JVM tests; the Android wrapper above remains the only writer. */
     internal fun encode(state: State): String? = runCatching {
         require(validateState(state) != null) { "invalid bounded context state" }
         json.encodeToString(StoredState.serializer(), state.toStored())
@@ -162,7 +134,6 @@ object BoundedContextPersistence {
         it.toByteArray(StandardCharsets.UTF_8).size <= MAX_SERIALIZED_BYTES
     }
 
-    /** Visible to JVM tests and used by [load] for defensive validation. */
     internal fun decode(raw: String): State? {
         if (raw.length > MAX_SERIALIZED_BYTES) return null
         if (raw.toByteArray(StandardCharsets.UTF_8).size > MAX_SERIALIZED_BYTES) return null
@@ -171,15 +142,6 @@ object BoundedContextPersistence {
         }.getOrNull()
     }
 
-    /**
-     * Build the bounded physical queue that a player may restore.
-     *
-     * The canonical context remains in [State.context] and the logical cursor
-     * remains in [State.window].  Only physical history/current, the actual user
-     * and autoplay tails, and a fresh bounded context look-ahead are returned.
-     * Context entries are matched by their logical `(canonicalIndex, cycleId)`
-     * anchor so their existing physical entry ids survive a restart.
-     */
     internal fun restoreProjection(state: State, repeatAll: Boolean = false): State? {
         val restoredWindow = validateState(state) ?: return null
         val current = state.entries[state.currentIndex]
@@ -281,7 +243,6 @@ object BoundedContextPersistence {
                 sourceKey = context.sourceKey,
                 browseId = context.browseId,
                 songs = contextSongs,
-                // The registry assigns a fresh process-local version on restore.
                 version = 0L,
                 continuationToken = context.continuationToken,
                 continuationState = continuationState,
@@ -530,7 +491,6 @@ object BoundedContextPersistence {
         }
     }
 
-    /** Return the restored window only when every cross-object invariant holds. */
     private fun validateState(state: State): QueueWindow? {
         val context = state.context
         val source = state.source
@@ -578,7 +538,6 @@ object BoundedContextPersistence {
             val canonicalIndex = entry.canonicalIndex
             if (canonicalIndex == null) {
                 if (entry.cycleId != null) return null
-                // An unanchored CONTEXT row is safe only as old physical history.
                 if (entry.song.queueTier == QueueTier.CONTEXT && index >= state.currentIndex) {
                     return null
                 }
@@ -628,12 +587,6 @@ object BoundedContextPersistence {
         runCatching { PlaybackSourceType.valueOf(this) }.getOrNull()
 
     private const val SCHEMA_VERSION = 1
-    // A complete 10k-song canonical context plus all physical tails can exceed
-    // the old 4 MiB cutoff.  This remains a bounded prefs record while leaving
-    // enough room for real metadata and long user/autoplay tails.
-    // Past this the snapshot is skipped and LastPlayed restores instead. A
-    // SharedPreferences value stays resident for the life of the process, and
-    // encoding allocates it several times over, so this is a heap budget.
     private const val MAX_SERIALIZED_BYTES = 8 * 1024 * 1024
     private const val MAX_CANONICAL_SONGS = 100_000
     private const val MAX_PHYSICAL_ENTRIES = 100_000

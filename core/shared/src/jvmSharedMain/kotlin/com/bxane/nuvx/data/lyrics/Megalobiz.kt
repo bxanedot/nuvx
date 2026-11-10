@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
-/** Line-synced community LRC scraped from Megalobiz. */
 object Megalobiz {
     private const val BASE = "https://www.megalobiz.com"
 

@@ -32,7 +32,6 @@ class DiwaliGateTest {
 
     @Test
     fun `the day is IST's whatever the device zone`() {
-        // 7 Nov 20:00 UTC is already 8 Nov 01:30 in India.
         val utc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
             clear()
             set(2026, Calendar.NOVEMBER, 7, 20, 0)

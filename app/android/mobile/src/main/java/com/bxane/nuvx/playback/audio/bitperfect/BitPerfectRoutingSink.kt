@@ -17,29 +17,6 @@ import androidx.media3.exoplayer.audio.AudioOutputProvider
 import androidx.media3.exoplayer.audio.AudioSink
 import java.nio.ByteBuffer
 
-/**
- * Sends each stream either to [bitPerfect] or to the app's ordinary sink.
- *
- * The choice is made per [configure], which Media3 calls for every new
- * format: a track the exclusive output can carry unchanged goes there, and
- * everything else — a lossy stream with encoder priming, a format the DAC
- * does not offer, any track while the mode is off — takes the [normal] path
- * exactly as before. With the mode off this class only forwards.
- *
- * Switching sinks mid-playlist hands over cleanly. The outgoing sink plays
- * out what it holds before the incoming one writes a frame, because both end
- * at the same DAC, and Android's bit-perfect mixer cannot be engaged under a
- * track that is still playing through the shared mixer, or released from
- * under one that is not.
- *
- * If the exclusive output fails — it could not open, or the route changed
- * under it — the stream continues on [normal] from the next buffer rather
- * than surfacing a playback error. After the direct USB driver lets a DAC go,
- * [normal] waits for Android to take it back, so nothing meant for the DAC
- * starts on the phone's speaker in between. Settings that both sinks must hold
- * (attributes, session, volume, listener) are always given to both, so
- * whichever one is chosen next is already up to date.
- */
 @OptIn(UnstableApi::class)
 internal class BitPerfectRoutingSink(
     private val normal: AudioSink,
@@ -48,12 +25,10 @@ internal class BitPerfectRoutingSink(
 
     private var active: AudioSink = normal
 
-    /** The sink being played out after a switch, before [active] writes. */
     private var retiring: AudioSink? = null
     private var lastConfig: AudioSink.AudioSinkConfig? = null
     private var playing = false
 
-    /** Whether the current stream is going to the exclusive output. */
     val isBitPerfect: Boolean get() = active === bitPerfect
 
     override fun configure(audioSinkConfig: AudioSink.AudioSinkConfig) {
@@ -87,7 +62,6 @@ internal class BitPerfectRoutingSink(
             if (playing) active.play()
         }
         if (active !== bitPerfect) {
-            // Straight after direct USB, until the DAC is an Android output again.
             if (bitPerfect.holdsNormalOutput()) return false
             return active.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
         }
@@ -159,11 +133,6 @@ internal class BitPerfectRoutingSink(
     override fun supportsFormat(format: Format): Boolean =
         bitPerfect.canAccept(format) || normal.supportsFormat(format)
 
-    /**
-     * Answered for the exclusive output first: this is what tells a FLAC
-     * decoder it may emit float, the only form in which Android's decoders
-     * hand over a 24-bit sample intact.
-     */
     override fun getFormatSupport(format: Format): Int =
         if (bitPerfect.canAccept(format)) {
             AudioSink.SINK_FORMAT_SUPPORTED_DIRECTLY
@@ -213,7 +182,6 @@ internal class BitPerfectRoutingSink(
         val outgoing = active
         active = target
         if (outgoing.hasPendingData()) {
-            // Gapless boundary: let the previous track finish where it is playing.
             retiring = outgoing
         } else {
             outgoing.reset()
@@ -221,7 +189,6 @@ internal class BitPerfectRoutingSink(
         }
     }
 
-    /** The exclusive output failed; the stream carries on through [normal]. */
     private fun fallBack(error: Exception) {
         Log.w(TAG, "Bit-perfect output failed; continuing on normal output", error)
         bitPerfect.reset()

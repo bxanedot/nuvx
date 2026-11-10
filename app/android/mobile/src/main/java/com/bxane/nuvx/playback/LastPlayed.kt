@@ -6,13 +6,6 @@ import com.bxane.nuvx.data.model.Song
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/**
- * A bounded queue snapshot for restoring playback after process death.
- *
- * Queue contents are serialized only when Media3 reports that the playlist
- * changed. The frequently changing index and position are stored separately as
- * primitives, so progress sampling never walks or serializes the song list.
- */
 object LastPlayed {
 
     class Snapshot(val songs: List<Song>, val index: Int, val positionMs: Long)
@@ -31,7 +24,6 @@ object LastPlayed {
         return start until (safeIndex + 1 + KEEP_AHEAD).coerceAtMost(size)
     }
 
-    /** Persist at most 25 previous entries, the current one, and 50 upcoming entries. */
     fun saveQueue(songs: List<Song>, index: Int) {
         if (songs.isEmpty()) {
             clear()
@@ -51,11 +43,6 @@ object LastPlayed {
             .apply()
     }
 
-    /**
-     * Atomically replaces the restart snapshot and waits until it reaches disk.
-     * Used at an explicit queue boundary, where restoring the queue from before
-     * that boundary would be worse than the small cost of a synchronous write.
-     */
     fun saveQueueImmediately(songs: List<Song>, index: Int, positionMs: Long) {
         if (songs.isEmpty()) {
             clearImmediately()
@@ -76,7 +63,6 @@ object LastPlayed {
             .commit()
     }
 
-    /** Update only cheap scalar state; this performs no queue conversion or JSON work. */
     fun savePlaybackState(index: Int, positionMs: Long) {
         if (!prefs.contains(KEY_QUEUE)) return
         prefs.edit()
@@ -112,7 +98,6 @@ object LastPlayed {
         prefs.edit().clear().apply()
     }
 
-    /** Remove a stale queue before another one is installed. */
     fun clearImmediately() {
         prefs.edit().clear().commit()
     }
@@ -120,9 +105,7 @@ object LastPlayed {
     @Serializable
     private data class StoredQueue(
         val tracks: List<StoredTrack>,
-        /** Compatibility with queue snapshots written before scalar state was separated. */
         val index: Int? = null,
-        /** Compatibility with queue snapshots written before scalar state was separated. */
         val positionMs: Long? = null,
     ) {
         val legacyIndex: Int? get() = index

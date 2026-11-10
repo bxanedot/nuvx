@@ -47,29 +47,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** How long the transport stays up after the last key press. */
 private const val ControlsTimeoutMs = 5_000L
 
-/** One D-pad press on the scrubber. */
 private const val ScrubStepMs = 10_000L
 
-/** How long the scrubber waits for more presses before it actually seeks. */
 private const val ScrubCommitDelayMs = 650L
 
 private enum class PlayerSheet { Menu }
 
-/**
- * Now Playing, as Apple Music has it on Apple TV.
- *
- * The screen is the song: the artwork-coloured backdrop, the cover and — when
- * there are lyrics — the lyrics beside it. The transport (title, buttons and
- * scrubber) rises on any press and steps away after a few idle seconds. Down
- * from the scrubber opens Up Next. Back closes Up Next, then the transport,
- * then the player.
- *
- * The playhead is read only inside [TvScrubber]'s draw pass and its once-a-second
- * time labels, so playback ticks recompose nothing else on this screen.
- */
 @Composable
 fun TvNowPlayingScreen(
     viewModel: MainViewModel,
@@ -88,7 +73,6 @@ fun TvNowPlayingScreen(
     val scope = rememberCoroutineScope()
     val isPlaying = playerState.isPlaying
 
-    // Keep the TV awake (no screensaver) while a song plays on this screen.
     val view = androidx.compose.ui.platform.LocalView.current
     androidx.compose.runtime.DisposableEffect(isPlaying) {
         view.keepScreenOn = isPlaying
@@ -125,7 +109,6 @@ fun TvNowPlayingScreen(
     var lastInput by remember { mutableLongStateOf(0L) }
     var flash by remember { mutableStateOf<TvFlash?>(null) }
     var flashTick by remember { mutableIntStateOf(0) }
-    // A scrub in progress: where the playhead will go once the presses stop.
     var scrubTarget by remember { mutableStateOf<Long?>(null) }
     var scrubJob by remember { mutableStateOf<Job?>(null) }
 
@@ -168,16 +151,12 @@ fun TvNowPlayingScreen(
         controlsVisible = false
     }
 
-    // The transport steps away after a few idle seconds — never while Up Next
-    // or a sheet is open, a scrub is pending, or the music is paused.
     LaunchedEffect(controlsVisible, lastInput, upNextOpen, sheet, isPlaying, scrubTarget) {
         if (controlsVisible && !upNextOpen && sheet == null && isPlaying && scrubTarget == null) {
             delay(ControlsTimeoutMs)
             hideControls()
         }
     }
-    // Focus follows what's on screen: the scrubber when the transport rises,
-    // the stage (which takes the remote's presses) when it goes.
     LaunchedEffect(controlsVisible) {
         delay(60)
         runCatching { if (controlsVisible) scrubberFocus.requestFocus() else stageFocus.requestFocus() }
@@ -223,8 +202,6 @@ fun TvNowPlayingScreen(
     ) {
         TvPlayerBackground(artworkUrl = song.thumbnailUrl, style = playerStyle)
 
-        // The stage: takes the remote while the transport is down. Select or a
-        // vertical press brings the transport up; left and right change track.
         Box(
             modifier = Modifier
                 .fillMaxSize()

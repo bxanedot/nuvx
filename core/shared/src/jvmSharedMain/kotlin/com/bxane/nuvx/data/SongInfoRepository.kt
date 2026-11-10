@@ -28,12 +28,6 @@ data class SongInfo(
     val failed: Boolean = false,
 )
 
-/**
- * YouTube-style short form of a raw count: 950 → "950", 1234 → "1.2K",
- * 100000 → "100K", 2345678 → "2.3M". Truncated rather than rounded, as YouTube
- * does, so 999999 never shows as "1000K". Text that isn't a plain number is
- * returned unchanged.
- */
 fun compactCount(raw: String): String {
     val n = raw.toLongOrNull()?.takeIf { it >= 0 } ?: return raw
     val (unit, suffix) = when {
@@ -49,7 +43,6 @@ fun compactCount(raw: String): String {
     return if (tenth == 0L) "$whole$suffix" else "$whole$separator$tenth$suffix"
 }
 
-/** Loaded only when requested. Counts belong to this exact upload, never a search match. */
 object SongInfoRepository {
     private val client = HttpClient(OkHttp) {
         engine { preconfigured = Http.client }
@@ -64,10 +57,6 @@ object SongInfoRepository {
             attempt {
                 val response = client.get("https://www.youtube.com/watch") {
                     header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-                    // Without a consent answer an EU request is redirected to
-                    // consent.youtube.com, whose page has no player response.
-                    // SOCS=CAI is "reject all": it answers the question and
-                    // opts into nothing.
                     header("Cookie", "SOCS=CAI")
                     parameter("v", song.videoId)
                     parameter("hl", Innertube.currentLanguage)
@@ -112,7 +101,6 @@ internal object SongInfoParser {
         val details = player.obj("videoDetails")
         check(details.str("videoId") == videoId) { "Metadata belongs to another track" }
         val data = scripts.firstNotNullOfOrNull { extract(it, "ytInitialData") }
-        // Only the current video's primary renderer: recommendations also carry counts.
         val primary = data?.find("videoPrimaryInfoRenderer")?.firstOrNull()
         val oldLike = primary?.find("toggleButtonRenderer")?.firstOrNull {
             it.obj("defaultIcon").str("iconType") == "LIKE"
@@ -138,8 +126,6 @@ internal object SongInfoParser {
         )
     }
 
-    /** Catalogue uploads explicitly state this in their description. Upload/publish dates
-     * describe the video and must never substitute for a recording's release date. */
     private fun releaseDate(description: String?): String? {
         val date = description?.lineSequence()?.firstNotNullOfOrNull { line ->
             Regex("Released on:\\s*(\\d{4}-\\d{2}-\\d{2})", RegexOption.IGNORE_CASE)
@@ -148,7 +134,6 @@ internal object SongInfoParser {
         return runCatching { LocalDate.parse(date).toString() }.getOrNull()
     }
 
-    /** Balanced JSON extraction tolerates braces inside titles and trailing script statements. */
     private fun extract(script: String, name: String): JsonObject? {
         val assignment = Regex("(?:var\\s+)?${name}\\s*=\\s*").find(script) ?: return null
         val start = assignment.range.last + 1

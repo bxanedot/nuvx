@@ -18,70 +18,44 @@ import {
 } from './resolver';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
 
-/** What the engine knows about the track it loaded. */
 export interface LoadedTrack {
   videoId: string;
   title: string;
   author: string;
   durationSec: number;
-  /** Largest first. */
   thumbnails: { url: string; width: number; height: number }[];
   client: PlayerClientName;
-  /** The audio format actually selected, e.g. "251 opus 140kbps". */
   format: string;
-  /** The same, field by field, for stats for nerds. */
   stream: StreamStats;
   loudnessDb: number | null;
 }
 
-/** What stats for nerds shows about the audio stream (the phone's NerdStats.Snapshot). */
 export interface StreamStats {
-  /** "Opus", "AAC". */
   codec: string | null;
   itag: string | null;
   bitrateKbps: number | null;
   sampleRateHz: number | null;
   channels: number | null;
-  /** "direct" (googlevideo URLs, by range) or "SABR". */
   mode: 'direct' | 'SABR';
 }
 
-/** A music video's picture: a video-only DASH manifest over the same response's direct URLs. */
 export interface VideoStream {
   videoId: string;
   manifest: string;
-  /** Width over height of the largest rendition, e.g. 16/9. */
   aspect: number;
-  /** Every height the response offers, largest first: what the quality switcher lists. */
   heights: number[];
 }
 
-/**
- * A square picture is YouTube's art track (a song): the album artwork as a
- * still video. Only a wider picture is a music video worth playing.
- */
 const MIN_VIDEO_ASPECT = 1.2;
 
 export class SupersededError extends Error {
   override readonly name = 'SupersededError';
 }
 
-/** How long to wait before re-asking after the server sent no media (its backoffs measured 0-2s). */
 const RETRY_STREAMING_SECONDS = 2;
 
-/** Waiting longer than this for the first audio means the client's stream isn't going to start. */
 const FIRST_AUDIO_TIMEOUT_MS = 15_000;
 
-/**
- * YouTube playback in the browser (prompt §5.2): a player request through
- * YouTube.js, then audio only through Shaka, from the response's direct URLs
- * when it has them (VISIONOS does, and that's what plays; see
- * web/docs/youtube-playback.md) and over SABR through googlevideo otherwise.
- *
- * One engine, one `<audio>` element. Loading a new track supersedes whatever
- * was loading before. A client that fails to stream is excluded for the track
- * and the next one in the walk is tried, at the same position.
- */
 export class YouTubeEngine {
   readonly audio: HTMLAudioElement;
   private player: shaka.Player | null = null;
@@ -90,19 +64,14 @@ export class YouTubeEngine {
   private generation = 0;
   private loading = false;
   private current: { videoId: string; client: PlayerClientName; signed: boolean } | null = null;
-  /** The response the playing track streams from, when it has direct URLs; the video picture comes from it too. */
   private direct: ResolvedPlayer | null = null;
   private preferredCodecs: string[];
 
-  /** Raised when a track can't be played at all, after every fallback. */
   onFatal: (videoId: string, message: string, permanent: boolean) => void = () => {};
-  /** Raised when the engine moved a track to another client mid-playback. */
   onRecovered: (track: LoadedTrack) => void = () => {};
 
   constructor(audio: HTMLAudioElement) {
     this.audio = audio;
-    // Opus (itag 251) when the browser can decode it in MSE, AAC (140)
-    // otherwise, which is Safari: unsupported, but it must not crash.
     const opus = typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('audio/webm; codecs="opus"');
     this.preferredCodecs = opus ? ['opus', 'mp4a'] : ['mp4a'];
   }
@@ -116,24 +85,11 @@ export class YouTubeEngine {
       manifest: { disableVideo: true, disableText: true, disableThumbnails: true },
       abr: { enabled: false },
       preferredAudioCodecs: this.preferredCodecs,
-      // Based on Kira's streaming settings, with one measured change.
-      //
-      // The SABR server paces delivery and answers requests past what it's
-      // willing to send with no media; Shaka treats those as failures. Kira
-      // lets Shaka retry them (8 attempts, exponential backoff), but a Shaka
-      // retry re-sends the same request object, and googlevideo builds the
-      // SABR body once, in a request filter. So every retry replays a stale
-      // body: the old player time and the cold-start PO token minted before
-      // the real one was ready (measured: retries a minute later still carried
-      // the body built at 0.4s). With no Shaka-level retries, the failure
-      // callback restarts streaming instead, which builds a fresh request.
       streaming: {
         bufferingGoal: 120,
         rebufferingGoal: 0.01,
         bufferBehind: 300,
         retryParameters: { maxAttempts: 1, baseDelay: 1000, backoffFactor: 1, fuzzFactor: 0.5, timeout: 30_000 },
-        // A refusal is handled by moving to the next client (onShakaError);
-        // retrying it would only collect more 403s.
         failureCallback: (error: shaka.util.Error) => {
           if (!isRefusal(error)) player.retryStreaming(RETRY_STREAMING_SECONDS);
         },
@@ -145,17 +101,11 @@ export class YouTubeEngine {
     return player;
   }
 
-  /** Pays the cold costs before the first tap (InnerTubeXResolver.warm): the session, the player script, BotGuard. */
   async warm(): Promise<void> {
     this.yt ??= await getInnertube();
     await botguard.init().catch((error: unknown) => trackLog.w(`BotGuard warm-up failed: ${String(error)}`));
   }
 
-  /**
-   * Loads [videoId] and starts it at [startSec]. Resolves once audio is
-   * actually flowing; rejects with [UnplayableError] for a settled "no",
-   * [SupersededError] if another load replaced this one.
-   */
   async load(videoId: string, { startSec = 0, autoplay = true } = {}): Promise<LoadedTrack> {
     const generation = ++this.generation;
     this.loading = true;
@@ -175,8 +125,6 @@ export class YouTubeEngine {
         try {
           resolved = await timed('player request', videoId, () => resolvePlayer(yt, videoId, skip, signed));
         } catch (error) {
-          // An age gate is a verdict on the visitor, not the track: ask again
-          // as the signed-in user, through the extension (prompt §5.3).
           if (!(error instanceof UnplayableError && error.ageGated) || signed || !ytAuthSnapshot().signedIn) throw error;
           trackLog.i('age-restricted; asking again signed in', videoId);
           yt = await timed('signed-in InnerTube session', videoId, getSignedInnertube);
@@ -244,8 +192,6 @@ export class YouTubeEngine {
 
     if (autoplay) {
       await this.audio.play().catch((error: unknown) => {
-        // Autoplay without a gesture is refused; the track is loaded and the
-        // play button will start it.
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
           trackLog.w('autoplay was blocked by the browser; waiting for a tap', videoId);
         } else throw error;
@@ -269,16 +215,7 @@ export class YouTubeEngine {
     };
   }
 
-  /**
-   * A plain DASH manifest over the response's own audio URLs, which Shaka
-   * fetches by byte range. This is how Android plays YouTube: InnerTubeX runs
-   * with SABR off and plays the direct URLs a client like VISIONOS returns.
-   * YouTube.js deciphers each URL (signature and n parameter) with the player
-   * script while rendering the manifest.
-   */
   private async directManifest({ videoId, client, info }: ResolvedPlayer): Promise<string> {
-    // The SABR adapter's dispose() unregisters Shaka's http(s) schemes
-    // outright; put Shaka's own fetch plugin back before a plain load.
     for (const scheme of ['http', 'https']) {
       shaka.net.NetworkingEngine.registerScheme(
         scheme,
@@ -286,8 +223,6 @@ export class YouTubeEngine {
         shaka.net.NetworkingEngine.PluginPriority.FALLBACK,
       );
     }
-    // BotGuard clients attach the streaming token to every media URL, as
-    // InnerTubeX does on Android (`pot`, bound to the videoId).
     const pot = usesWebPo(client) ? await botguard.mint(videoId) : undefined;
     return info.toDash({
       format_filter: (format) => format.has_video || !format.has_audio,
@@ -299,18 +234,6 @@ export class YouTubeEngine {
     });
   }
 
-  /**
-   * The playing track's picture, if it's a music video: its video-only
-   * renditions from the same response, as a DASH manifest for a second,
-   * muted player. Null for a song (YouTube's square art track), for a track
-   * that streams over SABR, and while nothing is loaded.
-   *
-   * [height] keeps only the renditions of that height, which is how a picked
-   * quality is held: Shaka would otherwise drop every codec but the preferred
-   * one (StreamUtils.chooseCodecsAndFilterManifest), and YouTube's H.264
-   * ladder stops at 1080p, so 1440p and 2160p are only reachable with the
-   * manifest cut down to them.
-   */
   async videoStream(height: number | null = null): Promise<VideoStream | null> {
     const resolved = this.direct;
     if (!resolved) return null;
@@ -324,7 +247,6 @@ export class YouTubeEngine {
     const wanted = height !== null && heights.includes(height) ? height : null;
     const pot = usesWebPo(client) ? await botguard.mint(videoId) : undefined;
     const manifest = await info.toDash({
-      // YouTube.js drops the formats this returns true for.
       format_filter: (format) => !format.has_video || format.has_audio || (wanted !== null && format.height !== wanted),
       url_transformer: (url) => {
         if (pot) url.searchParams.set('pot', pot);
@@ -335,11 +257,9 @@ export class YouTubeEngine {
     return { videoId, manifest, aspect: largest.width! / largest.height!, heights };
   }
 
-  /** The SABR session: googlevideo's adapter in front of Shaka (Kira, googlevideo's example). */
   private async sabrManifest(player: shaka.Player, { videoId, client, info, yt }: ResolvedPlayer): Promise<string> {
     const streaming = info.streaming_data!;
     const sessionClient = yt.session.context.client;
-    // Kira and googlevideo's example describe the session's own client here.
     const adapter = new SabrStreamingAdapter({
       playerAdapter: new ShakaPlayerAdapter(),
       clientInfo: {
@@ -350,9 +270,6 @@ export class YouTubeEngine {
       },
     });
 
-    // The GVS token is bound to the videoId. A cold-start token answers at
-    // once and the real one is minted in the background, so a VOD never
-    // waits on BotGuard (Kira).
     const coldStart = await botguard.coldStartToken(videoId);
     let webPoToken: string | undefined;
     let minting = false;
@@ -390,7 +307,6 @@ export class YouTubeEngine {
     });
   }
 
-  /** Picks Opus 251 (else AAC 140): the preferred codec's highest bitrate, avoiding DRC renditions. */
   private selectAudio(player: shaka.Player): { label: string; stats: Omit<StreamStats, 'mode'> } {
     const tracks = player.getVariantTracks().filter((t) => !/drc/i.test(t.originalAudioId ?? ''));
     const statsOf = (t: shaka.extern.Track) => ({
@@ -416,7 +332,6 @@ export class YouTubeEngine {
       : { label: 'unknown', stats: { codec: null, itag: null, bitrateKbps: null, sampleRateHz: null, channels: null } };
   }
 
-  /** Resolves once the element has data to play, or rejects after the timeout. */
   private firstAudio(generation: number): Promise<void> {
     const audio = this.audio;
     if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return Promise.resolve();
@@ -435,12 +350,6 @@ export class YouTubeEngine {
     });
   }
 
-  /**
-   * After the track started: if googlevideo refused this client (HTTP 401/403,
-   * or stream protection saying a token is required), exclude it and pick the
-   * track up on the next client where it stopped. Anything else is the
-   * server's pacing or a transient failure, which the failure callback retries.
-   */
   private onShakaError(error: shaka.util.Error) {
     const current = this.current;
     const line = `Shaka error ${error.code} (severity ${error.severity}): ${describe(error)}`;
@@ -450,7 +359,6 @@ export class YouTubeEngine {
     }
     trackLog.w(line, current?.videoId ?? null);
     if (this.loading || !current || error.severity !== shaka.util.Error.Severity.CRITICAL) return;
-    // Recover once per track and client; later errors from the same stream are echoes.
     this.current = null;
     excludeClient(current.videoId, current.client, `stream error ${error.code}`, current.signed);
     const resumeAt = this.audio.currentTime;
@@ -474,7 +382,6 @@ export class YouTubeEngine {
   }
 }
 
-/** The codec under its usual name rather than its RFC 6381 string (the phone's codecLabel). */
 function codecName(codec: string | null): string | null {
   if (!codec) return null;
   if (codec.startsWith('opus')) return 'Opus';
@@ -484,16 +391,13 @@ function codecName(codec: string | null): string | null {
   return codec.toUpperCase();
 }
 
-/** Whether the response carries audio URLs to fetch directly (VISIONOS does; the web clients only offer SABR). */
 function hasDirectAudio(info: YT.VideoInfo): boolean {
   return !!info.streaming_data?.adaptive_formats.some((f) => f.has_audio && !f.has_video && (f.url || f.signature_cipher || f.cipher));
 }
 
-/** googlevideo saying no to this client, as opposed to pacing or a network blip. */
 function isRefusal(error: shaka.util.Error): boolean {
   const status = error.data?.[1];
   if (error.code === shaka.util.Error.Code.BAD_HTTP_STATUS && (status === 401 || status === 403)) return true;
-  // The adapter's "Server streaming error": stream protection status 3, a token is required.
   return error.code === shaka.util.Error.Code.HTTP_ERROR && error.data?.[0] === 'Server streaming error';
 }
 

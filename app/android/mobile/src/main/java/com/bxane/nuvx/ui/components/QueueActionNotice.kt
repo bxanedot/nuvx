@@ -25,13 +25,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bxane.nuvx.data.settings.AppSettings
 
-/** A unique queue result, so repeating the same action restarts its lifetime. */
 data class QueueActionNotice(
     val id: Int,
     val message: String,
 )
 
-/** Brief queue confirmation shown immediately above the mini player. */
 @Composable
 fun QueueActionNoticeHost(
     notice: QueueActionNotice?,

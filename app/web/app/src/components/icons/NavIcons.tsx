@@ -1,7 +1,3 @@
-// The sidebar's icons, taken from Apple Music's web player so the navigation
-// reads the same (web/docs/apple-music-dom.md, Sidebar). All are drawn in a
-// 24×24 box and fill with currentColor; Apple renders them at 28px.
-
 import type { SVGProps } from 'react';
 
 export type NavIconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number };

@@ -40,7 +40,6 @@ object TvRefreshRateController {
 
         updateCapabilities(display)
 
-        // Read stored preference
         val stored = TvSettings.tvRefreshRate.value
         val pref = TvRefreshRatePreference.fromString(stored)
         _preference.value = pref
@@ -84,7 +83,6 @@ object TvRefreshRateController {
             val lp = window.attributes ?: WindowManager.LayoutParams()
             val caps = _capabilities.value
 
-            // Find best matching mode or scan all supported modes for >=119Hz
             val targetModeId = when (pref) {
                 TvRefreshRatePreference.SYSTEM_AUTO -> 0
                 TvRefreshRatePreference.SMOOTH_60 -> caps.compatible60ModeId ?: 0
@@ -97,7 +95,6 @@ object TvRefreshRateController {
 
             lp.preferredDisplayModeId = targetModeId
 
-            // Legacy direct refresh rate override (API 23+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 when (pref) {
                     TvRefreshRatePreference.ULTRA_120 -> {
@@ -115,7 +112,6 @@ object TvRefreshRateController {
                 }
             }
 
-            // Modern Android R (API 30+) display refresh rate bounds via reflection for universal SDK compatibility
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val (minR, maxR) = when (pref) {
                     TvRefreshRatePreference.ULTRA_120 -> 120.0f to 120.0f
@@ -130,7 +126,6 @@ object TvRefreshRateController {
 
             window.attributes = lp
 
-            // Android S (API 31+) surface frame rate request for ultra-smooth 120fps Compose rendering
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 try {
                     val frameRate = when (pref) {

@@ -7,7 +7,6 @@ import { useExtension } from '@/extension/useExtension';
 import { usePublishedExtension } from '@/extension/useExtensionUpdate';
 import { settingsUi } from './settingsStyles';
 
-/** Step-by-step install guide for the extension, one browser at a time. */
 export default function GuidePage() {
   const status = useExtension();
   const downloads = downloadsFor(usePublishedExtension());

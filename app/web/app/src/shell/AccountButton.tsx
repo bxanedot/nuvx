@@ -5,7 +5,6 @@ import { useRefreshYtAuth, useSelectChannel, useSetConnected, useYtAuth } from '
 
 const SIGN_IN_URL = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/';
 
-// The signed-out pill: Apple's red "Sign In" (report §1, .navigation__native-cta).
 const pill =
   'self-start rounded-[16px] bg-key-bg px-3.5 py-[5px] type-[600_13px/18px] text-white hover:brightness-[1.08] disabled:opacity-60';
 const avatar = 'inline-grid flex-none place-items-center rounded-full bg-quinary object-cover type-[600_11px/1] text-secondary';
@@ -20,14 +19,6 @@ function Avatar({ src, name, size }: { src: string | null; name: string; size: n
   );
 }
 
-/**
- * The sidebar's account control (report §1: avatar and name at the bottom,
- * opening the account menu; a red "Sign In" pill when signed out).
- *
- * There is no sign-in form (prompt §5.3): nuvx uses the YouTube session
- * this browser already has, through the extension. "Sign In" opens Google's
- * own sign-in; the extension notices the new session and this updates itself.
- */
 export function AccountButton() {
   const status = useYtAuth();
   const select = useSelectChannel();
@@ -54,7 +45,6 @@ export function AccountButton() {
     );
   }
   if (!auth.active) {
-    // Signed in to the browser, but the account couldn't be read (the reason is on the Extension page).
     return (
       <button
         className={pill}
@@ -72,7 +62,6 @@ export function AccountButton() {
   return (
     <>
       <button
-        // Signed in: a 24px avatar and the name, opening the account menu.
         className="flex w-full min-w-0 items-center gap-2 rounded-nav px-1 py-1.5 text-start type-body-reduced text-primary hover:bg-quinary aria-expanded:bg-quinary"
         aria-haspopup="menu"
         aria-expanded={anchor !== null}

@@ -1,7 +1,3 @@
-//! Live radio from Radio Browser (radio-browser.info), the free community directory of
-//! internet stations, as Android's Radio tab: countries, their most played stations, a
-//! search across all of them, and the live stream itself.
-
 use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::Arc;
 
@@ -11,14 +7,11 @@ use serde::Deserialize;
 use crate::model::{Link, Thumb, Track};
 use crate::stream::Shared;
 
-/// A station's queue entry has this id prefix, followed by its stream URL.
 pub const PREFIX: &str = "radio:";
 
-// The round-robin name resolves to every mirror; the others are fallbacks when it doesn't answer.
 const HOSTS: [&str; 3] = ["all.api.radio-browser.info", "de1.api.radio-browser.info", "fi1.api.radio-browser.info"];
 const AGENT: &str = concat!("nuvx/", env!("CARGO_PKG_VERSION"));
 
-/// A country with live stations.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Country {
     pub name: String,
@@ -29,7 +22,6 @@ pub struct Country {
 }
 
 impl Country {
-    /// The country's flag, from its two-letter code.
     pub fn flag(&self) -> String {
         let up = self.code.to_ascii_uppercase();
         if up.len() != 2 || !up.bytes().all(|c| c.is_ascii_uppercase()) {
@@ -39,13 +31,11 @@ impl Country {
     }
 }
 
-/// One live station.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Station {
     #[serde(rename = "stationuuid")]
     pub id: String,
     pub name: String,
-    /// The playable stream, playlists (.pls/.m3u) already followed.
     #[serde(rename = "url_resolved")]
     pub stream: String,
     #[serde(default)]
@@ -63,7 +53,6 @@ pub struct Station {
 }
 
 impl Station {
-    /// "Pop · Rock · MP3 128 kbps", the line under the name.
     pub fn subtitle(&self) -> String {
         let tags: Vec<String> = self.tags.split(',').map(str::trim).filter(|t| !t.is_empty()).take(2).map(capitalize).collect();
         let fmt = [self.codec.trim().to_owned(), if self.bitrate > 0 { format!("{} kbps", self.bitrate) } else { String::new() }]
@@ -74,7 +63,6 @@ impl Station {
         [tags.join(" · "), fmt].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ")
     }
 
-    /// The station as a queue entry: its stream rides in the id, after [PREFIX].
     pub fn track(&self) -> Track {
         let subtitle = self.subtitle();
         Track {
@@ -90,7 +78,6 @@ impl Station {
         }
     }
 
-    /// What the player decodes: MP3 and AAC over plain HTTP (no HLS playlists).
     fn playable(&self) -> bool {
         let codec = self.codec.to_ascii_uppercase();
         self.hls == 0 && self.stream.starts_with("http") && (codec.is_empty() || codec == "UNKNOWN" || codec.starts_with("MP3") || codec.starts_with("AAC"))
@@ -102,7 +89,6 @@ fn capitalize(s: &str) -> String {
     c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
 }
 
-/// The listener's country code: Windows' region setting, else the locale's (`LANG`).
 pub fn home_country() -> Option<String> {
     #[cfg(windows)]
     {
@@ -110,20 +96,17 @@ pub fn home_country() -> Option<String> {
         use windows::core::w;
         let mut buf = [0u16; 16];
         let mut size = (buf.len() * 2) as u32;
-        // SAFETY: the out-buffer is sized to what we pass; the strings are static.
         let ok = unsafe { RegGetValueW(HKEY_CURRENT_USER, w!(r"Control Panel\International\Geo"), w!("Name"), RRF_RT_REG_SZ, None, Some(buf.as_mut_ptr().cast()), Some(&mut size)) };
         let code = String::from_utf16_lossy(&buf[..(size as usize / 2).saturating_sub(1)]);
         if ok.is_ok() && code.len() == 2 {
             return Some(code);
         }
     }
-    // "pt_PT.UTF-8" → "PT".
     let lang = std::env::var("LC_ALL").or_else(|_| std::env::var("LANG")).ok()?;
     let code = lang.split(['.', '@']).next()?.split('_').nth(1)?;
     (code.len() == 2).then(|| code.to_ascii_uppercase())
 }
 
-/// Whether a queue entry is a live station.
 pub fn is_station(id: &str) -> bool {
     id.starts_with(PREFIX)
 }
@@ -144,7 +127,6 @@ async fn get(http: &reqwest::Client, path: &str, query: &[(&str, &str)]) -> anyh
     Err(last.map_or_else(|| anyhow::anyhow!("Radio Browser unreachable"), Into::into))
 }
 
-/// Every country with at least one station, most stations first.
 pub async fn countries(http: &reqwest::Client) -> anyhow::Result<Vec<Country>> {
     let b = get(http, "countries", &[("order", "stationcount"), ("reverse", "true"), ("hidebroken", "true")]).await?;
     let mut list: Vec<Country> = serde_json::from_slice(&b)?;
@@ -152,7 +134,6 @@ pub async fn countries(http: &reqwest::Client) -> anyhow::Result<Vec<Country>> {
     Ok(list)
 }
 
-/// A country's most played stations, or the ones whose name matches `query`, worldwide.
 pub async fn stations(http: &reqwest::Client, country: Option<&str>, query: Option<&str>) -> anyhow::Result<Vec<Station>> {
     let mut q = vec![("hidebroken", "true"), ("order", "clickcount"), ("reverse", "true")];
     let path = match (query, country) {
@@ -175,12 +156,10 @@ fn dedup(list: Vec<Station>) -> Vec<Station> {
     list.into_iter().filter(|s| s.playable() && seen.insert(s.stream.clone())).collect()
 }
 
-/// Tells Radio Browser a station was played, as its API asks clients to: it ranks the top lists.
 pub async fn count_click(http: &reqwest::Client, id: &str) {
     let _ = get(http, &format!("url/{id}"), &[]).await;
 }
 
-/// Reads the live stream as its chunks arrive. Not seekable: a station has no length.
 pub struct LiveReader {
     rx: crossbeam_channel::Receiver<Bytes>,
     chunk: Bytes,
@@ -192,7 +171,6 @@ impl Read for LiveReader {
         while self.chunk.is_empty() {
             match self.rx.recv() {
                 Ok(c) => self.chunk = c,
-                // The feed stopped: the stream ends here.
                 Err(_) => return Ok(0),
             }
         }
@@ -212,16 +190,11 @@ impl Seek for LiveReader {
     }
 }
 
-/// A live stream that sends nothing for this long is dead.
 const STALL: std::time::Duration = std::time::Duration::from_secs(20);
 
-/// Relabels MPEG-2 ADTS frames as MPEG-4, frame by frame. Symphonia 0.5 only syncs on
-/// MPEG-4 headers without CRC (0xFFF1); for AAC the two differ only in that ID bit, and
-/// many stations send MPEG-2 (0xFFF9). Anything else passes through untouched.
 #[derive(Default)]
 struct Adts {
     pending: Vec<u8>,
-    /// Decided from the first header: whether this stream needs relabelling at all.
     relabel: Option<bool>,
 }
 
@@ -235,7 +208,6 @@ impl Adts {
         while self.pending.len() - at >= 7 {
             let h = &mut self.pending[at..];
             if h[0] != 0xFF || h[1] != 0xF9 {
-                // Not an MPEG-2 frame start (or lost track of the frames): pass the rest on as is.
                 self.relabel = Some(false);
                 at = self.pending.len();
                 break;
@@ -257,8 +229,6 @@ impl Adts {
     }
 }
 
-/// Opens `url` and starts feeding it into a reader, on `rt`. A dropped connection marks
-/// `shared` failed, so playback reopens the station instead of moving on.
 pub async fn open(http: reqwest::Client, url: &str, shared: Arc<Shared>) -> anyhow::Result<(LiveReader, &'static str)> {
     let resp = http.get(url).header(reqwest::header::USER_AGENT, AGENT).send().await?.error_for_status()?;
     let mime = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or_default().to_ascii_lowercase();
@@ -268,10 +238,8 @@ pub async fn open(http: reqwest::Client, url: &str, shared: Arc<Shared>) -> anyh
         let mut resp = resp;
         let mut adts = (hint == "aac").then(Adts::default);
         loop {
-            // A station that goes quiet without closing counts as dropped.
             let next = tokio::time::timeout(STALL, resp.chunk()).await.unwrap_or_else(|_| Ok(None));
             match next {
-                // The player went on to something else: stop listening.
                 Ok(Some(c)) => {
                     let c = match &mut adts {
                         Some(a) => a.fix(c),
@@ -325,7 +293,6 @@ mod tests {
 
     #[test]
     fn mpeg2_adts_is_relabelled_across_chunks_and_others_pass() {
-        // Two 9-byte MPEG-2 frames (header + 2 payload bytes, one of them 0xF9).
         let frame = [0xFF, 0xF9, 0x4C, 0x80, 0x01, 0x20, 0x00, 0xF9, 0xAA];
         let stream: Vec<u8> = frame.iter().chain(&frame).copied().collect();
         let mut a = Adts::default();
@@ -349,7 +316,6 @@ mod tests {
         println!("{} PT stations; first {:?}", s.len(), s.first().map(|s| (&s.name, &s.codec, &s.stream)));
         assert!(!s.is_empty());
         assert!(!stations(&http, None, Some("jazz")).await.unwrap().is_empty());
-        // One MP3 and one AAC station decode a second of audio from their live stream.
         for codec in ["MP3", "AAC", "AAC+"] {
             let s = s.iter().find(|s| s.codec.eq_ignore_ascii_case(codec)).expect(codec);
             let shared = Shared::new(0, 0, None, crate::stream::Format::File { hint: "mp3", mime: None }, None, false);

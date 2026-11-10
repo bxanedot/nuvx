@@ -16,7 +16,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 
-/** Public Apple lyrics plus optional authenticated Spotify and Musixmatch routes. */
 object PaxSenix {
     private const val API = "https://api.paxsenix.org"
     private const val PUBLIC_PROXY = "https://lyrics.paxsenix.org"
@@ -33,7 +32,6 @@ object PaxSenix {
         apiKey = normalizePaxSenixApiKey(value)
     }
 
-    /** The original keyless Apple Music provider used by the existing source id. */
     suspend fun lyrics(
         title: String,
         artist: String,
@@ -132,12 +130,6 @@ object PaxSenix {
         return apiBody(url)?.let { parseLrcGet(it, title, artist, durationMs) }
     }
 
-    /**
-     * The general endpoint returns search candidates, not lyric lines. Parsing
-     * its array as one document concatenates every candidate and makes each
-     * song's timestamps restart at zero, which appears as repeated lines that
-     * cannot stay in sync. Select one recording before parsing its lyrics.
-     */
     fun parseLrcGet(
         raw: String,
         title: String,
@@ -206,7 +198,6 @@ object PaxSenix {
     private fun parseResponse(raw: String): List<LyricLine>? =
         parseTimedApple(raw) ?: ProviderLyrics.parse(raw)
 
-    /** Preserve word timestamps when PaxSenix returns its structured Apple payload. */
     fun parseTimedApple(raw: String): List<LyricLine>? {
         val root = runCatching { lyricsJson.parseToJsonElement(raw) }.getOrNull() ?: return null
         val content = root.findTimedContent() ?: return null
@@ -217,9 +208,6 @@ object PaxSenix {
             val texts = wordRows.mapNotNull { (it as? JsonObject)?.string("text") }
             if (texts.isEmpty()) return@mapIndexedNotNull null
             val nextLine = rows.getOrNull(index + 1)?.long("timestamp")
-            // Each entry is a syllable. `part` marks one that runs straight into
-            // the next — "e" then "nough" — so the space goes only where it is
-            // false. Joined with a space throughout, that read "long e nough".
             val runs = wordRows.mapIndexedNotNull { wordIndex, element ->
                 val word = element as? JsonObject ?: return@mapIndexedNotNull null
                 val text = word.string("text")?.trim()?.takeIf(String::isNotEmpty)
@@ -232,8 +220,6 @@ object PaxSenix {
                 TimedRun(wordStart, wordEnd, if (joinsNext) text else "$text ")
             }
             val timed = wordsFromRuns(runs, spacingIsExplicit = true)
-            // A syllable with no stamp leaves nothing to time the line by, as
-            // before; the text is then the entries as they came.
             val untimed = runs.size != texts.count { it.isNotBlank() }
             LyricLine(
                 timeMs = minOf(start, timed.firstOrNull()?.startMs ?: start),

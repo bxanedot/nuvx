@@ -1,24 +1,9 @@
 import type { Track } from '@/data/music/types';
 
-/**
- * The three-tier queue's rules, as plain list edits: a port of
- * shared/…/playback/QueueTimeline.kt and QueueSections.kt, so the web player
- * orders a queue exactly as the phone and the desktop do.
- *
- * - **context**: the album, playlist or one-off song the user started.
- * - **user**: tracks queued by hand ("Play Next", "Add to Queue").
- * - **autoplay**: the radio that plays on once the rest runs out.
- *
- * The Kotlin side has a QueueWindow as well. It feeds Media3 a bounded window
- * of a long queue, which the web engine has no use for: it loads one track at
- * a time, so the whole timeline is just this array.
- */
-
 export type QueueTier = 'context' | 'user' | 'autoplay';
 
 export type QueueSourceType = 'album' | 'playlist' | 'artist' | 'library' | 'search' | 'home' | 'radio' | 'queue' | 'other';
 
-/** Where a queue (or a track in it) was started from in the UI. */
 export interface QueueSource {
   title: string;
   type: QueueSourceType;
@@ -26,14 +11,12 @@ export interface QueueSource {
 }
 
 export interface QueueEntry {
-  /** Assigned once when the track enters the queue and never changed (QueueTimeline.asQueueEntry). */
   entryId: string;
   track: Track;
   tier: QueueTier;
   source: QueueSource | null;
 }
 
-/** Past this point in a track, back restarts it instead of going to the previous one (QueueSections.kt). */
 export const BACK_RESTARTS_AFTER_SEC = 10;
 
 let counter = 0;
@@ -48,12 +31,6 @@ function upcomingUserQueue(timeline: readonly QueueEntry[], currentIndex: number
   return timeline.slice(currentIndex + 1).filter((e) => e.tier === 'user');
 }
 
-/**
- * Starting an album, playlist or artist: [preceding context] + [selected] +
- * [the user's upcoming queue, kept] + [following context]. Playback starts at
- * the selected track; the preceding ones stay behind it, for Back and for
- * repeat-all to come round to.
- */
 export function buildContextQueue(
   current: readonly QueueEntry[],
   currentIndex: number,
@@ -71,7 +48,6 @@ export function buildContextQueue(
   };
 }
 
-/** A one-off song (Search, Home, Explore): [the song] + [the user's upcoming queue, kept]. */
 export function buildOneOffQueue(
   current: readonly QueueEntry[],
   currentIndex: number,
@@ -81,11 +57,6 @@ export function buildOneOffQueue(
   return [asEntry(track, 'context', source), ...upcomingUserQueue(current, currentIndex)];
 }
 
-/**
- * Where hand-queued tracks go: "Play Next" at the head of the user queue
- * (straight after the current track), "Add to Queue" at its tail, ahead of
- * the context and AutoPlay.
- */
 export function userQueueInsertionIndex(timeline: readonly QueueEntry[], currentIndex: number, isNext: boolean): number {
   if (!timeline.length) return 0;
   const start = Math.min(Math.max(currentIndex + 1, 0), timeline.length);
@@ -96,24 +67,13 @@ export function userQueueInsertionIndex(timeline: readonly QueueEntry[], current
 
 export interface JumpPlan {
   isPureSeek: boolean;
-  /** The new timeline, as indices into the old one; indices left out are dropped. */
   order: number[];
   newIndex: number;
-  /** An AutoPlay track tapped becomes the new context: a station pivot. */
   promoteTarget: boolean;
 }
 
 const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
 
-/**
- * Tapping a row in Up Next (QueueTimeline.computeJumpOrder):
- * 1. Back, or the same track: a pure seek.
- * 2. A context track: a pure seek, unless hand-queued tracks were skipped
- *    over; then those are pinned right after the target instead of lost.
- * 3. A hand-queued track: the hand-queued tracks bypassed are dropped.
- * 4. An AutoPlay track: it becomes the context (a station pivot); the user's
- *    queue is kept behind it; the old context and the bypassed AutoPlay go.
- */
 export function computeJumpOrder(tiers: readonly QueueTier[], currentIndex: number, targetIndex: number): JumpPlan | null {
   const n = tiers.length;
   if (currentIndex < 0 || currentIndex >= n || targetIndex < 0 || targetIndex >= n) return null;
@@ -159,7 +119,6 @@ export function computeJumpOrder(tiers: readonly QueueTier[], currentIndex: numb
   }
 }
 
-/** Applies a jump plan; returns the new timeline and the index to play. */
 export function applyJump(timeline: readonly QueueEntry[], currentIndex: number, targetIndex: number): { timeline: QueueEntry[]; index: number } | null {
   const plan = computeJumpOrder(
     timeline.map((e) => e.tier),
@@ -183,16 +142,10 @@ export function applyJump(timeline: readonly QueueEntry[], currentIndex: number,
   };
 }
 
-/** The upcoming hand-queued rows: what "Clear" removes. Context and AutoPlay stay. */
 export function upcomingUserQueueIndices(tiers: readonly QueueTier[], currentIndex: number): number[] {
   return range(Math.max(currentIndex + 1, 0), tiers.length).filter((i) => tiers[i] === 'user');
 }
 
-/**
- * Played hand-queued rows, to prune once playback is back in the context, so
- * repeat-all cycles only the context. Empty while a hand-queued track (or
- * AutoPlay) is playing.
- */
 export function playedUserQueueIndices(tiers: readonly QueueTier[], currentIndex: number): number[] {
   if (currentIndex <= 0 || currentIndex >= tiers.length || tiers[currentIndex] !== 'context') return [];
   return range(0, currentIndex).filter((i) => tiers[i] === 'user');
@@ -207,16 +160,11 @@ export function shuffled<T>(items: readonly T[], random: () => number = Math.ran
   return out;
 }
 
-/** Never an unchanged order when two or more can move: an identity shuffle reads as the tap being ignored. */
 export function avoidIdentityShuffle(original: readonly number[], shuffledOrder: number[]): number[] {
   if (original.length <= 1 || shuffledOrder.some((v, i) => v !== original[i])) return shuffledOrder;
   return [...shuffledOrder.slice(1), shuffledOrder[0]!];
 }
 
-/**
- * A queue started with shuffle on: the picked track leads, the user's queue
- * stays in order behind it, the context and AutoPlay are each shuffled.
- */
 export function shuffledStartingOrder(entries: readonly QueueEntry[], startIndex: number, random?: () => number): QueueEntry[] {
   if (!entries.length) return [];
   const at = Math.min(Math.max(startIndex, 0), entries.length - 1);
@@ -229,7 +177,6 @@ export function shuffledStartingOrder(entries: readonly QueueEntry[], startIndex
   ];
 }
 
-/** Shuffle applied to what is still to come, as a permutation of [upcoming]: the user queue never moves. */
 export function shuffledUpcomingOrder(upcoming: readonly QueueTier[], random?: () => number): number[] {
   const of = (tier: QueueTier) => range(0, upcoming.length).filter((i) => upcoming[i] === tier);
   const context = of('context');
@@ -241,16 +188,10 @@ export function shuffledUpcomingOrder(upcoming: readonly QueueTier[], random?: (
   ];
 }
 
-/** Puts restored upcoming rows back in their sections (user, context, AutoPlay), keeping their order within each. */
 export function sectionedOrder(restored: readonly number[], upcoming: readonly QueueTier[]): number[] {
   return (['user', 'context', 'autoplay'] as const).flatMap((tier) => restored.filter((i) => upcoming[i] === tier));
 }
 
-/**
- * Where AutoPlay's section begins, and so where a hand-queued track belongs:
- * the first AutoPlay track still to come (QueueSections.autoplaySectionStart).
- * The Up Next panel draws its AutoPlay heading at this index.
- */
 export function autoplaySectionStart(tiers: readonly QueueTier[], currentIndex: number): number {
   const after = Math.min(Math.max(currentIndex + 1, 0), tiers.length);
   for (let i = after; i < tiers.length; i++) if (tiers[i] === 'autoplay') return i;

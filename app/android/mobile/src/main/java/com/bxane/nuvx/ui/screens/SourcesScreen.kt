@@ -72,45 +72,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
-/**
- * Where the app is allowed to get audio from.
- *
- * The order is fixed rather than something to argue with: the addons a user
- * added are tried first, because they are the sources chosen on purpose, and
- * YouTube Music is tried last, since it needs no setup and has the full
- * catalogue behind it. Nothing on this screen downloads code, and nothing on
- * it can teach the app a new way to behave after it has shipped — an addon
- * answers questions with JSON, and this app is the only thing here running
- * anything.
- */
 @Composable
 fun SourcesScreen(
     contentPadding: PaddingValues,
-    /**
-     * Asks the activity to open the editor for a source — or for a new one,
-     * when handed a config the registry does not have yet.
-     *
-     * Raised rather than drawn here, and not as a style preference: this screen
-     * sits inside the subtree carrying `hazeSource`, so a frosted card drawn
-     * from within it is part of the very layer it samples and comes out with no
-     * background at all. Hosting it at the activity — where every other alert
-     * in this app already lives — is also what lets the scrim cover the tab bar
-     * and the mini player.
-     */
     onEditSource: (SourceConfig) -> Unit,
-    /** Asks the activity to open an addon's quality list — raised for the same reason as [onEditSource]. */
     onChooseSourceQuality: (SourceConfig) -> Unit,
-    /** Asks the activity to explain an addon's "Outdated addon" line — raised for the same reason. */
     onExplainOutdatedAddon: (SourceConfig) -> Unit,
-    /**
-     * Asks the activity to open the WebDAV editor — raised for the same
-     * reason as [onEditSource]: the frosted alert cannot be drawn from inside
-     * this subtree.
-     */
     onEditWebDav: () -> Unit,
-    /** As [onEditWebDav], for the SMB share editor. */
     onEditSmb: () -> Unit,
-    /** Opens the full-window warning before JioSaavn is opted into. */
     onConfirmJioSaavn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -128,15 +97,9 @@ fun SourcesScreen(
     val smbUsername by AppSettings.smbUsername.collectAsStateWithLifecycle()
     val smbPassword by AppSettings.smbPassword.collectAsStateWithLifecycle()
 
-    /** Last known reachability per source, filled in as the probes come back. */
     val health = remember { mutableStateMapOf<String, SourceHealth>() }
     val losslessOutput by LosslessOutput.state.collectAsStateWithLifecycle()
 
-    // Every source that has a server to reach is probed, so an addon gets a
-    // reachability line — which is the only feedback that a URL just pasted in
-    // was any good, and the only place a manifest that fails validation gets to
-    // say why. Except an addon waiting on a lossless output: it is not to be
-    // contacted at all until one is connected, and connecting one re-runs this.
     val probeKey = configs.filter { it.kind.needsServer }
         .joinToString { "${it.id}@${it.baseUrl}@${it.checkValidLossless}" } + "@${losslessOutput.capable}"
     LaunchedEffect(probeKey) {
@@ -146,41 +109,18 @@ fun SourcesScreen(
                 runCatching { source.health() }
                     .getOrElse { SourceHealth.Unreachable(it.message ?: "Failed") }
             }
-            // An addon names itself, so the row takes that name rather than a
-            // hostname — and rather than a field asking the user to make one up.
-            //
-            // Written here, off the probe that has just fetched the manifest
-            // anyway, because this is the one place that both talks to every
-            // configured source and is allowed to change what is stored. It
-            // settles after one pass: the next probe finds the label already
-            // equal and writes nothing, so there is no loop between this and
-            // the [configs] it is reading. A rename on the addon's side is
-            // picked up the next time this screen is opened.
             if (source is AddonSource) {
                 val named = withContext(Dispatchers.IO) { runCatching { source.manifestName() }.getOrNull() }
                 if (named != null && named != config.label) {
-                    // Off the stored config, not the one this pass started with:
-                    // the probe above may have just refreshed it, and the user
-                    // may have picked a quality in the meantime.
                     SourceRegistry.config(config.id)?.let { SourceRegistry.update(it.copy(label = named)) }
                 }
             }
         }
     }
 
-    // The ceiling in force *right now*, which is the only one this screen can
-    // speak for: the rows below are switches the user set once, and whether a
-    // given source is reached also depends on which connection is up. Reading
-    // it here rather than baking it into the switches is deliberate — the
-    // preset write that used to do that is what made a mobile-data rung follow
-    // the user onto Wi-Fi. See [AudioQuality.permits].
     val ceiling = if (metered == true) cellularQuality else wifiQuality
 
-    /** Whether the ceiling in force right now would cap a lossless stream anyway. */
     val cappedByQuality = ceiling != AudioQuality.LOSSLESS
-    // Asked of the kinds themselves rather than of the module specifically, so
-    // a source added later answers this on its own terms instead of being
-    // invisible to it.
     val anyLosslessSource = configs.any { it.enabled && it.isComplete && it.kind.canServeLossless }
 
     Column(
@@ -204,17 +144,6 @@ fun SourcesScreen(
                 }
             },
         ) {
-            // The addons are split out from the rest because they are the only
-            // rows whose order is the *user's*. Everything else ranks by kind,
-            // which is fixed in [SourceKind] and not something a drag should be
-            // able to argue with — a gesture that let JioSaavn be dragged above
-            // an addon would be offering a choice the resolver does not
-            // actually honour.
-            //
-            // They are still one continuously numbered list. The numbers say
-            // what order the sources are tried in, and restarting the count
-            // under a second heading would break the one thing this screen is
-            // for.
             val addons = configs.filter { it.kind.isUserAdded }
             val fixed = configs.filterNot { it.kind.isUserAdded }
                 .sortedBy { it.kind.rank }
@@ -225,26 +154,14 @@ fun SourcesScreen(
                         position = position,
                         config = config,
                         health = health[config.id],
-                        // Switched on, but not reached on this connection. Said
-                        // on the row rather than by moving the switch, so the
-                        // switch keeps meaning "I want this source" and the
-                        // connection keeps meaning "…and here is what it costs
-                        // today".
                         skippedByQuality = config.enabled && !ceiling.permits(config.kind),
                         awaitingOutput = if (config.enabled && config.awaitsLosslessOutput) losslessOutput else null,
-                        // Read off the stored manifest, so it shows before the
-                        // probe below answers, and on a server that is down.
                         needsUpdate = config.needsAddonUpdate,
                         onMetered = metered == true,
                         ceiling = ceiling,
-                        // Anything the user configured is theirs to edit or
-                        // delete. JioSaavn and YouTube have no address to
-                        // change, so a tap on them would open an empty editor.
                         onClick = if (config.kind.needsServer) ({ onEditSource(config) }) else null,
                         onChooseQuality = { onChooseSourceQuality(config) },
                         onExplainOutdated = { onExplainOutdatedAddon(config) },
-                        // YouTube gets no switch at all — see
-                        // [SourceRegistry.setEnabled] for why one would be a lie.
                         onToggle = if (config.kind == SourceKind.YOUTUBE) {
                             null
                         } else {
@@ -266,18 +183,11 @@ fun SourcesScreen(
                 row = row,
             )
 
-            // No leading divider when addons came first: each of those wrappers
-            // ends with one, which is what makes them all the same height for
-            // the drag to measure against.
             fixed.forEachIndexed { index, config ->
                 if (index > 0) RowDivider()
                 row(addons.size + index + 1, config, null)
             }
 
-            // The one shut-out an addon can't tell apart from "not lossless":
-            // headphones on LDAC, LHDC or SSC UHQ whose codec Android won't name without
-            // the Nearby devices permission. Offered only then, and only from
-            // here, where the reason for asking is on screen.
             val waiting = configs.any { it.enabled && it.awaitsLosslessOutput }
             if (waiting && losslessOutput.bluetoothCodecUnknown) {
                 RowDivider()
@@ -290,10 +200,6 @@ fun SourcesScreen(
             )
         }
 
-        // A personal library rather than a catalogue in the order above: it
-        // holds the listener's own files instead of answering for YouTube's,
-        // so it takes no part in the ranking and gets its own group. The
-        // editor is raised to the activity like every other alert.
         RemoteLibrarySection(
             icon = SfIcons.Cloud,
             title = stringResource(R.string.webdav),
@@ -316,9 +222,6 @@ fun SourcesScreen(
             onDisconnect = { AppSettings.clearWebDav() },
         )
 
-        // A personal library on a file share, filed next to the WebDAV one
-        // for the same reason: it holds the listener's own files instead of
-        // answering for YouTube's, so it takes no part in the ranking above.
         RemoteLibrarySection(
             icon = SfIcons.Storage,
             title = stringResource(R.string.smb),
@@ -373,13 +276,6 @@ fun SourcesScreen(
 }
 
 
-/**
- * A personal library section: the server row, plus test and disconnect rows
- * once something is configured. Shared by WebDAV and SMB, which differ only
- * in what "configured" means and which repository answers the test — the
- * test state lives here rather than in the screen, so each section tracks
- * its own result.
- */
 @Composable
 private fun RemoteLibrarySection(
     icon: ImageVector,
@@ -442,28 +338,6 @@ private fun RemoteLibrarySection(
         }
     }
 }
-/**
- * The addon rows, draggable by their handles to set which is asked first.
- *
- * The mechanics are [LyricsSourcesDialog][com.bxane.nuvx.ui.components.LyricsSourcesDialog]'s,
- * because that list solved the same problem first and its notes are worth
- * reading: the gesture keeps only how far the finger has travelled and which
- * slot it started on, and both where the row is drawn and which slot it
- * occupies are derived from those two numbers, so they cannot drift apart
- * however many swaps happen along the way.
- *
- * Two things differ here. The list is on a vertically scrolling screen rather
- * than in a dialog, which is why the drag lives on the handle alone —
- * [detectDragGestures] there consumes the vertical drag before the scroll
- * container sees it, while a drag anywhere on the row would make the list
- * impossible to scroll past. And the order is only written back when the
- * gesture ends: [SourceRegistry.reorderAddons] persists to encrypted prefs and
- * rebuilds the source instances, which is not work to do on every frame of a
- * drag.
- *
- * No handle is drawn for a single addon. There is nothing to reorder, and a
- * grip that cannot move anything is a control that lies.
- */
 @Composable
 private fun ReorderableAddons(
     addons: List<SourceConfig>,
@@ -473,8 +347,6 @@ private fun ReorderableAddons(
     if (addons.isEmpty()) return
     if (addons.size == 1) {
         row(1, addons.first(), null)
-        // The same trailing rule the reorderable rows below emit, so the row
-        // that follows this block is separated whichever branch drew it.
         RowDivider()
         return
     }
@@ -482,30 +354,16 @@ private fun ReorderableAddons(
     var liveOrder by remember(addons) { mutableStateOf(addons) }
     var dragged by remember { mutableStateOf<String?>(null) }
 
-    /** Distance the finger has covered since this gesture began, in pixels. */
     var totalDrag by remember { mutableFloatStateOf(0f) }
 
-    /** Which slot of [liveOrder] it began on. */
     var startIndex by remember { mutableIntStateOf(0) }
 
-    // Each row's height — the row plus its trailing hairline, measured off the
-    // wrapper holding both — by addon id. Per row rather than one shared pitch,
-    // because a row's status line wraps to as many lines as its message needs,
-    // so an addon with an error stands taller than its neighbours. Frozen for
-    // the duration of a gesture so a relayout mid-drag cannot move the
-    // boundaries the drag is being measured against underneath it.
     val heights = remember { mutableStateMapOf<String, Float>() }
     var lockedHeights by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
 
-    /** How far the dragged row's slot has moved since the gesture began: the heights of the rows it has passed. */
     var slotShift by remember { mutableFloatStateOf(0f) }
 
     liveOrder.forEachIndexed { index, config ->
-        // Keyed on the config's id so this composable — gesture and all —
-        // follows that addon from slot to slot. Matched by position instead,
-        // the first swap would change the key under the finger, restart the
-        // `pointerInput` coroutine mid-gesture, and stall the drag one swap
-        // after it started.
         key(config.id) {
             val isDragging = config.id == dragged
             Column(
@@ -514,12 +372,6 @@ private fun ReorderableAddons(
                     .zIndex(if (isDragging) 1f else 0f)
                     .onSizeChanged { heights[config.id] = it.height.toFloat() }
                     .graphicsLayer {
-                        // Read in the draw phase, so a drag moves the row
-                        // without recomposing the list at all. The row sits
-                        // wherever the finger has carried it from where it was
-                        // picked up, less whatever the swaps have already moved
-                        // its slot — so a swap relocates the slot and shortens
-                        // this by exactly as much, and the row does not budge.
                         translationY = if (isDragging) totalDrag - slotShift else 0f
                     },
             ) {
@@ -530,9 +382,6 @@ private fun ReorderableAddons(
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
                         modifier = Modifier
                             .size(20.dp)
-                            // A constant key on purpose: the row is pinned by
-                            // [key] above, so nothing about a reorder should
-                            // restart this coroutine.
                             .pointerInput(Unit) {
                                 detectDragGestures(
                                     onDragStart = {
@@ -548,27 +397,12 @@ private fun ReorderableAddons(
                                         var at = liveOrder.indexOfFirst { it.id == config.id }
                                         if (at < 0 || lockedHeights.isEmpty()) return@detectDragGestures
 
-                                        // Held past either end the row stops
-                                        // there under the finger, rather than
-                                        // running off the list and having to be
-                                        // dragged all the way back. The ends are
-                                        // the rows above and below the slot it
-                                        // started in, taken from the current
-                                        // order with the swaps undone.
                                         val others = liveOrder.filterNot { it.id == config.id }
                                         totalDrag = (totalDrag + delta.y).coerceIn(
                                             -others.take(startIndex).sumOf { height(it.id).toDouble() }.toFloat(),
                                             others.drop(startIndex).sumOf { height(it.id).toDouble() }.toFloat(),
                                         )
 
-                                        // A loop, not an `if`: one pointer event
-                                        // can cover several rows when the finger
-                                        // is quick, and settling one row per
-                                        // event would leave the list trailing.
-                                        // A swap with a neighbour moves the slot
-                                        // by that neighbour's height, so the
-                                        // threshold is a share of the row being
-                                        // passed, whatever height either row is.
                                         while (true) {
                                             val offset = totalDrag - slotShift
                                             val below = liveOrder.getOrNull(at + 1)?.let { height(it.id) }
@@ -604,37 +438,14 @@ private fun ReorderableAddons(
                             },
                     )
                 }
-                // After the row, not before it, so every wrapper is exactly one
-                // row plus one hairline — the height the drag measures it by.
-                // With the divider leading, the first wrapper was short by a
-                // rule.
                 RowDivider()
             }
         }
     }
 }
 
-/**
- * How far past a neighbour the finger has to carry a row before the two trade
- * places, as a share of the height of the row being passed.
- *
- * Deliberately more than half, for the reason spelled out in
- * [LyricsSourcesDialog][com.bxane.nuvx.ui.components.LyricsSourcesDialog]:
- * at exactly half, a row that has just swapped lands precisely on the boundary
- * of swapping back, so the shake in any real finger flips it back and forth for
- * as long as it is held near a crossing.
- */
 private const val SWAP_THRESHOLD = 0.6f
 
-/**
- * The one row on this screen that adds something rather than describing
- * something.
- *
- * Deliberately at the bottom of the same group as the sources rather than off
- * in a section of its own: what it adds goes to the *top* of that list, and a
- * row sitting under the numbered ones is the clearest way to say "and you can
- * put another one in here".
- */
 @Composable
 private fun AddSourceRow(onClick: () -> Unit) {
     Row(
@@ -645,8 +456,6 @@ private fun AddSourceRow(onClick: () -> Unit) {
             .padding(horizontal = ROW_INSET, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Aligned with the numbers above it rather than with their icons, so
-        // the plus reads as belonging to the same column the list is indexed by.
         Spacer(Modifier.width(24.dp))
         Icon(
             imageVector = SfIcons.Add,
@@ -671,12 +480,6 @@ private fun AddSourceRow(onClick: () -> Unit) {
     }
 }
 
-/**
- * Asks for Nearby devices so the Bluetooth codec can be read — the only way an
- * LDAC, LHDC or SSC UHQ headset qualifies for an addon's `checkValidLossless`. Draws
- * nothing where the permission does not exist (before Android 12) or is
- * already granted, since asking again would do nothing.
- */
 @Composable
 private fun BluetoothCodecPermissionRow() {
     val context = LocalContext.current
@@ -691,17 +494,12 @@ private fun BluetoothCodecPermissionRow() {
         denied = !ok
         if (ok) LosslessOutput.refresh()
     }
-    // Back from system Settings, where it may have been switched on.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         val now = isGranted()
         if (now && !granted) LosslessOutput.refresh()
         granted = now
         if (now) denied = false
     }
-    // Asked as soon as the screen shows the shut-out it would fix, and again
-    // on every later visit, since this row is composed afresh each time. After
-    // a second refusal Android answers without a dialog, which lands in
-    // [denied] and the Settings prompt below.
     LaunchedEffect(Unit) {
         if (!isGranted()) ask.launch(permission)
     }
@@ -757,30 +555,15 @@ private fun SourceRow(
     health: SourceHealth?,
     onClick: (() -> Unit)?,
     onChooseQuality: () -> Unit,
-    /** Explains the "Outdated addon" line, which only an addon with [needsUpdate] shows. */
     onExplainOutdated: () -> Unit,
-    /** Null for a source that cannot be switched off, which gets a label instead. */
     onToggle: ((Boolean) -> Unit)?,
-    /** On, but skipped by the ceiling the current connection is set to. */
     skippedByQuality: Boolean = false,
-    /** On, but its addon needs a lossless output and this is what is connected instead. Null when not waiting. */
     awaitingOutput: LosslessOutput.State? = null,
-    /** An addon that is out of date (no `nuvxAuth` in its manifest). Still used; flagged on a line of its own. */
     needsUpdate: Boolean = false,
-    /** Which of the two ceilings [ceiling] is, so the row can name it. */
     onMetered: Boolean = false,
     ceiling: AudioQuality = AudioQuality.LOSSLESS,
-    /**
-     * The drag grip, for a row whose position is the user's to set. Passed in
-     * rather than drawn here because the gesture belongs to the list that knows
-     * the other rows — see [ReorderableAddons] — and null for every row whose
-     * rank is fixed by its kind.
-     */
     handle: (@Composable () -> Unit)? = null,
 ) {
-    // Dimmed for the same reason an off source is: it is not in the walk. The
-    // switch stays where the user left it, so the row reads "on, but not
-    // today" rather than "off".
     val dimmed = !config.enabled || skippedByQuality || awaitingOutput != null
     Row(
         modifier = Modifier
@@ -804,7 +587,7 @@ private fun SourceRow(
                 SourceKind.ADDON -> SfIcons.Extension
                 SourceKind.CUSTOM_MODULE -> SfIcons.Extension
                 SourceKind.MODULE -> SfIcons.Extension
-                SourceKind.JIOSAAVN -> SfIcons.GraphicEq // or some other icon
+                SourceKind.JIOSAAVN -> SfIcons.GraphicEq
                 SourceKind.YOUTUBE -> SfIcons.PlayCircle
             },
             contentDescription = null,
@@ -826,10 +609,6 @@ private fun SourceRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // Read off the stored manifest, so it can still be set while the
-            // addon is down or waiting on a lossless output. One line whatever
-            // the label's length, so it adds the same height to every addon;
-            // the full label is in the list it opens.
             val quality = config.activeQuality
             if (config.kind == SourceKind.ADDON && config.isComplete && quality != null) {
                 Row(
@@ -866,12 +645,7 @@ private fun SourceRow(
                 }
             }
             Text(
-                // The ceiling outranks the health line: a source that isn't
-                // going to be asked at all is not usefully described by
-                // whether its server answered a probe.
                 text = when {
-                    // Outranks the ceiling: this one is not reached on *any*
-                    // connection until the output changes.
                     awaitingOutput != null -> when {
                         awaitingOutput.bluetoothCodecUnknown ->
                             stringResource(R.string.source_needs_lossless_bt_unknown)
@@ -888,27 +662,12 @@ private fun SourceRow(
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = when {
-                    // A warning, not a fault: the addon is fine, the output is
-                    // what has to change — but it is something to act on.
                     awaitingOutput != null -> MaterialTheme.colorScheme.error
-                    // Only a rejection is coloured, and only when it is what
-                    // the line actually says. A server that is merely down
-                    // will be up again without anyone doing anything, and
-                    // painting that red trains people to ignore the colour by
-                    // the time it means something.
                     skippedByQuality -> MaterialTheme.colorScheme.onSurfaceVariant
                     health is SourceHealth.Rejected -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                // No line limit: an error is only useful read in full, so the
-                // row grows to fit it. [ReorderableAddons] measures each row's
-                // own height, so a tall row still drags correctly.
             )
-            // The addon's own `allowDownloads`, on a line of its own and both
-            // ways round, so whether downloads come from it is answered here
-            // rather than found out from where a downloaded file came from.
-            // Read off the stored manifest, so it holds while the server is
-            // down too.
             if (config.kind == SourceKind.ADDON && config.isComplete) {
                 Row(
                     modifier = Modifier.padding(top = 2.dp),
@@ -935,9 +694,6 @@ private fun SourceRow(
                     )
                 }
             }
-            // A caution, not a block: the addon still works, but its developer
-            // should update it. Short here, with the full explanation a tap
-            // away, so it costs the row one line.
             if (needsUpdate) {
                 Row(
                     modifier = Modifier
@@ -977,9 +733,6 @@ private fun SourceRow(
                 onCheckedChange = onToggle,
             )
         }
-        // Outside the dimming above, and last in the row. A source switched off
-        // still has a position worth setting for when it is switched back on,
-        // so the grip stays at full strength on a row that is otherwise faded.
         if (handle != null) {
             Spacer(Modifier.width(4.dp))
             handle()
@@ -997,12 +750,10 @@ private fun AudioQuality.localizedLabel(): String = stringResource(
     },
 )
 
-/** The second line of a row: what this source is, or what is wrong with it. */
 @Composable
 private fun SourceConfig.statusLine(health: SourceHealth?): String = when {
     !isComplete -> stringResource(R.string.source_setup_required)
     kind == SourceKind.JIOSAAVN -> stringResource(R.string.jiosaavn_mismatch_warning)
-    // Downloads are a line of their own under this one — see [SourceRow].
     health is SourceHealth.Ok -> listOfNotNull(
         health.detail,
         kind.labels.take(3).joinToString(" · "),
@@ -1013,16 +764,6 @@ private fun SourceConfig.statusLine(health: SourceHealth?): String = when {
     else -> kind.labels.take(3).joinToString(" · ")
 }
 
-/**
- * Add or edit a source that has an address.
- *
- * Test is offered rather than required: a server that happens to be asleep is
- * still worth saving, and refusing to store it until it answers would make
- * setting one up from a coffee shop impossible. What Test does buy is the
- * difference between "not answering" and "answering, but not with something
- * this app can use" — a manifest missing the `stream` resource is a mistake
- * worth hearing about before the first track rather than after it.
- */
 @Composable
 internal fun SourceEditorAlert(
     hazeState: HazeState,
@@ -1042,14 +783,6 @@ internal fun SourceEditorAlert(
     val unreadable = stringResource(R.string.source_unrecognised)
     val alreadyAdded = stringResource(R.string.source_already_added)
 
-    /**
-     * Identify what is at the URL, then say so.
-     *
-     * Both buttons run this — the only difference is whether a success is then
-     * stored. Testing and saving asking the *same* question is the point: a
-     * Save that skipped identification could store a config whose kind was
-     * guessed, and the guess is exactly what this screen no longer makes.
-     */
     fun run(thenSave: Boolean) {
         busy = true
         status = null
@@ -1066,13 +799,6 @@ internal fun SourceEditorAlert(
                 return@launch
             }
 
-            // Already here? Checked against the *identified* base rather than
-            // the typed text, so an addon's root and its manifest.json are
-            // recognised as the one source they are — which is the whole reason
-            // this runs after identification and not before it. Reported on
-            // Test as well as Save: finding out by pressing Test beats finding
-            // out by ending up with the same catalogue searched twice on every
-            // track.
             SourceRegistry.duplicateOf(found.baseUrl, exceptId = config.id.takeUnless { isNew })
                 ?.let { existing ->
                     statusIsGood = false
@@ -1081,9 +807,6 @@ internal fun SourceEditorAlert(
                     return@launch
                 }
 
-            // Identified, and now asked whether it actually works. The two are
-            // different questions: a manifest can be perfectly well formed and
-            // its server still be refusing every search.
             val health = withContext(Dispatchers.IO) {
                 runCatching { SourceRegistry.probeCandidate(found) }
                     .getOrElse { SourceHealth.Unreachable(it.message ?: "Failed") }
@@ -1100,10 +823,6 @@ internal fun SourceEditorAlert(
             }
             busy = false
 
-            // Saved even when the probe came back unhappy, but only once the
-            // format is known: a server that is asleep is still worth storing —
-            // that was true before and is why Test was never mandatory — while
-            // a URL nothing can be made of is not.
             if (thenSave) {
                 if (isNew) SourceRegistry.add(found) else SourceRegistry.update(found)
                 onSaved()
@@ -1120,9 +839,6 @@ internal fun SourceEditorAlert(
         },
         description = stringResource(R.string.addon_url_description),
         urlValue = baseUrl,
-        // A result describes the address it was run against, so the moment that
-        // address is edited it stops being true and is cleared. Left up, it
-        // would report "Connected" over a URL nobody has tried.
         onUrlChange = { baseUrl = it; status = null },
         urlPlaceholder = "https://my-addon.example.com",
         status = status,

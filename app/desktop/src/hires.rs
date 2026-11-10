@@ -1,10 +1,3 @@
-//! High-resolution audio from a compatible addon server.
-//!
-//! The addon protocol is three GET endpoints returning JSON: `{base}/manifest.json`,
-//! `{base}/search?q=…&quality=LOSSLESS` and `{base}/stream/{trackId}?quality=LOSSLESS`.
-//! A track found there plays from the addon's own URL instead of YouTube Music; when
-//! the addon has no copy, or the answer isn't playable, playback falls back to YouTube.
-
 use std::collections::{BTreeSet, HashMap};
 use std::time::Duration;
 
@@ -12,30 +5,22 @@ use serde_json::Value;
 
 use crate::stream::Format;
 
-/// Addons key off this prefix; anything else is answered `403 UA_BLOCKED`.
 pub const USER_AGENT: &str = concat!("nuvx/v", env!("CARGO_PKG_VERSION"));
 const TIER: &str = "LOSSLESS";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
-/// How many of the search's candidates get a `/stream` call before giving up.
 const STREAM_TRIES: usize = 3;
 
-/// What the player says about the stream it is playing.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Info {
-    /// The addon's own name (or its host when it publishes none).
     pub source: String,
-    /// The host the audio comes from, without the path (it can carry a token).
     pub host: String,
-    /// `FLAC`, `ALAC`, `MP3`, … as stated by the addon or read off the URL.
     pub codec: String,
-    /// The quality label the addon sent, when it sent one.
     pub quality: String,
     pub bitrate_kbps: Option<u32>,
     pub sample_rate: Option<u32>,
     pub bit_depth: Option<u32>,
     pub channels: Option<u8>,
-    /// The stream is a Dolby Atmos rendition.
     pub atmos: bool,
     pub size: u64,
     pub duration_ms: u64,
@@ -46,12 +31,10 @@ impl Info {
         matches!(self.codec.to_ascii_lowercase().as_str(), "flac" | "alac" | "wav" | "aiff") || has_lossless_word(&self.quality)
     }
 
-    /// More than CD: better than 48 kHz or more than 16 bits.
     pub fn hires(&self) -> bool {
         self.lossless() && (self.sample_rate.is_some_and(|r| r > 48_000) || self.bit_depth.is_some_and(|b| b > 16))
     }
 
-    /// The quality mark's text, worded as Apple Music words it.
     pub fn badge(&self) -> &'static str {
         if self.atmos {
             "Dolby Atmos"
@@ -67,18 +50,15 @@ impl Info {
     }
 }
 
-/// One playable answer from the addon.
 pub struct Stream {
     pub url: String,
     pub size: u64,
     pub duration_ms: u64,
     pub format: Format,
     pub info: Info,
-    /// Already-decoded audio (Dolby Atmos out of DASH): no download to run.
     pub data: Option<Vec<u8>>,
 }
 
-/// One addon server, with its manifest and recent searches remembered.
 pub struct Client {
     base: String,
     manifest: tokio::sync::Mutex<Option<Manifest>>,
@@ -104,7 +84,6 @@ struct Candidate {
 }
 
 impl Client {
-    /// A client for whatever the listener pasted. `None` when it isn't an http(s) URL.
     pub fn new(raw: &str) -> Option<Self> {
         let base = normalize_base(raw);
         let parsed = url::Url::parse(&base).ok()?;
@@ -114,14 +93,10 @@ impl Client {
         Some(Self { base, manifest: Default::default(), searches: Default::default() })
     }
 
-    /// The addon's host, for a log line (the link's path may carry a token).
     pub fn host(&self) -> String {
         host_of(&self.base)
     }
 
-    /// The addon's copy of `track`, already probed for its size. `None`: a miss (which is
-    /// not a fault), so the caller plays it from YouTube. `atmos`: prefer a Dolby Atmos
-    /// rendition when the addon offers one, but still accept lossless/hi-res copies.
     pub async fn find(&self, http: &reqwest::Client, track: &crate::model::Track, atmos: bool) -> anyhow::Result<Option<Stream>> {
         let manifest = self.manifest(http).await?;
         let artist = track.artists.first().map(|a| a.name.clone()).unwrap_or_else(|| track.artist_line());
@@ -135,8 +110,6 @@ impl Client {
                 queries.push(searchable);
             }
         }
-        // When Atmos is preferred, try Atmos-aware results first, then fall back to a
-        // normal lossless lookup so non-Atmos hi-res/lossless still works.
         let passes: &[(bool, bool)] = if atmos { &[(true, true), (false, false)] } else { &[(false, false)] };
         let mut tried: BTreeSet<String> = BTreeSet::new();
         let mut last_err = None;
@@ -148,9 +121,6 @@ impl Client {
                 };
                 let ranked = rank(candidates, &title, &artist, track.duration, prefer_atmos);
                 for candidate in ranked.into_iter().filter(|c| tried.insert(c.id.clone())).take(STREAM_TRIES) {
-                    // Ask for the Atmos rendition only in the Atmos-preferred pass for
-                    // candidates that are actually Atmos; otherwise request normally so
-                    // lossless/hi-res copies resolve.
                     let stream_atmos = prefer_atmos && candidate.atmos;
                     match self.stream(http, &manifest, &candidate, stream_atmos).await {
                         Ok(Some(s)) => return Ok(Some(s)),
@@ -219,7 +189,6 @@ impl Client {
         let url = self.endpoint(&["stream", &candidate.id], &params)?;
         let json = match get_json(http, &url).await {
             Ok(j) => j,
-            // A miss, not a fault: the row may still carry its own URL.
             Err(e) if e.to_string().contains("not found") => Value::Null,
             Err(e) => return Err(e),
         };
@@ -235,8 +204,6 @@ impl Client {
         let container = json.get("container").and_then(Value::as_str).or(json.get("containerFormat").and_then(Value::as_str)).unwrap_or("");
         let mime = json.get("mimeType").and_then(Value::as_str).unwrap_or("");
         if is_manifest(transport) {
-            // Dolby Atmos arrives as a DASH E-AC-3 rendition, not a file: fetch and
-            // decode it whole, so it plays (and seeks) like any other stream.
             let dash = matches!(transport.trim().to_ascii_lowercase().as_str(), "dash" | "mpd" | "application/dash+xml");
             let dolby = ["eac3", "ec-3", "ac3", "ac-3", "dolby", "atmos"].iter().any(|w| codec.to_ascii_lowercase().contains(w)) || json_is_atmos(&json);
             anyhow::ensure!(dash && dolby, "the addon returned a streaming manifest, not a file");
@@ -264,8 +231,6 @@ impl Client {
         if size == 0 {
             size = content_size(http, &stated_url).await.unwrap_or(0);
         }
-        // Some addon URLs only reveal their size once the stream starts; use a placeholder
-        // large enough for ranged reads and let the download determine the real end.
         if size == 0 {
             log::info!("hi-res: stream size unknown for \"{}\", using ranged placeholder", candidate.title);
             size = 512 * 1024 * 1024;
@@ -313,7 +278,6 @@ impl Client {
     }
 }
 
-/// The base URL with a trailing slash or a pasted `…/manifest.json` taken off.
 pub fn normalize_base(raw: &str) -> String {
     let trimmed = raw.trim().trim_end_matches('/');
     let last = trimmed.rsplit('/').next().unwrap_or("");
@@ -354,7 +318,6 @@ fn query_value(v: &Value) -> Option<String> {
     }
 }
 
-/// The option that best answers a lossless request.
 fn match_tier(options: &[String]) -> String {
     if options.is_empty() {
         return TIER.to_owned();
@@ -414,7 +377,6 @@ fn json_size(v: &Value) -> u64 {
     0
 }
 
-/// A row or stream that says it's Dolby Atmos, under any of the names addons use for it.
 fn json_is_atmos(v: &Value) -> bool {
     const KEYS: [&str; 7] = ["audioMode", "audioModes", "quality", "streamQuality", "audioQuality", "format", "codec"];
     KEYS.iter().any(|key| v.get(*key).is_some_and(value_is_atmos))
@@ -451,15 +413,12 @@ fn playable_url(url: &str) -> bool {
     url::Url::parse(url).is_ok_and(|u| matches!(u.scheme(), "http" | "https") && u.host_str().is_some_and(|h| !h.is_empty()))
 }
 
-/// The container/codec rodio will be handed.
 fn format_of(codec: &str, container: &str, mime: &str, url: &str, label: &str) -> Option<Format> {
     let codec = codec.to_ascii_lowercase();
     let container = container.to_ascii_lowercase();
     let mime = mime.to_ascii_lowercase();
     let ext = url.split(['?', '#']).next().unwrap_or(url).rsplit('.').next().unwrap_or("").to_ascii_lowercase();
     let all = format!("{codec} {container} {mime} {ext}");
-    // Symphonia has no AC-3 family decoder, so an Atmos rendition in E-AC-3/TrueHD isn't
-    // playable and the next copy is tried instead.
     if ["ac-3", "ac3", "eac-3", "eac3", "ec-3", "truehd", "mlp"].iter().any(|w| all.contains(w)) {
         return None;
     }
@@ -486,7 +445,6 @@ fn format_of(codec: &str, container: &str, mime: &str, url: &str, label: &str) -
         return Some(file("m4a", "audio/mp4"));
     }
     if has_lossless_word(label) {
-        // A lossless row that names no codec is FLAC in practice.
         return Some(file("flac", "audio/flac"));
     }
     None
@@ -517,14 +475,12 @@ fn has_lossless_word(text: &str) -> bool {
     ["lossless", "flac", "hifi", "hi-res", "hires", "master", "24bit", "24-bit"].iter().any(|w| text.contains(w))
 }
 
-/// The number just before `unit` in free text (`24-bit`, `96 kHz`, `1411kbps`).
 fn number_before(text: &str, unit: &str) -> Option<f64> {
     let lower = text.to_ascii_lowercase();
     let mut from = 0;
     while let Some(found) = lower[from..].find(unit) {
         let at = from + found;
         let mut end = at;
-        // `24-bit`, `96 kHz` and `1411 kbps` all read the same.
         while end > 0 && matches!(lower.as_bytes()[end - 1], b' ' | b'-') {
             end -= 1;
         }
@@ -546,8 +502,6 @@ fn number_before(text: &str, unit: &str) -> Option<f64> {
     None
 }
 
-// ── Matching ─────────────────────────────────────────────────────────────
-
 fn rank(mut candidates: Vec<Candidate>, title: &str, artist: &str, duration: Option<u32>, prefer_atmos: bool) -> Vec<Candidate> {
     let mut scored: Vec<(Candidate, i32)> = candidates.drain(..).filter_map(|c| score(&c, title, artist, duration, prefer_atmos).map(|s| (c, s))).collect();
     scored.sort_by(|a, b| b.1.cmp(&a.1));
@@ -562,8 +516,6 @@ fn score(candidate: &Candidate, title: &str, artist: &str, duration: Option<u32>
     }
     let target_artists = artist_names(artist);
     let candidate_artists = artist_names(&candidate.artist);
-    // A copy that doesn't name the artist is not the same song: never swap the
-    // listener's stream for it.
     if !target_artists.is_empty()
         && (candidate_artists.is_empty() || !target_artists.iter().any(|w| candidate_artists.iter().any(|g| same_artist(w, g))))
     {
@@ -587,7 +539,6 @@ fn score(candidate: &Candidate, title: &str, artist: &str, duration: Option<u32>
     Some(100 + artist_score + duration_score + atmos_score)
 }
 
-/// The title with the packaging taken off, version markers kept.
 fn searchable_title(title: &str, artist: &str) -> String {
     let (words, versions) = title_parts(title, artist);
     let mut out = words;
@@ -604,7 +555,6 @@ fn primary_artist(artist: &str) -> String {
 
 type TitleParts = (String, Vec<String>);
 
-/// A title split into its core words and its version markers.
 fn title_parts(raw: &str, artist: &str) -> TitleParts {
     let mut versions = BTreeSet::new();
     let mut text = raw.to_ascii_lowercase().replace('&', " and ");
@@ -701,8 +651,6 @@ fn same_artist(first: &[String], second: &[String]) -> bool {
     if contains_words(first, second) || contains_words(second, first) {
         return true;
     }
-    // Addons sometimes drop a middle name; accept only when every token of the shorter
-    // credited name appears in order in the longer one.
     ordered_subset(first, second) || ordered_subset(second, first)
 }
 
@@ -732,8 +680,6 @@ const VERSION_WORDS: &[&str] = &[
     "sessions", "sped", "slowed", "reverb", "nightcore", "lofi", "orchestral", "symphonic", "part", "pt", "chapter",
 ];
 
-// ── HTTP ─────────────────────────────────────────────────────────────────
-
 async fn get_json(http: &reqwest::Client, url: &str) -> anyhow::Result<Value> {
     let response = http.get(url).timeout(REQUEST_TIMEOUT).header("Accept", "application/json").header("User-Agent", USER_AGENT).send().await?;
     let status = response.status();
@@ -746,7 +692,6 @@ async fn get_json(http: &reqwest::Client, url: &str) -> anyhow::Result<Value> {
     Ok(serde_json::from_slice(&bytes)?)
 }
 
-/// How many bytes the stream holds, from a HEAD or a one-byte range request.
 async fn content_size(http: &reqwest::Client, url: &str) -> Option<u64> {
     if let Ok(response) = http.head(url).timeout(PROBE_TIMEOUT).header("User-Agent", USER_AGENT).send().await
         && response.status().is_success()

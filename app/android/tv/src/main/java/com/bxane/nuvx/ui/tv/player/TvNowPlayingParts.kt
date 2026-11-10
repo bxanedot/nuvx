@@ -111,14 +111,6 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import java.util.Locale
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Backdrop
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The artwork's colours, smeared into the phone's moving mesh, darkened a touch
- * so white type always reads over it — or plain black under [TvPlayerStyle.AMOLED].
- */
 @Composable
 fun TvPlayerBackground(
     artworkUrl: String?,
@@ -143,15 +135,6 @@ fun TvPlayerBackground(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Stage: artwork and lyrics
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The cover, and the lyrics beside it when the song has them. Without lyrics the
- * cover sits centred and a little larger; it glides to the left as lyrics arrive.
- * The move is a single layer transform, so it costs no layout.
- */
 @Composable
 internal fun TvNowPlayingStage(
     song: Song,
@@ -164,7 +147,6 @@ internal fun TvNowPlayingStage(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // While the transport is up the lyrics fade out above it rather than run under it.
     val underControls by animateFloatAsState(if (controlsVisible) 1f else 0f, tween(320), label = "lyricsFade")
     val canvasEnabled by AppSettings.animatedCanvas.collectAsState()
     var canvas by remember(song.videoId) { mutableStateOf<CanvasArtwork?>(null) }
@@ -177,7 +159,7 @@ internal fun TvNowPlayingStage(
         val centredSize = (maxHeight * 0.62f).coerceAtMost(320.dp)
         val sideSize = (maxHeight * 0.54f).coerceAtMost(272.dp)
         val sideStart = 51.dp
-        val lift = 21.dp // sit a little above centre, clear of the transport
+        val lift = 21.dp
         val centredX = (maxWidth - centredSize) / 2
         val centredY = (maxHeight - centredSize) / 2 - lift
         val sideY = (maxHeight - sideSize) / 2 - lift
@@ -203,8 +185,6 @@ internal fun TvNowPlayingStage(
             canvas?.let { CanvasArtworkPlayer(canvas = it, isPlaying = isPlaying, modifier = Modifier.fillMaxSize()) }
         }
 
-        // With the transport away, the song is named under the cover: the title and
-        // artist the transport carries, riding the same glide to the side.
         val captionShown by animateFloatAsState(if (controlsVisible) 0f else 1f, tween(320), label = "captionFade")
         if (captionShown > 0f) {
             val captionGap = 14.dp
@@ -252,8 +232,6 @@ internal fun TvNowPlayingStage(
                     .fillMaxHeight()
                     .graphicsLayer {
                         alpha = side
-                        // Offscreen only while the mask is in use; otherwise the
-                        // lyrics draw straight to the screen as usual.
                         compositingStrategy = if (underControls > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
                     }
                     .drawWithContent {
@@ -271,9 +249,6 @@ internal fun TvNowPlayingStage(
                         }
                     },
             ) {
-                // The shared panel's type is sized for a phone held at arm's
-                // length. Shrink only the glyphs: density stays whole, so its
-                // dp geometry still lands on pixels.
                 val density = LocalDensity.current
                 val lyricDensity = remember(density) {
                     Density(density = density.density, fontScale = density.fontScale * LYRIC_FONT_SCALE)
@@ -295,10 +270,6 @@ internal fun TvNowPlayingStage(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Transport
-// ─────────────────────────────────────────────────────────────────────────────
-
 private const val LYRIC_FONT_SCALE = 0.8f
 
 private val TransportScrim = Brush.verticalGradient(
@@ -307,11 +278,6 @@ private val TransportScrim = Brush.verticalGradient(
     1f to Color.Black.copy(alpha = 0.66f),
 )
 
-/**
- * The transport: what's playing and its quality on the left, the song's buttons
- * on the right, the scrubber under both. Up Next opens beneath the scrubber and
- * pushes the rest up.
- */
 @Composable
 internal fun TvTransport(
     song: Song,
@@ -410,7 +376,6 @@ internal fun TvTransport(
     }
 }
 
-/** A round glyph button on the transport; [active] keeps it lit while focus is elsewhere. */
 @Composable
 private fun TvTransportButton(
     icon: ImageVector?,
@@ -440,7 +405,6 @@ private fun TvTransportButton(
                 modifier = Modifier.size(size * 0.46f),
             )
         } else if (badge != null) {
-            // The phone's Repeat One: the digit in place of the loop.
             Text(
                 text = badge,
                 style = TvType.Body.copy(fontSize = 14.sp, fontWeight = FontWeight.W700),
@@ -450,16 +414,6 @@ private fun TvTransportButton(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scrubber
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The playhead. Its bar is drawn straight from [PlaybackPosition] on every frame
- * while playing — carried forward between the player's readings by the time they
- * were taken — so it glides rather than stepping, and redraws only itself.
- * Left and right scrub; the seek happens once the presses stop.
- */
 @Composable
 private fun TvScrubber(
     position: PlaybackPosition,
@@ -540,7 +494,6 @@ private fun livePosition(position: PlaybackPosition, isPlaying: Boolean, frameNa
     return (read + carried.coerceIn(0L, 1_500L)).coerceAtMost(durationMs.coerceAtLeast(read))
 }
 
-/** Elapsed on the left, remaining on the right — recomposed once a second, not once a frame. */
 @Composable
 private fun TvScrubTimes(
     position: PlaybackPosition,
@@ -577,14 +530,6 @@ internal fun formatClock(ms: Long): String {
     return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s) else String.format(Locale.US, "%d:%02d", m, s)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Quality
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Apple Music's quality badge — Dolby Atmos, Hi-Res Lossless or Lossless — read
- * from what's actually decoding, and with Stats for Nerds on, the stream itself.
- */
 @Composable
 private fun TvQualityLine(showStats: Boolean, modifier: Modifier = Modifier) {
     val snapshot by NerdStats.current.collectAsState()
@@ -663,11 +608,6 @@ private fun khz(hz: Int): String {
     return if (k % 1f == 0f) "${k.toInt()} kHz" else String.format(Locale.US, "%.1f kHz", k)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Up Next
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** What plays after this song, with the queue's Shuffle, Repeat and Autoplay. */
 @Composable
 internal fun TvUpNext(
     queue: List<Song>,
@@ -753,16 +693,8 @@ internal fun TvUpNext(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Feedback
-// ─────────────────────────────────────────────────────────────────────────────
-
 internal enum class TvFlash { Play, Pause, Next, Previous }
 
-/**
- * The glyph that answers a remote press while the transport is hidden — play,
- * pause, next, previous — in the phone's own transport icons. Shows, holds, fades.
- */
 @Composable
 internal fun TvFlashGlyph(flash: TvFlash?, tick: Int, modifier: Modifier = Modifier) {
     val alpha = remember { Animatable(0f) }
@@ -801,10 +733,6 @@ internal fun TvFlashGlyph(flash: TvFlash?, tick: Int, modifier: Modifier = Modif
         )
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Nothing playing
-// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 internal fun TvNothingPlaying(onBrowse: () -> Unit, modifier: Modifier = Modifier) {

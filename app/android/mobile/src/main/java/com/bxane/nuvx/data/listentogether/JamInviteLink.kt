@@ -13,7 +13,6 @@ data class ParsedJamInvite(
     val serverUrl: String? = null,
 )
 
-/** Relays a nuvx web or scheme invite from [com.bxane.nuvx.MainActivity] to Compose. */
 object JamInviteLink {
 
     const val ORIGIN = "https://nuvx.lol"
@@ -26,7 +25,6 @@ object JamInviteLink {
     private val _pending = MutableStateFlow<ParsedJamInvite?>(null)
     val pending: StateFlow<ParsedJamInvite?> = _pending.asStateFlow()
 
-    /** Reads a web invite from a cold launch or a new intent on the existing task. */
     fun consume(intent: Intent?): Boolean {
         if (
             intent == null ||
@@ -44,14 +42,8 @@ object JamInviteLink {
         _pending.value = null
     }
 
-    /** Returns the normalized party code only for the public invite URL shape. */
     fun parse(value: String?): String? = parseInvite(value)?.code
 
-    /**
-     * Parses an incoming invite:
-     * 1. nuvx://party/<CODE>?server=<SERVER>
-     * 2. https://nuvx.lol/invite/<CODE>?server=<SERVER>
-     */
     fun parseInvite(value: String?): ParsedJamInvite? {
         val uri = runCatching { URI(value ?: return null) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase() ?: return null
@@ -59,7 +51,6 @@ object JamInviteLink {
         val query = uri.rawQuery
         val server = extractQueryParam(query, "server")?.let { sanitizeServerUrl(it) }
 
-        // 1. Custom scheme: nuvx://party/<CODE> or nuvx://party?code=<CODE>
         if (scheme == CUSTOM_SCHEME && host == CUSTOM_HOST) {
             val pathPart = uri.path.orEmpty().trim('/').takeIf { it.isNotBlank() }
             val candidate = pathPart ?: extractQueryParam(query, "code") ?: return null
@@ -67,7 +58,6 @@ object JamInviteLink {
             return ParsedJamInvite(code = code, serverUrl = server)
         }
 
-        // 2. Official web domain: https://nuvx.lol/invite/<CODE>
         if (scheme == "https" && host == HOST) {
             val match = INVITE_PATH.matchEntire(uri.path.orEmpty()) ?: return null
             val code = match.groupValues[1].uppercase()

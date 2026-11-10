@@ -9,13 +9,6 @@ import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-/**
- * [VersionAudioAligner.crossCorrelate] now runs the per-lag sums through an
- * FFT instead of the double loop it replaced. These tests pin the two
- * implementations together: same searchable range, same winning lag, same
- * confidence — a silent sign flip or wraparound here would turn every switch
- * into a misaligned one.
- */
 class VersionAudioAlignerCorrelationTest {
 
     @Test
@@ -25,8 +18,6 @@ class VersionAudioAlignerCorrelationTest {
             val sourceSize = 320 + random.nextInt(600)
             val targetSize = 320 + random.nextInt(600)
             val source = FloatArray(sourceSize) { random.nextFloat() }
-            // Shift the target by a known lag and add noise, so the peak lands
-            // somewhere plausible but not trivially at zero.
             val trueLag = random.nextInt(-150, 151)
             val target = FloatArray(targetSize) { index ->
                 val sourceIndex = index - trueLag
@@ -51,7 +42,7 @@ class VersionAudioAlignerCorrelationTest {
     fun `correlation finds a planted lag with high confidence`() {
         val random = Random(7)
         val source = FloatArray(900) { random.nextFloat() }
-        val trueLag = 286 // 28.6 s at 100 fps — the field case's shape
+        val trueLag = 286
         val target = FloatArray(900) { index ->
             val sourceIndex = index - trueLag
             if (sourceIndex in source.indices) source[sourceIndex] else random.nextFloat() * 0.3f
@@ -72,7 +63,6 @@ class VersionAudioAlignerCorrelationTest {
         assertEquals(0.0, result.confidence, 0.0)
     }
 
-    /** The pre-FFT implementation, verbatim, as the reference oracle. */
     private fun bruteForce(
         sourceEnv: FloatArray,
         targetEnv: FloatArray,

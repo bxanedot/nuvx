@@ -8,10 +8,6 @@ interface BannerProps {
   onDismiss?: () => void;
 }
 
-/**
- * The full-width key-colour band Apple pins under the player for signed-out
- * visitors (report §1). An invitation, not an error.
- */
 export function Banner({ title, detail, action, onDismiss }: BannerProps) {
   return (
     <div

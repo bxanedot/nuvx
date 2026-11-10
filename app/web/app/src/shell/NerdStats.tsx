@@ -5,18 +5,12 @@ import type { analyzer as Analyzer } from '@/playback/automix/analysis/analyzer'
 import type { NowPlaying } from '@/state/player';
 import { usePlayer } from '@/state/player';
 
-/**
- * Stats for nerds, under the artist in the full-screen player (the phone's
- * SleeveNerdStats): the stream as it plays, and under it, dimmer, what
- * Automix is doing. Nothing at all while the setting is off.
- */
 export function NerdStats() {
   const show = usePlayer((s) => s.showNerdStats);
   const nowPlaying = usePlayer((s) => s.nowPlaying);
   const automix = usePlayer((s) => s.automix);
   if (!show || !nowPlaying) return null;
   return (
-    // The phone's shadow: free on the dark mesh, and what keeps it legible over a bright music video.
     <div className="mt-1 flex min-w-0 flex-col gap-px type-[500_11px/14px] tabular-nums [text-shadow:0_1px_4px_rgb(0_0_0/0.55)]">
       <span className="truncate text-secondary">{describeStream(nowPlaying) ?? 'Measuring the stream…'}</span>
       {automix && <AutomixLine videoId={nowPlaying.videoId} />}
@@ -24,7 +18,6 @@ export function NerdStats() {
   );
 }
 
-/** "Opus · 48 kHz · 141 kbps · Stereo · itag 251 · VISIONOS direct", as much as is known. */
 function describeStream(np: NowPlaying): string | null {
   const s = np.stream;
   if (!s) return null;
@@ -39,7 +32,6 @@ function describeStream(np: NowPlaying): string | null {
   return parts.filter(Boolean).join(' · ');
 }
 
-/** Automix's line: both songs' analysis while it waits, the blend once one is planned. Both sides always named. */
 function AutomixLine({ videoId }: { videoId: string }) {
   const state = usePlayer((s) => s.automixState);
   const nextInQueue = usePlayer((s) => s.queue[s.index + 1]?.track.videoId ?? null);
@@ -51,7 +43,6 @@ function AutomixLine({ videoId }: { videoId: string }) {
   else if (state?.state === 'scheduled' && state.plan) text = describeBlend(state);
   else if (state?.loop) text = `Automix · loop mix ready · ${describeLoop(state)}`;
   else {
-    // This song is read where it will be mixed out (its ending's grid), the next where it comes in (its opening's).
     const label = (id: string | null, outgoing: boolean) => {
       if (!id || !analyzer) return 'waiting';
       const a = analyzer.get(id);
@@ -69,11 +60,9 @@ function AutomixLine({ videoId }: { videoId: string }) {
     const next = state?.nextKey ?? nextInQueue;
     text = `Automix · this song: ${label(videoId, true)} · next: ${next ? label(next, false) : 'none'}`;
   }
-  // Dimmer than the stream line: that one describes the audio, this one the app.
   return <span className="truncate text-tertiary">{text}</span>;
 }
 
-/** "out 4-bar loop, clear by lyrics · in 2-bar, clear by mask · 111 → 85 BPM over 11 bars". */
 function describeLoop(state: AutoDJSnapshot): string {
   const l = state.loop!;
   const from = Math.round(l.out.bpm);
@@ -98,7 +87,6 @@ function describeBlend(state: AutoDJSnapshot): string {
   return `Automix · mixing ${when} · ${bars ? `${bars} bars` : `${plan.durationSec.toFixed(1)} s`} · ${stretch}`;
 }
 
-/** The analysis queue, once the Automix code is loaded; re-renders as its statuses change. */
 function useAnalyzer(): typeof Analyzer | null {
   const [instance, setInstance] = useState<typeof Analyzer | null>(null);
   const [, bump] = useReducer((n: number) => n + 1, 0);
@@ -118,20 +106,12 @@ function useAnalyzer(): typeof Analyzer | null {
   return instance;
 }
 
-/**
- * The stretch of the seek bar the next Automix blend covers (the phone's
- * transitionWindow): brighter than the unplayed track, under the played
- * fill, feathered at both ends because a blend has no hard edge in time.
- * Once the blend runs it steps aside for the fill's own beat pulse
- * (useScrubber). Place it inside the bar's track, before the fill.
- */
 export function MixWindowHighlight() {
   const mix = usePlayer((s) => s.automixState?.window ?? null);
   const startsIn = usePlayer((s) => s.automixState?.startsInSec ?? null);
   const videoId = usePlayer((s) => s.nowPlaying?.videoId);
   const duration = usePlayer((s) => s.nowPlaying?.durationSec ?? 0);
   const automix = usePlayer((s) => s.automix);
-  // The last window stays drawn while it fades out.
   const [shown, setShown] = useState(mix);
   useEffect(() => {
     if (mix) setShown(mix);
@@ -141,7 +121,6 @@ export function MixWindowHighlight() {
   if (!w || duration <= 0) return null;
   const left = Math.max(0, Math.min(1, w.startSec / duration));
   const right = Math.max(left, Math.min(1, w.endSec / duration));
-  // once the blend runs, the bar's own fill covers it and breathes on the beat (useScrubber)
   const blending = startsIn !== null && startsIn <= 0;
   return (
     <div

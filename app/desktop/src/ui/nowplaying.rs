@@ -1,7 +1,3 @@
-//! Now-playing overlay: big art + synced lyrics / up next, over the full-strength
-//! animated background. The lyrics themselves are drawn by `karaoke` (a port of the
-//! better-lyrics renderer); this adds their toolbar and the plain-text fallback.
-
 use egui::{Color32, Rect, Sense, Ui, Vec2, pos2, vec2};
 
 use super::widgets::{self, icon_button, named, text_at};
@@ -17,8 +13,6 @@ pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
         return;
     }
     let screen = ctx.content_rect();
-    // The player brings its own transport, so it takes the whole window: the capsule
-    // under it belongs to the pages it covers.
     let full = screen;
     let rect = full.translate(vec2(0.0, full.height() * (1.0 - t)));
     let look = app.look();
@@ -27,18 +21,13 @@ pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
         .order(egui::Order::Middle)
         .fixed_pos(rect.min)
         .show(ctx, |ui| {
-            // Swallow input so the page underneath doesn't react.
             ui.allocate_rect(rect, Sense::click_and_drag());
-            // It covers the window's top too: that still moves the window.
             if !app.fullscreen {
                 super::titlebar::drag_area(ui, Rect::from_min_size(rect.min, vec2(rect.width(), super::titlebar::HEIGHT)), "now-playing");
             }
             let painter = ui.painter_at(rect);
             let art = matches!(b.mode, BgMode::Kawarp | BgMode::CoverStatic);
             if b.mode == BgMode::CoverFullbleed {
-                // The cover itself fills the screen behind a scrim. With the lyrics-only
-                // layout on a wide window it fills the height on the left instead and
-                // fades out toward the lyrics (reCover).
                 let solid = look.solid();
                 painter.rect_filled(rect, 0.0, solid);
                 if let Some(track) = app.shown().cloned().map(|t| app.with_cover(&t)) {
@@ -81,8 +70,6 @@ pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
 
 fn body(app: &mut App, ui: &mut Ui, now: f64) {
     use crate::preset::{Layout, Side};
-    // An Automix handoff keeps the outgoing song here until the next one is the louder
-    // of the two (see `MixFrom`): its track, seek line and lyrics lag the queue's switch.
     let hold = app.mix_hold().map(|h| (h.total, h.mix, app.mix_hold_pos(h)));
     let Some(track) = app.current().cloned() else { return };
     let track = match &hold {
@@ -94,31 +81,22 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
     let cs = &look.cover;
     let area = ui.max_rect();
     let no_lyrics = app.no_lyrics();
-    // The content is this area less its margins: a cover column beside the panel needs
-    // 860 points, and below that the cover gives way to the panel.
     let narrow = area.width() - 64.0 < 860.0;
-    // Header: on the window buttons' line, when the app draws them.
     let lift = 20.0 - f32::from(super::titlebar::top_margin(20, 44.0));
     let header = Rect::from_min_size(area.min - vec2(0.0, if app.fullscreen { 0.0 } else { lift }), vec2(area.width(), 44.0));
     let mut hui = ui.new_child(egui::UiBuilder::new().max_rect(header).layout(egui::Layout::left_to_right(egui::Align::Center)));
-    // The player's own close, top left; the window buttons keep the top right.
     if icon_button(&mut hui, icon::CHEVRON_DOWN, 22.0, "Close now playing", false).clicked() {
         app.np_open = false;
         if app.fullscreen {
             app.set_fullscreen(ui.ctx(), false);
         }
     }
-    // Its actions (like, download, share…) are for what's heard: a song version
-    // standing in for the music video. They live beside the star under the cover, and
-    // lyrics and the queue beside Repeat; only when the cover column is hidden (a narrow
-    // window showing lyrics) do they stay up here.
     let cover_hidden = (narrow || cs.layout == Layout::LyricsOnly) && app.np_tab != NpTab::Art && !no_lyrics;
     hui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         ui.add_space(super::titlebar::right_gap(ui.ctx(), ui.max_rect(), 0.0));
         if !cover_hidden {
             return;
         }
-        // Back to the artwork alone.
         let on = app.np_tab == NpTab::Lyrics;
         let (r, resp) = ui.allocate_exact_size(vec2(34.0, 34.0), Sense::click());
         let resp = widgets::named(resp, if on { "Hide lyrics" } else { "Show lyrics" }).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -136,8 +114,6 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
     });
 
     let content = Rect::from_min_max(pos2(area.left(), header.bottom() + 12.0), area.max);
-    // The side panel (lyrics / up next) slides in and out when its chip is toggled.
-    // A song without lyrics shows just the artwork, with no transition.
     let last_id = egui::Id::unique("np-last-panel");
     let panel_tab = if app.np_tab == NpTab::Art {
         ui.ctx().data(|d| d.get_temp(last_id)).unwrap_or(NpTab::Lyrics)
@@ -145,45 +121,35 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
         ui.ctx().data_mut(|d| d.insert_temp(last_id, app.np_tab));
         app.np_tab
     };
-    // Linear 0..1 over the transition; each part eases its own slice of it.
     let shown = ui.ctx().animate_bool_with_time(egui::Id::unique("np-panel"), app.np_tab != NpTab::Art, 0.6 * theme::speed());
     if shown > 0.0 && shown < 1.0 {
-        // Every frame while sliding, not the now-playing view's usual 30 fps.
         ui.ctx().request_repaint();
     }
     let ppp = ui.ctx().pixels_per_point();
     let p = if panel_tab == NpTab::Lyrics && no_lyrics { 0.0 } else { shown };
-    // Whichever is leaving slides and fades out over the first 45%, then the other
-    // comes in over the last 70%, both easing out, in either direction.
     let (panel_vis, art_vis) = if app.np_tab != NpTab::Art {
         (theme::ease_out((p - 0.3) / 0.7), 1.0 - theme::ease_out(p / 0.45))
     } else {
         let q = 1.0 - p;
         (1.0 - theme::ease_out(q / 0.45), theme::ease_out((q - 0.3) / 0.7))
     };
-    // The cover gliding between its two places (wide layouts): a gentle S-curve.
     let glide = p * p * (3.0 - 2.0 * p);
     let lyrics_only = narrow || cs.layout == Layout::LyricsOnly;
-    // reCover: the backdrop cover sits on the left, so the lyrics take the right side.
     let beside_cover = !narrow && cs.layout == Layout::LyricsOnly && look.background.mode == crate::preset::BgMode::CoverFullbleed;
     let centered = lyrics_only && !beside_cover;
-    // Artwork alone: centered.
     let col_art = Rect::from_center_size(content.center(), vec2(content.width().min(content.height() * 0.9), content.height()));
     let slide = 72.0;
     let right = if lyrics_only {
-        // No cover column next to the panel: the artwork fades in from the left as the panel leaves.
         let px = (art_side(cs, col_art) * ppp) as u32;
         if art_vis > 0.001 {
             let mut cui = ui.new_child(egui::UiBuilder::new().max_rect(content));
             cui.multiply_opacity(art_vis);
             cover_column(app, &mut cui, col_art.translate(vec2(-slide * (1.0 - art_vis), 0.0)), &track, no_lyrics, now, px);
         } else {
-            // Hidden behind the lyrics: have it loaded for when they're turned off.
             widgets::preload_cover(ui.ctx(), &track.thumbs, px);
         }
         if beside_cover { Rect::from_min_max(pos2(content.left() + content.width() * 0.46, content.top()), content.max) } else { content }
     } else {
-        // Cover column, on the preset's side; it glides to the center as the panel leaves.
         let frac = if cs.layout == Layout::CoverHero { 0.5 } else { 0.42 };
         let col_w = content.width() * frac;
         let col_panel = if cs.side == Side::Right {
@@ -192,7 +158,6 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
             Rect::from_min_size(content.min, vec2(col_w, content.height()))
         };
         let col = Rect::from_min_max(col_art.min.lerp(col_panel.min, glide), col_art.max.lerp(col_panel.max, glide));
-        // One image size for the whole glide, the bigger of its two ends.
         let px = (art_side(cs, col_art).max(art_side(cs, col_panel)) * ppp) as u32;
         cover_column(app, ui, col, &track, no_lyrics, now, px);
         if cs.side == Side::Right {
@@ -204,8 +169,6 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
     if panel_vis > 0.001 {
         let toward = if !lyrics_only && cs.side == Side::Right { -slide } else { slide };
         let rect = right.translate(vec2(toward * (1.0 - panel_vis), 0.0));
-        // Switching between Lyrics and Up next: the old one fades out over the first 55%,
-        // the new one fades in and rises into place from a third of the way.
         for (tab, key) in [(NpTab::Lyrics, "np-tab-lyrics"), (NpTab::UpNext, "np-tab-upnext")] {
             let w = ui.ctx().animate_bool_with_time(egui::Id::unique(key), panel_tab == tab, 0.45 * theme::speed());
             if w > 0.0 && w < 1.0 {
@@ -233,21 +196,14 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
     }
 }
 
-/// Size of the artwork laid out in `col`: what is left once the sleeve's information,
-/// its bar and the transport underneath it have taken their room.
 fn art_side(cs: &crate::preset::CoverStyle, col: Rect) -> f32 {
     (col.width() * 0.82 * cs.size.clamp(0.5, 1.35)).min(col.height() - 190.0).max(160.0)
 }
 
-/// The sleeve: art, title and artists, the seek line with its two times, then the
-/// transport — the order the reference keeps them in. `px`: the size to fetch the image
-/// at (fixed while the column glides).
 #[allow(clippy::too_many_arguments)]
 fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Track, no_lyrics: bool, now: f64, px: u32) {
-    // Drawn with YouTube Music's square sleeve, not a music video's thumbnail.
     let track = &app.with_cover(track);
     use crate::preset::Shape;
-    // A handoff's outgoing song is still what's heard: its star, menu and seek are its own.
     let hold = app.mix_hold().map(|h| (h.total, h.mix, app.mix_hold_pos(h)));
     let heard = if hold.is_some() { track.clone() } else { app.playing_track().cloned().unwrap_or_else(|| track.clone()) };
     let look = app.look();
@@ -255,7 +211,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     let side = art_side(cs, col);
     let art = Rect::from_center_size(pos2(col.center().x, col.top() + side / 2.0 + (col.height() - side - 190.0).max(0.0) * 0.42), Vec2::splat(side));
     let round = cs.shape != Shape::Rounded;
-    // A music video plays wide: the sleeve's square becomes a 16:9 frame, as wide as it fits.
     let video = if round { None } else { app.video_sprite(ui.ctx()) };
     let art = match &video {
         Some(_) => {
@@ -282,7 +237,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         let angle = if cs.shape == Shape::Record { app.record_angle as f32 } else { 0.0 };
         widgets::paint_disc(ui, egui::Id::unique("np-art"), art.center(), side / 2.0, &track.thumbs, angle, tint, px);
         if cs.shape == Shape::Record {
-            // Vinyl: faint grooves and a spindle hole.
             let p = ui.painter();
             for i in 1..6 {
                 p.circle_stroke(art.center(), side / 2.0 * (0.42 + i as f32 * 0.1), egui::Stroke::new(1.0, theme::shade(0.18)));
@@ -292,8 +246,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         }
     } else {
         widgets::paint_cover_xfade_px(ui, egui::Id::unique("np-art"), art, &track.thumbs, radius, 1.0, px);
-        // A music video's picture; else the song's looping clip, over the still until its
-        // first frame arrives.
         if let Some(s) = &video {
             widgets::paint_motion(ui, art, radius, s);
         } else if let Some(s) = app.song_canvas(ui.ctx(), &track, px) {
@@ -303,15 +255,11 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
             ui.painter().rect_filled(art, cr, theme::shade(1.0 - cs.brightness));
         }
     }
-    // Title and artists: 17 semibold over 15 secondary, left-aligned to the art.
     let w = side;
     let x0 = art.left();
     let info_y = art.bottom() + 22.0;
-    // The star and the ⋯ menu share the information line's right end.
     let text_w = w - 76.0;
     text_at(ui, pos2(x0, info_y), &track.title, theme::semibold(17.0), Color32::WHITE, text_w);
-    // Each artist opens their own page (features included); the album follows the
-    // artist behind an em dash, as the reference writes the line.
     let mut line = track.artist_line();
     if let Some(album) = &track.album
         && !album.name.is_empty()
@@ -320,7 +268,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     }
     let line_w = text_w;
     let line_rect = widgets::linked_text(ui, pos2(x0, info_y + 21.0), &line, &track.artists, theme::regular(15.0), theme::text_dim(), line_w, &mut app.actions);
-    // The album after the em dash opens its page too, underlined like the artists.
     if let Some(album) = track.album.as_ref().filter(|a| !a.name.is_empty())
         && let Some(id) = album.id.clone()
     {
@@ -343,15 +290,12 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
             }
         }
     }
-    // The star: a 30 px disc that washes under the pointer and fills in the accent
-    // once liked. The ⋯ menu sits at the line's end, as on music.youtube.com.
     let liked = app.liked.contains(&heard.id);
     let star = Rect::from_center_size(pos2(art.right() - 55.0, info_y + 14.0), Vec2::splat(30.0));
     let sr = ui.interact(star, ui.scope_id().with(("np-like", &heard.id)), Sense::click());
     let sr = named(sr, if liked { "Remove from favourites" } else { "Add to favourites" }).on_hover_cursor(egui::CursorIcon::PointingHand);
     let sh = theme::anim_bool(ui.ctx(), sr.id.with("h"), sr.hovered(), 0.1);
     let pop = theme::anim_bool(ui.ctx(), ("liked", &heard.id), liked, 0.3);
-    // The same translucent disc as the ⋯ beside it, a little brighter once liked.
     let disc = (0.09 + 0.07 * sh + 0.05 * pop).min(0.30);
     if disc > 0.0 {
         ui.painter().circle_filled(star.center(), 15.0, theme::glass(disc));
@@ -365,11 +309,9 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     if sr.clicked() {
         app.actions.push(Action::Like(heard.clone(), !liked));
     }
-    // The song's options, beside the star.
     let options = Rect::from_center_size(pos2(art.right() - 15.0, info_y + 14.0), Vec2::splat(34.0));
     options_menu(app, ui, options, &heard, app.np_tab == NpTab::Lyrics && !no_lyrics, false);
 
-    // Seek: a 4 px line that grows under the pointer, its times below.
     let status = app.audio.status.clone();
     let held = hold.is_some();
     let (total, mix) = match &hold {
@@ -396,8 +338,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     };
     let pos = app.seek_drag.unwrap_or(smooth).min(total.max(0.0));
     let hit = Rect::from_min_size(pos2(x0, info_y + 55.0), vec2(w, 16.0));
-    // Held for the handoff's first half: its last stretch is where the pointer is,
-    // and seeking the queue's song from here would cut the mix.
     let sresp = ui.interact(hit, ui.scope_id().with("np-seek"), if held { Sense::hover() } else { Sense::click_and_drag() });
     let sresp = if total > 0.0 && !held { sresp.on_hover_cursor(egui::CursorIcon::PointingHand) } else { sresp };
     sresp.widget_info(|| egui::WidgetInfo::slider(total > 0.0 && !held, pos as f64, "Seek"));
@@ -405,8 +345,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     let thick = 4.0 + 4.0 * focus;
     let bar = Rect::from_min_max(pos2(x0, hit.center().y - thick / 2.0), pos2(x0 + w, hit.center().y + thick / 2.0));
     ui.painter().rect_filled(bar, thick / 2.0, Color32::from_white_alpha(38));
-    // Automix: the handoff window tints to the song's colour with its start ticked, so
-    // the blend has a place it visibly begins at.
     if mix > 0.5 {
         let edge = x0 + w * ((total - mix) / total);
         let band = Rect::from_min_max(pos2(edge, bar.top()), bar.max);
@@ -429,12 +367,10 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     let left = super::fmt_time((total - pos).max(0.0) as u32);
     let g = widgets::galley(ui, &format!("-{left}"), theme::semibold(11.0), tc, 80.0);
     ui.painter().galley(pos2(x0 + w - g.size().x, hit.bottom() + 2.0), g, tc);
-    // The quality mark sits between the two times, as the reference draws it.
     let badge_w = audio_badge_width(ui, app, false);
     if badge_w > 0.0 {
         audio_badge(app, ui, pos2(x0 + (w - badge_w) / 2.0, hit.bottom() + 1.0), false);
     }
-    // While the two songs blend, its name sits between the two times.
     let mixed = theme::anim_bool(ui.ctx(), "np-automix-on", app.mixing(), 0.3);
     if mixed > 0.01 && badge_w == 0.0 {
         let accent = theme::with_alpha(app.accent_color(), mixed);
@@ -453,9 +389,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         }
     }
 
-    // Transport: lyrics, then the reference's row — shuffle, previous, play, next, repeat —
-    // then the queue; 52 tall, no wider than 400, its buttons 36/36/48/56/48/36/36 with
-    // icons of 26/30/40/48/40/30/26, so play stays centred.
     let ty = info_y + 99.0 + 26.0;
     let row_w = w.min(400.0);
     let sizes = [36.0f32, 36.0, 48.0, 56.0, 48.0, 36.0, 36.0];
@@ -467,8 +400,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         xs[i] = cx + s / 2.0;
         cx += s + gap;
     }
-    // The marks are primary white, an off shuffle or repeat tertiary; a pressed button
-    // shrinks to 90%, as the reference's does.
     let ink = |h: f32, base: f32, on: f32| theme::with_alpha(theme::lerp_color(theme::with_alpha(Color32::WHITE, base), Color32::WHITE, h), on);
     let enabled = app.current().is_some();
     let dim = if enabled { 1.0 } else { 0.4 };
@@ -505,8 +436,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         ui.painter().add(egui::Shape::Path(egui::epaint::PathShape::line(pts, egui::epaint::PathStroke::new(2.4, mark))));
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
     } else {
-        // The two marks cross-fade: the reference keeps its pause up through a buffer,
-        // and a hard cut between them flickers.
         if morph < 1.0 {
             super::glyphs::draw(ui, c, size, super::glyphs::PLAY, theme::with_alpha(mark, 1.0 - morph));
         }
@@ -536,7 +465,6 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
             Repeat::One => Repeat::Off,
         };
     }
-    // The lyrics and queue open beside the artwork, and close back to it.
     for (i, tab, key, glyph, off_glyph, show, hide) in [
         (6, NpTab::UpNext, "queue", super::glyphs::QUEUE, super::glyphs::QUEUE, "View queue", "Hide queue"),
         (0, NpTab::Lyrics, "lyrics", super::glyphs::LYRICS, super::glyphs::LYRICS_OFF, "Show lyrics", "Hide lyrics"),
@@ -551,23 +479,18 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     }
 
     if no_lyrics && app.np_tab == NpTab::Lyrics {
-        // A brief note, faded out after a few seconds.
         let since = ui.ctx().memory_mut(|m| *m.data.get_temp_mut_or_insert_with(egui::Id::unique(("no-lyrics", &track.id)), || now));
         let a = (1.0 - ((now - since - 3.0) / 1.0) as f32).clamp(0.0, 1.0);
         if a > 0.0 {
             let c = theme::with_alpha(theme::text_dim(), a * 0.8);
             text_at(ui, pos2(x0, ty + 40.0), "No lyrics for this song", theme::regular(14.0), c, w);
-            // Frames only for the fade-out.
             let wait = (since + 3.0 - now).max(0.0);
             ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(if wait > 0.0 { wait } else { 0.033 }));
         }
     }
 }
 
-// ------------------------------------------------------------------ lyrics
-
 pub(super) fn lyrics_panel(app: &mut App, ui: &mut Ui, rect: Rect, now: f64, centered: bool) {
-    // Lent out for the frame rather than cloned (the drawing needs `app` mutably).
     let Some((id, set)) = app.lyrics.take() else {
         ui.add_space(rect.height() * 0.35);
         ui.vertical_centered(|ui| {
@@ -592,8 +515,6 @@ pub(super) fn lyrics_panel(app: &mut App, ui: &mut Ui, rect: Rect, now: f64, cen
     app.lyrics = Some((id, set));
 }
 
-/// Romanization and translation for each line, the way the extension picks them: what
-/// the lyrics ship (Apple-style TTML) first, then Unison/Google.
 fn decorations<'a>(
     show_roman: bool,
     show_trans: bool,
@@ -639,8 +560,6 @@ fn synced(app: &mut App, ui: &mut Ui, rect: Rect, id: &str, lyrics: &Lyrics, now
     let accent = app.accent_color();
     let centered = narrow || style.align == crate::preset::Align::Center;
     let playing = if app.mix_hold().is_some() { app.audio.status.outgoing_playing() } else { app.playing() };
-    // Audible position: the device plays what the player hands it a buffer later. A
-    // handoff's first half is still the outgoing song's tail, which lines up with it.
     let pos = match app.mix_hold() {
         Some(h) => app.mix_hold_pos(h) as f64 - app.audio.status.latency().as_secs_f64(),
         None => app.audio.status.position_smooth().as_secs_f64() - app.audio.status.latency().as_secs_f64(),
@@ -665,7 +584,6 @@ fn synced(app: &mut App, ui: &mut Ui, rect: Rect, id: &str, lyrics: &Lyrics, now
     };
     let scale = app.lyric_prefs.text_scale;
     let frame = karaoke::Frame { lyrics, key, roman, trans, t, playing, now, rect, style, accent, centered, scale };
-    // The view lives in `app`; the frame borrows `app` for decorations, so swap it out.
     let mut view = std::mem::take(&mut app.lyric_view);
     let out = if karaoke::dev_off("view") { karaoke::Out { seek: None, animating: true, user_scrolling: false } } else { view.show(ui, frame) };
     app.lyric_view = view;
@@ -675,11 +593,6 @@ fn synced(app: &mut App, ui: &mut Ui, rect: Rect, id: &str, lyrics: &Lyrics, now
     if out.animating {
         ui.ctx().request_repaint();
     }
-    // The extension's `.autoscroll-resume-button` (YouTube Music's rem is 10 px): a frosted
-    // pill under the top edge in the lyrics font at 600, 1.75rem; padding .5rem 1rem;
-    // white 5% fill, 1px white 10% border, radius 1rem, over a 5px backdrop blur (which
-    // reads as about twice those on screen). It slides down from -3em to 2em as it fades
-    // in, and its text glows on hover.
     let shown = theme::anim_bool(ui.ctx(), "lyr-resume", out.user_scrolling, 0.2);
     if shown > 0.0 {
         let font = theme::lyric_font(&style.font, crate::preset::Weight::Semibold, 17.5);
@@ -698,7 +611,6 @@ fn synced(app: &mut App, ui: &mut Ui, rect: Rect, id: &str, lyrics: &Lyrics, now
         if hover > 0.0
             && let Some((tex, glow_rect, uv)) = app.lyric_view.text_glow(ui.ctx(), g.clone(), at, 15.0)
         {
-            // `text-shadow: 0 0 1.5rem var(--blyrics-glow-color)`: a real blur of the letters.
             let glow = crate::preset::paint(&style.glow_color, accent);
             p.image(tex, glow_rect, uv, theme::with_alpha(glow, hover * shown));
         }
@@ -723,7 +635,6 @@ fn plain_lyrics(app: &mut App, ui: &mut Ui, rect: Rect, lyrics: &Lyrics) {
             let font = theme::lyric_font_for(&style.font, style.weight, size, &l.text);
             let color = theme::with_alpha(Color32::WHITE, 0.85);
             if crate::bidi::has_rtl(&l.text) {
-                // Wrapped in reading order, each row in display order; RTL lines start on the right.
                 let width = ui.available_width();
                 let g = super::widgets::galley_wrapped(ui, &l.text, font, color, width, usize::MAX);
                 let (r, _) = ui.allocate_exact_size(vec2(width, g.size().y), Sense::hover());
@@ -738,7 +649,6 @@ fn plain_lyrics(app: &mut App, ui: &mut Ui, rect: Rect, lyrics: &Lyrics) {
     });
 }
 
-/// Sync-type colours from the extension's dock (syllable, word, line, unsynced).
 fn sync_color(k: SyncKind) -> Color32 {
     match k {
         SyncKind::Syllable => Color32::from_rgb(196, 160, 255),
@@ -757,8 +667,6 @@ fn sync_label(k: SyncKind) -> &'static str {
     }
 }
 
-/// The ⋯ menu (`header`: up top, with the cover column and its transport hidden): the song's actions, and with lyrics showing, the source picker,
-/// translation and romanization toggles, and this song's timing offset above them.
 fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Track, lyrics: bool, header: bool) {
     let resp = ui.interact(rect, ui.scope_id().with("np-options"), Sense::click());
     let resp = named(resp, "Options").on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -772,8 +680,6 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
         ui.set_width(270.0);
         ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
         ui.add_space(4.0);
-        // Lyrics first: the source, translation and timing are what the menu is for
-        // while the lyrics are up.
         let liked = app.liked.contains(&track.id);
         if lyrics {
             lyric_options(app, ui);
@@ -787,7 +693,6 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
         if widgets::menu_action(ui, Some(icon::LIST_MUSIC), "Add to queue") {
             app.actions.push(Action::Enqueue(track.clone()));
         }
-        // The transport's queue button is hidden with the cover column.
         let queue = app.np_tab == NpTab::UpNext;
         if header && widgets::menu_glyph_action(ui, super::glyphs::QUEUE, if queue { "View lyrics" } else { "View queue" }) {
             app.np_tab = if queue { NpTab::Lyrics } else { NpTab::UpNext };
@@ -795,8 +700,6 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
         if app.queue.upcoming().is_some() && widgets::menu_glyph_action(ui, super::glyphs::SHUFFLE, "Shuffle") {
             app.shuffle_upcoming();
         }
-        // Which recording plays, as Android's switch: a song or its music video, either
-        // way round. Back to what's listed is the listed upload again.
         if let Some(listed) = app.current().map(|t| t.music_video)
             && !app.jam.active()
         {
@@ -809,7 +712,6 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
                 if swapped { app.play_listed_upload() } else { app.play_video_version() }
             }
         }
-        // Quality toggle at the bottom: revert when hi-res is playing, upgrade when not.
         let hires_playing = app.audio_info.as_ref().is_some_and(|(_, i)| i.lossless() || i.atmos);
         if hires_playing || !app.hires_sources.is_empty() {
             menu_divider(ui);
@@ -821,7 +723,6 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
                 app.actions.push(Action::UpgradeQuality);
             }
         }
-        // The music video's picture size.
         if crate::motion::SUPPORTED && app.playing_track().is_some_and(|t| t.music_video) {
             menu_divider(ui);
             for h in [1080, 720, 480, 360] {
@@ -852,7 +753,6 @@ fn lyric_options(app: &mut App, ui: &mut Ui) {
     let tip = format!("Translation · {}", lang_name(&app.lyric_prefs.target));
     switch_row(ui, &tip, &mut app.show_trans);
     switch_row(ui, "Romanization", &mut app.show_roman);
-    // This song's timing for the shown source: ‹ +0.0s ›
     let off = app.lyric_prefs.song_offset(&id, shown);
     let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::hover());
     ui.painter().text(pos2(row.left() + 12.0, row.center().y), egui::Align2::LEFT_CENTER, "Timing", theme::regular(14.0), theme::text());
@@ -887,8 +787,6 @@ fn menu_divider(ui: &mut Ui) {
     ui.add_space(5.0);
 }
 
-// ------------------------------------------------------------------ audio quality
-
 fn badge_font(small: bool) -> egui::FontId {
     theme::semibold(if small { 9.0 } else { 11.0 })
 }
@@ -897,12 +795,10 @@ fn glyph_side(small: bool) -> f32 {
     if small { 11.0 } else { 13.0 }
 }
 
-/// Whether the mark leads with an icon: Apple's lossless wave, or Dolby's double-D.
 fn has_quality_glyph(info: &crate::hires::Info) -> bool {
     info.atmos || info.lossless()
 }
 
-/// Apple's own marks, from its "Symbols used in Music" page.
 fn quality_icon(atmos: bool) -> &'static [u8] {
     if atmos {
         include_bytes!("../../assets/quality/atmos.png")
@@ -915,7 +811,6 @@ fn quality_icon_aspect(atmos: bool) -> f32 {
     if atmos { 78.0 / 60.0 } else { 86.0 / 60.0 }
 }
 
-/// The icon as white pixels with its own alpha, so it takes the badge's tint.
 fn quality_icon_texture(ui: &Ui, atmos: bool) -> egui::TextureHandle {
     let ctx = ui.ctx();
     let id = egui::Id::unique(("quality-icon", atmos));
@@ -939,7 +834,6 @@ fn paint_quality_icon(ui: &Ui, center: egui::Pos2, height: f32, atmos: bool, tin
     ui.painter().image(quality_icon_texture(ui, atmos).id(), rect, uv, tint);
 }
 
-/// How wide the quality mark is, so a line can leave room for it.
 pub(super) fn audio_badge_width(ui: &Ui, app: &App, small: bool) -> f32 {
     let Some((_, info)) = app.audio_info.as_ref() else { return 0.0 };
     let label = if app.mixing() { "Mixing" } else { info.badge() };
@@ -947,12 +841,9 @@ pub(super) fn audio_badge_width(ui: &Ui, app: &App, small: bool) -> f32 {
     if has_quality_glyph(info) { text + glyph_side(small) * quality_icon_aspect(info.atmos) + 5.0 } else { text }
 }
 
-/// The quality mark — a glyph and the stream's name, tinted with the theme — drawn at
-/// `at`; a click opens its details. Returns how much room it took.
 pub(super) fn audio_badge(app: &App, ui: &mut Ui, at: egui::Pos2, small: bool) -> f32 {
     let Some((_, info)) = app.audio_info.as_ref() else { return 0.0 };
     let font = badge_font(small);
-    // A mix in progress wears its own name over the quality mark; the details keep the truth.
     let g = widgets::galley(ui, if app.mixing() { "Mixing" } else { info.badge() }, font, Color32::WHITE, 200.0);
     let gh = glyph_side(small);
     let glyph = has_quality_glyph(info);
@@ -963,7 +854,6 @@ pub(super) fn audio_badge(app: &App, ui: &mut Ui, at: egui::Pos2, small: bool) -
     let resp = named(resp, "Audio quality").on_hover_cursor(egui::CursorIcon::PointingHand);
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
     let hover = theme::anim_bool(ui.ctx(), resp.id.with("h"), resp.hovered() || open, 0.12);
-    // Lossless and Atmos wear the song's colour; anything lossy stays quiet.
     let (ink, mark) = if info.lossless() || info.atmos {
         let accent = app.accent_color();
         (theme::lerp_color(accent, Color32::WHITE, 0.10 + 0.30 * hover), theme::with_alpha(accent, 0.85 + 0.15 * hover))
@@ -981,7 +871,6 @@ pub(super) fn audio_badge(app: &App, ui: &mut Ui, at: egui::Pos2, small: bool) -
     w
 }
 
-/// Just the quality glyph, centred on `center`, for the mini player's artist line.
 pub(super) fn audio_badge_icon_width(app: &App, small: bool) -> f32 {
     let Some((_, info)) = app.audio_info.as_ref().filter(|(_, i)| has_quality_glyph(i)) else { return 0.0 };
     glyph_side(small) * quality_icon_aspect(info.atmos)
@@ -1001,7 +890,6 @@ pub(super) fn audio_badge_icon(app: &App, ui: &mut Ui, center: egui::Pos2, small
     egui::Popup::menu(&resp).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| audio_info_menu(ui, info));
 }
 
-/// What the stream is: its source, format and the numbers under those.
 fn audio_info_menu(ui: &mut Ui, info: &crate::hires::Info) {
     ui.set_width(300.0);
     ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
@@ -1055,7 +943,6 @@ fn info_row(ui: &mut Ui, label: &str, value: &str) {
     ui.painter().galley(pos2(r.right() - 12.0 - g.size().x, r.center().y - g.size().y / 2.0), g, theme::text());
 }
 
-/// The stated bitrate, or the one the file's size and length imply.
 fn bitrate(info: &crate::hires::Info) -> Option<u32> {
     info.bitrate_kbps
         .or_else(|| (info.duration_ms > 0 && info.size > 0).then(|| (info.size * 8 / info.duration_ms) as u32))
@@ -1082,7 +969,6 @@ fn size_text(bytes: u64) -> String {
     if bytes >= 1024 * 1024 { format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0)) } else { format!("{:.0} KB", bytes as f64 / 1024.0) }
 }
 
-/// A lyrics source: its sync type's dot, name and sync type, with a check on the one shown.
 fn source_row(ui: &mut Ui, name: &str, sync: SyncKind, current: bool) -> bool {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), Sense::click());
     let resp = named(resp, &format!("Lyrics source {name}")).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -1100,7 +986,6 @@ fn source_row(ui: &mut Ui, name: &str, sync: SyncKind, current: bool) -> bool {
     resp.clicked()
 }
 
-/// A label with an on/off switch; the whole row toggles.
 fn switch_row(ui: &mut Ui, label: &str, on: &mut bool) {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
     let resp = named(resp, label).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -1120,7 +1005,6 @@ fn switch_row(ui: &mut Ui, label: &str, on: &mut bool) {
     ui.painter().circle_filled(knob, 8.0, Color32::WHITE);
 }
 
-/// A small icon button (24 × 24).
 fn mini_icon(ui: &mut Ui, glyph: char, tip: &str, enabled: bool) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(22.0, 24.0), if enabled { Sense::click() } else { Sense::hover() });
     let resp = named(resp, tip).on_hover_text(tip);
@@ -1134,7 +1018,6 @@ fn mini_icon(ui: &mut Ui, glyph: char, tip: &str, enabled: bool) -> egui::Respon
     resp
 }
 
-/// A small text toggle or label (24 px tall), highlighted when `on`.
 fn mini_text(ui: &mut Ui, text: &str, on: bool, tip: &str) -> egui::Response {
     let font = theme::semibold(12.0);
     let g = ui.fonts_mut(|f| f.layout_no_wrap(text.to_owned(), font, Color32::WHITE));

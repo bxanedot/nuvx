@@ -11,16 +11,6 @@ import {
   type TimedRun,
 } from './model';
 
-/**
- * Every wire format the providers use, read into the lyric model: ports of
- * TtmlLyrics.kt, EnhancedLrc.kt, LrcLib.parseLrc, KaraokeLrc and
- * ProviderLyrics.kt.
- */
-
-// ---- EnhancedLrc.decodeEntities -------------------------------------------------------------
-
-/** SimpMusic and friends serve HTML-escaped text; "&#x27;" would otherwise be sung literally. */
-/** fromCodePoint throws past U+10FFFF, which would take the whole lookup down: keep such an entity as written. */
 const codePoint = (entity: string, value: number) => (value <= 0x10ffff ? String.fromCodePoint(value) : entity);
 
 export function decodeEntities(text: string): string {
@@ -36,12 +26,9 @@ export function decodeEntities(text: string): string {
     .replace(/&amp;/g, '&');
 }
 
-// ---- TTML (TtmlLyrics.kt) ---------------------------------------------------------------------
-
 const SKIPPED_ROLES = new Set(['x-translation', 'x-roman']);
 const BACKGROUND_ROLE = 'x-bg';
 
-/** TTML clock values: 27.395, 1:05.20, 1:02:03.4, or a number with s/ms. */
 export function ttmlTime(value: string | null | undefined): number | null {
   const raw = value?.trim();
   if (!raw) return null;
@@ -55,7 +42,6 @@ export function ttmlTime(value: string | null | undefined): number | null {
   return Math.trunc(seconds * 1000);
 }
 
-/** An attribute named with a prefix, whichever way the DOM files it. */
 function qualified(element: Element, name: string): string {
   const direct = element.getAttribute(name);
   if (direct) return direct;
@@ -93,7 +79,6 @@ function collect(node: Node, out: Piece[], backing: Piece[]): void {
   }
 }
 
-/** Glues syllables into words: whitespace, not the span boundary, ends a word. */
 function mergeIntoWords(pieces: Piece[]): LyricWord[] {
   const words: LyricWord[] = [];
   let current = '';
@@ -177,8 +162,6 @@ export function parseTtml(ttml: string): LyricLine[] {
   }
 }
 
-// ---- Enhanced (A2) LRC (EnhancedLrc.kt) -----------------------------------------------------
-
 const A2_LINE = /^\[(\d{1,3}):(\d{2})[.:](\d{2,3})\](.*)$/;
 const A2_WORD = /<(\d{1,3}):(\d{2})[.:](\d{2,3})>([^<]*)/g;
 const TAIL_MS = 800;
@@ -188,7 +171,6 @@ function stamp(minutes: string, seconds: string, fraction: string): number {
   return Number(minutes) * 60_000 + Number(seconds) * 1000 + fractionMs;
 }
 
-/** Empty when the LRC carries no word stamps, so the caller can fall back to plain LRC. */
 export function parseEnhancedLrc(lrc: string): LyricLine[] {
   const rows = lrc
     .split(/\r?\n/)
@@ -221,8 +203,6 @@ export function parseEnhancedLrc(lrc: string): LyricLine[] {
   return withInstrumentalGaps(lines);
 }
 
-// ---- Plain LRC (LrcLib.parseLrc) --------------------------------------------------------------
-
 const LRC_STAMP = /\[(\d{1,2}):(\d{2})[.:](\d{2,3})\]/;
 const WORD_STAMP = /<(\d{1,3}):(\d{2})[.:](\d{2,3})>/g;
 const ALIGNMENT_MARKER = '<R>';
@@ -232,7 +212,6 @@ export function parseLrc(lrc: string): LyricLine[] {
   for (const raw of lrc.split(/\r?\n/)) {
     const match = LRC_STAMP.exec(raw);
     if (!match) continue;
-    // `[00:12.00][00:45.00]Chorus` is one line sung at each stamp: the compressed form for a repeat.
     const stamps = [match];
     let end = match.index + match[0].length;
     for (let next = LRC_STAMP.exec(raw.slice(end)); next?.index === 0; next = LRC_STAMP.exec(raw.slice(end))) {
@@ -274,8 +253,6 @@ export function parseLrc(lrc: string): LyricLine[] {
   const first = kept[0];
   return first && first.text && first.timeMs >= MIN_GAP_MS ? [line(0, ''), ...kept] : kept;
 }
-
-// ---- QQ/QRC and NetEase YRC (KaraokeLrc) ------------------------------------------------------
 
 const KARAOKE_LINE = /^\[(\d{1,8}),(\d{1,8})\](.*)$/;
 const PREFIX_WORD = /\((\d{1,8}),(\d{1,8})(?:,\d{1,8})?\)([^()]*)/g;
@@ -329,8 +306,6 @@ export function parseKaraoke(raw: string): LyricLine[] {
   return withInstrumentalGaps(rows.sort((a, b) => a.timeMs - b.timeMs));
 }
 
-// ---- Whatever a provider sent (ProviderLyrics.kt) ------------------------------------------------
-
 const CONTENT_KEYS = [
   'ttml', 'ttmlContent', 'lyrics', 'lrc', 'content', 'text', 'plainLyrics', 'syncedLyrics',
   'line', 'lines', 'lyric', 'data', 'result', 'response',
@@ -344,7 +319,6 @@ function extract(value: unknown): string | null {
       const nested: unknown = JSON.parse(text);
       if (nested && typeof nested === 'object') return extract(nested);
     } catch {
-      // Not JSON: the text itself.
     }
     return text;
   }
@@ -361,7 +335,6 @@ function extract(value: unknown): string | null {
   return null;
 }
 
-/** Providers sometimes wrap the lyric string in one or two JSON envelopes. */
 export function unwrap(raw: string): string | null {
   let value = raw.replace(/﻿/g, '').trim();
   if (value.startsWith('```')) {
@@ -394,11 +367,9 @@ function plain(content: string): LyricLine[] {
 
 export interface Parsed {
   lines: LyricLine[];
-  /** The original document, when it was TTML: am-lyrics renders it as is. */
   ttml: string | null;
 }
 
-/** Turns any provider's body into lines (and keeps a TTML original). */
 export function parseProvider(raw: string): Parsed | null {
   const unwrapped = unwrap(raw);
   if (!unwrapped) return null;

@@ -14,14 +14,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * Rigorous telemetry correctness test suite:
- * Verifies that all statistics reported across the Audio Pipeline
- * represent authentic source/runtime facts with strict provenance,
- * without conflating encoded stream bitrate with PCM data throughput,
- * without inventing fallbacks for unknown runtime states, and cleanly
- * resetting metadata across track and route boundaries.
- */
 class AudioPipelineTelemetryTest {
 
     @Before
@@ -30,13 +22,8 @@ class AudioPipelineTelemetryTest {
         AudioOutputStatus.reset()
     }
 
-    // ── 1. Bitrate vs PCM Throughput Separation ───────────────────────────
-
     @Test
     fun flacStreamBitrateDoesNotConflateWithPcmDataRate() {
-        // CD Quality FLAC: 16-bit, 44.1 kHz stereo
-        // True PCM throughput: 16 * 44100 * 2 / 1000 = 1411 kbps
-        // Actual encoded stream bitrate: 785 kbps
         val flacSnapshot = NerdStats.Snapshot(
             mimeType = "audio/flac",
             bitrateKbps = 785,
@@ -47,16 +34,12 @@ class AudioPipelineTelemetryTest {
             bitDepth = 16,
         )
 
-        // Verifications:
-        // 1. Encoded bitrate is 785 kbps, NEVER manufactured as 1411 kbps
         assertEquals(785, flacSnapshot.bitrateKbps)
         assertNotEquals(1411, flacSnapshot.bitrateKbps)
         assertEquals(TelemetryProvenance.AUTHORITATIVE, flacSnapshot.bitrateProvenance)
 
-        // 2. PCM throughput is explicitly separated
         assertEquals(1411, flacSnapshot.pcmDataRateKbps)
 
-        // 3. Identified as lossless, CD quality (not hi-res, not lossy)
         assertTrue(flacSnapshot.isLossless)
         assertFalse(flacSnapshot.isHiRes)
         assertFalse(flacSnapshot.isHiQuality)
@@ -64,9 +47,6 @@ class AudioPipelineTelemetryTest {
 
     @Test
     fun flacHighRes24Bit48kStereoCalculatesPcmRateSeparately() {
-        // Hi-Res FLAC: 24-bit, 48.0 kHz stereo
-        // True PCM throughput: 24 * 48000 * 2 / 1000 = 2304 kbps
-        // Actual encoded stream bitrate: 1540 kbps
         val hiResSnapshot = NerdStats.Snapshot(
             mimeType = "audio/flac",
             bitrateKbps = 1540,
@@ -77,7 +57,6 @@ class AudioPipelineTelemetryTest {
             bitDepth = 24,
         )
 
-        // Encoded bitrate must not be 2304 kbps
         assertEquals(1540, hiResSnapshot.bitrateKbps)
         assertNotEquals(2304, hiResSnapshot.bitrateKbps)
         assertEquals(2304, hiResSnapshot.pcmDataRateKbps)
@@ -87,7 +66,6 @@ class AudioPipelineTelemetryTest {
 
     @Test
     fun flacUnknownBitrateLeavesBitrateNullAndPcmRateCalculated() {
-        // FLAC where container does not declare bitrate and not yet resolved:
         val unknownBitrateFlac = NerdStats.Snapshot(
             mimeType = "audio/flac",
             bitrateKbps = null,
@@ -98,7 +76,6 @@ class AudioPipelineTelemetryTest {
             bitDepth = 16,
         )
 
-        // Encoded bitrate must remain unknown, NEVER fall back to 1411 kbps!
         assertNull(unknownBitrateFlac.bitrateKbps)
         assertEquals(TelemetryProvenance.UNKNOWN, unknownBitrateFlac.bitrateProvenance)
         assertEquals(1411, unknownBitrateFlac.pcmDataRateKbps)
@@ -107,7 +84,6 @@ class AudioPipelineTelemetryTest {
 
     @Test
     fun rawPcmStreamBitrateIsDerivedFromPcmThroughput() {
-        // Raw linear PCM / WAV: Encoded bitrate IS the PCM throughput (DERIVED)
         val pcmThroughput = (16L * 44100 * 2 / 1000).toInt()
         val wavSnapshot = NerdStats.Snapshot(
             mimeType = "audio/raw",
@@ -132,7 +108,6 @@ class AudioPipelineTelemetryTest {
 
     @Test
     fun lossyFormatsHaveNoBitDepthAndNoPcmDataRate() {
-        // Lossy streaming (e.g. YouTube Opus 160 kbps, AAC 256 kbps)
         val opusSnapshot = NerdStats.Snapshot(
             mimeType = "audio/opus",
             bitrateKbps = 160,
@@ -140,7 +115,7 @@ class AudioPipelineTelemetryTest {
             pcmDataRateKbps = null,
             sampleRateHz = 48000,
             channels = 2,
-            bitDepth = null, // Lossy codecs do not have a bit depth!
+            bitDepth = null,
         )
 
         assertFalse(opusSnapshot.isLossless)
@@ -149,8 +124,6 @@ class AudioPipelineTelemetryTest {
         assertEquals(160, opusSnapshot.bitrateKbps)
         assertEquals(TelemetryProvenance.AUTHORITATIVE, opusSnapshot.bitrateProvenance)
     }
-
-    // ── 2. Resampler Stage Truthfulness ───────────────────────────────────
 
     @Test
     fun resamplerDoesNotFalselyReportPassthroughWhenOutputRateIsUnknown() {
@@ -218,8 +191,6 @@ class AudioPipelineTelemetryTest {
         assertEquals("Resampled", qualityText)
     }
 
-    // ── 3. AudioTrack Stage Truthfulness ──────────────────────────────────
-
     @Test
     fun audioTrackDoesNotFabricateFloat32WhenUninitialized() {
         val actualEncoding: Int? = null
@@ -267,8 +238,6 @@ class AudioPipelineTelemetryTest {
         assertEquals("PCM24 / 96000 Hz", audioTrackText)
     }
 
-    // ── 4. Track Transition Reset ─────────────────────────────────────────
-
     @Test
     fun trackTransitionClearsStalePerTrackMetadata() {
         AudioOutputStatus.publishDecoder("c2.android.flac.decoder")
@@ -282,7 +251,6 @@ class AudioPipelineTelemetryTest {
         assertEquals(-2.5f, AudioOutputStatus.current.value.loudnessGainDb)
         assertEquals(-14.0f, AudioOutputStatus.current.value.loudnessLufs)
 
-        // Perform track transition
         AudioOutputStatus.onTrackTransition()
 
         val after = AudioOutputStatus.current.value
@@ -310,8 +278,6 @@ class AudioPipelineTelemetryTest {
         assertNull(NerdStats.current.value)
     }
 
-    // ── 5. Route Transition Reset ─────────────────────────────────────────
-
     @Test
     fun bluetoothRouteTransitionClearsBluetoothProfileWhenRoutingAway() {
         val btSnapshot = AudioOutputStatus.Snapshot(
@@ -321,7 +287,6 @@ class AudioPipelineTelemetryTest {
         AudioOutputStatus.current.value = btSnapshot
         assertEquals("A2DP", AudioOutputStatus.current.value.bluetoothProfile)
 
-        // Publish negotiation for PHONE route (speaker)
         val phoneNegotiation = OutputNegotiator.negotiate(
             source = SourceDescriptor(
                 encoding = "16-bit PCM",

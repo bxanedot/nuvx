@@ -6,7 +6,6 @@ import org.junit.Assert.assertSame
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 
-/** A fragmented MP4 saved without a `sidx` cannot seek; [Mp4Sidx] adds one. */
 class Mp4SidxTest {
 
     private fun u32(v: Long) = ByteArray(4) { (v shr (8 * (3 - it))).toByte() }
@@ -28,7 +27,6 @@ class Mp4SidxTest {
         repeat(fragments) { n ->
             val tfhd = box("tfhd", u32(0x20000), u32(1))
             val tfdt = box("tfdt", u32(0), u32(n * samplesEach * sampleTicks))
-            // sample_duration present (0x100) + sample_size present (0x200)
             val samples = ByteArrayOutputStream().also { o ->
                 repeat(samplesEach) { o.write(u32(sampleTicks)); o.write(u32(10)) }
             }.toByteArray()
@@ -48,10 +46,9 @@ class Mp4SidxTest {
         val sidxAt = indexOf(output, "sidx") - 4
         val size = u32At(output, sidxAt).toInt()
         assertEquals(40 + 12 * 3, size)
-        assertEquals(1L, u32At(output, sidxAt + 12)) // reference_ID = track
+        assertEquals(1L, u32At(output, sidxAt + 12))
         assertEquals(48_000L, u32At(output, sidxAt + 16))
         assertEquals(3, ((output[sidxAt + 38].toInt() and 0xFF) shl 8) or (output[sidxAt + 39].toInt() and 0xFF))
-        // The first referenced byte is the first moof, found via first_offset.
         val firstOffset = u32At(output, sidxAt + 32)
         assertEquals("moof", String(output, (sidxAt + size + firstOffset).toInt() + 4, 4))
         var total = 0L

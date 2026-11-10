@@ -12,8 +12,6 @@ import coil3.transform.Transformation
 @Composable
 actual fun rememberBlurredBackdrop(url: String?): Any? {
     val context = LocalPlatformContext.current
-    // Remembered: a freshly built request never equals the last one, and Coil
-    // would cancel and restart the load on every recomposition.
     return remember(url, context) {
         url ?: return@remember null
         ImageRequest.Builder(context)
@@ -23,18 +21,8 @@ actual fun rememberBlurredBackdrop(url: String?): Any? {
     }
 }
 
-/**
- * The lower part of a cover, shrunk and blurred: what Apple Music lays under a
- * release card's caption, where the cover seems to run on, out of focus.
- *
- * Shrinking first is what makes this cheap — the blur runs over a bitmap
- * [WIDTH] pixels wide, three passes of a box blur (close to a Gaussian), a
- * millisecond or so — and a picture that soft loses nothing when the card
- * stretches it back up.
- */
 private object BackdropBlur : Transformation() {
 
-    /** The share of the cover, from the bottom, that the backdrop continues. */
     private const val STRIP = 0.4f
     private const val WIDTH = 48
     private const val RADIUS = 3
@@ -57,7 +45,6 @@ private object BackdropBlur : Transformation() {
         return Bitmap.createBitmap(pixels, WIDTH, height, Bitmap.Config.ARGB_8888)
     }
 
-    /** One pass of a running-sum box blur along rows or columns, edges clamped. */
     private fun boxBlur(pixels: IntArray, width: Int, height: Int, radius: Int, horizontal: Boolean) {
         val lines = if (horizontal) height else width
         val length = if (horizontal) width else height

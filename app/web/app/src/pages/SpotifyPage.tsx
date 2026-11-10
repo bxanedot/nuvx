@@ -8,11 +8,6 @@ import { openSpotifySignIn, useRefreshSpotifyAuth, useSetSpotifyConnected, useSp
 import { PlainSkeleton } from '@/skeletons/PageSkeletons';
 import { seeAllGrid } from './pageStyles';
 
-/**
- * The signed-in Spotify account's playlists (SpotifyLibraryScreen): this page
- * is only the way in; a playlist opens as an ordinary playlist page whose
- * songs are matched to YouTube Music.
- */
 export default function SpotifyPage() {
   const extension = useExtension();
   const auth = useSpotifyAuth();

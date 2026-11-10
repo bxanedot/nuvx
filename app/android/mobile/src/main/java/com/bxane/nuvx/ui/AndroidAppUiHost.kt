@@ -11,7 +11,6 @@ import com.bxane.nuvx.data.canvas.CanvasRepository
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.download.Downloads
 
-/** The shared pages' settings and downloads, answered from the phone's own stores. */
 object AndroidAppUiHost : AppUiHost {
     override val swipeToPlayNext = AppSettings.swipeToPlayNext
     override val pinnedPlaylists = AppSettings.pinnedPlaylists
@@ -28,12 +27,6 @@ object AndroidAppUiHost : AppUiHost {
         return CanvasRepository.canvasForAlbum(album, artist)
     }
 
-    /**
-     * The clip the artist page plays, off the same proven Apple lookup — so
-     * opening the artist from the card costs nothing more, and a card never
-     * moves with somebody else's face. The YouTube page it is proved against is
-     * fetched only when that lookup hasn't settled already.
-     */
     override suspend fun artistMotion(browseId: String, artistName: String): CanvasArtwork? {
         if (!AppSettings.animatedCanvas.value) return null
         val art = AppleArtistArtRepository.artFor(browseId, artistName) {

@@ -48,14 +48,6 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import java.util.Locale
 
-/** Language tag paired with its display-name string.
- *
- * Tags carry a region (`zh-CN` / `zh-TW`, not bare `zh-Hans` / `zh-Hant`):
- * Android Views understand script qualifiers (`values-b+zh+Hant`) but the
- * shared Compose resources only match language + region, so a region-less
- * script tag shows Traditional in Settings and Simplified on the player.
- * [LocaleTags.normalizeAppTag] maps both forms to the same script downstream.
- */
 data class AppLanguage(val tag: String, val nameRes: Int)
 
 val SUPPORTED_LANGUAGES = listOf(
@@ -86,21 +78,12 @@ fun languageDisplayNameRes(languageTag: String): Int {
     }?.nameRes ?: R.string.english
 }
 
-/** How much of the screen the list may take before it scrolls inside the card. */
 private val LANGUAGE_LIST_MAX_HEIGHT = 340.dp
 
-/** Taps on the title that open the hidden tester-code field. */
 private const val TESTER_TAPS = 10
 
-/** A pause longer than this between taps starts the count again. */
 private const val TESTER_TAP_GAP_MS = 2_000L
 
-/**
- * Same frosted iOS alert as [LyricsSourcesDialog], but single-select rather
- * than checkable — there's no order or multiple-participation question here,
- * just one active language, so tapping a row applies it and closes the sheet
- * immediately rather than waiting on a separate Done action.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AppLanguageDialog(
@@ -110,9 +93,6 @@ fun AppLanguageDialog(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
 
-    // Ten quick taps on the title swap this dialog for the tester-code field.
-    // Hidden because it only matters to testers on phones the auth service
-    // would otherwise refuse (unlocked bootloader); see AddonAuth.setTesterCode.
     var titleTaps by remember { mutableIntStateOf(0) }
     var lastTapAt by remember { mutableLongStateOf(0L) }
     var showTesterCode by remember { mutableStateOf(false) }
@@ -122,7 +102,6 @@ fun AppLanguageDialog(
     }
 
     val shape = RoundedCornerShape(ALERT_CORNER)
-    // Full script tag (zh-Hant / zh-Hans preserved); legacy bare "zh" reads as Simplified.
     val currentLanguage = com.bxane.nuvx.data.LocaleTags.normalizeAppTag(
         AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
             ?: Locale.getDefault().toLanguageTag(),
@@ -153,8 +132,6 @@ fun AppLanguageDialog(
                         )
                     },
                 )
-                // Swallows the tap before it reaches the scrim behind, so
-                // touching the card itself never dismisses it.
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -197,10 +174,6 @@ fun AppLanguageDialog(
                 )
             }
 
-            // Capped and scrolled rather than laid out at full height, same as
-            // [TranslationLanguageDialog] — sixteen rows is short enough not
-            // to need that dialog's filter field, but still taller than the
-            // card should get to stay centred on a phone.
             LazyColumn(modifier = Modifier.heightIn(max = LANGUAGE_LIST_MAX_HEIGHT)) {
                 items(SUPPORTED_LANGUAGES, key = { it.tag }) { language ->
                     AlertRule()
@@ -256,10 +229,6 @@ private fun LanguageRow(language: AppLanguage, selected: Boolean, onClick: () ->
     }
 }
 
-/**
- * The hidden field itself. The saved code is never shown back: the field
- * starts empty, and the message says whether one is saved.
- */
 @Composable
 private fun TesterCodeAlert(hazeState: HazeState, onDismiss: () -> Unit) {
     val context = LocalContext.current

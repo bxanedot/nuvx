@@ -5,10 +5,6 @@ import { YTMusic } from 'youtubei.js';
 import { firstBrowseArtwork, mapAlbum, mapArtist, mapCategories, mapHome, mapPlaylist, mapSearch, mapShelves, mapSuggestions } from './mappers';
 import type { BrowsePage } from './types';
 
-// Real responses captured by web/scripts/capture-fixtures.mjs (prompt §0:
-// parsers are tested against what YouTube actually sends). YouTube.js parses
-// them exactly as it would a live response.
-
 const fixture = (name: string) =>
   JSON.parse(readFileSync(fileURLToPath(new URL(`../../../../fixtures/innertube/${name}.json`, import.meta.url)), 'utf8'));
 const response = (name: string) => ({ success: true, status_code: 200, data: fixture(name) }) as never;
@@ -27,7 +23,6 @@ describe('home', () => {
         expect(item.thumbnail).toMatch(/^https:/);
       }
     }
-    // This capture (signed out) holds playlist and album carousels only.
     expect(shelves.every((s) => s.layout === 'square' || s.layout === 'video')).toBe(true);
   });
 });
@@ -112,7 +107,6 @@ describe('search', () => {
 
 describe('suggestions', () => {
   it('splits completions into typed and remaining parts', async () => {
-    // As YouTube.js's getSearchSuggestions reads them.
     const { Parser, YTNodes } = await import('youtubei.js');
     const parsed = Parser.parseResponse(fixture('search-suggestions'));
     const suggestions = mapSuggestions(parsed.contents_memo!.getType(YTNodes.SearchSuggestionsSection));

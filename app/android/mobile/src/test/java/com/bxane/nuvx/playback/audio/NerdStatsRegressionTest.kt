@@ -12,11 +12,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * Stats for nerds must describe the stream actually playing: no snapshot from a
- * track that has been replaced, no bitrate borrowed from a stream that was
- * upgraded away from, and no tier guess passed off as a measured figure.
- */
 class NerdStatsRegressionTest {
 
     @Before
@@ -32,8 +27,6 @@ class NerdStatsRegressionTest {
             channels = 2,
             mediaId = mediaId,
         )
-
-    // ── Publishing ───────────────────────────────────────────────────────────
 
     @Test
     fun trackTransition_clearsSnapshotUntilTheNewTrackPublishes() {
@@ -64,7 +57,6 @@ class NerdStatsRegressionTest {
         val gen = NerdStats.currentGeneration
         assertTrue(NerdStats.publish(snapshot("playing", "audio/flac", null), gen))
 
-        // The standby deck's incoming track during a crossfade.
         assertFalse(NerdStats.publish(snapshot("incoming"), gen))
         assertEquals("playing", NerdStats.current.value?.mediaId)
     }
@@ -80,11 +72,8 @@ class NerdStatsRegressionTest {
         assertNull(NerdStats.current.value)
     }
 
-    // ── What the resolver recorded survives the transition ───────────────────
-
     @Test
     fun readAheadDeclaration_survivesTheTrackBecomingCurrent() {
-        // The resolver opens the next item before it becomes current.
         NerdStats.onSourceStream("next", StreamFormat(codec = "eac3-joc", kbps = 768), "Addon")
         NerdStats.onStreamPicked("next", 160)
 
@@ -94,8 +83,6 @@ class NerdStatsRegressionTest {
         assertEquals("Addon", NerdStats.sourceFor("next"))
         assertEquals(160, NerdStats.pickedBitrateKbps("next"))
     }
-
-    // ── Which bitrate describes the stream ───────────────────────────────────
 
     @Test
     fun losslessUpgradeWithoutABitrate_doesNotInheritThePickedOpus() {
@@ -128,7 +115,6 @@ class NerdStatsRegressionTest {
 
     @Test
     fun tierGuessedBitrate_givesWayToTheMeasuredOne() {
-        // HIGH asked for, nothing stated, server walked down to a 128 copy.
         NerdStats.onStreamPicked("track", 160, "YouTube")
         NerdStats.onSourceStream("track", StreamFormat(codec = "mp3", kbps = 320, kbpsInferred = true), "Addon")
 
@@ -148,8 +134,6 @@ class NerdStatsRegressionTest {
         assertEquals(170 to TelemetryProvenance.MEASURED, NerdStats.sourceBitrate("cached") { 170 })
         assertNull(NerdStats.sourceBitrate("cached") { null })
     }
-
-    // ── Snapshot labels ──────────────────────────────────────────────────────
 
     @Test
     fun hiResFollowsTheMeasuredRate() {

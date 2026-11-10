@@ -4,7 +4,6 @@ import { cleanCode, inviteUrl, parseInvite } from './invite';
 import { EMPTY_PLAYBACK, type PartyMember, type PartyQueue, type PartyTrack } from './models';
 import { autoplaySupplierId, detectSingleMove, partyQueueIndexOf, partyUpcomingAfter } from './queueReading';
 
-// ServerClockTest.kt, case for case.
 describe('ServerClock', () => {
   let now = 1_000;
   const clock = () => new ServerClock(() => now);
@@ -65,7 +64,6 @@ const t = (videoId: string, fromAutoplay = false): PartyTrack => ({
 });
 
 describe('party queue reading', () => {
-  // The queue keeps history, so the playing track can be in it twice (the duplicate-track fix).
   const queue: PartyQueue = { seq: 3, index: 3, items: [t('a'), t('b'), t('c'), t('a'), t('d')] };
 
   it('trusts the state frame’s index when it names the track', () => {

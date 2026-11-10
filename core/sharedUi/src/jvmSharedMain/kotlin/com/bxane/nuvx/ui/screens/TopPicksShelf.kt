@@ -119,24 +119,10 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
-/*
- * Home's "Top Picks for You": Apple Music's lead row of tall cards, each one
- * a station, a mood, an artist or a new release picked for this listener.
- *
- * The two "Made for You" stations are drawn here rather than shipped as video:
- * the same folded-paper chevrons and the fan of shards, as vector paths on a
- * Canvas whose phase is read only in the draw pass, so the animation repaints
- * the card without recomposing it, and stops when the row scrolls away and the
- * card leaves composition.
- */
-
-/** Width over height: Apple's cards are a 3:4 portrait. */
 private const val TOP_PICK_RATIO = 0.75f
 
-/** Share of the row a card takes, so the next one shows past it. */
 private const val TOP_PICK_FRACTION = 0.60f
 
-/** Held back on a tablet, so a card doesn't blow up into a poster. */
 private val TOP_PICK_MAX_WIDTH = 280.dp
 
 private val TopPickShape = RoundedCornerShape(12.dp)
@@ -146,18 +132,13 @@ private fun topPickWidth(available: Dp): Dp = minOf(available * TOP_PICK_FRACTIO
 @Composable
 internal fun TopPicksShelf(
     picks: List<TopPick>,
-    /** The account's name, for "bxane's Station". Null shows "Your Station". */
     listenerName: String?,
-    /** The card, and the title it was showing — the station's name for the queue. */
     onClick: (TopPick, String) -> Unit,
     onLongPress: ((TopPick) -> Unit)?,
 ) {
     val rowState = rememberLazyListState()
-    // Which cards turned out to have a clip, by index, and which one plays.
     val hasClip = remember(picks) { mutableStateMapOf<Int, Boolean>() }
     var owner by remember(picks) { mutableIntStateOf(-1) }
-    // Handed on only once a swipe has come to rest: passing it card to card
-    // mid-swipe would start a decoder for every card the row slid past.
     LaunchedEffect(rowState, hasClip) {
         snapshotFlow { rowState.isScrollInProgress to clipOwner(rowState.layoutInfo, hasClip) }
             .collect { (scrolling, next) -> if (!scrolling) owner = next }
@@ -194,7 +175,6 @@ internal fun TopPicksShelf(
     }
 }
 
-/** Stands in for the row while it is being built, at the same size, so the feed doesn't jump. */
 fun LazyListScope.topPicksSkeleton() {
     item(key = "skeleton:top-picks") {
         Column(Modifier.padding(bottom = 26.dp)) {
@@ -218,7 +198,6 @@ fun LazyListScope.topPicksSkeleton() {
     }
 }
 
-/** What a card says: the small coloured line, the title, and an optional line under it. */
 private class CardText(val eyebrow: String, val title: String, val subtitle: String)
 
 @Composable
@@ -317,7 +296,6 @@ private fun TopPickCard(
                 ReleaseArt(
                     pick.images.firstOrNull(),
                     Modifier.fillMaxSize(),
-                    // A New Release Mix is a playlist; only a real release has a sleeve that moves.
                     motion = pick.takeIf { it.kind == TopPickKind.LATEST_RELEASE }?.let { release ->
                         CardMotionSource(release.browseId ?: release.title) {
                             AppUi.host.releaseMotion(release.title, release.artistName.orEmpty())
@@ -335,8 +313,6 @@ private fun TopPickCard(
                     modifier = Modifier.fillMaxSize(),
                 )
                 CardMotion(pick.artistMotion(), Modifier.fillMaxSize())
-                // The caption sits on the picture's own darkened foot, as on
-                // Apple's photo cards, rather than on a band of flat black.
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -405,27 +381,10 @@ private fun CardCaption(text: CardText, eyebrowColor: Color, modifier: Modifier)
     }
 }
 
-/** The line above the title on a photo card: white, let through, as on Apple Music's phone app. */
 private val PhotoEyebrow = Color.White.copy(alpha = 0.62f)
 
-/**
- * A release's card, as Apple Music draws one: the cover whole, as a square at
- * the top, and under it the cover's lower edge running on out of focus,
- * behind the caption.
- *
- * The blur is not a blur pass on screen: [rememberBlurredBackdrop] blurs a
- * small copy of the cover once, as it loads, and the image cache keeps the
- * result. A live blur — RenderEffect, Haze — would be re-run on every frame
- * the page draws, and this row's animated cards draw every frame.
- *
- * With a [motion] source, the release's motion cover plays over the square
- * once found, dissolving into the blur the same way the still does.
- */
 @Composable
 private fun ReleaseArt(url: String?, modifier: Modifier, motion: CardMotionSource? = null) {
-    // How much of the still the clip has covered. Two faded layers stacked
-    // would leave the still showing through the clip's own fade, so the still
-    // steps out as the clip comes in.
     var covered by remember { mutableFloatStateOf(0f) }
     Box(modifier.background(Color.Black)) {
         AsyncImage(
@@ -437,8 +396,6 @@ private fun ReleaseArt(url: String?, modifier: Modifier, motion: CardMotionSourc
                 .fillMaxWidth()
                 .fillMaxHeight(0.42f),
         )
-        // Toned down toward the caption, as Apple does, so the white text reads
-        // on any cover.
         Box(
             Modifier
                 .fillMaxSize()
@@ -456,10 +413,6 @@ private fun ReleaseArt(url: String?, modifier: Modifier, motion: CardMotionSourc
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                // Faded out over its last stretch, so the cover runs into the
-                // blur under it instead of ending on a hard line. Offscreen so
-                // the mask cuts the cover alone; the cover never animates, so
-                // the layer is drawn once and reused while it scrolls.
                 .graphicsLayer {
                     compositingStrategy = CompositingStrategy.Offscreen
                     alpha = 1f - covered
@@ -481,30 +434,14 @@ private fun ReleaseArt(url: String?, modifier: Modifier, motion: CardMotionSourc
     }
 }
 
-/**
- * Where a card's Apple Music clip comes from: [lookup], asked once per [key]
- * while the card is on screen.
- */
 private class CardMotionSource(val key: Any, val lookup: suspend () -> CanvasArtwork?)
 
-/** The artist's own looping clip, for the cards that show their face. */
 private fun TopPick.artistMotion(): CardMotionSource? {
     val channel = artistBrowseId ?: return null
     val name = artistName ?: return null
     return CardMotionSource(channel) { AppUi.host.artistMotion(channel, name) }
 }
 
-/**
- * A card's clip over the still it sits on. The still stays underneath until
- * the clip's first frame has faded in, and for good where there is no clip —
- * which is most cards, and every card with animated artwork off.
- *
- * Held back with the pictures ([LocalArtworkImages]) so a cold start's feed
- * doesn't wait on it, paused through a scroll ([LocalArtworkScrolling]), and
- * paused and then let go of ([LocalArtworkMotion]) while Home isn't being looked
- * at. Only the card holding the row's [ClipSlot] plays; the others keep their
- * stills.
- */
 @Composable
 private fun CardMotion(
     source: CardMotionSource?,
@@ -513,8 +450,6 @@ private fun CardMotion(
     onCover: (Float) -> Unit = {},
 ) {
     if (source == null || !LocalArtworkImages.current) return
-    // Looked up whether or not the clip may play yet, so the answer is to hand
-    // when it may, and the row knows which cards have one to give the slot to.
     val clip by produceState<CanvasArtwork?>(null, source.key) { value = source.lookup() }
     val slot = LocalClipSlot.current
     val reportFound by rememberUpdatedState(slot?.onClipFound)
@@ -527,16 +462,9 @@ private fun CardMotion(
     val motion = LocalArtworkMotion.current
     val mayPlay = slot?.mayPlay != false
     val scrolling = LocalArtworkScrolling.current
-    // Whether the clip's player exists at all. Building one blocks the main
-    // thread and tearing one down takes its surface with it, so neither may
-    // land on a frame anything is moving on: not mid-fling as the row scrolls
-    // back into view, not on the first frame of Now Playing rising, and not on
-    // the frame it lands back on the mini player. The still under it comes back
-    // as it goes.
     var mounted by remember { mutableStateOf(false) }
     LaunchedEffect(motion, mayPlay, scrolling) {
         when {
-            // The row has handed the slot on, and it does that only at rest.
             !mayPlay -> mounted = false
             motion -> if (!mounted) {
                 delay(CLIP_START_DELAY_MS)
@@ -550,9 +478,6 @@ private fun CardMotion(
         }
     }
     if (!mounted) return
-    // Only paused for a scroll or for Now Playing passing over: neither is worth
-    // fetching, decoding and fading the clip back in for. Read here, so it is
-    // this card alone that recomposes as a scroll starts and ends.
     CanvasArtworkPlayer(
         canvas = canvas,
         isPlaying = true,
@@ -563,45 +488,16 @@ private fun CardMotion(
     )
 }
 
-/**
- * How long a card waits, once nothing stands in its clip's way, to build its
- * player: long enough for a player closing or a page settling to be finished.
- */
 private const val CLIP_START_DELAY_MS = 400L
 
-/**
- * How long a clip stays paused and mounted once the page stops being looked at
- * before its player and decoder are let go: past the whole of Now Playing's
- * slide, so the release lands under an opaque player, and so a quick look at
- * the player and back keeps the clip.
- */
 private const val CLIP_RELEASE_DELAY_MS = 1_000L
 
-/** The cover size the backdrop is cut from: it ends up 48px wide, so a small copy is plenty. */
 private const val BACKDROP_SOURCE_PX = 160
 
-// ---- Made for You stations ---------------------------------------------------
-
-/**
- * Whether Top Picks' and Find Your Mood's artwork may move. Off while the
- * page isn't really being looked at — the app in the background, or Now
- * Playing pulled up over Home — when an endless animation would go on
- * redrawing a page nobody can see. The artwork then holds still where it is
- * and picks up again when the page is back.
- */
 val LocalArtworkMotion = compositionLocalOf { true }
 
-/**
- * Whether the page, or the row the artwork sits in, is being scrolled: every
- * loop is a redraw each frame, and a scroll is when the page can least spare
- * one. Handed down as something to ask rather than as a value, because a
- * value would recompose everything under it as each scroll starts and again
- * as it ends — on the very frames the scroll needs. Asked from the loops'
- * own coroutines instead ([loopPhase]), it recomposes nothing.
- */
 val LocalArtworkScrolling = staticCompositionLocalOf<() -> Boolean> { { false } }
 
-/** [content], with [state]'s scrolling added to what [LocalArtworkScrolling] answers. */
 @Composable
 internal fun PausedWhileScrolling(state: ScrollableState, content: @Composable () -> Unit) {
     val outer = LocalArtworkScrolling.current
@@ -609,20 +505,10 @@ internal fun PausedWhileScrolling(state: ScrollableState, content: @Composable (
     CompositionLocalProvider(LocalArtworkScrolling provides scrolling, content = content)
 }
 
-/**
- * One card's share of its row's clip: whether it [mayPlay], and where it says
- * whether it has one at all. A row of release and artist cards each decoding
- * their own video at once was a decoder per card; the row lets one play.
- */
 private class ClipSlot(val mayPlay: Boolean, val onClipFound: (Boolean) -> Unit)
 
-/** The card's [ClipSlot], or null outside a row that shares one out. */
 private val LocalClipSlot = compositionLocalOf<ClipSlot?> { null }
 
-/**
- * Which of the cards with a clip the row's slot goes to: the one most fully
- * in view, the earlier one on a tie. -1 when none in view has a clip.
- */
 private fun clipOwner(layout: LazyListLayoutInfo, hasClip: Map<Int, Boolean>): Int {
     val start = layout.viewportStartOffset
     val end = layout.viewportEndOffset
@@ -632,29 +518,13 @@ private fun clipOwner(layout: LazyListLayoutInfo, hasClip: Map<Int, Boolean>): I
         ?.index ?: -1
 }
 
-/**
- * Whether Top Picks may load its pictures yet. Off while Home is still
- * fetching its own feed: a cold start measured a third of a second slower to
- * Recents with the row's covers and photos decoding alongside it, so the
- * cards paint their colours and captions at once and their pictures follow
- * once the page they sit on has what it needs.
- */
 val LocalArtworkImages = compositionLocalOf { true }
 
-/** This image, or nothing yet while [LocalArtworkImages] is holding pictures back. */
 @Composable
 private fun String?.whenArtworkReady(): String? = if (LocalArtworkImages.current) this else null
 
-/** One full breath of the stations' motion. Slow on purpose: it is a cover, not a spinner. */
 private const val STATION_PERIOD_MS = 9_000
 
-/**
- * A 0→1 loop of [periodMs], held wherever it is while [LocalArtworkMotion] is
- * off or [LocalArtworkScrolling] says a scroll is on, and carried on from
- * there after: a loop that went back to its first frame at every scroll would
- * jump. Read it only inside a draw lambda: then a frame of the loop costs a
- * redraw of that one canvas and never a recomposition.
- */
 @Composable
 private fun loopPhase(periodMs: Int): State<Float> {
     val phase = remember { mutableFloatStateOf(0f) }
@@ -665,8 +535,6 @@ private fun loopPhase(periodMs: Int): State<Float> {
         var last = Long.MIN_VALUE
         while (true) {
             if (scrolling()) {
-                // No frames asked for until it's over, so nothing is redrawn;
-                // the time spent waiting isn't counted toward the loop.
                 snapshotFlow { scrolling() }.first { !it }
                 last = Long.MIN_VALUE
             }
@@ -676,32 +544,16 @@ private fun loopPhase(periodMs: Int): State<Float> {
                 }
                 last = now
             }
-            // A nine-second breath doesn't need every vsync, and each frame of
-            // it redraws the page under the glass — see MOTION_FRAME_GAP_MS.
             delay(MOTION_FRAME_GAP_MS)
         }
     }
     return phase
 }
 
-/**
- * Keeps a card's drawn artwork as a finished picture between its own frames.
- *
- * With its loop held still for a scroll or for Now Playing passing over, a card
- * still has to be put back on screen on every frame of that movement, and once
- * more for each blur sampling the page. Drawn outright, that was every one of
- * the card's stacked gradient paths each time, for a picture that hadn't
- * changed. As a layer it is one texture, and a frame of the loop itself redraws
- * this canvas without re-recording the card around it.
- */
 private val RetainedArt = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
 
 private fun wave(phase: Float, offset: Float): Float = sin(2f * PI.toFloat() * (phase + offset))
 
-/**
- * Whatever a canvas can work out once per size rather than once per frame —
- * brushes, fixed paths — rebuilt only when the card's size changes.
- */
 private class SizeCache<T : Any>(private val build: (Size) -> T) {
     private var size = Size.Unspecified
     private var value: T? = null
@@ -714,7 +566,6 @@ private class SizeCache<T : Any>(private val build: (Size) -> T) {
     }
 }
 
-/** Outermost to innermost: where each arrow's tip rests, and its fold's two tones. */
 private val PersonalLayers = listOf(
     Triple(1.00f, Color(0xFFFE5E83), Color(0xFFFA6196)),
     Triple(0.66f, Color(0xFFFE5065), Color(0xFFFC657C)),
@@ -724,11 +575,6 @@ private val PersonalLayers = listOf(
 
 private class PersonalBrushes(val background: Brush, val layers: List<Brush>)
 
-/**
- * The personal station: arrows nested inside one another, all on the left
- * edge and pointing right, warm orange in the middle out to pink. Their tips
- * drift in and out of step, so the stack seems to fold and unfold.
- */
 @Composable
 private fun PersonalStationArt(modifier: Modifier) {
     val phase by loopPhase(STATION_PERIOD_MS)
@@ -742,8 +588,6 @@ private fun PersonalStationArt(modifier: Modifier) {
                     0.75f to Color(0xFFF02A4A),
                     1f to Color(0xFFEE213D),
                 ),
-                // Each fold's shading runs to where its tip rests; the tip's
-                // swing is small enough that the shading needn't chase it.
                 layers = PersonalLayers.map { (rest, deep, light) ->
                     Brush.horizontalGradient(listOf(deep, light), startX = 0f, endX = size.width * rest)
                 },
@@ -756,7 +600,6 @@ private fun PersonalStationArt(modifier: Modifier) {
         val cached = brushes.get(size)
         drawRect(cached.background)
         PersonalLayers.forEachIndexed { index, (rest, _, _) ->
-            // The outer arrow is pinned to the card's edge; the inner ones swing.
             val tip = if (index == 0) rest else rest + 0.07f * wave(phase, index * 0.19f)
             path.reset()
             path.moveTo(0f, 0f)
@@ -777,15 +620,10 @@ private val DiscoveryBottomColors = listOf(
     Color(0xFF288B99), Color(0xFF3477BA), Color(0xFF42A296),
 )
 
-/** Where each shard meets the edge, as a share of the width; the inner ones swing. */
 private val DiscoveryEdges = listOf(0f, 0.24f, 0.44f, 0.62f, 0.78f, 0.91f, 1.02f)
 
 private class DiscoveryBrushes(val background: Brush, val top: List<Brush>, val bottom: List<Brush>, val arrow: Brush)
 
-/**
- * The discovery station: a violet arrow across the card with a fan of blue,
- * indigo and teal shards opening around its tip, which sweep slowly to and fro.
- */
 @Composable
 private fun DiscoveryStationArt(modifier: Modifier) {
     val phase by loopPhase(STATION_PERIOD_MS)
@@ -836,7 +674,6 @@ private fun DiscoveryStationArt(modifier: Modifier) {
         fan(0f, cached.top, 0f)
         fan(h, cached.bottom, 0.5f)
 
-        // The arrow itself, with a darker inner arrow that breathes.
         path.reset()
         path.moveTo(0f, 0f)
         path.lineTo(w, h / 2f)
@@ -855,17 +692,6 @@ private fun DiscoveryStationArt(modifier: Modifier) {
 
 private val DiscoveryInnerArrow = Color(0xFF3C1981).copy(alpha = 0.35f)
 
-// ---- Mood for You -------------------------------------------------------------
-
-/**
- * Apple Music's moods as they look now: a flat colour and one pale outline
- * emblem that moves. The seven Find Your Mood emblems are Apple's own — the
- * bolt strobes, the stones sway, the spiral unwinds, the star twists, the
- * rings ripple in, the dashed heart's dashes march and the heart beats, each
- * on the loop length of Apple's clip. Apple draws its other activities as
- * photographs, which this app can't use, so they get emblems in the same
- * hand instead.
- */
 private class MoodStyle(
     val background: Color,
     val stroke: Color,
@@ -966,7 +792,6 @@ private fun TopPickMood.lineRes() = when (this) {
     TopPickMood.WORK -> Res.string.mood_work_line
 }
 
-/** The emblem's square, in card pixels; [x] and [y] take shares of its side. */
 private class Frame(val left: Float, val top: Float, val side: Float) {
     fun x(f: Float) = left + side * f
     fun y(f: Float) = top + side * f
@@ -974,22 +799,14 @@ private class Frame(val left: Float, val top: Float, val side: Float) {
     val center get() = Offset(x(0.5f), y(0.5f))
 }
 
-/**
- * A mood's artwork. [square] is a Find Your Mood tile, where the emblem sits
- * in the middle; otherwise it's a tall Top Picks card and keeps to the part
- * above the caption.
- */
 @Composable
 private fun MoodArt(
     mood: TopPickMood,
     style: MoodStyle,
     modifier: Modifier,
     square: Boolean = false,
-    /** Drawn at rest — see [stillPhase] — and never asks for a frame. */
     still: Boolean = false,
 ) {
-    // Read only in the draw below, so a frame of the loop redraws this canvas
-    // and recomposes nothing.
     val loop = if (still) null else loopPhase(style.periodMs)
     val cache = remember(mood) { EmblemCache() }
     Canvas(if (still) modifier else modifier.then(RetainedArt)) {
@@ -1000,8 +817,6 @@ private fun MoodArt(
             val side = w * 0.70f
             Frame(left = (w - side) / 2f, top = (h - side) / 2f, side = side)
         } else {
-            // Most of the card's width, but never down into the caption: the
-            // emblem keeps to the card's top two thirds whatever its proportions.
             val side = minOf(w * 0.84f, h * 0.62f)
             Frame(left = (w - side) / 2f, top = h * 0.37f - side / 2f, side = side)
         }
@@ -1010,27 +825,14 @@ private fun MoodArt(
     }
 }
 
-/**
- * Where in its loop a mood's emblem is drawn when it holds still: its start,
- * where nearly every one is whole and at rest, but for the two that are only
- * part-way drawn there.
- */
 private fun TopPickMood.stillPhase(): Float = when (this) {
-    // The pulse partway along the trace, rather than not yet set out.
     TopPickMood.FITNESS -> 0.55f
-    // A line half typed, with the cursor showing.
     TopPickMood.WORK -> 0.6f
     else -> 0f
 }
 
 private val TAU = 2f * PI.toFloat()
 
-/**
- * One mood card's drawing state, kept across frames: the emblem's fixed
- * outline is built once per card size instead of on every frame of its loop
- * (the spiral alone is 320 points and a path measure), along with the stroke.
- * [scratch] is for the parts that genuinely change frame to frame.
- */
 private class EmblemCache {
     private var builtFor = Size.Unspecified
     private val outline = Path()
@@ -1042,7 +844,6 @@ private class EmblemCache {
     private var strokeWidth = -1f
     private var strokeStyle = Stroke()
 
-    /** The mood's fixed outline at [size], built by [build] the first time. */
     fun outline(size: Size, measured: Boolean = false, build: (Path) -> Unit): Path {
         if (size != builtFor) {
             outline.reset()
@@ -1079,8 +880,6 @@ private fun DrawScope.drawEmblem(
     when (mood) {
         TopPickMood.ENERGY -> {
             val path = cache.outline(size) { bolt(it, f) }
-            // Every loop the bolt flickers: an echo jumps out to either side
-            // of it and fades, like a strobe.
             val t = (phase - 0.28f) / 0.26f
             val flash = if (t in 0f..1f) sin(PI.toFloat() * t) else 0f
             if (flash > 0f) {
@@ -1090,7 +889,6 @@ private fun DrawScope.drawEmblem(
             drawPath(path, color, style = stroke)
         }
         TopPickMood.RELAX -> {
-            // Three stones, balanced and swaying a little out of step.
             val stones = listOf(
                 Triple(0.17f, 0.44f, 0.18f),
                 Triple(0.38f, 0.68f, 0.28f),
@@ -1112,7 +910,6 @@ private fun DrawScope.drawEmblem(
         TopPickMood.FEELING_BLUE -> {
             cache.outline(size, measured = true) { spiral(it, f) }
             val length = cache.length
-            // Whole, then unwinding from the top, then drawn back in.
             val from: Float
             val to: Float
             when {
@@ -1133,8 +930,6 @@ private fun DrawScope.drawEmblem(
             }) { drawPath(path, color, style = stroke) }
         }
         TopPickMood.FOCUS -> {
-            // Rings drawn in toward the centre: each one shrinks, the innermost
-            // fades away and a new one fades in at the edge.
             for (i in 0 until 4) {
                 val share = (i + 1 - phase) / 4
                 drawCircle(color.copy(alpha = edgeFade(share)), radius = side * 0.5f * share, center = f.center, style = stroke)
@@ -1157,7 +952,6 @@ private fun DrawScope.drawEmblem(
         }
         TopPickMood.LOVE -> {
             val path = cache.outline(size) { heart(it, f) }
-            // Lub-dub: two quick swells, then rest.
             fun bump(at: Float): Float {
                 val d = (phase - at) / 0.06f
                 return exp(-d * d)
@@ -1175,7 +969,6 @@ private fun DrawScope.drawEmblem(
                 }
         }
         TopPickMood.ALONE_TIME -> {
-            // A drop's ripples spreading out across still water.
             val center = f.at(0.5f, 0.55f)
             for (i in 0 until 4) {
                 val share = (i + phase) / 4
@@ -1189,7 +982,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.CHILL -> {
-            // Three waves rolling slowly sideways.
             clipRect(f.left, f.top, f.x(1f), f.y(1f)) {
                 listOf(0.32f, 0.5f, 0.68f).forEachIndexed { row, y ->
                     path.reset()
@@ -1203,7 +995,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.COMMUTING -> {
-            // A road to the horizon, its centre line rushing toward you.
             drawLine(color, f.at(0.06f, 0.95f), f.at(0.44f, 0.14f), stroke.width, StrokeCap.Round)
             drawLine(color, f.at(0.94f, 0.95f), f.at(0.56f, 0.14f), stroke.width, StrokeCap.Round)
             drawLine(color, f.at(0.15f, 0.14f), f.at(0.85f, 0.14f), stroke.width, StrokeCap.Round)
@@ -1215,7 +1006,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.EATING_COOKING -> {
-            // A bowl with steam curling up off it.
             path.reset()
             path.arcTo(Rect(f.x(0.12f), f.y(0.25f), f.x(0.88f), f.y(0.95f)), 0f, 180f, true)
             drawPath(path, color, style = stroke)
@@ -1233,7 +1023,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.EVENING -> {
-            // The sun sinking behind the horizon and rising back.
             val horizon = 0.62f
             val sink = 0.1f * (0.5f - 0.5f * cos(TAU * phase))
             clipRect(f.left - side, f.top - side, f.x(2f), f.y(horizon)) {
@@ -1244,7 +1033,6 @@ private fun DrawScope.drawEmblem(
             drawLine(color, f.at(0.36f, horizon + 0.22f), f.at(0.64f, horizon + 0.22f), stroke.width, StrokeCap.Round)
         }
         TopPickMood.FITNESS -> {
-            // A heartbeat trace, a bright pulse running along it.
             val trace = cache.outline(size, measured = true) { out ->
                 listOf(0f to 0.55f, 0.28f to 0.55f, 0.36f to 0.42f, 0.44f to 0.76f, 0.52f to 0.18f, 0.6f to 0.84f, 0.67f to 0.55f, 1f to 0.55f)
                     .forEachIndexed { index, (x, y) -> if (index == 0) out.moveTo(f.x(x), f.y(y)) else out.lineTo(f.x(x), f.y(y)) }
@@ -1257,7 +1045,6 @@ private fun DrawScope.drawEmblem(
             drawPath(segment, color, style = stroke)
         }
         TopPickMood.GAMING -> {
-            // Squares inside squares, turning against each other.
             listOf(0.9f, 0.62f, 0.34f).forEachIndexed { index, size ->
                 val turn = (if (index % 2 == 0) 1f else -1f) * phase * 90f
                 rotate(turn, f.center) {
@@ -1278,13 +1065,11 @@ private fun DrawScope.drawEmblem(
             }
             drawPath(house, color, style = stroke)
             drawRect(color, topLeft = f.at(0.41f, 0.66f), size = Size(side * 0.18f, side * 0.26f), style = stroke)
-            // A lamp coming on and off in the window.
             val glow = 0.5f + 0.5f * wave(phase, 0f)
             drawRect(color.copy(alpha = 0.15f + 0.45f * glow), topLeft = f.at(0.27f, 0.56f), size = Size(side * 0.1f, side * 0.1f))
             drawRect(color, topLeft = f.at(0.27f, 0.56f), size = Size(side * 0.1f, side * 0.1f), style = stroke)
         }
         TopPickMood.MORNING -> {
-            // The sun coming up, its rays turning.
             val horizon = 0.72f
             val sun = f.at(0.5f, horizon - 0.03f - 0.05f * (0.5f + 0.5f * wave(phase, 0f)))
             clipRect(f.left - side, f.top - side, f.x(2f), f.y(horizon)) {
@@ -1299,7 +1084,6 @@ private fun DrawScope.drawEmblem(
             drawLine(color, f.at(0.04f, horizon), f.at(0.96f, horizon), stroke.width, StrokeCap.Round)
         }
         TopPickMood.MOTIVATION -> {
-            // Chevrons climbing up and out of the frame.
             for (k in 0 until 3) {
                 val u = (k / 3f + phase) % 1f
                 val y = 0.82f - 0.66f * u
@@ -1320,7 +1104,6 @@ private fun DrawScope.drawEmblem(
             drawCircle(color, radius = side * 0.09f, center = f.at(0.78f + 0.02f * wave(phase, 0.25f), 0.2f + 0.02f * wave(phase, 0f)), style = stroke)
         }
         TopPickMood.PARTY -> {
-            // Confetti stars, spinning and popping.
             listOf(
                 Triple(0.24f, 0.24f, 0.14f), Triple(0.72f, 0.18f, 0.11f), Triple(0.52f, 0.5f, 0.17f),
                 Triple(0.2f, 0.72f, 0.1f), Triple(0.8f, 0.66f, 0.13f), Triple(0.56f, 0.88f, 0.08f),
@@ -1335,7 +1118,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.SLEEP -> {
-            // A closed eye, breathing.
             val breath = 1f + 0.04f * wave(phase, 0f)
             scale(breath, breath, f.center) {
                 path.reset()
@@ -1350,13 +1132,11 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.SOCIAL -> {
-            // Two circles drifting together and apart.
             val gap = 0.12f + 0.07f * wave(phase, 0f)
             drawCircle(color, radius = side * 0.27f, center = f.at(0.5f - gap, 0.5f), style = stroke)
             drawCircle(color, radius = side * 0.27f, center = f.at(0.5f + gap, 0.5f), style = stroke)
         }
         TopPickMood.SPORTS -> {
-            // A ball, spinning.
             val r = side * 0.44f
             drawCircle(color, radius = r, center = f.center, style = stroke)
             path.reset()
@@ -1384,7 +1164,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.HOLIDAY -> {
-            // A snowflake, turning.
             rotate(phase * 60f, f.center) {
                 for (k in 0 until 6) {
                     val angle = k * TAU / 6f
@@ -1402,7 +1181,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.WEEKEND -> {
-            // A record spinning.
             drawCircle(color, radius = side * 0.46f, center = f.center, style = stroke)
             drawCircle(color, radius = side * 0.16f, center = f.center, style = stroke)
             drawCircle(color, radius = side * 0.025f, center = f.center)
@@ -1415,7 +1193,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.WELLBEING -> {
-            // A lotus, its petals opening with each breath.
             val open = 0.85f + 0.15f * wave(phase, 0f)
             val base = f.at(0.5f, 0.84f)
             listOf(-62f, -31f, 0f, 31f, 62f).forEach { angle ->
@@ -1429,7 +1206,6 @@ private fun DrawScope.drawEmblem(
             }
         }
         TopPickMood.WORK -> {
-            // A laptop, a line of text being typed and the cursor blinking.
             drawRoundRect(
                 color,
                 topLeft = f.at(0.16f, 0.18f),
@@ -1450,7 +1226,6 @@ private fun DrawScope.drawEmblem(
     }
 }
 
-/** Fades a ring in at the outer edge and out at the centre. */
 private fun edgeFade(share: Float): Float = when {
     share > 0.85f -> (1f - share) / 0.15f
     share < 0.15f -> share / 0.15f
@@ -1459,7 +1234,6 @@ private fun edgeFade(share: Float): Float = when {
 
 private fun easeInOut(t: Float): Float = 0.5f - 0.5f * cos(PI.toFloat() * t.coerceIn(0f, 1f))
 
-/** Apple's slanted bolt, corner by corner off their artwork. */
 private fun bolt(path: Path, f: Frame) {
     val points = listOf(
         0.486f to 0.123f, 0.886f to 0.123f, 0.532f to 0.509f, 0.877f to 0.509f,
@@ -1472,7 +1246,6 @@ private fun bolt(path: Path, f: Frame) {
     path.close()
 }
 
-/** Four points joined by inward curves. */
 private fun star(path: Path, f: Frame) {
     path.reset()
     path.moveTo(f.x(0.5f), f.y(0.06f))
@@ -1483,7 +1256,6 @@ private fun star(path: Path, f: Frame) {
     path.close()
 }
 
-/** The same four-pointed star, small, around [center]. */
 private fun sparkle(path: Path, center: Offset, r: Float) {
     path.reset()
     path.moveTo(center.x, center.y - r)
@@ -1506,7 +1278,6 @@ private fun fivePointStar(path: Path, center: Offset, r: Float) {
     path.close()
 }
 
-/** A crescent: a disc with a bite taken out of its upper right. */
 private fun crescent(path: Path, f: Frame, cx: Float, cy: Float, r: Float) {
     val disc = Path().apply { addOval(Rect(f.at(cx, cy), f.side * r)) }
     val bite = Path().apply { addOval(Rect(f.at(cx + r * 0.5f, cy - r * 0.3f), f.side * r * 0.88f)) }
@@ -1514,7 +1285,6 @@ private fun crescent(path: Path, f: Frame, cx: Float, cy: Float, r: Float) {
     path.op(disc, bite, PathOperation.Difference)
 }
 
-/** Two round lobes and straight sides down to a point. */
 private fun heart(path: Path, f: Frame) {
     val r = 0.24f
     path.reset()
@@ -1525,7 +1295,6 @@ private fun heart(path: Path, f: Frame) {
     path.close()
 }
 
-/** A coil that narrows as it falls, like Apple's Feeling Blue twister. */
 private fun spiral(path: Path, f: Frame) {
     val turns = 5.5f
     val steps = 320
@@ -1541,14 +1310,6 @@ private fun spiral(path: Path, f: Frame) {
     }
 }
 
-// ---- Find Your Mood -----------------------------------------------------------
-
-/**
- * Apple Music's Find Your Mood shelf: its seven moods as square tiles, each
- * named under it, and Show all on the heading for the activities as well —
- * the grid [MoodGridPage] lays out. A tile plays that mood's station, the same
- * queue a Mood for You card starts.
- */
 @Composable
 internal fun FindYourMoodShelf(onClick: (TopPickMood, String) -> Unit, onShowAll: () -> Unit) {
     val rowState = rememberLazyListState()
@@ -1566,10 +1327,6 @@ internal fun FindYourMoodShelf(onClick: (TopPickMood, String) -> Unit, onShowAll
     }
 }
 
-/**
- * Every mood and activity, laid out as the Library's Show all grid is — the
- * same columns, card width and spacing — with Apple's seven moods first.
- */
 @Composable
 fun MoodGridPage(
     gridState: LazyGridState,
@@ -1594,7 +1351,6 @@ fun MoodGridPage(
     }
 }
 
-/** A mood's square tile and its name under it, sized like a [ShelfCard]. */
 @Composable
 private fun MoodTile(mood: TopPickMood, onClick: (TopPickMood, String) -> Unit, modifier: Modifier) {
     val title = stringResource(mood.titleRes())
@@ -1606,10 +1362,6 @@ private fun MoodTile(mood: TopPickMood, onClick: (TopPickMood, String) -> Unit, 
                 .clip(RoundedCornerShape(12.dp))
                 .thumbnailBorder(RoundedCornerShape(12.dp)),
         ) {
-            // Still. A shelf of tiles each breathing on its own loop kept the
-            // page under the glass bars redrawing — and the bars' blur with
-            // it — for as long as the shelf was in view; the motion is Top
-            // Picks' own, one card at a time.
             MoodArt(mood, mood.style(), Modifier.fillMaxSize(), square = true, still = true)
             Icon(
                 painter = painterResource(Res.drawable.ic_logo),
@@ -1633,11 +1385,8 @@ private fun MoodTile(mood: TopPickMood, onClick: (TopPickMood, String) -> Unit, 
     }
 }
 
-// ---- Featuring … & Similar Artists ----------------------------------------------
-
 private class CollagePalette(val top: Color, val bottom: Color, val eyebrow: Color)
 
-/** Vivid backdrops, one per artist and the same one every day. */
 private val CollagePalettes = listOf(
     CollagePalette(Color(0xFF8F3F00), Color(0xFFFF6A0F), Color(0xFFFFC48A)),
     CollagePalette(Color(0xFF2D8A20), Color(0xFF4FD22C), Color(0xFFCBFFA3)),
@@ -1649,14 +1398,6 @@ private val CollagePalettes = listOf(
 
 private fun collagePalette(name: String): CollagePalette = CollagePalettes[abs(name.hashCode()) % CollagePalettes.size]
 
-/**
- * The artist in a large circle, with up to two related artists in smaller
- * ones beneath it, on a colour that brightens toward the caption.
- *
- * Still, unlike the single-artist photo card: an artist's clip is shot for a
- * full portrait frame, and cut down to a circle among other faces it reads as
- * a small moving tile rather than the artist.
- */
 @Composable
 private fun ArtistCollageArt(
     images: List<String>,
@@ -1668,7 +1409,6 @@ private fun ArtistCollageArt(
     ) {
         val w = maxWidth
         val h = maxHeight
-        // Centre x, centre y (as shares of the card) and diameter (of its width).
         val slots = when (images.size) {
             0 -> emptyList()
             1 -> listOf(Triple(0.5f, 0.34f, 0.66f))
@@ -1694,17 +1434,8 @@ private fun ArtistCollageArt(
 
 private val GOOGLE_SIZE_SUFFIX = Regex("""=w\d+-h\d+[^/?]*$""")
 
-/**
- * Artwork cut to the card's own shape by Google's image server rather than by
- * the view. An artist's header picture is a wide banner; asked for a portrait
- * or a square with `-p`, the server crops it around the subject, which a
- * centre crop of the banner does not. Anything else is sized as usual.
- */
 private fun String?.croppedAt(width: Int, height: Int = width): String? {
     if (this == null) return null
-    // Apple Music's photos: the last path segment is the size. Their artist
-    // portraits are square, and asking for a portrait crop gets the square
-    // back anyway, so the square is asked for and the card crops it.
     if ("mzstatic.com/image/thumb/" in this) {
         val side = maxOf(width, height)
         return substringBeforeLast('/') + "/${side}x${side}cc.jpg"

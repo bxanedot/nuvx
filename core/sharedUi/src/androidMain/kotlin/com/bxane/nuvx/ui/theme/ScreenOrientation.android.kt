@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
 private class ActivityOrientation(private val activity: Activity) : ScreenOrientation {
-    /** What the activity asked for before the first nudge, given back at the end. */
     private var original: Int? = null
     private var listener: OrientationEventListener? = null
 
@@ -24,8 +23,6 @@ private class ActivityOrientation(private val activity: Activity) : ScreenOrient
         if (original == null) original = activity.requestedOrientation
         activity.requestedOrientation = orientation
         listener?.disable()
-        // With auto-rotate off the sensor would only turn it straight back:
-        // the request then holds until this is let go of.
         if (!autoRotate()) return
         listener = object : OrientationEventListener(activity) {
             override fun onOrientationChanged(degrees: Int) {
@@ -35,7 +32,6 @@ private class ActivityOrientation(private val activity: Activity) : ScreenOrient
                 } else {
                     degrees <= 25 || degrees >= 335
                 }
-                // Held the way it was turned: the sensor has it from here.
                 if (held) {
                     disable()
                     listener = null

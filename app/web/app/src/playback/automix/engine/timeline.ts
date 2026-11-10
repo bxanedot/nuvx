@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export interface TimelinePoint {
-  /** AudioContext time the change takes effect. */
   output: number;
-  /** Input-buffer (track) time at that moment. */
   input: number;
   rate: number;
   active: boolean;
 }
 
-/**
- * Mirror of the schedule() calls sent to a stretch node, so we can convert
- * trackTime <-> AudioContext time exactly. Mirrors signalsmith semantics:
- * adding a point removes any scheduled points at or after its output time.
- */
 export class Timeline {
   private points: TimelinePoint[] = [];
 
@@ -54,10 +47,6 @@ export class Timeline {
     return this.segmentAt(ctxTime)?.active ?? false;
   }
 
-  /**
-   * AudioContext time at which the given track time will play, searching
-   * forward from the segment containing fromCtxTime (or all segments).
-   */
   ctxTimeAt(trackTime: number, fromCtxTime = -Infinity): number | null {
     for (let i = 0; i < this.points.length; i++) {
       const p = this.points[i]!;

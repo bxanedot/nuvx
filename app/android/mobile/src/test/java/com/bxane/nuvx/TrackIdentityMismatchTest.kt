@@ -9,13 +9,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Validates playback identity preservation and duration mismatch handling.
- *
- * Specifically addresses the São Paulo (Hurry Up Tomorrow) regression where a
- * 3:29 (209s) YouTube music video was cached or substituted for a 5:02 (302s)
- * album track, and the runtime decoder duration poisoned the upgrade search target.
- */
 class TrackIdentityMismatchTest {
 
     private fun song(
@@ -88,7 +81,7 @@ class TrackIdentityMismatchTest {
     @Test
     fun `Test 4 - small legitimate duration difference retains existing runtime behavior`() {
         val catalogueDuration = 302
-        val runtimeDuration = 300 // 2s drift, common between audio masters
+        val runtimeDuration = 300
 
         assertFalse(
             "2s drift between masters is within tolerance and not a severe mismatch",
@@ -106,7 +99,6 @@ class TrackIdentityMismatchTest {
             effectiveDuration,
         )
 
-        // Test with 14s difference (typical intro/outro pad)
         val runtime14sDrift = 288
         assertFalse(
             "14s drift is within 30s canonical duration limit",
@@ -157,16 +149,14 @@ class TrackIdentityMismatchTest {
             album = "Hurry Up Tomorrow",
         )
 
-        val youtubeVideoRuntime = 209 // 3:29 music video (2kjolTLZ_Mg)
-        val jioSaavnCandidateDuration = 302 // 5:02 album stream (-rq378sI)
+        val youtubeVideoRuntime = 209
+        val jioSaavnCandidateDuration = 302
 
-        // 1. Check cached rendition mismatch detection
         assertTrue(
             "Cached 209s video rendition must be identified as mismatched against 302s catalogue entry",
             TrackMatcher.isSevereMismatch(catalogueTarget.durationSec, youtubeVideoRuntime),
         )
 
-        // 2. Target duration calculation in QualityUpgrade.lookAgain
         val effectiveDuration = QualityUpgrade.effectiveTargetDuration(
             expectedSec = catalogueTarget.durationSec,
             playingSec = youtubeVideoRuntime,
@@ -177,15 +167,11 @@ class TrackIdentityMismatchTest {
             effectiveDuration,
         )
 
-        // 3. Confirm regression behavior without fix:
-        // Raw runtime comparison would fail and reject the genuine JioSaavn album stream
         assertFalse(
             "Flawed check against raw 209s runtime would reject genuine 302s album stream",
             SourceResolver.sameRecordingAs(jioSaavnCandidateDuration, youtubeVideoRuntime),
         )
 
-        // 4. Confirm fixed behavior:
-        // Comparison against effective catalogue duration accepts the genuine JioSaavn stream
         assertTrue(
             "Check against effective duration accepts genuine 302s JioSaavn album stream",
             SourceResolver.sameRecordingAs(jioSaavnCandidateDuration, effectiveDuration),

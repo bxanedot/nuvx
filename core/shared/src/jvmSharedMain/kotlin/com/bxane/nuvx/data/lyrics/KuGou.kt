@@ -9,16 +9,6 @@ import java.util.Base64
 import kotlin.math.abs
 import kotlin.math.min
 
-/**
- * Line-synced lyrics from KuGou's public mobile/lyrics endpoints — a Chinese
- * catalogue, but one that also carries a great many English and Hindi tracks
- * that the other four sources simply don't have.
- *
- * Three unauthenticated calls, chained: search the song to get its audio
- * fingerprint (`hash`), search lyrics candidates against that hash, then
- * download the winning candidate. A search by keyword alone (skipping the
- * hash) is kept as the fallback that catches everything the first two miss.
- */
 object KuGou {
 
     private const val DURATION_TOLERANCE_SECONDS = 8
@@ -41,12 +31,6 @@ object KuGou {
         LrcLib.parseLrc(lrc).takeIf { it.isNotEmpty() }
     }
 
-    /**
-     * Song hashes worth trying, restricted to cuts within
-     * [DURATION_TOLERANCE_SECONDS] of the track being played — otherwise the
-     * first result for a common title is as likely to be a cover or a remix
-     * as the right recording — and ordered closest match first.
-     */
     private fun searchSongs(keyword: Keyword, seconds: Int): List<String>? {
         val url = "https://mobileservice.kugou.com/api/v3/search/song".toHttpUrl().newBuilder()
             .addQueryParameter("version", "9108")
@@ -114,14 +98,6 @@ object KuGou {
     private fun String.stripParenthetical(): String =
         replace(Regex("""[(（].*?[)）]"""), "").trim().ifBlank { this }
 
-    /**
-     * KuGou's lyric files open and close with uncredited lines — songwriter,
-     * composer, arranger — that carry a real timestamp and would otherwise be
-     * sung as the first and last lines of the song. Cut the same way the
-     * source client does: from either end, up to the first/last line matching
-     * "label: value", and only within the first and last 30 lines so a legit
-     * lyric that happens to contain a colon deep in the song is left alone.
-     */
     fun String.stripCredits(): String {
         val lines = lineSequence().filter { STAMPED.matches(it) }.toList()
         if (lines.isEmpty()) return ""
@@ -133,12 +109,6 @@ object KuGou {
         return body.dropLast(tailCut).joinToString("\n")
     }
 
-    /**
-     * For a song it has no words for, KuGou still hands back a "lyric" — a
-     * single stamped "纯音乐，请欣赏" ("pure music, please enjoy") or a longer
-     * variant of it. Treat a file made of nothing but that notice as no lyrics
-     * at all, so the next source gets a turn instead of the notice being sung.
-     */
     fun String.isInstrumentalNotice(): Boolean {
         val lines = lineSequence().map { it.replace(STAMP, "").trim() }.filter { it.isNotEmpty() }.toList()
         return lines.isNotEmpty() && lines.all { INSTRUMENTAL.containsMatchIn(it) }

@@ -22,46 +22,16 @@ import java.time.LocalDateTime
 import java.util.Locale
 import kotlin.random.Random
 
-/**
- * Builds Home's "Top Picks for You" row out of what the account already tells
- * YouTube Music, and starts the queue behind a card when it is tapped.
- *
- * Every card comes from YouTube's own data:
- *  - the listener's top artists are ranked from their YouTube listening
- *    history (the feed Recents was just built from, so normally no request),
- *    with this app's own play counts as a second opinion;
- *  - the three top artists' landing pages (one request each, in parallel)
- *    supply the latest release, the artist photos, related artists, and the
- *    header's Mix and Shuffle queues;
- *  - My Supermix, Discover Mix and New Release Mix come off Home's Mixed for
- *    you shelf when it is already loaded, or the Mixed for you page if not;
- *  - a mood is a fixed category id, so it costs nothing until tapped.
- *
- * A card with nothing behind it is left out rather than filled with a
- * placeholder. Queues are fetched only on tap.
- */
 object TopPicks {
 
     private const val TAG = "nuvx"
 
-    /** How many artists get a page fetched — and so a card. */
     private const val ARTISTS = 3
 
-    /**
-     * How far down the listener's chart those artists are drawn from. Every
-     * build draws afresh, weighted toward the top, so the row changes each
-     * time it is built without leaving the listener's own taste.
-     */
     private const val ARTIST_POOL = 10
 
-    /** Below this, a filtered station would be over before it got going; keep it unfiltered. */
     private const val MIN_FILTERED_QUEUE = 12
 
-    /**
-     * What this app knows about the listener's taste without asking YouTube:
-     * its own Replay chart. Second to the account's history when signed in,
-     * and all there is when signed out.
-     */
     data class LocalTaste(
         val artists: List<ArtistRef> = emptyList(),
         val songs: List<Song> = emptyList(),
@@ -84,19 +54,11 @@ object TopPicks {
         val artists = ranked.zip(pages).mapNotNull { (ref, page) ->
             page?.let { ArtistCard(it.copy(name = it.name ?: ref.name), ref.browseId!!) }
         }
-            // One person can be two channels (an artist's own and a "Topic"
-            // one, or a spelling of their name); two of them would be the
-            // same face on two cards.
             .distinctBy { normalizedArtistName(it.name) }
-        // Every artist face on the row is Apple Music's photo of them, not
-        // YouTube's channel art: the artists themselves, and the people their
-        // fans also play. Looked up together, a few at a time.
         val photos = applePhotos(artists)
         val mixes = mixesAsync.await()
         Log.d(TAG, "topPicks: history=${history.size} artists=${artists.map { it.name }} mixes=${mixes.keys}")
 
-        // The first card is always the new release when there is one, as on
-        // Apple Music; the rest come in a different order every build.
         val lead = latestRelease(artists)
         val rest = buildList {
             personalStation(mixes, history, local)?.let(::add)
@@ -120,11 +82,6 @@ object TopPicks {
         listOfNotNull(lead) + rest
     }
 
-    /**
-     * [count] of [ranked] at random, the higher an artist sits the likelier —
-     * the top of the chart turns up most builds, the rest often enough to
-     * keep the row moving.
-     */
     private fun <T> weightedSample(ranked: List<T>, count: Int): List<T> {
         val pool = ranked.withIndex().toMutableList()
         val picked = mutableListOf<T>()
@@ -137,7 +94,6 @@ object TopPicks {
         return picked
     }
 
-    /** The queue a card starts. Never called for [TopPickKind.LATEST_RELEASE], which opens a page. */
     suspend fun queue(pick: TopPick): Result<List<Song>> {
         if (pick.kind == TopPickKind.MOOD) return moodQueue(pick)
         val target = pick.watch ?: return Result.failure(IllegalStateException("no queue behind ${pick.kind}"))
@@ -147,20 +103,6 @@ object TopPicks {
         return YtMusicRepository.watchQueue(target)
     }
 
-    /**
-     * A Made for You station that sounds different on every tap.
-     *
-     * My Supermix and Discover Mix are rebuilt by YouTube about once a day
-     * and come back in the same order every time they're asked for, so
-     * played as they are, the station opened on the same songs every time.
-     * Here the mix is the core — a random half of it — blended with the
-     * radios of a few tracks drawn at random from the listener's history, and
-     * the whole thing shuffled.
-     *
-     * A Discovery Station leaves out everything already in that history (and
-     * the seed artist, when it's built off an artist's Mix rather than
-     * Discover Mix), so what it adds stays new to the listener.
-     */
     private suspend fun freshStation(pick: TopPick, target: WatchTarget): Result<List<Song>> = coroutineScope {
         val mixAsync = async { YtMusicRepository.watchQueue(target) }
         val history = YtMusicRepository.recentHistory().getOrNull().orEmpty()
@@ -198,26 +140,16 @@ object TopPicks {
         }
     }
 
-    /** History tracks a station's extra radios are seeded from: the recent end of it. */
     private const val SEED_POOL = 40
     private const val SEED_RADIOS = 3
     private const val STATION_FROM_MIX = 30
     private const val STATION_SIZE = 60
 
-    // ---- Cards --------------------------------------------------------------
-
     private class ArtistCard(val page: ArtistPage, val browseId: String) {
         val name: String get() = page.name.orEmpty()
 
-        /**
-         * The page's "Fans might also like", by name, without the artist
-         * themselves — YouTube can list a second channel of the same person
-         * there — and without repeats. A few more than a card shows, so an
-         * artist Apple has no photo of can be passed over.
-         */
         val relatedNames: List<String> get() = related.keys.toList()
 
-        /** [relatedNames] → each one's channel, which their Apple photo is checked against. */
         val related: Map<String, String> by lazy {
             val own = normalizedArtistName(name)
             page.sections
@@ -234,12 +166,6 @@ object TopPicks {
     private const val RELATED_CANDIDATES = 4
     private const val PHOTO_LOOKUPS_AT_ONCE = 4
 
-    /**
-     * Apple Music photos for [artists] and the people their fans also play, by
-     * name; an artist Apple has none of (or none provably theirs) is left out.
-     * A card's own artist is checked against the page already in hand; a
-     * related one's page is fetched only if their photo isn't known yet.
-     */
     private suspend fun applePhotos(artists: List<ArtistCard>): Map<String, String> = coroutineScope {
         val catalogues = LinkedHashMap<String, suspend () -> Collection<String>>()
         artists.forEach { artist -> catalogues.putIfAbsent(artist.name) { AppleCatalogue.titlesOf(artist.page) } }
@@ -259,17 +185,12 @@ object TopPicks {
     private fun latestRelease(artists: List<ArtistCard>): TopPick? {
         data class Candidate(val rank: Int, val artist: ArtistCard, val item: ShelfItem, val year: Int, val single: Boolean)
         val candidates = artists.flatMapIndexed { rank, artist ->
-            // The release shelves are the ones of albums (MPRE… pages). Each is
-            // newest first, so only its lead card is a candidate.
             artist.page.sections
                 .mapNotNull { shelf -> shelf.items.firstOrNull()?.takeIf { it.browseId?.startsWith("MPRE") == true } }
                 .map { item ->
                     Candidate(rank, artist, item, yearOf(item.subtitle), SINGLE.containsMatchIn(item.subtitle))
                 }
         }
-        // Newest year first. Within a year a single wins: a bare-year "album"
-        // on a big artist's page is as often one of YouTube's auto-made
-        // compilations as a real record, and a single never is.
         val best = candidates.maxWithOrNull(
             compareBy<Candidate> { it.year }.thenBy { it.single }.thenByDescending { it.rank },
         ) ?: return null
@@ -285,8 +206,6 @@ object TopPicks {
 
     private fun personalStation(mixes: Map<Mix, ShelfItem>, history: List<Song>, local: LocalTaste): TopPick? {
         val watch = mixes[Mix.SUPERMIX]?.watchTarget()
-            // No Supermix (signed out, or a feed without one): a radio off the
-            // track the listener plays most, which is the same idea built by hand.
             ?: (local.songs.firstOrNull() ?: history.firstOrNull())?.let { song ->
                 WatchTarget(playlistId = "RDAMVM${song.videoId}", videoId = song.videoId)
             }
@@ -303,11 +222,9 @@ object TopPicks {
 
     private fun andSimilar(artist: ArtistCard, photos: Map<String, String>): TopPick? {
         val radio = artist.page.radio ?: return null
-        // No Apple photo of the artist, no card: the big circle is the card.
         val face = photos[artist.name] ?: return null
         val related = artist.relatedNames
             .mapNotNull { photos[it] }
-            // Two names can share one photo; one face per circle.
             .filter { it != face }
             .distinct()
             .take(2)
@@ -343,8 +260,6 @@ object TopPicks {
         mixes[Mix.DISCOVER]?.watchTarget()?.let { watch ->
             return TopPick(kind = TopPickKind.DISCOVERY_STATION, watch = watch)
         }
-        // No Discover Mix: the top artist's Mix with everything already heard
-        // filtered out at play time — see [queue].
         val seed = artists.firstOrNull() ?: return null
         val radio = seed.page.radio ?: return null
         return TopPick(
@@ -355,14 +270,6 @@ object TopPicks {
         )
     }
 
-    // ---- Artists ------------------------------------------------------------
-
-    /**
-     * The listener's artists, best first. Each history row counts once, with
-     * a little extra the more recent it is; the app's own chart adds a smaller
-     * share by position. Only artists with a channel id take part — a card
-     * needs the page, and a bare name would need a search to find one.
-     */
     private fun rankArtists(history: List<Song>, local: List<ArtistRef>): List<ArtistRef> {
         val scores = LinkedHashMap<String, Pair<String, Double>>()
         fun credit(id: String?, name: String, weight: Double) {
@@ -385,16 +292,8 @@ object TopPicks {
             .map { ArtistRef(name = it.value.first, browseId = it.key) }
     }
 
-    // ---- Mixes --------------------------------------------------------------
-
     private enum class Mix { SUPERMIX, DISCOVER, NEW_RELEASE }
 
-    /**
-     * The account's mixes. All of them are `RDTMAK…` playlists, so the id says
-     * "a mix" but not which; the title does, in English. In another interface
-     * language only the Supermix is placed, as the lead mix, which is where
-     * YouTube puts it.
-     */
     private suspend fun findMixes(homeShelves: List<HomeShelf>): Map<Mix, ShelfItem> {
         val onHome = homeShelves.flatMap { it.items }.filter { it.isMix() }
         val mixes = onHome.takeIf { it.isNotEmpty() }
@@ -421,14 +320,6 @@ object TopPicks {
     private fun ShelfItem.watchTarget(): WatchTarget? =
         browseId?.removePrefix("VL")?.let { WatchTarget(playlistId = it) }
 
-    // ---- Moods --------------------------------------------------------------
-
-    /**
-     * A mood at random, leaning on the hour: most of the time one that suits
-     * it (Focus mid-morning, Love late in the evening), sometimes any of
-     * them. Only Apple's seven Find Your Mood moods, as on Apple Music's own
-     * Top Picks — the activities live in Find Your Mood's Show all.
-     */
     fun moodFor(now: LocalDateTime): TopPickMood {
         val suited = when (now.hour) {
             in 5..8 -> listOf(TopPickMood.ENERGY, TopPickMood.FEEL_GOOD, TopPickMood.FOCUS)
@@ -442,16 +333,6 @@ object TopPicks {
         else TopPickMood.entries.filter { it.isCoreMood }.random()
     }
 
-    /**
-     * A mood's queue: the mood's own playlists, played as they are and
-     * shuffled together. Not a playlist *radio* — a radio wanders off to
-     * whatever sounds like the seed, and a Love station drifted into plain
-     * feel-good pop within a few tracks.
-     *
-     * The category is shelves of playlists by scene ("Romantic Bollywood &
-     * Indian", "Pop romance", …). A shelf naming the listener's own scene
-     * wins; two of its playlists are drawn at random and mixed.
-     */
     private suspend fun moodQueue(pick: TopPick): Result<List<Song>> = coroutineScope {
         val mood = pick.mood ?: return@coroutineScope Result.failure(IllegalStateException("mood card without a mood"))
         val shelves = YtMusicRepository.moodGenreShelves(TopPickMood.CATEGORY_BROWSE_ID, mood.params)
@@ -464,20 +345,15 @@ object TopPicks {
         }
         val best = candidates.maxOfOrNull(score)
             ?: return@coroutineScope Result.failure(IllegalStateException("no playlists for $mood"))
-        // With no scene in common, any shelf of the mood will do.
         val shelf = candidates.filter { score(it) == best }.random()
         val chosen = playlists(shelf).take(6).shuffled().take(MOOD_PLAYLISTS)
         val songs = chosen.map { item ->
             async {
                 val playlistId = item.browseId!!.removePrefix("VL")
-                // As a watch queue, so YouTube hands over each official video's
-                // song version directly; the playlist page only lists videos.
                 YtMusicRepository.playlistAsAudio(playlistId).getOrNull()?.takeIf { it.isNotEmpty() }
                     ?: YtMusicRepository.browseSongs(item.browseId!!).getOrNull()?.songs.orEmpty()
             }
         }.awaitAll().flatten()
-            // A row YouTube couldn't pair stays the video, and plays as one;
-            // the player menu's version switch turns it into the song.
             .distinctBy { it.videoId }
             .shuffled()
             .take(MOOD_QUEUE)
@@ -488,10 +364,6 @@ object TopPicks {
     private const val MOOD_PLAYLISTS = 3
     private const val MOOD_QUEUE = 60
 
-    /**
-     * A mood station for a Find Your Mood tile — the same queue the Mood for
-     * You card plays, steered toward the listener's scene by [hints].
-     */
     fun moodStation(mood: TopPickMood, hints: List<String> = regionHints()): TopPick =
         TopPick(kind = TopPickKind.MOOD, mood = mood, hints = hints)
 
@@ -511,16 +383,11 @@ object TopPicks {
     private fun yearOf(subtitle: String): Int =
         YEAR.findAll(subtitle).lastOrNull()?.value?.toIntOrNull() ?: 0
 
-    // ---- Storage ------------------------------------------------------------
-
-    /** A day's row as stored on disk, so Home can paint it before any request. */
     @Serializable
     data class Stored(
         val listener: String?,
-        /** The hour it was built in, e.g. `2026-10-21T15`. */
         val day: String,
         val picks: List<TopPick>,
-        /** [AppleArtistPhotos]' answers, misses included, so the next build doesn't ask again. */
         val photos: Map<String, String> = emptyMap(),
     )
 

@@ -8,7 +8,6 @@ import org.junit.Test
 
 class LrcLibTest {
 
-    /** Sung lines only — a long intro gets a synthesised gap in front. */
     private fun List<LyricLine>.words() = filterNot { it.isGap }.map { it.text }
 
     @Test
@@ -42,7 +41,6 @@ class LrcLibTest {
 
             """.trimIndent(),
         )
-        // The 2s gap between the two stamps is too short to be worth showing.
         assertEquals(listOf("real words"), lines.words())
         assertEquals(1, lines.count { it.isGap })
     }

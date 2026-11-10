@@ -5,7 +5,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class PlaylistOrderTest {
-    /** Replays [moves] the way YouTube applies them, one after another. */
     private fun apply(start: List<String>, moves: List<PlaylistMove>): List<String> {
         val list = start.toMutableList()
         moves.forEach { move ->

@@ -1,8 +1,3 @@
-//! Android's equaliser, ported: ten state-variable filter sections (seven bands for the
-//! Manual sliders, three for the Dynamic tone pad), a make-up pre-amp, left/right balance
-//! and a peak limiter. Every change glides, so dragging a band or switching a preset never
-//! clicks. The curve maths match core/shared's EqualizerCurve.kt and EqualizerPreset.kt.
-
 use std::f32::consts::PI;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -12,8 +7,6 @@ enum Kind {
     HighShelf,
 }
 
-/// The sections, in order: the seven Manual bands (shelves at either end), then the tone
-/// pad's low shelf, mid bell and high shelf.
 const SLOTS: [(Kind, f32); 10] = [
     (Kind::LowShelf, 60.0),
     (Kind::Bell, 150.0),
@@ -28,15 +21,12 @@ const SLOTS: [(Kind, f32); 10] = [
 ];
 const N: usize = SLOTS.len();
 
-/// The Manual sliders' frequencies, for their labels.
 pub const BANDS_HZ: [f32; 7] = [60.0, 150.0, 400.0, 1_000.0, 2_500.0, 6_000.0, 14_000.0];
 pub const BAND_RANGE_DB: f32 = 12.0;
-/// The tone pad runs -5..=5 steps either way.
 pub const TONE_STEPS: i32 = 5;
 const TONE_DB_PER_STEP: f32 = 1.2;
 const MANUAL_Q: f32 = 1.0;
 
-/// Android's presets, in its order, with their bands in dB.
 pub const PRESETS: [(&str, [f32; 7]); 16] = [
     ("Flat", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
     ("Acoustic", [3.0, 1.5, 0.0, 1.5, 2.5, 2.0, 1.0]),
@@ -56,12 +46,10 @@ pub const PRESETS: [(&str, [f32; 7]); 16] = [
     ("Late night", [3.0, 1.0, 0.0, 1.5, 1.0, -1.0, -3.0]),
 ];
 
-/// The preset `bands` are, if any (else they're the user's own: "Custom").
 pub fn preset_of(bands: &[f32; 7]) -> Option<usize> {
     PRESETS.iter().position(|(_, p)| p.iter().zip(bands).all(|(a, b)| (a - b).abs() < 0.05))
 }
 
-/// What the filters aim at: a gain and Q per section, and the make-up pre-amp.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Curve {
     gains: [f32; N],
@@ -76,7 +64,6 @@ impl Curve {
         Curve { gains, qs, preamp: preamp_for(&gains, &qs) }
     }
 
-    /// The Manual sliders.
     pub fn manual(bands: &[f32; 7]) -> Curve {
         let mut gains = [0.0; N];
         let mut qs = [0.707; N];
@@ -87,8 +74,6 @@ impl Curve {
         Curve::of(gains, qs)
     }
 
-    /// The tone pad: `x` tilts (darker ↔ brighter), `y` lifts or scoops the mids; focused
-    /// narrows both.
     pub fn tone(x: i32, y: i32, focused: bool) -> Curve {
         let mut gains = [0.0; N];
         let mut qs = [0.707; N];
@@ -105,7 +90,6 @@ impl Curve {
     }
 }
 
-/// The make-up: half the curve's highest boost, taken back off.
 fn preamp_for(gains: &[f32; N], qs: &[f32; N]) -> f32 {
     const POINTS: usize = 96;
     let peak = (0..POINTS)
@@ -117,7 +101,6 @@ fn preamp_for(gains: &[f32; N], qs: &[f32; N]) -> f32 {
     -peak * 0.5
 }
 
-/// One section's response at `hz`, in dB (the analogue prototype's magnitude).
 fn section_gain_db((kind, f0): (Kind, f32), gain_db: f32, q: f32, hz: f32) -> f32 {
     if gain_db.abs() < 0.01 {
         return 0.0;
@@ -144,12 +127,9 @@ fn section_gain_db((kind, f0): (Kind, f32), gain_db: f32, q: f32, hz: f32) -> f3
     (20.0 * m.log10()) as f32
 }
 
-/// What the processor chases: off is a flat curve and centred balance, so turning it off
-/// glides down like any other change.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Tuning {
     pub curve: Curve,
-    /// -1 (left) ..= 1 (right).
     pub balance: f32,
 }
 
@@ -163,12 +143,10 @@ impl Default for Tuning {
     }
 }
 
-/// The Equalizer settings as Android keeps them (off by default), saved as one value.
 #[derive(Clone, Copy, PartialEq, Debug, Default, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct Prefs {
     pub on: bool,
-    /// Manual (sliders and presets) rather than Dynamic (the tone pad).
     pub manual: bool,
     pub tilt: i32,
     pub contour: i32,
@@ -187,9 +165,7 @@ impl Prefs {
     }
 }
 
-/// Frames between coefficient updates (~1.5 ms at 44.1 kHz).
 const GLIDE_FRAMES: usize = 64;
-/// Per update: an ~18 ms time constant, so a fast drag still tracks.
 const GLIDE_RATE: f32 = 0.08;
 const SETTLED_DB: f32 = 0.01;
 const SETTLED_BALANCE: f32 = 0.0005;
@@ -197,7 +173,6 @@ const MIN_Q: f32 = 0.05;
 const CEILING: f32 = 0.985;
 const RELEASE_SECS: f32 = 0.1;
 
-/// The filters for one stream: fed whole interleaved frames.
 pub struct Processor {
     rate: f32,
     channels: usize,
@@ -212,7 +187,6 @@ pub struct Processor {
     m1: [f32; N],
     m2: [f32; N],
     running: [bool; N],
-    /// Two integrator states per section, per channel.
     state: Vec<[f32; 2]>,
     frames: usize,
     active: Vec<usize>,
@@ -248,7 +222,6 @@ impl Processor {
         p
     }
 
-    /// Nothing to do: flat and already there.
     pub fn idle(&self, t: &Tuning) -> bool {
         let flat = t.balance.abs() < SETTLED_BALANCE && t.curve.preamp.abs() < SETTLED_DB && t.curve.gains.iter().all(|g| g.abs() < SETTLED_DB);
         let settled = (self.balance - t.balance).abs() < SETTLED_BALANCE
@@ -257,7 +230,6 @@ impl Processor {
         flat && settled
     }
 
-    /// One interleaved frame, in place, chasing `t`.
     pub fn frame(&mut self, frame: &mut [f32], t: &Tuning) {
         if self.frames % GLIDE_FRAMES == 0 {
             self.glide(t);
@@ -281,7 +253,6 @@ impl Processor {
             *s = x;
             peak = peak.max(x.abs());
         }
-        // A boost the make-up didn't take back can pass full scale: turned down, not clipped.
         let wanted = if peak > CEILING { CEILING / peak } else { 1.0 };
         self.reduction = if wanted < self.reduction { wanted } else { self.reduction + (wanted - self.reduction) * self.release };
         if self.reduction < 1.0 {
@@ -305,7 +276,6 @@ impl Processor {
         self.balance = lin(self.balance, t.balance);
     }
 
-    /// Coefficients for the sections doing anything, and the output trims.
     fn prepare(&mut self) {
         self.active.clear();
         for slot in 0..N {
@@ -331,7 +301,6 @@ impl Processor {
         let (kind, f0) = SLOTS[slot];
         let a = 10f32.powf(self.gain[slot] / 40.0);
         let q = self.q[slot].max(MIN_Q);
-        // Kept clear of tan's pole at Nyquist.
         let base = (PI * f0.clamp(10.0, self.rate * 0.45) / self.rate).tan();
         let (g, k) = match kind {
             Kind::Bell => {
@@ -361,7 +330,6 @@ impl Processor {
 mod tests {
     use super::*;
 
-    /// The steady-state gain of a sine at `hz` through the processor, in dB.
     fn measure(t: Tuning, hz: f32) -> f32 {
         let rate = 48_000.0;
         let mut p = Processor::new(48_000, 1, t);
@@ -391,7 +359,6 @@ mod tests {
         bands[3] = 6.0;
         let t = Tuning { curve: Curve::manual(&bands), balance: 0.0 };
         assert!((t.curve.preamp + 3.0).abs() < 0.2, "{}", t.curve.preamp);
-        // +6 at 1 kHz less the 3 dB make-up; far away, just the make-up.
         assert!((measure(t, 1_000.0) - 3.0).abs() < 0.5);
         assert!((measure(t, 60.0) + 3.0).abs() < 0.5);
     }

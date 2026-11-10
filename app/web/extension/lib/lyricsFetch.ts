@@ -14,7 +14,6 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** Headers some hosts need that a fetch may not set, applied to the extension's own requests (tabId -1). */
 const RULES = [
   {
     id: 200,
@@ -25,7 +24,6 @@ const RULES = [
     ],
   },
   {
-    // Musixmatch's web client and the signing key it carries (Musixmatch.kt's browserGet).
     id: 201,
     urlFilter: '||musixmatch.com/',
     headers: [{ header: 'Cookie', operation: 'set', value: 'mxm_bab=AB' }],
@@ -52,14 +50,12 @@ function installRules(): Promise<void> {
   return rulesReady;
 }
 
-/** Which of [origins] the user has granted. */
 export async function grantedOrigins(origins: string[]): Promise<string[]> {
   const known = origins.filter((o) => (LYRIC_ORIGINS as readonly string[]).includes(o));
   const answers = await Promise.all(known.map((o) => browser.permissions.contains({ origins: [patternOf(o)] })));
   return known.filter((_, i) => answers[i]);
 }
 
-/** Opens the extension's page that asks for [origins]; the browser only prompts after a click there. */
 export async function requestOrigins(origins: string[]): Promise<void> {
   const known = origins.filter((o) => (LYRIC_ORIGINS as readonly string[]).includes(o));
   if (!known.length) return;

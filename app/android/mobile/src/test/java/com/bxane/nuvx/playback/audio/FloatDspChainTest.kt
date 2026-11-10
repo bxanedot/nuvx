@@ -15,40 +15,29 @@ import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/**
- * Comprehensive verification of the Float32 DSP processors:
- * - EqualizerProcessor (FloatAudioProcessor)
- * - SpatialAudioProcessor (FloatAudioProcessor)
- * - TransitionFilterProcessor (FloatAudioProcessor)
- * - DspChain composite pipeline
- */
 class FloatDspChainTest {
 
     private val sampleRate = 44100
-
-    // ── EqualizerProcessor Float32 Tests ────────────────────────────────────
 
     @Test
     fun `eq impulse response rings with biquad filter decay`() {
         val eq = EqualizerProcessor()
         eq.configure(sampleRate, 2)
 
-        // Boost 1 kHz band by +6 dB
         val gains = FloatArray(EqLayout.SLOTS)
         val qs = FloatArray(EqLayout.SLOTS) { 0.707f }
-        gains[3] = 6.0f // 1000 Hz bell (slot 3)
+        gains[3] = 6.0f
         eq.setTuning(enabled = true, EqCurve(gains, qs, 0f), balance = 0f)
         eq.flush()
 
         val frames = 256
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
-        block.samples[0] = 1.0f // Left impulse
+        block.samples[0] = 1.0f
         block.samples[1] = 0.0f
         block.reset(frames)
 
         eq.process(block)
 
-        // The impulse response must be non-zero past frame 0 (filtering effect)
         var nonZeroCount = 0
         for (f in 1 until frames) {
             if (abs(block.samples[f * 2]) > 1e-4f) nonZeroCount++
@@ -64,12 +53,11 @@ class FloatDspChainTest {
         val boostDb = 6.0f
         val gains = FloatArray(EqLayout.SLOTS)
         val qs = FloatArray(EqLayout.SLOTS) { 0.707f }
-        val targetSlot = 3 // 1000 Hz bell (slot 3 in EqLayout)
+        val targetSlot = 3
         gains[targetSlot] = boostDb
         eq.setTuning(enabled = true, EqCurve(gains, qs, 0f), balance = 0f)
         eq.flush()
 
-        // Generate 1 kHz sine wave
         val frames = 4096
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
         val freq = 1000.0
@@ -83,7 +71,6 @@ class FloatDspChainTest {
 
         eq.process(block)
 
-        // Measure steady-state peak amplitude in the second half of the block
         var peakOut = 0f
         for (f in 2048 until frames) {
             val amp = abs(block.samples[f * 2])
@@ -102,14 +89,13 @@ class FloatDspChainTest {
 
         val gains = FloatArray(EqLayout.SLOTS)
         val qs = FloatArray(EqLayout.SLOTS) { 0.707f }
-        gains[0] = 6.0f // 60 Hz shelf
-        gains[9] = 6.0f // 14 kHz shelf
+        gains[0] = 6.0f
+        gains[9] = 6.0f
         eq.setTuning(enabled = true, EqCurve(gains, qs, 0f), balance = 0f)
         eq.flush()
 
         val frames = 1024
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
-        // Composite signal: 60 Hz + 14000 Hz
         for (f in 0 until frames) {
             val s = (0.2 * sin(2.0 * PI * 60.0 * f / sampleRate) +
                     0.2 * sin(2.0 * PI * 14000.0 * f / sampleRate)).toFloat()
@@ -161,7 +147,6 @@ class FloatDspChainTest {
 
         val frames = 256
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
-        // Left has signal, Right is silence
         for (f in 0 until frames) {
             block.samples[f * 2] = 0.5f
             block.samples[f * 2 + 1] = 0.0f
@@ -180,7 +165,6 @@ class FloatDspChainTest {
         val eq = EqualizerProcessor()
         eq.configure(sampleRate, 2)
 
-        // 16-bit resolution floor is ~3.05e-5. Test with 1.0e-7.
         val tinyVal = 1.0e-7f
         val gains = FloatArray(EqLayout.SLOTS)
         val qs = FloatArray(EqLayout.SLOTS) { 0.707f }
@@ -198,7 +182,6 @@ class FloatDspChainTest {
 
         eq.process(block)
 
-        // In 16-bit PCM this would quantize to 0. In Float32 it must remain non-zero.
         var hasNonZero = false
         for (f in 0 until frames) {
             if (block.samples[f * 2] != 0.0f) hasNonZero = true
@@ -206,18 +189,14 @@ class FloatDspChainTest {
         assertTrue("Sub-PCM16 Float32 values must not be truncated to zero", hasNonZero)
     }
 
-    // ── SpatialAudioProcessor Float32 Tests ─────────────────────────────────
-
     @Test
     fun `spatial crossfeed leaks delayed and low-passed signal to opposite channel`() {
         val spatial = SpatialAudioProcessor()
         spatial.configure(sampleRate, 2)
         spatial.enabled = true
 
-        // 15ms delay at 44.1kHz is ~661 frames
         val frames = 1000
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
-        // Feed only Left channel with a 500 Hz sine
         for (f in 0 until frames) {
             block.samples[f * 2] = (0.5 * sin(2.0 * PI * 500.0 * f / sampleRate)).toFloat()
             block.samples[f * 2 + 1] = 0.0f
@@ -226,7 +205,6 @@ class FloatDspChainTest {
 
         spatial.process(block)
 
-        // After the delay buffer fills (>700 frames), the right channel must have crossfeed signal
         var rightEnergy = 0.0
         for (f in 700 until frames) {
             rightEnergy += abs(block.samples[f * 2 + 1].toDouble())
@@ -254,8 +232,6 @@ class FloatDspChainTest {
         }
     }
 
-    // ── TransitionFilterProcessor Float32 Tests ─────────────────────────────
-
     @Test
     fun `transition low pass attenuates high frequency signal`() {
         val transition = TransitionFilterProcessor()
@@ -263,7 +239,6 @@ class FloatDspChainTest {
         transition.setCutoffs(lowPassHz = 500f, highPassHz = TransitionFilterProcessor.OFF_HZ)
         transition.flush()
 
-        // Feed 5 kHz sine wave
         val frames = 1024
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
         val freq = 5000.0
@@ -276,7 +251,6 @@ class FloatDspChainTest {
 
         transition.process(block)
 
-        // 5 kHz is 10x above 500 Hz cutoff; with 24 dB/octave it should be heavily attenuated
         var peakOut = 0f
         for (f in 512 until frames) {
             val amp = abs(block.samples[f * 2])
@@ -292,7 +266,6 @@ class FloatDspChainTest {
         transition.setCutoffs(lowPassHz = TransitionFilterProcessor.OPEN_HZ, highPassHz = 2000f)
         transition.flush()
 
-        // Feed 100 Hz sine wave
         val frames = 1024
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
         val freq = 100.0
@@ -334,20 +307,16 @@ class FloatDspChainTest {
         }
     }
 
-    // ── Cross-Processor (DspChain) Tests ────────────────────────────────────
-
     @Test
     fun `dsp chain preserves float32 precision across all three processors without intermediate quantization`() {
         val chain = DspChain()
         chain.configure(sampleRate, 2)
 
-        // Enable spatial, set flat EQ, open transition
         chain.spatial.enabled = true
         chain.equalizer.setTuning(enabled = true, EqCurve.FLAT, balance = 0f)
         chain.transition.open()
         chain.flush()
 
-        // Feed tiny sub-LSB float (1.0e-7)
         val tinyVal = 1.0e-7f
         val frames = 128
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
@@ -359,7 +328,6 @@ class FloatDspChainTest {
 
         chain.process(block)
 
-        // Must remain non-zero through all 3 stages
         var hasNonZero = false
         for (f in 0 until frames) {
             if (block.samples[f * 2] != 0.0f) hasNonZero = true
@@ -367,18 +335,12 @@ class FloatDspChainTest {
         assertTrue("Sub-LSB Float32 signal must survive entire DSP chain", hasNonZero)
     }
 
-    /**
-     * The equaliser hands its overs on rather than clamping them: a stage after
-     * it may turn the signal back down, and an over squared off here would stay
-     * squared off.
-     */
     @Test
     fun `eq stage preserves headroom without clipping above 1_0`() {
         val chain = DspChain()
         chain.configure(sampleRate, 2)
 
         chain.spatial.enabled = false
-        // Flat EQ with +3 dB preamp
         val gains = FloatArray(EqLayout.SLOTS)
         val qs = FloatArray(EqLayout.SLOTS) { 0.707f }
         chain.equalizer.setTuning(enabled = true, EqCurve(gains, qs, preampDb = 3.0f), balance = 0f)
@@ -386,7 +348,6 @@ class FloatDspChainTest {
 
         val frames = 64
         val block = AudioBlock(channelCount = 2, capacityFrames = frames)
-        // Feed 0.9f; +3 dB preamp will lift it to ~1.27f (exceeding nominal 1.0f)
         for (i in 0 until frames * 2) {
             block.samples[i] = 0.9f
         }
@@ -394,12 +355,10 @@ class FloatDspChainTest {
 
         chain.equalizer.process(block)
 
-        // Must NOT be clipped to 1.0f
         val sample = block.samples[frames * 2 - 2]
         assertTrue("Headroom must be preserved above 1.0f (got $sample)", sample > 1.1f)
     }
 
-    /** ...and the end of the chain catches whatever is still over, with normalization off. */
     @Test
     fun `dsp chain limits an equalised over at the end`() {
         val chain = DspChain()
@@ -429,11 +388,6 @@ class FloatDspChainTest {
         assertTrue("The limiter should turn the over down, not mute it (got $peak)", peak > 0.9f)
     }
 
-    /**
-     * Holding the limiter on for the equaliser must not outlive it: once the
-     * curve has glided flat, the chain has to be bit-exact again, loud source
-     * peaks and all.
-     */
     @Test
     fun `dsp chain is bit exact again once the equaliser is switched off`() {
         val chain = DspChain()
@@ -461,7 +415,6 @@ class FloatDspChainTest {
         }
         repeat(10) { pass() }
         chain.equalizer.setTuning(enabled = false, EqCurve.FLAT, balance = 0f)
-        // Far longer than the EQ glide and the limiter's release together.
         repeat(80) { pass() }
 
         pass()
@@ -477,7 +430,6 @@ class FloatDspChainTest {
         val block = AudioBlock(channelCount = 2, capacityFrames = 64)
         block.reset(0)
 
-        // Must return without error
         chain.process(block)
         assertEquals(0, block.frameCount)
     }
@@ -497,7 +449,6 @@ class FloatDspChainTest {
         val blockSize = 512
         val block = AudioBlock(channelCount = 2, capacityFrames = blockSize)
 
-        // Run 50 consecutive blocks (1 second of audio)
         for (iteration in 0 until 50) {
             for (f in 0 until blockSize) {
                 val totalFrame = iteration * blockSize + f
@@ -508,7 +459,6 @@ class FloatDspChainTest {
             block.reset(blockSize)
             chain.process(block)
 
-            // Verify no NaN or Infinity emerged
             for (i in 0 until blockSize * 2) {
                 val v = block.samples[i]
                 assertFalse("Sample must not be NaN at block $iteration", v.isNaN())

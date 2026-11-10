@@ -6,7 +6,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-/** Turns the wire formats used by the smaller providers into nuvx lyrics. */
 object ProviderLyrics {
 
     fun parse(raw: String): List<LyricLine>? {
@@ -29,7 +28,6 @@ object ProviderLyrics {
             .map { LyricLine(0L, it) }.toList()
     }
 
-    /** Providers sometimes wrap the same lyric string in one or two JSON envelopes. */
     internal fun unwrap(raw: String): String? {
         var value = raw.replace("\uFEFF", "").trim()
         if (value.startsWith("```")) {
@@ -72,7 +70,6 @@ object ProviderLyrics {
     )
 }
 
-/** QQ/QRC and NetEase YRC: millisecond line and word ranges. */
 object KaraokeLrc {
     private val LINE = Regex("""^\[(\d{1,8}),(\d{1,8})](.*)$""")
     private val PREFIX_WORD = Regex("""\((\d{1,8}),(\d{1,8})(?:,\d{1,8})?\)([^()]*)""")
@@ -92,8 +89,6 @@ object KaraokeLrc {
             val lineStart = match.groupValues[1].toLong()
             val lineDuration = match.groupValues[2].toLong()
             val body = match.groupValues[3]
-            // QRC and YRC stamp each syllable, and say which ones make a word
-            // by leaving the space out between them — see [wordsFromRuns].
             val prefixed = wordsFromRuns(
                 PREFIX_WORD.findAll(body).map { word ->
                     timedRun(word.groupValues[3], word.groupValues[1], word.groupValues[2])

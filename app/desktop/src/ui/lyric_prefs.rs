@@ -1,30 +1,20 @@
-//! The listener's lyrics settings, the same ones the better-lyrics extension keeps:
-//! source order (some switched off) with a per-song pick, translation language, and
-//! timing offsets. Also the smoothed clock the lyrics follow.
-
 use std::collections::HashMap;
 
 use crate::lyrics::{Line, Lyrics, LyricsSet, Provider};
 
-/// Offsets are seconds taken off the lyrics clock: positive shows lyrics later.
 pub struct Prefs {
     pub order: Vec<(Provider, bool)>,
     pub target: String,
     pub global_offset: f32,
     pub word_trim: f32,
     pub line_trim: f32,
-    /// "videoId|source" → offset.
     pub song_offsets: HashMap<String, f32>,
-    /// videoId → source picked for that song.
     pub pins: HashMap<String, Provider>,
-    /// Lyrics text size, as a multiple of the theme's own size.
     pub text_scale: f32,
 }
 
-/// The range and step of the lyrics text size setting.
 pub const TEXT_SCALE: (f32, f32, f32) = (0.6, 1.8, 0.1);
 
-/// Languages offered for translation.
 pub const LANGUAGES: &[(&str, &str)] = &[
     ("en", "English"),
     ("es", "Spanish"),
@@ -48,14 +38,10 @@ pub const LANGUAGES: &[(&str, &str)] = &[
     ("zh-TW", "Chinese (Traditional)"),
 ];
 
-/// The order 0.1.0 saved for anyone who never changed it.
 const OLD_DEFAULT: &str = "bLyrics-richsynced,unison-richsynced,binimum-richsynced,unison-wordsynced,portato-richsynced,musixmatch-richsync,lrcred-richsynced,bLyrics-synced,unison-synced,binimum-synced,lrclib-synced,legato-synced,musixmatch-synced,lrcred-synced,unison-plain,lrclib-plain";
 
 impl Prefs {
     pub fn load(get: &dyn Fn(&str) -> Option<String>) -> Self {
-        // Stored like the extension's `preferredProviderList`: keys in order, "d_" = off;
-        // sources it doesn't list are merged in next to their default neighbours.
-        // The old default, saved untouched, gives way to the new one.
         let mut order: Vec<(Provider, bool)> = get("lyric_providers")
             .filter(|s| s != OLD_DEFAULT)
             .unwrap_or_default()
@@ -109,20 +95,15 @@ impl Prefs {
         storage.set_string("lyric_pins", serde_json::to_string(&pins).unwrap_or_default());
     }
 
-    /// Sources that have lyrics for this song, in the listener's order (switched-off ones
-    /// left out). This is what the source counter counts through.
     pub fn available(&self, set: &LyricsSet) -> Vec<Provider> {
         self.order.iter().filter(|(p, on)| *on && set.get(*p).is_some_and(usable)).map(|(p, _)| *p).collect()
     }
 
-    /// The source to show: the song's pick when it has lyrics, else the finest-timed one
-    /// that does (syllable, then word, then line), the listener's order breaking ties.
     pub fn choose(&self, video_id: &str, set: &LyricsSet) -> Option<Provider> {
         let available = self.available(set);
         self.pins.get(video_id).filter(|p| available.contains(p)).copied().or_else(|| finest(&available))
     }
 
-    /// Pick a source for one song (`pinForPick`: what would be chosen anyway needs no pin).
     pub fn pick(&mut self, video_id: &str, set: &LyricsSet, p: Provider) {
         if finest(&self.available(set)) == Some(p) {
             self.pins.remove(video_id);
@@ -145,15 +126,11 @@ impl Prefs {
         }
     }
 
-    /// Seconds to take off the clock for this song and source, as the extension does
-    /// (`globalLyricOffset + lyricOffset` and the per-sync-type trim).
     pub fn offset(&self, video_id: &str, source: Provider, richsync: bool) -> f64 {
         (self.global_offset + self.song_offset(video_id, source) + if richsync { self.word_trim } else { self.line_trim }) as f64
     }
 }
 
-/// Lyrics worth showing: some line is sung (the extension's `hideInstrumentalOnly`).
-/// The finest-timed provider; `min_by_key` keeps the first of equals, so order breaks ties.
 fn finest(available: &[Provider]) -> Option<Provider> {
     available.iter().copied().min_by_key(|p| p.sync())
 }
@@ -162,7 +139,6 @@ pub fn usable(l: &Lyrics) -> bool {
     l.lines.iter().any(|x| !x.instrumental && !x.text.trim().is_empty())
 }
 
-/// `findBestLanguageMatch`: a translation shipped with the lyrics in the listener's language.
 pub fn shipped_translation<'a>(l: &'a Line, target: &str) -> Option<&'a str> {
     let base = |s: &str| s.split(['-', '_']).next().unwrap_or_default().to_ascii_lowercase();
     l.translations
@@ -172,8 +148,6 @@ pub fn shipped_translation<'a>(l: &'a Line, target: &str) -> Option<&'a str> {
         .map(|(_, t)| t.as_str())
 }
 
-/// The lyrics clock: the audio position smoothed so it never steps backwards while
-/// playing (the output device takes audio in ~40 ms blocks, so the raw position jumps).
 #[derive(Default)]
 pub struct Clock {
     shown: f64,
@@ -192,7 +166,6 @@ impl Clock {
             if err.abs() > 0.25 {
                 self.shown = pos;
             } else {
-                // Ease toward the audio, never backwards.
                 self.shown = (predicted + err * (dt * 6.0).min(1.0)).max(self.shown);
             }
         }
@@ -209,9 +182,9 @@ mod tests {
     #[test]
     fn finest_timing_wins_and_order_breaks_ties() {
         use Provider::*;
-        assert_eq!(finest(&[LrclibSynced, MusixmatchRich, UnisonRich]), Some(UnisonRich)); // syllable
-        assert_eq!(finest(&[LrclibSynced, LrcredRich, MusixmatchRich]), Some(LrcredRich)); // word, first of equals
-        assert_eq!(finest(&[LrclibPlain, LrclibSynced]), Some(LrclibSynced)); // line beats unsynced
+        assert_eq!(finest(&[LrclibSynced, MusixmatchRich, UnisonRich]), Some(UnisonRich));
+        assert_eq!(finest(&[LrclibSynced, LrcredRich, MusixmatchRich]), Some(LrcredRich));
+        assert_eq!(finest(&[LrclibPlain, LrclibSynced]), Some(LrclibSynced));
         assert_eq!(finest(&[]), None);
     }
 
@@ -234,14 +207,11 @@ mod tests {
     #[test]
     fn falls_back_through_the_order() {
         let p = Prefs::load(&|_| None);
-        // The best source failed: the next one in order shows.
         let s = set(&[Provider::MusixmatchRich, Provider::LrclibSynced]);
         assert_eq!(p.choose("v", &s), Some(Provider::MusixmatchRich));
-        // A source switched off is skipped.
         let mut p2 = Prefs::load(&|_| None);
         p2.order.iter_mut().find(|(x, _)| *x == Provider::MusixmatchRich).unwrap().1 = false;
         assert_eq!(p2.choose("v", &s), Some(Provider::LrclibSynced));
-        // Lyrics with nothing sung don't count.
         let mut s2 = set(&[Provider::BLyricsRich, Provider::LrclibSynced]);
         s2.sources[0].lines[0].instrumental = true;
         assert_eq!(p.choose("v", &s2), Some(Provider::LrclibSynced));
@@ -254,10 +224,8 @@ mod tests {
         let s = set(&[Provider::BLyricsRich, Provider::LrclibSynced, Provider::MusixmatchSynced]);
         p.pick("v", &s, Provider::MusixmatchSynced);
         assert_eq!(p.choose("v", &s), Some(Provider::MusixmatchSynced));
-        // Picking the first choice again needs no pin.
         p.pick("v", &s, Provider::BLyricsRich);
         assert!(p.pins.is_empty());
-        // A pick whose lyrics failed this time falls back.
         p.pick("v", &s, Provider::MusixmatchSynced);
         let without = set(&[Provider::BLyricsRich, Provider::LrclibSynced]);
         assert_eq!(p.choose("v", &without), Some(Provider::BLyricsRich));
@@ -285,7 +253,6 @@ mod tests {
         let b = c.tick(10.0, true, 100.016);
         let d = c.tick(9.99, true, 100.032);
         assert!(b >= a && d >= b);
-        // A seek snaps.
         assert_eq!(c.tick(50.0, true, 100.05), 50.0);
     }
 }

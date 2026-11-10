@@ -14,20 +14,13 @@ export interface Candidate {
 
 export interface SelectorOptions {
   energyDirection: EnergyDirection;
-  /** Most-recently-played first. */
   recentFileKeys: string[];
   excludeFileKeys?: string[];
 }
 
-const BPM_HARD_LIMIT = 0.08; // ±8% stretchable
+const BPM_HARD_LIMIT = 0.08;
 const BPM_FULL_SCORE = 0.04;
 
-/**
- * Rank the library as next-track candidates: Camelot adjacency + BPM
- * proximity + energy direction - repetition. Harmonic matches sort first;
- * non-harmonic but tempo-compatible tracks are kept as a reserve so the
- * mix never strands.
- */
 export function rankCandidates(
   current: TrackAnalysis,
   pool: TrackAnalysis[],
@@ -70,9 +63,6 @@ export function rankCandidates(
     });
   }
 
-  // rescue tier: nothing is tempo-compatible (e.g. one 130 BPM track in an
-  // 85 BPM library) — offer harmonic-first picks anyway; the transition
-  // scheduler refuses extreme stretches and plain-crossfades instead.
   if (candidates.length === 0) {
     for (const a of pool) {
       if (exclude.has(a.fileKey) || noRepeat.has(a.fileKey)) continue;
@@ -94,7 +84,6 @@ export function rankCandidates(
   return candidates;
 }
 
-/** Relative BPM distance accounting for half/double-time equivalence. */
 function bpmDistance(a: number, b: number): number {
   const candidates = [b, b * 2, b / 2];
   return Math.min(...candidates.map((x) => Math.abs(x - a) / a));

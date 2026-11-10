@@ -11,12 +11,10 @@ export interface Env {
   PARTY_LIMIT: RateLimit;
   PRESENCE_LIMIT: RateLimit;
   CANVAS_LIMIT: RateLimit;
-  /** Secrets for canvas uploads. The repo token also authenticates release count requests to GitHub. */
   CANVAS_PASSCODE?: string;
   CANVAS_GITHUB_TOKEN?: string;
 }
 
-/** Browser origins allowed to call the API; the native apps send no Origin. */
 export const ALLOWED_ORIGINS = new Set(["https://web.nuvx.lol", "https://nuvx.pages.dev", "http://localhost:5173"]);
 const SOCKET_PROTOCOL = "nuvx.v1";
 const SOCKET_TOKEN_PREFIX = "nuvx.token.";
@@ -140,7 +138,6 @@ async function presence(req: Request, env: Env, ip: string, origin: string | nul
   if (typeof b.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(b.id)) return send(422, { error: "invalid_id", message: "id must be a UUID." });
   if (b.platform !== "android" && b.platform !== "pc" && b.platform !== "browser") return send(422, { error: "invalid_platform", message: "platform must be android, pc or browser." });
   if (typeof b.open !== "boolean") return send(422, { error: "invalid_open", message: "open must be true or false." });
-  // Only the web player sends an Origin, and only from a listed one; this stops other pages posting made-up installs.
   if ((b.platform === "browser") !== (origin !== null) || (origin !== null && !ALLOWED_ORIGINS.has(origin))) {
     return send(403, { error: "origin_not_allowed", message: "Presence is only accepted from the apps and the web player." });
   }
@@ -155,14 +152,12 @@ function badge(online: number): string {
 
 type Attachment = { memberId: string };
 
-/** One Durable Object per party code. State lives in storage; sockets use hibernation. */
 export class Party extends DurableObject<Env> {
   private buckets = new Map<string, ReturnType<typeof P.freshBuckets>>();
   private lastStateAt = 0;
   private presence?: DurableObjectStub<Presence>;
   private publishedListeners?: { count: number; expiresAt: number };
 
-  /** Open sockets of a member, optionally ignoring one that is closing. */
   private sockets(memberId: string, except?: WebSocket) {
     return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN && (ws.deserializeAttachment() as Attachment | null)?.memberId === memberId);
   }
@@ -175,7 +170,7 @@ export class Party extends DurableObject<Env> {
   }
 
   private async expire() {
-    for (const ws of this.ctx.getWebSockets()) try { ws.close(1000, "party ended"); } catch { /* already closed */ }
+    for (const ws of this.ctx.getWebSockets()) try { ws.close(1000, "party ended"); } catch { }
     await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll();
   }
@@ -196,12 +191,10 @@ export class Party extends DurableObject<Env> {
     const previous = this.publishedListeners;
     if (previous?.count === count && (count === 0 || previous.expiresAt - now > LISTENER_WINDOW_MS / 2)) return;
 
-    // Renew from existing socket pings. The lease bounds stale counts if a close or update is lost.
     const expiresAt = Math.min(now + LISTENER_WINDOW_MS, party.createdAtMs + P.PARTY_MAX_AGE_MS);
     const presence = this.presence ??= this.env.PRESENCE.get(this.env.PRESENCE.idFromName("global"));
     this.publishedListeners = { count, expiresAt };
     this.ctx.waitUntil(presence.setPartyListeners(party.code, count, expiresAt).catch(() => {
-      // Failed stubs must be replaced. Retry on the next party update or ping.
       if (this.presence === presence) {
         this.presence = undefined;
         this.publishedListeners = undefined;
@@ -211,13 +204,13 @@ export class Party extends DurableObject<Env> {
 
   private broadcast(frame: unknown, except?: WebSocket) {
     const msg = JSON.stringify(frame);
-    for (const ws of this.ctx.getWebSockets()) if (ws !== except && ws.readyState === WebSocket.OPEN) try { ws.send(msg); } catch { /* peer gone */ }
+    for (const ws of this.ctx.getWebSockets()) if (ws !== except && ws.readyState === WebSocket.OPEN) try { ws.send(msg); } catch { }
     if ((frame as { type?: string }).type === "state") this.lastStateAt = Date.now();
   }
 
   private say(memberId: string, frame: unknown, close = false) {
     for (const ws of this.sockets(memberId)) {
-      try { ws.send(JSON.stringify(frame)); if (close) ws.close(1000, "bye"); } catch { /* peer gone */ }
+      try { ws.send(JSON.stringify(frame)); if (close) ws.close(1000, "bye"); } catch { }
     }
   }
 
@@ -226,7 +219,7 @@ export class Party extends DurableObject<Env> {
   }
 
   async create(code: string, req: P.JoinRequest): Promise<Reply | null> {
-    if (await this.load()) return null; // code already in use
+    if (await this.load()) return null;
     const now = Date.now();
     const party = P.newParty(code, now, req.maxMembers ?? 5);
     if (req.autoplayEnabled !== undefined) party.playback.autoplayEnabled = req.autoplayEnabled;
@@ -284,7 +277,7 @@ export class Party extends DurableObject<Env> {
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ memberId: member.memberId } satisfies Attachment);
-    for (const ws of older) try { ws.close(1000, "replaced"); } catch { /* gone */ }
+    for (const ws of older) try { ws.close(1000, "replaced"); } catch { }
     const now = Date.now();
     member.lastSeenMs = now;
     this.buckets.set(member.memberId, P.freshBuckets(now));
@@ -305,7 +298,7 @@ export class Party extends DurableObject<Env> {
     const { memberId } = ws.deserializeAttachment() as Attachment;
     const member = party?.members.find((m) => m.memberId === memberId);
     if (!party || !member) {
-      try { ws.send(JSON.stringify({ type: "bye", reason: "left" })); ws.close(1000, "not a member"); } catch { /* gone */ }
+      try { ws.send(JSON.stringify({ type: "bye", reason: "left" })); ws.close(1000, "not a member"); } catch { }
       return;
     }
     const now = Date.now();
@@ -363,7 +356,6 @@ export class Party extends DurableObject<Env> {
   }
 }
 
-/** Counts open app installs. One row per install; rows older than the ping window are dropped when counting. */
 export class Presence extends DurableObject<Env> {
   private downloadRefresh?: Promise<number>;
 
@@ -373,7 +365,6 @@ export class Presence extends DurableObject<Env> {
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS playing_parties (code TEXT PRIMARY KEY, listeners INTEGER NOT NULL, expires_ms INTEGER NOT NULL)");
   }
 
-  // shortcut: no cap on rows (Go capped at 200k); per-IP rate limiting bounds growth, add a cap if the table gets large.
   async ping(id: string, platform: string, open: boolean) {
     if (open) this.ctx.storage.sql.exec("INSERT INTO installs (id, platform, last_ms) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET platform = excluded.platform, last_ms = excluded.last_ms", id, platform, Date.now());
     else this.ctx.storage.sql.exec("DELETE FROM installs WHERE id = ?", id);

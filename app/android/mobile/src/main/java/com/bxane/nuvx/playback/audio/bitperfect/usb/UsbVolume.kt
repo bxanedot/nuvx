@@ -3,17 +3,10 @@ package com.bxane.nuvx.playback.audio.bitperfect.usb
 
 import kotlin.math.floor
 
-/** A class-specific control request on the device's default pipe. */
 internal fun interface UsbControl {
-    /** Fills [data] for an IN request, sends it for an OUT one; throws when the device refuses. */
     fun transfer(input: Boolean, request: Int, value: Int, index: Int, data: ByteArray)
 }
 
-/**
- * USB Audio Feature Unit volume: the DAC's own attenuator, set in signed
- * 1/256 dB. This is how direct USB output gets a volume at all without
- * scaling a single sample.
- */
 internal object UsbVolume {
 
     data class Feature(val unit: Int, val interface_: Int, val uac2: Boolean, val channels: List<Int>)
@@ -23,18 +16,9 @@ internal object UsbVolume {
         val minDb: Double = 0.0,
         val maxDb: Double = 0.0,
         val currentDb: Double = 0.0,
-        /**
-         * The quietest channel before startup attenuation; restoring an earlier
-         * setting must respect a DAC volume knob that was turned down since.
-         */
         val restoreLimitDb: Double = 0.0,
     )
 
-    /**
-     * Follows only an unambiguous playback terminal chain. Never changes a
-     * capture Feature Unit or guesses which input of a mixer or selector is
-     * routed; any doubt means no hardware volume.
-     */
     fun feature(raw: ByteArray, interface_: Int, terminal: Int, channels: Int): Feature? {
         var active = false
         var uac2 = false
@@ -118,26 +102,18 @@ internal object UsbVolume {
     class Volume private constructor(
         private val feature: Feature,
         private val ranges: List<List<Range>>,
-        /** Each channel's level as the DAC had it before [open] attenuated it. */
         private val original: List<Int>,
         snapshot: Snapshot,
     ) {
         var snapshot: Snapshot = snapshot
             private set
 
-        /** Sets every controlled channel to [db] (at most 0 dB), verified by read-back. */
         fun set(control: UsbControl, db: Double): Snapshot {
             require(db.isFinite() && db <= 0.0 && db >= -128.0) { "Invalid USB volume" }
             val target = floor(minOf(db, snapshot.maxDb) * 256.0).toInt()
             return setTargets(control, List(feature.channels.size) { target })
         }
 
-        /**
-         * Puts every channel back to the level it had before [open], so the
-         * DAC is left as it was found. The attenuator lives in the DAC, not in
-         * the stream, and would otherwise follow it into Android's own driver
-         * and every other app.
-         */
         fun restore(control: UsbControl): Snapshot = setTargets(control, original)
 
         internal fun setTargets(control: UsbControl, targets: List<Int>): Snapshot {
@@ -145,8 +121,6 @@ internal object UsbVolume {
             var loudest = Short.MIN_VALUE.toInt()
             for ((i, channel) in feature.channels.withIndex()) {
                 val target = targets[i]
-                // -32768 is USB's negative infinity. A channel already silent is
-                // kept silent; startup must never raise a quieter channel.
                 val value = if (target == Short.MIN_VALUE.toInt()) {
                     target
                 } else {
@@ -171,14 +145,8 @@ internal object UsbVolume {
             private const val UAC2_RANGE = 2
             private const val UAC1_GET_CUR = 0x81
 
-            /** The quietest level the DAC is brought to before the first audio transfer. */
             private const val STARTUP_DB = -40
 
-            /**
-             * Reads every controlled channel's range and current level, then
-             * lowers each to at most [STARTUP_DB] — never raising one — and
-             * confirms by read-back before any audio may play.
-             */
             fun open(control: UsbControl, feature: Feature): Volume {
                 val index = (feature.unit shl 8) or feature.interface_
                 val ranges = mutableListOf<List<Range>>()
@@ -231,7 +199,6 @@ internal object UsbVolume {
                         restoreLimitDb = restoreLimit / 256.0,
                     ),
                 )
-                // Never raise the device's current volume on connection.
                 volume.setTargets(control, startup)
                 return volume
             }

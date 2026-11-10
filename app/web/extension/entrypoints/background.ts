@@ -19,11 +19,9 @@ import { ytFetch } from '../lib/ytFetch';
 
 declare const __SITE_ORIGINS__: string[];
 
-/** Exact origins (port included) allowed to talk to the extension: the site's, and the popup's. */
 const ALLOWED_ORIGINS = new Set(__SITE_ORIGINS__);
 const OWN_ORIGIN = new URL(browser.runtime.getURL('/')).origin;
 
-/** Grows as each phase lands its methods; Discord only in builds that include it. */
 const CAPABILITIES: Capability[] = ['yt', 'yt.auth', 'yt.stats', 'lyrics', 'spotify', ...(discord.AVAILABLE ? (['discord'] as const) : [])];
 
 function originOf(sender: Browser.runtime.MessageSender): string | null {
@@ -156,10 +154,6 @@ async function handle(request: BridgeRequest): Promise<BridgeResponse> {
   }
 }
 
-/**
- * One entry point for both transports: validates the envelope and the
- * sender's origin, then answers through `sendResponse`.
- */
 function listener(
   message: unknown,
   sender: Browser.runtime.MessageSender,
@@ -173,10 +167,8 @@ function listener(
   handle(message)
     .catch((error: unknown) => errorResponse(message.id, 'internal', String(error)))
     .then(sendResponse);
-  return true; // answering asynchronously
+  return true;
 }
-
-// ---- Event ports (Bridge.subscribe) -------------------------------------------
 
 const ports = new Set<Browser.runtime.Port>();
 
@@ -198,7 +190,6 @@ function acceptPort(port: Browser.runtime.Port): void {
   ports.add(port);
   port.onDisconnect.addListener(() => {
     ports.delete(port);
-    // A hidden tab's port can drop and come back; only a lasting silence means the player is gone.
     clearTimeout(lastPortTimer);
     if (!ports.size) lastPortTimer = setTimeout(() => !ports.size && discord.allPagesClosed(), 30_000);
   });
@@ -206,7 +197,6 @@ function acceptPort(port: Browser.runtime.Port): void {
 
 let lastPortTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** A sign-in or sign-out elsewhere in the browser: re-read the accounts and tell the open pages. */
 let cookieTimer: ReturnType<typeof setTimeout> | undefined;
 let spotifyCookieTimer: ReturnType<typeof setTimeout> | undefined;
 function onCookieChanged({ cookie }: Browser.cookies.CookieChangeInfo): void {
@@ -224,7 +214,6 @@ function onCookieChanged({ cookie }: Browser.cookies.CookieChangeInfo): void {
   if (!isSessionCookie(cookie)) return;
   invalidateAccounts();
   clearTimeout(cookieTimer);
-  // Signing in sets several cookies in a burst; answer the last one.
   cookieTimer = setTimeout(() => {
     authState(true)
       .then((data) => broadcast({ event: 'yt.authState', data }))
@@ -233,20 +222,14 @@ function onCookieChanged({ cookie }: Browser.cookies.CookieChangeInfo): void {
 }
 
 export default defineBackground(() => {
-  // Dynamic rules persist, but are rewritten on every install and startup so
-  // an update that changes them never leaves stale ones behind.
   const refreshRules = () =>
     installRules(__SITE_ORIGINS__).catch((error: unknown) => console.error('nuvx: installing rules failed', error));
   browser.runtime.onInstalled.addListener(refreshRules);
   browser.runtime.onStartup.addListener(refreshRules);
 
-  // Chromium: the page itself, through externally_connectable.
   browser.runtime.onMessageExternal?.addListener(listener);
   browser.runtime.onConnectExternal?.addListener(acceptPort);
 
-  // Firefox: the relay content script on the site's tab, and the popup in
-  // both. Only the extension's own scripts can reach onMessage; the sender's
-  // URL is the page's origin (or the popup's).
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.id !== browser.runtime.id) return false;
     return listener(message, sender, sendResponse);
@@ -258,7 +241,6 @@ export default defineBackground(() => {
 
   browser.cookies.onChanged.addListener(onCookieChanged);
 
-  // Discord's account is written by the connect page as well as here.
   discord.onDiscordState((data) => broadcast({ event: 'discord.state', data }));
   browser.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !Object.keys(changes).some((key) => key.startsWith('discord.'))) return;

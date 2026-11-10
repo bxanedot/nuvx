@@ -1,22 +1,9 @@
-//! Full screen on Windows, in one step. winit takes the title bar off first and
-//! resizes the window afterwards; in between Windows paints the frame unthemed (the
-//! old Windows 7 look) and the new area black until the app draws a frame at the new
-//! size. Here the style and size change together with painting held off, and the
-//! window erases to a dark background instead of black.
-//!
-//! The window is also made one pixel taller than the monitor: graphics drivers treat
-//! an OpenGL window that exactly covers it as exclusive full screen, and blank the
-//! whole screen for a frame each time they switch in or out of that mode.
-
-/// The main window, from `main`.
 #[cfg_attr(not(windows), allow(unused_variables))]
 pub fn set_hwnd(hwnd: *mut std::ffi::c_void) {
     #[cfg(windows)]
     imp::init(hwnd as usize);
 }
 
-/// Enter or leave full screen. False when this platform (or a missing window handle)
-/// leaves it to winit.
 pub fn set(on: bool) -> bool {
     #[cfg(windows)]
     return imp::set(on);
@@ -27,8 +14,6 @@ pub fn set(on: bool) -> bool {
     }
 }
 
-/// The work area (the monitor less the taskbar) of the monitor the window is on, in
-/// physical pixels. None where the app can't ask (not Windows, no window handle yet).
 pub fn work_area() -> Option<egui::Rect> {
     #[cfg(windows)]
     return imp::work_area();
@@ -36,8 +21,6 @@ pub fn work_area() -> Option<egui::Rect> {
     None
 }
 
-/// Whether some of `rect` (physical pixels) is on a connected monitor. True where the
-/// app can't ask.
 pub fn on_a_monitor(rect: egui::Rect) -> bool {
     #[cfg(windows)]
     return imp::on_a_monitor(rect);
@@ -48,8 +31,6 @@ pub fn on_a_monitor(rect: egui::Rect) -> bool {
     }
 }
 
-/// Round the window's corners (`radius` in physical pixels); None gives them back.
-/// Used by the mini player's pill-shaped strip.
 #[cfg_attr(not(windows), allow(unused_variables))]
 pub fn set_rounded(radius: Option<f32>) {
     #[cfg(windows)]
@@ -73,14 +54,12 @@ mod imp {
 
     static WINDOW: OnceLock<usize> = OnceLock::new();
 
-    /// The window's style and placement from before full screen.
     struct Saved {
         style: i32,
         ex_style: i32,
         placement: WINDOWPLACEMENT,
     }
 
-    // SAFETY: plain data; only touched on the UI thread, under the mutex.
     unsafe impl Send for Saved {}
 
     static SAVED: Mutex<Option<Saved>> = Mutex::new(None);
@@ -89,8 +68,6 @@ mod imp {
         if WINDOW.set(hwnd).is_err() {
             return;
         }
-        // Area the app hasn't drawn yet (just after a resize) shows this, not black.
-        // SAFETY: a brush for the window's own class, kept for the process's lifetime.
         unsafe {
             let brush = CreateSolidBrush(COLORREF(0x000F_0B0D));
             SetClassLongPtrW(HWND(hwnd as *mut _), GCLP_HBRBACKGROUND, brush.0 as isize);
@@ -100,7 +77,6 @@ mod imp {
     pub fn work_area() -> Option<egui::Rect> {
         let &h = WINDOW.get()?;
         let mut info = MONITORINFO { cbSize: size_of::<MONITORINFO>() as u32, ..Default::default() };
-        // SAFETY: the app's own window; `info` is ours and sized.
         unsafe { GetMonitorInfoW(MonitorFromWindow(HWND(h as *mut _), MONITOR_DEFAULTTONEAREST), &mut info) }.as_bool().then(|| {
             let r = info.rcWork;
             egui::Rect::from_min_max(egui::pos2(r.left as f32, r.top as f32), egui::pos2(r.right as f32, r.bottom as f32))
@@ -109,18 +85,15 @@ mod imp {
 
     pub fn on_a_monitor(rect: egui::Rect) -> bool {
         let r = RECT { left: rect.left() as i32, top: rect.top() as i32, right: rect.right() as i32, bottom: rect.bottom() as i32 };
-        // SAFETY: plain query.
         !unsafe { MonitorFromRect(&r, MONITOR_DEFAULTTONULL) }.is_invalid()
     }
 
-    /// The last region applied: inner size and radius, in pixels.
     static ROUNDED: Mutex<Option<(i32, i32, i32)>> = Mutex::new(None);
 
     pub fn rounded(radius: Option<f32>) {
         let Some(&h) = WINDOW.get() else { return };
         let hwnd = HWND(h as *mut _);
         let mut rc = RECT::default();
-        // SAFETY: plain query of the app's own window.
         if unsafe { GetClientRect(hwnd, &mut rc) }.is_err() {
             return;
         }
@@ -131,7 +104,6 @@ mod imp {
             return;
         }
         *last = Some((w, ht, r));
-        // SAFETY: the region is ours, and the system takes it over on success.
         unsafe {
             if r == 0 {
                 let _ = SetWindowRgn(hwnd, None, true);
@@ -151,7 +123,6 @@ mod imp {
         if on == saved.is_some() {
             return true;
         }
-        // SAFETY: the app's own window, on its UI thread; every struct passed is ours.
         unsafe {
             SendMessageW(hwnd, WM_SETREDRAW, Some(WPARAM(0)), None);
             if on {
@@ -162,17 +133,12 @@ mod imp {
                 let mut info = MONITORINFO { cbSize: size_of::<MONITORINFO>() as u32, ..Default::default() };
                 let _ = GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mut info);
                 let r = info.rcMonitor;
-                // winit keeps a maximized window without the system frame (the app's own
-                // title bar) to the work area, which would leave the taskbar's strip out:
-                // restore it first. The saved placement maximizes it again on the way out.
                 if IsZoomed(hwnd).as_bool() {
                     let _ = ShowWindow(hwnd, SW_RESTORE);
                 }
                 SetWindowLongW(hwnd, GWL_STYLE, style & !((WS_CAPTION | WS_THICKFRAME | WS_MAXIMIZE).0 as i32));
                 let edges = WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE;
                 SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style & !(edges.0 as i32));
-                // No copying the old picture to its old spot: until the app draws a frame
-                // at the new size, the window shows its plain dark background.
                 let flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_NOCOPYBITS;
                 let _ = SetWindowPos(hwnd, None, r.left, r.top, r.right - r.left, r.bottom - r.top + 1, flags);
                 *saved = Some(Saved { style, ex_style, placement });

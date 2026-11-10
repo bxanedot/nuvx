@@ -79,7 +79,7 @@ class PartyPersonalQueueStashTest {
         PartyPersonalQueueStash.stash(songs, index = 99, positionMs = 0L, wasPlaying = false)
         val snapshot = PartyPersonalQueueStash.load()
         assertNotNull(snapshot)
-        assertEquals(1, snapshot!!.index) // Clamped to last index
+        assertEquals(1, snapshot!!.index)
     }
 
     @Test
@@ -94,7 +94,6 @@ class PartyPersonalQueueStashTest {
             )
         }
 
-        // Host was playing track #4 (index 4) with 30s elapsed
         PartyPersonalQueueStash.stash(
             songs = albumSongs,
             index = 4,
@@ -102,7 +101,6 @@ class PartyPersonalQueueStashTest {
             wasPlaying = true,
         )
 
-        // When leaving party, stash should restore all 15 tracks at index 4
         val restored = PartyPersonalQueueStash.load()
         assertNotNull(restored)
         assertEquals(15, restored!!.songs.size)
@@ -111,7 +109,6 @@ class PartyPersonalQueueStashTest {
         assertEquals(30000L, restored.positionMs)
         assertTrue(restored.wasPlaying)
 
-        // Clear after restoring
         PartyPersonalQueueStash.clear()
         assertFalse(PartyPersonalQueueStash.hasStash())
     }

@@ -1,10 +1,5 @@
 package com.bxane.nuvx.playback.dsd
 
-/**
- * Reads a DSD stream's bytes in the container's own layout and hands them on
- * interleaved and most-significant-bit first, whichever container and bit
- * order they came from. One [consume] per [readSize] bytes of file.
- */
 class DsdRawSource(val format: DsdFormat) {
     private val normalized = ByteArray(8192)
     var bytePosition: Long = 0; private set
@@ -34,10 +29,8 @@ class DsdRawSource(val format: DsdFormat) {
     }
 }
 
-/** Interleaved, MSB-first bytes; only valid until the next read from the same source. */
 class DsdRawBlock(val bytes: ByteArray, val size: Int, val firstSample: Long, val sampleCount: Long)
 
-/** Native DSD -> 176.4 kHz float PCM. See dsd_decimator.cpp. */
 class DsdBlockDecoder(val format: DsdFormat) : AutoCloseable {
     private var handle = create(format.channels, format.decimation, format.sampleCount, DsdFilter.coefficients(format))
     var outputFrame: Long = 0; private set
@@ -54,7 +47,6 @@ class DsdBlockDecoder(val format: DsdFormat) : AutoCloseable {
         nextSample = firstByte * 8
     }
 
-    /** Decodes one block, or flushes the filter's tail when [block] is null. Returns frames written. */
     fun decode(block: DsdRawBlock?, output: FloatArray): Int {
         check(handle != 0L)
         if (ended) return 0
@@ -82,7 +74,6 @@ class DsdBlockDecoder(val format: DsdFormat) : AutoCloseable {
     companion object { init { System.loadLibrary("nuvx_dsd") } }
 }
 
-/** Native DST (the lossless compression in SACD-ripped DFF) -> raw DSD, one 1/75 s frame at a time. */
 class DstDecoder(val channels: Int) : AutoCloseable {
     private var handle = create(channels)
 

@@ -63,8 +63,6 @@ class LocalMediaFilterTest {
 
     @Test
     fun keepsTracksTheScannerCouldNotTime() {
-        // Fragmented-MP4 ALAC scans with duration 0, high-rate DSD with NULL
-        // (read back as 0): an unknown length, not a short clip.
         assertTrue(
             LocalMediaRepository.isEligibleLocalMusic(
                 durationMs = 0,

@@ -8,21 +8,12 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import kotlinx.coroutines.flow.MutableStateFlow
 
-/** What Now Playing draws behind the song. */
 enum class TvPlayerStyle(val label: String) {
-    /** The moving mesh of the artwork's colours. */
     DEFAULT("Default"),
 
-    /** Pure black, so an OLED panel's pixels stay off around the cover and lyrics. */
     AMOLED("AMOLED"),
 }
 
-/**
- * The Android TV app's own preferences. They live in the same preferences file
- * as [AppSettings] — `nuvx_settings` — under `tv_`-prefixed keys, so the
- * phone's settings class carries nothing of TV. Loaded by
- * [com.bxane.nuvx.data.TvStartup] before anything reads them.
- */
 object TvSettings {
     private lateinit var prefs: SharedPreferences
 
@@ -42,7 +33,6 @@ object TvSettings {
     val tvNavLayout = MutableStateFlow("left_rail")
     val tvPlayerStyle = MutableStateFlow(TvPlayerStyle.DEFAULT)
 
-    /** UI density/scale multiplier for the TV layout: 0.8 (Small) → 1.0 (Normal) → 1.2 (Large) → 1.4 (XL). */
     val tvUiScale = MutableStateFlow(1.0f)
 
     fun init(preferences: SharedPreferences) {
@@ -164,9 +154,6 @@ object TvSettings {
         save { putString(KEY_TV_PLAYER_STYLE, style.name) }
     }
 
-    /**
-     * Stores a PBKDF2-HMAC-SHA256 salted hash of the given PIN per profile, or clears it if null/blank.
-     */
     fun setProfilePin(profileId: String, pin: String?) {
         save {
             if (pin.isNullOrBlank()) {
@@ -183,10 +170,6 @@ object TvSettings {
         TvPinThrottle.reset(profileId)
     }
 
-    /**
-     * Verifies the entered PIN against the profile's stored salted hash in constant time.
-     * Also migrates legacy plaintext PINs if found upon successful match.
-     */
     fun verifyProfilePin(profileId: String, pin: String): Boolean {
         if (!this::prefs.isInitialized) return false
         val stored = prefs.getString("$KEY_PROFILE_PIN_PREFIX$profileId", null) ?: return false
@@ -204,12 +187,10 @@ object TvSettings {
                 return false
             }
             val matches = MessageDigest.isEqual(computedHash, expectedHash)
-            // Re-hash at the current cost when the stored hash predates a bump in iterations.
             if (matches && iterations < PIN_PBKDF2_ITERATIONS) setProfilePin(profileId, pin)
             return matches
         }
 
-        // Backward compatibility: compare legacy plaintext PIN in constant time and upgrade on match.
         val storedBytes = stored.toByteArray(Charsets.UTF_8)
         val pinBytes = pin.toByteArray(Charsets.UTF_8)
         val matches = MessageDigest.isEqual(storedBytes, pinBytes)

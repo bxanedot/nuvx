@@ -60,30 +60,11 @@ import com.bxane.nuvx.download.Downloads
 import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 
-/**
- * The download indicator in the top bar, beside the account photo.
- *
- * Absent until something is actually downloading, and absent again once the user
- * has looked at the result — neither of which is this composable's decision.
- * [DownloadSession.State.visible] owns both, because "should this be on screen"
- * is a question about a batch of work rather than about a bar, and the same
- * answer has to hold whichever page is showing.
- *
- * It draws the batch's overall progress rather than the running track's. The
- * track is what the notification reports on; from here the interesting number is
- * how much of the *album* is left, and a ring that restarts from zero forty
- * times says nothing about that. Once the queue is quiet the ring is dropped for
- * a tick or a warning — a full circle and a finished job look identical, and only
- * one of them is worth walking over to.
- */
 @Composable
 fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val session by DownloadSession.state.collectAsStateWithLifecycle()
 
     val haptics = rememberHaptics()
-    // Animated, because the fraction lands in steps — one track at a time, plus
-    // whatever the running one reports — and a ring that jumps in twenty-fifths
-    // reads as a stutter rather than as progress.
     val progress by animateFloatAsState(
         targetValue = session.fraction,
         animationSpec = tween(300),
@@ -102,9 +83,6 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     AnimatedVisibility(
         visible = session.visible,
         modifier = modifier,
-        // Open the slot first; the glyph arrives as the pill approaches its
-        // new width. Siblings move with the expanding slot and make room rather
-        // than jumping directly to their final positions.
         enter = expandHorizontally(
             animationSpec = tween(260),
             expandFrom = Alignment.End,
@@ -127,8 +105,6 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             Box(contentAlignment = Alignment.Center) {
                 if (session.busy) {
                     CircularProgressIndicator(
-                        // Never quite zero: a ring pinned at nothing reads as
-                        // stalled where the first sliver reads as starting.
                         progress = { progress.coerceAtLeast(0.02f) },
                         modifier = Modifier.size(RING_SIZE),
                         color = tint,
@@ -141,9 +117,6 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 Icon(
                     imageVector = when {
                         failed -> SfIcons.ErrorOutline
-                        // A bare arrow inside the ring, not the tray-and-arrow: the
-                        // ring is already saying "downloading", and a second glyph
-                        // that says it too is detail nobody can resolve at 15dp.
                         session.busy -> SfIcons.ArrowDownward
                         else -> SfIcons.DownloadDone
                     },
@@ -167,30 +140,6 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * The list behind that indicator: every track asked for this session, what
- * became of it, and a way out of the ones still going.
- *
- * A list rather than a single line because the thing being reported on is a
- * batch. `SongActionsMenu`'s download row already answers "what about *this*
- * song" perfectly well and is the right size for that question; the question
- * here is the one it cannot answer — forty tracks were asked for, which of them
- * arrived — and that has as many answers as there were tracks.
- *
- * Rows carry the cover, the title and the credit because a filename is not how
- * anybody remembers a song, and because a batch download is precisely when a
- * user cannot tell from a name whether the right thing is being fetched: the
- * track that fails is one of forty and the only way to recognise it is to see it.
- *
- * A page on the back stack, so leaving it is whatever leaves any other page.
- * Leaving is also what marks the batch seen and takes the indicator down, and
- * marking it on the way *out* rather than on the way in is deliberate: it is the
- * outcome the user is signing off on, and while the page is up there may not be
- * one yet.
- *
- * @param onCleared leaves the page once its list has been cleared, there being
- *   nothing left on it to read.
- */
 @Composable
 fun DownloadManagerPage(
     onCleared: () -> Unit,
@@ -199,7 +148,6 @@ fun DownloadManagerPage(
 ) {
     val context = LocalContext.current
     val session by DownloadSession.state.collectAsStateWithLifecycle()
-    // Newest ask last, the order the queue will actually reach them in.
     val items = remember(session.items) { session.items.sortedBy { it.sequence } }
 
     DisposableEffect(Unit) {
@@ -218,8 +166,6 @@ fun DownloadManagerPage(
                         .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // The title is the bar's, in the same style as the new-playlist
-                    // form's; a second one here would only repeat it.
                     Text(
                         text = session.summary(),
                         style = MaterialTheme.typography.bodyMedium,
@@ -233,9 +179,6 @@ fun DownloadManagerPage(
                     if (session.busy) {
                         TextButton(
                             onClick = {
-                                // Only what is still going. Cancelling a finished
-                                // row would drop it from the list, which is the
-                                // one thing this page exists to still be showing.
                                 items.filterNot { it.progress.settled }
                                     .forEach { Downloads.cancel(it.videoId) }
                             },
@@ -254,10 +197,6 @@ fun DownloadManagerPage(
                     }
                 }
 
-                // The batch's own bar, under the heading it belongs to. The
-                // per-row bars below are about one track each; this is the one
-                // that answers "how much longer", which is what someone opening
-                // this page mid-album wants.
                 if (session.busy) {
                     LinearProgressIndicator(
                         progress = { session.fraction },
@@ -288,7 +227,6 @@ fun DownloadManagerPage(
     }
 }
 
-/** One track: its cover, what it is, and where it has got to. */
 @Composable
 private fun DownloadManagerRow(
     item: DownloadSession.Item,
@@ -314,9 +252,6 @@ private fun DownloadManagerRow(
                     .thumbnailBorder(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
-            // A finished or failed track is stated over its own cover rather
-            // than in a fourth column: the list is scanned for the odd one out,
-            // and a mark on the artwork is what the eye actually lands on.
             if (progress.settled) {
                 Box(
                     modifier = Modifier
@@ -350,9 +285,6 @@ private fun DownloadManagerRow(
                 color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
-                // The release is worth naming where there is one: in a list of
-                // forty rows off three albums, the credit alone does not say
-                // which batch a row belongs to.
                 text = listOfNotNull(
                     item.song.artist.takeIf { it.isNotBlank() },
                     item.from?.takeIf { it.isNotBlank() && it != item.song.artist },
@@ -367,8 +299,6 @@ private fun DownloadManagerRow(
                 is DownloadProgress.Queued -> RowStatus(stringResource(R.string.queued))
                 is DownloadProgress.Running -> {
                     LinearProgressIndicator(
-                        // Indeterminate until the first response names a
-                        // length — a bar frozen at nothing reads as broken.
                         progress = { progress.fraction },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -394,9 +324,6 @@ private fun DownloadManagerRow(
             }
         }
         Spacer(Modifier.width(8.dp))
-        // One control, and which one it is follows the row's state: a running
-        // track can be stopped, a failed one can be asked for again, and a
-        // finished one needs nothing at all.
         when {
             failed != null -> RowAction(SfIcons.Refresh, stringResource(R.string.retry), onRetry)
             !progress.settled -> RowAction(SfIcons.Close, stringResource(R.string.cancel), onCancel)
@@ -438,13 +365,6 @@ private fun RowAction(
     }
 }
 
-/**
- * The one line under the heading — what state the batch as a whole is in.
- *
- * Counts rather than a percentage: the page already draws the percentage as a
- * bar, and what a percentage cannot say is that thirty-nine of forty arrived and
- * one did not, which is the only outcome anybody needs to act on.
- */
 @Composable
 private fun DownloadSession.State.summary(): String {
     val waitingText = if (waiting > 0) {
@@ -465,14 +385,10 @@ private fun DownloadSession.State.summary(): String {
     }
 }
 
-/** The progress ring in the bar, sized to the account photo beside it. */
 private val RING_SIZE = 26.dp
 
-/** The glyph inside that ring, small enough to leave the stroke clear. */
 private val GLYPH_IN_RING = 15.dp
 
-/** With no ring around it, the glyph is a normal bar icon. */
 private val GLYPH_SIZE = 22.dp
 
-/** A row's cover: under a track row's 52dp, since this is a status list. */
 private val ART_SIZE = 44.dp

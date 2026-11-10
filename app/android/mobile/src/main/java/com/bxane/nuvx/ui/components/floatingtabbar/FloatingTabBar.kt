@@ -1,38 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 @file:OptIn(ExperimentalSharedTransitionApi::class)
 
-/*
- * Vendored from the v1.0.1 tag: the published AAR is compiled against
- * Compose 1.8 and crashes with NoSuchMethodError on
- * SharedTransitionScope.sharedElement under the Compose version this app uses.
- * Compiling the source here keeps it binary-compatible.
- *
- * Local modifications on top of v1.0.1:
- * - Package renamed.
- * - InlineBar/ExpandedBar use Row/Column instead of ConstraintLayout, and the
- * tab pill + standalone tab cluster is centered (iOS 26 style) instead of
- * being pinned to opposite screen edges.
- * - The inline/expanded AnimatedContent is center-aligned so the collapse
- * animation morphs around the center instead of the start edge.
- *
- * Taken from EchoMusicApp/Echo-Music, which carries the three modifications
- * listed above; nuvx's own use of it is in
- * [com.bxane.nuvx.ui.components.GlassNavBar]. One further change here:
- *
- * - `tabBarContentModifier` is a `@Composable () -> Modifier` factory rather
- * than a single Modifier value. It is applied to three surfaces of three
- * different sizes (the tab pill, the circular standalone tab, the accessory),
- * and a liquid glass Modifier carries a shape-outline cache keyed on the size
- * it last saw — so one shared instance is invalidated by whichever surface
- * drew last and re-creates all three outlines every frame. A factory gives
- * each surface its own.
- * - The expanded tab group's selection pill is a lifted glass lens in motion
- * (see [GlassSelectionPill]): a tap inflates it past the bar, carries it to
- * the tab on a spring, squashes it with its acceleration, and sheds the glass
- * back into a flat fill on landing. Horizontal drags pick it up the same way,
- * resist at the ends, tick across tab boundaries, and settle on release.
- */
-
 package com.bxane.nuvx.ui.components.floatingtabbar
 
 import androidx.compose.animation.AnimatedContent
@@ -123,26 +91,8 @@ import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 import kotlin.math.roundToInt
 
-/** Hoisted so the default is one stable lambda rather than a new one per call. */
 private val DefaultTabBarContentModifier: @Composable () -> Modifier = { Modifier }
 
-/**
- * A floating tab bar that can transition between inline and expanded states.
- *
- * @param isInline controls the FloatingTabBar's inline state
- * @param selectedTabKey the key of the currently selected tab
- * @param modifier the modifier to be applied to the tab bar
- * @param colors the colors used by the tab bar components
- * @param shapes the shapes used by the tab bar components
- * @param sizes the sizes and spacing used by the tab bar components
- * @param elevations the elevation values used by the tab bar components
- * @param tabBarContentModifier modifier applied to the tab bar sections containing the grouped tabs and standalone tab.
- * It is applied after the default styling (background, shadow, clip) but before any content padding.
- * @param inlineAccessory the accessory composable that appears in inline state (e.g., compact media player)
- * @param expandedAccessory the accessory composable that appears in expanded state (e.g., full media player)
- * @param contentKey optional key that when changed retriggers the content lambda
- * @param content the content defining the tabs
- */
 @Composable
 fun FloatingTabBar(
     isInline: Boolean,
@@ -183,23 +133,6 @@ fun FloatingTabBar(
     )
 }
 
-/**
- * A floating tab bar that transitions between inline and expanded states based on scroll behavior.
- *
- * @param selectedTabKey the key of the currently selected tab
- * @param scrollConnection the scroll connection that handles state transitions
- * @param modifier the modifier to be applied to the tab bar
- * @param colors the colors used by the tab bar components
- * @param shapes the shapes used by the tab bar components
- * @param sizes the sizes and spacing used by the tab bar components
- * @param elevations the elevation values used by the tab bar components
- * @param tabBarContentModifier modifier applied to the tab bar sections containing the grouped tabs and standalone tab.
- * It is applied after the default styling (background, shadow, clip) but before any content padding.
- * @param inlineAccessory the accessory composable that appears in inline state (e.g., compact media player)
- * @param expandedAccessory the accessory composable that appears in expanded state (e.g., full media player)
- * @param contentKey optional key that when changed retriggers the content lambda
- * @param content the content defining the tabs
- */
 @Composable
 fun FloatingTabBar(
     selectedTabKey: Any?,
@@ -257,13 +190,6 @@ fun FloatingTabBar(
     }
 }
 
-/**
- * A [NestedScrollConnection] that handles scroll events to transition between inline and expanded states.
- *
- * @param initialIsInline Initial state of the tab bar (inline or expanded).
- * @param scrollThresholdPx The minimum scroll distance in pixels required to trigger a state change.
- * @param inlineBehavior Defines when the tab bar should transition to inline state.
- */
 class FloatingTabBarScrollConnection(
     initialIsInline: Boolean = false,
     private val scrollThresholdPx: Float,
@@ -285,65 +211,47 @@ class FloatingTabBarScrollConnection(
     }
 
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-        // If behavior is Never, don't change state
         if (inlineBehavior == FloatingTabBarInlineBehavior.Never) {
             return Offset.Zero
         }
 
         val scrollDelta = available.y
 
-        // Reset accumulated scroll if changing direction
         if ((accumulatedScroll > 0 && scrollDelta < 0) || (accumulatedScroll < 0 && scrollDelta > 0)) {
             accumulatedScroll = 0f
         }
 
-        // Accumulate scroll
         accumulatedScroll += scrollDelta
 
         when (inlineBehavior) {
             FloatingTabBarInlineBehavior.OnScrollDown -> {
-                // Check if we've scrolled enough to trigger state change
                 if (accumulatedScroll <= -scrollThresholdPx && !isInline) {
-                    // Scrolling down enough - transition to inline mode
                     isInline = true
-                    accumulatedScroll = 0f // Reset after state change
+                    accumulatedScroll = 0f
                 } else if (accumulatedScroll >= scrollThresholdPx && isInline) {
-                    // Scrolling up enough - transition to expanded mode
                     isInline = false
-                    accumulatedScroll = 0f // Reset after state change
+                    accumulatedScroll = 0f
                 }
             }
 
             FloatingTabBarInlineBehavior.OnScrollUp -> {
-                // Check if we've scrolled enough to trigger state change
                 if (accumulatedScroll >= scrollThresholdPx && !isInline) {
-                    // Scrolling up enough - transition to inline mode
                     isInline = true
-                    accumulatedScroll = 0f // Reset after state change
+                    accumulatedScroll = 0f
                 } else if (accumulatedScroll <= -scrollThresholdPx && isInline) {
-                    // Scrolling down enough - transition to expanded mode
                     isInline = false
-                    accumulatedScroll = 0f // Reset after state change
+                    accumulatedScroll = 0f
                 }
             }
 
             FloatingTabBarInlineBehavior.Never -> {
-                // Already handled above, but included for completeness
             }
         }
 
-        return Offset.Zero // Don't consume the scroll, let it pass through
+        return Offset.Zero
     }
 }
 
-/**
- * Creates and remembers a [FloatingTabBarScrollConnection] instance.
- *
- * @param initialIsInline Initial state of the tab bar (inline or expanded). Default is false.
- * @param scrollThreshold The minimum scroll distance required to trigger a state change. Default is 50.dp.
- * @param inlineBehavior Defines when the tab bar should transition to inline state. Default is [FloatingTabBarInlineBehavior.OnScrollDown].
- * @return A remembered [FloatingTabBarScrollConnection] instance.
- */
 @Composable
 fun rememberFloatingTabBarScrollConnection(
     initialIsInline: Boolean = false,
@@ -356,30 +264,15 @@ fun rememberFloatingTabBarScrollConnection(
     }
 }
 
-/**
- * Defines when the floating tab bar should transition to inline state.
- */
 enum class FloatingTabBarInlineBehavior {
-    /** Never transition to inline - it stays in expanded state */
     Never,
 
-    /** Transition to inline when scrolling down */
     OnScrollDown,
 
-    /** Transition to inline when scrolling up */
     OnScrollUp
 }
 
 interface FloatingTabBarScope {
-    /**
-     * Adds a regular tab to the floating tab bar.
-     *
-     * @param key Unique identifier for the tab
-     * @param title Composable content for the tab title
-     * @param icon Composable content for the tab icon
-     * @param onClick Callback invoked when the tab is clicked
-     * @param indication Optional indication provider for touch feedback, defaults to LocalIndication.current
-     */
     fun tab(
         key: Any,
         title: @Composable () -> Unit,
@@ -388,16 +281,6 @@ interface FloatingTabBarScope {
         indication: (@Composable () -> Indication)? = { LocalIndication.current }
     )
 
-    /**
-     * Adds a standalone tab to the floating tab bar.
-     *
-     * Note: Calling this method more than once will override the previous standalone tab value.
-     *
-     * @param key Unique identifier for the standalone tab
-     * @param icon Composable content for the tab icon
-     * @param onClick Callback invoked when the tab is clicked
-     * @param indication Optional indication provider for touch feedback, defaults to LocalIndication.current
-     */
     fun standaloneTab(
         key: Any,
         icon: @Composable () -> Unit,
@@ -424,8 +307,6 @@ private fun SharedTransitionScope.InlineBar(
     val standaloneTab = scope.standaloneTab
     val hasInlineTab = inlineTab != null
 
-    // With an accessory the row spans the full width ([tab][accessory][standalone],
-    // iOS 26 Apple Music style); without one, the cluster is packed and centered.
     Row(
         horizontalArrangement = Arrangement.spacedBy(sizes.inlineComponentSpacing),
         verticalAlignment = Alignment.CenterVertically,
@@ -637,8 +518,6 @@ private fun SharedTransitionScope.ExpandedBar(
     val standaloneTab = scope.standaloneTab
     val hasTabGroup = scope.tabs.isNotEmpty()
 
-    // The accessory spans the full width above the tab row; the tab pill and the
-    // standalone tab are packed together and centered (iOS 26 style).
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
@@ -656,11 +535,6 @@ private fun SharedTransitionScope.ExpandedBar(
             )
         }
 
-        // Full width, and the tab pill takes whatever the standalone tab leaves,
-        // so the expanded bar measures the same as the app's plain nav bar
-        // instead of shrinking to a narrow centred cluster. It also removes the
-        // overflow this row used to be able to hit: the pill is now given a
-        // width to divide rather than growing past the screen to fit its labels.
         Row(
             horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
             verticalAlignment = Alignment.CenterVertically,
@@ -765,8 +639,6 @@ private fun SharedTransitionScope.ExpandedTabs(
     val coroutineScope = rememberCoroutineScope()
     val pill = remember { GlassPillMotion(coroutineScope, selectedTabIndex.coerceAtLeast(0)) }
     pill.reduceMotion = reduceAnimation
-    // The lens samples the recorded page, and "reduce dynamic blur" stops that
-    // recording. There the flat pill carries the whole motion on its own.
     val glassPill = isGlassSupported() && !reduceDynamicBlur
     val barGlass = rememberLayerBackdrop()
     val tabRow = rememberLayerBackdrop()
@@ -790,13 +662,9 @@ private fun SharedTransitionScope.ExpandedTabs(
         0f
     }
     pill.stepDp = tabStepPx / density.density
-    // For the row's drag, which runs in one coroutine for the life of the row
-    // and would otherwise keep the step from its first touch.
     val currentTabStepPx by rememberUpdatedState(tabStepPx)
     val currentIsRtl by rememberUpdatedState(isRtl)
 
-    // The pill rests in its tab's cell and lifts to stand [PILL_GROW_HEIGHT]
-    // taller than the whole bar, keeping the cell's proportions as it grows.
     val contentPadding = sizes.tabBarContentPadding
     val padLeftPx = with(density) { contentPadding.calculateLeftPadding(layoutDirection).toPx() }
     val padTopPx = with(density) { contentPadding.calculateTopPadding().toPx() }
@@ -810,7 +678,6 @@ private fun SharedTransitionScope.ExpandedTabs(
     } else {
         restSize
     }
-    // Where the pill's centre is in the row, for a position in tab steps.
     val pillCenterInRow: (Float) -> Offset = { position ->
         val x = position * tabStepPx + tabWidthPx / 2f
         Offset(if (isRtl) rowSize.width - x else x, rowHeightPx / 2f)
@@ -819,7 +686,6 @@ private fun SharedTransitionScope.ExpandedTabs(
 
     LaunchedEffect(selectedTabIndex) {
         if (selectedTabIndex >= 0) {
-            // Back from the standalone tab there is no tab to travel from.
             if (lastSelectedTabIndex < 0) {
                 pill.snapTo(selectedTabIndex)
             } else {
@@ -830,8 +696,6 @@ private fun SharedTransitionScope.ExpandedTabs(
         lastHapticTab = selectedTabIndex
     }
 
-    // Unclipped: the lifted pill stands past the bar's edges, so it is drawn
-    // here, over the bar, rather than inside the bar's clip.
     Box(
         modifier = modifier
             .sharedElement(
@@ -841,7 +705,6 @@ private fun SharedTransitionScope.ExpandedTabs(
                 zIndexInOverlay = 1f
             )
     ) {
-        // The bar's glass is exported for the lens to refract.
         CompositionLocalProvider(LocalGlassExport provides barGlass) {
             Box(
                 modifier = Modifier
@@ -881,16 +744,12 @@ private fun SharedTransitionScope.ExpandedTabs(
                             var dragStartIndex = currentSelectedTabIndex
                             var direction = 1f
                             var step = 0f
-                            // Decided per drag, not once for the coroutine: on the
-                            // standalone tab there is no pill in this row to pick up,
-                            // but that is no reason to stop listening for good.
                             var holding = false
                             detectHorizontalDragGestures(
                                 onDragStart = {
                                     step = currentTabStepPx
                                     holding = currentSelectedTabIndex >= 0 && step > 0f
                                     if (!holding) return@detectHorizontalDragGestures
-                                    // In tab order, whichever way the row runs.
                                     direction = if (currentIsRtl) -1f else 1f
                                     totalDrag = 0f
                                     dragStartIndex = currentSelectedTabIndex
@@ -968,9 +827,6 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 }
                             },
                             isInline = false,
-                            // An equal share of the pill each, the way the plain nav bar
-                            // divides its own width, rather than each tab being as wide as
-                            // its label happens to be.
                             modifier = Modifier
                                 .weight(1f)
                                 .skipToLookaheadSize()
@@ -1064,10 +920,6 @@ private fun Tab(
     }
 }
 
-/**
- * A custom modifier that provides smooth enter/exit animations without clipping shadows or other content.
- * This is an alternative to animateEnterExit that uses renderInSharedTransitionScopeOverlay to prevent clipping.
- */
 @Composable
 private fun Modifier.animateEnterExitAccessory(
     sharedTransitionScope: SharedTransitionScope,
@@ -1090,9 +942,6 @@ private fun Modifier.animateEnterExitAccessory(
     }
 }
 
-/**
- * A custom modifier that provides smooth enter/exit animations with fade and blur effects.
- */
 @Composable
 private fun Modifier.animateEnterExitTab(
     sharedTransitionScope: SharedTransitionScope,
@@ -1120,12 +969,6 @@ private fun Modifier.animateEnterExitTab(
             }
         }
 
-        // 12dp, down from the library's 50. A tab glyph is 28dp across, so a 50dp
-        // radius is twice the thing it is blurring — everything past about half
-        // the element's width has already dissolved it to nothing and is spent
-        // on a wider and wider sample of empty space. 12 reaches the same nothing
-        // over a quarter of the area, and there are six of these running at once
-        // in the middle of the fold, over glass that is sampling the screen.
         val blurRadius = with(LocalDensity.current) { 12.dp.toPx() }
         val animatedBlur by transition.animateFloat(
             transitionSpec = {
@@ -1146,12 +989,6 @@ private fun Modifier.animateEnterExitTab(
 
         graphicsLayer {
             alpha = animatedAlpha
-            // Null at rest, rather than a zero-radius BlurEffect. A layer holding
-            // any render effect at all is composited offscreen for as long as it
-            // holds one, so the library's unconditional BlurEffect(0, 0) bought
-            // every tab glyph and every tab label a permanent offscreen buffer to
-            // pay for a blur of nothing — on a bar that is on screen the whole
-            // time the app is.
             renderEffect =
                 if (animatedBlur > 0f) BlurEffect(animatedBlur, animatedBlur) else null
         }
@@ -1220,9 +1057,6 @@ private data class FloatingTabBarTab(
     val indication: (@Composable () -> Indication)?
 )
 
-/**
- * Represents the colors used in [FloatingTabBar].
- */
 @Immutable
 data class FloatingTabBarColors(
     val backgroundColor: Color,
@@ -1230,9 +1064,6 @@ data class FloatingTabBarColors(
     val indicatorColor: Color,
 )
 
-/**
- * Represents the shapes used in [FloatingTabBar].
- */
 @Immutable
 data class FloatingTabBarShapes(
     val tabBarShape: Shape,
@@ -1241,18 +1072,12 @@ data class FloatingTabBarShapes(
     val accessoryShape: Shape,
 )
 
-/**
- * Represents the elevations used in [FloatingTabBar].
- */
 @Immutable
 data class FloatingTabBarElevations(
     val inlineElevation: Dp,
     val expandedElevation: Dp,
 )
 
-/**
- * Represents the sizes and spacing used in [FloatingTabBar].
- */
 @Immutable
 data class FloatingTabBarSizes(
     val tabBarContentPadding: PaddingValues,
@@ -1264,17 +1089,7 @@ data class FloatingTabBarSizes(
     val inlineBarPadding: PaddingValues = PaddingValues(),
 )
 
-/**
- * Contains the default values used by [FloatingTabBar].
- */
 object FloatingTabBarDefaults {
-    /**
-     * Creates a [FloatingTabBarColors] that represents the default colors used in a [FloatingTabBar].
-     *
-     * @param backgroundColor the color used for the tab bar background
-     * @param accessoryBackgroundColor the color used for the accessory background
-     * @param indicatorColor the color used behind the selected tab in expanded state
-     */
     @Composable
     fun colors(
         backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1286,14 +1101,6 @@ object FloatingTabBarDefaults {
         indicatorColor = indicatorColor,
     )
 
-    /**
-     * Creates a [FloatingTabBarShapes] that represents the default shapes used in a [FloatingTabBar].
-     *
-     * @param tabBarShape the shape used to clip the tab bar
-     * @param tabShape the shape used to clip individual tabs. Can be useful for example to control the click ripple effect shape
-     * @param standaloneTabShape the shape used to clip the standalone tab
-     * @param accessoryShape the shape used to clip the accessory container
-     */
     @Composable
     fun shapes(
         tabBarShape: Shape = RoundedCornerShape(100),
@@ -1307,17 +1114,6 @@ object FloatingTabBarDefaults {
         accessoryShape = accessoryShape,
     )
 
-    /**
-     * Creates a [FloatingTabBarSizes] that represents the default sizes used in a [FloatingTabBar].
-     *
-     * @param tabBarContentPadding the padding applied to the tab bar content. This also applies to the standalone tab content.
-     * @param tabInlineContentPadding the padding applied to tabs in inline state
-     * @param tabExpandedContentPadding the padding applied to tabs in expanded state
-     * @param componentSpacing the spacing between components
-     * @param tabSpacing the spacing between tabs in expanded state
-     * @param inlineComponentSpacing the spacing between components in inline state
-     * @param inlineBarPadding padding around the whole bar in inline state, inside the bar's own
-     */
     @Composable
     fun sizes(
         tabBarContentPadding: PaddingValues = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
@@ -1337,12 +1133,6 @@ object FloatingTabBarDefaults {
         inlineBarPadding = inlineBarPadding,
     )
 
-    /**
-     * Creates a [FloatingTabBarElevations] that represents the default elevations used in a [FloatingTabBar].
-     *
-     * @param inlineElevation the elevation used for tabs in inline state
-     * @param expandedElevation the elevation used for tabs in expanded state
-     */
     @Composable
     fun elevations(
         inlineElevation: Dp = 6.dp,
@@ -1353,11 +1143,6 @@ object FloatingTabBarDefaults {
     )
 }
 
-/**
- * Folding in, Convx's bar overshoots: the glass shrinks past the selected tab
- * and springs back, so the icons look to bounce off its closing wall. Opening
- * back out is calmer. Inline's pieces carry the first, expanded's the second.
- */
 private val FoldCollapse = BoundsTransform { _, _ ->
     spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = Rect.VisibilityThreshold)
 }

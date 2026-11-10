@@ -16,9 +16,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * Modified by Zion Huang
- */
 open class KizzyRPC(
     private val token: String,
     os: String = "Android",
@@ -39,26 +36,11 @@ open class KizzyRPC(
         return discordWebSocket.isWebSocketConnected()
     }
 
-    /**
-     * Tells the gateway that conditions have changed and it is worth trying
-     * again now — a network coming back, typically.
-     *
-     * Connects if nothing is connected, and cuts short a reconnect backoff that
-     * has climbed while there was no network to reconnect over.
-     */
     fun wakeUp() {
         discordWebSocket.connect()
         discordWebSocket.retryNow()
     }
 
-    /**
-     * Clears the card by publishing a presence with no activities.
-     *
-     * Routed through the socket's own clear rather than sent as a plain presence
-     * so that it becomes the payload a later reconnect replays: otherwise the
-     * last *song* stays queued, and a socket that dropped while paused comes
-     * back advertising a track that stopped minutes ago.
-     */
     open suspend fun close() {
         discordWebSocket.clearActivity()
     }
@@ -83,9 +65,6 @@ open class KizzyRPC(
         status: String? = "online",
         since: Long? = null,
     ) {
-        // Kicked off before the artwork is mirrored below, so a handshake the
-        // push is going to need anyway overlaps the round trip to Discord's CDN
-        // instead of queueing behind it. A no-op when a session is already up.
         discordWebSocket.connect()
         discordWebSocket.retryNow()
 
@@ -162,8 +141,6 @@ open class KizzyRPC(
                     header("X-Super-Properties", superPropertiesBase64)
                 }
             }.bodyAsText()
-            // kotlinx rather than org.json: this module is shared with the
-            // desktop, which has no Android JSON on its classpath.
             val json = Json { ignoreUnknownKeys = true }
                 .parseToJsonElement(response).jsonObject
             fun field(name: String): String? =

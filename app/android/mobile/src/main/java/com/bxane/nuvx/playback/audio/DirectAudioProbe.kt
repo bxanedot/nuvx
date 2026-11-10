@@ -9,13 +9,6 @@ import android.media.AudioProfile
 import android.os.Build
 import androidx.annotation.RequiresApi
 
-/**
- * Live capability probe testing Android's official runtime direct-playback APIs (API 33+).
- *
- * Directly queries [AudioManager.getDirectPlaybackSupport] and [AudioManager.getDirectProfilesForAttributes]
- * to determine whether the OS audio policy and hardware HAL expose an unmixed, direct output
- * path for a given sample rate, channel count, and PCM format.
- */
 object DirectAudioProbe {
 
     data class DirectSupport(
@@ -45,14 +38,6 @@ object DirectAudioProbe {
         val channelMasks: List<Int>,
     )
 
-    /**
-     * Evaluates direct playback support for the specified audio stream parameters on the active route.
-     *
-     * @param audioManager System AudioManager service.
-     * @param sampleRateHz Desired sample rate in Hz.
-     * @param channelCount Channel count (typically 2 for stereo).
-     * @param activeDevice Active output route AudioDeviceInfo, if known.
-     */
     fun probeDirectSupport(
         audioManager: AudioManager?,
         sampleRateHz: Int,
@@ -88,7 +73,6 @@ object DirectAudioProbe {
             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
             .build()
 
-        // 1. Inspect all direct profiles for media attributes
         val directProfilesList = mutableListOf<DirectProfileInfo>()
         try {
             val profiles = audioManager.getDirectProfilesForAttributes(attributes)
@@ -104,7 +88,6 @@ object DirectAudioProbe {
         } catch (_: Throwable) {
         }
 
-        // 2. Query exact support for Float32, PCM24, and PCM16
         val floatFormat = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
             .setSampleRate(sampleRateHz)

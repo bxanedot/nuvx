@@ -1,7 +1,3 @@
-/*
- * Adapted from Convx's IosOverscroll.kt (GPL-3.0):
- * https://github.com/cosmictaserdev-creator/Convx
- */
 package com.bxane.nuvx.ui.utils
 
 import androidx.compose.animation.core.Spring
@@ -41,9 +37,6 @@ private const val highVelocityThreshold = 5_000f
 private const val normalBounceStiffness = 247f
 private const val fastBounceStiffness = 130f
 
-/**
- * Converts raw pull distance to UIKit's self-limiting rubber-band curve.
- */
 private fun rubberBand(rawDistance: Float, containerPx: Float): Float {
     val dimension = containerPx.takeIf { it > 0f } ?: fallbackContainerPx
     val distance = abs(rawDistance)
@@ -52,20 +45,12 @@ private fun rubberBand(rawDistance: Float, containerPx: Float): Float {
     return banded * sign(rawDistance)
 }
 
-/**
- * An iOS-style overscroll effect for Compose scroll containers.
- *
- * It replaces Android's stretch/glow with a UIScrollView-like rubber band during a
- * drag, then critically damps the content back to its resting position on release.
- */
 private class IosOverscrollEffect : OverscrollEffect {
     private val rawPullX = mutableFloatStateOf(0f)
     private val rawPullY = mutableFloatStateOf(0f)
     private var containerWidthPx = 0f
     private var containerHeightPx = 0f
 
-    // The release bounce runs outside the scrollable's scroll mutex, so a new drag
-    // doesn't cancel it on its own. Tracked here so a touch can catch the content.
     private var settleJobs: List<Job> = emptyList()
 
     override val isInProgress: Boolean
@@ -76,20 +61,14 @@ private class IosOverscrollEffect : OverscrollEffect {
         source: NestedScrollSource,
         performScroll: (Offset) -> Offset,
     ): Offset {
-        // A finger landing mid-bounce takes over from wherever the content is, like
-        // UIScrollView; otherwise the spring keeps overwriting the drag each frame.
         if (source == NestedScrollSource.UserInput) stopSettling()
 
-        // When pulling back from an existing stretch, settle the stretch before
-        // allowing the list itself to scroll. This keeps the motion continuous.
         val paidX = payDown(rawPullX, delta.x)
         val paidY = payDown(rawPullY, delta.y)
         val remaining = Offset(delta.x - paidX, delta.y - paidY)
         val consumed = performScroll(remaining)
         val leftover = remaining - consumed
 
-        // Absorb only touch deltas. Fling leftovers must be returned so Compose
-        // cancels its decay and gives their velocity to applyToFling below.
         var stretchedX = 0f
         var stretchedY = 0f
         if (source == NestedScrollSource.UserInput) {
@@ -157,7 +136,6 @@ private class IosOverscrollEffect : OverscrollEffect {
                 },
             ),
         ) { value, _ ->
-            // A frame already in flight when a drag cancels us must not stomp the drag.
             if (job?.isActive != false) pull.floatValue = value
         }
     }
@@ -207,7 +185,6 @@ private class IosOverscrollFactory(
     override fun hashCode(): Int = 31 * density.hashCode() + scope.hashCode()
 }
 
-/** Provides iOS-style rubber-band overscroll to every descendant scroll container. */
 @Composable
 fun rememberIosOverscrollFactory(): OverscrollFactory {
     val density = LocalDensity.current

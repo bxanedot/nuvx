@@ -1,5 +1,3 @@
-// Runs against a live `wrangler dev` (default http://127.0.0.1:8787) with real WebSocket clients, using the
-// browser path (token as subprotocol). Covers the "done when" list in docs/designs/listen-together-worker.md.
 import assert from "node:assert/strict";
 
 const base = process.env.NUVX_LISTEN_URL ?? "http://127.0.0.1:8787";

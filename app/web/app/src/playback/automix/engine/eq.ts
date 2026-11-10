@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export type Band = 'low' | 'mid' | 'high';
 
-/** DJ-mixer-style 3-band EQ: lowshelf 250 Hz, peaking 1 kHz, highshelf 4 kHz. */
 export class ThreeBandEQ {
   readonly input: BiquadFilterNode;
   private readonly mid: BiquadFilterNode;
@@ -18,12 +17,10 @@ export class ThreeBandEQ {
     return band === 'low' ? this.input.gain : band === 'mid' ? this.mid.gain : this.output.gain;
   }
 
-  /** Immediate set (UI sliders). */
   setGain(band: Band, dB: number): void {
     try {
       this.param(band).setTargetAtTime(dB, this.ctx.currentTime, 0.02);
     } catch {
-      // param is locked by an active automation curve — ignore
     }
   }
 
@@ -31,15 +28,10 @@ export class ThreeBandEQ {
     return this.param(band).value;
   }
 
-  /** Scheduled hard set at a future time (transition automation). */
   setGainAt(band: Band, dB: number, ctxTime: number): void {
     this.param(band).setValueAtTime(dB, ctxTime);
   }
 
-  /**
-   * Scheduled linear ramp with an explicit anchor, so ramps compose with
-   * other future-scheduled values (param.value is only "now", not "then").
-   */
   rampGain(band: Band, fromDb: number, toDb: number, startCtxTime: number, durationSec: number): void {
     const p = this.param(band);
     p.setValueAtTime(fromDb, startCtxTime);

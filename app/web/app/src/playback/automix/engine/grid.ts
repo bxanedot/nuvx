@@ -2,7 +2,7 @@
 import type { TrackAnalysis } from '../analysis/types';
 
 export const BEATS_PER_BAR = 4;
-export const BEATS_PER_PHRASE = 32; // 8 bars
+export const BEATS_PER_PHRASE = 32;
 
 export interface Grid {
   beatSec: number;
@@ -24,11 +24,6 @@ export function gridOf(a: TrackAnalysis): Grid | null {
   };
 }
 
-/**
- * nuvx: the analysis as the outgoing side of a blend sees it, its grid
- * fields swapped for the tail grid (see TrackAnalysis). The scheduler and the
- * mix loop read the outgoing track through this, so they stay AutoMix's.
- */
 export function asOutgoing(a: TrackAnalysis): TrackAnalysis {
   if (a.tailGrid === undefined) return a;
   const t = a.tailGrid;

@@ -11,12 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import com.bxane.nuvx.widget.MediaWidgetSnapshot
 
-/**
- * The TV app's stand-in for the phone's watch bridge
- * (app/src/main/java/.../wear/WearBridge.kt): nobody pairs a watch with a TV, so
- * this keeps Play services Wearable, and the listener service that needs it, out
- * of the TV build altogether. Same signatures, nothing behind them.
- */
 object WearBridge {
     @Suppress("UNUSED_PARAMETER")
     internal fun publish(context: Context, snapshot: MediaWidgetSnapshot, player: Player, playing: Boolean?) = Unit

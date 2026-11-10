@@ -3,15 +3,6 @@ package com.bxane.nuvx.data.smb
 import com.bxane.nuvx.data.model.Song
 import java.util.Locale
 
-/**
- * SMB file-share music library configuration and mapping — the same shape as
- * [WebDavConfig][com.bxane.nuvx.data.webdav.WebDavConfig], for a
- * protocol that has no URLs of its own.
- *
- * Tracks are addressed as `smb://host/share/path/to/file`. Credentials never
- * ride in the URI (it is logged, cached and keyed on); readers authenticate
- * from [SmbAuth] at open time instead.
- */
 object SmbConfig {
 
     const val BROWSE_ID = "local:smb"
@@ -26,10 +17,6 @@ object SmbConfig {
 
     fun normalizeHost(raw: String): String = splitHostPort(raw).first
 
-    /**
-     * `host`, `host:port` or `smb://host:port/…` — the port defaults to 445.
-     * Bracketed IPv6 (`[::1]:445`) keeps its colons.
-     */
     fun splitHostPort(raw: String): Pair<String, Int> {
         val authority = raw.trim().removePrefix("smb://").removePrefix("\\\\")
             .substringBefore('/').substringBefore('\\')
@@ -59,10 +46,6 @@ object SmbConfig {
         return ext in imageExtensions
     }
 
-    /**
-     * Stable track id. Prefixed so it never collides with a YouTube id, a
-     * MediaStore URI, a module key or a WebDAV id.
-     */
     fun idFor(host: String, share: String, path: String): String =
         "smb:${normalizeHost(host)}/${share.trim().trim('/')}/${path.trim('/')}".trimEnd('/')
 
@@ -70,15 +53,7 @@ object SmbConfig {
 
     fun isSmbUrl(url: String): Boolean = url.startsWith("smb://")
 
-    /**
-     * `smb://host/share/a/b.mp3` back to the share-relative path `a/b.mp3`.
-     * Pure string work so it stays unit-testable off the framework stub. The
-     * share segment must name [share]: a URL baked under a previous share
-     * fails loudly rather than opening a same-named stranger.
-     */
     fun relativePath(streamUrl: String, share: String): String? {
-        // [host, share, ...path]. These URIs never carry userinfo — see the
-        // note on SmbAuth — so there is nothing to strip.
         val segments = streamUrl.removePrefix("smb://").split('/').filter { it.isNotBlank() }
         if (segments.size < 3) return null
         if (!segments[1].equals(share.trim().trim('/'), ignoreCase = true)) return null
@@ -100,14 +75,6 @@ object SmbConfig {
     }
 }
 
-/**
- * Live connection parameters for [SmbConnection] and company.
- *
- * Held outside SharedPreferences so the network layer never touches storage:
- * [AppSettings][com.bxane.nuvx.data.settings.AppSettings] publishes here
- * on init and on every edit, which also drops the pooled connection — a
- * server or credential change must never keep reading on the old session.
- */
 object SmbAuth {
     @Volatile var host: String = ""
     @Volatile var port: Int = SmbConfig.DEFAULT_PORT

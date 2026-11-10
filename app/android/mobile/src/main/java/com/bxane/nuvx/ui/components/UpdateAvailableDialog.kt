@@ -43,42 +43,16 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 
-/** UIAlertController's own metrics: fixed narrow width, 14pt corner, 44pt rows. */
 internal val ALERT_WIDTH = 270.dp
 internal val ALERT_CORNER = 14.dp
 internal val ACTION_HEIGHT = 44.dp
 
-/**
- * The dim behind the alert. Flat on purpose — the glass is the card, and
- * blurring the wallpaper *behind* it too leaves nothing for the card to be
- * frosted against, which is what made this read as a grey box before.
- */
 internal val SCRIM_COLOR = Color.Black.copy(alpha = 0.28f)
 
 private val DOWNLOAD_ROW_HEIGHT = 4.dp
 
-/** How much of the card's height the release notes are allowed to fill before scrolling. */
 private val NOTES_MAX_HEIGHT = 220.dp
 
-/**
- * Once-per-launch nudge that a newer build is on GitHub Releases — the top
- * bar's [SfIcons.Upgrade]
- * icon is the quiet, always-there version of this; this is the one-time,
- * hard-to-miss version shown the moment the check comes back.
- *
- * Shaped like an iOS system alert, which is the same lineage as the rest of the
- * app's Apple Music styling: frosted card, hairline rules, full-width actions
- * stacked under the message rather than a Material button pair in the corner.
- *
- * The update round trip happens here rather than in a browser: Download pulls
- * the release's APK into the app cache (progress fills the hairline under the
- * message), then Install hands it to the system installer. Where the release
- * carries no APK at all, the actions fall back to opening the releases page.
- *
- * Sits over the whole app as an overlay rather than an Android [Dialog][androidx.compose.ui.window.Dialog]
- * so its glass can sample the same [HazeState] the rest of the app's frosted
- * surfaces use, the way [FrostedTopBar] and [MiniPlayer] already do.
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun UpdateAvailableDialog(
@@ -100,10 +74,6 @@ fun UpdateAvailableDialog(
         modifier = modifier
             .fillMaxSize()
             .background(SCRIM_COLOR)
-            // Tapping the scrim reads the same as Remind Me Later — nothing
-            // about this update is mandatory, so backing out of it should be as
-            // easy as getting into it. Mid-download it only closes the sheet;
-            // the download keeps going and the top-bar icon reopens this.
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
@@ -125,8 +95,6 @@ fun UpdateAvailableDialog(
                         )
                     },
                 )
-                // Swallows the tap before it reaches the scrim behind, so
-                // touching the card itself never dismisses it.
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -168,9 +136,6 @@ fun UpdateAvailableDialog(
                     textAlign = TextAlign.Center,
                 )
 
-                // The download's progress, drawn as a thin fill across a
-                // hairline track — same weight as [AlertRule], so it reads as
-                // part of the card rather than a widget bolted onto it.
                 val downloading = state as? AppUpdateChecker.DownloadState.Downloading
                 if (downloading != null || state is AppUpdateChecker.DownloadState.Failed) {
                     Box(
@@ -202,10 +167,6 @@ fun UpdateAvailableDialog(
                     )
                 }
 
-                // The release's own notes, rendered as Markdown rather than
-                // dumped as raw text — GitHub release bodies lean on headings,
-                // bullet lists and bold for the changelog, and those are the
-                // whole point of reading this before installing.
                 if (!notes.isNullOrBlank()) {
                     AlertRule(modifier = Modifier.padding(top = 12.dp))
                     Text(
@@ -226,11 +187,6 @@ fun UpdateAvailableDialog(
                             .heightIn(max = NOTES_MAX_HEIGHT)
                             .verticalScroll(rememberScrollState()),
                     ) {
-                        // RichText's Material3 Text leans on LocalContentColor,
-                        // which nothing here provides — this card is a plain
-                        // Column.background(...), not a Surface, so without
-                        // this the notes render at LocalContentColor's black
-                        // default regardless of theme.
                         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
                             RichText(style = RichTextStyle.Default) {
                                 Markdown(githubMarkdown(notes))
@@ -265,16 +221,6 @@ fun UpdateAvailableDialog(
     }
 }
 
-/**
- * Full-bleed action row. Tinted rather than filled, so the two read as equals
- * in weight and only the font differentiates the default action — the alert's
- * whole point is that neither choice is a trap.
- *
- * [destructive] is the one exception to that: an action that deletes something
- * is red in this lineage, because the point there *is* to break the symmetry.
- * It stays a plain row rather than a filled button, so it reads as a warning
- * and not as the thing to press.
- */
 @Composable
 internal fun AlertAction(
     label: String,
@@ -289,7 +235,6 @@ internal fun AlertAction(
         modifier = Modifier
             .fillMaxWidth()
             .height(ACTION_HEIGHT)
-            // iOS washes the whole row instead of drawing a ripple inside it.
             .background(
                 if (pressed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f) else Color.Transparent,
             )
@@ -313,7 +258,6 @@ internal fun AlertAction(
     }
 }
 
-/** Hairline separator — [HorizontalDivider][androidx.compose.material3.HorizontalDivider]'s 1dp reads as a bar at this scale. */
 @Composable
 internal fun AlertRule(modifier: Modifier = Modifier) {
     Box(
@@ -324,11 +268,6 @@ internal fun AlertRule(modifier: Modifier = Modifier) {
     )
 }
 
-/**
- * A release body as GitHub shows it, for CommonMark: `<img>` as a picture, `<br>` as a
- * line break, `<p>`/`<div>` wrappers dropped, and each single newline a line break
- * (outside code blocks), so plain-text notes keep their lines.
- */
 internal fun githubMarkdown(notes: String): String {
     val img = Regex("""<img\b[^>]*>""", RegexOption.IGNORE_CASE)
     fun attr(tag: String, name: String) =

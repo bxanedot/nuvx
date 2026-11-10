@@ -52,18 +52,13 @@ use std::sync::{Arc, OnceLock};
 
 use crossbeam_channel::unbounded;
 
-/// Window size on first launch, and the smallest it may be (points).
 pub const DEFAULT_SIZE: [f32; 2] = [1200.0, 780.0];
 pub const MIN_SIZE: [f32; 2] = [760.0, 480.0];
 
 fn main() -> eframe::Result {
-    // Child-process modes for the webview windows (see login.rs / turnstile.rs).
     let mut args = std::env::args_os().skip(1);
     if let (Some(flag), Some(dir)) = (args.next(), args.next()) {
-        // The parent hands its proxy setting down through the environment.
         proxy::init(std::path::Path::new(""));
-        // Children are separate processes: their warnings and panics land in their
-        // own log, not the main one (which the parent holds open).
         if flag == login::FLAG {
             logging::init_child(&data_dir(), "login");
             login::child_main(login::Site::Google, dir.into());
@@ -80,10 +75,6 @@ fn main() -> eframe::Result {
             return Ok(());
         }
     }
-    // An invite link (`nuvx://party/CODE` or `https://nuvx.lol/invite/CODE`): hand it to the running
-    // instance if there is one, else join once this one is up. Before `init_logging`,
-    // which would truncate the running instance's log file. A plain launch (or the
-    // explicit `--show`) hands the window request over the same way.
     let mut show_requested = false;
     if let Some(code) = deeplink::from_args() {
         if deeplink::forward_to_running(&code) {
@@ -103,23 +94,18 @@ fn main() -> eframe::Result {
     stream::init_dev_hooks();
     proxy::init(&data_dir());
 
-    // Dev hook: NUVX_BACKGROUND opens the window off-screen, unfocused and off the
-    // taskbar, so automated test runs don't pop up over whatever the user is doing.
     let background = std::env::var_os("NUVX_BACKGROUND").is_some();
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("nuvx")
         .with_app_id("nuvx")
         .with_inner_size(DEFAULT_SIZE)
         .with_min_inner_size(MIN_SIZE)
-        // Windows: the app draws its own title bar (see `ui::titlebar`).
         .with_decorations(!ui::custom_titlebar())
         .with_icon(appicon::get(appicon::load(&data_dir())).icon_data().expect("bundled icons are valid PNGs"));
     if background {
         viewport = viewport.with_position([-4000.0, 0.0]).with_inner_size([1920.0, 1057.0]).with_active(false).with_taskbar(false);
     }
     let renderer = renderer::init(&data_dir());
-    // Mica and Acrylic show through a see-through window, which has to be asked for when
-    // it opens: always, so the material can change without a restart.
     material::init(&data_dir());
     let viewport = viewport.with_transparent(material::SUPPORTED);
     let options = eframe::NativeOptions {
@@ -129,14 +115,10 @@ fn main() -> eframe::Result {
             renderer::Renderer::Wgpu => eframe::Renderer::Wgpu,
         },
         persist_window: !background,
-        // Settings live with the rest of the data: beside the portable exe, or a
-        // NUVX_DATA_DIR profile (e.g. a clean signed-out one for screenshots).
         persistence_path: Some(data_dir().join("app.ron")),
-        // No MSAA/depth/stencil: egui doesn't need them and they cost VRAM.
         multisampling: 0,
         depth_buffer: 0,
         stencil_buffer: 0,
-        // Dev hook: NUVX_FPS paces frames itself (see `dev_pace`), so vsync is off.
         glow_options: eframe::egui_glow::GlowConfiguration { vsync: std::env::var_os("NUVX_FPS").is_none(), ..Default::default() },
         wgpu_options: renderer::wgpu_options(),
         ..Default::default()
@@ -150,7 +132,6 @@ fn main() -> eframe::Result {
             theme::install_style(&ctx);
             theme::install_fonts(&ctx, "inter");
 
-            // Background threads wake the UI through this; set once the context exists.
             static CTX: OnceLock<egui::Context> = OnceLock::new();
             let _ = CTX.set(ctx.clone());
             let wake = || {
@@ -159,10 +140,7 @@ fn main() -> eframe::Result {
                 }
             };
 
-            // Jam links from later launches arrive over a pipe (first instance only).
             deeplink::listen(wake);
-            // Keep `nuvx:` links pointing at this copy; dev builds leave it alone
-            // (even with NUVX_UPDATE_FORCE).
             if update::installed() && !cfg!(debug_assertions) {
                 deeplink::register_protocol();
             }
@@ -172,12 +150,9 @@ fn main() -> eframe::Result {
                 .and_then(|s| s.get_string("volume"))
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(0.8f32);
-            // The slider is logarithmic unless turned off. A volume saved before that
-            // existed was linear: move it to where it sounds the same.
             let log_setting = cc.storage.and_then(|s| s.get_string("log_volume"));
             let log_volume = log_setting.as_deref().is_none_or(|v| v == "1");
             let volume = if log_setting.is_none() { volume.cbrt() } else { volume };
-            // Dev hook: NUVX_MUTE starts silent and never persists the volume.
             let volume = if std::env::var_os("NUVX_MUTE").is_some() { 0.0 } else { volume };
 
             let device = cc.storage.and_then(|s| s.get_string("output_device")).filter(|d| !d.is_empty());
@@ -198,7 +173,6 @@ fn main() -> eframe::Result {
                 fullscreen::set_hwnd(h);
                 ui::set_titlebar_hwnd(h);
                 material::set_hwnd(h);
-                // eframe sets only the small icon; the taskbar button wants the big one.
                 appicon::set_window_icon(appicon::get(appicon::load(backend.data_dir())));
             }
             #[cfg(target_os = "macos")]
@@ -210,11 +184,8 @@ fn main() -> eframe::Result {
             }
             let media = media::Media::new(hwnd(cc), media_tx, wake);
 
-            // Which GL driver this is, for reports of drawing problems (Windows on ARM runs
-            // GL through Mesa's D3D12 layer).
             if let Some(gl) = &cc.gl {
                 use eframe::glow::HasContext;
-                // SAFETY: plain string queries on the current context.
                 let (renderer, version) = unsafe { (gl.get_parameter_string(eframe::glow::RENDERER), gl.get_parameter_string(eframe::glow::VERSION)) };
                 log::info!("gl: {renderer} ({version})");
             }
@@ -222,8 +193,6 @@ fn main() -> eframe::Result {
                 let info = rs.adapter.get_info();
                 log::info!("wgpu: {} ({:?}, driver {} {})", info.name, info.backend, info.driver, info.driver_info);
             }
-            // The animated background needs the GPU context; without it the UI falls back
-            // to a flat gradient.
             let shader = std::env::var_os("NUVX_NO_SHADER").is_none();
             let bg = match (&cc.gl, &cc.wgpu_render_state) {
                 (Some(gl), _) if shader => shader::Background::new(gl).map_err(|e| log::warn!("background shader unavailable: {e:#}")).ok(),
@@ -237,15 +206,11 @@ fn main() -> eframe::Result {
                 ui::Channels { resp_rx, audio_rx, media_rx },
                 media,
                 bg,
-                // `--no-tray`: a session with "Close to tray" off, so × quits for real
-                // (for when the tray icon can't be trusted).
                 std::env::args_os().skip(1).any(|a| a == deeplink::NO_TRAY_FLAG),
                 cc.storage,
             )))
         }),
     );
-    // A wgpu window that won't open would fail the same way at every launch: go back
-    // to OpenGL for the next one.
     if run.is_err() && renderer == renderer::Renderer::Wgpu {
         log::error!("renderer: {} failed to start; switching back to OpenGL", renderer::api_name());
         let _ = renderer::save(&data_dir(), renderer::Renderer::OpenGl);
@@ -267,8 +232,6 @@ fn hwnd(_: &eframe::CreationContext) -> Option<*mut std::ffi::c_void> {
     None
 }
 
-/// Settings, caches and the sign-in: `data` beside the portable build's exe, else the
-/// user's app data. Dev hook: NUVX_DATA_DIR runs on a separate profile.
 fn data_dir() -> std::path::PathBuf {
     if let Some(d) = std::env::var_os("NUVX_DATA_DIR") {
         return d.into();

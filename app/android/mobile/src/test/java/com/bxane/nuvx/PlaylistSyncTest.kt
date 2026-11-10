@@ -12,11 +12,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * What decides which tracks a playlist check fetches. All of it fails quietly: a
- * listing cut short is a song that never arrives, and a wrong answer to "is this
- * new" brings back a song the listener deleted.
- */
 class PlaylistSyncTest {
 
     private fun song(id: String) = Song(videoId = id, title = id, artist = "Artist", thumbnailUrl = null)
@@ -88,7 +83,6 @@ class PlaylistSyncTest {
 
     @Test
     fun `only tracks the record has never named are new`() {
-        // "b" was downloaded and later deleted, so it is named but not on disk.
         val fresh = PlaylistSync.newTracks(songs("a", "b", "c"), record("VLPL1", "a", "b"))
         assertEquals(listOf("c"), ids(fresh))
     }
@@ -135,7 +129,6 @@ class PlaylistSyncTest {
 
     @Test
     fun `one file under two ids counts as shared`() {
-        // "video" was swapped for "track" on the way down: both name one file.
         val collections = mapOf(
             "one" to record("one", "video", "a"),
             "two" to record("two", "track"),

@@ -19,8 +19,6 @@ import androidx.compose.ui.unit.sp
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppFont
 
-// Apple Music's signature red. No longer the primary accent, but kept for the
-// spots (Replay's rank badge) that want that specific red regardless of theme.
 val AccentRed = Color(0xFFFA2D48)
 
 private val DarkColors = darkColorScheme(
@@ -47,23 +45,6 @@ private val LightColors = lightColorScheme(
     outline = Color(0xFFE5E5EA),
 )
 
-/**
- * SF Pro Display, the face Apple Music itself is set in, drawn one weight
- * lighter than it is asked for.
- *
- * Measured against Apple Music's own screens, every weight here came out a
- * cut heavier than the same text there: its titles are Semibold where these
- * asked for Bold, its metadata Medium where these asked for Semibold. The
- * shift is made once, in the family, so it reaches the type scale and every
- * weight set in place alike and keeps the steps between them: Heavy draws
- * Bold, Bold draws Semibold, Semibold draws Medium, Medium draws Regular.
- * Regular stays Regular — no lighter cut is bundled, and Apple's body text is
- * Regular too. A FontWeight in this app therefore names the step it sits at in
- * the scale, not the cut it draws.
- *
- * Compose synthesises nothing, so a weight outside these falls back to the
- * nearest one listed.
- */
 val SFProDisplay = FontFamily(
     Font(R.font.sf_pro_display_regular, FontWeight.W400),
     Font(R.font.sf_pro_display_regular, FontWeight.W500),
@@ -72,15 +53,6 @@ val SFProDisplay = FontFamily(
     Font(R.font.sf_pro_display_bold, FontWeight.W800),
 )
 
-/*
- * Letter spacing measured off Apple Music's own screens: the spacing the
- * bundled Display cut needs, at the weight it draws, to set a line to the
- * width Apple sets it. Apple sets text under 20pt in SF Pro Text, which is
- * spaced looser than Display, so the small sizes open up — about +0.25 to
- * +0.4 at 12 to 14 — and the spacing closes as the size grows, to just under
- * nothing for semibold titles at 18 to 24. The large titles had nothing to
- * measure against and follow the same trend.
- */
 private val NuvxTypography = Typography(
     displayLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 34.sp, letterSpacing = (-0.5).sp),
     headlineLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 30.sp, letterSpacing = (-0.4).sp),
@@ -93,11 +65,6 @@ private val NuvxTypography = Typography(
     labelSmall = TextStyle(fontWeight = FontWeight.W600, fontSize = 11.sp, letterSpacing = 0.3.sp),
 ).withFamily(SFProDisplay)
 
-/**
- * SF Pro Display as the app first shipped it, before [SFProDisplay] moved every
- * weight a cut lighter: each weight draws its own cut, Heavy included. Kept for
- * [AppFont.LEGACY].
- */
 val SFProDisplayLegacy = FontFamily(
     Font(R.font.sf_pro_display_regular, FontWeight.W400),
     Font(R.font.sf_pro_display_medium, FontWeight.W500),
@@ -106,7 +73,6 @@ val SFProDisplayLegacy = FontFamily(
     Font(R.font.sf_pro_display_heavy, FontWeight.W800),
 )
 
-// Heavy, tight typography — the original scale [AppFont.LEGACY] restores.
 private val LegacyTypography = Typography(
     displayLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 34.sp, letterSpacing = (-0.8).sp),
     headlineLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 30.sp, letterSpacing = (-0.7).sp),
@@ -119,7 +85,6 @@ private val LegacyTypography = Typography(
     labelSmall = TextStyle(fontWeight = FontWeight.W600, fontSize = 11.sp),
 ).withFamily(SFProDisplayLegacy)
 
-/** Applies [family] to every style in the scale, so nothing is left on Roboto. */
 private fun Typography.withFamily(family: FontFamily) = Typography(
     displayLarge = displayLarge.copy(fontFamily = family),
     displayMedium = displayMedium.copy(fontFamily = family),
@@ -154,16 +119,6 @@ fun NuvxTheme(
     )
 }
 
-/**
- * Draws the status and navigation bar glyphs dark or light.
- *
- * `enableEdgeToEdge()` decides this from the *system* dark-mode setting, which
- * is the wrong input the moment the in-app theme disagrees with it: Light theme
- * on a phone in dark mode left white icons on a white bar, invisible. The bars
- * have to follow the content the app is actually painting. The player supplies
- * its own stable light-icon value and paints contrast behind it; every other
- * surface follows the theme. Hence a parameter rather than reading it here.
- */
 @Composable
 fun SystemBarIcons(dark: Boolean) {
     val view = LocalView.current

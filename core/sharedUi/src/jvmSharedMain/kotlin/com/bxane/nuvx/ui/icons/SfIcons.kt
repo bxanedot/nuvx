@@ -148,23 +148,7 @@ import com.composables.sfsymbols.monochrome.SFWifi
 import com.composables.sfsymbols.monochrome.SFWrenchAndScrewdriver
 import com.composables.sfsymbols.monochrome.SFXmark
 
-/**
- * The SF Symbols the settings pages and the iOS-style menus draw, named for
- * what they stand for here rather than for the symbol, so a call site reads
- * `SfIcons.Download` and the choice of symbol lives in one place.
- *
- * The symbols come from Jetpack_SF_Symbols, the port Convx uses. Apple licenses
- * SF Symbols for apps on its own platforms; using them here was a deliberate
- * choice by the project owner.
- *
- * The port's ready-made vectors are Apple's Regular weight, drawn at 85% opacity,
- * which reads thin and grey beside Convx — that draws them at Bold through the
- * port's own renderer. Here each is rebuilt fully opaque and traced with a stroke
- * of its own colour, which thickens every line evenly to about Bold, and stays a
- * plain vector that drops into any `Icon`.
- */
 object SfIcons {
-    // ---- Settings ----
     val AccountPlaceholder: ImageVector by lazy { bold(SfSymbols.Monochrome.SFPersonCropCircleFill) }
     val Add: ImageVector by lazy { bold(SfSymbols.Monochrome.SFPlus) }
     val Animation: ImageVector by lazy { bold(SfSymbols.Monochrome.SFFigureWalkMotion) }
@@ -244,7 +228,6 @@ object SfIcons {
     val Wifi: ImageVector by lazy { bold(SfSymbols.Monochrome.SFWifi) }
     val YourData: ImageVector by lazy { bold(SfSymbols.Monochrome.SFArchivebox) }
 
-    // ---- Menus ----
     val AddToPlaylist: ImageVector by lazy { bold(SfSymbols.Monochrome.SFTextBadgePlus) }
     val Album: ImageVector by lazy { bold(SfSymbols.Monochrome.SFSquareStack) }
     val Artist: ImageVector by lazy { bold(SfSymbols.Monochrome.SFMusicMicrophone) }
@@ -274,20 +257,10 @@ object SfIcons {
     val Upload: ImageVector by lazy { bold(SfSymbols.Monochrome.SFArrowUpCircle) }
     val Video: ImageVector by lazy { bold(SfSymbols.Monochrome.SFVideo) }
 
-    /** Added to every line, in the symbols' own units: Regular's ~1.7 to Bold's ~2.6. */
     internal const val BOLD_STROKE = 0.9f
 
-    /**
-     * The port cuts every symbol to its own bounds, so drawn as it comes each one
-     * is stretched to fill whatever box it is given: a square gear fills it, a wide
-     * two-person glyph shrinks to fit its width, and a row of them reads as a jumble
-     * of sizes. Apple sets them all at one point size instead. So does this: every
-     * symbol goes onto one square canvas of [CANVAS] units, at the units it was
-     * drawn in, centred — only one too large for the canvas is scaled to fit.
-     */
     internal const val CANVAS = 31f
 
-    /** A [width]×[height] drawing, in symbol units, centred on the shared canvas. */
     internal inline fun canvas(
         name: String,
         width: Float,
@@ -366,7 +339,6 @@ object SfIcons {
     val TabExplore: ImageVector by lazy { bold(SfSymbols.Monochrome.SFSquareGrid2x2Fill) }
     val TabLibrary: ImageVector by lazy { bold(SfSymbols.Monochrome.SFSquareStackFill) }
 
-    /** Grown by half the stroke on every side, which the added line reaches into. */
     private fun bold(regular: ImageVector): ImageVector {
         val pad = BOLD_STROKE / 2f
         return canvas(
@@ -381,11 +353,6 @@ object SfIcons {
         }
     }
 
-    /**
-     * Adds every node of [group] to [builder], each fully opaque and traced with
-     * [extraStroke] more line — Bold's by default. Give it Apple's own Regular
-     * vectors: a symbol already made bold here would be thickened twice.
-     */
     internal fun copyInto(builder: ImageVector.Builder, group: VectorGroup, extraStroke: Float = BOLD_STROKE) {
         for (node in group) {
             when (node) {
@@ -410,8 +377,6 @@ object SfIcons {
                     name = node.name,
                     fill = node.fill,
                     fillAlpha = 1f,
-                    // A filled shape's outline traced in its own colour: every
-                    // line grows by the stroke's width, half on each side.
                     stroke = node.stroke ?: node.fill,
                     strokeAlpha = 1f,
                     strokeLineWidth = node.strokeLineWidth + extraStroke,

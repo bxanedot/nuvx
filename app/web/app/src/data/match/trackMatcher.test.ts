@@ -9,8 +9,6 @@ import {
   type MatchCandidate,
 } from './trackMatcher';
 
-// Ported from app/src/test/…/SourcesTest.kt ("Cross-source matching" and
-// "Choosing between candidates"); durations there are "m:ss" text.
 const secs = (text?: string) => (text ? text.split(':').reduce((t, p) => t * 60 + Number(p), 0) : null);
 const song = (title: string, artist: string, duration?: string, album: string | null = null): MatchCandidate => ({
   title,
@@ -142,9 +140,7 @@ describe('TrackMatcher', () => {
   it('matches a bracketed CJK translation against its Latin filing', () => {
     expect(matches(song('Love', 'Singer', '2:53'), '愛(Love)', 'Singer', 174)).toBe(true);
     expect(matches(song('Love (愛)', 'Singer', '2:53'), '愛', 'Singer', 174)).toBe(true);
-    // Same-script packaging must not rescue a different title.
     expect(matches(song('Film Name', 'Some Artist', '4:07'), 'Song Name (From "Film Name")', 'Singer', 247)).toBe(false);
-    // One word of a longer aside is not the whole title.
     expect(matches(song('Night', 'Singer', '4:20'), '夜に駆ける (Racing Into The Night)', 'Singer', 260)).toBe(false);
   });
 });

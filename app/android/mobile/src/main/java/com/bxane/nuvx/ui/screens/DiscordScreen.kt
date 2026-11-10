@@ -67,17 +67,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-/** Which dot Discord draws on the avatar, and what it tells other people. */
 enum class DiscordPresenceStatus(val value: String, val label: String, val detail: String) {
     ONLINE("online", "Online", "Green dot"),
     IDLE("idle", "Idle", "Amber crescent — as if away"),
     DND("dnd", "Do not disturb", "Red dash — suppresses their notifications too"),
 }
 
-/**
- * The verb on the profile. All four render the same card; only the line above it
- * changes, so this is purely how you'd rather have it read.
- */
 enum class DiscordActivityKind(val value: String, val verb: String, val label: String) {
     LISTENING("listening", "Listening to", "Listening"),
     PLAYING("playing", "Playing", "Playing"),
@@ -85,11 +80,6 @@ enum class DiscordActivityKind(val value: String, val verb: String, val label: S
     COMPETING("competing", "Competing in", "Competing"),
 }
 
-/**
- * The dialogs the Discord screen opens. Hoisted out to an enum because they are
- * rendered by the activity, above the tab bar and mini player, rather than
- * inside the scrolling screen where a full-screen scrim would be trapped.
- */
 enum class DiscordDialog { TOKEN, STATUS, ACTIVITY_TYPE, ACTIVITY_NAME, BUTTON_1, BUTTON_2 }
 
 private fun statusOf(value: String) =
@@ -139,14 +129,6 @@ private fun DiscordActivityKind.localizedLabel(): String =
 private fun DiscordActivityKind.localizedVerb(): String =
     localizedActivityCopy().getValue(this).second
 
-/**
- * Discord Rich Presence: the account it posts as, what the card says, and a
- * live preview of it.
- *
- * The preview is the point of the screen. Every field here changes something
- * about a card the user cannot see from inside this app — so it draws the card
- * as Discord will, from the track actually playing, and updates as they type.
- */
 @Composable
 fun DiscordScreen(
     song: Song?,
@@ -178,10 +160,6 @@ fun DiscordScreen(
     val connected = token.isNotEmpty()
     val discordIcon = ImageVector.vectorResource(R.drawable.ic_discord)
 
-    // Refreshes the cached profile whenever the connected account changes. A
-    // failure is left to stand rather than clearing the cache: the usual reason
-    // for one is being offline, and blanking the name every time the phone loses
-    // signal would read as having been signed out.
     LaunchedEffect(token) {
         if (token.isEmpty()) {
             AppSettings.setDiscordAccount("", "", null)
@@ -391,7 +369,6 @@ fun DiscordScreen(
     }
 }
 
-/** Who this posts as. Same frame as [AccountCard], with Discord's status dot. */
 @Composable
 private fun DiscordAccountCard(
     connected: Boolean,
@@ -442,8 +419,6 @@ private fun DiscordAccountCard(
                     modifier = Modifier
                         .size(15.dp)
                         .align(Alignment.BottomEnd)
-                        // Discord rings the dot in the card's own colour so it
-                        // reads as punched out of the avatar rather than on it.
                         .border(2.5.dp, cardColor, CircleShape)
                         .padding(2.5.dp)
                         .clip(CircleShape)
@@ -487,14 +462,11 @@ private fun DiscordAccountCard(
     }
 }
 
-/** A one-off explanation with its own dismiss, shaped like a settings group. */
 @Composable
 private fun NoticeCard(text: String, onDismiss: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // Same 26dp gap SettingsGroup leaves above itself, so this sits in
-            // the rhythm of the groups either side of it.
             .padding(start = GROUP_INSET, end = GROUP_INSET, top = 26.dp),
     ) {
         Column(
@@ -523,14 +495,6 @@ private fun NoticeCard(text: String, onDismiss: () -> Unit) {
     }
 }
 
-/**
- * The card as Discord will draw it: heading, sleeve, an optional quality line, a
- * countdown, and up to two buttons.
- *
- * Deliberately not built from our own row primitives — this is a picture of
- * another app's UI, and the only way it does its job is by looking like one.
- * The buttons work, so it doubles as a way to check the links land.
- */
 @Composable
 private fun RichPresencePreview(
     song: Song?,
@@ -577,10 +541,6 @@ private fun RichPresencePreview(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                // Discord bolds whichever line `status_display_type` names, and
-                // that is the one it also repeats next to the user's name in a
-                // member list — so which of these is emphasised is the whole
-                // point of the "Lead with the song" switch.
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
@@ -644,7 +604,6 @@ private fun RichPresencePreview(
     }
 }
 
-/** Discord's flat, full-width secondary button. */
 @Composable
 private fun PresenceButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     Box(
@@ -666,13 +625,6 @@ private fun PresenceButton(label: String, enabled: Boolean, onClick: () -> Unit)
     }
 }
 
-/**
- * Elapsed and total, either side of a plain track.
- *
- * Deliberately plain: Discord's own bar is a flat 4px rule, and the wavy
- * indicator this is otherwise shaped like would be this app's idiom leaking
- * into a picture of somewhere else.
- */
 @Composable
 private fun ProgressLine(positionMs: Long, durationMs: Long) {
     val fraction = if (durationMs > 0) {
@@ -719,10 +671,6 @@ private fun formatClock(ms: Long): String {
     return "%d:%02d".format(Locale.ROOT, total / 60, total % 60)
 }
 
-/**
- * The Discord screen's dialogs, rendered by the activity so their scrim covers
- * the tab bar and mini player like every other alert in the app.
- */
 @Composable
 fun DiscordDialogHost(
     which: DiscordDialog,
@@ -742,9 +690,6 @@ fun DiscordDialogHost(
                 onTokenInputChange = { input = it },
                 error = error,
                 loading = checking,
-                // Verified before it is saved, because a token that doesn't work
-                // fails silently later: the presence simply never appears, with
-                // nothing on this screen to say why.
                 onSave = {
                     checking = true
                     error = null
@@ -792,8 +737,6 @@ fun DiscordDialogHost(
 
         DiscordDialog.ACTIVITY_TYPE -> {
             val current by AppSettings.discordActivityType.collectAsStateWithLifecycle()
-            // Read out here: `detail` is a plain lambda, so the composable
-            // lookup can't happen inside it.
             val name = AppSettings.discordActivityName.value.ifEmpty { appName() }
             val copy = localizedActivityCopy()
             ChoiceAlert(
@@ -857,7 +800,6 @@ fun DiscordDialogHost(
     }
 }
 
-/** The app's own label, minus the dev flavor's suffix. Matches [DiscordRPC]. */
 @Composable
 private fun appName(): String =
     LocalContext.current.getString(R.string.app_name).removeSuffix(" Dev")

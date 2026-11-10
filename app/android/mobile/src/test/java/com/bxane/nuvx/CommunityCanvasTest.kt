@@ -4,7 +4,6 @@ import com.bxane.nuvx.data.canvas.CommunityCanvas
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The key must match worker/src/canvas.ts canvasKey, or uploads are never found. */
 class CommunityCanvasTest {
     @Test
     fun keyMatchesWorker() {

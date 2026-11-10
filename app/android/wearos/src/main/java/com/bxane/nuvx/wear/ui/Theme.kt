@@ -12,11 +12,6 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Typography
 import com.bxane.nuvx.wear.R
 
-/**
- * SF Pro Display, as on the phone — subset to Latin for the watch (the phone's
- * files are 2.3 MB a weight; these are ~50 KB). Anything outside the subset, a
- * Hindi or Japanese title, falls back to the system face glyph by glyph.
- */
 val SFPro = FontFamily(
     Font(R.font.sf_pro_display_regular, FontWeight.W400),
     Font(R.font.sf_pro_display_medium, FontWeight.W500),
@@ -24,13 +19,10 @@ val SFPro = FontFamily(
     Font(R.font.sf_pro_display_bold, FontWeight.W700),
 )
 
-/** The phone's AccentRed: Love, and nothing much else. */
 val AccentRed = Color(0xFFFA2D48)
 
-/** Secondary text on the mesh and on black: the phone's onSurfaceVariant. */
 val Secondary = Color(0xFF8E8E93)
 
-/** Grouped cells on black, iOS's secondarySystemBackground in dark. */
 val Cell = Color(0xFF1C1C1E)
 
 object WearType {

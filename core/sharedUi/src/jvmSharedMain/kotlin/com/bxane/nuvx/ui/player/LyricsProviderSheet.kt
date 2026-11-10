@@ -40,14 +40,6 @@ import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
 
-/**
- * Manual provider chooser for the lyrics half-player.
- *
- * It deliberately uses [PlayerDrawer], [ROW_SHAPE], and the same row geometry
- * as [AudioOutputSheet], so it behaves like another player destination rather
- * than a settings dialog. A row that the automatic lookup already completed is
- * entirely local: hits switch immediately and misses cannot be requested twice.
- */
 @Composable
 internal fun LyricsProviderSheet(
     hazeState: HazeState,
@@ -99,8 +91,6 @@ private fun LyricsProviderRow(
     onClick: () -> Unit,
 ) {
     val haptics = rememberHaptics()
-    // A running automatic request can still be selected: it is marked as the
-    // requested source and applied when that same in-flight call completes.
     val enabled = !current && state != LyricsProviderState.NOT_FOUND
     val status = when {
         current -> stringResource(Res.string.lyrics_provider_current)

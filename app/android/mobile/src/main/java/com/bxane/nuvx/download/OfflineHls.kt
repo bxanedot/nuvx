@@ -11,12 +11,6 @@ import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.io.File
 
-/**
- * An offline copy of an unencrypted HLS media playlist.  This deliberately
- * keeps fMP4 samples untouched: Media3's HLS reader is the same one that
- * plays the network stream, and therefore supports codecs MediaMuxer cannot
- * put in a fresh MP4 (notably FLAC and Dolby variants).
- */
 internal object OfflineHls {
     suspend fun save(
         context: Context,

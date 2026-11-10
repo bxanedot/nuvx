@@ -139,17 +139,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onVisibilityChanged
 
-/**
- * Grouped settings, in the shape phones have taught people to expect: inset
- * cards of rows, a leading glyph per row, the current value on the right, and a
- * plain-language footer under any group whose effect isn't obvious from its
- * title. Anything with more than two choices opens a sheet rather than pushing
- * a row of chips into the layout.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    /** The window's width, for the gates that depend on it. */
     windowWidth: Dp,
     signedIn: Boolean,
     account: Account?,
@@ -166,24 +158,12 @@ fun SettingsScreen(
     onSpotifyCanvasAuth: () -> Unit,
     onAppLanguage: () -> Unit,
     onEditSignatureApi: () -> Unit,
-    /**
-     * Asks before [mode] is turned on: it hands volume to the DAC at full
-     * scale. Shown in the app's frosted alert, which needs the app's blur.
-     */
     onConfirmBitPerfect: (BitPerfectMode) -> Unit,
-    /** Asks before a DAC with no settable volume may play at full scale. */
     onConfirmFixedVolume: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    /**
-     * The category this page is, or null for the main page — which lists the
-     * categories rather than their rows, until something is typed into its
-     * search field.
-     */
     section: SettingsCategory? = null,
-    /** Opens one category as a page of its own. */
     onOpenSection: (SettingsCategory) -> Unit = {},
-    /** Opens a choice with more options than its row can show, as a page. */
     onOpenChoice: (SettingsChoiceKind) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -198,9 +178,6 @@ fun SettingsScreen(
     val dolbyAtmos by AppSettings.dolbyAtmos.collectAsStateWithLifecycle()
     val directSourceStream by AppSettings.directSourceStream.collectAsStateWithLifecycle()
     val excorFallback by AppSettings.excorFallback.collectAsStateWithLifecycle()
-    // A property of the hardware, so it is read once rather than remembered
-    // against a key that can never change — see [DeviceCodecs.playsDolbyAtmos],
-    // which caches the codec-list walk for the life of the process.
     val dolbyAtmosSupported = DeviceCodecs.playsDolbyAtmos
     val spatialAudio by AppSettings.spatialAudio.collectAsStateWithLifecycle()
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
@@ -282,7 +259,6 @@ fun SettingsScreen(
         }
     }
 
-    // Scrobbling states
     val lastfmEnabled by AppSettings.lastfmEnabled.collectAsStateWithLifecycle()
     val lastfmUsername by AppSettings.lastfmUsername.collectAsStateWithLifecycle()
     val lastfmSessionKey by AppSettings.lastfmSessionKey.collectAsStateWithLifecycle()
@@ -296,18 +272,9 @@ fun SettingsScreen(
 
     val replayGenres by AppSettings.replayGenres.collectAsStateWithLifecycle()
 
-    // Read here so the row can say "In a party · ABC123" rather than making
-    // somebody open the screen to find out whether they are still in one.
     val party by ListenTogether.state.collectAsStateWithLifecycle()
 
-    // Filters the rows below — see [SettingsSearch]. Blank shows everything,
-    // exactly as if the field weren't there.
-    // Saveable so a search survives a trip into one of the pages it found.
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    // What the last export or import did, shown on the row that did it rather
-    // than as a toast: a backup is the one action here whose outcome nobody can
-    // check by looking at the app afterwards. Held per direction, or an import's
-    // result reports itself under the word "Export".
     var exportStatus by remember { mutableStateOf<String?>(null) }
     var importStatus by remember { mutableStateOf<String?>(null) }
     var confirmImport by remember { mutableStateOf(false) }
@@ -334,13 +301,6 @@ fun SettingsScreen(
         AppSettings.setLocalMusicFolderUri(folder.toString())
     }
 
-    /**
-     * Both halves go through the system document picker rather than a path of
-     * this app's own choosing. That is what puts the file somewhere the user can
-     * actually find it — Drive, Files, a folder they already back up — and it
-     * means neither direction needs a storage permission, since the grant
-     * arrives with the document they picked.
-     */
     val exportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { target ->
@@ -381,27 +341,15 @@ fun SettingsScreen(
         }.getOrNull() ?: "1.0"
     }
 
-    // Made fresh on every pass rather than remembered: it tallies the rows
-    // that answered to the query, and that tally has to start from zero each
-    // time the query changes.
-    //
-    // A category page shows all of its rows, so it searches for nothing. The
-    // main page searches every category at once: typed into, it lays out the
-    // rows that answer from all of them, as the single page Settings once was.
     val search = SettingsSearch(if (section == null) searchQuery else "", inPage = section != null)
     val searching = section == null && searchQuery.isNotBlank()
     fun shows(category: SettingsCategory) = section == category || searching
     val watchAvailable = remember { WatchInstaller.available(context) }
 
-    // What is left after a keystroke is a different list, and the offset the
-    // last one was scrolled to means nothing in it.
     val scrollState = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
     var isFirstSearchComposition by remember { mutableStateOf(true) }
     LaunchedEffect(searchQuery) {
         if (isFirstSearchComposition) {
-            // Skip the initial composition — on Activity recreation, and on
-            // coming back from a page opened here: rememberSaveable already
-            // restored the scroll position and the query it belongs to.
             isFirstSearchComposition = false
         } else {
             isFirstSearchComposition = false
@@ -427,9 +375,6 @@ fun SettingsScreen(
 
             SearchableSettingsGroup(search) {
                 val accountTitle = stringResource(R.string.account_integrations)
-                // What the row opens is the scrobbling screen, so the services it
-                // signs into are worth typing at this field even though none of
-                // them is named on the row itself.
                 row(accountTitle, "scrobbling", "last.fm", "listenbrainz") {
                     val avatarUrl = account?.thumbnailUrl?.takeIf { signedIn }
                     SettingsRow(
@@ -450,9 +395,6 @@ fun SettingsScreen(
                         onClick = onAccountScrobbling,
                     )
                 }
-                // Sits with the account rather than with Playback: a party is up to
-                // five signed-in people, and being signed in is the whole of what
-                // the row needs before it will do anything.
                 val listenTogetherTitle = stringResource(R.string.listen_together)
                 row(listenTogetherTitle, "jam", "party", "sync", "friends") {
                     SettingsRow(
@@ -467,12 +409,6 @@ fun SettingsScreen(
                 }
             }
 
-            // The row that used to sit at the top of this group was called
-            // "Lossless / HQ Audio" and toggled `SourceRegistry.setModuleEnabled` —
-            // it switched the *module source* on and off, not lossless. Sources
-            // above lists that as the module's own row now. Lossless itself is no
-            // longer a setting at all — see
-            // [SourceResolver.requestForNow][com.bxane.nuvx.data.sources.SourceResolver.requestForNow].
             SearchableSettingsGroup(search, header = stringResource(R.string.audio_quality)) {
                 val sourceTitle = stringResource(R.string.source)
                 val sourceSubtitle = stringResource(R.string.sources_subtitle)
@@ -484,14 +420,8 @@ fun SettingsScreen(
                         onClick = onSources,
                     )
                 }
-                // One line on purpose: it qualifies the row above rather than
-                // being a setting of its own, so it reads as part of Sources.
                 val directSourceTitle = stringResource(R.string.direct_source_stream)
-                // Drawn like the animated-cover cellular line: no icon, no divider.
                 row(directSourceTitle, "addon", "direct", "prefetch", "read-ahead", divided = false) {
-                    // Off for the length of a party: holding every fetch until a
-                    // track is about to play would leave this phone behind the
-                    // others at each sync — see [DirectSourceGate.isActive].
                     SettingsSubRow(
                         title = directSourceTitle,
                         checked = directSourceStream && !party.inParty,
@@ -532,16 +462,6 @@ fun SettingsScreen(
                         onClick = { onOpenChoice(SettingsChoiceKind.AUDIO_QUALITY_CELLULAR) },
                     )
                 }
-                // Sits with the quality ceilings rather than with Playback: it
-                // decides which version of a track gets fetched, the same question
-                // the two rows above answer, and not how one is played back.
-                //
-                // Greyed rather than hidden where the device can't decode E-AC-3.
-                // A missing row reads as a feature the app doesn't have; a disabled
-                // one with a reason under it is the difference between "nuvx
-                // has no Atmos" and "this phone has no Dolby decoder", and only the
-                // second is true. The stored preference is left untouched either
-                // way — see [AppSettings.dolbyAtmos].
                 val dolbyAtmosTitle = stringResource(R.string.dolby_atmos)
                 row(dolbyAtmosTitle, "surround", "e-ac-3") {
                     BypassedByBitPerfect(bitPerfectReady) {
@@ -569,8 +489,6 @@ fun SettingsScreen(
                 }
             }
 
-            // The categories, each a page of its own — until there is a query,
-            // when their rows answer here instead (below).
             if (!searching) {
                 SettingsCategoryList(onOpen = onOpenSection)
                 if (watchAvailable) {
@@ -581,11 +499,6 @@ fun SettingsScreen(
             }
         }
 
-        // Its own group rather than rows bolted onto the two above, because a
-        // download is not a third kind of connection. The ceilings answer "what
-        // does this minute cost"; these answer "what am I keeping, and when may
-        // it be fetched" — and those two questions only make sense read
-        // together, which is what puts them side by side here.
         if (shows(SettingsCategory.DOWNLOADS)) SearchableSettingsGroup(search, header = stringResource(R.string.downloads)) {
             val downloadQualityTitle = stringResource(R.string.download_quality)
             row(downloadQualityTitle, "offline", "lossless") {
@@ -597,9 +510,6 @@ fun SettingsScreen(
                     onClick = { onOpenChoice(SettingsChoiceKind.DOWNLOAD_QUALITY) },
                 )
             }
-            // Reads as part of Download quality above it, not as a setting
-            // of its own — same treatment as Play animated cover over
-            // cellular gets under Animated cover art.
             val downloadWifiOnlyTitle = stringResource(R.string.download_wifi_only)
             row(downloadWifiOnlyTitle, "wi-fi", "cellular", divided = false) {
                 SettingsSubRow(
@@ -667,9 +577,6 @@ fun SettingsScreen(
             }
             val bitPerfectTitle = stringResource(R.string.bit_perfect_output)
             row(bitPerfectTitle, "usb", "dac", "exclusive", "hi-res", "bitperfect") {
-                // The mode and the device it names can both be long, so they
-                // go under the title rather than beside it, where they left
-                // the title and status no room.
                 SettingsRow(
                     icon = SfIcons.Usb,
                     title = bitPerfectTitle,
@@ -692,9 +599,6 @@ fun SettingsScreen(
                     onClick = { onOpenChoice(SettingsChoiceKind.BIT_PERFECT) },
                 )
             }
-            // The DAC's own attenuator: the only volume direct USB has, since
-            // nothing upstream may scale a sample. It and the row after it
-            // belong to Bit-perfect output, so neither is divided from it.
             dacVolume?.let { volume ->
                 val dacVolumeTitle = stringResource(R.string.dac_volume)
                 row(dacVolumeTitle, "volume", "usb", "dac", divided = false) {
@@ -761,9 +665,6 @@ fun SettingsScreen(
                     )
                 }
             }
-            // Automix decides its own length from each pair of tracks —
-            // tempo, key, structure — so it replaces the manual slider rather
-            // than needing it set to anything first.
             if (!smartFade) {
                 val crossfadeTitle = stringResource(R.string.crossfade)
                 row(crossfadeTitle, "fade", "gapless") {
@@ -820,13 +721,6 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.VolumeOff,
                         title = skipSilenceTitle,
-                        // Silence skipping is Media3's own processor, and
-                        // `DefaultAudioSink.configure` appends that processor list
-                        // only on its 16-bit branch — the float branch gets the
-                        // format converter and nothing else. So on a float track
-                        // this switch really does nothing, and the row says so
-                        // rather than letting someone toggle it and wonder. The
-                        // equaliser is unaffected: it runs upstream of that sink.
                         subtitle = if (outputStatus.actualEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
                             stringResource(R.string.skip_silence_float_subtitle)
                         } else {
@@ -848,14 +742,6 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.SurroundSound,
                         title = spatialAudioTitle,
-                        // Widening a JOC stream would fight the object-based mix
-                        // Dolby has already spatialized, so the service holds this
-                        // off for the duration of an Atmos track — see
-                        // `PlaybackService.applySpatialAudioEnabled`. Said on the
-                        // row because the switch stays where the listener left it,
-                        // and a switch reading "on" over an effect that is not
-                        // running is the same silent lie the equaliser screen used
-                        // to tell.
                         subtitle = if (playingDolbyAtmos) {
                             stringResource(R.string.spatial_audio_atmos_subtitle)
                         } else {
@@ -871,10 +757,6 @@ fun SettingsScreen(
                     )
                 }
             }
-            // The system panel is not listed here as well. A device with a
-            // Dolby or Dirac panel has something nuvx cannot reproduce and
-            // keeps its row — but one level in, at the foot of the equaliser
-            // screen, rather than as a second equaliser entry alongside ours.
             val equalizerTitle = stringResource(R.string.equalizer)
             row(equalizerTitle, "eq", "bass", "treble") {
                 BypassedByBitPerfect(bitPerfectReady) {
@@ -1067,10 +949,6 @@ fun SettingsScreen(
                     onClick = { AppSettings.setLiquidGlass(!liquidGlass) },
                 )
             }
-            // One line each, like Direct Source Stream under Sources, and only
-            // while Liquid Glass is on: they qualify the glass rather than standing
-            // on their own. Progressive Blur has its own switch because it costs
-            // frames of its own. Reduce dynamic blur turns it off.
             if (liquidGlass && liquidGlassSupported) {
                 val glassPerformanceTitle = stringResource(R.string.glass_performance)
                 row(glassPerformanceTitle, "glass", "performance", "refraction", "frosted", "lag", divided = false) {
@@ -1089,10 +967,6 @@ fun SettingsScreen(
                     )
                 }
             }
-            // Left out where the player won't honour it: a window too wide for
-            // the player to fill and too narrow to stand a page beside it keeps
-            // the sleeve either way. A docked pane is a phone's width, so it does
-            // honour it — see [fullBleedArtworkAvailable].
             if (fullBleedArtworkAvailable(windowWidth)) {
                 val fullScreenCoverArtTitle = stringResource(R.string.full_screen_cover_art)
                 row(fullScreenCoverArtTitle, "artwork", "player") {
@@ -1110,9 +984,6 @@ fun SettingsScreen(
                     )
                 }
             }
-            // Listed at every width: the page itself keeps the framed sleeve
-            // wherever a square the window's width wouldn't fit — see
-            // [ReleaseHeader].
             val fullScreenDetailCoverTitle = stringResource(R.string.full_screen_detail_cover)
             row(fullScreenDetailCoverTitle, "artwork", "album", "playlist", "cover") {
                 SettingsRow(
@@ -1143,9 +1014,6 @@ fun SettingsScreen(
                 )
             }
             val animatedCoverArtTitle = stringResource(R.string.animated_cover_art)
-            // Carries the keywords of the rows that only appear once it is on,
-            // so searching "spotify" with animated covers switched off turns up
-            // the switch that brings the Spotify row back rather than nothing.
             row(animatedCoverArtTitle, "canvas", "video", "spotify") {
                 SettingsRow(
                     icon = SfIcons.Animation,
@@ -1160,11 +1028,6 @@ fun SettingsScreen(
                     onClick = { AppSettings.setAnimatedCanvas(!animatedCanvas) },
                 )
             }
-            // Reads as part of the Animated cover art option above it, not
-            // as a separate setting. Nothing to narrow while the clip itself
-            // is off. Defaults to off: a clip loops for as long as its track
-            // plays, so on cellular this is not a one-time video cost but
-            // that cost repeated on every loop — see AppSettings.canvasOverCellular.
             if (animatedCanvas) {
                 val coverCellularTitle = stringResource(R.string.animated_cover_cellular)
                 row(coverCellularTitle, "canvas", "cellular", divided = false) {
@@ -1235,8 +1098,6 @@ fun SettingsScreen(
                 }
             }
             val syncedLyricsTitle = stringResource(R.string.synced_lyrics)
-            // Same reasoning as Animated cover art above: the lyrics source and
-            // translation rows are only here while this is on.
             row(syncedLyricsTitle, "lyrics", "translation", "lrclib", "musixmatch") {
                 SettingsRow(
                     icon = SfIcons.Notes,
@@ -1251,9 +1112,6 @@ fun SettingsScreen(
                     onClick = { AppSettings.setSyncedLyrics(!syncedLyrics) },
                 )
             }
-            // Nothing to choose between while the feature is off, and the
-            // sources are third-party services being reached on the user's
-            // connection — which is the part worth being able to narrow.
             if (syncedLyrics) {
                 val lyricsBlurTitle = stringResource(R.string.blur_unfocused_lyrics)
                 row(lyricsBlurTitle, "lyrics", "blur") {
@@ -1398,8 +1256,6 @@ fun SettingsScreen(
         }
 
         val cacheUnlimited = cacheLimitBytes == AppSettings.UNLIMITED_CACHE_LIMIT_BYTES
-        // The slider's last stop, one step past the largest fixed size, is
-        // "Unlimited" — see [AppSettings.setAudioCacheLimitBytes].
         val cacheLimitMb = if (cacheUnlimited) CACHE_UNLIMITED_STOP_MB else (cacheLimitBytes / (1024 * 1024)).toInt()
         val unlimitedLabel = stringResource(R.string.song_cache_unlimited)
         val cacheLimitLabel = if (cacheUnlimited) unlimitedLabel else formatCacheSize(cacheLimitMb)
@@ -1465,9 +1321,6 @@ fun SettingsScreen(
             }
         }
 
-        // Only in a build that carries the watch app — see app/build.gradle.kts.
-        // On the main page it is listed with the categories; here it answers
-        // a search.
         if (searching && watchAvailable) {
             SearchableSettingsGroup(search) {
                 row(stringResource(R.string.wear_os_section), "watch", "wear os", "galaxy watch", "pixel watch", "install") {
@@ -1525,8 +1378,6 @@ fun SettingsScreen(
             }
         }
 
-        // No footer: it only restated the stop-on-close row's own subtitle,
-        // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
             val classicSearchTitle = stringResource(R.string.classic_search)
             row(classicSearchTitle, "search", "classic", "categories", "browse") {
@@ -1781,9 +1632,6 @@ fun SettingsScreen(
                                 .padding(vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            // A glass foreground holds the finished icon in its own shape on the
-                            // central 72 of 108 dp: scaled 1.5× it fills the tile as designed.
-                            // Only the default goes through an adaptive mask.
                             val preview = option.previewRes
                             if (preview == null) {
                                 AndroidView(
@@ -1834,14 +1682,10 @@ fun SettingsScreen(
             }
         }
 
-        // Read after every group above has had its turn at the query, which is
-        // what makes this an accurate "nothing here" rather than a guess.
         if (searching && !search.anyMatch) {
             MessageState(stringResource(R.string.settings_search_empty, searchQuery))
         }
 
-        // The version line is the page's colophon, not a setting: it belongs to
-        // the whole list, so it goes when the list is narrowed to a few rows.
         if (section == null && searchQuery.isBlank()) {
         Text(
             text = buildAnnotatedString {
@@ -1879,7 +1723,6 @@ fun SettingsScreen(
         }
     }
 
-    // Everything in the Cached songs folder goes with it, so say so first.
     if (confirmClearSongCache) {
         AlertDialog(
             onDismissRequest = { confirmClearSongCache = false },
@@ -1903,9 +1746,6 @@ fun SettingsScreen(
         )
     }
 
-    // Asked before the picker opens rather than after a file is chosen: the
-    // thing being confirmed is that this device's own history is about to be
-    // thrown away, and that is true whichever file gets picked.
     if (confirmImport) {
         AlertDialog(
             onDismissRequest = { confirmImport = false },
@@ -2053,7 +1893,6 @@ fun SettingsScreen(
                         lastfmError = null
                         scrobbleScope.launch {
                             try {
-                                // Use the credentials supplied for this build.
                                 LastFM.initialize(
                                     apiKey = AppSettings.lastfmApiKey.value,
                                     secret = AppSettings.lastfmSecret.value,
@@ -2090,7 +1929,6 @@ fun SettingsScreen(
 
 }
 
-/** "3 months of listening" — the unit a backup is actually measured in. */
 private fun Context.countOfMonths(months: Int): String = if (months == 0) {
     getString(R.string.no_listening_history)
 } else {
@@ -2151,7 +1989,6 @@ private fun AppFont.localizedLabel(): String = stringResource(
     },
 )
 
-/** The typeface each [AppFont] sets, named under its label. */
 @Composable
 private fun AppFont.description(): String = stringResource(
     when (this) {
@@ -2169,12 +2006,6 @@ private fun AutomixPerformanceMode.localizedLabel(): String = stringResource(
     },
 )
 
-/**
- * Hands the device's own effect panel this app's audio session.
- *
- * Shared with [EqualizerScreen], which offers the same escape hatch a second
- * time next to the equaliser it might be an alternative to.
- */
 internal fun openEqualizer(context: Context, sessionId: Int) {
     val intent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
         putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
@@ -2186,30 +2017,22 @@ internal fun openEqualizer(context: Context, sessionId: Int) {
     }
 }
 
-/** Above this, the cache limit slider's subtitle warns rather than reassures. */
 private const val CACHE_WARNING_MB = 2048
 
-/**
- * Where the cache limit slider's "Unlimited" stop sits: one 512MB step past
- * [AppSettings.MAX_CACHE_LIMIT_BYTES], so the fixed sizes keep their positions.
- */
 private const val CACHE_UNLIMITED_STOP_MB = 10 * 1024 + 512
 
-/** "512 MB", "2 GB", "2.5 GB" — whichever reads more naturally at that size. */
 private fun formatCacheSize(mb: Int): String {
     if (mb < 1024) return "$mb MB"
     val gb = mb / 1024f
     return if (gb == gb.toInt().toFloat()) "${gb.toInt()} GB" else "%.1f GB".format(Locale.ROOT, gb)
 }
 
-/** Who you're signed in as, straight from YouTube Music's account menu. */
 @Composable
 internal fun AccountCard(
     signedIn: Boolean,
     account: Account?,
     onSignIn: () -> Unit,
     onClick: (() -> Unit)? = null,
-    /** Sits inside a [SettingsGroup] that already supplies the card, so draws none of its own. */
     grouped: Boolean = false,
 ) {
     Row(
@@ -2286,22 +2109,9 @@ internal fun AccountCard(
     }
 }
 
-/**
- * A setting the bit-perfect output bypasses, faded and closed to touch while
- * that output is ready. With the mode on but its DAC unplugged the setting
- * works, and looks it.
- *
- * Only the touches that would change something are taken, so the page still
- * scrolls when a swipe starts on one of these rows: the press and the
- * release (no ripple, no click, no switch flip) and a sideways drag (no
- * slider). A vertical drag is left alone, and the list's scrolling still
- * starts from a press that was taken, so it scrolls as from any other row.
- */
 @Composable
 private fun BypassedByBitPerfect(bypassed: Boolean, content: @Composable () -> Unit) {
     val alpha by animateFloatAsState(if (bypassed) 0.38f else 1f, label = "bypassed")
-    // A Column, not a Box: a row can be several stacked pieces (a title row
-    // and its control), and a Box would draw them over one another.
     Column(
         Modifier
             .alpha(alpha)
@@ -2348,7 +2158,6 @@ private fun BitPerfectMode.localizedLabel(): String = stringResource(
     },
 )
 
-/** Whether this phone can use [this] at all, independent of what is plugged in. */
 private val BitPerfectMode.isSupported: Boolean
     get() = when (this) {
         BitPerfectMode.OFF -> true
@@ -2369,10 +2178,6 @@ private fun BitPerfectMode.description(): String = stringResource(
     },
 )
 
-/**
- * What the exclusive output is doing now, rather than what was asked of it:
- * a mode can be on while the playing track still goes through the mixer.
- */
 @Composable
 private fun bitPerfectSubtitle(mode: BitPerfectMode, status: BitPerfectOutput.Status): String = when {
     mode == BitPerfectMode.OFF || !mode.isSupported -> mode.description()
@@ -2396,35 +2201,18 @@ private fun bitPerfectSubtitle(mode: BitPerfectMode, status: BitPerfectOutput.St
     else -> stringResource(R.string.bit_perfect_status_waiting)
 }
 
-// ---- Building blocks --------------------------------------------------------
-
 internal val GroupShape = RoundedCornerShape(14.dp)
 internal val GROUP_INSET = 16.dp
 internal val ROW_INSET = 16.dp
 internal val ICON_SIZE = 22.dp
 internal val ICON_GAP = 14.dp
 
-/** Where a row's text starts — dividers are inset to match, as on iOS. */
 internal val TEXT_INSET = ROW_INSET + ICON_SIZE + ICON_GAP
 
-/**
- * What is typed into the field under the Settings title, and whether anything
- * on the screen has answered to it.
- *
- * A blank query matches everything, so the screen with the field untouched is
- * the screen as it was before there was a field. Rows ask [matches] as they
- * are composed; the empty state at the foot of the list reads [anyMatch] after
- * every group has had its turn, which is why this is made fresh on each pass
- * rather than remembered.
- */
 private class SettingsSearch(
     query: String,
-    /** Drawing one category's page rather than the main one: its top bar names it. */
     val inPage: Boolean = false,
 ) {
-    // Trimmed, because a trailing space is a typo rather than a search for
-    // something ending in one — and on a phone keyboard it is one keystroke
-    // away from every word typed.
     private val needle = query.trim()
 
     var anyMatch = false
@@ -2438,7 +2226,6 @@ private class SettingsSearch(
     }
 }
 
-/** Collects the rows of one group that survived the search. */
 private class SettingsGroupScope(
     private val search: SettingsSearch,
     private val header: String?,
@@ -2447,39 +2234,15 @@ private class SettingsGroupScope(
 
     val entries = mutableListOf<Entry>()
 
-    /**
-     * One searchable setting. [keywords] is everything somebody might type
-     * looking for it: its title at least, plus whatever its subtitle or the
-     * controls under it say that the title doesn't — "Spotify", say, for the
-     * canvas link that lives under Animated cover art.
-     *
-     * [divided] is false for the rows drawn as part of the row above them
-     * rather than as settings in their own right, so they keep hugging their
-     * parent when both survive the filter.
-     */
     fun row(
         vararg keywords: String?,
         divided: Boolean = true,
         content: @Composable () -> Unit,
     ) {
-        // The header counts for every row beneath it: searching "playback"
-        // should turn up the playback group entire, not nothing at all.
         if (search.matches(header, *keywords)) entries += Entry(divided, content)
     }
 }
 
-/**
- * A [SettingsGroup] whose rows are filtered by the search field, and which
- * takes itself off the screen when none of them are left. Dividers fall
- * between the rows that survived rather than around the gaps left by the ones
- * that didn't, so a filtered card is indistinguishable from a hand-written one.
- *
- * Inline so [content] is not a restartable lambda of its own. It only collects
- * rows into [SettingsGroupScope.entries], and drawing them happens here: as its
- * own recompose scope, a setting it reads — Automix hiding the crossfade
- * slider, say — re-ran it alone, filling a list nothing redrew, and the row
- * only came or went whenever something else recomposed the screen.
- */
 @Composable
 private inline fun SearchableSettingsGroup(
     search: SettingsSearch,
@@ -2491,9 +2254,6 @@ private inline fun SearchableSettingsGroup(
     val scope = SettingsGroupScope(search, header)
     scope.content()
     if (scope.entries.isEmpty()) return
-    // A category's page is titled by its large heading; the header over its
-    // first card would only say the same word again. The card takes the
-    // header's place, straight under the heading, as on Account's page.
     val inPageHeader = header != null && search.inPage
     SettingsGroup(
         header = header.takeUnless { inPageHeader },
@@ -2503,9 +2263,6 @@ private inline fun SearchableSettingsGroup(
         scope.entries.forEachIndexed { index, entry ->
             when {
                 index > 0 && entry.divided -> RowDivider()
-                // An undivided row is drawn tight to the top because something
-                // it belongs to is usually above it. Filtered down to itself it
-                // has nothing to sit under, so it is given that room back.
                 index == 0 && !entry.divided -> Spacer(Modifier.height(10.dp))
             }
             entry.content()
@@ -2513,10 +2270,6 @@ private inline fun SearchableSettingsGroup(
     }
 }
 
-/**
- * The large heading a Settings page leads with, under the bar's own small one —
- * the main page's "Settings", and every page opened from it.
- */
 @Composable
 internal fun SettingsPageTitle(text: String) {
     Text(
@@ -2527,15 +2280,10 @@ internal fun SettingsPageTitle(text: String) {
     )
 }
 
-/**
- * One inset card of rows, with an uppercase header above and an optional
- * plain-language [footer] below. Rows are separated by [RowDivider].
- */
 @Composable
 internal fun SettingsGroup(
     header: String? = null,
     footer: String? = null,
-    /** Room above the card, where there is no [header] to provide it. */
     topSpacing: Dp = 26.dp,
     content: @Composable () -> Unit,
 ) {
@@ -2586,18 +2334,6 @@ internal fun RowDivider() {
     )
 }
 
-/**
- * The standard row: glyph, title, optional subtitle, and on the right either
- * [trailing] (a switch, say) or the current [value] followed by a chevron.
- *
- * [iconPainter] is for the handful of rows whose glyph is a drawable rather
- * than a Material icon — the Dolby double-D, which is a mark and not something
- * to approximate with the nearest speaker outline. Exactly one of it and [icon]
- * is expected; the painter wins where both are given.
- *
- * [iconContent] takes the glyph's place outright — the account row's avatar —
- * and wins over both.
- */
 @Composable
 internal fun SettingsRow(
     icon: ImageVector? = null,
@@ -2677,11 +2413,6 @@ internal fun SettingsRow(
     }
 }
 
-/**
- * A toggle that reads as part of the option above it rather than a setting
- * of its own: no icon, no divider, and pulled up close against its parent
- * instead of getting the same breathing room a full [SettingsRow] gets.
- */
 @Composable
 internal fun SettingsSubRow(
     title: String,
@@ -2730,7 +2461,6 @@ internal fun SettingsSubRow(
     }
 }
 
-/** Marks the connection whose ceiling is actually in force right now. */
 @Composable
 internal fun Badge(text: String) {
     Text(
@@ -2754,7 +2484,6 @@ internal fun Chevron() {
     )
 }
 
-/** A continuous setting: label and current value on one line, track beneath. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SliderRow(
@@ -2803,8 +2532,6 @@ internal fun SliderRow(
             valueRange = valueRange,
             steps = steps,
             colors = colors,
-            // Bare track: the step ticks and the end-stop dot are noise when the
-            // value is already spelled out on the line above.
             track = { state ->
                 SliderDefaults.Track(
                     sliderState = state,
@@ -2818,7 +2545,6 @@ internal fun SliderRow(
     }
 }
 
-/** Sign out: centered, accent-coloured, no glyph — the shape of a real one. */
 @Composable
 internal fun DestructiveRow(
     label: String,
@@ -2840,10 +2566,6 @@ internal fun DestructiveRow(
     }
 }
 
-/**
- * Sliding pill selector, for the handful of settings with two or three states —
- * and the Search tab's source switcher. See [PillSegmentedControl].
- */
 @Composable
 internal fun SegmentedControl(
     options: List<String>,
@@ -2855,13 +2577,6 @@ internal fun SegmentedControl(
     PillSegmentedControl(options, selectedIndex, onSelect, modifier, enabled)
 }
 
-// ---- Pages ------------------------------------------------------------------
-
-/**
- * The groups of Settings that are pages of their own, in the order the main
- * page lists them. Account, Listen Together and Audio quality aren't here:
- * they stay on the main page, where they always were.
- */
 enum class SettingsCategory(@param:StringRes val title: Int) {
     DOWNLOADS(R.string.downloads),
     PLAYBACK(R.string.playback),
@@ -2890,7 +2605,6 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
         }
 }
 
-/** The settings whose options are a page of their own — see [SettingsChoicePage]. */
 enum class SettingsChoiceKind(@param:StringRes val title: Int) {
     AUDIO_QUALITY_WIFI(R.string.on_wifi),
     AUDIO_QUALITY_CELLULAR(R.string.on_mobile_data),
@@ -2900,7 +2614,6 @@ enum class SettingsChoiceKind(@param:StringRes val title: Int) {
     FONT(R.string.font),
 }
 
-/** The main page's list of categories: a glyph and a name each, and a chevron into it. */
 @Composable
 private fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
     SettingsGroup {
@@ -2915,17 +2628,10 @@ private fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
     }
 }
 
-/**
- * One of [SettingsChoiceKind]'s settings as a page: its options in a card,
- * the one in force ticked, and what the choice is about in the footer. A pick
- * is saved at once and [onChosen] then leaves the page, as the drawer this
- * replaces closed on one.
- */
 @Composable
 fun SettingsChoicePage(
     choice: SettingsChoiceKind,
     onChosen: () -> Unit,
-    /** Asks before a bit-perfect mode is turned on — see [SettingsScreen]. */
     onConfirmBitPerfect: (BitPerfectMode) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -2943,7 +2649,6 @@ fun SettingsChoicePage(
                 val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
                 val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
                 ChoiceGroup(
-                    // Best first — the option most people want shouldn't be last.
                     options = AudioQuality.entries.reversed(),
                     selected = if (wifi) wifiQuality else cellularQuality,
                     label = { it.localizedLabel() },
@@ -2953,17 +2658,11 @@ fun SettingsChoicePage(
                         stringResource(if (wifi) R.string.wifi else R.string.mobile_data).lowercase(Locale.getDefault()),
                     ),
                 ) { quality ->
-                    // Writes the one ceiling being edited and nothing else —
-                    // which sources a rung consults is read per stream off the
-                    // connection in force; see [AudioQuality.permits].
                     if (wifi) AppSettings.setAudioQualityWifi(quality) else AppSettings.setAudioQualityCellular(quality)
                     onChosen()
                 }
             }
 
-            // Priced per track rather than per hour, unlike the streaming
-            // ceilings: a stream is paid for again on every replay, a download
-            // once. Same list, different question.
             SettingsChoiceKind.DOWNLOAD_QUALITY -> {
                 val selected by AppSettings.downloadQuality.collectAsStateWithLifecycle()
                 ChoiceGroup(
@@ -3011,8 +2710,6 @@ fun SettingsChoicePage(
                     enabled = { it.isSupported },
                 ) { mode ->
                     onChosen()
-                    // Leaving the mode needs no warning; entering it hands
-                    // volume to the DAC, at full scale.
                     if (mode == BitPerfectMode.OFF) AppSettings.setBitPerfectMode(mode) else onConfirmBitPerfect(mode)
                 }
             }
@@ -3035,11 +2732,6 @@ fun SettingsChoicePage(
     }
 }
 
-/**
- * A card of options, one of them ticked: the body of every choice page. A
- * label and a dimmer line under it per option; [enabled] greys out the ones
- * this device can't take.
- */
 @Composable
 internal fun <T> ChoiceGroup(
     options: List<T>,
@@ -3051,8 +2743,6 @@ internal fun <T> ChoiceGroup(
     onSelect: (T) -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
-    // Every page it is the body of leads with its large heading — see
-    // [SettingsPageTitle], whose own bottom padding is all the room it needs.
     SettingsGroup(footer = footer, topSpacing = 0.dp) {
         options.forEachIndexed { index, option ->
             if (index > 0) {

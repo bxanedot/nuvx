@@ -1,16 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/*
- * Modeled on Orchard's own AudioDecoder (https://github.com/SFG5453/Orchard),
- * scoped down to the platform MediaCodec path — Orchard prefers a native
- * libopus decode with the platform decoder as its documented fallback; this
- * only needs the fallback, since nuvx has no reason to carry a second
- * Opus decoder purely for background analysis.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- */
 
 package com.bxane.nuvx.playback.smart
 
@@ -23,43 +11,15 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.max
 
-/**
- * Decodes a region of a cached track to mono float PCM, for [TrackAnalyzer].
- *
- * Only a region: a transition only ever reads the tail of the outgoing track
- * and the head of the incoming one, not either track in full, and decoding a
- * whole album's worth of audio to analyse thirty seconds of it would cost
- * battery for nothing.
- *
- * Everything here is best-effort. A codec that will not configure, a
- * container Android cannot parse, a region past the end — all return null,
- * and the caller falls back to no analysis, which the transition policy
- * already handles as its bottom rung.
- */
 object AudioDecoder {
 
     private const val TAG = "NuvxAudioDecoder"
     private const val TIMEOUT_US = 10_000L
 
-    /** Decoded mono PCM at the container's own sample rate; the caller resamples. */
     data class Pcm(val samples: FloatArray, val sampleRate: Double)
 
-    /**
-     * Decoded planar stereo PCM at the container's own sample rate.
-     *
-     * Planar rather than interleaved because the only consumer is the vocal
-     * front end, which wants one array per channel; a mono source is widened
-     * by sharing the same samples on both sides, which is what the model was
-     * trained to see for centre-panned material anyway.
-     */
     data class StereoPcm(val left: FloatArray, val right: FloatArray, val sampleRate: Double)
 
-    /**
-     * Reads the audio duration a fully-cached container advertises, without
-     * decoding it. Queue metadata isn't always trustworthy, so this is the
-     * fallback [TrackAnalyzer] reaches for when a track's own duration is
-     * missing or non-finite.
-     */
     fun containerDurationSeconds(source: MediaDataSource): Double? {
         val extractor = MediaExtractor()
         return try {
@@ -83,21 +43,6 @@ object AudioDecoder {
         }
     }
 
-    /**
-     * Decodes [startSeconds] to [endSeconds] of [source], downmixed to mono at
-     * the container's native rate.
-     *
-     * The extractor seeks to the closest sync sample at or before the
-     * requested start, so a little more audio than asked for may come back at
-     * the front; the caller is given the real start via the returned offset
-     * so frame indices still map to true track times.
-     *
-     * [abort] is polled once per pass of the decode loop; answering true
-     * abandons the decode as if it had failed. A whole-track decode is the
-     * longest single thing analysis does, and it holds tens of megabytes of
-     * PCM while it runs, so the caller that no longer wants the answer wants
-     * it stopped rather than merely ignored.
-     */
     fun decodeRegion(
         source: MediaDataSource,
         startSeconds: Double,
@@ -111,14 +56,6 @@ object AudioDecoder {
         return Pcm(flatten(chunks), decoded.first) to decoded.second
     }
 
-    /**
-     * As [decodeRegion], but keeping the two channels apart.
-     *
-     * Only the vocal front end needs this: open-unmix was trained on stereo,
-     * and handing it a duplicated mono mix throws away the very stereo
-     * information it uses to tell a centred vocal from the instruments
-     * around it.
-     */
     fun decodeRegionStereo(
         source: MediaDataSource,
         startSeconds: Double,
@@ -133,11 +70,6 @@ object AudioDecoder {
         return StereoPcm(flatten(left), flatten(right), decoded.first) to decoded.second
     }
 
-    /**
-     * As [decodeRegion], but handing each decoded mono chunk to [onChunk] instead
-     * of keeping it, so a caller that only reduces the audio never holds the
-     * region. Returns the output rate paired with the region's real start.
-     */
     fun streamRegion(
         source: MediaDataSource,
         startSeconds: Double,
@@ -149,7 +81,6 @@ object AudioDecoder {
             onChunk(toMono(buffer, info, channels), info.presentationTimeUs / 1_000_000.0, rate)
         }
 
-    /** Concatenates the decoded chunks into one contiguous buffer. */
     private fun flatten(chunks: List<FloatArray>): FloatArray {
         val samples = FloatArray(chunks.sumOf { it.size })
         var offset = 0
@@ -160,14 +91,6 @@ object AudioDecoder {
         return samples
     }
 
-    /**
-     * Runs the decode loop, handing each output buffer to [onBuffer], and
-     * returns the output sample rate paired with the region's real start.
-     *
-     * Shared by the mono and stereo entry points so there is one dequeue loop
-     * to get right rather than two that can drift apart; all that differs
-     * between them is how a buffer is reduced, which is what [onBuffer] owns.
-     */
     private fun decodeRaw(
         source: MediaDataSource,
         startSeconds: Double,
@@ -206,18 +129,7 @@ object AudioDecoder {
             var outputDone = false
 
             while (!outputDone) {
-                // Polled at the top of the loop rather than only around the
-                // model passes that follow: everything decoded so far goes with
-                // it, and on a long track that is most of what the analysis
-                // costs in both time and heap. `finally` still tears the codec
-                // and extractor down.
                 if (abort()) return null
-                // Every free input slot is filled, and every ready output
-                // drained, before anything waits. Feeding one packet and then
-                // blocking for its frame left the loop waiting on the codec's
-                // latency once per 20 ms Opus frame: about 6 ms each, which is
-                // most of what decoding a region cost. It only blocks now when
-                // neither side could move.
                 var progressed = false
                 while (!inputDone) {
                     val inputIndex = codec.dequeueInputBuffer(0L)
@@ -279,7 +191,6 @@ object AudioDecoder {
         }
     }
 
-    /** Downmixes one 16-bit PCM output buffer to mono float in [-1, 1]. */
     private fun toMono(buffer: ByteBuffer, info: MediaCodec.BufferInfo, channels: Int): FloatArray {
         val safeChannels = max(1, channels)
         val shorts = buffer.duplicate().apply {
@@ -299,16 +210,6 @@ object AudioDecoder {
         return mono
     }
 
-    /**
-     * Splits one 16-bit PCM output buffer into planar left/right float in
-     * [-1, 1], appending each to its own accumulator.
-     *
-     * A mono source is widened by giving both sides the same samples, and
-     * anything above two channels keeps only the first two: the model's input
-     * is stereo, and a downmix of a 5.1 track would put the centre channel —
-     * where the vocal usually is — into both sides at half level, which is
-     * the opposite of helpful for telling a vocal apart from the bed.
-     */
     private fun toStereo(
         buffer: ByteBuffer,
         info: MediaCodec.BufferInfo,

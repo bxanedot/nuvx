@@ -13,18 +13,10 @@ import com.bxane.nuvx.data.innertube.potoken.PoTokenWebView
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.sources.SourceResolver
 
-/**
- * The phone's answers to what the shared stream resolution asks of its
- * platform: the clock, logcat, the exported log's header, the quality
- * ceiling, and InnerTubeX's config store and BotGuard minter.
- */
 object AndroidStreamHooks {
 
-    /** Before anything logs or resolves. */
     fun installEarly() {
         MonotonicClock.nowMs = SystemClock::elapsedRealtime
-        // logcat on debug builds only; a release build keeps the lines for Copy
-        // Log and writes them nowhere else.
         if (BuildConfig.DEBUG) {
             TrackLog.echo = { level, tag, message, error ->
                 when (level) {
@@ -50,11 +42,9 @@ object AndroidStreamHooks {
         InnerTubeXResolver.debugLogging = BuildConfig.DEBUG
     }
 
-    /** What `InnerTubeXResolver.init(context)` did when it lived in the app. */
     fun initInnerTubeX(context: Context) {
         val app = context.applicationContext
         val prefs = app.getSharedPreferences("innertubex_player_config", Context.MODE_PRIVATE)
-        // BotGuard PoTokens minted in a hidden WebView; what WEB_REMIX needs for age-restricted tracks.
         val webViewSupported by lazy { runCatching { CookieManager.getInstance() }.isSuccess }
         val poTokens = PoTokenGenerator(
             createMinter = { PoTokenWebView.getNewPoTokenGenerator(app) },

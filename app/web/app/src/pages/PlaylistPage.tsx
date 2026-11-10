@@ -10,7 +10,6 @@ import { usePageTint } from '@/lib/usePageTint';
 import { PlaylistSkeleton } from '@/skeletons/PageSkeletons';
 import { detailFooter } from './pageStyles';
 
-/** A playlist (report §14): header, then the artwork track list, loading on as you scroll. */
 export default function PlaylistPage() {
   const id = decodeURIComponent(useParams().id ?? '');
   const { missing } = useYouTubeReady();

@@ -29,21 +29,11 @@ import type {
   Track,
 } from './types';
 
-// The browse pages' requests, through YouTube.js's music namespace (prompt
-// §5.1). Each returns a view model; continuations are passed back as opaque
-// handles, so pages never see a YouTube.js object.
-
 export interface Paged<T> {
   data: T;
-  /** Fetches the next page; null when there isn't one. */
   next: (() => Promise<Paged<T>>) | null;
 }
 
-/**
- * YouTube often offers one more page than it has: the continuation comes back
- * empty and YouTube.js throws ("Continuation did not have any content"). That
- * is the end of the list, not a failure; anything else still is one.
- */
 async function orEnd<T>(nextPage: () => Promise<Paged<T>>, empty: T): Promise<Paged<T>> {
   try {
     return await nextPage();
@@ -65,13 +55,11 @@ export async function fetchHome(): Promise<Paged<Shelf[]>> {
   return homePage(await yt.music.getHomeFeed());
 }
 
-/** The New page: YouTube Music's Explore, minus its podcast and mood carousels (mappers drop those). */
 export async function fetchExplore(): Promise<Shelf[]> {
   const yt = await getMusicClient();
   return mapShelves((await yt.music.getExplore()).sections);
 }
 
-/** Moods & genres, read raw because YouTube.js drops the tiles' colours. */
 export async function fetchCategories(): Promise<CategoryGroup[]> {
   const yt = await getInnertube();
   const response = await yt.actions.execute('/browse', { browseId: 'FEmusic_moods_and_genres', client: 'YTMUSIC' });
@@ -83,7 +71,6 @@ export async function fetchSearch(query: string): Promise<SearchResults> {
   return mapSearch(await yt.music.search(query));
 }
 
-/** YouTube Music's Songs shelf for [query]: what an import or a match is chosen from. */
 export async function searchSongs(query: string): Promise<Track[]> {
   const yt = await getMusicClient();
   const search = await yt.music.search(query, { type: 'song' });
@@ -101,14 +88,8 @@ export async function fetchAlbum(id: string): Promise<AlbumPage> {
   return mapAlbum(id, await yt.music.getAlbum(id));
 }
 
-/** How many top songs an artist page lists, as on the phone. */
 const ARTIST_TOP_SONGS = 20;
 
-/**
- * An artist. The landing page only lists five songs, so its linked "Top
- * songs" playlist fills the list out (YtMusicRepository.artistPage); if that
- * fails, the five stand.
- */
 export async function fetchArtist(id: string): Promise<ArtistPage> {
   const yt = await getMusicClient();
   const page = mapArtist(id, await yt.music.getArtist(id));
@@ -118,7 +99,6 @@ export async function fetchArtist(id: string): Promise<ArtistPage> {
       const { page: playlist } = await fetchPlaylist(playlistId);
       if (playlist.tracks.length > page.topSongs.length) page.topSongs = playlist.tracks.slice(0, ARTIST_TOP_SONGS);
     } catch {
-      // The landing page's songs are still the right ones, just fewer.
     }
   }
   return page;
@@ -131,14 +111,12 @@ function playlistTracks(page: YTMusic.Playlist): Paged<Track[]> {
   };
 }
 
-/** The header and first page of tracks; `more` fetches the rest page by page. */
 export async function fetchPlaylist(id: string): Promise<{ page: PlaylistPage; more: Paged<Track[]>['next'] }> {
   const yt = await getMusicClient();
   const playlist = await yt.music.getPlaylist(id);
   return { page: mapPlaylist(id, playlist), more: playlistTracks(playlist).next };
 }
 
-/** See All, moods and genres: whatever the browse id renders as. */
 export async function fetchBrowse({ browseId, params }: BrowseLink): Promise<BrowsePage> {
   const yt = await getMusicClient();
   const { YTNodes } = await import('youtubei.js/web');
@@ -159,11 +137,8 @@ export async function fetchBrowse({ browseId, params }: BrowseLink): Promise<Bro
   return mapBrowse({ header, sections }, '');
 }
 
-// ---- Signed in (prompt §5.3) ------------------------------------------------------
-
 type Raw = Record<string, unknown>;
 
-/** Every object stored under [key], anywhere inside a raw response. */
 function collect(root: unknown, key: string, out: Raw[] = []): Raw[] {
   if (Array.isArray(root)) for (const item of root) collect(item, key, out);
   else if (root && typeof root === 'object') {
@@ -180,7 +155,6 @@ function runsText(node: unknown): string {
   return n?.runs?.map((r) => r.text ?? '').join('') ?? n?.simpleText ?? '';
 }
 
-/** One library page, a page of it at a time: grids continue as grids, song lists as song lists. */
 export async function fetchLibrary(section: LibrarySection): Promise<Paged<BrowsePage>> {
   const yt = await getSignedInnertube();
   const { YTNodes } = await import('youtubei.js/web');
@@ -191,7 +165,6 @@ export async function fetchLibrary(section: LibrarySection): Promise<Paged<Brows
   const lists = [...(memo?.getType(YTNodes.MusicShelf) ?? []), ...(memo?.getType(YTNodes.MusicPlaylistShelf) ?? [])];
   const carousels = memo?.getType(YTNodes.MusicCarouselShelf) ?? [];
   const page = mapBrowse({ sections: [...grids, ...lists, ...carousels] }, title);
-  // History is several lists ("Today", "Yesterday"); the rest is one grid or one list.
   const token = (grids[0]?.continuation ?? (lists.length === 1 ? lists[0]?.continuation : null)) || null;
   return { data: { ...page, title }, next: token ? () => orEnd(() => libraryContinuation(token, title), emptyPage(title)) : null };
 }
@@ -215,7 +188,6 @@ async function libraryContinuation(token: string, title: string): Promise<Paged<
   };
 }
 
-/** The user's playlists for the sidebar, in YouTube's order (most recent activity first). */
 export async function fetchLibraryPlaylists(): Promise<MusicItem[]> {
   const { data } = await fetchLibrary('playlists');
   return data.grid.filter((item) => item.kind === 'playlist');
@@ -223,7 +195,6 @@ export async function fetchLibraryPlaylists(): Promise<MusicItem[]> {
 
 export type LikeStatus = 'LIKE' | 'DISLIKE' | 'INDIFFERENT';
 
-/** The thumbs state YouTube Music shows on its player for this track. */
 export async function fetchLikeStatus(videoId: string): Promise<LikeStatus> {
   const yt = await getSignedInnertube();
   const response = await yt.actions.execute('/next', { videoId, client: 'YTMUSIC' });
@@ -232,13 +203,11 @@ export async function fetchLikeStatus(videoId: string): Promise<LikeStatus> {
   return status === 'LIKE' || status === 'DISLIKE' ? status : 'INDIFFERENT';
 }
 
-/** Likes a track (it joins Liked Music) or takes the like back. */
 export async function setTrackLiked(videoId: string, liked: boolean): Promise<void> {
   const yt = await getSignedInnertube();
   await yt.actions.execute(liked ? '/like/like' : '/like/removelike', { target: { videoId }, client: 'YTMUSIC' });
 }
 
-/** Adds an album or playlist to the library, or removes it: YouTube saves both by liking the list. */
 export async function setListSaved(playlistId: string, saved: boolean): Promise<void> {
   const yt = await getSignedInnertube();
   await yt.actions.execute(saved ? '/like/like' : '/like/removelike', { target: { playlistId }, client: 'YTMUSIC' });
@@ -249,12 +218,6 @@ export interface PlaylistOption {
   title: string;
 }
 
-/**
- * The playlists a track can be added to, as YouTube Music's "Save to
- * playlist" lists them. YouTube doesn't say which already hold the track
- * (adding is deduplicated instead), and its "Liked Music" entry is really a
- * like, which Favorite already does, so it's left out.
- */
 export async function fetchPlaylistOptions(videoId: string): Promise<PlaylistOption[]> {
   const yt = await getSignedInnertube();
   const response = await yt.actions.execute('/playlist/get_add_to_playlist', { videoIds: [videoId], client: 'YTMUSIC' });
@@ -275,10 +238,6 @@ export async function addToPlaylist(playlistId: string, videoId: string): Promis
   });
 }
 
-/**
- * A new private playlist holding [videoIds], as YtMusicRepository.createPlaylist
- * makes one (InnerTube `playlist/create`). Returns its id, without the VL.
- */
 export async function createPlaylist(title: string, videoIds: string[], description = ''): Promise<string> {
   const yt = await getSignedInnertube();
   const response = await yt.actions.execute('/playlist/create', {
@@ -293,35 +252,17 @@ export async function createPlaylist(title: string, videoIds: string[], descript
   return id;
 }
 
-// ---- AutoPlay (phase 6) -------------------------------------------------------------
-
-/**
- * A music video rather than the catalogue song: YouTube marks each watch
- * endpoint with its type, ATV for the song and OMV/UGC for videos. (A radio
- * seeded on a video id is all videos; one seeded on a song is mostly songs.)
- */
 function isMusicVideo(item: YTNodes.PlaylistPanelVideo): boolean {
   const type = (item.endpoint?.payload as { watchEndpointMusicSupportedConfigs?: { watchEndpointMusicConfig?: { musicVideoType?: string } } } | undefined)
     ?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType;
   return type !== undefined ? type !== 'MUSIC_VIDEO_TYPE_ATV' : !item.album;
 }
 
-/** A station, and which cut it was seeded on: a music video's station is built from music videos. */
 export interface Radio {
   candidates: Candidate[];
-  /** [videoId] is itself a music video, not the catalogue song. */
   seedIsVideo: boolean;
 }
 
-/**
- * The radio YouTube Music would play after [videoId]: its "RDAMVM" mix, as
- * Innertube.next asks for it on the phone. Signed in it's the user's own
- * station.
- *
- * Most rows carry both cuts of a track, and which one is taken follows what
- * is playing: a music video's station stays on music videos, a song's on the
- * catalogue cuts. The seed's own row says which of the two it is.
- */
 export async function fetchRadio(videoId: string): Promise<Radio> {
   const yt = await getMusicClient();
   const panel = await yt.music.getUpNext(videoId, true);
@@ -334,10 +275,6 @@ export async function fetchRadio(videoId: string): Promise<Radio> {
   };
 }
 
-/**
- * A watch-queue row's cuts. A wrapper pairs the two cuts of one track (song
- * and music video), with either as its primary.
- */
 function panelCuts(raw: Raw): YTNodes.PlaylistPanelVideo[] {
   const cuts = (raw.type === 'PlaylistPanelVideoWrapper'
     ? [raw.primary, ...((raw.counterpart as unknown[] | undefined) ?? [])]
@@ -345,7 +282,6 @@ function panelCuts(raw: Raw): YTNodes.PlaylistPanelVideo[] {
   return cuts.filter((c): c is YTNodes.PlaylistPanelVideo => c?.type === 'PlaylistPanelVideo');
 }
 
-/** One watch-queue row as a track: the catalogue song (the cut with an album), or its music video for [wantVideo]. */
 function panelCandidate(raw: Raw, wantVideo = false): Candidate | null {
   const panelVideos = panelCuts(raw);
   const item = panelVideos.find((c) => isMusicVideo(c) === wantVideo) ?? panelVideos[0];
@@ -367,26 +303,13 @@ function panelCandidate(raw: Raw, wantVideo = false): Candidate | null {
   };
 }
 
-// ---- Player links ---------------------------------------------------------------
-
-/**
- * The album and artist pages a track links out to (YtMusicRepository.trackLinks).
- * Queue rows from home cards often lack them; the track's own watch-queue
- * entry always names both.
- */
 export async function fetchTrackLinks(videoId: string): Promise<Track | null> {
   const yt = await getMusicClient();
   const panel = await yt.music.getUpNext(videoId, false);
-  // The row holding this video, by either of its cuts; its catalogue cut names the album.
   const row = (panel.contents as unknown as Raw[]).find((raw) => panelCuts(raw).some((cut) => cut.video_id === videoId));
   return (row && panelCandidate(row)?.track) ?? null;
 }
 
-/**
- * The page of the artist called exactly [name] (YtMusicRepository.findArtistPageId):
- * a name is not an identity, so only a result that answers to it exactly is
- * opened, never the nearest one.
- */
 export async function findArtistPageId(name: string): Promise<string | null> {
   if (!normalizedArtistName(name)) return null;
   const results = await fetchSearch(name);

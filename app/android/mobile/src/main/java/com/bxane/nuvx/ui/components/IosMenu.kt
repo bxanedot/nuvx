@@ -82,12 +82,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
-/**
- * The colours of an iOS-style menu panel: a charcoal or frost slab with its
- * own label greys, rather than the theme's surface roles — the panel floats
- * over artwork as often as over a page, and the theme's containers were tuned
- * for neither.
- */
 @Immutable
 data class IosMenuColors(
     val dark: Boolean,
@@ -96,7 +90,6 @@ data class IosMenuColors(
     val label: Color,
     val secondaryLabel: Color,
     val separator: Color,
-    /** The rounded fill under the row a finger is on. */
     val pressed: Color,
 )
 
@@ -104,15 +97,12 @@ private val DarkMenu = IosMenuColors(
     dark = true,
     fill = Color(0xFF1C1C1E),
     rim = Color.White.copy(alpha = 0.10f),
-    // Below full strength for [additiveChrome], which both panels draw their
-    // rows through here: solid white would stay solid white under it.
     label = Color.White.copy(alpha = 0.75f),
     secondaryLabel = Color.White.copy(alpha = 0.60f),
     separator = Color.White.copy(alpha = 0.10f),
     pressed = Color.White.copy(alpha = 0.10f),
 )
 
-/** [DarkMenu] with "Disable blend effects" on: the rows laid over the frost at full strength again. */
 private val PlainDarkMenu = DarkMenu.copy(
     label = Color.White,
     secondaryLabel = Color.White.copy(alpha = 0.70f),
@@ -128,7 +118,6 @@ private val LightMenu = IosMenuColors(
     pressed = Color.Black.copy(alpha = 0.07f),
 )
 
-/** The panel colours for the theme in force. */
 @Composable
 fun iosMenuColors(): IosMenuColors {
     val plain by AppSettings.disableBlendEffects.collectAsStateWithLifecycle()
@@ -139,38 +128,20 @@ fun iosMenuColors(): IosMenuColors {
     }
 }
 
-/** The panel's silhouette: a large, continuously curved corner. */
 val IosMenuShape: Shape = RoundedCornerShape(30.dp).continuous()
 
-/** [IosMenuShape]'s plain rounded-rect twin, for a shadow drawn while it scales. */
 private val IosMenuShadowShape: Shape = RoundedCornerShape(30.dp)
 
-/** Wide enough for "Remove from listening history" on one line or two. */
 val IosMenuWidth = 256.dp
 
-/**
- * Shadow, slab and rim — the menu's material, without its contents.
- *
- * [translucent] lets what is behind show through the slab, as iOS menus do.
- * Something behind has to be blurred for that to read as frost rather than as
- * a page seen through tinted glass, so it is only translucent when it can blur
- * what is under it, under the slab only and for as long as the panel is up:
- * [backdrop] — the player recorded live, blurred with the page's hue drawn up —
- * or else [hazeState], the page's own haze, which every page is a source of.
- *
- * "Reduce dynamic blur" turns the frost off and the slab opaque: an unblurred
- * page seen through it is exactly what the frost was there to prevent.
- */
 @Composable
 fun Modifier.iosMenuPanel(
     colors: IosMenuColors = iosMenuColors(),
     translucent: Boolean = false,
     backdrop: Backdrop? = null,
     hazeState: HazeState? = null,
-    /** Paints the slab in this instead, as the held-item menu does to match its item's plate. */
     fillOverride: Color? = null,
     rimOverride: Color? = null,
-    /** False where the caller casts [iosMenuShadow] itself, apart from the panel. */
     castsShadow: Boolean = true,
 ): Modifier {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
@@ -179,8 +150,6 @@ fun Modifier.iosMenuPanel(
     val backdropFrost = blurs && backdrop != null && isGlassSupported()
     val hazeFrost = blurs && !backdropFrost && hazeState != null
     val fill = fillOverride ?: if (backdropFrost || hazeFrost) {
-        // Thinner on a dark panel while its rows are blended, which takes them
-        // further into the colour behind; plain rows want the denser slab back.
         colors.fill.copy(alpha = if (!colors.dark) 0.72f else if (plain) 0.80f else 0.60f)
     } else {
         colors.fill
@@ -199,7 +168,6 @@ fun Modifier.iosMenuPanel(
         .border(0.5.dp, rimOverride ?: colors.rim, IosMenuShape)
 }
 
-/** The shadow the menu panel casts. */
 fun Modifier.iosMenuShadow(shape: Shape = IosMenuShape): Modifier = shadow(
     elevation = 24.dp,
     shape = shape,
@@ -207,35 +175,24 @@ fun Modifier.iosMenuShadow(shape: Shape = IosMenuShape): Modifier = shadow(
     spotColor = Color.Black.copy(alpha = 0.30f),
 )
 
-/**
- * The menu panel's frost drawn from a recorded [backdrop], in [shape] under
- * [fill] — the panel's own, and the player's drawers' and popups', so the two
- * are one material (see [com.bxane.nuvx.ui.player.PlayerFrost]).
- */
 fun Modifier.menuBackdropFrost(backdrop: Backdrop, shape: Shape, fill: Color): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = { shape },
     effects = {
-        // iOS menus carry the page's hue through more strongly than the page
-        // has it.
         colorControls(saturation = 1.8f)
         blur(MENU_BLUR.toPx() * MENU_BACKDROP_SCALE)
     },
     highlight = null,
     shadow = null,
     onDrawSurface = { drawRect(fill) },
-    // Sampled small: the blur hides the upscale, and the effect then runs over
-    // a fraction of the pixels.
     backdropScale = MENU_BACKDROP_SCALE,
 )
 
 private val MENU_BLUR = 24.dp
 private const val MENU_BACKDROP_SCALE = 0.25f
 
-/** The longest a menu waits for its frost's still before growing without it. */
 private const val STILL_WAIT_MS = 150L
 
-/** The break between groups: a hairline inset from the panel's edges, with air either side. */
 @Composable
 fun IosMenuSeparator(colors: IosMenuColors = iosMenuColors()) {
     Box(
@@ -254,7 +211,6 @@ fun IosMenuSeparator(colors: IosMenuColors = iosMenuColors()) {
     }
 }
 
-/** The tiles across the top of a menu: the actions reached for most, side by side. */
 @Composable
 fun IosMenuQuickActions(content: @Composable RowScope.() -> Unit) {
     Row(
@@ -267,7 +223,6 @@ fun IosMenuQuickActions(content: @Composable RowScope.() -> Unit) {
     )
 }
 
-/** One tile of [IosMenuQuickActions]: the glyph over a short label. */
 @Composable
 fun RowScope.IosMenuQuickAction(
     icon: ImageVector,
@@ -310,14 +265,6 @@ fun RowScope.IosMenuQuickAction(
     }
 }
 
-/**
- * One line of an iOS-style menu: the glyph leading in a fixed column, so the
- * labels line up whether a row has one or not, then the label with an
- * optional dimmer line under it, and an optional value at the far end.
- *
- * Pressing paints a rounded fill under the row rather than a ripple, the way
- * the panel's own platform does it.
- */
 @Composable
 fun IosMenuRow(
     label: String,
@@ -406,26 +353,6 @@ fun IosMenuRow(
     }
 }
 
-/**
- * A menu hung off a button rather than lifted out of a list — every ⋮ and ⋯ in
- * the app opens its menu this way. The iOS panel lines its trailing edge up
- * with [anchor]'s and grows out of the corner nearest the button: for one in
- * the lower half of the screen, as the player's ⋯ is, it settles at the bottom
- * and grows from its bottom corner; for one higher up, a row's ⋮ near the top
- * of a list, it hangs down from the button's top and grows from its top
- * corner. With no anchor it takes the bottom end.
- *
- * Drawn in place, over whatever it is composed on top of — the player puts it
- * inside its own sheet, so [backdrop], the player recorded live, can be
- * blurred under the panel; over a page, [hazeState] is the page's haze and
- * does the same (see [iosMenuPanel]). Both of the app's accessibility
- * switches hold: "Reduce animation" (or the system's animator scale at zero)
- * makes the growth a short fade, and "Reduce dynamic blur" an opaque slab.
- *
- * [item] is non-null while the menu is wanted. The last one is kept so the
- * panel can play its way out after the caller has already let go of it, the
- * same arrangement [HeldContextMenu] uses.
- */
 @Composable
 fun <T : Any> IosMenuPopover(
     item: T?,
@@ -456,14 +383,6 @@ fun <T : Any> IosMenuPopover(
     val progress = remember { Animatable(0f) }
     LaunchedEffect(open) {
         if (open) {
-            // The opening frame is the heaviest the menu has: every row
-            // composed and measured, the player pausing its canvas, and the
-            // still the frost blurs taken and read back. Grown from that frame,
-            // the spring — which runs on the clock — jumps across it. So the
-            // panel waits, unseen, for that frame and the still to be done;
-            // not when it is coming back from part-way out. Only a still
-            // the panel will frost with is waited for: with no glass, or the
-            // blur reduced, none is taken.
             if (progress.value == 0f) {
                 withFrameNanos { }
                 withFrameNanos { }
@@ -478,7 +397,6 @@ fun <T : Any> IosMenuPopover(
                 if (reduceMotion) {
                     tween(durationMillis = 120, easing = LinearEasing)
                 } else {
-                    // Critically damped: it settles without overshooting.
                     spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 600f)
                 },
             )
@@ -488,8 +406,6 @@ fun <T : Any> IosMenuPopover(
         }
     }
 
-    // Not a plain BackHandler: inside the player's sheet that loses to the
-    // sheet's own dismiss, and back would take the player down under the menu.
     PlayerBackHandler(enabled = open, onBack = onDismiss)
 
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -502,9 +418,6 @@ fun <T : Any> IosMenuPopover(
         modifier = Modifier
             .fillMaxSize()
             .onGloballyPositioned { overlayOffset = it.positionInWindow() }
-            // Nothing under the menu moves while it is up: a drag that the
-            // rows didn't take would otherwise reach the sheet the player is
-            // in and pull the whole player down. Taps still go through.
             .containSheetGestures(),
         content = {
             Box(
@@ -519,18 +432,9 @@ fun <T : Any> IosMenuPopover(
                         onClick = onDismiss,
                     ),
             )
-            // The panel's shadow, cast by a plate of its own behind it: the
-            // panel is drawn into a layer of its own size (see the placement
-            // below), which would cut a shadow of its own off at its edges.
-            // Cast from a plain rounded rect: a shadow that size is a blur
-            // deep enough that the continuous corner can't be told from it,
-            // and the GPU draws a rounded rect's straight off, where a path's
-            // is a mask the size of the panel rasterized on the CPU — again
-            // at each new scale, every frame of the growth.
             Box(Modifier.iosMenuShadow(IosMenuShadowShape))
             Box(
                 Modifier
-                    // Taps between rows land on the panel, not the scrim under it.
                     .pointerInput(Unit) {}
                     .iosMenuPanel(
                         translucent = true,
@@ -540,15 +444,6 @@ fun <T : Any> IosMenuPopover(
                     ),
                 propagateMinConstraints = true,
             ) {
-                // The rows in a layer of their own. The frost under them is
-                // drawn again on every frame of the growth — it holds the
-                // still in place while the panel scales over it — and drawn
-                // in the same layer, every label and glyph went with it, each
-                // frame at a new scale: rasterized again and uploaded again on
-                // the render thread. Apart, they are drawn once, full size,
-                // and only scaled. On a dark panel that layer is the blend's
-                // own, added onto the frost; on a light one it would wash the
-                // dark labels out, so it stays plain.
                 Column(
                     Modifier
                         .then(
@@ -600,12 +495,6 @@ fun <T : Any> IosMenuPopover(
             shadowPlate.placeWithLayer(panelX, panelY, layerBlock = growth)
             panel.placeWithLayer(panelX, panelY) {
                 growth()
-                // Drawn full size into a layer of its own, and only that
-                // picture scaled. Scaled as it was drawn, the panel's
-                // continuous corners — a path, not a rounded rect — were
-                // rasterized again on the CPU for its clips and rim at every
-                // new scale, and uploaded again, frame after frame of the
-                // growth. At one size the masks are made once and kept.
                 compositingStrategy = CompositingStrategy.Offscreen
             }
         }

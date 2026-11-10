@@ -9,10 +9,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayOutputStream
 
-/**
- * An exported download of a manifest: the segments joined back into one file
- * instead of the track being handed to YouTube.
- */
 class ManifestFileTest {
 
     @get:Rule val tmp = TemporaryFolder()
@@ -25,9 +21,7 @@ class ManifestFileTest {
         return u32(8L + body.size) + type.toByteArray(Charsets.ISO_8859_1) + body
     }
 
-    /** STREAMINFO for 44.1kHz stereo 16-bit with no sample count, as a segmenter leaves it. */
     private val streamInfo = ByteArray(34).also {
-        // 44100 = 0x0AC44 in 20 bits, then (channels-1)=1 in 3 bits, (bps-1)=15 in 5 bits.
         it[10] = 0x0A; it[11] = 0xC4.toByte(); it[12] = (0x40 or (1 shl 1)).toByte(); it[13] = (15 shl 4).toByte()
     }
 
@@ -42,12 +36,10 @@ class ManifestFileTest {
         return box("ftyp", "iso8".toByteArray()) + box("moov", trak, box("mvex", trex))
     }
 
-    /** One CMAF segment: styp + sidx (which must not survive), then moof+mdat. */
     private fun segment(frames: List<ByteArray>, frameTicks: Long, decodeTime: Long): ByteArray {
         val tfhd = box("tfhd", u32(0x20000), u32(1))
         val tfdt = box("tfdt", u32(0), u32(decodeTime))
         val entries = frames.flatMap { listOf(u32(frameTicks), u32(it.size.toLong())) }.toTypedArray()
-        // data_offset (0x1) + duration (0x100) + size (0x200); offset filled once moof's size is known.
         fun moof(offset: Long) = box("moof", box("traf", tfhd, tfdt, box("trun", u32(0x301), u32(frames.size.toLong()), u32(offset), *entries)))
         val moofSize = moof(0).size
         val mdat = box("mdat", *frames.toTypedArray())
@@ -67,14 +59,14 @@ class ManifestFileTest {
         val bytes = out.toByteArray()
 
         assertEquals("fLaC", String(bytes, 0, 4, Charsets.ISO_8859_1))
-        assertEquals(0x80, bytes[4].toInt() and 0xFF) // STREAMINFO, flagged last
+        assertEquals(0x80, bytes[4].toInt() and 0xFF)
         val info = bytes.copyOfRange(8, 42)
         val total = ((info[13].toLong() and 0x0F) shl 32) or
             (0 until 4).fold(0L) { acc, i -> (acc shl 8) or (info[14 + i].toLong() and 0xFF) }
         assertEquals(6 * 4096L, total)
-        assertEquals(15 shl 4, info[13].toInt() and 0xF0) // bits per sample untouched
+        assertEquals(15 shl 4, info[13].toInt() and 0xF0)
         assertArrayEquals(frames.reduce { a, b -> a + b }, bytes.copyOfRange(42, bytes.size))
-        assertTrue(tmp.root.listFiles().isNullOrEmpty()) // temporary frames file cleaned up
+        assertTrue(tmp.root.listFiles().isNullOrEmpty())
     }
 
     @Test(expected = IllegalStateException::class)

@@ -32,86 +32,31 @@ import kotlinx.coroutines.withContext
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-/**
- * The colours an album, playlist or artist page paints itself in.
- *
- * Apple Music's release pages are not one design tinted five ways — the whole
- * page is derived from the sleeve, down to which grey the metadata line is. So
- * rather than hand callers a raw swatch and let each of them guess, this is the
- * finished set: a page tint, an accent that is legible *on that tint*, and the
- * two text colours and hairline that go with them.
- *
- * Every value is theme-aware. The same sleeve yields a near-black tint in dark
- * mode and a pale wash of the same hue in light mode, which is the only way the
- * pages stay readable when the app's theme disagrees with the artwork's.
- */
 @Immutable
 data class ArtworkPalette(
-    /** The page's background wash. */
     val background: Color,
-    /**
-     * The colour the artwork's own bottom edge blurs down to.
-     *
-     * A blur wide enough to lose the picture leaves the mean of what it
-     * sampled, so a page that starts from this colour where the artwork stops
-     * reads as that blur carrying on rather than as a second surface beginning.
-     * Lighter than [background]. An artist page is this colour, flat, all the
-     * way down under its photograph; a release page, whose sleeve sits in a
-     * frame rather than bleeding into the page, is [background] instead.
-     */
     val wash: Color,
-    /** Fill for the glass buttons and chips that sit on [background]. */
     val elevated: Color,
-    /** The artwork's own colour, contrast-corrected — titles, icons, Play. */
     val accent: Color,
     val onBackground: Color,
     val onBackgroundVariant: Color,
     val divider: Color,
 )
 
-/**
- * Colours that came with the artwork rather than from decoding it — Apple
- * Music publishes a background and a text colour for every artist photograph.
- */
 @Immutable
 data class ArtworkKeyColors(val background: Color, val accent: Color)
 
-/**
- * Pulls [ArtworkPalette] out of the artwork at [imageUrl], or out of
- * [keyColors] when the source already supplied them and there is nothing to
- * decode.
- *
- * Artwork that has already been read once is tinted on the very first frame,
- * off [seedCache] — a sheet opened from a page it shares a cover with, or a
- * page opened twice, has nothing to wait for and nothing to fade. Only a sleeve
- * genuinely being seen for the first time starts from the theme's own colours
- * and warms into the artwork's, so it never flashes a placeholder tint.
- * "Reduce animation" turns that crossfade into a cut.
- */
 @Composable
 fun rememberArtworkPalette(
     imageUrl: String?,
     dark: Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f,
-    /**
-     * The artwork size to read, which should be whichever one the surface
-     * already has on screen, matching the backdrop drawn from it.
-     *
-     * A quantiser cares about a thumbnail's resolution no more than a blur
-     * does, so the only thing this choice decides is whether the read comes
-     * out of the cache or off the network.
-     */
     artPx: Int = CARD_ART_PX,
     keyColors: ArtworkKeyColors? = null,
 ): ArtworkPalette {
     val scheme = MaterialTheme.colorScheme
     val reduceAnimation by PlayerPlatform.host.settings.reduceAnimation.collectAsStateWithLifecycle()
-    // Always asked, so the composable call is unconditional; handed nothing to
-    // read when the colours are already in hand.
     val decoded = rememberArtworkSeed(if (keyColors == null) imageUrl else null, artPx)
     val seed = keyColors?.toSeed() ?: decoded
-    // Whether the colours were there from the first frame. If they were, there
-    // is nothing to crossfade *from* and animating would only put a delay in
-    // front of a surface that could already be right.
     val knownUpFront = remember(imageUrl) { decoded != null }
 
     val target = seed?.toPalette(dark) ?: ArtworkPalette(
@@ -142,10 +87,6 @@ fun rememberArtworkPalette(
     )
 }
 
-/**
- * Reads top-band relative luminance from the cached palette decode.
- * Returns raw artwork luminance without applying top scrim calculations.
- */
 @Composable
 fun rememberArtworkTopBandLuminance(
     imageUrl: String?,
@@ -173,30 +114,16 @@ private fun rememberArtworkSeed(imageUrl: String?, artPx: Int): Seed? {
     return seed
 }
 
-/**
- * Colours already read, keyed by artwork URL.
- *
- * Reading them again costs a decode and a quantise for an answer that cannot
- * have changed — the artwork at a URL is the artwork at that URL. Access is
- * from composition and from the resumption of [rememberArtworkPalette]'s
- * effect, both on the main thread, so it needs no locking of its own.
- */
 private val seedCache = object : LinkedHashMap<String, Seed>(0, 0.75f, true) {
     override fun removeEldestEntry(eldest: Map.Entry<String, Seed>) = size > SEED_CACHE_ENTRIES
 }
 
-/** Deep enough to cover a session's browsing without holding a screenful of colours. */
 private const val SEED_CACHE_ENTRIES = 128
 
 private const val PALETTE_PX = 128
 
-/** Short: this is a surface settling into its colour, not an effect in itself. */
 private const val TINT_FADE_MS = 260
 
-/**
- * The raw artwork colours: what the page is mostly made of, its brightest
- * note, and what its bottom edge averages out to.
- */
 private data class Seed(
     val dominant: Color,
     val vibrant: Color,
@@ -208,21 +135,11 @@ private fun seedOf(bitmap: ImageBitmap): Seed? {
     fun swatches(clearFilters: Boolean) =
         paletteSwatches(bitmap, SWATCH_COUNT, clearFilters)
 
-    // The default filter deliberately throws away near-black and near-white.
-    // That is useful while looking for an accent, but it is the wrong answer
-    // to "what colour is this page mostly made of?" A dark photograph would
-    // otherwise be reduced to whatever warm face or tiny coloured detail
-    // survived the filter, and a monochrome sleeve to an anti-aliased fringe.
-    // Both cases used to turn into the same maroon page.
     val all = swatches(clearFilters = true)
     if (all.isEmpty()) return null
     val accentCandidates = swatches(clearFilters = false).ifEmpty { all }
 
     val dominant = all.maxBy { it.population }
-    // The accent has to earn its place twice over: a colour nobody sees enough
-    // of reads as arbitrary, and a grey one isn't an accent at all. Scoring on
-    // saturation against the *square root* of population is what stops a sleeve
-    // that is four-fifths black sky from accenting in black.
     val vibrant = accentCandidates.maxBy { swatch ->
         val hsl = FloatArray(3).also { ColorUtils.colorToHSL(swatch.rgb, it) }
         hsl[1] * sqrt(swatch.population.toFloat())
@@ -235,10 +152,6 @@ private fun seedOf(bitmap: ImageBitmap): Seed? {
     )
 }
 
-/**
- * A seed with every note taken from the supplied colours: the page is the
- * background from top to edge, and the accent is the supplied one.
- */
 private fun ArtworkKeyColors.toSeed() = Seed(
     dominant = background,
     vibrant = accent,
@@ -248,14 +161,6 @@ private fun ArtworkKeyColors.toSeed() = Seed(
 
 private const val SWATCH_COUNT = 24
 
-/**
- * The mean of the artwork's bottom band — what a blur wide enough to lose the
- * picture leaves behind at that edge.
- *
- * A flat mean rather than a quantised swatch on purpose: a blur has no notion
- * of which colour is *important*, and the page under the artwork has to match
- * what the blur actually produced, not what the picture is about.
- */
 private fun ImageBitmap.bottomEdgeColor(): Color {
     val band = (height * EDGE_BAND).toInt().coerceIn(1, height)
     val pixels = IntArray(width * band)
@@ -277,14 +182,8 @@ private fun ImageBitmap.bottomEdgeColor(): Color {
     )
 }
 
-/** How much of the artwork's height the edge colour is read from. */
 private const val EDGE_BAND = 0.18f
 
-/**
- * The status inset occupies only the upper sliver of the full-bleed hero on a
- * phone. Keep this tight so titles or faces lower in the cover do not decide
- * the icon colour for pixels that are never behind the system bar.
- */
 private const val TOP_BAND = 0.10f
 
 private fun ImageBitmap.topBandRelativeLuminance(): Float {
@@ -294,7 +193,6 @@ private fun ImageBitmap.topBandRelativeLuminance(): Float {
     return averageRelativeLuminance(pixels)
 }
 
-/** WCAG relative luminance: average in linear light, never gamma-encoded RGB. */
 internal fun averageRelativeLuminance(pixels: IntArray): Float {
     if (pixels.isEmpty()) return 0f
     return pixels.sumOf { relativeLuminance(it).toDouble() }.div(pixels.size).toFloat()
@@ -310,10 +208,6 @@ internal fun relativeLuminance(argb: Int): Float {
         0.0722f * linear(argb and 0xFF)
 }
 
-/**
- * Maps artwork luminance to top scrim opacity to keep white status bar
- * icons legible over light album covers while staying subtle on dark ones.
- */
 internal fun topBandScrimAlpha(artworkLuminance: Float?): Float {
     val luminance = artworkLuminance?.coerceIn(0f, 1f) ?: 0f
     return PLAYER_STATUS_SCRIM_MIN_ALPHA +
@@ -325,17 +219,10 @@ private const val PLAYER_STATUS_SCRIM_MAX_ALPHA = 0.65f
 
 private fun Seed.toPalette(dark: Boolean): ArtworkPalette = if (dark) {
     ArtworkPalette(
-        // Deep enough that white body text clears contrast on any sleeve, but
-        // not so deep the hue is gone — the whole point is that the page is
-        // recognisably *this* record's colour.
         background = dominant.withHsl(
             saturation = { adaptedArtworkSaturation(it, minimum = 0.20f, maximum = 0.62f) },
             lightness = { 0.13f },
         ),
-        // Follows the edge's own brightness within a band that stays clear of
-        // white body text at the top and of [background] at the bottom: a
-        // sleeve that ends dark hands over almost invisibly, one that ends
-        // bright leaves a page that is visibly lit from under the artwork.
         wash = edge.withHsl(
             saturation = { adaptedArtworkSaturation(it, minimum = 0.18f, maximum = 0.58f) },
             lightness = { it.coerceIn(0.14f, 0.24f) },
@@ -349,10 +236,6 @@ private fun Seed.toPalette(dark: Boolean): ArtworkPalette = if (dark) {
             lightness = { it.coerceIn(0.62f, 0.78f) },
         ),
         onBackground = Color.White,
-        // A pale tint of the page's own hue rather than a translucent white —
-        // Apple Music's secondary lines are the sleeve's colour, lifted, so a
-        // blue record's credits read light blue on its blue page. Bright
-        // enough that it still clears contrast on [background].
         onBackgroundVariant = dominant.withHsl(
             saturation = { adaptedArtworkSaturation(it, minimum = 0.22f, maximum = 0.50f) },
             lightness = { 0.80f },
@@ -378,7 +261,6 @@ private fun Seed.toPalette(dark: Boolean): ArtworkPalette = if (dark) {
             lightness = { it.coerceIn(0.30f, 0.44f) },
         ),
         onBackground = Color.Black,
-        // The same hue taken down rather than up, for the pale page.
         onBackgroundVariant = dominant.withHsl(
             saturation = { adaptedArtworkSaturation(it, minimum = 0.22f, maximum = 0.55f) },
             lightness = { 0.34f },
@@ -387,15 +269,6 @@ private fun Seed.toPalette(dark: Boolean): ArtworkPalette = if (dark) {
     )
 }
 
-/**
- * Keeps neutral artwork neutral instead of inventing a hue for it.
- *
- * HSL represents grey with hue zero. Raising that grey to a saturation floor
- * therefore does not make it "more colourful"; it manufactures red, which
- * becomes brown/maroon once the page lightness is lowered. A small real amount
- * of colour is kept as-is, while an unmistakably chromatic swatch can still be
- * strengthened enough to make controls legible and the page recognisable.
- */
 internal fun adaptedArtworkSaturation(source: Float, minimum: Float, maximum: Float): Float {
     val saturation = source.coerceIn(0f, 1f)
     return if (saturation < CHROMATIC_SATURATION_THRESHOLD) {
@@ -405,7 +278,6 @@ internal fun adaptedArtworkSaturation(source: Float, minimum: Float, maximum: Fl
     }
 }
 
-/** Below this, boosting saturation makes quantisation noise visible as a tint. */
 private const val CHROMATIC_SATURATION_THRESHOLD = 0.12f
 
 private fun Color.withHsl(
@@ -418,5 +290,4 @@ private fun Color.withHsl(
     return Color(ColorUtils.HSLToColor(hsl))
 }
 
-/** Perceived brightness, used only to tell a dark theme from a light one. */
 private fun Color.luminance(): Float = ColorUtils.calculateLuminance(toArgb()).toFloat()

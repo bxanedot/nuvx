@@ -1,25 +1,12 @@
-//! Handwritten artist signatures, from the listener's own signature service.
-//!
-//! Nothing is asked of anywhere until a link is typed into Settings. The contract is
-//! the one nuvx's desktop build has always used: `{artist}` in the link is
-//! replaced with the encoded name, a bare host gets `/v1/signatures`, and anything
-//! else has `artist=…&type=handwritten` appended.
-
 use serde_json::Value;
 use unicode_normalization::UnicodeNormalization;
 
-/// A signature ready to be drawn: pixels whitened, alpha kept, so it reads as ink
-/// over the artist's banner.
 pub struct Signature {
     pub width: usize,
     pub height: usize,
     pub rgba: Vec<u8>,
 }
 
-/// The first address in whatever was pasted, or nothing at all.
-///
-/// A link often arrives out of a chat message with its prose still attached, so the
-/// field is read for the address rather than taken whole.
 pub fn endpoint(raw: &str) -> String {
     let Some(start) = raw.find("http") else { return String::new() };
     let rest = &raw[start..];
@@ -30,7 +17,6 @@ pub fn endpoint(raw: &str) -> String {
     rest[..end].trim_end_matches(['/', '.', ',', ';', ':']).to_owned()
 }
 
-/// The request for one artist against `endpoint`, with `encoded` already encoded.
 pub fn request_url(endpoint: &str, encoded: &str) -> String {
     let path = endpoint.split_once("://").map_or(endpoint, |(_, rest)| rest);
     let path = path.split('?').next().unwrap_or(path).trim_end_matches('/');
@@ -44,7 +30,6 @@ pub fn request_url(endpoint: &str, encoded: &str) -> String {
     }
 }
 
-/// A name reduced to what two spellings of it share: no accents, case or punctuation.
 pub fn key(name: &str) -> String {
     name.nfd()
         .filter(|c| !unicode_normalization::char::is_combining_mark(*c))
@@ -53,7 +38,6 @@ pub fn key(name: &str) -> String {
         .collect()
 }
 
-/// Looks one artist up and returns their signature, if the service has a drawable one.
 pub async fn lookup(http: &reqwest::Client, endpoint: &str, name: &str) -> Option<Signature> {
     if endpoint.is_empty() || key(name).is_empty() {
         return None;
@@ -95,8 +79,6 @@ pub async fn lookup(http: &reqwest::Client, endpoint: &str, name: &str) -> Optio
             return None;
         }
     };
-    // A 960 px Wikimedia raster is more than the header ever draws: cap it so a
-    // handful of visited artists can't hold a page's worth of textures.
     let img = if img.width() > 720 {
         let h = (u32::from(img.height()) * 720 / img.width()).max(1) as u32;
         image::imageops::resize(&img, 720, h, image::imageops::FilterType::Lanczos3)
@@ -106,11 +88,6 @@ pub async fn lookup(http: &reqwest::Client, endpoint: &str, name: &str) -> Optio
     Some(ink(&img))
 }
 
-/// White pixels carrying their own shape in alpha: a signature is ink, not a picture.
-///
-/// Most services send transparent PNGs, where alpha is the ink. One that flattens the
-/// signature onto white paper has no transparency to trust, so its darkness is taken
-/// as the ink instead.
 fn ink(img: &image::RgbaImage) -> Signature {
     let mut rgba = img.as_raw().clone();
     let transparent = rgba.chunks_exact(4).any(|p| p[3] < 250);
@@ -126,9 +103,6 @@ fn ink(img: &image::RgbaImage) -> Signature {
     Signature { width: img.width() as usize, height: img.height() as usize, rgba }
 }
 
-/// The best transparent signature in an answer: a known licence beats a review, an
-/// SVG beats a PNG, a verified hand beats an unverified one, and a wide mark suits
-/// the header. Ties go to the larger artwork.
 pub fn pick_url(root: &Value) -> Option<String> {
     let signatures = root.get("signatures")?.as_array()?;
     let mut best: Option<(u32, u64, String)> = None;
@@ -165,7 +139,6 @@ pub fn pick_url(root: &Value) -> Option<String> {
     best.map(|(_, _, url)| url)
 }
 
-/// Wikimedia renders SVGs to PNG thumbnails, but only under `/thumb/`.
 pub fn wikimedia_raster(url: &str) -> Option<String> {
     let path = url.split('?').next().unwrap_or(url);
     let prefix = "https://upload.wikimedia.org/wikipedia/commons/";
@@ -208,7 +181,6 @@ mod tests {
             {"asset": {"url": "https://x/b.svg", "format": "svg", "width": 100, "height": 40}, "license": {"status": "requires_review"}, "verification": "unverified"},
             {"asset": {"url": "https://x/c.jpg", "format": "jpeg", "width": 999, "height": 400}, "license": {"status": "known"}, "verification": "artist_verified"}
         ]});
-        // The known-licence PNG outranks the review-pending SVG; the JPEG is skipped.
         assert_eq!(pick_url(&root).as_deref(), Some("https://x/a.png"));
     }
 

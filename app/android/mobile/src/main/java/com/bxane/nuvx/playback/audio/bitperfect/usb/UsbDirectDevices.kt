@@ -12,16 +12,6 @@ import android.hardware.usb.UsbManager
 import android.os.Build
 import android.util.Log
 
-/**
- * The USB side of the direct driver that is not about streaming: which
- * attached device is a USB audio DAC, Android's permission to open it, its
- * descriptors, and the volume the listener last chose on it.
- *
- * Permission is asked for once, when the mode is on and a DAC is attached;
- * the answer arrives asynchronously, and [onChanged] tells the player to
- * re-decide its output. Descriptors are read once per attachment, because
- * the playback thread asks "could this track go direct?" for every format.
- */
 internal object UsbDirectDevices {
 
     private const val TAG = "UsbDirectDevices"
@@ -32,10 +22,8 @@ internal object UsbDirectDevices {
     private val descriptors = HashMap<Int, ByteArray>()
     private val volumes = HashMap<Int, Double>()
 
-    /** A DAC was attached, detached or granted: whatever is playing should decide again. */
     @Volatile var onChanged: (() -> Unit)? = null
 
-    /** Told when a device goes away, so an open stream on it stops at once. */
     @Volatile var onDetached: ((Int) -> Unit)? = null
 
     private val receiver = object : BroadcastReceiver() {
@@ -83,7 +71,6 @@ internal object UsbDirectDevices {
 
     fun manager(context: Context): UsbManager? = context.getSystemService(UsbManager::class.java)
 
-    /** The first attached device with a USB Audio streaming interface, by device id. */
     fun audioDevice(manager: UsbManager): UsbDevice? =
         runCatching { manager.deviceList.values }.getOrDefault(emptyList()).sortedBy { it.deviceId }.firstOrNull { device ->
             (0 until device.interfaceCount).any {
@@ -92,7 +79,6 @@ internal object UsbDirectDevices {
             }
         }
 
-    /** Asks Android for permission to the attached DAC, once per attachment. */
     @Synchronized
     fun requestPermission(context: Context) {
         val manager = manager(context) ?: return
@@ -111,7 +97,6 @@ internal object UsbDirectDevices {
             .onFailure { requested = null; Log.w(TAG, "USB permission request failed", it) }
     }
 
-    /** The DAC's descriptors, read once per attachment; null without permission. */
     @Synchronized
     fun rawDescriptors(manager: UsbManager, device: UsbDevice): ByteArray? {
         descriptors[device.deviceId]?.let { return it }

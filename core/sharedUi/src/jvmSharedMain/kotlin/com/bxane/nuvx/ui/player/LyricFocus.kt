@@ -2,7 +2,6 @@ package com.bxane.nuvx.ui.player
 
 import com.bxane.nuvx.data.lyrics.LyricLine
 
-/** Keep every unfinished vocal visible, including overlaps spanning more than two rows. */
 internal fun activeLyricRows(lines: List<LyricLine>, positionMs: Long): List<Int> {
     val latest = lines.indexOfLast { it.timeMs <= positionMs }
     if (latest < 0) return emptyList()

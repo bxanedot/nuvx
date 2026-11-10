@@ -15,40 +15,16 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * A playlist of files on this device, made in the Local Music folder's
- * Playlists tab — the offline player's own playlists, which never touch the
- * account. [LIKED_ID] is always there and always first.
- *
- * Tracks are held by [Song.localUri], the one thing about a file that the
- * folder, the player and a download all agree on. A track's row is kept whole
- * so the page can be drawn without listing the device first; whether the file
- * is still there is asked when the page is read (see
- * [LocalMediaRepository.present]), not by rewriting the record.
- */
 data class OfflinePlaylist(
     val id: String,
     val title: String,
-    /** In the order they were added; the newest like first for [LIKED_ID]. */
     val songs: List<Song>,
 ) {
     val browseId: String get() = OfflinePlaylists.PREFIX + id
     val isLiked: Boolean get() = id == OfflinePlaylists.LIKED_ID
 }
 
-/**
- * The store behind [OfflinePlaylist]: in memory as a [StateFlow], on disk as
- * one JSON document written off the main thread.
- *
- * Writes are conflated — ten likes in a row are ten state updates and at most
- * a couple of disk writes, each of the newest state — so nothing here ever
- * waits on the disk.
- */
 object OfflinePlaylists {
-    /**
-     * Under `local:` like every other page whose tracks are on the device —
-     * which keeps the download button off it — in a segment of its own.
-     */
     const val PREFIX = "local:offline:"
     const val LIKED_ID = "liked"
 
@@ -59,7 +35,6 @@ object OfflinePlaylists {
     private val lock = Any()
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /** Set by [init] to the app's own wording for the built-in playlist. */
     private var likedTitle = "Liked songs"
 
     private val _playlists = MutableStateFlow(listOf(OfflinePlaylist(LIKED_ID, likedTitle, emptyList())))
@@ -67,7 +42,6 @@ object OfflinePlaylists {
 
     private val _liked = MutableStateFlow<Set<String>>(emptySet())
 
-    /** The [Song.localUri]s in [LIKED_ID], for a heart to be drawn without a scan. */
     val liked: StateFlow<Set<String>> = _liked.asStateFlow()
 
     fun init(context: Context, likedTitle: String) {
@@ -75,8 +49,6 @@ object OfflinePlaylists {
         this.likedTitle = likedTitle
         prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         publish(load())
-        // Everything after what was just read, however soon it comes: a like
-        // made before this collector is up is still the newest state when it is.
         val loaded = _playlists.value
         io.launch {
             playlists.filter { it !== loaded }.conflate().collect { persist(it) }
@@ -94,7 +66,6 @@ object OfflinePlaylists {
 
     fun isLiked(song: Song): Boolean = song.localUri?.let { it in _liked.value } == true
 
-    /** Likes or unlikes a device file; returns whether it is liked now. */
     fun toggleLike(song: Song): Boolean {
         val key = song.localUri ?: return false
         var nowLiked = false
@@ -109,7 +80,6 @@ object OfflinePlaylists {
         return nowLiked
     }
 
-    /** A new, empty playlist — or one holding [songs], when it was made to take them. */
     fun create(title: String, songs: List<Song> = emptyList()): OfflinePlaylist {
         val playlist = OfflinePlaylist(
             id = "p" + System.currentTimeMillis().toString(36),
@@ -122,10 +92,6 @@ object OfflinePlaylists {
 
     class AddResult(val added: Int, val alreadyThere: Int)
 
-    /**
-     * Adds [songs] to every playlist in [ids], each at most once per playlist.
-     * [AddResult.added] counts the playlists that took at least one of them.
-     */
     fun add(ids: Collection<String>, songs: List<Song>): AddResult {
         val incoming = songs.filter { it.localUri != null }.distinctBy { it.localUri }
         var added = 0
@@ -140,7 +106,6 @@ object OfflinePlaylists {
                     return@map playlist
                 }
                 added++
-                // Liked keeps its newest first, as a like from the menu does.
                 playlist.copy(songs = if (playlist.isLiked) fresh + playlist.songs else playlist.songs + fresh)
             }
         }
@@ -155,7 +120,6 @@ object OfflinePlaylists {
         }
     }
 
-    /** Liked is the app's, not the user's: it can't be renamed or deleted. */
     fun rename(browseId: String, title: String) {
         val id = browseId.removePrefix(PREFIX)
         if (id == LIKED_ID || title.isBlank()) return
@@ -172,7 +136,6 @@ object OfflinePlaylists {
         synchronized(lock) { publish(change(_playlists.value)) }
     }
 
-    /** Sets the list and the liked set together, Liked pinned first. */
     private fun publish(list: List<OfflinePlaylist>) {
         val liked = list.firstOrNull { it.isLiked } ?: OfflinePlaylist(LIKED_ID, likedTitle, emptyList())
         val ordered = listOf(liked.copy(title = likedTitle)) + list.filterNot { it.isLiked }
@@ -180,11 +143,6 @@ object OfflinePlaylists {
         _liked.value = liked.songs.mapNotNullTo(HashSet()) { it.localUri }
     }
 
-    /**
-     * Only what playing and drawing a row needs. The queue fields a song picks
-     * up on its way through the player are left behind: they describe where it
-     * was played from last, not the file.
-     */
     private fun Song.stored(): Song = Song(
         videoId = videoId,
         title = title,
@@ -274,11 +232,6 @@ object OfflinePlaylists {
     }
 }
 
-/**
- * As the Playlists tab lists it and its page opens — the same [LocalGroup]
- * an album out of the folder is. Liked keeps its heart rather than borrowing
- * the sleeve of whatever was liked last.
- */
 fun OfflinePlaylist.toGroup(): LocalGroup = LocalGroup(
     browseId = browseId,
     title = title,

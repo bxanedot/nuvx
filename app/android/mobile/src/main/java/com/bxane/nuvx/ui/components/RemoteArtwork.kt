@@ -10,16 +10,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.remote.RemoteArtworkStore
 
-/**
- * A drawable art URL for [song]: its own thumbnail when it has one, else the
- * embedded picture pulled out of the remote file and cached — else null.
- *
- * The extraction only ever runs for remote-library tracks with no thumbnail;
- * every other row resolves synchronously to what it already had, so this is
- * safe to call from shared components like [SongRow] that draw every library
- * in the app. Keyed on the track id, so a recycled row re-resolves instead
- * of flashing a stranger's cover.
- */
 @Composable
 fun rememberRemoteArtworkUrl(song: Song?): String? {
     val context = LocalContext.current

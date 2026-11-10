@@ -20,23 +20,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * What the equaliser actually does to a signal.
- *
- * The risk this covers is not that the code throws — it is that a filter is
- * quietly the wrong shape. A state-variable section with a mistyped output mix
- * still runs, still sounds like *something*, and is indistinguishable by ear
- * from one that is correct until you go looking for the decibels you asked for.
- * So every test here measures: a sine goes in, its amplitude is read out of the
- * result by correlation at the frequency it was generated at, and the gain is
- * compared against what the curve promised.
- */
 class EqualizerProcessorTest {
 
     @Test
     fun `a band lifts its own centre by the decibels it was given`() {
-        // The five interior bands are bells, and a bell's gain at its centre is
-        // the gain it was set to.
         for (band in 1 until EqLayout.MANUAL_COUNT - 1) {
             val gain = measureBand(band, BOOST_DB)
             assertEquals("band $band at +$BOOST_DB dB", BOOST_DB.toDouble(), gain, TOLERANCE_DB)
@@ -51,12 +38,6 @@ class EqualizerProcessorTest {
         }
     }
 
-    /**
-     * The two end bands are shelves, not bells — see [com.bxane.nuvx.playback.FilterKind].
-     * A shelf's labelled frequency is its corner, which is the half-way point of
-     * its travel, so 60 Hz reads +3 dB when the slider says +6 and the full +6
-     * arrives below it.
-     */
     @Test
     fun `the end bands are shelves, half way up at their corner and all the way past it`() {
         val low = EqLayout.MANUAL_BANDS_HZ[0].toDouble()
@@ -68,7 +49,6 @@ class EqualizerProcessorTest {
         assertEquals("14 kHz corner", BOOST_DB / 2.0, measureBand(top, BOOST_DB, high), TOLERANCE_DB)
     }
 
-    /** The pad's horizontal axis: left warm, right bright, by equal amounts. */
     @Test
     fun `the tone pad tilts the spectrum without moving its middle`() {
         val bright = toneCurve(x = EqLayout.TONE_STEPS, y = 0, focused = false)
@@ -83,7 +63,6 @@ class EqualizerProcessorTest {
         assertEquals("treble lifted at x=+5", corner.toDouble(), highEnd, TILT_TOLERANCE_DB)
     }
 
-    /** And its vertical one, which only ever touches the middle. */
     @Test
     fun `the tone pad's contour moves the mids and leaves the ends alone`() {
         val forward = toneCurve(x = 0, y = EqLayout.TONE_STEPS, focused = true)
@@ -98,7 +77,6 @@ class EqualizerProcessorTest {
         assertTrue("60 Hz should be left alone, was $bass dB", abs(bass) < 0.5)
     }
 
-    /** Focused is narrower than Broad, and that is the whole of the difference. */
     @Test
     fun `focused is narrower than broad at the same setting`() {
         val steps = EqLayout.TONE_STEPS
@@ -111,8 +89,6 @@ class EqualizerProcessorTest {
         val broadCurve = toneCurve(0, steps, focused = false)
         val focusedCurve = toneCurve(0, steps, focused = true)
 
-        // An octave below the 1 kHz centre, where the two skirts are furthest
-        // apart: the wide bell is still lifting and the narrow one has let go.
         val broadSkirt = measure(broad, 500.0) - broadCurve.preampDb
         val focusedSkirt = measure(focused, 500.0) - focusedCurve.preampDb
         assertTrue(
@@ -133,12 +109,6 @@ class EqualizerProcessorTest {
         assertTrue("hard left should leave the left channel alone, peaked at $left", left > 7_000)
     }
 
-    /**
-     * The make-up only takes back half of a boost, so every band up as far as
-     * it goes on a loud tone runs well past the top of a 16-bit sample. The
-     * limiter has to hold it under its ceiling rather than leave the clamp to
-     * square it off.
-     */
     @Test
     fun `boosting every band at once does not clip`() {
         val processor = EqualizerProcessor()
@@ -152,7 +122,6 @@ class EqualizerProcessorTest {
         assertTrue("output peaked at $peak, past the limiter's $ceiling", peak <= ceiling + 1)
     }
 
-    /** Half the peak boost, not all of it: a lone +12 dB band costs the rest of the mix 6 dB. */
     @Test
     fun `the make-up takes back half of the boost`() {
         val bands = MutableList(EqLayout.MANUAL_COUNT) { 0f }
@@ -168,13 +137,6 @@ class EqualizerProcessorTest {
         assertArrayEqualsShort(input, run(processor, input))
     }
 
-    /**
-     * Switching off mid-track glides down rather than cutting, so the buffers
-     * either side of the change are neither identical nor silent — but once the
-     * glide lands, the passthrough has to be exact again. A processor that
-     * settled a hair off flat would sit there quantising every sample it touched
-     * for the rest of the session.
-     */
     @Test
     fun `once the switch-off has glided down the passthrough is exact again`() {
         val processor = EqualizerProcessor()
@@ -186,7 +148,6 @@ class EqualizerProcessorTest {
         val chunk = stereoTone(1_000.0, frames = 4_096)
         drain(processor, chunk)
         processor.setTuning(enabled = false, curve = manualCurve(EqualizerPreset.FLAT.bands), balance = 0f)
-        // A second of audio is far longer than the glide needs.
         repeat(12) { drain(processor, chunk) }
         assertArrayEqualsShort(chunk, drain(processor, chunk))
     }
@@ -209,7 +170,6 @@ class EqualizerProcessorTest {
         assertEquals(EqualizerPreset.CUSTOM, EqualizerPreset.matching(List(EqLayout.MANUAL_COUNT) { 7f }))
     }
 
-    /** Attenuation only — a curve is never allowed to make itself louder. */
     @Test
     fun `the make-up attenuation never becomes a boost`() {
         for (preset in EqualizerPreset.entries) {
@@ -219,9 +179,6 @@ class EqualizerProcessorTest {
         }
     }
 
-    // ---- Harness -----------------------------------------------------------
-
-    /** Sets one band and reports what the cascade did at [atHz], net of make-up. */
     private fun measureBand(
         band: Int,
         gainDb: Float,
@@ -235,18 +192,12 @@ class EqualizerProcessorTest {
         return measure(processor, atHz) - curve.preampDb
     }
 
-    /** Gain in decibels at [hz], measured rather than predicted. */
     private fun measure(processor: EqualizerProcessor, hz: Double): Double {
         val input = stereoTone(hz)
         val output = run(processor, input)
         return 20 * log10(amplitudeAt(output, hz) / amplitudeAt(input, hz))
     }
 
-    /**
-     * Correlation against the generating frequency, over a window holding a
-     * whole number of its cycles. Rejects the quantisation noise and any
-     * harmonics an RMS would have counted as signal.
-     */
     private fun amplitudeAt(samples: ShortArray, hz: Double): Double {
         var real = 0.0
         var imaginary = 0.0
@@ -275,7 +226,6 @@ class EqualizerProcessorTest {
         return samples
     }
 
-    /** Configures, flushes and pushes [input] through in realistic chunks. */
     private fun run(processor: EqualizerProcessor, input: ShortArray): ShortArray {
         val format = AudioProcessor.AudioFormat(SAMPLE_RATE, 2, C.ENCODING_PCM_16BIT)
         processor.configure(format)
@@ -322,22 +272,18 @@ class EqualizerProcessorTest {
     private companion object {
         const val SAMPLE_RATE = 48_000
 
-        /** Two seconds, so every frequency under test holds whole cycles in the window. */
         const val TONE_FRAMES = SAMPLE_RATE * 2
 
-        /** Half a second of run-up, discarded: the filters need a moment to ring up. */
         const val SETTLE_FRAMES = SAMPLE_RATE / 2
 
         const val CHUNK_SAMPLES = 4_096 * 2
 
-        /** Well below full scale, so a boost under test has somewhere to go. */
         const val AMPLITUDE = 8_000.0
 
         const val BOOST_DB = 6f
 
         const val TOLERANCE_DB = 0.4
 
-        /** The tilt pair's shelves overlap slightly, so their ends read a touch shy. */
         const val TILT_TOLERANCE_DB = 0.8
     }
 }

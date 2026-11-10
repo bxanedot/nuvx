@@ -4,11 +4,6 @@ import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/**
- * The TV app's stand-in for the phone's watch installer
- * (app/src/main/java/.../wear/WatchInstaller.kt). A TV has no watch to install
- * on, so none of it — the ADB client least of all — is built in.
- */
 object WatchInstaller {
     val watches: StateFlow<List<WatchEntry>?> = MutableStateFlow(emptyList())
     val update: StateFlow<WatchUpdateState> = MutableStateFlow(WatchUpdateState.Idle)

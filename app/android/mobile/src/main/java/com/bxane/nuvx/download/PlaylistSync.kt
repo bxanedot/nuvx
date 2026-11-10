@@ -40,18 +40,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.TimeUnit
 
-/**
- * Keeps the playlists downloaded whole in step with their online copies, while
- * [AppSettings.syncDownloadedPlaylists] is on.
- *
- * What is new is worked out fresh on every check and nothing about it is stored
- * until it has been dealt with. That is what makes a check safe to lose at any
- * point: Android stopping the job, the process dying or a page failing all leave
- * the remaining tracks new, and the next check simply finds them again.
- *
- * Only ever adds. A track the listener deleted is still named by its playlist's
- * record, so it does not come back; a track removed online keeps its file.
- */
 object PlaylistSync {
 
     private const val TAG = "nuvx"
@@ -62,28 +50,17 @@ object PlaylistSync {
     private const val CHANNEL_ID = "playlist_updates"
     internal const val KEY_APPROVED = "approved"
 
-    /** Android batches this with whatever else is waking the phone in the last [FLEX_HOURS]. */
     private const val PERIOD_HOURS = 12L
     private const val FLEX_HOURS = 4L
 
-    /** How stale the last whole check may be when the app comes to the front. */
     private const val CATCH_UP_MILLIS = 6L * 60 * 60 * 1000
 
-    /** The most one playlist may fetch without being asked; about 1.7 GB of lossless. */
     internal const val ASK_ABOVE = 50
 
-    /** Between requests for pages and for playlists: none of this is in a hurry. */
     private const val PAUSE_MILLIS = 400L
 
-    /** One check at a time, however many of the triggers fire together. */
     private val running = Mutex()
 
-    /**
-     * Follows the setting and the Wi-Fi rule its schedule depends on.
-     *
-     * Off, this never touches WorkManager, which is initialised on demand for
-     * that reason: a switch that defaults to off should cost a launch nothing.
-     */
     fun init(app: Application) {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             var wasOn: Boolean? = null
@@ -108,12 +85,6 @@ object PlaylistSync {
         })
     }
 
-    /**
-     * Queues a check to run as soon as its conditions allow.
-     *
-     * @param approved also fetches the batches over [ASK_ABOVE], and replaces a
-     *   check still waiting so that the answer is not lost to one that won't.
-     */
     fun checkNow(context: Context, approved: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<PlaylistSyncWorker>()
             .setConstraints(constraints(AppSettings.wifiOnlyDownloads.value))
@@ -154,17 +125,7 @@ object PlaylistSync {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    // ---- A check ------------------------------------------------------------
-
-    /**
-     * Goes through every eligible playlist in turn.
-     *
-     * Only a check that read every playlist to its end is stamped as done, so
-     * one that failed partway is due again the next time the app is opened.
-     */
     internal suspend fun check(context: Context, approved: Boolean) {
-        // An approval waits its turn. Anything else would only repeat the check
-        // already running.
         if (approved) running.lock() else if (!running.tryLock()) return
         try {
             if (!storageWritable(context)) return
@@ -198,8 +159,6 @@ object PlaylistSync {
             post(context, notification, askNotification(context, notification, record.title, fresh.size))
             return
         }
-        // Already on the device for some other reason: joins the playlist
-        // without being fetched again.
         val saved = Downloads.saved.value
         val (onDevice, missing) = fresh.partition { it.videoId in saved }
         val cover = listing.cover ?: record.thumbnailUrl?.takeIf { it.startsWith("http") }
@@ -208,8 +167,6 @@ object PlaylistSync {
         }
         val handled = onDevice.mapTo(HashSet()) { it.videoId } + Downloads.downloadNow(context, fetch, record.title)
 
-        // Read again: the listener may have deleted this download meanwhile, and
-        // writing the record back would bring it back from the dead.
         val current = Downloads.collections.value[record.id] ?: return
         val order = listingToRecord(listing.songs, current, handled)
         Downloads.rememberCollection(
@@ -226,35 +183,13 @@ object PlaylistSync {
         if (arrived > 0) post(context, notification, doneNotification(context, record.title, arrived))
     }
 
-    /**
-     * Below Android 10 an exported download needs a permission only a window can
-     * ask for, and every track would fail for the want of it.
-     */
     private fun storageWritable(context: Context): Boolean =
         !AppSettings.exportDownloads.value || !DownloadStore.needsLegacyPermission() ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
             PackageManager.PERMISSION_GRANTED
 
-    // ---- Reading a playlist -------------------------------------------------
-
-    /**
-     * @property complete whether this reached the end of the playlist. False
-     *   when a request failed; [songs] is then whatever came before it, which is
-     *   still worth acting on since a check only ever adds.
-     */
     internal class Listing(val songs: List<Song>, val complete: Boolean, val cover: String? = null)
 
-    /**
-     * Every track in a playlist, however many pages it runs to.
-     *
-     * Its own walk rather than [YtMusicRepository.allSongs], which stops at a
-     * page limit and turns a failed page into a shorter list without saying so.
-     * Every page is read every time: a new track can be anywhere in a playlist,
-     * and one added and one removed leave its count unchanged.
-     *
-     * Only the rows a page lists as its own, so the suggestions YouTube offers
-     * to round a playlist out are never taken for part of it.
-     */
     internal suspend fun readWholePlaylist(
         first: suspend () -> Result<YtMusicRepository.SongPage>,
         more: suspend (String) -> Result<YtMusicRepository.SongPage>,
@@ -269,21 +204,12 @@ object PlaylistSync {
             val page = more(next).getOrNull() ?: return Listing(songs.values.toList(), complete = false, cover)
             val before = songs.size
             page.songs.forEach { songs.putIfAbsent(it.videoId, it) }
-            // A page with nothing new is a feed that has looped back on itself
-            // with a token still attached, not one with more to give.
             if (songs.size == before) break
             next = page.continuation
         }
         return Listing(songs.values.toList(), complete = true, cover)
     }
 
-    /**
-     * What a check looks at, under the id YouTube answers to: a playlist is
-     * filed under whichever id it was downloaded from, with or without its `VL`.
-     *
-     * Null for an album, and for the two kinds of playlist with no YouTube copy
-     * to compare against: Spotify's own and those imported to this device.
-     */
     internal fun syncableBrowseId(record: SavedCollection): String? {
         val id = record.id
         return when {
@@ -293,22 +219,15 @@ object PlaylistSync {
         }
     }
 
-    /** The tracks in [listing] that [record] has never named. */
     internal fun newTracks(listing: List<Song>, record: SavedCollection): List<Song> {
         val known = record.videoIds.toHashSet()
         return listing.filter { it.videoId !in known }
     }
 
-    /**
-     * [listing] without whatever is still to be dealt with, in the playlist's
-     * own order. A track left out stays new, so the next check tries it again.
-     */
     internal fun listingToRecord(listing: List<Song>, record: SavedCollection, handled: Set<String>): List<Song> {
         val known = record.videoIds.toHashSet()
         return listing.filter { it.videoId in known || it.videoId in handled }
     }
-
-    // ---- Notifications ------------------------------------------------------
 
     private fun notifications(context: Context): NotificationManager? =
         context.getSystemService(NotificationManager::class.java)
@@ -355,23 +274,17 @@ object PlaylistSync {
         .setAutoCancel(true)
 }
 
-/** The scheduled half of [PlaylistSync]; every trigger ends up here. */
 class PlaylistSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        // Turned off in a run of the app that died before it could cancel this.
         if (!AppSettings.syncDownloadedPlaylists.value) {
             PlaylistSync.cancel(applicationContext)
             return Result.success()
         }
         PlaylistSync.check(applicationContext, inputData.getBoolean(PlaylistSync.KEY_APPROVED, false))
-        // Never a retry: an incomplete check is due again when the app next
-        // opens, and a playlist that has been deleted online would otherwise
-        // have WorkManager retrying it for as long as the setting stays on.
         return Result.success()
     }
 }
 
-/** The tap on a "new songs in this playlist" notification. */
 class PlaylistSyncApproval : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         PlaylistSync.checkNow(context, approved = true)

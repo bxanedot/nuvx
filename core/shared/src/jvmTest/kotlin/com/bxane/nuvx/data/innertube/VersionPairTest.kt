@@ -10,7 +10,6 @@ import kotlin.test.assertTrue
 
 class VersionPairTest {
 
-    /** One queue row, typed as YouTube types it on the row's watch endpoint. */
     private fun panel(videoId: String, title: String, type: String, byline: String): String = """
         {
           "playlistPanelVideoRenderer": {
@@ -27,8 +26,6 @@ class VersionPairTest {
     private val video = panel("omv1", "Song (Official Video)", "MUSIC_VIDEO_TYPE_OMV", "Artist • 10M views")
     private val audio = panel("atv1", "Song", "MUSIC_VIDEO_TYPE_ATV", "Artist • Album • 2024")
 
-    // The video opens on 12s of dialogue, then plays the song through; the
-    // numbers come as strings, the way protobuf's JSON writes an int64.
     private val segments = """
         "segmentMap": { "segment": [
           { "primaryVideoStartTimeMilliseconds": "12000",
@@ -55,8 +52,6 @@ class VersionPairTest {
 
     @Test
     fun trackAsCounterpart_readsTheMapBackwards() {
-        // Same pair, asked about from the video's side while YouTube put the
-        // song first — the map has to come back the video's way round.
         val songFirst = Json.parseToJsonElement(
             """
             { "contents": [ { "playlistPanelVideoWrapperRenderer": {
@@ -84,7 +79,6 @@ class VersionPairTest {
 
     @Test
     fun wrongKindIsNotOffered() {
-        // Already the song: there is no other song to switch to.
         assertNull(InnertubeParser.parseVersionPair(wrapper(audio, video), "atv1", wantAudio = true))
     }
 
@@ -107,16 +101,15 @@ class VersionPairTest {
         val map = VersionTimeMap(
             listOf(
                 VersionTimeMap.Segment(fromStartMs = 10_000, toStartMs = 0, durationMs = 60_000),
-                // A 20s skit in the video between the two halves.
                 VersionTimeMap.Segment(fromStartMs = 90_000, toStartMs = 60_000, durationMs = 60_000),
             ),
         )
 
-        assertEquals(0L, map.map(3_000L))            // intro
-        assertEquals(50_000L, map.map(60_000L))      // first half
-        assertEquals(60_000L, map.map(80_000L))      // skit
-        assertEquals(90_000L, map.map(120_000L))     // second half
-        assertEquals(120_000L, map.map(200_000L))    // outro
+        assertEquals(0L, map.map(3_000L))
+        assertEquals(50_000L, map.map(60_000L))
+        assertEquals(60_000L, map.map(80_000L))
+        assertEquals(90_000L, map.map(120_000L))
+        assertEquals(120_000L, map.map(200_000L))
         assertEquals(120_000L, map.inverted().map(90_000L))
     }
 }

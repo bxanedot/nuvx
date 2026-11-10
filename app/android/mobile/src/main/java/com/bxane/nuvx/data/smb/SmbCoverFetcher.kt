@@ -10,15 +10,6 @@ import okio.FileSystem
 import okio.buffer
 import okio.source
 
-/**
- * Covers off the share for Coil. Reads the whole picture — covers are
- * kilobytes, and listings already cap what can be one — then hands Coil
- * bytes it decodes and caches exactly like any network image.
- *
- * Registered in [NuvxApplication][com.bxane.nuvx.NuvxApplication]
- * alongside the defaults: anything that isn't `smb://` falls straight
- * through to them.
- */
 class SmbCoverFetcher private constructor(private val url: String) : Fetcher {
 
     override suspend fun fetch(): FetchResult {

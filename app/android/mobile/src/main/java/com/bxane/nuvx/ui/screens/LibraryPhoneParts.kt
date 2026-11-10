@@ -23,14 +23,6 @@ import com.bxane.nuvx.ui.replay.ReplayCardRow
 import com.bxane.nuvx.ui.replay.ReplayHeroCard
 import com.bxane.nuvx.ui.replay.ReplayStoryPage
 
-// The phone's halves of the shared Library page: its list of folders, what
-// sits on its "On device" shelf, and the way in to Replay at its head.
-
-/**
- * The phone's folders, drawn as a list under the Replay cards: Downloads and
- * Local Music, the song cache when Settings has it shown, and the two remote
- * libraries it can reach.
- */
 @Composable
 fun libraryLinks(): List<LibraryLink> {
     val webdavConfigured by AppSettings.webdavUrl.collectAsStateWithLifecycle()
@@ -59,14 +51,11 @@ fun libraryLinks(): List<LibraryLink> {
             stringResource(R.string.audio_files_on_device),
             "local:all",
         ),
-        // Opt-in from Settings → Storage: what the song cache is holding from
-        // YouTube and JioSaavn. See [com.bxane.nuvx.playback.AudioCache.cachedSongs].
         link(
             stringResource(R.string.cached_songs),
             stringResource(R.string.cached_songs_subtitle),
             CACHE_FOLDER_BROWSE_ID,
         ).takeIf { showCacheFolder },
-        // Only once set up in Sources; unconfigured, they'd just be dead ends.
         link(
             stringResource(R.string.webdav),
             stringResource(R.string.webdav_subtitle),
@@ -77,8 +66,6 @@ fun libraryLinks(): List<LibraryLink> {
             stringResource(R.string.smb_subtitle),
             com.bxane.nuvx.data.smb.SmbConfig.BROWSE_ID,
         ).takeIf { smbHost.isNotBlank() && smbShare.isNotBlank() },
-        // Only while signed in to Spotify in Settings → Accounts; it opens that
-        // account's playlists rather than a browse page.
         link(
             stringResource(R.string.spotify),
             stringResource(R.string.spotify_library_subtitle),
@@ -87,24 +74,12 @@ fun libraryLinks(): List<LibraryLink> {
     )
 }
 
-/**
- * The phone's "On device" shelf: the playlists and albums downloaded whole —
- * the same promise the folders above it make, here, now, without a network.
- * Nothing is truncated: the shelf is a row that scrolls, so "all of them"
- * costs nothing.
- */
 @Composable
 fun libraryDeviceItems(downloadedReleases: List<SavedCollection>): List<ShelfItem> {
     val downloadedPlaylist = stringResource(R.string.downloaded_playlist)
     return downloadedReleases.map { release ->
         ShelfItem(
             title = release.title,
-            // The credit the release was downloaded with, because this is also
-            // what the page it opens bills itself by — see `headerLines`, which
-            // reads the kind and the owner back out of it. Saying "Downloaded
-            // playlist" here instead would make that header read "Downloaded
-            // playlist" over "PLAYLIST • 12 SONGS", and the shelf this card is on
-            // already says where it lives.
             subtitle = release.subtitle.ifBlank { if (release.playlist) downloadedPlaylist else "" },
             thumbnailUrl = release.thumbnailUrl,
             videoId = null,
@@ -113,11 +88,6 @@ fun libraryDeviceItems(downloadedReleases: List<SavedCollection>): List<ShelfIte
     }
 }
 
-/**
- * The glyph a device folder is drawn with — its row on the Library page, and
- * the placeholder cover its own page opens on. Null for anything that isn't
- * one of the folders.
- */
 fun deviceFolderIcon(browseId: String): ImageVector? = when (browseId) {
     "local:downloads" -> SfIcons.Download
     "local:all" -> SfIcons.Folder
@@ -127,17 +97,10 @@ fun deviceFolderIcon(browseId: String): ImageVector? = when (browseId) {
     else -> null
 }
 
-/** The Library row that opens the connected Spotify account; handled by the app, not a browse page. */
 const val SPOTIFY_BROWSE_ID = "app:spotify"
 
-/** The Cached songs folder's page id — one of the `local:` device folders. */
 const val CACHE_FOLDER_BROWSE_ID = "local:cache"
 
-/**
- * The phone's way in to Replay: its row of headline cards, placeholders for
- * them while the history is read, and nothing at all while there is not yet
- * enough listening to deal them — Settings still opens Replay either way.
- */
 @Composable
 fun LibraryReplayEntry(
     cards: List<ReplayHeroCard>,

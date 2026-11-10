@@ -18,7 +18,6 @@ import kotlin.math.sqrt
 @androidx.annotation.OptIn(UnstableApi::class)
 class DacFormatConverterTest {
 
-    /** Interleaved stereo 32-bit integer PCM of a sine at [hz], left and right alike. */
     private fun sine(hz: Double, rate: Int, seconds: Double, amplitude: Double = 0.5): ByteBuffer {
         val frames = (rate * seconds).toInt()
         val buffer = ByteBuffer.allocateDirect(frames * 8).order(ByteOrder.LITTLE_ENDIAN)
@@ -30,7 +29,6 @@ class DacFormatConverterTest {
         return buffer
     }
 
-    /** Runs all of [input] through, drain included, and returns the left channel at a scale of ±1. */
     private fun convert(input: ByteBuffer, inRate: Int, outRate: Int, bits: Int = 24): DoubleArray {
         val converter = DacFormatConverter(C.ENCODING_PCM_32BIT, 2, inRate, outRate, bits, bits)
         val bytes = bits / 8
@@ -63,7 +61,6 @@ class DacFormatConverterTest {
         }
     }
 
-    /** The level of [hz] in [samples], by correlation, as a linear amplitude. */
     private fun levelAt(samples: DoubleArray, hz: Double, rate: Int): Double {
         var re = 0.0
         var im = 0.0
@@ -74,7 +71,6 @@ class DacFormatConverterTest {
         return 2 * sqrt(re * re + im * im) / samples.size
     }
 
-    /** Skips the filter's run-in and run-out at either end. */
     private fun DoubleArray.middle() = copyOfRange(size / 4, size * 3 / 4)
 
     @Test
@@ -103,7 +99,6 @@ class DacFormatConverterTest {
 
     @Test
     fun aToneAboveTheDacsNyquistDoesNotFoldBackDown() {
-        // 30 kHz in a 48 kHz output would alias to 18 kHz without the filter.
         val out = convert(sine(30_000.0, 96_000, 0.5, amplitude = 0.9), 96_000, 48_000).middle()
         assertTrue(levelAt(out, 18_000.0, 48_000) < 0.0001)
     }
@@ -118,7 +113,6 @@ class DacFormatConverterTest {
     fun aFullScaleToneClampsInsteadOfWrapping() {
         val out = convert(sine(1000.0, 48_000, 0.1, amplitude = 1.0), 48_000, 48_000, bits = 16)
         assertTrue(out.all { abs(it) <= 1.0 })
-        // A wrapped sample would jump by nearly full scale between neighbours.
         for (i in 1 until out.size) assertTrue(abs(out[i] - out[i - 1]) < 0.25)
     }
 
@@ -154,12 +148,9 @@ class DacFormatConverterTest {
         converter.process(sine(1000.0, 96_000, 0.05), output)
         converter.reset()
         output.clear()
-        // Nothing went in since the reset, so nothing is held back to come out.
         assertTrue(converter.drain(output))
         assertEquals(0, output.position())
     }
-
-    // ---- Choosing the format --------------------------------------------------------------
 
     @Test
     fun aHighRateTrackPrefersTheHighestSameFamilyRateTheDacHas() {
@@ -201,7 +192,6 @@ class DacFormatConverterTest {
         )
         val device = UsbDescriptors.Device(alternates = listOf(alternate(1, 16, 2), alternate(2, 24, 3)))
         val formats = UsbDescriptors.dacFormats(device, 96_000, 2, 24, convert = true)
-        // Its own rate first, deepest setting first because 24 bits is what the source needs.
         assertEquals(96_000, formats[0].second.sampleRate)
         assertEquals(24, formats[0].second.bits)
         assertEquals(96_000, formats[1].second.sampleRate)
@@ -220,8 +210,6 @@ class DacFormatConverterTest {
         assertEquals(listOf(48_000, 44_100), formats.map { it.second.sampleRate })
         assertTrue(formats.all { it.second.bits == 16 })
     }
-
-    // ---- With conversion off, as it is by default ------------------------------------------
 
     private val cappedUac1Dac = UsbDescriptors.Device(
         alternates = listOf(

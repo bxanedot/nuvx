@@ -1,11 +1,3 @@
-//! Direct InnerTube `/player` call using the visionOS client.
-//!
-//! As of Oct 2026 this client returns plain (unciphered) stream URLs that need neither
-//! signature deobfuscation nor a PO token, and googlevideo serves every byte range for
-//! them; the web clients' streams need a PO token or get cut off after 1 MiB, so this
-//! is the path for everyone except signed-in Premium accounts (see `webmusic.rs`).
-//! Mirrors yt-dlp's `visionos` client definition; update together if YouTube changes it.
-
 use serde_json::{Value, json};
 
 pub const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
@@ -14,14 +6,10 @@ pub struct Stream {
     pub url: String,
     pub size: u64,
     pub duration_ms: u64,
-    /// dB above YouTube's -14 LUFS loudness target (positive = louder).
     pub loudness_db: Option<f32>,
-    /// Opus in WebM; otherwise AAC in MP4.
     pub opus: bool,
 }
 
-/// A format's loudness relative to YouTube's target, falling back to the track-level
-/// figure in `playerConfig.audioConfig`.
 pub fn loudness(resp: &Value, format: &Value) -> Option<f32> {
     format["loudnessDb"].as_f64().map(|v| v as f32).or_else(|| {
         let a = &resp["playerConfig"]["audioConfig"];
@@ -30,10 +18,6 @@ pub fn loudness(resp: &Value, format: &Value) -> Option<f32> {
     })
 }
 
-/// The Android VR client's queue for an album's playlist (`OLAK5uy_…`). Unlike the web
-/// clients, which list a track's music video when it has one, it lists the album's songs.
-/// Needs no sign-in or PO token. Mirrors Morphe's "Play albums songs" patch
-/// (github.com/MorpheApp/morphe-patches, `PlaylistRequest.java`); update together.
 pub async fn album_queue(http: &reqwest::Client, playlist_id: &str) -> anyhow::Result<Value> {
     const VERSION: &str = "1.73.21";
     let body = json!({
@@ -45,7 +29,6 @@ pub async fn album_queue(http: &reqwest::Client, playlist_id: &str) -> anyhow::R
             "osName": "Android",
             "osVersion": "10",
             "androidSdkVersion": 29,
-            // English, so the playlist's title says "Album - …".
             "hl": "en",
             "gl": "US",
         }},
@@ -67,7 +50,6 @@ pub async fn album_queue(http: &reqwest::Client, playlist_id: &str) -> anyhow::R
         .await?)
 }
 
-/// The visionOS player's answer for `video_id`, when it's playable.
 async fn vision_player(http: &reqwest::Client, video_id: &str, visitor_data: &str) -> anyhow::Result<Value> {
     let body = json!({
         "context": {"client": {
@@ -112,9 +94,6 @@ async fn vision_player(http: &reqwest::Client, video_id: &str, visitor_data: &st
     Ok(resp)
 }
 
-/// A music video's picture, video only, as H.264 in MP4: the tallest up to `height`, else the
-/// smallest above it. Its URL and size.
-/// shortcut: H.264 only, as Media Foundation decodes it everywhere; VP9/AV1 would look sharper.
 pub async fn video_stream(http: &reqwest::Client, video_id: &str, visitor_data: &str, height: u32) -> anyhow::Result<(String, u64)> {
     let resp = vision_player(http, video_id, visitor_data).await?;
     let formats = resp["streamingData"]["adaptiveFormats"].as_array().map(Vec::as_slice).unwrap_or_default();
@@ -127,7 +106,6 @@ pub async fn video_stream(http: &reqwest::Client, video_id: &str, visitor_data: 
         .ok_or_else(|| anyhow::anyhow!("no H.264 video stream for {video_id}"))
 }
 
-/// H.264 itags to try for `height`: the tallest that fits first, then the ones above it.
 fn video_itags(height: u32) -> Vec<u64> {
     const LADDER: [(u32, u64); 5] = [(1080, 137), (720, 136), (480, 135), (360, 134), (240, 133)];
     let (fit, over): (Vec<_>, Vec<_>) = LADDER.iter().partition(|(h, _)| *h <= height);
@@ -141,10 +119,8 @@ fn video_itags_fit_the_height_then_go_up() {
     assert_eq!(video_itags(100), [133, 134, 135, 136, 137]);
 }
 
-/// `opus`: Opus (itag 251, about 130-160 kbps) when the song has it, else AAC.
 pub async fn audio_stream(http: &reqwest::Client, video_id: &str, visitor_data: &str, opus: bool) -> anyhow::Result<Stream> {
     let resp = vision_player(http, video_id, visitor_data).await?;
-    // Opus in WebM (251) when asked for; AAC-LC in MP4 (140), HE-AAC (139) as fallbacks.
     let formats = resp["streamingData"]["adaptiveFormats"].as_array().map(Vec::as_slice).unwrap_or_default();
     let itags: &[u64] = if opus { &[251, 140, 139] } else { &[140, 139] };
     itags

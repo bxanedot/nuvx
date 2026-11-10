@@ -1,28 +1,16 @@
-//! The app's own title bar on Windows and Linux: no system frame, the window buttons
-//! drawn at the top right (or macOS's at the top left), the empty top of the window to move it by (double-click maximizes), and
-//! its edges to resize it by. winit keeps the window styles snapping needs, so dragging
-//! to a screen edge and Win+arrows still work. Elsewhere the system's frame stays.
-
 use egui::{Color32, CursorIcon, Id, Pos2, Rect, ResizeDirection, Sense, Stroke, Ui, Vec2, ViewportCommand, pos2, vec2};
 
 use crate::theme;
 
-/// The top of the window, the search box's row included: the window buttons are this
-/// tall, and its middle is the line they, the search box and the logo share.
 pub const HEIGHT: f32 = 56.0;
-/// The window buttons' width, as Windows draws them.
 const BUTTON_W: f32 = 46.0;
-/// How far in from the window's edge resizing starts, and along a corner.
 const EDGE: f32 = 5.0;
 const CORNER: f32 = 14.0;
 
-/// Whether the app draws the title bar itself: on Windows, unless `NUVX_NATIVE_TITLEBAR`
-/// asks for the system's.
 pub fn custom() -> bool {
     cfg!(any(windows, target_os = "linux")) && std::env::var_os("NUVX_NATIVE_TITLEBAR").is_none()
 }
 
-/// macOS's coloured buttons at the top left instead of Windows' at the top right.
 static MAC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
 pub fn set_mac(on: bool) {
@@ -33,18 +21,14 @@ pub fn mac() -> bool {
     MAC.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Whether the macOS-style buttons show, at the sidebar's top left.
 pub fn lights_shown(ctx: &egui::Context) -> bool {
     mac() && shown(ctx)
 }
 
-/// Full screen has no title bar. The app's own full screen (`crate::fullscreen`) goes
-/// around winit, so the app says when it's on, once a frame before drawing.
 pub fn set_fullscreen(ctx: &egui::Context, on: bool) {
     ctx.data_mut(|d| d.insert_temp(Id::unique("titlebar-fullscreen"), on));
 }
 
-/// Drawn now: not in full screen.
 fn shown(ctx: &egui::Context) -> bool {
     custom() && !ctx.data(|d| d.get_temp::<bool>(Id::unique("titlebar-fullscreen")).unwrap_or(false)) && !ctx.input(|i| i.viewport().fullscreen.unwrap_or(false))
 }
@@ -53,7 +37,6 @@ fn maximized(ctx: &egui::Context) -> bool {
     ctx.input(|i| i.viewport().maximized.unwrap_or(false))
 }
 
-/// The window buttons' corner, which what's drawn at the top right stays clear of.
 pub fn buttons_rect(ctx: &egui::Context) -> Option<Rect> {
     (shown(ctx) && !mac()).then(|| {
         let screen = ctx.content_rect();
@@ -61,32 +44,19 @@ pub fn buttons_rect(ctx: &egui::Context) -> Option<Rect> {
     })
 }
 
-/// The top margin above a row `row` tall at the top of the window: `normal`, or with the
-/// app's title bar what centres it on the window buttons' line.
 pub fn top_margin(normal: i8, row: f32) -> i8 {
     if custom() { ((HEIGHT - row) / 2.0).round() as i8 } else { normal }
 }
 
-/// How much of `row` (a strip along the top) the window buttons cover from its right.
 fn overlap(ctx: &egui::Context, row: Rect) -> f32 {
     buttons_rect(ctx).map_or(0.0, |b| (row.right() - b.left()).max(0.0))
 }
 
-/// The space to leave at the right of a row along the top: `normal`, or beside the
-/// window buttons when they cover its end.
 pub fn right_gap(ctx: &egui::Context, row: Rect, normal: f32) -> f32 {
     let o = overlap(ctx, row);
     if o > 0.0 { o + 10.0 } else { normal }
 }
 
-/// Move the window by `rect` where nothing else on it takes the pointer; double-click
-/// maximizes or restores it. Call it before what's drawn on that strip.
-///
-/// It only senses clicks: egui gives a drag to whatever senses drags under a button
-/// that doesn't, so a press on Back that then moved would move the window. What moves
-/// it is a press that landed here (nothing clickable on top), noted on the press
-/// itself (egui forgets a press on something click-only once it moves too far for a
-/// click), and then dragged. Not focusable: Tab skips it.
 pub fn drag_area(ui: &Ui, rect: Rect, id: &str) {
     if !shown(ui.ctx()) {
         return;
@@ -97,8 +67,6 @@ pub fn drag_area(ui: &Ui, rect: Rect, id: &str) {
     }
 }
 
-/// [`drag_area`] without the double-click, with or without the system's frame (the mini
-/// player moves by its background everywhere): the response, for the caller's double-click.
 pub fn drag_strip(ui: &Ui, rect: Rect, id: &str) -> egui::Response {
     let resp = ui.interact(rect, Id::unique(("titlebar-drag", id)), Sense::CLICK);
     let pressed_here = resp.id.with("pressed");
@@ -110,19 +78,15 @@ pub fn drag_strip(ui: &Ui, rect: Rect, id: &str) -> egui::Response {
         ui.ctx().data_mut(|d| d.remove::<bool>(pressed_here));
     }
     if !resp.double_clicked() && down && dragging && ui.ctx().data_mut(|d| d.remove_temp::<bool>(pressed_here)).unwrap_or(false) {
-        // Once: the system moves the window until the button is let go.
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
     resp
 }
 
-/// How far in from the window's right edge a scroll bar there sits, clear of the edge
-/// that resizes the window.
 pub fn edge_inset() -> f32 {
     if custom() { EDGE } else { 0.0 }
 }
 
-/// Minimize, maximize or restore, and close, at the window's top right.
 pub fn window_buttons(ctx: &egui::Context) {
     let Some(rect) = buttons_rect(ctx) else { return };
     let max = maximized(ctx);
@@ -139,7 +103,6 @@ pub fn window_buttons(ctx: &egui::Context) {
             if resp.clicked() {
                 ctx.send_viewport_cmd(match kind {
                     Kind::Minimize => ViewportCommand::Minimized(true),
-                    // Windows' buttons have no full screen of their own.
                     Kind::Maximize => ViewportCommand::Maximized(true),
                     Kind::Restore => ViewportCommand::Maximized(false),
                     Kind::Close => ViewportCommand::Close,
@@ -149,16 +112,11 @@ pub fn window_buttons(ctx: &egui::Context) {
     });
 }
 
-/// macOS's close, minimize and green buttons in `rect` (52 by any height): coloured
-/// circles that show their symbols while the pointer is over the group. As on macOS,
-/// green enters full screen (its two arrows) and with Option (Alt) held zooms instead
-/// (its plus). True when it asked for full screen, which the app goes into itself.
 pub fn traffic_lights(ui: &Ui, rect: Rect) {
     let ctx = ui.ctx().clone();
     let max = maximized(&ctx);
     let focused = ctx.input(|i| i.viewport().focused.unwrap_or(true));
     let over = ui.rect_contains_pointer(rect);
-    // Green maximizes and restores, like the Windows buttons it stands in for.
     let green = if max { (Kind::Restore, "Restore") } else { (Kind::Maximize, "Maximize") };
     let lights = [
         (Kind::Close, "Close", Color32::from_rgb(0xFF, 0x5F, 0x57)),
@@ -180,7 +138,6 @@ pub fn traffic_lights(ui: &Ui, rect: Rect) {
         p.circle_filled(c, 6.0, fill);
         p.circle_stroke(c, 6.0, Stroke::new(0.5, Color32::from_black_alpha(50)));
         if over {
-            // Each glyph is a dark shade of its own light, as macOS inks them.
             let ink = match kind {
                 Kind::Close => Color32::from_rgb(0x4D, 0x00, 0x00),
                 Kind::Minimize => Color32::from_rgb(0x99, 0x57, 0x00),
@@ -196,7 +153,6 @@ pub fn traffic_lights(ui: &Ui, rect: Rect) {
                 Kind::Minimize => {
                     p.line_segment([c + vec2(-3.2, 0.0), c + vec2(3.2, 0.0)], Stroke::new(1.3, ink));
                 }
-                // Two arrowheads out to opposite corners, pointing back in once maximized.
                 Kind::Maximize => {
                     p.add(tri([vec2(-3.0, -3.0), vec2(1.3, -3.0), vec2(-3.0, 1.3)]));
                     p.add(tri([vec2(3.0, 3.0), vec2(-1.3, 3.0), vec2(3.0, -1.3)]));
@@ -234,7 +190,6 @@ fn paint_button(ui: &Ui, r: Rect, kind: Kind, resp: &egui::Response) {
     let down = resp.is_pointer_button_down_on();
     let p = ui.painter();
     let fg = if kind == Kind::Close {
-        // Windows' own close red, and a darker one while held.
         let red = if down { Color32::from_rgb(0x94, 0x1F, 0x15) } else { Color32::from_rgb(0xC4, 0x2B, 0x1C) };
         if h > 0.0 {
             p.rect_filled(r, 0.0, red.gamma_multiply(h));
@@ -246,7 +201,6 @@ fn paint_button(ui: &Ui, r: Rect, kind: Kind, resp: &egui::Response) {
         }
         theme::lerp_color(theme::text_dim(), theme::text(), h)
     };
-    // Thin glyphs, ten points across, on whole pixels so they stay sharp.
     let px = 1.0 / ui.ctx().pixels_per_point();
     let snap = |p: Pos2| pos2((p.x / px).round() * px + px / 2.0, (p.y / px).round() * px + px / 2.0);
     let c = snap(r.center());
@@ -260,7 +214,6 @@ fn paint_button(ui: &Ui, r: Rect, kind: Kind, resp: &egui::Response) {
         }
         Kind::Restore => {
             p.rect_stroke(Rect::from_center_size(c + vec2(-1.0, 1.0), vec2(8.0, 8.0)), 1.0, s, egui::StrokeKind::Middle);
-            // The window behind: its top and right edges, showing past the front one.
             let b = Rect::from_center_size(c + vec2(1.0, -1.0), vec2(8.0, 8.0));
             p.line_segment([pos2(b.left() + 2.0, b.top()), b.right_top()], s);
             p.line_segment([b.right_top(), pos2(b.right(), b.bottom() - 2.0)], s);
@@ -272,13 +225,10 @@ fn paint_button(ui: &Ui, r: Rect, kind: Kind, resp: &egui::Response) {
     }
 }
 
-/// Resize by the window's edges and corners (not while maximized). Drawn last, above
-/// everything, but only a few points deep.
 pub fn resize_edges(ctx: &egui::Context) {
     edges(ctx, false);
 }
 
-/// Resize by the left and right edges only: the mini player is as tall as its contents.
 pub fn resize_sides(ctx: &egui::Context) {
     edges(ctx, true);
 }
@@ -310,11 +260,8 @@ fn edges(ctx: &egui::Context, sides_only: bool) {
             if sides_only && !side {
                 continue;
             }
-            // The sides run the full height when they're all there is.
             let rect = if sides_only { Rect::from_x_y_ranges(rect.x_range(), s.y_range()) } else { rect };
-            // Not focusable: twelve unnamed stops for Tab otherwise.
             let resp = ui.interact(rect, Id::unique(("resize-edge", i)), Sense::DRAG).on_hover_cursor(cursor);
-            // On the press itself, so the edge doesn't lag behind the pointer.
             if resp.is_pointer_button_down_on() && ui.input(|i| i.pointer.primary_pressed()) {
                 ctx.send_viewport_cmd(ViewportCommand::BeginResize(dir));
             }
@@ -322,15 +269,6 @@ fn edges(ctx: &egui::Context, sides_only: bool) {
     });
 }
 
-/// The main window, from `main`: its whole area is the app's to draw on.
-///
-/// winit's frameless window keeps a one-pixel system frame along the top (it moves the
-/// window's drawable area down a pixel so Windows still draws the drop shadow), and that
-/// shows as a darker line above the app. Here that shift is undone, so the drawable area
-/// is the whole window, and the shadow comes from a one-pixel frame along the bottom
-/// instead. That frame sits under the app's bottom row, which the app always paints
-/// opaque, so it never shows. Anything else winit decides (the work area when maximized)
-/// stays as it is.
 #[cfg_attr(not(windows), allow(unused_variables))]
 pub fn set_hwnd(hwnd: *mut std::ffi::c_void) {
     #[cfg(windows)]
@@ -349,26 +287,18 @@ mod frame {
 
     pub fn init(hwnd: *mut std::ffi::c_void) {
         let hwnd = HWND(hwnd);
-        // SAFETY: the app's own window, on the thread that made it (still hidden: eframe
-        // shows it after the first frame); the subclass lives as long as the window.
         unsafe {
             if !SetWindowSubclass(hwnd, Some(proc), 1, 0).as_bool() {
                 log::warn!("title bar: couldn't subclass the window");
                 return;
             }
             let _ = DwmExtendFrameIntoClientArea(hwnd, &MARGINS { cxLeftWidth: 0, cxRightWidth: 0, cyTopHeight: 0, cyBottomHeight: 1 });
-            // Have Windows ask for the window's areas again.
             let _ = SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
         }
     }
 
     unsafe extern "system" fn proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM, _: usize, _: usize) -> LRESULT {
-        // SAFETY: called by Windows with the window's own message; for WM_NCCALCSIZE with
-        // wparam set, lparam points at an NCCALCSIZE_PARAMS.
         unsafe {
-            // A character with no key press for winit to pair it with (an IME commit
-            // sends these) is left to Windows' default handling, which answers with the
-            // system beep. The text itself already reached the app either way.
             if msg == WM_CHAR || msg == WM_SYSCHAR {
                 let _ = DefSubclassProc(hwnd, msg, wparam, lparam);
                 return LRESULT(0);
@@ -379,8 +309,6 @@ mod frame {
             let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
             let proposed = params.rgrc[0];
             let result = DefSubclassProc(hwnd, msg, wparam, lparam);
-            // winit's shift: the same rectangle a pixel lower. Anything else is its own
-            // sizing (maximized), kept.
             let r = params.rgrc[0];
             if (r.left, r.right, r.top, r.bottom) == (proposed.left, proposed.right, proposed.top + 1, proposed.bottom + 1) {
                 params.rgrc[0] = proposed;

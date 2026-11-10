@@ -80,7 +80,6 @@ import com.bxane.nuvx.ui.tv.theme.TvGlass
 import com.bxane.nuvx.ui.tv.theme.TvThemeColors
 import kotlinx.coroutines.delay
 
-/** The tabs of the top bar. Now Playing is a tab too, but it opens the player rather than a page. */
 enum class TvDestination(val label: String) {
     HOME("Home"),
     EXPLORE("Explore"),
@@ -89,7 +88,6 @@ enum class TvDestination(val label: String) {
     SETTINGS("Settings"),
 }
 
-/** A pushed album, playlist or artist page. */
 data class TvDetailRoute(
     val browseId: String,
     val title: String,
@@ -165,8 +163,6 @@ fun TvApp(
         }
     }
 
-    // Offered once per launch, and not over first-time setup. Settings'
-    // "Software Update" row reopens it after it is dismissed.
     val update by viewModel.updateAvailable.collectAsState()
     var updateDismissed by remember { mutableStateOf(false) }
 
@@ -201,8 +197,6 @@ fun TvApp(
                 )
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // The pages stay alive under the player, so closing it comes
-                    // back to the same tab, scroll position and focused card.
                     TvMainShell(
                         viewModel = viewModel,
                         mediaController = mediaController,
@@ -220,7 +214,6 @@ fun TvApp(
                         enter = scaleIn(initialScale = 0.94f, animationSpec = tween(260)) + fadeIn(tween(220)),
                         exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.97f, animationSpec = tween(180)),
                     ) {
-                        // The player places its own focus (scrubber or stage).
                         Box(modifier = Modifier.fillMaxSize().focusGroup()) {
                             TvNowPlayingScreen(
                                 viewModel = viewModel,
@@ -252,11 +245,6 @@ fun TvApp(
     }
 }
 
-/**
- * The screen-filling background: a soft top-to-bottom gradient with a wash of the
- * playing song's artwork colour across the top, as Apple Music tints its canvas.
- * Drawn behind everything in one pass; the tint animates in the draw phase.
- */
 @Composable
 private fun Modifier.tvCanvas(artworkUrl: String?): Modifier {
     val palette = TvThemeColors.current
@@ -292,7 +280,6 @@ private fun TvMainShell(
     onRunSetupAgain: () -> Unit,
 ) {
     val chrome = remember { TvChrome() }
-    // What had focus when the player opened over this shell; it gets it back on close.
     var focusBeforePlayer by remember { mutableStateOf<FocusRequester?>(null) }
     val openNowPlaying: () -> Unit = {
         focusBeforePlayer = chrome.lastFocused
@@ -303,7 +290,6 @@ private fun TvMainShell(
     val detailStack = remember { mutableStateListOf<TvDetailRoute>() }
     val tabFocus = remember { FocusRequester() }
     var barHasFocus by remember { mutableStateOf(false) }
-    // The card each pushed page was opened from, so Back can hand focus back to it.
     val returnFocus = remember { mutableListOf<FocusRequester?>() }
 
     val signedIn by viewModel.signedIn.collectAsState()
@@ -349,7 +335,6 @@ private fun TvMainShell(
         chrome.epoch++
         viewModel.closeDetail()
     }
-    // Leaving the last pushed page: put focus back on the card that opened it.
     var hadDetail by remember { mutableStateOf(false) }
     LaunchedEffect(activeDetail == null) {
         if (activeDetail != null) {
@@ -366,8 +351,6 @@ private fun TvMainShell(
         }
     }
 
-    // tvOS Back: pop a pushed page; otherwise go back up to the tab bar; from
-    // there, back to Home; from Home's tab, leave the app.
     BackHandler(enabled = !covered && (activeDetail != null || !barHasFocus || destination != TvDestination.HOME)) {
         when {
             activeDetail != null -> popDetail()
@@ -383,8 +366,6 @@ private fun TvMainShell(
         delay(60)
         runCatching { tabFocus.requestFocus() }
     }
-    // The tab bar only ever sits over a page at its top: taking focus sends the
-    // page home, rather than leaving the bar floating over scrolled content.
     LaunchedEffect(barHasFocus) {
         if (barHasFocus) chrome.scrollToTopRequests++
     }
@@ -403,7 +384,6 @@ private fun TvMainShell(
         }
     }
 
-    // The bar floats over pushed pages too, stepping aside as they scroll.
     val barVisible = !chrome.contentScrolled || barHasFocus
     val barProgress by animateFloatAsState(if (barVisible) 1f else 0f, tween(260), label = "barProgress")
 
@@ -415,8 +395,6 @@ private fun TvMainShell(
                 .focusProperties { onEnter = { if (covered) cancelFocusChange() } }
                 .focusGroup(),
         ) {
-            // The tab's page stays composed under a pushed page — not drawn, and
-            // fenced off from focus — so Back lands on the card that pushed it.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -427,8 +405,6 @@ private fun TvMainShell(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        // Down from the tab bar enters the page at its top, never at
-                        // a row remembered from further down.
                         .focusRequester(contentFocus)
                         .focusGroup(),
                 ) {
@@ -499,7 +475,6 @@ private fun TvMainShell(
                 destination = destination,
                 viewModel = viewModel,
                 tabFocus = tabFocus,
-                // Down from the bar goes into whatever page is on top.
                 contentFocus = if (activeDetail != null) detailFocus else contentFocus,
                 onSelect = select,
                 onOpenNowPlaying = openNowPlaying,
@@ -517,11 +492,6 @@ private fun TvMainShell(
     }
 }
 
-/**
- * The Apple Music tvOS tab bar: a translucent capsule centred at the top holding
- * the four tabs and, at its end, Search and Settings. Home, Explore and Library
- * switch as focus lands on them, the way tvOS tabs do; the rest act on select.
- */
 @Composable
 private fun TvTopBar(
     destination: TvDestination,
@@ -546,8 +516,6 @@ private fun TvTopBar(
             ?: account?.thumbnailUrl
     }
 
-    // Pages fill the screen from its top edge so they can scroll under this bar,
-    // which puts them outside a plain "below" search from a tab. Point Down at them.
     val downToContent = Modifier.focusProperties { down = contentFocus }
 
     Box(
@@ -555,7 +523,6 @@ private fun TvTopBar(
             .fillMaxWidth()
             .padding(top = 18.dp, start = 38.dp, end = 38.dp),
     ) {
-        // The mark only, as the phone's Home heading shows it.
         Icon(
             painter = painterResource(R.drawable.ic_logo),
             contentDescription = "nuvx",
@@ -622,7 +589,6 @@ private fun TvTopBar(
     }
 }
 
-/** The account's picture at the bar's leading edge; opens Account. */
 @Composable
 private fun TvAvatarButton(
     imageUrl: String?,
@@ -651,7 +617,6 @@ private fun TvAvatarButton(
     }
 }
 
-/** The nuvx mark, for the few places that show the app itself. */
 @Composable
 fun TvAppMark(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 96.dp) {
     Box(

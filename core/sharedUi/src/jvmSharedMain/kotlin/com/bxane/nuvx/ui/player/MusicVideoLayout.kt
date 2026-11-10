@@ -61,16 +61,8 @@ import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.ui.theme.HideSystemBars
 import kotlinx.coroutines.delay
 
-/** How long the controls stay over a playing video untouched. */
 private const val VIDEO_CONTROLS_IDLE_MS = 3_500L
 
-/**
- * A music video on a phone held sideways: the picture is the whole screen,
- * letterboxed in black, with the system bars away. A tap brings the controls
- * up over it — the title, the scrubber and the transport — and they stand
- * down again a few seconds after the last touch while it plays, as in every
- * video player. [onExitFullscreen] goes back to the ordinary landscape player.
- */
 @Composable
 internal fun FullscreenVideoPlayer(
     song: Song,
@@ -86,7 +78,6 @@ internal fun FullscreenVideoPlayer(
 ) {
     HideSystemBars(true)
     var controlsShown by remember { mutableStateOf(true) }
-    // Bumped by every touch on the controls, so the idle timer starts over.
     var touches by remember { mutableIntStateOf(0) }
     LaunchedEffect(controlsShown, isPlaying, touches) {
         if (controlsShown && isPlaying) {
@@ -104,7 +95,6 @@ internal fun FullscreenVideoPlayer(
                 indication = null,
             ) { controlsShown = !controlsShown },
     ) {
-        // Black with a spinner until the picture's first frame lands.
         if (!rendered) VideoLoadingBackdrop(Modifier.fillMaxSize())
         MusicVideoSurface(
             videoId = song.videoId,
@@ -130,9 +120,6 @@ internal fun FullscreenVideoPlayer(
                             1f to Color.Black.copy(alpha = 0.78f),
                         ),
                     )
-                    // Any touch on the controls starts the idle timer over.
-                    // Watched, not taken: a tap on bare picture still reaches
-                    // the box below and puts them away.
                     .pointerInput(Unit) {
                         awaitPointerEventScope {
                             while (true) {
@@ -187,11 +174,6 @@ internal fun FullscreenVideoPlayer(
     }
 }
 
-/**
- * What stands in for a music video until its first frame lands: black, with a
- * spinner, rather than the still artwork. Shared by the portrait card and the
- * fullscreen landscape player.
- */
 @Composable
 internal fun VideoLoadingBackdrop(modifier: Modifier = Modifier) {
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
@@ -203,11 +185,6 @@ internal fun VideoLoadingBackdrop(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * The two glass boxes in a music video's top-right corner: the quality box —
- * the web player's VideoQuality, which reads the rendition on screen and opens
- * the quality drawer — and the full-screen button beside it.
- */
 @Composable
 internal fun VideoCornerControls(
     fullscreen: Boolean,
@@ -239,15 +216,9 @@ internal fun VideoCornerControls(
     }
 }
 
-/** What the quality box and drawer say is playing: the held height, else the one on screen. */
 private fun MusicVideoQualityUi.selected(): Int? =
     if (held == null || held !in heights) activeHeight else held
 
-/**
- * The playing video's quality: 360p, 480p, HD, FullHD, 2K, 4K — what is on
- * screen, which is not always what was picked (4K held, then a video shot in
- * 1080p). Nothing until the renditions are known and there is a choice to make.
- */
 @Composable
 private fun VideoQualityBox(onClick: () -> Unit) {
     val quality by PlayerPlatform.host.musicVideoQuality.collectAsStateWithLifecycle()
@@ -280,11 +251,6 @@ private fun VideoQualityBox(onClick: () -> Unit) {
     }
 }
 
-/**
- * The quality list, in the same drawer as the audio output: Auto, then every
- * height this video offers, the one playing marked. Picking one holds it from
- * now on — for the next video too, where that video has it.
- */
 @Composable
 internal fun VideoQualitySheet(hazeState: HazeState, onDismiss: () -> Unit) {
     val quality by PlayerPlatform.host.musicVideoQuality.collectAsStateWithLifecycle()
@@ -320,7 +286,6 @@ internal fun VideoQualitySheet(hazeState: HazeState, onDismiss: () -> Unit) {
     }
 }
 
-/** One row of [VideoQualitySheet], drawn as the audio output drawer draws an output. */
 @Composable
 private fun QualityRow(name: String, detail: String?, active: Boolean, onSelect: () -> Unit) {
     val haptics = rememberHaptics()

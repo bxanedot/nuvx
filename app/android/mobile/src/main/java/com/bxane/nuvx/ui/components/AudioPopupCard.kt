@@ -38,20 +38,6 @@ private val POPUP_SCRIM_COLOR = Color.Black.copy(alpha = 0.4f)
 private val POPUP_WIDTH = 320.dp
 private val POPUP_CONTENT_MAX_HEIGHT = 420.dp
 
-/**
- * The frosted card the output drawer's popups open into — the one
- * [AudioPipelineDialog] was drawn in, lifted out so the Cast picker is the same
- * object rather than a second one made to look like it.
- *
- * A scrim that dismisses, a card that swallows the tap so touching it does not,
- * a centred title and subtitle, a scrolling body, and a full-width closing
- * action. Fixed to the player's own dark palette rather than the theme-adaptive
- * one the settings dialogs use, since everything on the player is white alphas
- * whatever the app's light/dark theme is.
- *
- * [content] is the scrolling body, handed a [BoxScope] so a body can lay
- * something behind its rows — the pipeline draws its signal line there.
- */
 @Composable
 internal fun AudioPopupCard(
     hazeState: HazeState,
@@ -82,8 +68,6 @@ internal fun AudioPopupCard(
                 .width(POPUP_WIDTH)
                 .clip(POPUP_CARD_SHAPE)
                 .then(
-                    // The ⋯ menu's frost — see [PlayerDrawer], whose drawers
-                    // these popups open from.
                     when {
                         reduceDynamicBlur -> Modifier.background(MenuFrostDark)
                         frost != null -> with(frost) {
@@ -92,8 +76,6 @@ internal fun AudioPopupCard(
                         else -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
                     }
                 )
-                // Swallows the tap before it reaches the scrim behind, so
-                // touching the card itself never dismisses it.
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -134,8 +116,6 @@ internal fun AudioPopupCard(
                 content = content,
             )
 
-            // Full width: the default rule is indented to clear the pipeline's
-            // icon lane, which left this one sitting right of centre.
             PipelineRule(Modifier)
             PipelineDoneAction(label = doneLabel, onClick = onDismiss)
         }

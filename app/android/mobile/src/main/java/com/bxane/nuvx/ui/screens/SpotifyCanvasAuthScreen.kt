@@ -55,7 +55,6 @@ fun SpotifyCanvasAuthScreen(
                         )
                     }
                 },
-                // Kept clear of the status bar even while the player has it hidden.
                 windowInsets = stableStatusBarInsets(),
             )
         }

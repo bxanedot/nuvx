@@ -20,20 +20,8 @@ import com.bxane.nuvx.wear.R
 import com.bxane.nuvx.wear.WearActivity
 import com.bxane.nuvx.wear.WearProtocol as P
 
-/**
- * Puts nuvx's own icon on the watch face while the phone plays.
- *
- * The icon Wear OS shows by itself for phone playback belongs to the system's
- * media controller and opens that, whatever app is playing. An Ongoing Activity
- * of our own is the one entry point the watch face offers an app, so this posts
- * one — tapping it opens this app's player — and takes it down again on pause.
- *
- * Woken only for [P.PATH_NOW_PLAYING], which the phone writes on track, play
- * and pause changes, not on a timer.
- */
 class NowPlayingListener : WearableListenerService() {
 
-    /** The phone driving this watch as its speaker — see [Speaker]. */
     override fun onMessageReceived(event: MessageEvent) {
         val path = event.path ?: return
         when {
@@ -42,12 +30,10 @@ class NowPlayingListener : WearableListenerService() {
         }
     }
 
-    /** A newer build of this app, sent by the phone's "nuvx for Wear OS" settings. */
     override fun onChannelOpened(channel: ChannelClient.Channel) {
         if (channel.path == P.PATH_APK) SelfUpdate.receive(this, channel)
     }
 
-    /** Play services has finished writing what [SelfUpdate.receive] asked it for. */
     override fun onInputClosed(channel: ChannelClient.Channel, closeReason: Int, appSpecificErrorCode: Int) {
         if (channel.path == P.PATH_APK) SelfUpdate.onReceived(this, channel, closeReason)
     }
@@ -57,8 +43,6 @@ class NowPlayingListener : WearableListenerService() {
             it.type == DataEvent.TYPE_CHANGED && it.dataItem.uri.path == P.PATH_NOW_PLAYING
         } ?: return
         val map = DataMapItem.fromDataItem(latest.dataItem).dataMap
-        // With this watch as the speaker its own media session carries the
-        // ongoing icon, and it opens this app already.
         val playing = map.getBoolean(P.KEY_HAS_TRACK) && map.getBoolean(P.KEY_PLAYING) &&
             !map.getBoolean(P.KEY_WATCH_SPEAKER)
         if (playing) {

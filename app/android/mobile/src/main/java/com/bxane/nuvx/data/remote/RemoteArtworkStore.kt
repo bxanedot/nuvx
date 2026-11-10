@@ -12,21 +12,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/**
- * Embedded covers for remote tracks, extracted lazily and cached.
- *
- * Listings never touch audio bytes, so a track whose art lives inside the
- * file arrives with no thumbnail. The first surface that wants to draw it —
- * a row, an album card, the player — asks here instead: memory first, then
- * a disk cache of extracted pictures, and only then the bounded ranged
- * reads that pull the picture out of the file. Concurrent asks for one
- * track share a single extraction.
- *
- * Disk names are content-blind hashes of the track id: ids embed full URLs
- * with slashes and escapes that must never reach the filesystem. A
- * server-side overwrite keeps serving the stale copy — accepted, since
- * revalidating would cost a request per row per list.
- */
 object RemoteArtworkStore {
 
     private const val MAX_DIR_BYTES = 100L * 1024 * 1024
@@ -36,10 +21,6 @@ object RemoteArtworkStore {
     private val claimed = ConcurrentHashMap.newKeySet<String>()
     private val inFlightLock = Mutex()
 
-    /**
-     * A drawable art URI for [song]: its own thumbnail when it has one, else
-     * the extracted embedded picture, else null. Never throws.
-     */
     suspend fun resolveArt(context: Context, song: Song): String? {
         song.thumbnailUrl?.let { return it }
         val key = song.videoId
@@ -86,7 +67,6 @@ object RemoteArtworkStore {
     private fun diskHit(context: Context, key: String): String? {
         val dir = File(context.cacheDir, "remote_art")
         if (!dir.isDirectory) return null
-        // The extension depends on the sniffed mime, so match by stem.
         val match = dir.listFiles { _, name -> name.startsWith("${cacheKey(key)}.") }
             ?.filter { it.isFile && it.length() > 0 }
             ?.maxByOrNull { it.lastModified() }

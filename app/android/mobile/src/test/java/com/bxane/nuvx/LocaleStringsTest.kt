@@ -10,10 +10,6 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/**
- * Every language the app offers must translate every key in values/strings.xml. A missing key
- * doesn't crash, it silently falls back to English mid-screen, so this catches it at test time.
- */
 @RunWith(Parameterized::class)
 class LocaleStringsTest(private val tag: String) {
 
@@ -34,7 +30,6 @@ class LocaleStringsTest(private val tag: String) {
         private fun parse(file: File): Document =
             DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
 
-        /** Keys that need translating: `translatable="false"` entries are excluded. */
         private fun translatableKeys(doc: Document): Set<String> {
             val keys = mutableSetOf<String>()
             for (tagName in listOf("string", "plurals", "string-array")) {
@@ -53,12 +48,6 @@ class LocaleStringsTest(private val tag: String) {
             translatableKeys(parse(File(resDir, "values/strings.xml")))
         }
 
-        /**
-         * App language tags are BCP-47 (`zh-CN` / `zh-TW`) while Android
-         * resource directories use `-r` regions (`values-zh`, `values-zh-rTW`).
-         * Mirrors what Android resolves at runtime: Simplified is the bare
-         * `zh` catalogue, Traditional is `zh-rTW`.
-         */
         internal fun tagToQualifier(tag: String): String = when (tag) {
             "zh-CN" -> "zh"
             "zh-TW" -> "zh-rTW"

@@ -1,25 +1,3 @@
-//! Automatic updates from GitHub releases.
-//!
-//! The installed app (Inno Setup, per-user) checks the latest release at startup and
-//! every few hours, downloads a newer installer in the background, and runs it
-//! silently when the app closes, or right away when the user picks "Restart to
-//! update". The portable build (a `portable.txt` beside the exe) downloads the new
-//! portable zip instead and swaps the exe in place as it closes. On Linux, a copy
-//! put in place by `install.sh` (an `install.txt` beside the binary) downloads the new
-//! tarball and renames the new binary over itself as it closes. On macOS, the copy
-//! installed from the disk image downloads the new one and puts the app from it in
-//! place of its own as it closes. Every platform has a portable build too (a
-//! `portable.txt` marker; inside the app bundle on macOS), which updates from the
-//! portable download. Dev builds never update themselves.
-//!
-//! Release notes (the release's Markdown body) are kept per version: the one a check
-//! finds, and any other on request ([`Updater::notes`]), for the update dialog, the
-//! card shown after updating and Settings.
-//!
-//! Dev hooks: `NUVX_UPDATE_FORCE=1` treats any build as installed; `NUVX_UPDATE_AS=<ver>`
-//! pretends to be that version; `NUVX_UPDATE_DRYRUN=1` logs the install command
-//! instead of running it; `NUVX_UPDATE_FEED=<url>` reads the latest release from there.
-
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -27,7 +5,6 @@ const LATEST: &str = "https://api.github.com/repos/bxanedot/nuvx/releases/latest
 const BY_TAG: &str = "https://api.github.com/repos/bxanedot/nuvx/releases/tags/v";
 pub const RELEASES: &str = "https://github.com/bxanedot/nuvx/releases";
 
-/// Release notes by version: `None` while fetching or when there are none.
 type Notes = Arc<Mutex<std::collections::HashMap<String, Option<String>>>>;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -36,7 +13,6 @@ pub enum State {
     Checking,
     UpToDate,
     Downloading { version: String, percent: u8 },
-    /// `installer` is the setup exe, or for the portable build the new nuvx.exe.
     Ready { version: String, installer: PathBuf },
     Failed(String),
 }
@@ -53,9 +29,6 @@ pub fn current_version() -> String {
     std::env::var("NUVX_UPDATE_AS").unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned())
 }
 
-/// Whether this copy was installed by the installer (which leaves its uninstaller
-/// beside the exe, or on Linux `install.sh` its `install.txt`), or on macOS runs from
-/// an app bundle that isn't the portable one, so it's safe to update in place.
 pub fn installed() -> bool {
     if std::env::var_os("NUVX_UPDATE_FORCE").is_some() {
         return true;
@@ -68,12 +41,10 @@ pub fn installed() -> bool {
     exe.parent().is_some_and(|d| d.join(marker).exists())
 }
 
-/// The `.app` bundle a binary is in (`X.app/Contents/MacOS/nuvx`).
 fn bundle_of(exe: &Path) -> Option<&Path> {
     exe.ancestors().nth(3).filter(|a| a.extension().is_some_and(|x| x == "app"))
 }
 
-/// The release asset this copy updates from.
 fn asset_name(version: &str) -> String {
     let portable = portable_dir().is_some();
     let arch = std::env::consts::ARCH;
@@ -81,7 +52,6 @@ fn asset_name(version: &str) -> String {
         let kind = if portable { "portable-" } else { "" };
         return format!("nuvx-{kind}{version}-linux-{arch}.tar.gz");
     }
-    // ARM64 Windows builds have their own assets; x64 keeps the original names.
     let (suffix, setup) = if cfg!(target_os = "macos") {
         (format!("-macos-{arch}"), "dmg")
     } else {
@@ -90,14 +60,9 @@ fn asset_name(version: &str) -> String {
     if portable { format!("nuvx-portable-{version}{suffix}.zip") } else { format!("nuvx-setup-{version}{suffix}.{setup}") }
 }
 
-/// The portable build's folder: the download ships a `portable.txt` beside the exe
-/// (on macOS inside the app bundle, where code signing allows it), which keeps
-/// settings in `data` next to it (next to the bundle) and has updates replace it in place.
 pub fn portable_dir() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     if let Some(app) = bundle_of(&exe) {
-        // Opened without being moved out of quarantine, macOS runs the app from a
-        // random read-only copy; there's no folder beside it to keep data in.
         if app.to_string_lossy().contains("/AppTranslocation/") {
             return None;
         }
@@ -110,7 +75,6 @@ pub fn portable_dir() -> Option<PathBuf> {
     dir.join("portable.txt").exists().then_some(dir)
 }
 
-/// Remove the exe a portable update replaced (it was still running then).
 pub fn clean_portable() {
     if portable_dir().is_some()
         && let Ok(exe) = std::env::current_exe()
@@ -119,7 +83,6 @@ pub fn clean_portable() {
     }
 }
 
-/// `a` is newer than `b` (dotted numeric versions, a leading "v" ignored).
 pub fn newer(a: &str, b: &str) -> bool {
     let parse = |v: &str| v.trim_start_matches('v').split('.').map(|p| p.parse::<u64>().unwrap_or(0)).collect::<Vec<_>>();
     let (a, b) = (parse(a), parse(b));
@@ -146,8 +109,6 @@ impl Updater {
         (self.wake)();
     }
 
-    /// Release notes (Markdown) for `version`, fetched in the background the first time
-    /// they're asked for; `None` until they arrive, or if the release has none.
     pub fn notes(&self, version: &str) -> Option<String> {
         let version = version.trim_start_matches('v').to_owned();
         {
@@ -179,7 +140,6 @@ impl Updater {
         None
     }
 
-    /// Check for a newer release and download it, in the background.
     pub fn check(&self) {
         if matches!(self.state(), State::Checking | State::Downloading { .. } | State::Ready { .. }) {
             return;
@@ -217,8 +177,6 @@ impl Updater {
         let version = tag.trim_start_matches('v').to_owned();
         let portable = portable_dir().is_some();
         let want = asset_name(&version);
-        // A release published before its installer was built: nothing to install
-        // yet, so this isn't an error. The next check picks it up.
         let Some(asset) = release["assets"].as_array().and_then(|a| a.iter().find(|x| x["name"] == want.as_str())) else {
             log::info!("update: release {tag} has no {want} yet");
             return Ok(State::UpToDate);
@@ -231,7 +189,6 @@ impl Updater {
             log::info!("update: downloading {version} ({size} bytes)");
             self.set(State::Downloading { version: version.clone(), percent: 0 });
             let mut resp = http.get(url).send().await?.error_for_status()?;
-            // Stream to a file beside, then rename, so a half-written file is never taken as ready.
             let part = path.with_extension("part");
             let mut file = std::io::BufWriter::new(std::fs::File::create(&part)?);
             let (mut got, mut shown) = (0u64, 0u8);
@@ -252,7 +209,6 @@ impl Updater {
             }
             std::fs::rename(&part, &path)?;
         }
-        // Old downloads are no longer needed.
         if let Ok(rd) = std::fs::read_dir(&self.dir) {
             for e in rd.flatten() {
                 let p = e.path();
@@ -273,8 +229,6 @@ impl Updater {
         Ok(State::Ready { version, installer: ready })
     }
 
-    /// Run the downloaded installer silently once this process has exited, then
-    /// (if `relaunch`) start the updated app.
     pub fn install(&self, relaunch: bool) {
         let State::Ready { installer, .. } = self.state() else { return };
         let exe = std::env::current_exe().unwrap_or_default();
@@ -293,11 +247,8 @@ impl Updater {
         if portable_dir().is_some() {
             return swap_exe(installer, exe, relaunch);
         }
-        // Update the copy that's running: an all-users install lives under Program Files
-        // (and the installer will ask for admin rights); otherwise it's per-user.
         let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
         let scope = if program_files.is_some_and(|p| exe.starts_with(p)) { "/ALLUSERS" } else { "/CURRENTUSER" };
-        // Give this process a moment to save and exit before the installer replaces it.
         let mut script = format!(
             "ping -n 3 127.0.0.1 >NUL & \"{}\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART {scope}",
             installer.display()
@@ -314,8 +265,6 @@ impl Updater {
     }
 }
 
-/// The portable update: Windows lets a running exe be renamed, so move this one aside
-/// and put the new one in its place (the next launch deletes the old one).
 #[cfg(windows)]
 fn swap_exe(new: &Path, exe: &Path, relaunch: bool) {
     let old = exe.with_extension("exe.old");
@@ -334,13 +283,10 @@ fn swap_exe(new: &Path, exe: &Path, relaunch: bool) {
     }
     log::info!("update: replaced {}", exe.display());
     if relaunch {
-        // Once this process has saved and exited.
         run_detached(&format!("ping -n 3 127.0.0.1 >NUL & start \"\" \"{}\" {}", exe.display(), crate::deeplink::RELAUNCH_FLAG));
     }
 }
 
-/// Linux: rename the new binary over this one. The running process keeps its copy
-/// open until it exits; the next launch runs the new one.
 #[cfg(unix)]
 fn replace_binary(new: &Path, exe: &Path, relaunch: bool) {
     use std::os::unix::fs::PermissionsExt;
@@ -358,15 +304,11 @@ fn replace_binary(new: &Path, exe: &Path, relaunch: bool) {
     }
     log::info!("update: replaced {}", exe.display());
     if relaunch {
-        // Once this process has saved and exited.
         let quoted = exe.display().to_string().replace('\'', r"'\''");
         run_detached(&format!("sleep 2; exec '{quoted}'"));
     }
 }
 
-/// macOS: put the new app bundle where this one is, so its Info.plist and icon update
-/// too. A running app's bundle can be moved; this process keeps running from the old
-/// one until it exits.
 #[cfg(target_os = "macos")]
 fn replace_bundle(new: &Path, app: &Path, relaunch: bool) {
     let parent = app.parent().unwrap_or(Path::new("/"));
@@ -377,7 +319,6 @@ fn replace_bundle(new: &Path, app: &Path, relaunch: bool) {
     }
     let _ = std::fs::remove_dir_all(&tmp);
     let _ = std::fs::remove_dir_all(&old);
-    // ditto copies a bundle whole: symlinks, permissions, signature.
     let copied = std::process::Command::new("ditto").arg(new).arg(&tmp).status().is_ok_and(|s| s.success());
     if !copied {
         let _ = std::fs::remove_dir_all(&tmp);
@@ -395,13 +336,11 @@ fn replace_bundle(new: &Path, app: &Path, relaunch: bool) {
     let _ = std::fs::remove_dir_all(&old);
     log::info!("update: replaced {}", app.display());
     if relaunch {
-        // Once this process has saved and exited.
         let quoted = app.display().to_string().replace('\'', r"'\''");
         run_detached(&format!("sleep 2; open '{quoted}'"));
     }
 }
 
-/// macOS: the app from a downloaded installer disk image, copied out into `dir`.
 fn open_dmg(dmg: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     let _ = std::fs::remove_dir_all(dir);
     let mnt = dir.join("mnt");
@@ -415,8 +354,6 @@ fn open_dmg(dmg: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     Ok(exe)
 }
 
-/// The new binary from a downloaded update (the portable zip, or on Linux the
-/// tarball), unpacked into `dir` with tar (on Windows, its own; macOS's reads zips).
 fn unzip_exe(zip: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir)?;
@@ -437,7 +374,6 @@ fn unzip_exe(zip: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     let status = cmd.status()?;
     #[cfg(windows)]
     let exe = dir.join("nuvx.exe");
-    // The portable macOS zip contains nuvx.app directly. Linux wraps the binary in a folder.
     #[cfg(target_os = "macos")]
     let exe = dir.join("nuvx.app/Contents/MacOS/nuvx");
     #[cfg(target_os = "linux")]
@@ -450,7 +386,6 @@ fn unzip_exe(zip: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     Ok(exe)
 }
 
-/// Run a cmd script detached and windowless, so it outlives this process.
 fn run_detached(script: &str) {
     #[cfg(windows)]
     {
@@ -464,7 +399,6 @@ fn run_detached(script: &str) {
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
-        // Its own process group, so it isn't taken down with this one.
         if let Err(e) = std::process::Command::new("sh").arg("-c").arg(script).process_group(0).spawn() {
             log::warn!("update: couldn't run the update: {e}");
         }

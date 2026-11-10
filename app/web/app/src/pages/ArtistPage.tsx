@@ -17,11 +17,6 @@ function luminance(color: string): number {
   return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
 }
 
-/**
- * The name, or Apple's title logo in its place (AppleArtistArt.kt). Until the
- * logo has drawn, the name stands in, so the header is never left empty; a
- * logo that fails to load leaves the name.
- */
 function ArtistName({ name, apple }: { name: string; apple: AppleArtistArt | null }) {
   const logo = apple?.logoUrl ?? null;
   const [shown, setShown] = useState<string | null>(null);
@@ -35,13 +30,10 @@ function ArtistName({ name, apple }: { name: string; apple: AppleArtistArt | nul
       {logo && (
         <img
           key={logo}
-          // Apple's title logo in place of the name: at most 82% of the page's width and 30% of the
-          // photo's height (the photo is the column's width over 1.93, and never taller than 70vh).
           className="mx-auto mt-0 mb-1.5 block h-auto max-h-[min(calc((100vw-var(--web-navigation-width))/1.93*0.3),21vh)] w-auto max-w-[min(82%,640px)] [filter:drop-shadow(0_2px_16px_#00000040)]"
           src={logo}
           alt={logoShown ? name : ''}
           hidden={!logoShown}
-          // Its proportions are known before it decodes; the CSS caps its size.
           style={{ aspectRatio: String(apple!.logoAspect) }}
           decoding="async"
           onLoad={() => setShown(logo)}
@@ -51,12 +43,6 @@ function ArtistName({ name, apple }: { name: string; apple: AppleArtistArt | nul
   );
 }
 
-/**
- * An artist (report §4): full-bleed hero with the name and Play, Top Songs,
- * then shelves. Where Apple Music has the artist, the page takes Apple's
- * header as the phone does: its photograph, its title logo over it, its
- * colour behind the whole page, and its colour on the Play button.
- */
 export default function ArtistPage() {
   const id = decodeURIComponent(useParams().id ?? '');
   const { missing } = useYouTubeReady();
@@ -77,11 +63,9 @@ export default function ArtistPage() {
   const topSongs = { title: `${data.name}: Top Songs`, type: 'artist' as const, id: data.id };
   return (
     <>
-      {/* The hero (report §4): full-bleed, ~1.93:1 of the content column, the name and actions centred near the bottom. */}
       <header className="relative max-h-[70vh] overflow-hidden">
         <div className="relative w-full">
           <Artwork src={data.heroImage} displayWidth={1200} aspect={1165 / 604} eager />
-          {/* Apple's photograph fades in over YouTube's once it arrives. */}
           {apple && (
             <img
               key={apple.heroUrl}
@@ -93,7 +77,6 @@ export default function ArtistPage() {
             />
           )}
         </div>
-        {/* The image melts into the page at the bottom (Apple's masked blur frame), into Apple's colour when the page is tinted with it. */}
         <div
           className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,color-mix(in_srgb,var(--page-tint,var(--pageBG))_70%,transparent)_80%,var(--page-tint,var(--pageBG))_100%)]"
           aria-hidden="true"
@@ -102,10 +85,7 @@ export default function ArtistPage() {
           <ArtistName name={data.name} apple={apple} />
           {data.audience && <p className="type-callout-emphasized text-secondary">{data.audience}</p>}
           <button
-            // The 56px key-colour play button.
             className="mt-2.5 grid size-14 place-items-center rounded-full bg-(--play-fill,var(--keyColorBG)) text-(--play-glyph,#fff) shadow-[0_2px_6px_-4px_#0006,inset_0_0_2px_#ffffff1a] disabled:opacity-40 enabled:hover:scale-[1.04]"
-            // Apple's fill for the Play circle, with the triangle in the page's colour,
-            // as the phone cuts it out of the circle; white without a key colour.
             style={
               apple
                 ? ({ '--play-fill': apple.keyColor ?? '#ffffff', '--play-glyph': apple.background } as CSSProperties)
@@ -118,12 +98,10 @@ export default function ArtistPage() {
             <PlayIcon size={26} />
           </button>
           {!apple && appleUngranted.length > 0 && (
-            // The lyrics panel's permission notice, as a pill over the photograph.
             <div className="mt-3 flex items-center gap-2.5 rounded-[999px] bg-[#0000004d] py-1.5 pr-2 pl-3.5 type-callout text-[#ffffffcc] [backdrop-filter:blur(20px)_saturate(1.6)]">
               <span>Apple Music artist art needs the extension’s permission.</span>
               <button
                 className="flex-none rounded-[999px] bg-[#ffffff26] px-2.5 py-1 type-callout-emphasized text-white hover:bg-[#ffffff40]"
-                // Stays until the extension confirms the grant (checked when this tab comes back).
                 onClick={requestAppleAccess}
               >
                 Allow

@@ -5,12 +5,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/**
- * What a download made straight from the song cache is filed as. It is read
- * off the file's own first bytes, so the one thing that must never happen is a
- * file being saved under the wrong extension — a manifest or an unknown
- * container is refused, and the download falls back to the network.
- */
 class CachedContainerTest {
 
     private fun head(vararg prefix: Int): ByteArray =

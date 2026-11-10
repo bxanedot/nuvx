@@ -1,31 +1,14 @@
-/**
- * The lyric playhead: a clock that runs on its own frames and is *steered* by
- * the player's readings rather than set by them. A verbatim port of the
- * native app's LyricClock.kt, which fixed
- * every "stuck" and "back-and-forth" lyric bug the apps had:
- *
- *  1. A reading is dated by when it was taken, not when it was seen.
- *  2. Nothing but an announced jump moves the words backwards.
- *  3. Readings steer, they don't set: the words close the gap to the newest
- *     reading carried forward at the learned rate, at most 25 % faster or
- *     50 % slower.
- *
- * All times are milliseconds on the `performance.now()` clock.
- */
 export class LyricClock {
-  /** Where the lyrics are drawn, in song milliseconds. */
   displayedMs: number;
 
   private lastNowMs = Number.NaN;
   private lastReportMs = Number.MIN_SAFE_INTEGER;
   private lastSampledAtMs = Number.NaN;
-  /** When playback was last seen stopped; a reading taken before then was taken standing still. */
   private heldAtMs = Number.NEGATIVE_INFINITY;
   private lastDiscontinuity: number | null = null;
   private jumpPending = false;
   private anchorAtMs = Number.NaN;
   private anchorMs = 0;
-  /** The playback rate, learned from how far the song moves between readings. */
   private rate = 1;
   private historyAt: number[] = [];
   private historyMs: number[] = [];
@@ -40,7 +23,6 @@ export class LyricClock {
     this.displayedMs = startMs;
   }
 
-  /** Forget the run so far: frames stopped arriving, and the next frame starts a new one. */
   restart(): void {
     this.lastNowMs = Number.NaN;
     this.jumpPending = false;
@@ -48,18 +30,12 @@ export class LyricClock {
     this.clearSuspect();
   }
 
-  /** Playback is not moving: settle on [positionMs] outright, as of [nowMs]. */
   hold(positionMs: number, nowMs: number): void {
     this.restart();
     this.displayedMs = positionMs;
     this.heldAtMs = nowMs;
   }
 
-  /**
-   * Advance to the frame at [nowMs] and return where the lyrics should be drawn.
-   * [sampledAtMs] is when [reportedMs] was taken (NaN when unknown);
-   * [discontinuity] changes whenever the playhead jumps on purpose.
-   */
   frame(nowMs: number, reportedMs: number, sampledAtMs: number, discontinuity: number): number {
     const firstOfRun = Number.isNaN(this.lastNowMs);
     if (discontinuity !== this.lastDiscontinuity) {
@@ -206,7 +182,6 @@ export class LyricClock {
     this.glideOffsetMs = offsetMs;
   }
 
-  /** Where the song is at [atMs]: the newest reading believed, carried forward. */
   private targetAt(atMs: number): number {
     return this.anchorMs + (atMs - this.anchorAtMs) * this.rate;
   }

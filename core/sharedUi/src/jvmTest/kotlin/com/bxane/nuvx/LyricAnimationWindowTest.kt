@@ -8,14 +8,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * A line outside [LyricLine.animatesFromMs]..[LyricLine.animatesUntilMs] stops
- * reading the clock and is drawn at one fixed position either side. That is only
- * invisible if nothing the draw passes ask of the line changes out there.
- */
 class LyricAnimationWindowTest {
     private val lines = listOf(
-        // Plain words, one split into syllables.
         LyricLine(
             timeMs = 10_000,
             text = "long enough",
@@ -27,13 +21,11 @@ class LyricAnimationWindowTest {
                 )),
             ),
         ),
-        // A held word, animated letter by letter past its own end.
         LyricLine(
             timeMs = 20_000,
             text = "oh hold",
             words = listOf(LyricWord(20_000, 20_200, "oh"), LyricWord(20_200, 22_600, "hold")),
         ),
-        // A lead line stamped before its first word, with a backing vocal outlasting it.
         LyricLine(
             timeMs = 29_800,
             text = "call me",
@@ -43,7 +35,6 @@ class LyricAnimationWindowTest {
     )
 
     private fun LyricLine.pictureAt(positionMs: Long): List<Any> = listOf(
-        // The sweep's own gates, then what it reveals.
         positionMs >= endMs,
         positionMs <= timeMs,
         revealedChars(positionMs),

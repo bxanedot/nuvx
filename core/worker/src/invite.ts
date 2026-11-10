@@ -1,5 +1,3 @@
-// The page behind https://nuvx.lol/invite/<code> (the website rewrites it here): opens the app on the party.
-
 export type InviteInfo = { code: string; active: boolean; title?: string; artist?: string; memberCount?: number };
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);

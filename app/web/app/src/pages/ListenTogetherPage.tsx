@@ -26,17 +26,9 @@ import { settingsUi } from './settingsStyles';
 const lede = 'mx-4 mb-4 type-body-tall text-secondary';
 const error = 'mx-4 mt-3 type-callout text-red';
 const primary = 'flex-none rounded-pill bg-key-bg px-4 py-1.5 type-body-emphasized text-white disabled:opacity-45';
-// The code, large, as the phone shows it.
 const invite = 'flex flex-col items-center gap-2.5 rounded-[10px] bg-quinary px-4 py-7 text-center';
 const inviteCode = 'type-[700_40px/48px] tracking-[0.18em]';
 
-/**
- * Listen Together (ListenTogetherScreen on the phone): start a party or join
- * one by code, then the party itself — its code and invite link, who's in it,
- * and the host's controls. Opened from Settings, and from an invite link
- * (`/invite/:code`), where joining waits for a tap: a browser only lets audio
- * start after the listener has interacted with the page.
- */
 export default function ListenTogetherPage() {
   const params = useParams();
   const [search] = useSearchParams();
@@ -150,7 +142,6 @@ function StartOrJoin({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-/** An invite: who's in it, then a tap to join (the tap also lets the browser start audio). */
 function InviteCard({ code, server, signedIn }: { code: string; server: string | null; signedIn: boolean }) {
   const preview = useQuery({ queryKey: ['party', 'preview', code, server], queryFn: () => previewParty(code, server), retry: false });
   const join = useMutation({ mutationFn: () => joinParty(code, server) });

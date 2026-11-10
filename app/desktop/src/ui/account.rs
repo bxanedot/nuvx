@@ -1,5 +1,3 @@
-//! The Google and Spotify sign-in windows, and uploading songs to the account.
-
 use std::sync::atomic::Ordering;
 
 use crate::backend::Req;
@@ -7,7 +5,6 @@ use crate::backend::Req;
 use super::App;
 
 impl App {
-    /// Open the system file picker for songs to upload; it runs on its own thread.
     pub(super) fn pick_uploads(&self, ctx: &egui::Context) {
         let (slot, ctx) = (self.picked_uploads.clone(), ctx.clone());
         std::thread::spawn(move || {
@@ -69,5 +66,4 @@ impl App {
     }
 }
 
-/// File types YouTube Music accepts for upload.
 const UPLOAD_EXTS: &[&str] = &["mp3", "m4a", "flac", "ogg", "wma"];

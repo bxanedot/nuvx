@@ -4,12 +4,6 @@ import { searchSongs } from '@/data/music/api';
 import type { Track } from '@/data/music/types';
 import { getBridge } from '@/extension/bridge';
 
-/**
- * Spotify through the extension (prompt §7.1): the library, a playlist's
- * tracks, and matching each one to its YouTube Music song. Ports
- * SpotifyLibrary.kt's paging and SpotifyImporter.matchTrack.
- */
-
 export const LIKED_ID = 'liked';
 
 function bridge() {
@@ -18,7 +12,6 @@ function bridge() {
   return b;
 }
 
-/** Every playlist in the library, Liked Songs first, however many pages it takes. */
 export async function fetchSpotifyPlaylists(): Promise<SpotifyPlaylist[]> {
   const out: SpotifyPlaylist[] = [];
   for (let offset = 0; ; ) {
@@ -34,7 +27,6 @@ export function fetchSpotifyPlaylistInfo(playlistId: string) {
   return bridge().call('spotify.playlist', { playlistId }, { timeoutMs: 30_000 });
 }
 
-/** Every track of a playlist; [onPage] gets the running list after each page, so a long one fills in. */
 export async function fetchSpotifyTracks(playlistId: string, onPage: (soFar: SpotifyTrack[], total: number) => void): Promise<SpotifyTrack[]> {
   const out: SpotifyTrack[] = [];
   for (let offset = 0; ; ) {
@@ -47,7 +39,6 @@ export async function fetchSpotifyTracks(playlistId: string, onPage: (soFar: Spo
   return out;
 }
 
-/** A Spotify row as a list row, before its YouTube Music version is known. */
 export function pendingTrack(track: SpotifyTrack, unavailable: 'matching' | 'missing' = 'matching'): Track {
   return {
     videoId: `spotify:${track.id}`,
@@ -75,11 +66,6 @@ export function candidateOf(track: Track): MatchCandidate {
 
 const matched = new Map<string, Track | null>();
 
-/**
- * The YouTube Music song that is [track], or null if there is none:
- * the best candidate by title, artist, length and album, and failing that
- * the search's first hit (SpotifyImporter.matchTrack).
- */
 export async function matchToYouTube(track: SpotifyTrack): Promise<Track | null> {
   if (matched.has(track.id)) return matched.get(track.id)!;
   const query = [track.title, track.artist].filter((s) => s.trim()).join(' ');
@@ -97,15 +83,8 @@ export async function matchToYouTube(track: SpotifyTrack): Promise<Track | null>
   return result;
 }
 
-// ---- Canvas (SpotifyCanvas / DesktopSpotifyCanvas) ---------------------------------
-
 const canvases = new Map<string, string | null>();
 
-/**
- * The looping clip Spotify shows behind [track], or null. The Spotify
- * counterpart is found with the same matcher, so a cover or a remix never
- * lends its canvas to the original.
- */
 export async function fetchCanvas(track: { videoId: string; title: string; artist: string; durationSec: number }): Promise<string | null> {
   if (canvases.has(track.videoId)) return canvases.get(track.videoId)!;
   const hits = await bridge().call('spotify.searchTracks', { query: `${track.title} ${track.artist}` }, { timeoutMs: 20_000 });

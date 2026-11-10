@@ -6,15 +6,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * [KuGou]'s header/footer credit stripping — see [KuGou.stripCredits]. The
- * fixture below is a live `lyrics.kugou.com/download` response for
- * "Heartbreak Anniversary" (Giveon), captured while building this source, so
- * this is what the real header block actually looks like: a non-stamped
- * `[id:]`/`[ti:]`/`[ar:]`/`[al:]`/`[by:]` preamble, then three stamped lines —
- * the title repeated, a "Lyrics by：" credit, and a "Composed by：" credit —
- * before the first sung word.
- */
 class KuGouTest {
 
     private val fixture = """

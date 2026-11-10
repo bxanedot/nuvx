@@ -41,12 +41,6 @@ private fun hostMatches(uri: Uri?, suffixes: List<String>): Boolean {
 
 private fun isLoginHost(uri: Uri?) = hostMatches(uri, LOGIN_HOST_SUFFIXES)
 
-/**
- * Signs the login WebView out of Spotify. Disconnecting only forgot the
- * stored cookie, and the WebView's own jar would have signed the next
- * "Sign in" straight back in. Only Spotify's cookies go — the same jar holds
- * the YouTube Music sign-in.
- */
 fun clearSpotifyWebSession() {
     val cookies = CookieManager.getInstance()
     for (url in SPOTIFY_COOKIE_URLS) {
@@ -63,17 +57,6 @@ fun clearSpotifyWebSession() {
     cookies.flush()
 }
 
-/**
- * In-app Spotify sign-in. Lets the real accounts.spotify.com page handle the
- * login, then hands the `sp_dc` cookie to [onConnected] once the page lands on
- * open.spotify.com.
- *
- * Must be hosted as a root overlay, like [DiscordLoginScreen], never inside the
- * page content: that subtree is the `hazeSource` and the glass backdrop, both of
- * which record it into a layer and draw it a second time. A WebView drawn twice
- * flickers, drops parts of the page, and on some devices takes the app down in
- * Chromium's draw functor.
- */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun SpotifyLoginScreen(
@@ -87,18 +70,12 @@ fun SpotifyLoginScreen(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
             WebView(context).apply {
-                // MATCH_PARENT, not the WRAP_CONTENT Compose hands a bare view:
-                // see DiscordLoginScreen — a zero layout viewport collapses
-                // any page sized off `height: 100%`, and Spotify's is.
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 )
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
-                // The device's own mobile Chrome, minus the WebView markers. A
-                // desktop user agent served the desktop layout scaled into a
-                // phone, where part of the page fell off screen.
                 settings.userAgentString = browserUserAgent(settings.userAgentString)
                 setBackgroundColor(0xFF121212.toInt())
                 CookieManager.getInstance().setAcceptCookie(true)
@@ -106,8 +83,6 @@ fun SpotifyLoginScreen(
 
                 var sent = false
                 webViewClient = object : WebViewClient() {
-                    // Spotify's own pages and the identity providers its sign-in
-                    // hands off to; anything else is not part of logging in.
                     override fun shouldOverrideUrlLoading(
                         view: WebView,
                         request: WebResourceRequest,
@@ -124,8 +99,6 @@ fun SpotifyLoginScreen(
                             ?.takeIf { it.isNotBlank() }
                             ?: return
                         sent = true
-                        // Hide before handing over, so the web player this
-                        // landed on doesn't flash up as the overlay tears down.
                         view.visibility = View.GONE
                         onConnected(token)
                     }

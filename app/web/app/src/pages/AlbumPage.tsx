@@ -11,7 +11,6 @@ import { usePageTint } from '@/lib/usePageTint';
 import { AlbumSkeleton } from '@/skeletons/PageSkeletons';
 import { detailFooter } from './pageStyles';
 
-/** An album (report §3): header, numbered tracks, footer, "more" shelves. */
 export default function AlbumPage() {
   const id = decodeURIComponent(useParams().id ?? '');
   const { missing } = useYouTubeReady();
@@ -26,7 +25,6 @@ export default function AlbumPage() {
   const data = album.data;
   const artists = data.artists.map((a) => a.name).join(', ');
   const tracks = data.tracks;
-  // Album tracks carry no artist or artwork of their own; the queue credits the album's.
   const context = {
     source: { title: data.title, type: 'album' as const, id: data.id },
     fallbackArtwork: data.thumbnail,
@@ -54,7 +52,6 @@ export default function AlbumPage() {
         {artists && <p>{artists}</p>}
       </footer>
       {data.more.length > 0 && (
-        // "More By" and friends sit on the alternate shelf background (report §3, section--alternate).
         <div className="bg-shelf pb-5">
           <Shelves shelves={data.more} />
         </div>

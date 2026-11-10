@@ -6,23 +6,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-/*
- * nuvx for Wear OS: a remote for the phone app, not a second player.
- *
- * It holds no library, streams nothing and runs no Palette or blur of its own —
- * the phone sends it what is playing, the cover as a 240px JPEG, and the mesh
- * colours the phone's player already computed (see WearBridge in :app). Which is
- * what keeps it small and smooth on a Galaxy Watch 4 class watch.
- *
- * It has to share the phone app's application id *and* signing key, because the
- * Wearable Data Layer only delivers between apps that match on both. So:
- *   dev  -> com.bxane.nuvx.dev   pairs only with the phone's dev build
- *   prod -> com.bxane.nuvx pairs only with the phone's prod build
- * and each build type is signed exactly the way the phone's is (debug key for
- * debug, the release keystore for release), so a watch build pairs with the
- * phone build of the same variant.
- */
-
 val signing = Properties().apply {
     val file = rootProject.file("keystore.properties")
     if (file.exists()) file.inputStream().use { load(it) }
@@ -36,19 +19,15 @@ android {
 
     defaultConfig {
         applicationId = "com.bxane.nuvx"
-        // Wear OS 3, the oldest a Galaxy Watch 4 ever shipped with.
         minSdk = 30
         targetSdk = 36
-        // The phone's version — see the root build.gradle.kts.
         versionCode = rootProject.extra["nuvxVersionCode"] as Int
         versionName = rootProject.extra["nuvxVersionName"] as String
     }
 
     sourceSets {
-        // The phone <-> watch protocol, shared with :app. See WearProtocol.
         getByName("main") {
             java.srcDir("protocol")
-            // The phone's cold-start intro, compiled here as the same file.
             java.srcDir("../mobile/src/main/java/com/bxane/nuvx/ui/intro")
         }
     }
@@ -67,7 +46,6 @@ android {
     }
 
     signingConfigs {
-        // The phone's keystore, found the same way app/build.gradle.kts finds it.
         val store = signing.getProperty("storeFile")?.let { rootProject.file(it) }
         if (store != null && store.exists()) {
             create("release") {
@@ -80,13 +58,6 @@ android {
     }
 
     buildTypes {
-        /*
-         * Debug is shrunk and non-debuggable too, unlike the phone's. It still
-         * signs with the debug key — that is the part pairing depends on — but a
-         * debuggable, un-R8'd Compose app is the slow kind, and on a watch CPU
-         * that is the difference between a smooth crown and a stuttering one.
-         * Pass -Pnuvx.wearDebuggable=true to get a debugger back.
-         */
         debug {
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
             val debuggable = providers.gradleProperty("nuvx.wearDebuggable").orNull == "true"
@@ -106,8 +77,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Null without a keystore, like the phone: an unsigned APK rather
-            // than a build failure.
             signingConfig = signingConfigs.findByName("release")
         }
     }
@@ -135,14 +104,10 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        // Media3's custom DataSource and session APIs are all marked unstable.
         optIn.add("androidx.media3.common.util.UnstableApi")
     }
 }
 
-// Named after the phone APKs (nuvx-v1.8.apk) but with their own prefix, so
-// the phone's updater — which only takes assets starting "nuvx-" — can never
-// pick a watch APK by mistake.
 base.archivesName.set("NuvxWear")
 
 dependencies {
@@ -151,21 +116,14 @@ dependencies {
     implementation("androidx.wear.compose:compose-navigation:1.7.1")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
-    // AmbientLifecycleObserver: the always-on player.
     implementation("androidx.wear:wear:1.4.0")
-    // NowPlayingListener: our icon on the watch face, opening our player.
     implementation("androidx.wear:wear-ongoing:1.1.0")
 
-    // The watch as the speaker: a player reading from the phone, in a session
-    // so it plays on with the screen off. Same Media3 as the phone app.
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-session:1.11.1")
 
-    // The Data Layer: state from the phone, commands to it.
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
 
-    // Lets a sideloaded install use the baseline profiles Compose ships with,
-    // instead of starting every screen interpreted.
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 }

@@ -3,7 +3,6 @@
 
 .hero-wordmark,.hero-subtitle,.section-heading h2,.callout h2,.social-card h2,.doc-content h1,.doc-content h2,.legal h1,.legal h2,.feature-grid h3,.release-grid h3{font-family:var(--display);font-optical-sizing:auto}
 
-/* nuvx: a continuous sound field behind a focused product introduction. */
 :root{accent-color:var(--accent)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 ::selection{background:var(--accent);color:var(--bg)}
@@ -50,5 +49,4 @@
 @media(prefers-contrast:more),(prefers-reduced-transparency:reduce){.topbar{background:var(--bg);-webkit-backdrop-filter:none;backdrop-filter:none}}
 .changelog{margin-top:36px}.changelog h2{font-size:34px;letter-spacing:-.05em;margin:56px 0 4px;padding-top:24px;border-top:1px solid var(--line)}.changelog h2:first-child{margin-top:0}.changelog h3{font-size:18px;letter-spacing:-.03em;margin:28px 0 8px}.changelog p,.changelog li{font-size:14px;line-height:1.85;color:var(--muted)}.changelog ul,.changelog ol{padding-left:22px}.changelog strong{color:var(--text)}.changelog a{color:var(--accent)}.changelog code{font:12px var(--mono);color:var(--accent)}.changelog blockquote{margin:12px 0;padding-left:14px;border-left:3px solid var(--line);color:var(--muted)}.changelog hr{border:0;border-top:1px solid var(--line);margin:28px 0}.changelog img{display:block;max-width:100%;height:auto;border-radius:14px;border:1px solid var(--line)}.cl-pictures{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin:18px 0}.cl-table{overflow-x:auto;margin:16px 0}.changelog table{border-collapse:collapse;width:100%;font-size:13px}.changelog th,.changelog td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}.changelog th{color:var(--text);font-weight:600}.cl-status{color:var(--muted)}
 .promo{margin:0 0 24px}.promo video{display:block;width:100%;height:auto;border-radius:14px;background:var(--surface)}.promo-controls{display:flex;align-items:center;gap:20px;margin-top:12px}.promo-controls{flex-wrap:wrap}.promo-volume input:focus-visible{outline:2px solid var(--accent);outline-offset:4px}.promo-volume{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}.promo-volume input{width:clamp(120px,24vw,200px);accent-color:var(--accent)}
-/* Each download link stays whole when the row wraps, its arrow included. */
 .release-grid a{display:inline-block;white-space:nowrap;margin:4px 22px 4px 0}.release-grid a+a{margin-left:0}

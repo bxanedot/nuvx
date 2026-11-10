@@ -14,18 +14,6 @@ import java.io.File
 import java.io.InputStream
 import java.util.Locale
 
-/**
- * Copies on-device tracks to the configured WebDAV server. Copy, not move:
- * the local file stays where it was, so this never needs delete permission
- * and never rewrites the Downloads record — the server copy simply shows up
- * in the WebDAV library on its next listing.
- *
- * One batch runs sequentially on IO. Parallel PUTs would finish sooner on
- * Wi-Fi and fall over on a metered connection, and ordering is what makes a
- * multi-conflict batch answerable: each clash suspends on [conflict], the
- * activity's dialog answers it, and an "apply to all" answer carries the rest
- * of the batch without another popup.
- */
 object WebDavUploads {
 
     sealed interface TrackState {
@@ -43,7 +31,6 @@ object WebDavUploads {
     data class ConflictRequest(
         val song: Song,
         val fileName: String,
-        /** Tracks still queued behind this one — whether "apply to all" means anything. */
         val remaining: Int,
         val answer: CompletableDeferred<Resolution>,
     )
@@ -55,19 +42,9 @@ object WebDavUploads {
     private val _active = MutableStateFlow<Map<String, TrackState>>(emptyMap())
     val active: StateFlow<Map<String, TrackState>> = _active.asStateFlow()
 
-    /**
-     * The clash waiting on the listener, or null when the batch is flowing.
-     * Rendered by the activity — the uploader itself is headless.
-     */
     private val _conflict = MutableStateFlow<ConflictRequest?>(null)
     val conflict: StateFlow<ConflictRequest?> = _conflict.asStateFlow()
 
-    /**
-     * Whether [song] can be sent at all: a file on this device, not a track
-     * already living on the server and not a remote stream wearing a
-     * `localUri`. Readability itself is checked at upload time and reported
-     * per track — this is only the cheap gate for showing the row.
-     */
     fun isUploadable(song: Song): Boolean {
         if (WebDavConfig.isWebDavId(song.videoId)) return false
         val uri = song.localUri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return false
@@ -87,16 +64,12 @@ object WebDavUploads {
         var skipped = 0
         var failed = 0
         var standing: Resolution? = null
-        // Names claimed by this batch, so two locals with the same title
-        // don't both aim at one target.
         val taken = HashSet<String>()
 
         if (queue.isEmpty()) {
             WebDavUploadNotifications.cancel(appContext)
             return@withContext Summary(0, 0, 0)
         }
-        // Fresh state for the tracks about to run; anything left over from an
-        // earlier batch for them (a Retry from a failure) is stale.
         setAll(queue.map { it.videoId }, null)
         WebDavUploadNotifications.postProgress(appContext, null, 0, queue.size, null)
         for ((index, song) in queue.withIndex()) {
@@ -133,10 +106,7 @@ object WebDavUploads {
             )
         }
         val summary = Summary(uploaded, skipped, failed)
-        // Replaces the progress row in the shade with the batch result.
         WebDavUploadNotifications.postDone(appContext, summary)
-        // The library page lists the server, so a batch that landed while it
-        // is open has to be re-read to show up.
         summary
     }
 
@@ -163,20 +133,6 @@ object WebDavUploads {
 
     private data class Sendable(val source: UploadSource, val discard: () -> Unit)
 
-    /**
-     * What actually goes up the wire: the file itself, or — when it is one of
-     * this app's downloads saved without its cover — a staged copy with the
-     * cover topped up first.
-     *
-     * The gates matter more than the machinery. Only [MediaTagger]'s three
-     * containers are touched, only files already carrying no picture are
-     * candidates, and only downloads qualify: their tags are catalogue values
-     * this app wrote, so topping up a missing cover cannot clobber anything
-     * the listener authored. A hand-tagged rip keeps its bytes exactly.
-     *
-     * Best-effort throughout: any failure falls back to the file as it stands,
-     * because a missing cover must never fail an upload.
-     */
     private suspend fun prepareUpload(context: Context, song: Song, ext: String): Sendable {
         val direct = { source: UploadSource -> Sendable(source) {} }
         val original = openSource(context, song) ?: throw WebDavException("Could not read this file")
@@ -186,8 +142,6 @@ object WebDavUploads {
         val artwork = runCatching {
             com.bxane.nuvx.download.MediaTagger.artworkFor(context, song)
         }.getOrNull() ?: return direct(original)
-        // Staging consumes the original stream, so a failure here re-opens
-        // rather than re-sending a spent one.
         val staged = runCatching {
             val tmp = File.createTempFile("webdav-upload", ".tmp", context.cacheDir)
             original.stream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
@@ -237,14 +191,10 @@ object WebDavUploads {
     ): Outcome {
         val base = WebDavClient.uploadFileName(song.title, song.artist, ext)
             .removeSuffix(".$ext")
-        // In-batch collisions are numbered without troubling the server.
         var fileName = WebDavClient.resolveNumberedName(base, ext, taken)
         taken.add(fileName.lowercase(Locale.ROOT))
 
         var target = WebDavClient.joinUrl(root, fileName)
-        // Only an overwrite writes over an existing file; every other path
-        // keeps `If-None-Match`, so a race after the check below 412s instead
-        // of clobbering.
         var overwrite = false
         val alreadyThere = WebDavClient.exists(target, username, password).getOrThrow()
         if (alreadyThere) {
@@ -252,8 +202,6 @@ object WebDavUploads {
                 Choice.SKIP -> return Outcome.Skipped
                 Choice.OVERWRITE -> overwrite = true
                 Choice.KEEP_BOTH -> {
-                    // Number past whatever the server holds, checking each
-                    // candidate — the batch set above only knows about itself.
                     var attempts = 0
                     while (attempts++ < 25) {
                         taken.add(fileName.lowercase(Locale.ROOT))
@@ -266,8 +214,6 @@ object WebDavUploads {
             }
         }
         val (stream, length) = source
-        // The shade coalesces anything faster anyway, and a notification per
-        // 8KB segment is just binder spam — one post per percentage point.
         var lastPostedPercent = -1
         when (
             WebDavClient.putFile(
@@ -290,9 +236,6 @@ object WebDavUploads {
                 },
             ).getOrThrow()
         ) {
-            // Lost a race with something else writing the same name after the
-            // check above. The bytes on the server aren't ours, so this is a
-            // skip rather than a success.
             WebDavClient.PutResult.AlreadyExists -> return Outcome.Skipped
             WebDavClient.PutResult.Uploaded -> return Outcome.Uploaded
         }

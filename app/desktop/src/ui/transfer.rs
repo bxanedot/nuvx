@@ -1,6 +1,3 @@
-//! The Spotify transfer: its page (pick, running, review, done), the Settings section
-//! that opens it, and the sidebar card that follows it while you browse.
-
 use std::sync::atomic::Ordering;
 
 use egui::{Align2, Color32, Rect, RichText, Sense, Ui, pos2, vec2};
@@ -14,41 +11,24 @@ use crate::transfer::spotify::{Entry, Source, Track};
 use crate::transfer::{Account, Decision, Dest, Job, Phase, Search, is_likes};
 
 
-/// What's being set up on the start screen (kept while browsing elsewhere).
 #[derive(Default)]
 pub struct Setup {
-    /// The chosen library entry, by source.
     picked: Option<Source>,
     link: String,
-    /// Playlist name; follows the picked source until edited.
     name: String,
     name_for: Option<Source>,
-    /// For Liked Songs (or a playlist called Likes): add to Liked Music instead of a playlist.
     to_liked: bool,
-    /// Running list filter.
     tab: Tab,
-    /// The candidate chosen for the doubt on screen: (doubt, candidate).
     pick: Option<(usize, usize)>,
-    /// Phase changes already announced (toast, library refresh).
     seen: Option<Phase>,
-    /// Dev hooks applied (NUVX_TRANSFER_LINK / _START).
     dev: bool,
-    /// When the transfer finished (app time); the sidebar card leaves a few seconds later.
     done_at: Option<f64>,
-    /// The song shown in the review (its place in the review), when one was picked from the list.
     focus: Option<usize>,
-    /// The review list shows the songs that matched instead of the ones to check.
     show_matched: bool,
-    /// Height of the review card last frame, for the list beside it.
     card_h: f32,
-    /// The song the review list last scrolled to.
     scrolled_to: Option<usize>,
-    /// When the last review decision was made (app time), so a double click decides one song, not two.
     decided_at: f64,
-    /// The song being matched on the search page (its place in the review); cleared on
-    /// leaving search.
     pub picking: Option<usize>,
-    /// The review is open; until then the song list stays up so the matches can be looked over.
     reviewing: bool,
 }
 
@@ -65,7 +45,6 @@ fn spotify_thumbs(art: &Option<String>) -> Vec<Thumb> {
     art.iter().map(|u| Thumb { url: u.clone(), width: 64, height: 64 }).collect()
 }
 
-/// The Spotify mark, in the text colour.
 fn badge(ui: &Ui, rect: Rect) {
     super::glyphs::draw_in(ui, rect, super::glyphs::SPOTIFY, theme::text());
 }
@@ -86,7 +65,6 @@ fn dim(ui: &mut Ui, text: &str) {
     ui.label(RichText::new(text).font(theme::regular(13.0)).color(theme::text_dim()));
 }
 
-/// A tag like "VIDEO" or "LOCAL FILE".
 fn tag(ui: &Ui, right: egui::Pos2, text: &str, fill: Color32) -> f32 {
     let g = widgets::galley(ui, text, theme::bold(10.5), theme::text(), 200.0);
     let rect = Rect::from_min_size(pos2(right.x - g.size().x - 14.0, right.y - 10.0), vec2(g.size().x + 14.0, 20.0));
@@ -107,7 +85,6 @@ fn big_button(ui: &mut Ui, label: &str, accent: Color32, enabled: bool, width: f
     enabled && resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked()
 }
 
-/// Dark or light text, whichever reads on `bg`.
 fn contrast(bg: Color32) -> Color32 {
     let l = 0.299 * bg.r() as f32 + 0.587 * bg.g() as f32 + 0.114 * bg.b() as f32;
     if l > 150.0 { Color32::from_gray(20) } else { Color32::WHITE }
@@ -144,8 +121,6 @@ fn fmt_secs(s: u64) -> String {
     }
 }
 
-// --------------------------------------------------------------------- the page
-
 pub fn page(app: &mut App, ui: &mut Ui, now: f64) {
     let xfer = app.transfer.clone();
     xfer.ensure_account(&app.backend);
@@ -168,8 +143,6 @@ pub fn page(app: &mut App, ui: &mut Ui, now: f64) {
         });
     });
 }
-
-// ---------------------------------------------------------------- 1. pick what to copy
 
 fn setup(app: &mut App, ui: &mut Ui) {
     let xfer = app.transfer.clone();
@@ -198,7 +171,6 @@ fn setup(app: &mut App, ui: &mut Ui) {
         return;
     }
 
-    // An earlier transfer that stopped part way.
     let resumable = xfer.resumable.lock().unwrap().clone();
     if let Some(r) = resumable {
         let mut go = None;
@@ -231,7 +203,6 @@ fn setup(app: &mut App, ui: &mut Ui) {
         Account::SignedIn { library, .. } => library,
         _ => &[],
     };
-    // The pasted link, once looked up, is a choice like the library's.
     let link_entry = {
         if !app.xfer.link.trim().is_empty() {
             xfer.look_up(&app.backend, &app.xfer.link);
@@ -257,8 +228,6 @@ fn setup(app: &mut App, ui: &mut Ui) {
                 match &account {
                     Account::SignedIn { .. } if library.is_empty() => dim(ui, "Your Spotify library has no playlists."),
                     Account::SignedIn { .. } => {
-                        // Five rows show at a time; the rest scroll, so a big library doesn't
-                        // stretch the page.
                         let row = 64.0 + ui.spacing().item_spacing.y;
                         let h = row * library.len().min(5) as f32 - ui.spacing().item_spacing.y;
                         egui::ScrollArea::vertical()
@@ -334,7 +303,6 @@ fn setup(app: &mut App, ui: &mut Ui) {
                 ui.add_space(14.0);
             });
             ui.add_space(gap);
-            // Liked Songs are only readable signed in.
             let needs_sign_in = chosen.as_ref().is_some_and(|c| c.source == Source::Liked) && !matches!(account, Account::SignedIn { .. });
             let ready = chosen.is_some() && !needs_sign_in;
             if big_button(ui, "Start transfer", accent, ready, ui.available_width()) {
@@ -370,7 +338,6 @@ fn setup(app: &mut App, ui: &mut Ui) {
         ui.add_space(gap);
         body(ui, 1);
     }
-    // Dev hook: NUVX_TRANSFER_START=liked|playlist starts as soon as something is chosen.
     if !app.xfer.dev
         && let Some(how) = super::dev_var("NUVX_TRANSFER_START")
         && chosen.is_some()
@@ -380,7 +347,6 @@ fn setup(app: &mut App, ui: &mut Ui) {
         start = true;
     }
     if start && let Some(c) = chosen {
-        // (NUVX_TRANSFER_START=liked tests Liked Music with any playlist.)
         let liked = app.xfer.to_liked && (likes_like(&c) || super::dev_var("NUVX_TRANSFER_START") == Some("liked"));
         let dest = if liked { Dest::Liked } else { Dest::Playlist(app.xfer.name.trim().to_owned()) };
         xfer.start(&app.backend, c.source.clone(), dest, false);
@@ -393,7 +359,6 @@ fn setup(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// Liked Songs, or a playlist called that: offered as Liked Music.
 fn likes_like(e: &Entry) -> bool {
     e.source == Source::Liked || is_likes(&e.name)
 }
@@ -469,7 +434,6 @@ fn spotify_account_row(app: &mut App, ui: &mut Ui, account: &Account, compact: b
     if sign_out {
         xfer.set_cookie(None, &app.backend);
         app.xfer.picked = None;
-        // "Change" signs straight in again.
         if compact {
             sign_in = true;
         }
@@ -480,7 +444,6 @@ fn spotify_account_row(app: &mut App, ui: &mut Ui, account: &Account, compact: b
 }
 
 fn destination(app: &mut App, ui: &mut Ui, chosen: Option<&Entry>, accent: Color32) {
-    // The name follows the picked playlist until it's typed over.
     let src = chosen.map(|c| c.source.clone());
     if app.xfer.name_for != src {
         if let Some(c) = chosen {
@@ -535,8 +498,6 @@ fn destination(app: &mut App, ui: &mut Ui, chosen: Option<&Entry>, accent: Color
     dim(ui, "Private · only you can see it");
 }
 
-// ------------------------------------------------------------------- 2. running
-
 fn running(app: &mut App, ui: &mut Ui, _now: f64) {
     let xfer = app.transfer.clone();
     let accent = app.accent_color();
@@ -556,7 +517,6 @@ fn running(app: &mut App, ui: &mut Ui, _now: f64) {
     };
     let (mut pause, mut cancel, mut check) = (false, false, false);
     let paused = job.paused;
-    // Searching is done and some songs need a look: they wait until the user starts on them.
     let to_check = (job.phase == Phase::Review).then(|| job.doubts.iter().filter(|d| d.decision.is_none()).count());
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
@@ -587,7 +547,6 @@ fn running(app: &mut App, ui: &mut Ui, _now: f64) {
     });
     ui.add_space(16.0);
 
-    // ---- progress card
     let total = job.tracks.len();
     let searched = job.searched();
     let (big, of, frac, eta) = match job.phase {
@@ -616,7 +575,6 @@ fn running(app: &mut App, ui: &mut Ui, _now: f64) {
     let eta = if paused {
         Some("paused".to_owned())
     } else if limited && job.phase.running() {
-        // YouTube Music refused requests: everything waits a little, then carries on.
         Some("YouTube Music is limiting requests; carrying on in a moment".to_owned())
     } else {
         eta
@@ -640,7 +598,6 @@ fn running(app: &mut App, ui: &mut Ui, _now: f64) {
         let shown = theme::anim(ui.ctx(), "xfer-bar", frac.clamp(0.0, 1.0), 0.3);
         ui.painter().rect_filled(Rect::from_min_size(bar.min, vec2(bar.width() * shown, bar.height())), 4.0, accent);
         ui.add_space(12.0);
-        // Steps
         let steps = [
             (Phase::Reading, match job.read_secs {
                 Some(s) => format!("Read from Spotify · {s:.1} s"),
@@ -680,7 +637,6 @@ fn running(app: &mut App, ui: &mut Ui, _now: f64) {
     });
     ui.add_space(14.0);
 
-    // ---- counts
     let found = job.count(|r| matches!(r, Search::Found(_)));
     let unsure = job.count(|r| matches!(r, Search::Unsure(_)));
     let missing = job.count(|r| *r == Search::Missing);
@@ -702,7 +658,6 @@ fn running(app: &mut App, ui: &mut Ui, _now: f64) {
         return;
     }
 
-    // ---- filter tabs and the song list
     let mut tab = app.xfer.tab;
     ui.horizontal(|ui| {
         for (t, label) in [
@@ -778,7 +733,6 @@ fn stat_row(ui: &mut Ui, stats: &[(String, &str, bool)], accent: Color32) {
     });
 }
 
-/// Column positions of the song list: number, Spotify, arrow, YouTube Music, status.
 fn columns(rect: Rect) -> (f32, f32, f32, f32, f32) {
     let status_w = 140.0;
     let num = rect.left() + 8.0;
@@ -801,7 +755,6 @@ fn list_header(ui: &mut Ui) {
 }
 
 fn song_row(ui: &mut Ui, i: usize, sp: &Track, result: &Search, accent: Color32, acts: &mut Vec<super::Action>) {
-    // Same height as the rows `visible_rows` expects.
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::hover());
     let (num, spx, arrow, ytx, status) = columns(rect);
     let half = arrow - spx - 12.0;
@@ -852,8 +805,6 @@ fn song_row(ui: &mut Ui, i: usize, sp: &Track, result: &Search, accent: Color32,
     ui.painter().text(pos2(status + 16.0, rect.center().y), Align2::LEFT_CENTER, label, theme::semibold(13.0), fg);
 }
 
-// -------------------------------------------------------------------- 3. review
-
 fn review(app: &mut App, ui: &mut Ui) {
     let xfer = app.transfer.clone();
     let accent = app.accent_color();
@@ -861,11 +812,9 @@ fn review(app: &mut App, ui: &mut Ui) {
     let Some(job) = guard.as_ref() else { return };
     let total = job.doubts.len();
     let left = job.doubts.iter().filter(|d| d.decision.is_none()).count();
-    // The song on screen: one picked from the list, else the first not decided yet.
     let Some(at) = app.xfer.focus.filter(|&k| k < total).or_else(|| job.current_doubt()) else { return };
     let d = &job.doubts[at];
     let sp = &job.tracks[d.index];
-    // The current pick: what the search chose (if anything), among the candidates.
     let current = job.results[d.index].track().and_then(|t| d.candidates.iter().position(|c| c.id == t.id));
     let current_label = job.results[d.index].track().filter(|_| current.is_none()).cloned();
     let decided_pick = match d.decision {
@@ -924,7 +873,6 @@ fn review(app: &mut App, ui: &mut Ui) {
                 let card_h = if app.xfer.card_h > 0.0 { app.xfer.card_h } else { 560.0 };
                 egui::Frame::new().fill(theme::glass(0.04)).corner_radius(theme::panel_radius()).inner_margin(10).show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    // The same height as the card beside it, whatever's in the list.
                     ui.set_height(card_h - 20.0);
                     let matched: Vec<usize> = (0..job.results.len()).filter(|&i| matches!(job.results[i], Search::Found(_))).collect();
                     ui.horizontal(|ui| {
@@ -940,7 +888,6 @@ fn review(app: &mut App, ui: &mut Ui) {
                     let list_h = ui.available_height();
                     let n = if app.xfer.show_matched { matched.len() } else { total };
                     let mut area = egui::ScrollArea::vertical().id_salt(("xfer-queue", app.xfer.show_matched)).auto_shrink([false, false]).max_height(list_h);
-                    // Keep the song on screen in view when it changes.
                     if !app.xfer.show_matched && app.xfer.scrolled_to != Some(at) {
                         app.xfer.scrolled_to = Some(at);
                         let spacing = ui.spacing().item_spacing.y;
@@ -1019,8 +966,6 @@ fn review(app: &mut App, ui: &mut Ui) {
                     });
                 });
                 ui.add_space(8.0);
-                // A fixed height, the same for every song, so the buttons under the list stay
-                // put; longer lists scroll inside it.
                 let room = (ui.ctx().content_rect().height() - 560.0).clamp(52.0 * 3.5, 52.0 * 8.0);
                 egui::ScrollArea::vertical()
                     .id_salt(("xfer-cands", at))
@@ -1029,7 +974,6 @@ fn review(app: &mut App, ui: &mut Ui) {
                     .max_height(room)
                     .show(ui, |ui| {
                         if let Some(t) = &current_label {
-                            // The first search's pick isn't among the new results: show it too.
                             let _ = candidate_row(ui, t, false, true, false, accent, &mut acts);
                         }
                         if d.loading {
@@ -1073,7 +1017,6 @@ fn review(app: &mut App, ui: &mut Ui) {
         });
         app.xfer.card_h = card.response.rect.height();
     });
-    // After deciding, the next song still to check (after this one, then from the top).
     let next_open = |from: usize| (from + 1..total).chain(0..from).find(|&k| job.doubts[k].decision.is_none());
     let next = next_open(at);
     drop(guard);
@@ -1083,7 +1026,6 @@ fn review(app: &mut App, ui: &mut Ui) {
         return;
     }
     if search {
-        // The search page picks for this song until it's left.
         app.xfer.picking = Some(at);
         app.xfer.pick = None;
         app.actions.push(Action::Go(Page::Search(query)));
@@ -1119,8 +1061,6 @@ fn review(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// On the search page while choosing a match: which Spotify song it's for, and the way
-/// back. Returns whether a match is being chosen.
 pub fn pick_banner(app: &mut App, ui: &mut Ui) -> bool {
     let Some(at) = app.xfer.picking else { return false };
     let song = {
@@ -1128,7 +1068,6 @@ pub fn pick_banner(app: &mut App, ui: &mut Ui) -> bool {
         guard.as_ref().filter(|j| j.phase == Phase::Review).and_then(|j| j.tracks.get(j.doubts.get(at)?.index).cloned())
     };
     let Some(sp) = song else {
-        // The review ended meanwhile (cancelled, or finished elsewhere).
         app.xfer.picking = None;
         return false;
     };
@@ -1165,11 +1104,9 @@ pub fn pick_banner(app: &mut App, ui: &mut Ui) -> bool {
     true
 }
 
-/// A song was chosen on the search page: it becomes the match, and the review moves on.
 pub fn use_pick(app: &mut App, t: YtTrack) {
     let Some(at) = app.xfer.picking.take() else { return };
     app.transfer.decide_with(at, t);
-    // Back on the next song still to check (after this one, then from the top).
     app.xfer.focus = app.transfer.job.lock().unwrap().as_ref().and_then(|j| {
         let n = j.doubts.len();
         (at + 1..n).chain(0..at.min(n)).find(|&k| j.doubts[k].decision.is_none())
@@ -1178,7 +1115,6 @@ pub fn use_pick(app: &mut App, t: YtTrack) {
     app.go(Page::Transfer);
 }
 
-/// One candidate; returns true when it was picked.
 fn candidate_row(ui: &mut Ui, t: &YtTrack, video: bool, current: bool, selected: bool, accent: Color32, acts: &mut Vec<Action>) -> bool {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 52.0), Sense::click());
     let resp = named(resp, &t.title).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -1222,8 +1158,6 @@ fn candidate_row(ui: &mut Ui, t: &YtTrack, video: bool, current: bool, selected:
     }
     resp.clicked()
 }
-
-// ---------------------------------------------------------------------- 4. done
 
 fn done(app: &mut App, ui: &mut Ui) {
     let xfer = app.transfer.clone();
@@ -1355,7 +1289,6 @@ fn failed(app: &mut App, ui: &mut Ui, e: &str) {
     breadcrumb(app, ui);
     page_title(ui, "Transfer stopped");
     ui.add_space(10.0);
-    // Only this transfer's own progress (one that failed before saving any has none).
     let source = xfer.job.lock().unwrap().as_ref().map(|j| j.source.clone());
     let resumable = xfer.resumable.lock().unwrap().clone().filter(|r| Some(&r.source) == source.as_ref());
     let (mut retry, mut close) = (false, false);
@@ -1376,9 +1309,6 @@ fn failed(app: &mut App, ui: &mut Ui, e: &str) {
     }
 }
 
-// ------------------------------------------------------------ settings, sidebar
-
-/// Settings › Import.
 pub fn settings_section(app: &mut App, ui: &mut Ui) {
     section_label(ui, "Import", None);
     let mut open = false;
@@ -1400,7 +1330,6 @@ pub fn settings_section(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// Settings › Account & integrations › Spotify.
 pub fn spotify_section(app: &mut App, ui: &mut Ui) {
     let xfer = app.transfer.clone();
     xfer.ensure_account(&app.backend);
@@ -1409,8 +1338,6 @@ pub fn spotify_section(app: &mut App, ui: &mut Ui) {
     settings_card(ui, |ui| spotify_account_row(app, ui, &account, false));
 }
 
-/// Whether the sidebar shows the transfer card: while it runs, waits or failed, and for
-/// a few seconds after it finishes (the summary stays on the transfer page).
 pub fn sidebar_visible(app: &App, now: f64) -> bool {
     match app.transfer.job.lock().unwrap().as_ref().map(|j| &j.phase) {
         None => false,
@@ -1419,10 +1346,8 @@ pub fn sidebar_visible(app: &App, now: f64) -> bool {
     }
 }
 
-/// Seconds the "Done" card stays in the sidebar.
 const DONE_LINGER: f64 = 6.0;
 
-/// The card above Settings in the sidebar while a transfer runs, waits or just finished.
 pub fn sidebar_card(app: &mut App, ui: &mut Ui, collapsed: bool, fade: f32, icon_x: f32) {
     let (frac, status) = {
         let guard = app.transfer.job.lock().unwrap();
@@ -1470,9 +1395,7 @@ pub fn sidebar_card(app: &mut App, ui: &mut Ui, collapsed: bool, fade: f32, icon
     }
 }
 
-/// Once a frame: tell the user when the transfer needs them or finished.
 pub fn poll(app: &mut App, ctx: &egui::Context, now: f64) {
-    // Dev hook: NUVX_TRANSFER_LINK=<link> fills in the playlist link.
     if !app.xfer.dev
         && app.xfer.link.is_empty()
         && let Some(l) = super::dev_var("NUVX_TRANSFER_LINK")
@@ -1487,7 +1410,6 @@ pub fn poll(app: &mut App, ctx: &egui::Context, now: f64) {
         }
     };
     if let Some(t) = app.xfer.done_at.filter(|_| phase == Some(Phase::Done)) {
-        // Redraw once more when the card is due to leave.
         if now - t < DONE_LINGER {
             ctx.request_repaint_after(std::time::Duration::from_secs_f64(DONE_LINGER - (now - t) + 0.05));
         }
@@ -1503,7 +1425,6 @@ pub fn poll(app: &mut App, ctx: &egui::Context, now: f64) {
     match &phase {
         Some(Phase::Review) if !on_page => app.toast(format!("Spotify transfer: {} songs need a look", fmt_n(doubts))),
         Some(Phase::Done) => {
-            // Liked Music and the sidebar's playlists changed.
             app.request_library();
             app.request_liked(true);
             if !on_page {

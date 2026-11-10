@@ -3,7 +3,6 @@ import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 
 export type { ShelfKind };
 
-/** How many placeholders fill a shelf at the widest breakpoint, per row. */
 const ITEMS: Record<ShelfKind, number> = {
   editorial: 3,
   square: 6,
@@ -81,7 +80,6 @@ function Item({ kind }: { kind: ShelfKind }) {
   }
 }
 
-/** A shelf in waiting: the real shelf's grid, filled with placeholders. */
 export function ShelfSkeleton({ kind, title = true }: { kind: ShelfKind; title?: boolean }) {
   return (
     <section className={shelfSection} aria-hidden="true">

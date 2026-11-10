@@ -11,13 +11,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Regression tests for Direct AudioTrack negotiation across sample rates and sources.
- *
- * Verifies that the decision to use Direct AudioTrack vs fallback to AudioFlinger mixer
- * is driven strictly by route capabilities, Android runtime support, and user preference,
- * never by whether the source is local or streaming.
- */
 class DirectAudioStreamingRegressionTest {
 
     private fun flacSource(sampleRate: Int, bitDepth: Int = 24) = SourceDescriptor(
@@ -34,7 +27,6 @@ class DirectAudioStreamingRegressionTest {
         bitDepth = bitDepth,
     )
 
-    // 1. Streaming 88.2 kHz direct-capable route
     @Test
     fun streaming88200HzDirectCapableRoute() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -67,7 +59,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals("Float32", result.dsp.format)
     }
 
-    // 2. Streaming 176.4 kHz direct-capable route (route exposes Direct PCM16)
     @Test
     fun streaming176400HzDirectCapableRouteFallsToDirectPcm16WhenPcm24Unavailable() {
         val directSupportPcm16Only = DirectAudioProbe.DirectSupport(
@@ -92,7 +83,6 @@ class DirectAudioStreamingRegressionTest {
             directSupport = directSupportPcm16Only,
         )
 
-        // Must maintain direct output bypass instead of falling to AudioFlinger mixer
         assertEquals(TransportType.AUDIO_TRACK_DIRECT, result.output.transport)
         assertTrue(result.output.isDirect)
         assertEquals(PcmEncoding.PCM_16BIT, result.output.encoding)
@@ -102,7 +92,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals("Float32", result.dsp.format)
     }
 
-    // 3. Streaming 192 kHz direct-capable route
     @Test
     fun streaming192000HzDirectCapableRoute() {
         val directSupport192 = DirectAudioProbe.DirectSupport(
@@ -135,7 +124,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals("Float32", result.dsp.format)
     }
 
-    // 4. Local 176.4 kHz direct-capable route
     @Test
     fun local176400HzDirectCapableRoute() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -167,7 +155,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(FallbackReason.ROUTE_LIMITATION, result.output.fallbackReason)
     }
 
-    // 5. Local 192 kHz direct-capable route
     @Test
     fun local192000HzDirectCapableRoute() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -199,7 +186,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(FallbackReason.ROUTE_LIMITATION, result.output.fallbackReason)
     }
 
-    // 6. Streaming and local must produce the exact same direct decision under identical route & format
     @Test
     fun streamingAndLocalProduceIdenticalDirectDecision() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -244,7 +230,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(streamingResult.output.fallbackReason, localResult.output.fallbackReason)
     }
 
-    // 7. Source type alone must not disable direct output
     @Test
     fun sourceTypeAloneDoesNotDisableDirectOutput() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -280,7 +265,6 @@ class DirectAudioStreamingRegressionTest {
         }
     }
 
-    // 8. Route capability determines direct availability
     @Test
     fun routeCapabilityDeterminesDirectAvailability() {
         val capableRoute = DirectAudioProbe.DirectSupport(
@@ -325,7 +309,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(48000, fallbackResult.output.systemMixerRateHz)
     }
 
-    // 9. Exact sample-rate / encoding combination must be checked
     @Test
     fun exactSampleRateEncodingCombinationChecked() {
         val rates = listOf(44100, 48000, 88200, 96000, 176400, 192000)
@@ -334,7 +317,7 @@ class DirectAudioStreamingRegressionTest {
                 isDirectSupported = true,
                 isOffloadSupported = false,
                 supportsFloat = false,
-                supportsPcm24 = rate != 176400, // 176.4 has no PCM24 direct
+                supportsPcm24 = rate != 176400,
                 supportsPcm16 = true,
                 description = "Direct support for $rate",
             )
@@ -361,7 +344,6 @@ class DirectAudioStreamingRegressionTest {
         }
     }
 
-    // 10. Unsupported combinations must fall back truthfully
     @Test
     fun unsupportedCombinationsFallBackTruthfully() {
         val directSupport = DirectAudioProbe.DirectSupport.NONE
@@ -387,7 +369,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(FallbackReason.ROUTE_LIMITATION, result.output.fallbackReason)
     }
 
-    // 11. PCM16 output preference must remain strictly respected across all rates
     @Test
     fun pcm16OutputPreferenceStrictlyHonored() {
         val rates = listOf(44100, 48000, 88200, 96000, 176400, 192000)
@@ -419,10 +400,8 @@ class DirectAudioStreamingRegressionTest {
         }
     }
 
-    // 12. Float32 DSP must remain active regardless of direct transport
     @Test
     fun float32DspRemainsActiveAcrossAllDirectAndFallbackTransports() {
-        // Case A: Direct PCM24
         val directPcm24 = OutputNegotiator.negotiate(
             source = streamingSource(96000),
             decoderName = "c2.android.flac.decoder",
@@ -437,7 +416,6 @@ class DirectAudioStreamingRegressionTest {
         )
         assertEquals("Float32", directPcm24.dsp.format)
 
-        // Case B: Direct PCM16
         val directPcm16 = OutputNegotiator.negotiate(
             source = streamingSource(176400),
             decoderName = "c2.android.flac.decoder",
@@ -452,7 +430,6 @@ class DirectAudioStreamingRegressionTest {
         )
         assertEquals("Float32", directPcm16.dsp.format)
 
-        // Case C: Mixer fallback PCM16
         val mixerFallback = OutputNegotiator.negotiate(
             source = streamingSource(176400),
             decoderName = "c2.android.flac.decoder",
@@ -468,15 +445,13 @@ class DirectAudioStreamingRegressionTest {
         assertEquals("Float32", mixerFallback.dsp.format)
     }
 
-    // 13. Telemetry path evaluation truthfully reports Direct Active when directSupport confirms runtime support
     @Test
     fun telemetryEvaluationTruthfullyReportsDirectActiveWhenRuntimeDirectSupported() {
-        // Chu2 DSP with 176.4 kHz streaming track where Android runtime directSupport is true
         val snapshot = AudioOutputStatus.Snapshot(
             deviceName = "Chu2 DSP",
             routeKind = AudioRouting.Kind.USB,
             encodings = intArrayOf(AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_24BIT_PACKED),
-            sampleRatesHz = intArrayOf(44100, 48000, 88200, 96000), // static USB descriptors capped at 96k
+            sampleRatesHz = intArrayOf(44100, 48000, 88200, 96000),
             requestedTransportType = TransportType.AUDIO_TRACK_DIRECT,
             directPlaybackSelected = true,
             directSupport = DirectAudioProbe.DirectSupport(
@@ -501,7 +476,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals("PCM24 / 96000 Hz", evaluated.usbEndpointFormat)
     }
 
-    // 14. Streaming 192 kHz direct-capable route
     @Test
     fun stream192000HzDirectCapabilitySelectsDirectOutput() {
         val directSupport192 = DirectAudioProbe.DirectSupport(
@@ -532,7 +506,6 @@ class DirectAudioStreamingRegressionTest {
         assertNull(result.output.systemMixerRateHz)
     }
 
-    // 15. Unsupported direct capability safely falls back to system mixer
     @Test
     fun unsupportedDirectCapabilitySafelyFallsBack() {
         val result = OutputNegotiator.negotiate(
@@ -556,7 +529,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(FallbackReason.ROUTE_LIMITATION, result.output.fallbackReason)
     }
 
-    // 16. publishNegotiation propagates route directSupport and descriptors into snapshot
     @Test
     fun publishNegotiationPropagatesRouteDirectSupportAndDescriptorsIntoSnapshot() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -593,7 +565,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(TransportType.AUDIO_TRACK_DIRECT, snapshot.transportType)
     }
 
-    // 17. evaluateActualPath honors negotiationResult route direct support when snapshot.directSupport is null
     @Test
     fun evaluateActualPathHonorsNegotiationResultRouteDirectSupport() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -618,7 +589,6 @@ class DirectAudioStreamingRegressionTest {
             directSupport = directSupport,
         )
 
-        // Snapshot has null directSupport directly on itself, but holds negotiationResult
         val snapshotWithNullDirectSupport = AudioOutputStatus.Snapshot(
             deviceName = "Chu2 DSP",
             routeKind = AudioRouting.Kind.USB,
@@ -636,7 +606,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals(TransportType.AUDIO_TRACK_DIRECT, evaluated.transportType)
     }
 
-    // 18. Local playback behavior remains unchanged
     @Test
     fun localPlaybackBehaviorRemainsUnchanged() {
         val directSupport = DirectAudioProbe.DirectSupport(
@@ -668,7 +637,6 @@ class DirectAudioStreamingRegressionTest {
         assertEquals("Float32", result.dsp.format)
     }
 
-    // 19. Leaving a USB route clears isUsb, rather than latching it on forever
     @Test
     fun publishNegotiationClearsIsUsbWhenRouteLeavesUsb() {
         val usbResult = OutputNegotiator.negotiate(

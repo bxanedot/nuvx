@@ -3,10 +3,6 @@ package com.bxane.nuvx.ui.tv.audio
 import android.media.audiofx.Virtualizer
 import com.bxane.nuvx.data.DebugLog as Log
 
-/**
- * Spatial Audio & 3D Surround Virtualizer Engine for TV speakers, soundbars, and headphones.
- * Expands stereo audio into a wide, immersive spatial soundstage.
- */
 object TvSpatialAudioEngine {
     private const val TAG = "TvSpatialAudioEngine"
     private var virtualizer: Virtualizer? = null
@@ -18,7 +14,7 @@ object TvSpatialAudioEngine {
             release()
             virtualizer = Virtualizer(0, audioSessionId).apply {
                 if (strengthSupported) {
-                    setStrength(1000.toShort()) // Full 3D spatial immersion
+                    setStrength(1000.toShort())
                 }
                 enabled = isEnabled
             }
@@ -43,7 +39,6 @@ object TvSpatialAudioEngine {
             virtualizer?.release()
             virtualizer = null
         } catch (e: Exception) {
-            // Ignore
         }
     }
 }

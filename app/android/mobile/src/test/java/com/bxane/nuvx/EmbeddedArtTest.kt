@@ -34,8 +34,6 @@ class EmbeddedArtTest {
         return u32be(8 + body.size) + type.toByteArray() + body
     }
 
-    // ── ID3v2 ─────────────────────────────────────────────────────────────
-
     private fun id3File(version: Int, vararg frames: ByteArray, unsync: Boolean = false): ByteArray {
         val tag = frames.fold(byteArrayOf()) { acc, b -> acc + b }
         val flags = if (unsync) 0x80 else 0x00
@@ -79,7 +77,6 @@ class EmbeddedArtTest {
 
     @Test
     fun `id3 unsynchronised payload still extracts`() {
-        // As stored (with the stuffing byte) and as decoded (without it).
         val stored = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0x00.toByte(), 0xE0.toByte(), 9)
         val decoded = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 9)
         val file = id3File(3, apicFrame(apicPayload("image/jpeg", stored), v24 = false), unsync = true) +
@@ -94,8 +91,6 @@ class EmbeddedArtTest {
         val file = id3File(3, frame) + ByteArray(100)
         assertNull(EmbeddedArt.extract(MemReader(file)))
     }
-
-    // ── FLAC ──────────────────────────────────────────────────────────────
 
     private fun flacBlock(type: Int, payload: ByteArray, last: Boolean): ByteArray {
         val head = ((if (last) 0x80 else 0) or type).toByte()
@@ -132,8 +127,6 @@ class EmbeddedArtTest {
         assertNull(EmbeddedArt.extract(MemReader(file)))
     }
 
-    // ── MP4 ───────────────────────────────────────────────────────────────
-
     @Test
     fun `mp4 covr extracts`() {
         val data = u32be(13) + u32be(0) + jpeg
@@ -163,8 +156,6 @@ class EmbeddedArtTest {
         val file = box("ftyp", "isom".toByteArray()) + box("moov", box("mvhd", ByteArray(16)))
         assertNull(EmbeddedArt.extract(MemReader(file)))
     }
-
-    // ── Ogg ───────────────────────────────────────────────────────────────
 
     private fun oggPage(body: ByteArray, serial: Int = 1, seq: Int = 0, continued: Boolean = false): ByteArray {
         val segs = ArrayList<Byte>()
@@ -234,8 +225,6 @@ class EmbeddedArtTest {
         assertNull(EmbeddedArt.extract(MemReader(oggFile(opus = false, artB64 = null))))
     }
 
-    // ── Negatives ─────────────────────────────────────────────────────────
-
     @Test
     fun `garbage and empties return null`() {
         assertNull(EmbeddedArt.extract(MemReader(ByteArray(0))))
@@ -245,7 +234,6 @@ class EmbeddedArtTest {
 
     @Test
     fun `mime falls back to sniffed bytes`() {
-        // APIC with a blank mime still resolves through the JPEG magic.
         val payload = byteArrayOf(0) + "\u0000".toByteArray() + byteArrayOf(3) + "d\u0000".toByteArray() + jpeg
         val file = id3File(3, apicFrame(payload, v24 = false)) + ByteArray(64)
         assertEquals("image/jpeg", EmbeddedArt.extract(MemReader(file))?.mime)

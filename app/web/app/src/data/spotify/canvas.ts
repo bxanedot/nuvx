@@ -6,7 +6,6 @@ import { useSpotifySignedIn } from '@/extension/useSpotifyAuth';
 import { usePlayer } from '@/state/player';
 import { fetchCanvas } from './api';
 
-/** Spotify settings kept by this page: whether to show Canvas at all. */
 export const useSpotifySettings = create<{ canvas: boolean; setCanvas: (on: boolean) => void }>()(
   persist((set) => ({ canvas: true, setCanvas: (canvas) => set({ canvas }) }), { name: 'nuvx:spotify', version: 1 }),
 );
@@ -22,17 +21,11 @@ export function useReducedMotion(): boolean {
   );
 }
 
-/** Save-Data, or a cellular link where the browser says so (Network Information API, Chromium only). */
 export function metered(): boolean {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean; type?: string } }).connection;
   return !!connection?.saveData || connection?.type === 'cellular';
 }
 
-/**
- * The playing track's Canvas (prompt §7.1): looked up only when it can be
- * shown — signed in to Spotify, the setting on, no reduced motion, and not on
- * a metered connection — and only once per track.
- */
 export function useCanvas(): string | null {
   const signedIn = useSpotifySignedIn();
   const enabled = useSpotifySettings((s) => s.canvas);

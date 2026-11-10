@@ -14,20 +14,6 @@ import android.os.SystemClock
 import androidx.annotation.RequiresApi
 import java.nio.ByteBuffer
 
-/**
- * Android 14's bit-perfect mixer: the app asks AudioFlinger to open the USB
- * output at exactly the track's format and stop mixing, resampling and
- * applying volume, then plays one [AudioTrack] pinned to that device.
- *
- * Volume belongs to the DAC in this mode. The track is left at unity and
- * `STREAM_MUSIC` is never touched; phone volume keys may do nothing.
- *
- * The route is re-verified every [ROUTE_CHECK_MS] while audio is written:
- * the track must still resolve to this DAC and the preferred mixer
- * attributes must still be the ones set here. Another app or the system can
- * change either at any time, and a track that silently fell back to the
- * mixer would keep playing under a "bit-perfect" label.
- */
 @RequiresApi(34)
 internal class MixerTransport private constructor(
     private val manager: AudioManager,
@@ -72,7 +58,6 @@ internal class MixerTransport private constructor(
     override fun play() {
         failure?.let { throw BitPerfectTransportException(it) }
         track.play()
-        // No samples may be written until the route actually resolves to our DAC.
         if (!verifiedRoute()) {
             track.pause()
             failure = "USB route could not be verified"
@@ -137,11 +122,6 @@ internal class MixerTransport private constructor(
                 it.type == AudioDeviceInfo.TYPE_USB_DEVICE || it.type == AudioDeviceInfo.TYPE_USB_HEADSET
             }
 
-        /**
-         * The format this DAC would open at for the track: its own when offered.
-         * Failing that, with [convert] the best it has, by [BitPerfectPcm.rankRates]
-         * and [BitPerfectPcm.dacBits]; without it, null.
-         */
         fun bestFormat(
             manager: AudioManager,
             device: AudioDeviceInfo,
@@ -167,7 +147,6 @@ internal class MixerTransport private constructor(
             return atRate.first { bits(it.format.encoding) == outputBits }
         }
 
-        /** Opens the DAC at [bestFormat], or explains why not. */
         fun open(manager: AudioManager, rate: Int, channels: Int, sourceBits: Int, convert: Boolean): MixerTransport {
             val usb = usbDevice(manager) ?: throw BitPerfectTransportException("no_usb")
             val selected = bestFormat(manager, usb, rate, channels, sourceBits, convert)
@@ -196,7 +175,6 @@ internal class MixerTransport private constructor(
                 ) {
                     throw BitPerfectTransportException("format")
                 }
-                // Never change STREAM_MUSIC volume: the DAC owns volume in this mode.
                 track.setVolume(1f)
                 return MixerTransport(
                     manager = manager,

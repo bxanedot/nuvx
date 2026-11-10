@@ -1,12 +1,4 @@
 // SPDX-License-Identifier: MIT
-// Moved from Kira's googlevideo 4.x calls to googlevideo 5: FormatKeyUtils'
-// helpers are plain exports, MediaHeader.contentLength is segmentLengthBytes,
-// and isGoogleVideoURL (dropped from the library) lives in shakaHelpers.
-//
-// Kept as close to the original as possible (build prompt §0: port first,
-// simplify on evidence). Changes: Shaka's compiled build, nuvx's
-// helpers, no ytc-bridge proxy for DRM license requests (nuvx never plays
-// DRM content), and the non-null assertions strict TypeScript needs.
 
 import shaka from 'shaka-player/dist/shaka-player.compiled';
 
@@ -191,12 +183,6 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
       return requestMetadata.isSABR && (requestMetadata.streamInfo?.redirect || requestMetadata.streamInfo?.sabrContextUpdate);
     };
 
-    // Fetch returning a ReadableStream response body is not currently
-    // supported by all browsers.
-    // Browser compatibility:
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
-    // If it is not supported, returning the whole segment when
-    // it's ready (as xhr)
     if (!response.body) {
       const arrayBuffer = await response.arrayBuffer();
       const currentTime = Date.now();
@@ -227,15 +213,12 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         try {
           readObj = await reader.read();
         } catch {
-          // If we abort the request while reading, we'll get an error here. Just ignore it.
           break;
         }
 
         const { value, done } = readObj;
 
         if (done) {
-          // If we got here, we read the whole response but there was no segment data; it means we must follow a 
-          // redirect, or handle protocol updates.
           if (shouldReturnEmptyResponse()) {
             return this.createShakaResponse({ uri, request, requestType, response, arrayBuffer: undefined });
           }
@@ -258,17 +241,13 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         const currentTime = Date.now();
         const chunkSize = loaded - lastLoaded;
 
-        // If the time between last time and this time we got
-        // progress event is long enough, or if a whole segment
-        // is downloaded, call progressUpdated().
         if ((currentTime - lastTime > 100 && chunkSize >= minBytes) || result) {
-          // If we have a result, check its integrity before attempting anything.
           if (result) checkResultIntegrity(result);
           if (contentLength) {
             const numBytesRemaining = result ? 0 : parseInt(contentLength) - loaded;
             try {
               progressUpdated(currentTime - lastTime, chunkSize, numBytesRemaining);
-            } catch { /** no-op */
+            } catch {
             } finally {
               lastLoaded = loaded;
               lastTime = currentTime;
@@ -282,7 +261,6 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         }
       }
 
-      // Unreachable if the loop is aborted correctly.
       throw createRecoverableError('UMP stream processing was aborted but did not produce a result.', requestMetadata);
     }
   }
@@ -301,7 +279,6 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
     try {
       const requestMetadata = this.requestMetadataManager?.getRequestMetadata(uri);
 
-      // Check the cache first.
       if (requestMetadata) {
         const cachedResponse = await this.handleCachedRequest(requestMetadata, uri, request, progressUpdated, headersReceived, requestType);
         if (cachedResponse) {
@@ -317,7 +294,6 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         return this.handleUmpResponse(response, requestMetadata, uri, request, requestType, progressUpdated, abortController, minBytes);
       }
 
-      // Handle other requests normally.
       const lastTime = Date.now();
 
       const arrayBuffer = await response.arrayBuffer();

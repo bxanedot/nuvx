@@ -64,11 +64,6 @@ import com.bxane.nuvx.ui.tv.theme.TvType
 
 private enum class SetupStep { Welcome, SignIn, Appearance, Preferences, Done }
 
-/**
- * First-run setup, in the manner of Apple TV's: one decision per screen, a
- * centred title and explanation, and the choices stacked at the bottom. Back
- * steps back; nothing is saved until the last screen.
- */
 @Composable
 fun TvSetupScreen(
     viewModel: MainViewModel,
@@ -154,7 +149,6 @@ fun TvSetupScreen(
     }
 }
 
-/** The common frame of every setup screen. */
 @Composable
 private fun TvSetupPage(
     title: String,
@@ -206,7 +200,6 @@ private fun TvSignInStep(viewModel: MainViewModel, onContinue: () -> Unit) {
     val account by viewModel.account.collectAsState()
     var signingIn by remember { mutableStateOf(false) }
 
-    // Signing in from here moves on by itself once it lands.
     LaunchedEffect(signedIn) {
         if (signedIn && signingIn) {
             signingIn = false
@@ -232,7 +225,6 @@ private fun TvSignInStep(viewModel: MainViewModel, onContinue: () -> Unit) {
     }
 
     if (signingIn && !signedIn) {
-        // Phone (QR) sign-in is held back from setup for now; Settings still offers it.
         TvAccountDialog(viewModel = viewModel, onDismiss = { signingIn = false }, allowPhoneSignIn = false)
     }
 }
@@ -283,7 +275,6 @@ private fun TvPreferencesStep(onContinue: () -> Unit) {
     }
 }
 
-/** A small picture of the theme's canvas with two placeholder cards, its name under it. */
 @Composable
 private fun TvThemeSwatch(
     option: AppThemeOption,

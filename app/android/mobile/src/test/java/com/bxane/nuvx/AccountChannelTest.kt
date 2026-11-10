@@ -8,21 +8,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Reading the channels a login can act as out of an account-switcher response.
- *
- * Pinned because the two things each row must yield — the `pageId` header and
- * the `datasyncIdToken` body value — arrive as single-key objects in a list
- * Google never promised an order for, alongside tokens meant for other
- * purposes. A positional read of that list works right up until Google adds a
- * token, and then it silently switches the listener to a channel that isn't
- * the one they tapped.
- *
- * The fixtures are trimmed copies of the shape both `account/accounts_list`
- * and `getAccountSwitcherEndpoint` return: the same `accountItem` renderer in
- * different envelopes, which is why the parser scans for the item rather than
- * walking a path to it.
- */
 class AccountChannelTest {
 
     private fun parse(json: String) =
@@ -37,8 +22,6 @@ class AccountChannelTest {
         val personal = channels[0]
         assertEquals("Ada Lovelace", personal.name)
         assertEquals("@ada", personal.subtitle)
-        // Not a delegated page, and must not be given one — a `X-Goog-PageId`
-        // on the account's own channel is a different request entirely.
         assertNull(personal.pageId)
         assertEquals("SESSION_A", personal.dataSyncId)
         assertTrue(personal.activeOnWeb)
@@ -52,8 +35,6 @@ class AccountChannelTest {
 
     @Test
     fun `token order is not assumed`() {
-        // Same brand channel, tokens listed the other way round and with an
-        // unrelated one in front of both.
         val channels = parse(SHUFFLED_TOKENS)
         assertEquals(1, channels.size)
         assertEquals("113355", channels[0].pageId)
@@ -73,8 +54,6 @@ class AccountChannelTest {
 
     @Test
     fun `an entry with nothing to send is dropped`() {
-        // Offering a channel that would quietly leave the current one selected
-        // is worse than not listing it.
         assertTrue(parse(NO_TOKENS).isEmpty())
     }
 

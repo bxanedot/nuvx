@@ -1,33 +1,17 @@
-/**
- * Whether one catalogue's track is the same recording as another's: a port of
- * TrackMatcher.kt (shared/…/data/sources), line for line where it can be.
- *
- * Titles are taken apart into the words that carry identity (must agree), the
- * markers of a different take — remix, live, acoustic (must agree in both
- * directions) — and packaging (film names, "Official Video": a tie-break,
- * never a veto). Then the credit and the runtime are checked against that.
- * The reasoning behind every rule is in the Kotlin file's comments; the
- * comments here only mark where JavaScript needed something different.
- */
-
-/** One row from a catalogue: a YouTube Music search result, a Spotify track, an addon's answer. */
 export interface MatchCandidate {
   title: string;
-  /** Credited artists, as one string ("A, B & C"). */
   artist: string;
   durationSec: number | null;
   album: string | null;
   explicit?: boolean | null;
 }
 
-/** The recording being looked for, as much of it as is known. */
 export interface MatchTarget {
   title: string;
   artist?: string;
   durationSec?: number | null;
   album?: string | null;
   isExplicit?: boolean | null;
-  /** Music-video timing includes visual intros/outros that catalogue audio omits. */
   isVideo?: boolean;
 }
 
@@ -37,8 +21,6 @@ interface TitleParts {
   versions: Set<string>;
   context: Set<string>;
 }
-
-// ── Weights ─────────────────────────────────────────────────────────────
 
 const BASE = 100;
 const ARTIST_EXACT = 25;
@@ -66,9 +48,7 @@ const LATIN = /[a-z0-9]/;
 const LATIN_QUERY_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789 ';
 const CJK_OPEN = /[「『【〈《〔［｛]/g;
 const CJK_CLOSE = /[」』】〉》〕］｝]/g;
-/** Java's `\p{Punct}` is ASCII punctuation only; spelled out here. */
 const CJK_CORE_STRIP = /[\s!-/:-@[-`{-~・～〜ー-]+/gu;
-/** Character.UnicodeBlock: HIRAGANA, KATAKANA, CJK_UNIFIED_IDEOGRAPHS, HANGUL_SYLLABLES. */
 const CJK = /[぀-ゟ゠-ヿ一-鿿가-힯]/;
 const ARTIST_SEPARATORS =
   /\s*(?:[,&/;·|、，×]|\band\b|\bx\b|\bvs\.?\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|\bwith\b)\s*/u;
@@ -111,8 +91,6 @@ const TRAILING_NOISE = new Set([
 ]);
 const JOINING_WORDS = new Set(['and']);
 
-// ── Small helpers ──────────────────────────────────────────────────────────
-
 const strip = (word: string) => word.replace(NON_ALNUM, '');
 const wordsOf = (text: string) => text.split(WORD_SPLIT).map(strip).filter((w) => w.length > 0);
 const sameSet = <T>(a: Set<T>, b: Set<T>) => a.size === b.size && [...a].every((x) => b.has(x));
@@ -128,9 +106,6 @@ export function normalize(text: string): string {
     .replace(CJK_CLOSE, ')');
 }
 
-// ── Asking ─────────────────────────────────────────────────────────────────
-
-/** What to put to a search box, best query first (TrackMatcher.queries). */
 export function queries(target: MatchTarget): string[] {
   const title = searchableTitle(target.title, target.artist ?? '');
   if (!title.trim()) return [];
@@ -160,8 +135,6 @@ export function sharesArtist(wanted: string, got: string): boolean {
   return want.length > 0 && have.length > 0 && want.some((w) => have.some((h) => sameArtist(w, h)));
 }
 
-// ── Judging ────────────────────────────────────────────────────────────────
-
 export function best<T extends MatchCandidate>(candidates: T[], target: MatchTarget): T | null {
   return ranked(candidates, target)[0] ?? null;
 }
@@ -172,11 +145,9 @@ export function ranked<T extends MatchCandidate>(candidates: T[], target: MatchT
     return value === null ? [] : [{ candidate, value }];
   });
   const credited = scored.filter(({ candidate }) => artistScore(target.artist ?? '', candidate.artist) !== null);
-  // Stable: equal scores keep the search's order, as Kotlin's sortedByDescending does.
   return (credited.length ? credited : scored).sort((a, b) => b.value - a.value).map((s) => s.candidate);
 }
 
-/** How confident this is the same recording, or null when it is not one. */
 export function score(candidate: MatchCandidate, target: MatchTarget): number | null {
   const wanted = parseTitle(target.title, target.artist ?? '');
   const got = parseTitle(candidate.title, candidate.artist);
@@ -209,7 +180,6 @@ export function matches(candidate: MatchCandidate, title: string, artist: string
   return score(candidate, { title, artist, durationSec }) !== null;
 }
 
-/** TrackMatcher.hasConflictingAlbums. */
 export function hasConflictingAlbums(candidates: MatchCandidate[], target: MatchTarget): boolean {
   if (target.album?.trim()) return false;
   const comparable =
@@ -218,7 +188,6 @@ export function hasConflictingAlbums(candidates: MatchCandidate[], target: Match
   return new Set(comparable.map((c) => albumKey(c.album)).filter((k): k is string => !!k)).size > 1;
 }
 
-/** TrackMatcher.uniquelyMostCreditedCloseMatch. */
 export function uniquelyMostCreditedCloseMatch<T extends MatchCandidate>(candidates: T[], target: MatchTarget): T | null {
   const close = candidates.filter((c) => withinSeconds(c, target, DURATION_LIMIT_SEC));
   if (close.length < 2) return null;
@@ -241,12 +210,9 @@ export function isSevereMismatch(expectedSec: number | null, actualSec: number |
   return Math.abs(actualSec - expectedSec) > DURATION_LIMIT_SEC;
 }
 
-/** secondsOf's `takeIf { it > 0 }`: an unstated runtime is null, not zero. */
 function positive(seconds: number | null | undefined): number | null {
   return seconds != null && seconds > 0 ? Math.round(seconds) : null;
 }
-
-// ── Title ──────────────────────────────────────────────────────────────────
 
 export function parseTitle(raw: string, artist = ''): TitleParts {
   const versions = new Set<string>();
@@ -309,8 +275,6 @@ function classify(segment: string, versions: Set<string>, context: Set<string>):
     marks.forEach((m) => versions.add(m));
     return;
   }
-  // A single CJK syllable is a whole title: the length gate exists
-  // for Latin glue words and must not drop it.
   words.filter((w) => ([...w].length > 2 || CJK.test(w)) && !NOISE_WORDS.has(w)).forEach((w) => context.add(w));
 }
 
@@ -318,12 +282,6 @@ function containsCJKChar(text: string): boolean {
   return CJK.test(text);
 }
 
-/**
- * Whether a bracketed aside is the same title in another script rather
- * than packaging around it. True when one core is CJK-only, the other is
- * Latin, and the other's aside is that core in full (one word of a longer
- * aside is not enough). Same-script asides never qualify.
- */
 export function isTranslationMatch(wanted: TitleParts, got: TitleParts): boolean {
   const wantedCJK = containsCJKChar(wanted.core) && !hasFilingLatin(wanted.core);
   const gotCJK = containsCJKChar(got.core) && !hasFilingLatin(got.core);
@@ -359,8 +317,6 @@ export function scriptMates(raw: string): string[] {
   if (!head.trim() || !tail.trim() || head === tail) return [];
   return romajiOf(head) === tail || romajiOf(tail) === head ? [head, tail] : [];
 }
-
-// ── Romaji ─────────────────────────────────────────────────────────────────
 
 const KANA_ROMAJI: Map<string, string> = (() => {
   const map = new Map<string, string>();
@@ -404,7 +360,6 @@ const CONS_OVERRIDES: [string, string][] = [
   ['shi', 'sh'], ['chi', 'ch'], ['tsu', 'ts'], ['fu', 'f'], ['ji', 'j'], ['zu', 'z'],
 ];
 
-/** Katakana to hiragana, as the Kotlin `c.code - 0x60` over 'ァ'..'ヶ'. */
 const toHiragana = (c: string | undefined): string | undefined => {
   if (c === undefined) return undefined;
   const code = c.charCodeAt(0);
@@ -462,8 +417,6 @@ export function romajiOf(text: string): string {
   return out;
 }
 
-// ── Artist ─────────────────────────────────────────────────────────────────
-
 function artistScore(wanted: string, got: string): number | null {
   const want = artistNames(wanted);
   const have = artistNames(got);
@@ -473,7 +426,6 @@ function artistScore(wanted: string, got: string): number | null {
   return key(want) === key(have) ? ARTIST_EXACT : ARTIST_SHARED;
 }
 
-/** The credited artists, each as its own list of words; a Set in Kotlin, de-duplicated here. */
 export function artistNames(value: string): string[][] {
   const seen = new Map<string, string[]>();
   for (const name of normalize(value).split(ARTIST_SEPARATORS)) {
@@ -492,8 +444,6 @@ function runOf(outer: string[], inner: string[]): boolean {
   }
   return false;
 }
-
-// ── Duration, album, explicit, context ─────────────────────────────────────
 
 function durationScore(wanted: number | null, got: number | null, allowVideoDrift: boolean): number | null {
   if (wanted === null || got === null) return 0;

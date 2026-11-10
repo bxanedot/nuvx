@@ -27,7 +27,6 @@ module.exports = async (req, res) => {
           .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }))[0];
       }
     } catch {
-      // Keep the releases list available when GitHub's API is unavailable.
     }
     res.writeHead(302, {
       Location: tag ? releases + '/tag/' + tag : releases,
@@ -50,7 +49,6 @@ module.exports = async (req, res) => {
         if (response.ok || response.status === 302) target = asset;
       }
     } catch {
-      // GitHub's latest release page is the fallback when lookup fails.
     }
   }
   res.writeHead(302, { Location: target, 'Cache-Control': 'no-store' });

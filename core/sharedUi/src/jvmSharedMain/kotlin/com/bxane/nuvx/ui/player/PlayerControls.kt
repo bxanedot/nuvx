@@ -115,27 +115,9 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
-/**
- * How long the shuffle glyph ignores further taps after one lands.
- *
- * Toggling shuffle replaces the upcoming stretch of the live queue. A second
- * tap while that command is crossing the session boundary could otherwise ask
- * to undo work that has not landed yet. One tap is all a toggle can usefully
- * mean in that window, so the rest are dropped rather than queued behind it.
- */
 private const val SHUFFLE_TAP_WINDOW_MS = 400L
-/**
- * The same gate for AutoPlay, held longer because its work is heavier: the
- * toggle crosses to the playback service, tears down the in-flight suggestion
- * load, and then either strips AutoPlay's tracks out of the queue or goes back
- * to the network for a fresh set of them.
- */
 private const val AUTOPLAY_TAP_WINDOW_MS = 700L
 
-/**
- * "Playing from …", "Played by …" or the radio station — what the player is
- * playing *out of*, in the words the caption uses.
- */
 @Composable
 internal fun playbackOriginText(song: Song, playedBy: String?): String =
     playedBy?.let {
@@ -147,16 +129,11 @@ internal fun playbackOriginText(song: Song, playedBy: String?): String =
         song.playbackSource ?: song.albumName ?: stringResource(Res.string.queue),
     )
 
-/**
- * The small caption naming what the player is playing out of — see
- * [playbackOriginText]. Tappable, back to that place.
- */
 @Composable
 internal fun PlaybackOriginCaption(
     text: String,
     onClick: () -> Unit,
     textAlign: TextAlign,
-    /** Inside the touch target, so it widens what a finger can hit. */
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -181,24 +158,13 @@ internal fun PlaybackOriginCaption(
     )
 }
 
-/** How far [PlayerScrubber] draws its times above the slot they are laid out in. */
 internal val SCRUBBER_LABEL_LIFT = 9.dp
 
-/**
- * The seek bar, with elapsed and remaining either side under it and
- * [centerLabel] — the quality badge — between them.
- */
 @Composable
 internal fun PlayerScrubber(
-    /**
-     * Where the handle is, read in here so the playhead's tick recomposes the
-     * bar and its two times rather than the player the bar sits in.
-     */
     shown: () -> Float,
     durationMs: Long,
-    /** A version switch's wait, drawn along the bar — see [ThinSlider.loading]. */
     loading: Boolean,
-    /** An analysed Automix handoff, drawn as a travelling sheen. */
     mixing: Boolean,
     transitionWindow: ClosedFloatingPointRange<Float>?,
     onScrub: (Float) -> Unit,
@@ -206,13 +172,8 @@ internal fun PlayerScrubber(
     centerLabel: @Composable BoxScope.() -> Unit = {},
 ) {
     val shown = shown()
-    // Held as a State and read only inside the bar's draw: the blend republishes
-    // every fade tick, and collecting it by value here would recompose the
-    // scrubber and its labels thirty times a second for a change only the
-    // canvas needs.
     val mixBlend = PlayerSettings.smartMixBlend.collectAsStateWithLifecycle()
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
-    // One clock for the bar and the "Mixing" label, so they breathe on the same beat.
     val mixPulse = rememberMixPulse({ mixBlend.value }, enabled = !reduceAnimation)
     Column(Modifier.fillMaxWidth()) {
         ThinSlider(
@@ -227,11 +188,8 @@ internal fun PlayerScrubber(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                // The slider's touch target extends well past the drawn bar,
-                // so pull the labels back up under it.
                 .offset(y = -SCRUBBER_LABEL_LIFT),
         ) {
-            // Drawn like the artist line: the same white, added the same way.
             val timeColor = chromeWhite(0.55f)
             Row(
                 modifier = Modifier.fillMaxWidth().additiveChrome(LocalPlayerChrome.current),
@@ -248,10 +206,6 @@ internal fun PlayerScrubber(
                     color = timeColor,
                 )
             }
-            // Pinned to the box's own centre rather than squeezed into the gap
-            // between the two timestamps: that gap's width changes by a digit's
-            // worth every time a minute rolls over. Cross-faded with "Mixing"
-            // for as long as a blend holds the bar.
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -267,27 +221,17 @@ internal fun PlayerScrubber(
     }
 }
 
-/**
- * "Mixing", in the quality badge's place while an Automix blend runs, breathing on the same
- * beat as the bar above it. Its opacity is read in a graphics layer, so the pulse redraws the
- * label every frame without recomposing it. Plain text in the badge's own type, no icon and
- * no glow: over artwork, a white haze reads as grey fog rather than light.
- */
 @Composable
 private fun MixingLabel(pulse: MixPulse, modifier: Modifier = Modifier) {
     Text(
         text = stringResource(Res.string.mixing),
         modifier = modifier
-            // Opens the mix view. Plain text that takes taps: no padding, no
-            // ripple, so it lays out exactly as the label always did and
-            // nothing around it moves when it appears.
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
             ) { MixViewRequest.open = true }
             .graphicsLayer {
                 alpha = pulse.cover * pulse.alpha(1f, restShare = MIXING_LABEL_REST)
-                // A buffer to fade through would cut the blend below off from the backdrop.
                 compositingStrategy = CompositingStrategy.ModulateAlpha
             }
             .additiveChrome(LocalPlayerChrome.current),
@@ -300,23 +244,13 @@ private fun MixingLabel(pulse: MixPulse, modifier: Modifier = Modifier) {
     )
 }
 
-/** How far "Upgrading quality" fades between breaths, and how long each half takes. */
 private const val UPGRADING_PULSE_LOW = 0.4f
 private const val UPGRADING_PULSE_MS = 900
 
-/** The label dips only to half between beats: text fading further stops reading as a word. */
 private const val MIXING_LABEL_REST = 0.5f
 
-/**
- * Sp over labelMedium for the quality badge and what stands in for it. Was a
- * whole point at SemiBold, which shouted next to the timestamps either side.
- */
 private const val BADGE_SIZE_BUMP = 0.5f
 
-/**
- * The quality badge between the timestamps — "Lossless", "Hi-Res", a loading
- * shimmer while a lossless source is still being looked for.
- */
 @Composable
 internal fun PlaybackQualityLabel(
     song: Song,
@@ -328,20 +262,10 @@ internal fun PlaybackQualityLabel(
     val metered by PlayerSettings.meteredConnection.collectAsStateWithLifecycle()
     val ceilingOverride by PlayerSettings.streamCeilingOverride.collectAsStateWithLifecycle()
     val nerdStats by NerdStats.current.collectAsStateWithLifecycle()
-    // Whether this playback session is even asking for a lossless stream — the
-    // same computation SourceResolver.requestForNow() makes, mirrored here so
-    // "Loading lossless" only appears when a lossless fetch is actually in
-    // flight, not on every buffering YouTube track. Override included: while
-    // the watch caps the stream nothing lossless is being looked for.
     val chosenQuality = if (metered == true) cellularQuality else wifiQuality
     val effectiveQuality = ceilingOverride
         ?.takeIf { it.ordinal < chosenQuality.ordinal }
         ?: chosenQuality
-    // Whether a module is still racing YouTube for this exact track — see
-    // [NerdStats.racingLossless]. YouTube can win that race and already be
-    // playing while the module lookup is still running detached, and the badge
-    // should keep saying "loading" through that stretch rather than going
-    // blank only to possibly say "loading" again a moment later.
     val racingLossless by NerdStats.racingLossless.collectAsStateWithLifecycle()
     LosslessOrStats(
         isLoading = isLoading,
@@ -352,10 +276,6 @@ internal fun PlaybackQualityLabel(
     )
 }
 
-/**
- * Stats for nerds, on the foot of the sleeve: the measured stream, and under
- * it what Automix's analysis is doing. Nothing at all while the setting is off.
- */
 @Composable
 internal fun SleeveNerdStats(song: Song, modifier: Modifier = Modifier) {
     val showNerdStats by PlayerSettings.showNerdStats.collectAsStateWithLifecycle()
@@ -364,21 +284,9 @@ internal fun SleeveNerdStats(song: Song, modifier: Modifier = Modifier) {
     val smartFadeOn by PlayerSettings.smartFadeEnabled.collectAsStateWithLifecycle()
     val smartAnalysis by PlayerSettings.smartAnalysis.collectAsStateWithLifecycle()
     val automixDetail by PlayerSettings.automixDetail.collectAsStateWithLifecycle()
-    // A party doesn't mix, and doesn't analyse for one either — see
-    // [com.bxane.nuvx.playback.CrossfadeController]. So the two flows above
-    // simply stop moving there, and the stats line has to say why rather than
-    // leave their last values on screen as if they still described something.
-    //
-    // Read off the party rather than published as a third flow: it is the same
-    // fact the controller and the analyzer each read for themselves, and a
-    // mirror of it could only ever disagree.
     val inParty by remember {
         PlayerPlatform.host.party.map { it.inParty }.distinctUntilChanged()
     }.collectAsStateWithLifecycle(initialValue = PlayerPlatform.host.party.value.inParty)
-    // A plain white line reads fine over the usual dark tile, but a light
-    // stretch of an animated cover — sky, snow, a pale sleeve — washes it out
-    // entirely. The shadow costs nothing on a dark background and is what
-    // keeps it legible on a bright one.
     val nerdStyle = MaterialTheme.typography.labelSmall.copy(
         shadow = Shadow(
             color = Color.Black.copy(alpha = 0.55f),
@@ -400,24 +308,12 @@ internal fun SleeveNerdStats(song: Song, modifier: Modifier = Modifier) {
                 textAlign = TextAlign.Center,
             )
         }
-        // Only when Automix is actually switched on: otherwise this would
-        // report on analysis nothing is going to use, which is noise rather
-        // than a stat.
         if (smartFadeOn) {
             Text(
-                // Both sides always named, even when they agree, so the line
-                // reads the same way every time and the eye can find the half
-                // it wants without re-parsing the sentence.
                 text = when {
-                    // Ahead of the video case because it is the broader one:
-                    // in a party nothing is analysed for any song, video or
-                    // not, so naming the video limitation there would describe
-                    // a rule that is not the one in force.
                     inParty -> stringResource(Res.string.automix_stopped_in_party)
                     song.isVideoOrigin ->
                         stringResource(Res.string.automix_not_supported_video)
-                    // The detailed line once the controller has one: each song's
-                    // grid, then the planned mix — the loops and what cleared them.
                     automixDetail != null -> automixDetail!!
                     else -> stringResource(
                         Res.string.automix_analysis_status,
@@ -426,12 +322,7 @@ internal fun SleeveNerdStats(song: Song, modifier: Modifier = Modifier) {
                     )
                 },
                 style = nerdStyle,
-                // Dimmer than the measured line above it: that one describes
-                // the audio, this one describes the app, and the ranking
-                // should show.
                 color = Color.White.copy(alpha = 0.5f),
-                // The detailed line runs long on a phone: a second line rather
-                // than an ellipsis through the part that says what the mix is.
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -440,22 +331,10 @@ internal fun SleeveNerdStats(song: Song, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Previous, play/pause, next.
- *
- * [compact] is the landscape player on a phone, where the portrait player's
- * 100dp play target is a third of the window's height on its own.
- */
 @Composable
 internal fun TransportRow(
     isPlaying: Boolean,
-    /** While the stream resolves and buffers, the play glyph would be a lie. */
     isLoading: Boolean,
-    /**
-     * Lit whenever back has something to do — a track to step to, or enough
-     * elapsed to restart this one. Faded and inert, not removed, while a party
-     * host holds the controls: the transport keeps its shape either way.
-     */
     previousEnabled: Boolean,
     nextEnabled: Boolean,
     onPrevious: () -> Unit,
@@ -468,8 +347,6 @@ internal fun TransportRow(
     val skipSize = if (compact) 44.dp else PLAYER_SKIP_ICON_SIZE
     Row(
         modifier = Modifier.fillMaxWidth(),
-        // SpaceAround, not SpaceEvenly: the outer margins take half a gap, so
-        // the three buttons spread a little further apart from each other.
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -484,8 +361,6 @@ internal fun TransportRow(
             haptic = Haptic.SkipPrevious,
         )
         if (isLoading) {
-            // Same footprint as the play/pause target — a smaller box here
-            // would shunt everything below it on every load.
             Box(Modifier.size(playTouch), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     color = Color.White,
@@ -516,16 +391,10 @@ internal fun TransportRow(
     }
 }
 
-/** ThinSlider's fixed touch target at the volume bar's size: 10dp + 22dp. */
 internal val VOLUME_ROW_HEIGHT = 32.dp
 
-/** The volume bar between its two speaker glyphs. */
 @Composable
 internal fun VolumeRow(
-    /**
-     * Read inside the row, so the level's tween recomposes the row alone rather
-     * than the whole player around it.
-     */
     value: () -> Float,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
@@ -560,13 +429,6 @@ internal fun VolumeRow(
     }
 }
 
-/**
- * Lyrics, the capsule, and the queue — the row both layouts end on.
- *
- * The capsule swaps: output and party normally, the three playback modes while
- * the queue is up, since that is when they are what you are about to reach for.
- * It stays centred between the two glyphs either way.
- */
 @Composable
 internal fun PlayerActionRow(
     lyricsOpen: Boolean,
@@ -581,28 +443,17 @@ internal fun PlayerActionRow(
     onToggleAutoplay: () -> Unit,
     onOpenOutput: () -> Unit,
     onListenTogether: () -> Unit,
-    /** Opens [ListenTogetherMembersSheet] rather than settings directly. */
     onOpenListenTogetherMembers: () -> Unit,
 ) {
     val showPartyButton by PlayerSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val inParty = rememberPartyBadge().inParty
-    // Just the output glyph in the middle.
     val compact = !queueOpen && !showPartyButton && !inParty
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        // Sized for the wider of the two capsules — the three-up one — whether
-        // that or the output/party one is up, so the lyrics and queue glyphs
-        // hold still as they swap. A lone output glyph is spaced as though the
-        // two-up capsule held it — closer in, without crowding — and they part
-        // again as the queue opens to make room.
         val edgeInset = ((maxWidth - BOTTOM_ACTION_SIZE * 2 - pillWidth(3)) / 4).coerceAtLeast(0.dp)
         val compactInset = ((maxWidth - BOTTOM_ACTION_SIZE * 2 - pillWidth(2)) / 4).coerceAtLeast(0.dp)
         val closeIn = compactInset - edgeInset
-        // Held as State and read only in the glyphs' placement, so the slide
-        // re-places two glyphs a frame rather than recomposing and remeasuring
-        // the row — the capsule's own animation included — on every one.
         val compactness = animateFloatAsState(
             targetValue = if (compact) 1f else 0f,
-            // In step with the capsule's own width change.
             animationSpec = tween(220),
             label = "actionRowCompact",
         )
@@ -618,8 +469,6 @@ internal fun PlayerActionRow(
                 BottomGlyph(
                     icon = SfIcons.LyricsQuote,
                     contentDescription = stringResource(if (lyricsOpen) Res.string.close_lyrics else Res.string.open_lyrics),
-                    // Lyrics and the queue are two things to show in one place, so
-                    // opening either closes the other; lit to say which is up.
                     onClick = onToggleLyrics,
                     highlighted = lyricsOpen,
                     vibrant = true,
@@ -629,16 +478,11 @@ internal fun PlayerActionRow(
                 targetState = queueOpen,
                 transitionSpec = {
                     (fadeIn(tween(180, delayMillis = 140)) togetherWith fadeOut(tween(140)))
-                        // Unclipped: the capsule's own rounded ends are what
-                        // the eye follows through the width change, and the
-                        // default clip cuts them square while it happens.
                         .using(SizeTransform(clip = false) { _, _ -> tween(220) })
                 },
                 label = "playerBottomPill",
             ) { showQueueModes ->
                 if (showQueueModes) {
-                    // Spaced the same as the output/party capsule, so the two
-                    // read as one control growing a segment.
                     Pill {
                         PillSegment(
                             icon = SfIcons.Shuffle,
@@ -661,10 +505,6 @@ internal fun PlayerActionRow(
                             },
                             onClick = onCycleRepeat,
                             highlighted = repeatMode != RepeatModes.OFF,
-                            // Three states, so the buzz tracks the edges of the
-                            // cycle: leaving off rises, returning to off falls,
-                            // and the step between the two repeat modes is just
-                            // a selection.
                             haptic = when (repeatMode) {
                                 RepeatModes.OFF -> Haptic.ToggleOn
                                 RepeatModes.ONE -> Haptic.ToggleOff
@@ -709,17 +549,8 @@ internal fun PlayerActionRow(
     }
 }
 
-/** How much more of the ink [CircleGlyph]'s disc takes than its plain white — 0.45 at rest, 0.85 lit. */
 private const val CIRCLE_DISC_DODGE_GAIN = 2.5f
 
-/**
- * Translucent circular button used for the track menu and the like control.
- *
- * [active] brightens the disc rather than only the glyph: this sits on album
- * artwork of any colour, and a white icon on a white-ish sleeve has no tint
- * change left to make. The filled star carries the state as a shape too —
- * see [SfIcons.StarFill].
- */
 @Composable
 internal fun CircleGlyph(
     icon: ImageVector,
@@ -748,9 +579,6 @@ internal fun CircleGlyph(
             },
         contentAlignment = Alignment.Center,
     ) {
-        // The disc carries the blend, dodged as the bottom row's glyphs are, and
-        // the glyph sits on it in plain white. The ink is mixed in at a few times
-        // the plain disc's strength: a dodge laid on this thinly is next to nothing.
         Box(
             Modifier
                 .matchParentSize()
@@ -778,11 +606,6 @@ internal fun CircleGlyph(
     }
 }
 
-/**
- * Transport / bottom glyphs. The circular clip belongs on the touch target,
- * never on the [Icon] — clipping the icon itself shaves the corners off wide
- * glyphs like fast-forward and the queue list.
- */
 @Composable
 private fun TransportGlyph(
     icon: DrawableResource,
@@ -792,11 +615,9 @@ private fun TransportGlyph(
     onClick: () -> Unit,
     enabled: Boolean = true,
     haptic: Haptic = Haptic.Tap,
-    /** Vertical squash of the glyph alone; its width and touch box are untouched. */
     heightScale: Float = 1f,
 ) {
     val haptics = rememberHaptics()
-    // Faded rather than hidden: the row keeps its shape at the ends of a queue.
     val alpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.3f,
         label = "transportAlpha",
@@ -825,80 +646,35 @@ private fun TransportGlyph(
     }
 }
 
-/** The skip glyphs' width, and their touch box, beside the larger play button. */
 private val PLAYER_SKIP_ICON_SIZE = 53.dp
 private val PLAYER_SKIP_TOUCH_SIZE = 53.dp
 
-/**
- * The skip glyphs are drawn a little flatter than they are wide, so the pair
- * reads lower and longer next to the play button without losing any width.
- */
 private const val PLAYER_SKIP_HEIGHT_SCALE = 0.85f
 
 private val BOTTOM_ACTION_SIZE = 44.dp
 
-/** What the lyrics and queue glyphs are drawn at inside [BOTTOM_ACTION_SIZE]. */
 private val BOTTOM_ICON_SIZE = 26.dp
 
-/**
- * The lit lyrics/queue tile, measured off Apple Music's: the glyph fills about
- * three quarters of it, its corners about a fifth, and it is the tint at a
- * little over half strength so the artwork still colours it.
- */
 private val BOTTOM_ACTIVE_TILE_SIZE = 35.dp
 private val BOTTOM_ACTIVE_TILE_CORNER = 7.dp
 private const val BOTTOM_ACTIVE_TILE_ALPHA = 0.62f
 
-/**
- * One half of the output capsule — wider than it is tall, so the capsule reads
- * as a capsule rather than as two circles that have been pushed together.
- */
-// The count reserve is kept on both halves, so entering a party never makes
-// the capsule lopsided or shifts the queue control beside it.
 private val PILL_SEGMENT_WIDTH = 64.dp
 
-/**
- * Optical sizes, not equal ones.
- *
- * Headphones is a tall, narrow glyph and Person a taller, narrower one, so
- * drawn at the same nominal size the second reads as the bigger of the two.
- * These are the numbers at which they look like a matched pair. Every other
- * output glyph is fitted to the box Headphones fills at that size — 75% of it
- * tall, at most 85% wide — either in its own drawable or by
- * [PILL_OUTPUT_WIDE_SIZE] / [PILL_OUTPUT_TALL_SIZE] for the Material ones.
- */
 private val PILL_OUTPUT_SIZE = 23.dp
 private val PILL_PARTY_SIZE = 22.dp
 
-/** Cast and Tv run 92% of their box wide; at 23dp they read bigger than the rest. */
 private val PILL_OUTPUT_WIDE_SIZE = 21.dp
 
-/** Watch is drawn the full height of its box. */
 private val PILL_OUTPUT_TALL_SIZE = 17.dp
 
-/**
- * The earphones are half again as wide as they are tall, so at 23dp the width
- * limit leaves them little over half their box tall, well short of the glyphs
- * either side. Past that limit on purpose: the pair is mostly air, and reads no
- * wider than its neighbours do.
- */
 private val PILL_OUTPUT_BUDS_SIZE = 29.dp
 
-/** What a segment's glyph is drawn at when it has no optical quirk to correct. */
 private val PILL_ICON_SIZE = 24.dp
 
-/** How wide a capsule of [segments] comes out, dividers included. */
 private fun pillWidth(segments: Int): Dp =
     PILL_SEGMENT_WIDTH * segments + 1.dp * (segments - 1)
 
-/**
- * A row of controls joined into one capsule.
- *
- * The join is a hairline rather than a gap, which is what makes several
- * controls read as a single object — the shape the player uses for a set of
- * choices that all answer the same question. There are two: where the sound is
- * going, and how the queue is played.
- */
 @Composable
 private fun Pill(
     modifier: Modifier = Modifier,
@@ -930,31 +706,15 @@ private fun PillDivider() {
     )
 }
 
-/**
- * The two ends of "where is this playing": the output capsule.
- *
- * Both halves answer the same question and so belong to one control rather than
- * two glyphs that happen to sit side by side — the device the sound leaves by
- * (see [rememberOutputGlyph]), the party for which *people* it reaches.
- *
- * Video vs audio-only used to live here as a third segment; it now lives in
- * the player's own three-dot menu, beside Revert to original and Upgrade
- * quality — the same kind of choice, offered the same way. This capsule is
- * back to the two icons it always otherwise had, at their original spacing.
- */
 @Composable
 private fun OutputPartyPill(
     onOutput: () -> Unit,
     onParty: () -> Unit,
-    /** Who's in it, before the settings page — see [ListenTogetherMembersSheet]. */
     onOpenMembers: () -> Unit,
 ) {
     val badge = rememberPartyBadge()
     val shown by PlayerSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val output = rememberOutputGlyph()
-    // Party half hidden only outside a party: once in one, this is the way to
-    // who's in it. Without it the output glyph stands alone, drawn like the
-    // lyrics and queue glyphs either side rather than as half a capsule.
     if (!shown && !badge.inParty) {
         BottomGlyph(
             icon = output.icon,
@@ -975,22 +735,13 @@ private fun OutputPartyPill(
         )
         PillDivider()
         PillSegment(
-            // Person rather than Groups: the three-person glyph is drawn half
-            // the height of Headphones and wider than the segment holding it,
-            // so the two halves of the capsule never looked like a pair.
             icon = SfIcons.Person,
             iconSize = PILL_PARTY_SIZE,
-            // The count is here and nowhere else: spoken, it is the whole
-            // point of the control; drawn, it would cost the capsule its
-            // symmetry for something the caption below already implies.
             contentDescription = if (badge.inParty) {
                 stringResource(Res.string.listen_together_open_count, badge.members)
             } else {
                 stringResource(Res.string.listen_together_open)
             },
-            // Already in a party, this opens who's in it rather than the
-            // settings page directly; there is nothing to create or join once
-            // there is a party, so [onParty] only ever fires beforehand.
             onClick = if (badge.inParty) onOpenMembers else onParty,
             highlighted = badge.inParty,
             trailingLabel = badge.members.takeIf { badge.inParty }?.toString(),
@@ -998,14 +749,6 @@ private fun OutputPartyPill(
     }
 }
 
-/**
- * What the output segment shows: the thing the music is coming out of, the way
- * Apple Music's AirPlay button does — the phone, buds, a speaker — rather than
- * headphones whatever is actually playing it.
- *
- * Off-device first: while casting or on the watch, the phone's own route is
- * not where anybody is listening.
- */
 @Composable
 private fun rememberOutputGlyph(): OutputGlyph {
     val cast by PlayerPlatform.host.castState.collectAsStateWithLifecycle()
@@ -1015,16 +758,11 @@ private fun rememberOutputGlyph(): OutputGlyph {
         cast.connectedName != null -> OutputGlyph(SfIcons.CastConnected, PILL_OUTPUT_WIDE_SIZE)
         watch.active -> OutputGlyph(SfIcons.Watch, PILL_OUTPUT_TALL_SIZE)
         else -> when (active?.kind) {
-            // No active row is the phone too — the caption under the pill
-            // says "This phone" in the same case. Cast rather than a phone:
-            // on the phone itself the button's job is to send it elsewhere.
             null, AudioOutputKind.PHONE -> OutputGlyph(SfIcons.Cast, PILL_OUTPUT_WIDE_SIZE)
             AudioOutputKind.BLUETOOTH -> when (active.form) {
                 BluetoothForm.BUDS -> OutputGlyph(vectorResource(Res.drawable.ic_output_buds), PILL_OUTPUT_BUDS_SIZE)
                 BluetoothForm.SPEAKER -> OutputGlyph(vectorResource(Res.drawable.ic_output_speaker))
                 BluetoothForm.CAR -> OutputGlyph(SfIcons.DirectionsCar)
-                // Headphones doubles as the neutral "some audio device" glyph:
-                // a device that won't say what it is gets that, not a guess.
                 BluetoothForm.HEADPHONES, BluetoothForm.UNKNOWN -> OutputGlyph(SfIcons.Headphones)
             }
             AudioOutputKind.WIRED, AudioOutputKind.USB -> OutputGlyph(SfIcons.Headphones)
@@ -1034,17 +772,8 @@ private fun rememberOutputGlyph(): OutputGlyph {
     }
 }
 
-/** An output glyph and the size that makes it match the others — see [PILL_OUTPUT_SIZE]. */
 private data class OutputGlyph(val icon: ImageVector, val size: Dp = PILL_OUTPUT_SIZE)
 
-/**
- * One control inside a [Pill] — [BottomGlyph]'s twin, squared off.
- *
- * Same behaviour down to the tap window, and deliberately not the same
- * composable: a glyph's highlight is a circle sized to itself, and a segment's
- * has to fill its share of the capsule edge to edge or the join stops reading
- * as one.
- */
 @Composable
 private fun PillSegment(
     contentDescription: String,
@@ -1056,11 +785,8 @@ private fun PillSegment(
     highlighted: Boolean = false,
     haptic: Haptic = Haptic.Tap,
     loading: Boolean = false,
-    /** See [BottomGlyph], where the same window means the same thing. */
     tapWindowMs: Long = 0L,
-    /** Per-segment override — see [OutputPartyPill]'s three-up capsule. */
     width: Dp = PILL_SEGMENT_WIDTH,
-    /** See [BottomGlyph], where the same flag means the same thing. */
     vibrant: Boolean = false,
 ) {
     val haptics = rememberHaptics()
@@ -1070,7 +796,6 @@ private fun PillSegment(
         modifier = Modifier
             .width(width)
             .height(BOTTOM_ACTION_SIZE)
-            // Round the highlight and both fades, not inside them — see [CircleGlyph].
             .additiveChrome(chrome && !vibrant)
             .background(if (highlighted) Color.White.copy(alpha = 0.14f) else Color.Transparent)
             .clickable(
@@ -1111,8 +836,6 @@ private fun PillSegment(
                 )
             } else if (icon != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // The size travels with the icon, so the outgoing glyph
-                    // fades at its own size rather than the incoming one's.
                     Crossfade(
                         targetState = icon to iconSize,
                         animationSpec = tween(durationMillis = 200),
@@ -1147,32 +870,15 @@ private fun PillSegment(
     }
 }
 
-/**
- * The line under the transport: normally the output, and the party's name
- * whenever there is one.
- *
- * A party overrides the output rather than sitting beside it because the two
- * are not the same kind of fact. "bxane's Phone" answers which speaker in
- * this room; once there are four devices playing the same song, the room is no
- * longer what the listener is checking. The tap follows the label — whichever
- * one is on screen is the thing it opens.
- */
 @Composable
 internal fun OutputCaption(
     accountName: String?,
     onOpenOutput: () -> Unit,
-    /** Who's in it, before the settings page — see [ListenTogetherMembersSheet]. */
     onOpenMembers: () -> Unit,
 ) {
     val badge = rememberPartyBadge()
     val outputName = rememberAudioOutputName(accountName)
     val outputFormat by PlayerPlatform.host.outputFormat.collectAsStateWithLifecycle()
-    // The shine means one thing: the DAC has this track to itself, bit-perfect
-    // or at the most the DAC can take. Anything weaker — a hi-res stream on a
-    // float-capable route — still passes through Android's mixer, which may
-    // resample it, so it no longer earns the same mark.
-    // The host's first name, exactly as the output line already shortens the
-    // account's — "bxane's Jam" alongside "bxane's Phone".
     val jamName = badge.hostFirstName
         ?.let { stringResource(Res.string.listen_together_jam, it) }
         ?: stringResource(Res.string.listen_together_jam_unnamed)
@@ -1203,7 +909,6 @@ internal fun OutputCaption(
     }
 }
 
-/** The three fields of a party the player draws — see [OutputPartyPill]. */
 private data class PartyBadge(
     val inParty: Boolean,
     val members: Int,
@@ -1221,15 +926,6 @@ private fun PartyUi.badge(): PartyBadge = PartyBadge(
         ?.takeIf { it.isNotBlank() },
 )
 
-/**
- * Whether the host has taken control of the party this device is listening in.
- *
- * Same `distinctUntilChanged` treatment as [rememberPartyBadge], and for the
- * same reason: this answer changes about twice a party, while the state it is
- * read from is replaced every few seconds.
- *
- * @see ListenTogether.State.controlsLocked
- */
 @Composable
 internal fun rememberControlsLocked(): Boolean {
     val locked = remember {
@@ -1240,13 +936,6 @@ internal fun rememberControlsLocked(): Boolean {
         .value
 }
 
-/**
- * [PartyBadge] as it changes, and only when it actually does.
- *
- * `distinctUntilChanged` is the point of this: the party's own state is
- * replaced on every heartbeat and every position report, none of which move any
- * of these three fields.
- */
 @Composable
 private fun rememberPartyBadge(): PartyBadge {
     val badges = remember {
@@ -1266,32 +955,16 @@ private fun BottomGlyph(
     haptic: Haptic = Haptic.Tap,
     label: String? = null,
     iconSize: Dp = BOTTOM_ICON_SIZE,
-    /**
-     * Shortest gap between taps that both reach [onClick]. A tap inside the
-     * window of the last one is dropped whole — haptic included, so a swallowed
-     * tap doesn't buzz as though something happened. The default lets every tap
-     * through: only the glyphs whose work is too heavy to repeat at finger speed
-     * ask for a window.
-     */
     tapWindowMs: Long = 0L,
-    /** Dodged rather than added, for the bottom row's glyphs — see [vibrantChrome]. */
     vibrant: Boolean = false,
 ) {
     val haptics = rememberHaptics()
-    // Read only from the click handler, never during composition, so writing it
-    // costs no recomposition. Starts a full window in the past so the first tap
-    // is never the one that gets swallowed.
     val lastTap = remember { mutableLongStateOf(-tapWindowMs) }
     val tileColor = chromeWhite(BOTTOM_ACTIVE_TILE_ALPHA)
     val tileChrome = LocalPlayerChrome.current
     Box(
         modifier = Modifier
             .size(BOTTOM_ACTION_SIZE)
-            // Lit, Apple's way: a rounded tile with the glyph cut out of it, the
-            // artwork showing through. The glyph is drawn first and the tile over
-            // it with SrcOut, which keeps the tile only where the glyph is not.
-            // Offscreen only while lit, so an unlit glyph costs no extra layer.
-            // The blend's own layer serves as that offscreen when it is on.
             .then(
                 if (highlighted) {
                     (
@@ -1331,8 +1004,6 @@ private fun BottomGlyph(
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        // Not while lit: the tile's cut-out needs the glyph drawn plainly in the
-        // layer above, which is blended as a whole.
         val chrome = LocalPlayerChrome.current && !highlighted
         val tint = if (vibrant && chrome) {
             VibrantChromeInk
@@ -1359,7 +1030,6 @@ private fun BottomGlyph(
     }
 }
 
-/** A credit that links somewhere, when [browseId] is known. */
 internal fun Modifier.opensPage(browseId: String?, onOpen: (String) -> Unit): Modifier =
     if (browseId == null) {
         this
@@ -1367,53 +1037,16 @@ internal fun Modifier.opensPage(browseId: String?, onOpen: (String) -> Unit): Mo
         clip(LinkPressShape).clickable { onOpen(browseId) }
     }
 
-/**
- * The press shape of anything in the player that links somewhere.
- *
- * Shared with [opensPage] so a credited name inside the artist line and a whole
- * title row above it answer a finger the same way, rather than one drawing a
- * rounded ripple and the other a square one.
- */
 private val LinkPressShape = RoundedCornerShape(6.dp)
 
-/** How fast the title/artist marquee crawls — unhurried, not a ticker. */
 private const val MARQUEE_DP_PER_SEC = 26f
 
-/** Clear air between the tail of the line and the copy chasing it round. */
 private val MARQUEE_GAP = 48.dp
 
-/** How long a line sits back at its start before the next pass — the "5 seconds" rest. */
 private const val MARQUEE_REST_MS = 5_000L
 
-/** Artist's head start is ceded to the title when both are scrolling, so they don't start as one block. */
 internal const val MARQUEE_ARTIST_STAGGER_MS = 3_000L
 
-/**
- * A single line of text that scrolls in place, only when it is too long for
- * [modifier]'s width to show in full.
- *
- * Idle text never animates — the scroll only kicks in once measurement proves
- * an ellipsis would otherwise be needed. When it does, the line is drawn twice
- * with [MARQUEE_GAP] between the copies and the pair is crawled leftwards by
- * exactly one copy-plus-gap: the trailing copy chases the leading one in from
- * the right and lands precisely where it started, so the offset reset at the
- * end of the pass falls under a copy already in position and cannot be seen.
- * The line therefore only ever travels one way — right to left, round and back
- * to its resting place — rather than bouncing back the way it came.
- *
- * A pass is: wait [startDelayMillis] (used to stagger the artist line behind
- * the title), crawl one full loop, then rest [MARQUEE_REST_MS] at the start
- * before going again. [onOverflowChange] reports whether this line is scrolling
- * at all, so a sibling line can decide whether it needs to stagger behind it.
- *
- * A line too long for its width fades out at its end rather than stopping at
- * a hard edge, as Apple's does, and once it is crawling at its start too — see
- * [marqueeFade]. [leading] and [trailing] sit either side of the line,
- * outside the crawl — the explicit badge goes before the title.
- *
- * With [enabled] false the line holds still at its start — no copies, no
- * animation, nothing left running off screen — and only fades at its end.
- */
 @Composable
 internal fun MarqueeText(
     text: String,
@@ -1442,8 +1075,6 @@ internal fun MarqueeText(
             val crawls = enabled && overflowing
             LaunchedEffect(crawls) { onOverflowChange(crawls) }
 
-            // One whole copy plus the gap behind it: that is the distance at
-            // which the second copy is sitting exactly where the first was.
             val travelPx = if (crawls) {
                 layout.size.width + with(density) { MARQUEE_GAP.roundToPx() }
             } else {
@@ -1459,19 +1090,12 @@ internal fun MarqueeText(
                 delay(startDelayMillis)
                 while (true) {
                     offsetX.animateTo(-travelPx.toFloat(), tween(scrollMs, easing = LinearEasing))
-                    // Invisible: the trailing copy has arrived at the leading
-                    // one's starting mark, so the line is already back where
-                    // this puts it.
                     offsetX.snapTo(0f)
                     delay(MARQUEE_REST_MS)
                 }
             }
 
             Row(
-                // Measured unbounded so the copies actually lay out at their
-                // full width, wider than the clipped box around them — bounded,
-                // the text is truncated during its own measurement and sliding
-                // it sideways just moves an already-cut string.
                 modifier = Modifier
                     .marqueeFade(overflowing, travelPx) { offsetX.value }
                     .wrapContentWidth(align = Alignment.Start, unbounded = true)
@@ -1492,12 +1116,6 @@ internal fun MarqueeText(
     }
 }
 
-/**
- * A marquee line's fades, where it [overflows] its box: out at its end always,
- * and at its start while it is away from its resting place — in over the first
- * fade's width of a pass of [travelPx] and back out over the last, by when the
- * copy chasing it has arrived where it started. [offset] is read as it draws.
- */
 private fun Modifier.marqueeFade(overflows: Boolean, travelPx: Int, offset: () -> Float): Modifier =
     if (!overflows) {
         this
@@ -1515,7 +1133,6 @@ private fun Modifier.marqueeFade(overflows: Boolean, travelPx: Int, offset: () -
         }
     }
 
-/** One copy of a marquee's line, laid out at its full width rather than clipped. */
 @Composable
 private fun MarqueeLine(text: String, style: TextStyle, color: Color) {
     Text(
@@ -1528,36 +1145,8 @@ private fun MarqueeLine(text: String, style: TextStyle, color: Color) {
     )
 }
 
-/**
- * The artist line: [MarqueeText] again, with every credited name in it tappable.
- *
- * ## Why not a scrolling row of links
- *
- * It was tried, and it is the obvious thing to reach for. It cannot be made to
- * work: a scroll state has to mutate to move the text, and every mutation
- * cancels whatever the finger was doing. With the crawl advancing the row every
- * frame, a tap that landed was a tap on whatever name the crawl had moved a name
- * into the finger's place — tapping "Blacha 2115" opened "Bedoes 2115". The
- * crawl also ran a scroll mutation per frame, which is what stopped a drag from
- * ever holding the row still.
- *
- * [MarqueeText] has neither problem, because it never scrolls anything. It
- * measures the string, draws it twice, and slides the pair with an
- * `Animatable` — no scroll state, no pointer interaction, and a tap lands on the
- * name that is under it. So this is that component, unchanged in every respect
- * that can be seen: same measurement, same clip, same two copies with the same
- * gap, same travel, same pace, same rest, same stagger, same ellipsis-free
- * clipping.
- *
- * The only difference is inside the copies, where the single line of text is now
- * the stretches [creditSegments] cut it into. The stretches are laid out back to
- * back with no gap of their own, so the line measures and draws the same; only
- * the stretches that are credited carry a tap target, and a credit with no
- * channel behind it carries none.
- */
 @Composable
 internal fun ArtistCreditsMarquee(
-    /** The credit line as the source spelled it — this is what gets drawn. */
     text: String,
     credits: List<ArtistCredit>,
     style: TextStyle,
@@ -1574,9 +1163,6 @@ internal fun ArtistCreditsMarquee(
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         BoxWithConstraints(Modifier.weight(1f, fill = false).clipToBounds()) {
             val maxWidthPx = constraints.maxWidth
-            // Measured as one string, exactly as the single-line version measured
-            // it, so the line starts crawling at the same moment and travels the
-            // same distance.
             val layout = remember(text, style, maxWidthPx) {
                 textMeasurer.measure(text = text, style = style, maxLines = 1, softWrap = false)
             }
@@ -1597,8 +1183,6 @@ internal fun ArtistCreditsMarquee(
                 delay(startDelayMillis)
                 while (true) {
                     offsetX.animateTo(-travelPx.toFloat(), tween(scrollMs, easing = LinearEasing))
-                    // Invisible, for the reason the single-line version's is: the
-                    // trailing copy has arrived where the leading one started.
                     offsetX.snapTo(0f)
                     delay(MARQUEE_REST_MS)
                 }
@@ -1621,14 +1205,6 @@ internal fun ArtistCreditsMarquee(
     }
 }
 
-/**
- * One copy of the credit line: its stretches laid end to end, each credited one
- * tappable.
- *
- * No padding and no gap around a name, because any air of the project's own
- * would be air the single-line version never had — a name's tap target is its
- * glyphs, which is what the title above it does too.
- */
 @Composable
 private fun CreditLine(
     segments: List<CreditSegment>,
@@ -1649,30 +1225,13 @@ private fun CreditLine(
                 Modifier
             } else {
                 Modifier
-                    // The same shape a whole linked row presses with, so a name
-                    // answers a finger the way the title above it does.
                     .clip(LinkPressShape)
-                    // Tappable even with no channel behind it. YouTube links the
-                    // credited artists inconsistently — the same album leaves
-                    // one name linked and another not — so a name without an id
-                    // is a name the reader still expects to be able to open, and
-                    // the host resolves it by asking for that exact name and
-                    // opening only what answers to it exactly.
                     .clickable { onOpenArtist(credit.browseId, credit.name) }
             },
         )
     }
 }
 
-/**
- * Measure a child wider than its slot by [gutter] on each side and place it back
- * over that margin, still reporting the original width to the parent.
- *
- * The lists are the only things in the player you can scroll, and the side
- * padding left a strip of bare sheet down each edge. A finger that drifted into
- * one scrolled nothing and closed the player instead. Matching content padding
- * puts every row back exactly where it was drawn, so this is invisible.
- */
 internal fun Modifier.bleedHorizontally(gutter: Dp): Modifier = layout { measurable, constraints ->
     val extra = gutter.roundToPx() * 2
     val widened = if (constraints.hasBoundedWidth) {
@@ -1697,14 +1256,6 @@ private fun formatTime(ms: Long): String {
     return "%d:%02d".format(Locale.ROOT, minutes, seconds)
 }
 
-/**
- * The gap between the two timestamps under the seek bar: just the "Lossless"
- * badge when one applies, and nothing otherwise. The stats line that used to
- * fall back to lives inside the sleeve now (see the bottom-centre overlay on
- * the artwork Box above), so there is no tap here to swap it in — the two say
- * the same thing at different resolutions, both read off the stream being
- * decoded rather than off what a source offered to send.
- */
 @Composable
 private fun LosslessOrStats(
     isLoading: Boolean,
@@ -1714,45 +1265,17 @@ private fun LosslessOrStats(
     modifier: Modifier = Modifier,
 ) {
     when {
-        // Still resolving — either the player itself is buffering, or a
-        // module is still racing YouTube for this track in the background
-        // (see [NerdStats.racingLossless]) even though YouTube already won
-        // and is audible. Either way nothing measured yet to confirm with,
-        // so this is a statement of intent, not a result — no shimmer, so
-        // it never reads as "confirmed" before it is.
-        // [stillRacing] on its own, not gated on the lossless preference: a
-        // module outranks YouTube on the strength of the source order alone,
-        // so the lookup runs — and can come back lossless — with that switch
-        // off. Gating this on it left the badge blank through the wait and
-        // then jumped straight to "Hi-Res Lossless".
-        // The [isLoading] half is gated on `nerdStats == null` rather than
-        // `nerdStats?.isLossless != true`: `isLoading` is just
-        // `STATE_BUFFERING`, which a seek trips for a track whose quality
-        // question was already settled — swallowing back into cache still
-        // rebuffers. Gating on `!= true` read that rebuffer as "resolving"
-        // again and flashed "Upgrading Quality" over a track already known
-        // to be, say, Hi-Quality with no lossless copy anywhere. Once
-        // [nerdStats] exists there is something measured to show instead, so
-        // only a genuinely unmeasured track — or a real race via
-        // [stillRacing] — earns this label.
         (stillRacing && nerdStats?.isLossless != true) ||
             (isLoading && losslessRequested && nerdStats == null) -> LosslessLabel(
             text = stringResource(Res.string.upgrading_quality),
             iconPainter = painterResource(Res.drawable.ic_lossless),
-            // Breathes for as long as the search runs: a wait, not a result,
-            // and the one badge state that is still going to change.
             pulsing = true,
             animated = false,
             modifier = modifier,
         )
         nerdStats?.isLossless == true -> LosslessLabel(
-            // Same line Tidal, Qobuz and Apple Music draw it at — see
-            // [NerdStats.Snapshot.isHiRes].
             text = stringResource(if (nerdStats.isHiRes) Res.string.hi_res_lossless else Res.string.lossless),
             iconPainter = painterResource(Res.drawable.ic_lossless),
-            // Shimmer is reserved for the thing that was asked for and
-            // confirmed. It is what makes the badge read as an achievement
-            // rather than a label, which only one of these two is.
             animated = true,
             modifier = modifier,
         )
@@ -1762,37 +1285,26 @@ private fun LosslessOrStats(
             iconPainter = painterResource(Res.drawable.ic_dolby_atmos),
             modifier = modifier,
         )
-        // Lossy, but the good end of lossy — a module's 320kbps tier, which
-        // for a great many tracks is the best copy that exists anywhere the
-        // app can reach. See [NerdStats.Snapshot.isHiQuality].
         nerdStats?.isHiQuality == true -> LosslessLabel(
             text = stringResource(Res.string.high_quality),
             animated = false,
             iconPainter = rememberVectorPainter(SfIcons.Headphones),
-            // A Material glyph's own size is 24dp; the badge's are drawn small.
             iconSize = 13.dp,
             modifier = modifier,
         )
-        // Below that, no badge: "Medium Quality" and "Data Saver" are gone.
-        // The space under the bar is kept for what is worth announcing.
         else -> {}
     }
 }
 
-/** A quality glyph ahead of the status label. */
 @Composable
 private fun LosslessLabel(
     text: String,
     animated: Boolean,
     iconPainter: Painter,
     modifier: Modifier = Modifier,
-    /** Fades the whole label in and out, for a state that is still in progress. */
     pulsing: Boolean = false,
-    /** Unspecified draws [iconPainter] at its own size. */
     iconSize: Dp = Dp.Unspecified,
 ) {
-    // Only while asked for, and not at all under "Reduce animation": the
-    // label then just holds still, which says "waiting" well enough.
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val pulse = if (pulsing && !reduceAnimation) {
         rememberInfiniteTransition(label = "upgradingPulse").animateFloat(
@@ -1808,10 +1320,6 @@ private fun LosslessLabel(
         null
     }
     Row(
-        // Read in the layer, so a frame of the pulse is a redraw of this one
-        // label — no recomposition, no relayout. ModulateAlpha fades each draw
-        // call in place rather than through an offscreen buffer: the glyph and
-        // the word never overlap, so there is nothing a buffer would fix.
         modifier = modifier
             .graphicsLayer {
                 alpha = pulse?.value ?: 1f
@@ -1822,8 +1330,6 @@ private fun LosslessLabel(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val tint = chromeWhite(if (animated) 0.7f else 0.45f)
-        // At the drawable's own size — the wave is wide, the double-D
-        // nearly square, and one box squashed one of them.
         Icon(
             painter = iconPainter,
             contentDescription = null,
@@ -1848,18 +1354,6 @@ private fun LosslessLabel(
     }
 }
 
-/**
- * "Lossless", with a highlight band sweeping left to right across it every
- * three seconds — confirmed, not just claimed, so it's worth the shine.
- *
- * The band's width is measured off the text itself via [onSizeChanged]
- * rather than assumed, so the sweep always clears the word fully at both
- * ends instead of being sized for whatever length happened to be typical.
- *
- * [style] and [baseAlpha] default to the quality badge's own look; the output
- * caption under the transport passes its own so the same sweep can run across
- * a differently-sized, centred line without the badge's styling leaking in.
- */
 @Composable
 private fun ShimmerText(
     text: String,
@@ -1882,12 +1376,6 @@ private fun ShimmerText(
     )
     val tint = Color.White.copy(alpha = if (LocalPlayerChrome.current) CHROME_FULL_ALPHA else 1f)
     val baseColor = chromeWhite(baseAlpha)
-    // The glyphs are laid out and drawn once, in the plain tint, and the moving
-    // band is painted over them in the draw phase with SrcIn — which keeps the
-    // glyphs' coverage and takes the gradient's colour, the same pixels a
-    // brush in the text style draws. As a brush the band was part of the
-    // style, so every frame of the sweep recomposed the text for the whole
-    // length of a lossless track.
     Text(
         text = text,
         style = style,
@@ -1913,19 +1401,6 @@ private fun ShimmerText(
     )
 }
 
-/**
- * "FLAC · 24-bit · 96.0 kHz · 4608 kbps · Stereo" — whichever of those the
- * player has actually reported. A figure it hasn't is dropped rather than
- * filled in, so a short line means little was known, never that something was
- * invented.
- *
- * Bitrate is stated for a lossless stream too, and is the rate its samples
- * decode to — 1411 for 16-bit/44.1kHz, 4608 for 24-bit/96kHz. It is the same
- * figure Tidal, Qobuz and Apple Music print next to a lossless track, and the
- * one a listener can carry from track to track; a FLAC's compressed rate
- * cannot, because it says more about how compressible that recording was than
- * about the copy being played.
- */
 @Composable
 private fun NerdStats.Snapshot.describe(): String? {
     val parts = buildList {
@@ -1946,7 +1421,6 @@ private fun NerdStats.Snapshot.describe(): String? {
     return parts.joinToString(" · ").takeIf { it.isNotEmpty() }
 }
 
-/** The codec under its usual name rather than its MIME type. */
 private fun codecLabel(mimeType: String?): String? = when {
     mimeType == null -> null
     mimeType.endsWith("opus") -> "Opus"
@@ -1958,7 +1432,6 @@ private fun codecLabel(mimeType: String?): String? = when {
     else -> mimeType.substringAfter('/').uppercase(Locale.ROOT)
 }
 
-/** Wording for the stats line; see [TrackAnalysisState]. */
 @Composable
 private fun TrackAnalysisState.localizedLabel(): String = when (this) {
     TrackAnalysisState.ANALYSED -> stringResource(Res.string.analysis_complete)

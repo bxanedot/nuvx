@@ -21,19 +21,6 @@ import dev.chrisbanes.haze.hazeSource
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 
-// The player's lyrics and queue, standing on their own outside it: what a
-// window shows in a column beside the page, the way Apple Music's sidebar
-// does, while the player itself stays closed. The same pieces the landscape
-// player lays out in its right-hand pane, so a line lights, a row drags and a
-// translation arrives exactly as they do in there.
-
-/**
- * The lyric sheet with its provider line and its romanization and translation
- * toggles — the landscape player's lyrics pane, without the player around it.
- *
- * [position] is read only by the panel itself, for the same reason the player
- * passes it down as an object: a tick recomposes the lines, not this.
- */
 @Composable
 fun LyricsSidePanel(
     song: Song,
@@ -65,7 +52,6 @@ fun LyricsSidePanel(
         loadingText = lyricsLoadingText,
         haptics = haptics,
     )
-    // The provider drawer frosts this column, not the page beside it.
     val haze = remember { HazeState() }
     var showLyricsProviders by remember { mutableStateOf(false) }
 
@@ -102,9 +88,6 @@ fun LyricsSidePanel(
                     reduceMotion = lyricsTranslation.reduceMotion,
                     modifier = panelModifier,
                 ) { particleProgress ->
-                    // Controls always open, as in the landscape player: there
-                    // is no transport hidden behind these lines for a tap to
-                    // bring back.
                     LyricsPanel(
                         lines = lyrics.orEmpty(),
                         subLines = lyricsTranslation.subLines,
@@ -135,7 +118,6 @@ fun LyricsSidePanel(
     }
 }
 
-/** The live queue — the player's own, rows, drag and all — without the player. */
 @Composable
 fun QueueSidePanel(
     queue: List<Song>,

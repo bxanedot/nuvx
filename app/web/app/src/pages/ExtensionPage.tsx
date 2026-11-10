@@ -15,7 +15,6 @@ interface Integration {
   name: string;
   Icon: ComponentType<{ size?: number; className?: string }>;
   capability: Capability;
-  /** What the row says when the extension serves this integration. */
   ready: string;
 }
 
@@ -25,7 +24,6 @@ const INTEGRATIONS: Integration[] = [
   { name: 'Discord', Icon: SiDiscord, capability: 'discord', ready: 'Off' },
 ];
 
-/** YouTube Music's row: who requests act as, once the extension reports it. */
 function youtubeStatus(auth: YtAuthStatus): string | null {
   if (auth.state !== 'ready') return null;
   const { browserSignedIn, connected, active } = auth.auth;
@@ -34,7 +32,6 @@ function youtubeStatus(auth: YtAuthStatus): string | null {
   return active ? `Signed in as ${active.name}` : 'Signed in · no account could be read';
 }
 
-/** One integration's state, honest about what this extension version can do. */
 function integrationStatus(status: ExtensionStatus, integration: Integration, auth: YtAuthStatus): string {
   if (status.state === 'checking') return 'Checking…';
   if (status.state === 'missing') return 'Needs the extension';

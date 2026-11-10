@@ -19,22 +19,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The decisions a download makes before a byte is fetched: what the file is
- * called, whether Android will keep one of it at all, what quality goes into it,
- * and whether the connection in hand is allowed to fetch it.
- *
- * The first two are worth pinning because both fail late and badly. A wrong
- * extension or MIME type is not a compile error and not a bad-sounding download
- * — it is `IllegalArgumentException: Unsupported MIME type` from inside a
- * `ContentResolver.insert`, several frames from anything naming the track, which
- * is precisely how every download in a build once failed while reporting itself
- * as a connection problem.
- *
- * The last two are worth pinning because they fail silently instead. A download
- * capped by the wrong setting is a file that plays perfectly and is not what was
- * asked for, and nothing about it looks wrong from outside.
- */
 class DownloadStoreTest {
 
     private fun song(title: String, artist: String, videoId: String = "abc123") =
@@ -71,16 +55,12 @@ class DownloadStoreTest {
         assertEquals(1_725_000_123L, modified)
     }
 
-    // ---- What Android will store -------------------------------------------
-
     @Test
     fun `flac and wav map to the types the media store actually accepts`() {
         val flac = DownloadStore.storable("flac")
         assertEquals("flac", flac?.extension)
         assertEquals("audio/flac", flac?.mimeType)
 
-        // Not audio/x-wav's mirror image: the x- prefix is on the MIME type
-        // here and not on the extension.
         val wav = DownloadStore.storable("wav")
         assertEquals("wav", wav?.extension)
         assertEquals("audio/x-wav", wav?.mimeType)
@@ -101,8 +81,6 @@ class DownloadStoreTest {
 
     @Test
     fun `an unknown or absent codec is nothing to file`() {
-        // Every one of these falls the download through to YouTube's AAC, so
-        // answering with a guess here would cost a file nothing can open.
         assertNull(DownloadStore.storable(null))
         assertNull(DownloadStore.storable(""))
         assertNull(DownloadStore.storable("opus"))
@@ -116,8 +94,6 @@ class DownloadStoreTest {
         assertEquals("AAC · 128 kbps", youtubeDownloadBadge("m4a", 128))
         assertNull(youtubeDownloadBadge("webm", 0))
     }
-
-    // ---- What the file is called -------------------------------------------
 
     @Test
     fun `the name is artist then title, and carries the extension asked for`() {
@@ -138,14 +114,6 @@ class DownloadStoreTest {
         assertEquals("xyz789.m4a", DownloadStore.fileNameFor(song("", "", "xyz789"), "m4a"))
     }
 
-    // ---- What quality is kept ----------------------------------------------
-
-    /**
-     * Only the top rung is worth a source's own file. The rungs below it are AAC
-     * rungs, and YouTube's AAC ladder is the more reliable fetch for those — so
-     * asking a module for a transcode it would have to make is worse on both
-     * counts.
-     */
     @Test
     fun `only lossless asks a source for the file it holds`() {
         assertEquals(
@@ -159,19 +127,12 @@ class DownloadStoreTest {
         )
     }
 
-    /**
-     * High means "the best rung there is", and the sentinel that says so must
-     * not survive into a request as a literal 2-billion-kbps cap — the
-     * difference between a ceiling nothing exceeds and no ceiling at all is
-     * invisible until something starts formatting the number.
-     */
     @Test
     fun `high is uncapped rather than capped very high`() {
         assertEquals(Int.MAX_VALUE, DownloadQuality.HIGH.maxKbps)
         assertTrue(SourceResolver.requestForDownload(DownloadQuality.HIGH) !is StreamRequest.Capped)
     }
 
-    /** Every rung has to say what it costs, or the picker shows a blank line. */
     @Test
     fun `every download rung is describable`() {
         DownloadQuality.entries.forEach { quality ->
@@ -181,14 +142,6 @@ class DownloadStoreTest {
         }
     }
 
-    // ---- When a download may start -----------------------------------------
-
-    /**
-     * The Wi-Fi-only gate, including the case that is easiest to get backwards:
-     * offline. A null [AppSettings.meteredConnection] means there is no active
-     * network at all, and refusing there would blame a Wi-Fi setting for an
-     * outage — the download is let through to fail on the network and say so.
-     */
     @Test
     fun `wifi-only refuses metered connections and nothing else`() {
         val wifiOnly = AppSettings.wifiOnlyDownloads.value
@@ -201,11 +154,9 @@ class DownloadStoreTest {
             AppSettings.meteredConnection.value = false
             assertTrue(AppSettings.downloadsAllowedNow)
 
-            // Offline: not this setting's business.
             AppSettings.meteredConnection.value = null
             assertTrue(AppSettings.downloadsAllowedNow)
 
-            // Off, and mobile data is fair game again.
             AppSettings.wifiOnlyDownloads.value = false
             AppSettings.meteredConnection.value = true
             assertTrue(AppSettings.downloadsAllowedNow)
@@ -215,13 +166,6 @@ class DownloadStoreTest {
         }
     }
 
-    /**
-     * The two settings are independent on purpose, and this is the pairing that
-     * proves it: a capped mobile-data *stream* must not quietly downgrade a
-     * *file*. It used to — the ceiling was what decided whether a download could
-     * be lossless, so someone with their own FLAC server streamed the FLAC and
-     * downloaded a transcode of the same recording.
-     */
     @Test
     fun `a capped streaming ceiling no longer decides what a download keeps`() {
         val cellular = AppSettings.audioQualityCellular.value
@@ -240,8 +184,6 @@ class DownloadStoreTest {
         }
     }
 
-    // ---- What a source's file really is -----------------------------------
-
     private fun bytes(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }
 
     private fun sniffed(head: ByteArray, contentType: String = "", stated: String? = null) =
@@ -250,10 +192,6 @@ class DownloadStoreTest {
     private fun containerOf(head: ByteArray, stated: String? = null) =
         (sniffed(head, stated = stated) as? Downloader.Probe.File)?.container
 
-    /**
-     * Named for the bytes, not the label. An addon's `aac` and `mp3` used to
-     * have nowhere to land and went to YouTube; JioSaavn's `mp4` always did.
-     */
     @Test
     fun `a source file is filed by what its opening bytes are`() {
         assertEquals(Downloader.Container.FLAC, containerOf("fLaC\u0000\u0000".toByteArray()))
@@ -269,11 +207,6 @@ class DownloadStoreTest {
         assertEquals("audio/mpeg", Downloader.Container.MP3.mimeType)
     }
 
-    /**
-     * The reference addon serves HLS from an extensionless `/dash/{id}` and
-     * calls it FLAC. Fetched as a file, that was a tiny `.flac` reported as a
-     * success; it has to be recognised as the index it is.
-     */
     @Test
     fun `a manifest is recognised whatever its URL or label says`() {
         assertEquals(
@@ -298,14 +231,11 @@ class DownloadStoreTest {
     fun `bytes that are no audio container are not kept`() {
         assertNull(sniffed("<html><body>Not found".toByteArray()))
         assertNull(sniffed(ByteArray(0)))
-        // AIFF has no extractor in the player, so a saved one could never play.
         assertNull(sniffed("FORM\u0000\u0000\u0000\u0000AIFFCOMM".toByteArray()))
     }
 
-    /** A file whose source stated no bitrate is judged on its size over its length. */
     @Test
     fun `an unstated bitrate is measured from the file's size`() {
-        // 9.6 MB over four minutes is 320 kbps.
         assertEquals(320, Downloads.estimatedKbps(9_600_000, 240))
         assertNull(Downloads.estimatedKbps(null, 240))
         assertNull(Downloads.estimatedKbps(9_600_000, null))

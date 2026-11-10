@@ -6,7 +6,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
-/** The player's lyrics are looked up again when a setting that picks the answer changes. */
 class LyricsLookupKeyTest {
     private val sources = setOf(LyricsSource.LRCLIB, LyricsSource.GENIUS)
     private val order = listOf(LyricsSource.LRCLIB, LyricsSource.GENIUS)

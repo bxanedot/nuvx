@@ -102,145 +102,44 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.foundation.border
 
-/**
- * The left and right inset every page's content sits at — the artist page's
- * edge, which every other page now shares, so a track row, a card or a
- * heading starts at the same place whichever page it is on.
- */
 val PAGE_GUTTER = 16.dp
 
-/**
- * The inset the floating chrome sits at: the mini player, the tab bar and the
- * top bar's controls. The same as [PAGE_GUTTER], so the bars' edges line up
- * with the content scrolling beneath them rather than sitting just outside it.
- */
 val BAR_GUTTER = PAGE_GUTTER
 
-/** Where a divider under a track row starts: clear of the 52dp of artwork. */
 val ROW_DIVIDER_INSET = PAGE_GUTTER + 68.dp
 
-/**
- * A numbered row's track-number column, the number centred in it: room for
- * three digits. It sits between two page gutters — the row's own on the left,
- * a matching gap before the title on the right — so the number has the same
- * space either side of it, counted from the screen edge.
- */
 val TRACK_NUMBER_WIDTH = 24.dp
 
-/** Where a divider under a numbered row starts: at its title, past the number. */
 val NUMBERED_ROW_DIVIDER_INSET = PAGE_GUTTER + TRACK_NUMBER_WIDTH + PAGE_GUTTER
 
-/**
- * How wide the floating bars at the foot of the page — the tab bar and the mini
- * player above it — are ever allowed to get.
- *
- * Both are fixed rows of controls with a fixed amount to say, not content that
- * benefits from room, and a phone is the width they were spaced for. Run right
- * across a tablet the four tabs end up a hand apart with their labels marooned
- * in the middle of nothing, and the mini player puts its artwork and its buttons
- * at opposite ends of the screen with a lake of frosted glass between. Past this
- * they stop growing and centre themselves over the page instead.
- *
- * Set clear of the widest phone (448dp less the two [PAGE_GUTTER]s is 428dp), so
- * on a phone it does nothing and the bars still line up with the page's content.
- */
 val FLOATING_BAR_MAX_WIDTH = 440.dp
 
-/**
- * Width of a card in the compact carousels — home shelves, library shelves and
- * the artist page's releases alike.
- *
- * Sized so a phone-width row shows two cards whole with the edge of a third
- * showing: enough to say the row scrolls without a card being half a card.
- */
 val SHELF_CARD_WIDTH = 150.dp
 
-/**
- * A track's thumbnail box at [height]: square for a song, 16:9 at the same
- * height for a music video — its picture's own shape, as YouTube Music lists
- * one, rather than a still cropped into a square — unless the listener asked
- * for square, see [VideoThumbnails].
- */
 fun Modifier.trackArtSize(height: Dp, isVideo: Boolean): Modifier =
     if (isVideo && !VideoThumbnails.square) size(width = height * (16f / 9f), height = height) else size(height)
 
-/**
- * The "Square video thumbnails" setting, as every surface that sizes a music
- * video reads it. Compose state rather than a flow so a plain read anywhere in
- * composition follows it, [trackArtSize] and [VIDEO_CARD_WIDTH][com.bxane.nuvx.ui.screens.VIDEO_CARD_WIDTH]
- * included, without each caller collecting it.
- */
 object VideoThumbnails {
     var square by mutableStateOf(false)
 }
 
-/** Share of the row a page of tracks takes, so the next page peeks in past it. */
 private const val TRACK_COLUMN_FRACTION = 0.88f
 
-/**
- * How wide a sideways-paging column of track rows is ever allowed to get.
- *
- * A fraction alone is a phone measurement wearing a percent sign, and a track row is
- * artwork, a title and a subtitle, none of which have any use for more room. At
- * 88% of a tablet the row's contents stay their own size and the space all lands
- * between the title and the overflow button, so four songs eat the width of the
- * screen and read as a page half-filled rather than a shelf.
- *
- * 400dp clears what the widest phone asks for (0.88 of 448dp is 394dp), so every
- * phone keeps the width the fraction gives it and only a tablet is held back —
- * to a column near a phone's own width, which is the size these rows were drawn
- * at, with the next page showing beside it.
- */
 private val TRACK_COLUMN_MAX_WIDTH = 400.dp
 
-/**
- * How wide a column of track rows should be in a row [available] wide — shared
- * by Home's Recents, an artist's Top songs, and the skeletons that stand in for
- * them, which have to agree to the pixel or the page jumps when the data lands.
- */
 fun trackColumnWidth(available: Dp): Dp =
     minOf(available * TRACK_COLUMN_FRACTION, TRACK_COLUMN_MAX_WIDTH)
 
-/** How many cards sit across a library grid row, and how wide each lands. */
 data class LibraryGridSpec(val columns: Int, val cardWidth: Dp)
 
-/**
- * The narrowest a library grid card is let get before another column gives way.
- *
- * Deliberately the same 140.dp minimum the Local Music and Downloads grids pass
- * to `GridCells.Adaptive`, so a cover on a "Show all" page is the same size as
- * the same cover on those pages rather than noticeably smaller.
- */
 private val LIBRARY_GRID_MIN_CARD_WIDTH = 140.dp
 
-/** Gap between cards in a library grid, in both directions. */
 val LIBRARY_GRID_SPACING = 12.dp
 
 private const val LIBRARY_GRID_MIN_COLUMNS = 2
 
-/** Library shelves never grow past this many across, however wide the screen. */
 private const val LIBRARY_GRID_MAX_COLUMNS = 5
 
-/**
- * How a Library shelf's full "Show all" page lays out as a grid, in
- * [available] dp of row — see `LibraryGridPage`.
- *
- * Columns follow from [LIBRARY_GRID_MIN_CARD_WIDTH] — as many as fit — rather
- * than from a fixed count, so a phone settles on 2 and a tablet fills out
- * towards the 5-column ceiling. This is the same arithmetic `GridCells.Adaptive`
- * runs, at the same minimum, gutter and spacing the Local Music and Downloads
- * grids use, which is what keeps a card here the size of a card there. Every
- * width is already in dp, which is what
- * makes this "based on device width and dpi" rather than a raw pixel count: a
- * dp reads the same physical size on a 420ppi phone as on a 160ppi tablet, so
- * the column count tracks how much room there actually is rather than how
- * many pixels the panel happens to report.
- *
- * The shelf's own preview row on the Library page itself is unrelated — it
- * keeps the fixed [SHELF_CARD_WIDTH] every other shelf uses and a flat
- * five-card cap rather than a width-derived one, so a card is the same size
- * whether the row it's in scrolls or not. See `LibraryGridShelf`.
- */
 fun libraryGrid(available: Dp): LibraryGridSpec {
     val raw = ((available + LIBRARY_GRID_SPACING) / (LIBRARY_GRID_MIN_CARD_WIDTH + LIBRARY_GRID_SPACING))
         .toInt()
@@ -249,14 +148,6 @@ fun libraryGrid(available: Dp): LibraryGridSpec {
     return LibraryGridSpec(columns, cardWidth)
 }
 
-/**
- * One track row, used by search, library and detail pages.
- *
- * Swiping it either way queues the track or plays it next, per
- * [AppSettings.swipeToPlayNext] — the row springs back rather than
- * dismissing, since nothing is being removed. Long-press opens the actions
- * menu.
- */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SongRow(
@@ -264,68 +155,18 @@ fun SongRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongPress: (() -> Unit)? = null,
-    /**
-     * What the trailing ⋮ does, when it should differ from [onLongPress].
-     *
-     * Defaults to the long-press, since on most pages the two are the same
-     * menu. Downloads is the exception: holding a row there starts a
-     * multi-selection, and the ⋮ has to stay the actions sheet rather than
-     * silently tick a checkbox.
-     */
     onMore: (() -> Unit)? = null,
     onSwipeToQueue: (() -> Unit)? = null,
-    /**
-     * What the row paints over the swipe reveal as it slides back.
-     *
-     * It has to be the colour of the page the row is *on*, not the theme's
-     * background — an album page tinted from its sleeve would otherwise drag a
-     * black band across itself on every swipe.
-     */
     rowBackground: Color = MaterialTheme.colorScheme.background,
-    /**
-     * Drawn in place of the artwork, for lists where every row would otherwise
-     * repeat the same cover — an album's own track listing.
-     */
     trackNumber: Int? = null,
-    /**
-     * The artist line, and the track number when there is one.
-     *
-     * A page tinted from its artwork wants this brighter than the flat feeds
-     * do: the usual dim grey is pitched against black, and against a mid-toned
-     * wash it stops being legible as a second line and starts disappearing.
-     */
     subtitleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    /**
-     * What the badge on an already-downloaded row is tinted, or null to leave
-     * those rows unmarked.
-     *
-     * Null is for the Downloads page itself, where every row qualifies and the
-     * badge would say nothing. The colour is a parameter for the same reason
-     * [subtitleColor] is: a page tinted from its artwork draws its accent from
-     * the sleeve, and the theme's primary against that wash is exactly the
-     * kind of thing that reads as pasted on.
-     */
     downloadedTint: Color? = MaterialTheme.colorScheme.primary,
-    /** Whether this row is the current item in the player's queue. */
     isCurrent: Boolean = false,
-    /** Distinguishes active playback from the same current item while paused. */
     isPlaying: Boolean = false,
-    /** Accent supplied by artwork-tinted pages. */
     activeTint: Color = MaterialTheme.colorScheme.primary,
-    /** Search results use artwork bars instead of the usual current-song icon. */
     searchPlayingStyle: Boolean = false,
-    /** True while a Downloads row belongs to the current multi-selection. */
     selected: Boolean = false,
-    /**
-     * Leads the artist line with the tier the row's source offered — Lossless,
-     * Hi-Res Lossless, Dolby Atmos, High quality — for lists where rows from
-     * different catalogues sit side by side: the Addons search.
-     */
     showSourceQuality: Boolean = false,
-    /**
-     * A control of the page's own, drawn just ahead of the ⋮ — the Cached
-     * songs folder's per-track download button. Null on every other list.
-     */
     trailing: (@Composable () -> Unit)? = null,
 ) {
     SwipeToQueueBox(
@@ -352,11 +193,6 @@ fun SongRow(
     }
 }
 
-/**
- * Wraps content with a swipe gesture revealing [QueueSwipeBackground] that
- * triggers [onSwipeToQueue] when swiped past 45% of width and snaps back.
- * If [onSwipeToQueue] is null, renders [content] directly.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipeToQueueBox(
@@ -379,22 +215,17 @@ fun SwipeToQueueBox(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled && currentOnSwipeToQueue != null) {
                 val offset = try { swipeStateHolder.value?.requireOffset() ?: 0f } catch (e: Exception) { 0f }
-                // Only queue if the physical drag reached half the box width, ignoring short accidental flings.
                 if (abs(offset) >= boxWidth * 0.45f) {
                     haptics.play(Haptic.Select)
                     currentOnSwipeToQueue?.invoke()
                 }
             }
-            false // never actually dismiss; snap back
+            false
         },
         positionalThreshold = { distance -> distance * 0.5f },
     )
     swipeStateHolder.value = swipeState
 
-    // The row reveals "Queue" from the first pixel of the drag, but it only
-    // *commits* past 45% of the width — so without this the label is a promise
-    // the finger can't check. One light tick at the crossing is the whole point:
-    // let go now and it queues.
     LaunchedEffect(swipeState, boxWidth) {
         if (boxWidth <= 0f) return@LaunchedEffect
         val armAt = boxWidth * 0.45f
@@ -407,9 +238,6 @@ fun SwipeToQueueBox(
                         armed = true
                         haptics.play(Haptic.Tick)
                     }
-                    // Silent, and with hysteresis: dragging back under the line
-                    // re-arms, but so does the spring-back after a successful
-                    // queue, and that must not buzz the same gesture twice.
                     armed && travelled < armAt * 0.8f -> armed = false
                 }
             }
@@ -498,8 +326,6 @@ private fun SongRowContent(
         targetValue = if ((isCurrent && !searchPlayingStyle) || selected) activeTint.copy(alpha = 0.14f) else Color.Transparent,
         label = "song row background",
     )
-    // A Spotify track still being matched to a YouTube Music song, or one that
-    // has no match: shown, but not something a tap or a menu can act on.
     val matching = song.isMatchPending
     val unavailable = song.isMatchMissing
     Row(
@@ -517,9 +343,6 @@ private fun SongRowContent(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (trackNumber != null) {
-            // Centred between the screen edge and the title (see
-            // [TRACK_NUMBER_WIDTH]). Same height as the artwork, so rows stay
-            // level.
             Box(
                 Modifier.width(TRACK_NUMBER_WIDTH).height(52.dp),
                 contentAlignment = Alignment.Center,
@@ -559,9 +382,6 @@ private fun SongRowContent(
                 }
             }
         }
-        // A number is followed by the page gutter again, so the gap from the
-        // screen edge to the number and from the number to the title match,
-        // whatever its digit count.
         Spacer(Modifier.width(if (trackNumber == null) 14.dp else PAGE_GUTTER))
         Column(Modifier.weight(1f)) {
             ExplicitSongTitle(
@@ -634,19 +454,12 @@ private fun SongRowContent(
             Spacer(Modifier.width(4.dp))
             trailing()
         }
-        // Same sheet the long-press opens, for anyone who doesn't think to hold.
         if (onMore != null && !matching && !unavailable) {
             RowMoreButton(onClick = onMore, tint = subtitleColor)
         }
     }
 }
 
-/**
- * The ⋮ at the end of a row. Its circle is a touch target nobody sees, so it
- * hangs [ROW_MORE_OUTSET] into the page gutter: the dots end at the row's
- * content edge, mirroring the artwork on the left, rather than a whole
- * button's width short of it — and the row's text gets that width back.
- */
 @Composable
 fun RowMoreButton(
     onClick: () -> Unit,
@@ -673,14 +486,8 @@ fun RowMoreButton(
     }
 }
 
-/** How far a row's [RowMoreButton] reaches past the content edge into the gutter. */
 val ROW_MORE_OUTSET = 14.dp
 
-/**
- * Lays a trailing control out [outset] narrower than it draws, so it overhangs
- * its row's end edge by that much: for buttons whose glyph is far smaller than
- * their touch target, which would otherwise sit visibly inset from the edge.
- */
 fun Modifier.hangIntoGutter(outset: Dp): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints)
     val width = (placeable.width - outset.roundToPx()).coerceAtLeast(0)
@@ -688,36 +495,12 @@ fun Modifier.hangIntoGutter(outset: Dp): Modifier = layout { measurable, constra
 }
 
 
-/**
- * The gap a decorative loop leaves after each of its frames before asking for
- * the next: 25ms lands the next frame on the vsync a thirtieth of a second on,
- * at 60, 90 and 120Hz alike.
- *
- * Every frame of anything inside the page is a frame of the whole page — the
- * glass bars sample it live, so they record it again and re-run their blur —
- * and asked for on every vsync, a 14dp glyph alone kept a 120Hz phone
- * redrawing the screen without pause until it ran hot and throttled. Nothing
- * that only decorates needs more than thirty.
- */
 const val MOTION_FRAME_GAP_MS = 25L
 
-/**
- * Whether the playing bars may move. Off while the row they sit in isn't
- * really being looked at — Now Playing pulled up over the page, the app in
- * the background, or the page on its way out — when they would go on
- * redrawing a page nobody can see. They hold where they are and carry on
- * from there when the page is back.
- */
 val LocalPlayingBarsMotion = compositionLocalOf { true }
 
-/** Each bar's lowest point; all three peak at full height. */
 private val PLAYING_BAR_MINIMUMS = floatArrayOf(0.38f, 0.78f, 0.52f)
 
-/**
- * Bar [index]'s height at [ms]: up from [minimum] to full and back down over
- * its own period, then the same again in reverse, so the three drift in and
- * out of step rather than marching.
- */
 private fun playingBarHeight(index: Int, minimum: Float, ms: Long): Float {
     val duration = 520 + index * 130
     val peak = 260 + index * 50
@@ -732,9 +515,6 @@ private fun playingBarHeight(index: Int, minimum: Float, ms: Long): Float {
 
 @Composable
 fun SearchPlayingBars(modifier: Modifier = Modifier) {
-    // Time in motion rather than an animation per bar: read only in the draw
-    // below, so a frame of it redraws this canvas and never recomposes or
-    // re-lays out the row it sits in.
     val elapsedNanos = remember { mutableLongStateOf(0L) }
     val running = LocalPlayingBarsMotion.current
     LaunchedEffect(running) {
@@ -748,7 +528,6 @@ fun SearchPlayingBars(modifier: Modifier = Modifier) {
             delay(MOTION_FRAME_GAP_MS)
         }
     }
-    // The plate is a fixed square so only the bars move, never the box around them.
     Box(
         modifier = modifier
             .size(24.dp)
@@ -774,19 +553,6 @@ fun SearchPlayingBars(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * The mark on a row whose track is already on disk.
- *
- * Sized under the row's "more" glyph on purpose: this is a statement about the
- * track, not something to press, and a status mark that matches an affordance
- * in weight invites a tap that does nothing.
- *
- * Reads the downloads the app keeps in memory ([AppUiHost.downloadedIds]) rather than touching the filesystem — a list cannot
- * afford a file check per row, and the map is kept honest by the disk check
- * every real read of a download goes through. The cost of that trade is a row
- * that can claim a file a file manager has since deleted, until something asks
- * for it and the record is pruned.
- */
 @Composable
 fun DownloadedBadge(videoId: String, tint: Color, modifier: Modifier = Modifier) {
     if (videoId !in AppUi.host.downloadedIds()) return
@@ -799,15 +565,6 @@ fun DownloadedBadge(videoId: String, tint: Color, modifier: Modifier = Modifier)
     )
 }
 
-/**
- * Pull-to-refresh for the tab feeds, with the usual circular puck suppressed.
- *
- * The feeds sit under a frosted bar that already occupies the top 96dp, so a
- * puck drawn here would be blurred out by the glass it lands behind. The bar
- * draws its own puck instead, sliding out from under its bottom edge — which
- * is why [state] is hoisted: the bar lives beside this content, not inside it,
- * and has to follow the same drag.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PullToRefresh(
@@ -832,23 +589,10 @@ fun PullToRefresh(
     }
 }
 
-/**
- * The prompt atop Home while signed out: a card in the welcome pages' living
- * mesh, so the one thing Home asks of a signed-out listener looks like an
- * invitation from the app rather than a settings row that wandered in.
- *
- * Drawn white-on-colour in either theme, like Replay and the welcome — the
- * mesh is the card, and white type is what sits on colour.
- */
 @Composable
 fun SignInBanner(
     onSignIn: () -> Unit,
     modifier: Modifier = Modifier,
-    /**
-     * Whether the mesh may move. Off, it finishes the fade it is in and rests:
-     * a blurred layer re-drawn every frame is not something to leave running
-     * under a scroll, or under the player where nobody sees it.
-     */
     motion: Boolean = true,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -865,8 +609,6 @@ fun SignInBanner(
             .clip(RoundedCornerShape(22.dp))
             .clickable(interactionSource = interaction, indication = null, onClick = onSignIn),
     ) {
-        // A card is a few hundred dp the reader is looking straight at, which
-        // is the case the mesh lets keep moving — see its `continuous` note.
         MeshGradientBackground(
             palette = cyclingMeshPalette(WelcomeMeshPalettes, running = motion),
             modifier = Modifier.matchParentSize(),
@@ -935,17 +677,6 @@ fun MessageState(
     }
 }
 
-/**
- * The narrow, pill-shaped text field this app uses instead of Material's
- * `OutlinedTextField` — the same box the alerts and the search bar are built
- * from.
- *
- * Flat `surfaceVariant`, an 11dp radius, no outline and no floating label. A
- * stock `OutlinedTextField` dropped onto one of these pages reads as a widget
- * borrowed from another app: it is the only thing on the screen wearing a
- * border, and its label reserves a band of empty space above every row it sits
- * in whether or not there is a label to put there.
- */
 @Composable
 fun PillTextField(
     value: String,
@@ -954,15 +685,6 @@ fun PillTextField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isPassword: Boolean = false,
-    /**
-     * What the box is filled with.
-     *
-     * The default is the fill the alerts want, since their frosted card is
-     * `surface` and this sits on top of it. A field dropped into a settings
-     * card has to be told otherwise: those cards are *already* `surfaceVariant`
-     * (see `SettingsGroup`), and a field the colour of the card it is in is a
-     * field nobody can see.
-     */
     container: Color = MaterialTheme.colorScheme.surfaceVariant,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,

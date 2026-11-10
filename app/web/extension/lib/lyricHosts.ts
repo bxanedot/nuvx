@@ -1,14 +1,3 @@
-/**
- * Lyric providers the page can't reach itself (prompt §10.1): hosts that send
- * no CORS headers (KuGou, Musixmatch, Genius, Apple's catalogue search), and
- * a fallback for the ones that only allow some origins (BetterLyrics allows
- * localhost but not an arbitrary production domain).
- *
- * Each host is an optional permission, granted once by the user on the
- * extension's own page (grant.html): Chrome only shows a permission prompt
- * in answer to a click inside the extension. A request to a host not on this
- * list, or not granted, is refused.
- */
 export const LYRIC_ORIGINS = [
   'https://lrc.red',
   'https://lyrics-api.binimum.org',

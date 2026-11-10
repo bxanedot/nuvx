@@ -1,6 +1,3 @@
-//! Reusable, hand-painted widgets. Everything custom-painted gets an accessible name
-//! (`named`), so screen readers and UI Automation can see and invoke it.
-
 use egui::{Align2, Color32, CornerRadius, Pos2, Rect, Response, Sense, Ui, Vec2, pos2, vec2};
 
 use super::Action;
@@ -12,8 +9,6 @@ pub fn named(resp: Response, name: &str) -> Response {
     resp
 }
 
-/// Single-line text truncated with an ellipsis to `width`. Right-to-left text is put in
-/// display order (`bidi`), and cut at its end (the left) when it doesn't fit.
 pub fn galley(ui: &Ui, text: &str, font: egui::FontId, color: Color32, width: f32) -> std::sync::Arc<egui::Galley> {
     let width = width.max(10.0);
     let mut job = if !crate::bidi::has_rtl(text) {
@@ -27,8 +22,6 @@ pub fn galley(ui: &Ui, text: &str, font: egui::FontId, color: Color32, width: f3
     ui.fonts_mut(|f| f.layout_job(job))
 }
 
-/// Right-to-left `text`, shortened at its logical end with "…" until it fits `width`
-/// (egui would cut the right side, the start of the line).
 fn rtl_fit(ui: &Ui, text: &str, font: &egui::FontId, width: f32) -> String {
     let fits = |s: &str| ui.fonts_mut(|f| f.layout_job(crate::bidi::job(s, font.clone(), Color32::WHITE)).size().x) <= width;
     if fits(text) {
@@ -36,7 +29,6 @@ fn rtl_fit(ui: &Ui, text: &str, font: &egui::FontId, width: f32) -> String {
     }
     let chars: Vec<(usize, char)> = text.char_indices().collect();
     let cut = |n: usize| format!("{}…", text[..chars.get(n).map_or(text.len(), |c| c.0)].trim_end());
-    // The most characters that fit with the ellipsis.
     let (mut lo, mut hi) = (0, chars.len());
     while lo < hi {
         let mid = (lo + hi).div_ceil(2);
@@ -45,7 +37,6 @@ fn rtl_fit(ui: &Ui, text: &str, font: &egui::FontId, width: f32) -> String {
     cut(lo)
 }
 
-/// Wrapped text, at most `rows` lines.
 pub fn galley_wrapped(
     ui: &Ui,
     text: &str,
@@ -62,8 +53,6 @@ pub fn galley_wrapped(
     if !crate::bidi::has_rtl(text) {
         return g;
     }
-    // Wrapped in reading order, then each row put in display order on its own (ordering
-    // the whole text first would start the first row with the end of the sentence).
     let mut rows_text = Vec::with_capacity(g.rows.len());
     let mut chars = text.chars();
     for (i, row) in g.rows.iter().enumerate() {
@@ -88,8 +77,6 @@ pub fn text_at(ui: &Ui, pos: Pos2, text: &str, font: egui::FontId, color: Color3
     rect
 }
 
-/// Single-line text whose artist names are links: underlined on hover, and a click
-/// opens the artist's page. Names without a channel id stay plain text.
 #[allow(clippy::too_many_arguments)]
 pub fn linked_text(
     ui: &Ui,
@@ -103,8 +90,6 @@ pub fn linked_text(
 ) -> Rect {
     let g = galley(ui, text, font, color, width);
     let rect = Rect::from_min_size(pos, g.size());
-    // Names are found in the text as shown: right-to-left text is reordered, its names
-    // with it, and they no longer come in reading order.
     let shown = g.job.text.clone();
     let rtl = crate::bidi::has_rtl(text);
     let mut search_from = 0;
@@ -121,7 +106,7 @@ pub fn linked_text(
         let x0 = g.pos_from_cursor(egui::text::CCursor::new(c0)).min.x;
         let x1 = g.pos_from_cursor(egui::text::CCursor::new(c1)).min.x;
         if x1 - x0 < 2.0 {
-            continue; // truncated away
+            continue;
         }
         let r = Rect::from_min_max(pos2(pos.x + x0, rect.top()), pos2(pos.x + x1, rect.bottom()));
         let resp = ui.interact(r, ui.scope_id().with(("artist-link", text, i, pos.x as i32, pos.y as i32)), Sense::click());
@@ -138,20 +123,14 @@ pub fn linked_text(
 }
 
 pub fn icon_at(ui: &Ui, center: Pos2, glyph: char, size: f32, color: Color32) {
-    // Centred on the drawn shape: egui places these glyphs flush left in their box
-    // (dropping the font's side bearing) and a little high, so box-centring is off.
     let g = ui.painter().layout_no_wrap(glyph.to_string(), theme::icon_font(size), color);
     let ink = g.mesh_bounds;
     let pos = if ink.is_positive() { center - ink.center().to_vec2() } else { center - g.size() / 2.0 };
     ui.painter().galley(pos, g, color);
 }
 
-/// Heart drawn from its parametric curve: an outline, filled by `fill` (0..1). The
-/// icon font only has the outline, and a liked song needs to read at a glance.
 pub fn heart(ui: &Ui, center: Pos2, size: f32, fill: f32, outline: Color32, fill_color: Color32) {
     use std::f32::consts::TAU;
-    // x = 16 sin^3 t, y = 13 cos t - 5 cos 2t - 2 cos 3t - cos 4t spans x ±16, y -17..12;
-    // shift so the box is centred, flip y for screen space.
     static UNIT: std::sync::OnceLock<Vec<Vec2>> = std::sync::OnceLock::new();
     let unit = UNIT.get_or_init(|| {
         (0..64)
@@ -166,7 +145,6 @@ pub fn heart(ui: &Ui, center: Pos2, size: f32, fill: f32, outline: Color32, fill
     let s = size / 34.0;
     let pts: Vec<Pos2> = unit.iter().map(|v| center + *v * s).collect();
     if fill > 0.0 {
-        // The heart is star-shaped around a point just below its middle, so a fan fills it.
         let mut mesh = egui::Mesh::default();
         let c = theme::with_alpha(fill_color, fill * fill_color.a() as f32 / 255.0);
         mesh.colored_vertex(center + vec2(0.0, 1.0 * s), c);
@@ -179,8 +157,6 @@ pub fn heart(ui: &Ui, center: Pos2, size: f32, fill: f32, outline: Color32, fill
         }
         ui.painter().add(egui::Shape::mesh(mesh));
     }
-    // Separate segments with round joins: a closed polyline mitres the tip and the
-    // notch into long spikes.
     let w = 1.7;
     for (i, p) in pts.iter().enumerate() {
         let q = pts[(i + 1) % pts.len()];
@@ -189,7 +165,6 @@ pub fn heart(ui: &Ui, center: Pos2, size: f32, fill: f32, outline: Color32, fill
     }
 }
 
-/// Circular icon button with an animated hover halo.
 pub fn icon_button(ui: &mut Ui, glyph: char, size: f32, name: &str, active: bool) -> Response {
     let d = size + 16.0;
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(d), Sense::click());
@@ -204,9 +179,7 @@ pub fn icon_button(ui: &mut Ui, glyph: char, size: f32, name: &str, active: bool
     resp
 }
 
-/// Rounded pill button. `primary` = white with dark text (YouTube Music's Play button).
 pub fn pill(ui: &mut Ui, label: &str, glyph: Option<char>, primary: bool) -> Response {
-    // Laid out once; the colour is given when it's painted.
     let text = ui.painter().layout_no_wrap(label.to_owned(), theme::semibold(14.0), Color32::PLACEHOLDER);
     let icon_w = if glyph.is_some() { 24.0 } else { 0.0 };
     let (rect, resp) = ui.allocate_exact_size(vec2(text.size().x + icon_w + 36.0, 38.0), Sense::click());
@@ -228,7 +201,6 @@ pub fn pill(ui: &mut Ui, label: &str, glyph: Option<char>, primary: bool) -> Res
     resp
 }
 
-/// Selectable chip (home moods, library tabs).
 pub fn chip(ui: &mut Ui, label: &str, selected: bool) -> Response {
     let text = ui.painter().layout_no_wrap(label.to_owned(), theme::semibold(13.5), Color32::PLACEHOLDER);
     let (rect, resp) = ui.allocate_exact_size(vec2(text.size().x + 28.0, 34.0), Sense::click());
@@ -256,18 +228,11 @@ pub fn chip(ui: &mut Ui, label: &str, selected: bool) -> Response {
     resp
 }
 
-/// The size to fetch an image at for `px` pixels: rounded up to a few fixed steps, so
-/// resizing the window doesn't fetch a new size every frame and small covers (rows,
-/// sidebar, player bar) share one download.
 fn fetch_px(px: u32) -> u32 {
     const STEPS: [u32; 9] = [60, 120, 180, 240, 360, 544, 720, 960, 1200];
     STEPS.into_iter().find(|&s| s >= px).unwrap_or(1200)
 }
 
-/// The cover URL to paint at `px`: that size once it has loaded, else the size shown
-/// last for the same cover. A cover that changes size (going full screen, resizing the
-/// window) keeps showing instead of blanking until the new size arrives, or for good
-/// if that download fails.
 fn steady_url(ctx: &egui::Context, base: &str, px: u32) -> String {
     let want = sized(base, px);
     let id = egui::Id::unique(("cover-shown", base));
@@ -282,22 +247,16 @@ fn steady_url(ctx: &egui::Context, base: &str, px: u32) -> String {
     }
 }
 
-/// Paint a cover image (square-cropped, CDN-resized) with a placeholder underneath.
 pub fn paint_cover(ui: &Ui, rect: Rect, thumbs: &[Thumb], radius: f32, zoom: f32) {
     let px = (rect.width() * ui.ctx().pixels_per_point()) as u32;
     paint_cover_px(ui, rect, thumbs, radius, zoom, px);
 }
 
-/// A [`paint_cover`] that dissolves from the sleeve this slot showed last when the
-/// track changes, the way the reference hands the artwork over. `site` is a stable id
-/// per sleeve.
 pub fn paint_cover_xfade(ui: &Ui, site: egui::Id, rect: Rect, thumbs: &[Thumb], radius: f32, zoom: f32) {
     let px = (rect.width() * ui.ctx().pixels_per_point()) as u32;
     paint_cover_xfade_px(ui, site, rect, thumbs, radius, zoom, px);
 }
 
-/// [`paint_cover_xfade`] fetching the image at `px` rather than the drawn size (see
-/// [`paint_cover_px`]).
 pub fn paint_cover_xfade_px(ui: &Ui, site: egui::Id, rect: Rect, thumbs: &[Thumb], radius: f32, zoom: f32, px: u32) {
     if !ui.is_rect_visible(rect) {
         return;
@@ -318,9 +277,6 @@ pub fn paint_cover_xfade_px(ui: &Ui, site: egui::Id, rect: Rect, thumbs: &[Thumb
     cover_xfade(ui, site, rect, radius, &url, uv, Color32::WHITE);
 }
 
-/// [`paint_cover`] fetching the image at `px` rather than the drawn size. A cover that
-/// animates in size must ask for one fixed size: every new size is a new download,
-/// blank until it arrives.
 pub fn paint_cover_px(ui: &Ui, rect: Rect, thumbs: &[Thumb], radius: f32, zoom: f32, px: u32) {
     if !ui.is_rect_visible(rect) {
         return;
@@ -333,7 +289,6 @@ pub fn paint_cover_px(ui: &Ui, rect: Rect, thumbs: &[Thumb], radius: f32, zoom: 
     };
     let mut uv = t.square_uv();
     if zoom > 1.0 {
-        // Zoom by cropping the UV rect: stays inside the rounded corners.
         let c = uv.center();
         let half = uv.size() / (2.0 * zoom);
         uv = Rect::from_center_size(c, half * 2.0);
@@ -342,20 +297,17 @@ pub fn paint_cover_px(ui: &Ui, rect: Rect, thumbs: &[Thumb], radius: f32, zoom: 
     paint_remote(ui, &url, rect, radius, uv, Color32::WHITE);
 }
 
-/// Paint the cover cropped to fill `rect` (any aspect), tinted, for full-bleed backdrops.
 pub fn paint_cover_fill(ui: &Ui, rect: Rect, thumbs: &[Thumb], tint: Color32) {
     let ppp = ui.ctx().pixels_per_point();
     let px = fetch_px((rect.width().max(rect.height()) * ppp) as u32).clamp(200, 1200);
     let Some(t) = pick_thumb(thumbs, px) else { return };
     let uv = t.square_uv();
-    // Crop the square to the rect's aspect ratio, keeping the centre.
     let aspect = rect.width() / rect.height().max(1.0);
     let size = if aspect >= 1.0 { vec2(uv.width(), uv.height() / aspect) } else { vec2(uv.width() * aspect, uv.height()) };
     let url = steady_url(ui.ctx(), &t.url, px);
     paint_remote(ui, &url, rect, 0.0, Rect::from_center_size(uv.center(), size), tint);
 }
 
-/// Start loading a cover at `px` without drawing it, so it's ready when it appears.
 pub fn preload_cover(ctx: &egui::Context, thumbs: &[Thumb], px: u32) {
     let px = fetch_px(px);
     if let Some(t) = pick_thumb(thumbs, px.min(544)) {
@@ -363,9 +315,6 @@ pub fn preload_cover(ctx: &egui::Context, thumbs: &[Thumb], px: u32) {
     }
 }
 
-/// The cover as a disc rotated by `angle` (radians): a textured triangle fan, since
-/// egui's image rotation doesn't round corners. Fetched at `px` (see [`paint_cover_px`]).
-/// Dissolves between tracks like [`paint_cover_xfade`].
 #[allow(clippy::too_many_arguments)]
 pub fn paint_disc(ui: &Ui, site: egui::Id, center: Pos2, r: f32, thumbs: &[Thumb], angle: f32, tint: Color32, px: u32) {
     ui.painter().circle_filled(center, r, theme::glass(0.07));
@@ -379,7 +328,6 @@ pub fn paint_disc(ui: &Ui, site: egui::Id, center: Pos2, r: f32, thumbs: &[Thumb
     });
 }
 
-/// One disc, if its texture is ready; false while it downloads (the loader wakes the UI).
 fn disc_at(ui: &Ui, center: Pos2, r: f32, url: &str, uv: Rect, angle: f32, tint: Color32) -> bool {
     let Ok(egui::load::TexturePoll::Ready { texture }) = egui::Image::new(url).load_for_size(ui.ctx(), Vec2::splat(r * 2.0)) else { return false };
     let (uc, uh) = (uv.center(), uv.width() / 2.0);
@@ -400,25 +348,17 @@ fn disc_at(ui: &Ui, center: Pos2, r: f32, url: &str, uv: Rect, angle: f32, tint:
     true
 }
 
-/// Seconds a new sleeve takes to dissolve over the last one.
 const COVER_XFADE: f64 = 0.45;
 
-/// What a sleeve slot last painted: the image on screen, the one dissolving in over it,
-/// and the timestamps that drive the dissolve.
 #[derive(Clone)]
 struct Shown {
     url: String,
     uv: Rect,
     to: Option<String>,
-    /// When the change was first seen, to give up on a cover that never downloads.
     swap_at: f64,
-    /// When the dissolve started; None while the incoming image downloads.
     fade_from: Option<f64>,
 }
 
-/// Paint `url` into this slot, dissolving from the cover `site` showed last when it
-/// changes. The last cover stays up until the new one has downloaded, so a track
-/// change never blinks through the placeholder.
 fn dissolve(ui: &Ui, site: egui::Id, url: &str, uv: Rect, ready: bool, paint: &mut dyn FnMut(&str, Rect, f32)) {
     let ctx = ui.ctx();
     let now = ctx.input(|i| i.time);
@@ -429,7 +369,6 @@ fn dissolve(ui: &Ui, site: egui::Id, url: &str, uv: Rect, ready: bool, paint: &m
         return;
     };
     if s.url == url {
-        // Back to what's on screen (or never left): drop any dissolve in flight.
         paint(url, uv, 1.0);
         if s.to.is_some() {
             ctx.data_mut(|d| d.insert_temp(key, Shown { url: url.to_owned(), uv, to: None, swap_at: now, fade_from: None }));
@@ -437,7 +376,6 @@ fn dissolve(ui: &Ui, site: egui::Id, url: &str, uv: Rect, ready: bool, paint: &m
         return;
     }
     if s.to.as_deref() != Some(url) {
-        // A new cover arrived (possibly mid-dissolve): dissolve from what is on screen.
         s.to = Some(url.to_owned());
         s.swap_at = now;
         s.fade_from = None;
@@ -449,7 +387,6 @@ fn dissolve(ui: &Ui, site: egui::Id, url: &str, uv: Rect, ready: bool, paint: &m
             ctx.request_repaint();
             return;
         }
-        // A cover that never arrives: its placeholder beats freezing the old one.
         paint(url, uv, 1.0);
         ctx.data_mut(|d| d.insert_temp(key, Shown { url: url.to_owned(), uv, to: None, swap_at: now, fade_from: None }));
         return;
@@ -467,13 +404,11 @@ fn dissolve(ui: &Ui, site: egui::Id, url: &str, uv: Rect, ready: bool, paint: &m
     ctx.data_mut(|d| d.insert_temp(key, s));
 }
 
-/// [`paint_remote`] for a sleeve that dissolves between tracks instead of swapping.
 fn cover_xfade(ui: &Ui, site: egui::Id, rect: Rect, radius: f32, url: &str, uv: Rect, tint: Color32) {
     let ready = matches!(egui::Image::new(url).load_for_size(ui.ctx(), rect.size()), Ok(egui::load::TexturePoll::Ready { .. }));
     dissolve(ui, site, url, uv, ready, &mut |u, uv, a| paint_remote(ui, u, rect, radius, uv, tint.gamma_multiply(a)));
 }
 
-/// Album/playlist/artist/song card with hover zoom, scrim and a play button.
 pub fn card(ui: &mut Ui, c: &Card, width: f32, liked: bool, acts: &mut Vec<Action>) {
     let height = width + 58.0;
     let (rect, resp) = ui.allocate_exact_size(vec2(width, height), Sense::click());
@@ -481,8 +416,6 @@ pub fn card(ui: &mut Ui, c: &Card, width: f32, liked: bool, acts: &mut Vec<Actio
         return;
     }
     let resp = named(resp, &c.title).on_hover_cursor(egui::CursorIcon::PointingHand);
-    // contains_pointer, not hovered: the play button on top takes the hover, and the
-    // card must stay "hovered" while the pointer is on it or the button would vanish.
     let h = theme::anim_bool(ui.ctx(), resp.id.with("h"), resp.contains_pointer(), 0.22);
     let img = Rect::from_min_size(rect.min, Vec2::splat(width));
     let radius = if c.round { width / 2.0 } else { theme::card_radius().min(width / 2.0) };
@@ -490,8 +423,6 @@ pub fn card(ui: &mut Ui, c: &Card, width: f32, liked: bool, acts: &mut Vec<Actio
     if h > 0.0 && !c.round {
         ui.painter().rect_filled(img, radius, theme::shade(0.28 * h));
     }
-    // Play button rises into the corner on hover; on the playing item it stays up
-    // and shows pause.
     let active = active_state(ui, &c.target);
     let h = if active.is_some() { 1.0 } else { h };
     let mut play_hit = false;
@@ -512,11 +443,9 @@ pub fn card(ui: &mut Ui, c: &Card, width: f32, liked: bool, acts: &mut Vec<Actio
     ui.painter().galley(pos2(rect.left(), img.bottom() + 10.0), title, tcolor);
     let sub_y = img.bottom() + 14.0 + title_h;
     linked_text(ui, pos2(rect.left(), sub_y), &c.subtitle, &c.links, theme::regular(13.0), theme::text_dim(), width - 36.0, acts);
-    // On the subtitle line, whose width leaves room for it, so a two-line title never sits under it.
     let more_rect = Rect::from_center_size(pos2(rect.right() - 16.0, sub_y + 8.0), Vec2::splat(30.0));
     let more = more_button(ui, more_rect, resp.id.with("more"), "Options");
     egui::Popup::menu(&more).show(|ui| card_menu_contents(ui, c, liked, acts));
-    // Right-click anywhere on the tile opens the same menu.
     egui::Popup::context_menu(&resp).show(|ui| card_menu_contents(ui, c, liked, acts));
 
     if play_hit {
@@ -587,7 +516,6 @@ pub fn menu_action(ui: &mut Ui, glyph: Option<char>, label: &str) -> bool {
     })
 }
 
-/// A menu row for one of several choices, ticked when it's the one in use.
 pub fn menu_choice(ui: &mut Ui, picked: bool, label: &str) -> bool {
     menu_row(ui, label, |ui, at, color| {
         if picked {
@@ -596,17 +524,14 @@ pub fn menu_choice(ui: &mut Ui, picked: bool, label: &str) -> bool {
     })
 }
 
-/// A menu row marked with one of the app's own glyphs.
 pub fn menu_glyph_action(ui: &mut Ui, glyph: super::glyphs::Glyph, label: &str) -> bool {
     menu_row(ui, label, |ui, at, color| super::glyphs::draw(ui, at, 16.0, glyph, color))
 }
 
-/// A menu row marked with the app's own star, filled once the song is liked.
 fn menu_action_star(ui: &mut Ui, liked: bool, label: &str) -> bool {
     menu_glyph_action(ui, if liked { super::glyphs::STAR_FILLED } else { super::glyphs::STAR }, label)
 }
 
-/// `remove`: the song's row in the open playlist, when it's yours and the song can come out.
 pub fn song_menu(ui: &mut Ui, t: &Track, liked: bool, remove: Option<usize>, acts: &mut Vec<Action>) {
     ui.set_width(226.0);
     ui.add_space(3.0);
@@ -627,7 +552,6 @@ pub fn song_menu(ui: &mut Ui, t: &Track, liked: bool, remove: Option<usize>, act
     ui.add_space(3.0);
 }
 
-/// The song menu's items, for menus that add their own (now playing's options).
 pub fn song_actions(ui: &mut Ui, t: &Track, liked: bool, remove: Option<usize>, acts: &mut Vec<Action>) {
     if menu_action_star(ui, liked, if liked { "Remove like" } else { "Like song" }) {
         acts.push(Action::Like(t.clone(), !liked));
@@ -658,14 +582,11 @@ pub fn song_actions(ui: &mut Ui, t: &Track, liked: bool, remove: Option<usize>, 
     }
 }
 
-/// Soft drop shadow under a rounded rect (e.g. artwork).
 pub fn soft_shadow(ui: &Ui, rect: Rect, radius: f32, blur: f32, alpha: f32) {
     let s = egui::epaint::Shadow { offset: [0, (blur * 0.35) as i8], blur: blur as u8, spread: 0, color: theme::shade(alpha) };
     ui.painter().add(s.as_shape(rect, CornerRadius::same(radius as u8)));
 }
 
-/// What's playing, published by the app each frame so cards can show a pause button
-/// on the item that's playing.
 #[derive(Clone, Default)]
 pub struct NowPlaying {
     pub song: Option<String>,
@@ -679,8 +600,6 @@ impl NowPlaying {
     }
 }
 
-/// `Some(playing)` when `target` is what's loaded: the current song, or the album /
-/// playlist / artist the queue came from.
 pub fn active_state(ui: &Ui, target: &Target) -> Option<bool> {
     let np = ui.ctx().data(|d| d.get_temp::<NowPlaying>(NowPlaying::id()))?;
     let hit = match target {
@@ -690,7 +609,6 @@ pub fn active_state(ui: &Ui, target: &Target) -> Option<bool> {
     hit.then_some(np.playing)
 }
 
-/// Round button glyph: pause bars while `active` is playing, otherwise a play triangle.
 pub fn play_pause_glyph(ui: &Ui, center: Pos2, r: f32, color: Color32, playing: bool) {
     if playing {
         for dx in [-0.45, 0.45] {
@@ -711,11 +629,6 @@ pub fn play_triangle(ui: &Ui, center: Pos2, r: f32, color: Color32) {
     ui.painter().add(egui::Shape::convex_polygon(pts, color, egui::Stroke::NONE));
 }
 
-// ------------------------------------------------------------------ playing bars
-
-/// The playing row's bars: three rounded bars rising and falling at their own slow
-/// pace, settling low when paused. They tell the frame pacing they're on screen, so
-/// they move at a steady rate instead of the page's slower one.
 pub fn equalizer(ui: &Ui, rect: Rect, time: f64, playing: bool, color: Color32) {
     let ctx = ui.ctx();
     let on = theme::anim_bool(ctx, ui.scope_id().with("eq"), playing, 0.35);
@@ -730,14 +643,11 @@ pub fn equalizer(ui: &Ui, rect: Rect, time: f64, playing: bool, color: Color32) 
     let total = bar_w * 3.0 + gap * 2.0;
     let left = snap(rect.center().x - total / 2.0);
     let t = time as f32;
-    // Two slow waves per bar, so the motion doesn't visibly repeat.
     const WAVES: [(f32, f32, f32); 3] = [(4.1, 2.3, 0.0), (3.3, 5.2, 1.9), (4.7, 2.9, 3.7)];
     for (i, (a, b, off)) in WAVES.into_iter().enumerate() {
         let wave = 0.5 + 0.3 * (t * a + off).sin() + 0.2 * (t * b + off * 1.7).sin();
         let rest = [0.35, 0.6, 0.45][i];
         let amp = rest + (0.3 + 0.7 * wave.clamp(0.0, 1.0) - rest) * on;
-        // The height stays fractional (and the rect unrounded): whole-pixel steps
-        // read as stutter on bars this small.
         let h = (rect.height() * amp).max(bar_w);
         let x = left + i as f32 * (bar_w + gap);
         let bar = Rect::from_min_max(pos2(x, snap(rect.bottom()) - h), pos2(x + bar_w, snap(rect.bottom())));
@@ -745,12 +655,10 @@ pub fn equalizer(ui: &Ui, rect: Rect, time: f64, playing: bool, color: Color32) 
     }
 }
 
-/// Last frame the playing bars were drawn on (frame pacing reads it).
 pub fn equalizer_id() -> egui::Id {
     egui::Id::unique("equalizer_frame")
 }
 
-/// Whether the playing bars were on screen last frame.
 pub fn equalizer_shown(ctx: &egui::Context) -> bool {
     let now = ctx.cumulative_frame_nr();
     ctx.data(|d| d.get_temp::<u64>(equalizer_id())).is_some_and(|f| f + 1 >= now)
@@ -764,21 +672,14 @@ pub struct RowOpts {
     pub accent: Color32,
     pub time: f64,
     pub liked: bool,
-    /// In a jam: who added the song.
     pub added_by: Option<String>,
-    /// Choosing a match for the Spotify transfer: a click picks the song and its cover plays it.
     pub pick: bool,
-    /// Selecting songs: a checkbox leads the row; `Some(true)` when this one is picked.
     pub selected: Option<bool>,
-    /// The row's index in your own open playlist, so its menu can take it out.
     pub remove: Option<usize>,
 }
 
 const ROW_H: f32 = 56.0;
 
-/// A long list of song rows: only the ones on screen are built; the rest is empty space
-/// of the same height. `row(ui, i)` draws row `i`, under an id of its own so its hover
-/// and menu state don't jump to another song as the list scrolls.
 pub fn visible_rows(ui: &mut Ui, n: usize, mut row: impl FnMut(&mut Ui, usize)) {
     let h = ROW_H + ui.spacing().item_spacing.y;
     let top = ui.cursor().top();
@@ -792,13 +693,11 @@ pub fn visible_rows(ui: &mut Ui, n: usize, mut row: impl FnMut(&mut Ui, usize)) 
     ui.add_space((n - last) as f32 * h);
 }
 
-/// Song row: cover (or index), title, artists, album, duration. Click plays.
 pub fn track_row(ui: &mut Ui, t: &Track, o: &RowOpts, acts: &mut Vec<Action>) -> Response {
     let (rect, base) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_H), Sense::hover());
     if !ui.is_rect_visible(rect) {
         return base;
     }
-    // Picking: the cover (left 54 px) plays, the rest of the row picks.
     let hit_left = if o.pick && o.number.is_none() { rect.left() + 54.0 } else { rect.left() };
     let hit_rect = Rect::from_min_max(pos2(hit_left, rect.top()), pos2(rect.right() - 42.0, rect.bottom()));
     let resp = named(ui.interact(hit_rect, base.id.with("play"), Sense::click()), &t.title).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -807,7 +706,6 @@ pub fn track_row(ui: &mut Ui, t: &Track, o: &RowOpts, acts: &mut Vec<Action>) ->
         let a = if o.current { 0.07 + 0.05 * h } else { 0.07 * h };
         ui.painter().rect_filled(rect, 8.0, theme::glass(a));
     }
-    // While selecting, the cover only shows the song (clicks pick) and picked rows are tinted.
     let h = if o.selected.is_some() { 0.0 } else { h };
     if o.selected == Some(true) {
         ui.painter().rect_filled(rect, 8.0, theme::with_alpha(o.accent, 0.14));
@@ -857,8 +755,6 @@ pub fn track_row(ui: &mut Ui, t: &Track, o: &RowOpts, acts: &mut Vec<Action>) ->
     let dur_w = 52.0;
     let avail = right - dur_w - x;
     let wide = avail > 520.0;
-    // Album rows (numbered) are just song name and plays; other rows are
-    // title + artists, then album, then plays when there's room.
     let album_row = o.number.is_some();
     let (title_w, plays_x, album_x) = match (wide, o.show_album, t.plays) {
         (true, true, Some(_)) => (avail * 0.45, Some(x + avail * 0.82), Some(x + avail * 0.5)),
@@ -892,7 +788,6 @@ pub fn track_row(ui: &mut Ui, t: &Track, o: &RowOpts, acts: &mut Vec<Action>) ->
         let g = galley(ui, &album.name, theme::regular(13.5), theme::text_dim(), w);
         let ar = Rect::from_min_size(pos2(ax, cy - 9.0), g.size());
         ui.painter().galley(ar.min, g, theme::text_dim());
-        // Album name opens the album, like the artist names.
         if let Some(id) = &album.id {
             let r = named(ui.interact(ar, resp.id.with("album"), Sense::click()), &album.name);
             let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -910,12 +805,10 @@ pub fn track_row(ui: &mut Ui, t: &Track, o: &RowOpts, acts: &mut Vec<Action>) ->
     let more_rect = Rect::from_center_size(pos2(rect.right() - 20.0, cy), Vec2::splat(30.0));
     let more = more_button(ui, more_rect, base.id.with("more"), "Song options");
     egui::Popup::menu(&more).show(|ui| song_menu(ui, t, o.liked, o.remove, acts));
-    // Right-click anywhere on the row opens the same menu.
     egui::Popup::context_menu(&resp).show(|ui| song_menu(ui, t, o.liked, o.remove, acts));
     resp
 }
 
-/// An 18 px tick box centred on `c`, white like a primary pill when ticked.
 fn checkbox(ui: &Ui, c: Pos2, on: bool) {
     let r = Rect::from_center_size(c, Vec2::splat(18.0));
     if on {
@@ -926,8 +819,6 @@ fn checkbox(ui: &Ui, c: Pos2, on: bool) {
     }
 }
 
-/// Section header with optional strapline/avatar and ‹ › scroll arrows.
-/// Returns (scroll left, scroll right) clicks.
 pub fn shelf_header(ui: &mut Ui, title: &str, strap: Option<&str>, strap_thumb: Option<&str>, arrows: bool) -> (bool, bool) {
     let mut res = (false, false);
     ui.add_space(34.0);
@@ -955,7 +846,6 @@ pub fn shelf_header(ui: &mut Ui, title: &str, strap: Option<&str>, strap_thumb: 
     res
 }
 
-/// Aligned starts for complete viewport pages, with a full final page.
 fn shelf_page_starts(count: usize, visible: usize) -> Vec<usize> {
     let visible = visible.max(1);
     let last = count.saturating_sub(visible);
@@ -980,12 +870,9 @@ fn shelf_page_target(starts: &[usize], step: f32, from: f32, nudge: i32) -> f32 
     next as f32 * step
 }
 
-/// Horizontal scroller that animates between aligned pages of cards or song columns.
 pub fn h_scroll<R>(ui: &mut Ui, id: &str, nudge: i32, count: usize, item_width: f32, gap: f32, add: impl FnOnce(&mut Ui) -> R) -> (R, bool) {
     let sid = egui::Id::unique(("hscroll", id));
     let anim_id = sid.with("anim");
-    // ScrollArea hashes its id_salt once more. Read that same ID, or left clicks
-    // always appear to start from zero.
     let state_id = ui.make_persistent_id(egui::IdSalt::new(sid));
     let current = egui::scroll_area::State::load(ui.ctx(), state_id).map_or(0.0, |s| s.clamped_offset().x);
     let target_id = sid.with("target");
@@ -1000,7 +887,6 @@ pub fn h_scroll<R>(ui: &mut Ui, id: &str, nudge: i32, count: usize, item_width: 
     if nudge != 0 {
         let t = shelf_page_target(&starts, step, target.unwrap_or(current), nudge);
         reached_end = nudge > 0 && count > visible && (t - last_start as f32 * step).abs() < 0.5;
-        // Snap the animator to the real position, then glide to the target.
         ui.ctx().animate_value_with_time(anim_id, current, 0.0);
         target = Some(t);
         ui.ctx().data_mut(|d| d.insert_temp(target_id, t));
@@ -1013,7 +899,6 @@ pub fn h_scroll<R>(ui: &mut Ui, id: &str, nudge: i32, count: usize, item_width: 
             ui.ctx().data_mut(|d| d.remove::<f32>(target_id));
         }
     }
-    // Give the last page enough trailing room to land exactly on its first item.
     let content_width = (last_start as f32 * step + viewport).max(count as f32 * step - gap);
     let out = area.show(ui, |ui| ui.horizontal_top(|ui| {
         ui.set_min_width(content_width);
@@ -1023,13 +908,10 @@ pub fn h_scroll<R>(ui: &mut Ui, id: &str, nudge: i32, count: usize, item_width: 
     (out.inner, reached_end)
 }
 
-/// The skeleton's light band sweeping across `r`, for anything still loading.
 pub fn shimmer_band(ui: &Ui, r: Rect, radius: f32, time: f64) {
     shimmer_band_alpha(ui, r, radius, time, 0.04);
 }
 
-/// A light gliding back and forth along the progress line `r` while what plays is
-/// still loading (asks for the frames it needs).
 pub fn loading_glow(ui: &Ui, r: Rect, time: f64, color: Color32) {
     let p = (time * 0.7).rem_euclid(2.0) as f32;
     let t = if p > 1.0 { 2.0 - p } else { p };
@@ -1038,7 +920,6 @@ pub fn loading_glow(ui: &Ui, r: Rect, time: f64, color: Color32) {
     let x = r.left() + (r.width() - len) * t;
     let steps = 12;
     for i in 0..steps {
-        // Brightest in the middle, fading to both ends.
         let f = (i as f32 + 0.5) / steps as f32;
         let a = 1.0 - (f * 2.0 - 1.0).abs();
         let seg = Rect::from_min_max(pos2(x + len * i as f32 / steps as f32, r.top()), pos2(x + len * (i + 1) as f32 / steps as f32, r.bottom()));
@@ -1056,8 +937,6 @@ fn shimmer_band_alpha(ui: &Ui, r: Rect, radius: f32, time: f64, alpha: f32) {
     }
 }
 
-/// Paint a remote image into `rect`: the skeleton's shimmer while it downloads (not
-/// egui's spinner), then a quick fade-in. One already loaded just shows.
 pub fn paint_remote(ui: &Ui, url: &str, rect: Rect, radius: f32, uv: Rect, tint: Color32) {
     const FADE: f64 = 0.22;
     let ctx = ui.ctx();
@@ -1065,7 +944,6 @@ pub fn paint_remote(ui: &Ui, url: &str, rect: Rect, radius: f32, uv: Rect, tint:
     let id = egui::Id::unique(("img-fade", url));
     match egui::Image::new(url).load_for_size(ctx, rect.size()) {
         Ok(egui::load::TexturePoll::Ready { texture }) => {
-            // Fade only what was seen loading; Some(None) = waiting, Some(Some(t)) = fading since t.
             let a = match ctx.data(|d| d.get_temp::<Option<f64>>(id)) {
                 Some(Some(t0)) if now - t0 < FADE => ((now - t0) / FADE) as f32,
                 Some(None) => {
@@ -1084,18 +962,15 @@ pub fn paint_remote(ui: &Ui, url: &str, rect: Rect, radius: f32, uv: Rect, tint:
             shimmer_band(ui, rect, radius, now);
             ctx.request_repaint_after(std::time::Duration::from_millis(66));
         }
-        // A failed image keeps its plain placeholder.
         Err(_) => {}
     }
 }
 
-/// The newest decoded frame of a motion sleeve, uploaded by the player.
 pub struct MotionSprite {
     pub id: egui::TextureId,
     pub size: Vec2,
 }
 
-/// Paint a motion frame into `rect`, centre-cropped like the still sleeve it replaces.
 pub fn paint_motion(ui: &Ui, rect: Rect, radius: f32, s: &MotionSprite) {
     if !ui.is_rect_visible(rect) || rect.width() <= 0.0 || rect.height() <= 0.0 {
         return;
@@ -1112,7 +987,6 @@ pub fn paint_motion(ui: &Ui, rect: Rect, radius: f32, s: &MotionSprite) {
     ui.painter().add(shape);
 }
 
-/// Song rows still on their way, at the end of a list that's coming in.
 pub fn skeleton_rows(ui: &mut Ui, time: f64, rows: usize) {
     for _ in 0..rows {
         let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_H), Sense::hover());
@@ -1132,7 +1006,6 @@ pub fn skeleton_rows(ui: &mut Ui, time: f64, rows: usize) {
     }
 }
 
-/// Shimmering placeholder blocks while a page loads.
 pub fn skeleton(ui: &mut Ui, time: f64, rows: usize, card: f32) {
     let shimmer = |ui: &Ui, r: Rect, radius: f32| {
         ui.painter().rect_filled(r, radius, theme::glass(0.06));
@@ -1153,7 +1026,6 @@ pub fn skeleton(ui: &mut Ui, time: f64, rows: usize, card: f32) {
             }
         });
     }
-    // The shimmer needs frames only while it's on screen, and 15 fps is plenty.
     if ui.is_rect_visible(Rect::from_x_y_ranges(ui.max_rect().x_range(), top..=ui.cursor().top())) {
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(66));
     }
@@ -1180,7 +1052,6 @@ mod shelf_scroll_tests {
         assert_eq!(shelf_page_starts(4, 3), [0, 1]);
         assert_eq!(shelf_page_starts(3, 3), [0]);
         assert_eq!(shelf_page_starts(1, 3), [0]);
-        // The old last page is between new page starts after more picks arrive.
         assert_eq!(shelf_page_target(&shelf_page_starts(11, 3), 436.0, 2.0 * 436.0, 1), 3.0 * 436.0);
     }
 }

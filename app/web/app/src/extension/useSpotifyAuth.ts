@@ -4,12 +4,6 @@ import type { DetectedExtension, SpotifyAuthState } from '@nuvx/shared/bridge';
 import { queryClient } from '@/lib/queryClient';
 import { extensionQueryKey, useExtension } from './useExtension';
 
-/**
- * The browser's Spotify session as the extension reports it (prompt §7.1):
- * a name and a picture, never the cookie or a token. Kept current like the
- * YouTube one: a read on start, the extension's pushes, a re-read on focus.
- */
-
 export const spotifyAuthQueryKey = ['spotify', 'auth'] as const;
 
 const SIGNED_OUT: SpotifyAuthState = { browserSignedIn: false, connected: true, signedIn: false, user: null, problem: null };
@@ -23,7 +17,6 @@ const supported = (extension: DetectedExtension | null) => !!extension?.info.cap
 function adopt(state: SpotifyAuthState): void {
   const before = queryClient.getQueryData<SpotifyAuthState>(spotifyAuthQueryKey);
   queryClient.setQueryData(spotifyAuthQueryKey, state);
-  // Another account, or none: every list read as the old one goes.
   if (before && (before.signedIn !== state.signedIn || before.user?.name !== state.user?.name)) {
     void queryClient.resetQueries({ queryKey: ['spotify', 'data'] });
   }
@@ -64,7 +57,6 @@ export function useSpotifyAuth(): SpotifyAuthStatus {
   return { state: 'ready', auth: query.data ?? SIGNED_OUT };
 }
 
-/** True once Spotify requests will be made as the user. */
 export function useSpotifySignedIn(): boolean {
   const status = useSpotifyAuth();
   return status.state === 'ready' && status.auth.signedIn;

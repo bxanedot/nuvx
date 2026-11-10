@@ -1,15 +1,3 @@
-// Zips the built extension for the site's Extension page and writes the
-// manifest the page checks for updates:
-//
-//   web/app/public/downloads/nuvx-extension-chrome (<version>).zip
-//   web/app/public/downloads/nuvx-extension-firefox (<version>).zip
-//   web/app/public/downloads/extension.json    { version, builtAt, files }
-//
-// Each zip holds a single folder (nuvx-extension-<browser> (<version>)/) rather than
-// loose files, so "Extract here" leaves one tidy folder to load unpacked.
-//
-//   corepack pnpm --dir web/extension package   (builds both, then runs this)
-
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +6,6 @@ import { zipSync } from 'fflate';
 const output = fileURLToPath(new URL('../.output/', import.meta.url));
 const target = fileURLToPath(new URL('../../app/public/downloads/', import.meta.url));
 mkdirSync(target, { recursive: true });
-// Each version's zips are named for it; the previous ones go.
 for (const name of readdirSync(target)) if (/^nuvx-extension-.*\.zip$/.test(name)) rmSync(join(target, name));
 
 function filesUnder(dir) {
@@ -40,7 +27,6 @@ for (const [browser, folder] of Object.entries(builds)) {
   }
   version = manifest.version;
 
-  // The version in brackets, on the zip and the folder inside it: "nuvx-extension-chrome (0.4.3)".
   const parent = `nuvx-extension-${browser} (${manifest.version})`;
   const entries = {};
   for (const file of filesUnder(root)) {

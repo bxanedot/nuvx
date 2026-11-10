@@ -27,10 +27,6 @@ object LocalMediaRepository {
     private const val TAG = "nuvx"
     private const val MIN_LOCAL_MUSIC_DURATION_MS = 30_000L
 
-    // `mp4` only ever reaches this list as an audio row — MediaStore files a
-    // video .mp4 under Video, not Audio — so it is the audio-only MP4s Dolby
-    // and Apple music downloads come as (AC-4, E-AC-3, ALAC). `dsf`/`dff` are
-    // DSD, which DsdExtractor plays.
     private val localMusicExtensions = setOf(
         "mp3", "m4a", "mp4", "flac", "ogg", "opus", "aac", "webm", "dsf", "dff",
     )
@@ -48,7 +44,6 @@ object LocalMediaRepository {
         "/whatsapp voice notes/",
     )
 
-    /** Check if storage/audio permission is granted to query device local music. */
     fun hasStoragePermission(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
@@ -63,24 +58,11 @@ object LocalMediaRepository {
         }
     }
 
-    /**
-     * Retrieves all songs in the `Music/nuvx` directory, combining app downloads
-     * with any local audio files present in that folder.
-     *
-     * The download record is the better source for a title and a credit — it
-     * holds what the catalogue row said, not what a scanner guessed off a
-     * filename — but it only started carrying the album at all recently, and
-     * an album page's rows never name their own release. So whatever the media
-     * scanner read off each file is collected alongside and used to fill the
-     * gaps, which is what keeps the Albums tab from being empty for everything
-     * downloaded before that field existed.
-     */
     suspend fun getDownloadedSongs(context: Context): List<Song> = withContext(Dispatchers.IO) {
         val appDownloads = Downloads.getDownloadedSongs(context)
         val knownUris = appDownloads.mapNotNull { it.localUri }.toSet()
         val extraSongs = mutableListOf<Song>()
 
-        /** uri to what the media scanner read off that file. */
         val scanned = mutableMapOf<String, ScannedTags>()
 
         runCatching {
@@ -174,10 +156,6 @@ object LocalMediaRepository {
         (filled + extraSongs).distinctBy { it.localUri ?: it.videoId }
     }
 
-    /**
-     * The parts of a scanner row worth reading back — everything else about a
-     * download is better known from the record that made it.
-     */
     private class ScannedTags(
         val albumName: String?,
         val artworkUrl: String?,
@@ -185,48 +163,24 @@ object LocalMediaRepository {
         val dateModifiedSeconds: Long?,
     )
 
-    /** What MediaStore writes into a column it has nothing for. */
     private fun String?.cleanTag(): String? =
         takeUnless { it.isNullOrBlank() || it == "<unknown>" }
 
-    /**
-     * A way for a build to look beyond MediaStore — the Android TV app reads USB
-     * drives MediaStore does not index. Handed what MediaStore found (nothing,
-     * without the storage permission) and returns the list to use. Null on the
-     * phone, where MediaStore is the whole story.
-     */
     @Volatile
     var extraLocalMusic: (suspend (Context, List<Song>) -> List<Song>)? = null
 
-    /**
-     * Queries MediaStore for all audio files available on the device.
-     */
     suspend fun getLocalMusic(context: Context): List<Song> = withContext(Dispatchers.IO) {
         if (!hasStoragePermission(context)) {
             return@withContext extraLocalMusic?.invoke(context, emptyList()) ?: emptyList()
         }
 
         val songs = mutableListOf<Song>()
-        // This scan runs over every audio file on the device, which includes
-        // whatever this app has downloaded into Music/nuvx alongside
-        // everything else — but by content URI, the only thing MediaStore
-        // offers here, that download is indistinguishable from a file the
-        // user copied on by hand. Reversing [Downloads.saved] hands a
-        // downloaded track its real YouTube id back, which is what lets
-        // PlaybackTracker recognise it as a video worth registering a play
-        // for — a content URI fails its id check on purpose, since most rows
-        // here really are just local files with nothing to sync.
         val videoIdByUri = Downloads.saved.value.entries.associate { (id, uri) -> uri to id }
 
         val filterNonMusic = AppSettings.filterNonMusicAudio.value
         val selection = if (filterNonMusic) {
             buildString {
                 append("${MediaStore.Audio.Media.IS_MUSIC} != 0")
-                // A duration of 0 or NULL is the scanner failing to read one,
-                // not a short clip — fragmented MP4 (how ALAC downloads often
-                // come) reads as 0, high-rate DSD as NULL — so it is let
-                // through to the extension and path checks rather than
-                // dropped as too short.
                 append(
                     " AND (${MediaStore.Audio.Media.DURATION} >= ?" +
                         " OR ${MediaStore.Audio.Media.DURATION} <= 0" +
@@ -258,7 +212,6 @@ object LocalMediaRepository {
                 sortOrder,
             )?.use { cursor ->
                 val columns = AudioColumns(cursor)
-                // Parsed once for the scan rather than once per row.
                 val treeUri = AppSettings.localMusicFolderUri.value
                 val chosen = if (treeUri.isBlank()) null else selectedFolder(treeUri)
                 while (cursor.moveToNext()) {
@@ -291,13 +244,6 @@ object LocalMediaRepository {
         MediaStore.Audio.Media.TRACK,
     )
 
-    /**
-     * Where [AUDIO_PROJECTION]'s columns landed in one cursor, looked up once
-     * rather than per row — and the one reading of a row into a [Song], so a
-     * file opened from a file manager comes out exactly as the same file does
-     * in Local Music. That sameness is what lets a like or a playlist entry
-     * made from either be found from the other.
-     */
     private class AudioColumns(cursor: Cursor) {
         val id = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
         val displayName = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
@@ -341,20 +287,8 @@ object LocalMediaRepository {
         }
     }
 
-    // Lazy so loading this object doesn't touch the framework: unit tests of
-    // the pure helpers here run against a stub Uri.parse that returns null.
     private val ALBUM_ART_URI: Uri by lazy { Uri.parse("content://media/external/audio/albumart") }
 
-    /**
-     * Which of [songs] still have a file behind them, in their order — for an
-     * offline playlist, whose record outlives a file deleted from under it.
-     *
-     * One MediaStore query for every row it indexes, by id, rather than a
-     * listing of the whole device; a `file://` row is asked of the disk. Rows
-     * this can't check — another provider's, or every row while the storage
-     * permission is missing — are kept: hiding a track because it couldn't be
-     * looked at would empty a playlist over a permission prompt.
-     */
     suspend fun present(context: Context, songs: List<Song>): List<Song> = withContext(Dispatchers.IO) {
         val mediaIds = songs.mapNotNull { it.localUri?.mediaStoreAudioId() }
         val existing = HashSet<Long>()
@@ -371,9 +305,6 @@ object LocalMediaRepository {
                 }
             }
         }.isSuccess
-        // MediaStore only answers for files this app may see. Without the
-        // permission its silence is not an answer, except for this app's own
-        // downloads, which it always sees.
         val trustMissing = canAsk && hasStoragePermission(context)
         songs.filter { song ->
             val uri = song.localUri ?: return@filter false
@@ -386,7 +317,6 @@ object LocalMediaRepository {
         }
     }
 
-    /** The row id of a `content://media/…/audio/media/<id>` uri, else null. */
     private fun String.mediaStoreAudioId(): Long? {
         if (!startsWith("content://media/")) return null
         val uri = Uri.parse(this)
@@ -395,15 +325,6 @@ object LocalMediaRepository {
         return segments.last().toLongOrNull()
     }
 
-    /**
-     * A file another app handed over to be played — "Open with" from a file
-     * manager, a tap on an attachment.
-     *
-     * Read as Local Music would read it whenever MediaStore indexes it, so a
-     * heart or a playlist entry made from here is the same entry the Local
-     * Music folder shows; otherwise off the file's own tags, under the name
-     * the sending app gave it.
-     */
     suspend fun songFromUri(context: Context, uri: Uri): Song = withContext(Dispatchers.IO) {
         mediaStoreRow(context, uri)?.let { return@withContext it }
         val name = runCatching {
@@ -414,7 +335,6 @@ object LocalMediaRepository {
         buildSongFromUri(context, uri.toString(), name)
     }
 
-    /** The MediaStore row behind [uri], when there is one this app may read. */
     private fun mediaStoreRow(context: Context, uri: Uri): Song? = runCatching {
         val resolver = context.contentResolver
         val (target, selection, args) = when {
@@ -423,8 +343,6 @@ object LocalMediaRepository {
                 Triple(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, "${MediaStore.Audio.Media.DATA} = ?", arrayOf(path))
             }
             uri.authority == MediaStore.AUTHORITY -> Triple(uri, null, null)
-            // A documents-provider uri (most file managers) names the same
-            // file MediaStore does under another id; API 29 can translate.
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && DocumentsContract.isDocumentUri(context, uri) ->
                 Triple(MediaStore.getMediaUri(context, uri) ?: return@runCatching null, null, null)
             else -> return@runCatching null
@@ -436,7 +354,6 @@ object LocalMediaRepository {
         }
     }.getOrNull()
 
-    /** Human-readable path for the folder setting without exposing provider internals. */
     fun selectedFolderLabel(treeUri: String): String? = selectedFolder(treeUri)?.label
 
     internal fun isInSelectedFolder(path: String?, treeUri: String): Boolean {
@@ -474,11 +391,6 @@ object LocalMediaRepository {
     private fun String.normalizedPath(): String =
         replace('\\', '/').trimEnd('/').lowercase(Locale.ROOT)
 
-    /**
-     * MediaStore's `IS_MUSIC` flag is advisory and often includes notification
-     * sounds, voice notes and recorder output. Keep this second gate independent
-     * of scanner metadata so the same bad rows stay out across Android vendors.
-     */
     internal fun isEligibleLocalMusic(durationMs: Long, displayName: String, path: String?): Boolean {
         if (durationMs in 1 until MIN_LOCAL_MUSIC_DURATION_MS) return false
 
@@ -512,13 +424,6 @@ object LocalMediaRepository {
             lower.endsWith(".3gp")
     }
 
-    /**
-     * A song built from a file in the downloads folder the app has no record of
-     * — one copied in by hand, or left behind by an install whose record is
-     * gone. The file's own tags are the only thing there is to go on; [scanned]
-     * fills in what the retriever couldn't read, since the media scanner and
-     * `MediaMetadataRetriever` do not agree on every container.
-     */
     private fun buildSongFromUri(
         context: Context,
         uriStr: String,
@@ -565,21 +470,12 @@ object LocalMediaRepository {
         )
     }
 
-    /**
-     * MediaStore packs the disc into the same int (`disc * 1000 + track`), so
-     * 1003 is disc 1 track 3 rather than track 1003. Unpacks it; null when the
-     * scanner wrote nothing usable.
-     */
     internal fun trackNumberFromMediaStore(raw: Int?): Int? {
         if (raw == null || raw <= 0) return null
         val track = if (raw >= 1000) raw % 1000 else raw
         return track.takeIf { it in 1..999 }
     }
 
-    /**
-     * `CD_TRACK_NUMBER` arrives as `"3"` or `"3/12"`. Takes the head; null when
-     * it isn't a number.
-     */
     internal fun trackNumberFromTag(raw: String?): Int? {
         val head = raw?.substringBefore('/')?.trim() ?: return null
         return head.toIntOrNull()?.takeIf { it in 1..999 }

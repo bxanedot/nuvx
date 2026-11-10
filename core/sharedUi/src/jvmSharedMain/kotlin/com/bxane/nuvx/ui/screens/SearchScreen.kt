@@ -92,7 +92,6 @@ fun SearchScreen(
     isPlaying: Boolean,
     onFilterChange: (SearchFilter) -> Unit,
     results: UiState<List<SearchResult>>?,
-    /** "Enable YouTube Search": offers YouTube beside YouTube Music's filters. */
     youtubeSearch: Boolean = false,
     loadingMore: Boolean,
     onLoadMore: () -> Unit,
@@ -106,11 +105,6 @@ fun SearchScreen(
     onTopResultPlay: (Song) -> Unit,
     onTopResultPlaylist: (Song) -> Unit,
     onBrowseClick: (BrowseItem) -> Unit,
-    /**
-     * Holding an album or playlist hit rather than tapping it — the same menu
-     * the shelves open, so a release found by searching can go on the queue
-     * without a trip through its page.
-     */
     onBrowseLongPress: ((BrowseItem) -> Unit)? = null,
     history: List<SearchHistoryEntity>,
     suggestions: List<String>,
@@ -120,60 +114,29 @@ fun SearchScreen(
     onHistoryClick: (SearchHistoryEntity) -> Unit,
     onHistoryRemove: (String) -> Unit,
     onHistoryClear: () -> Unit,
-    /** Long-press handler for typeahead rows — opens the song actions sheet. */
     onTypeaheadLongPress: ((Song) -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues,
-    /**
-     * Room above the search field. The phone's frosted bar floats over the top
-     * of the tab, so the field has to clear it; the desktop has no such bar.
-     */
     topPadding: Dp,
-    /**
-     * Whether the page draws its own search field. The desktop's sidebar has
-     * the one search box the window needs, so the page there is results only.
-     */
     showField: Boolean = true,
-    /**
-     * Whether the page is searching the device's Local Music folder instead of
-     * YouTube. The phone's top bar flips this; the desktop never does.
-     */
     searchingLibrary: Boolean = false,
-    /** Whether the page is showing the enabled addons' combined results; see [addonResults]. */
     searchingAddons: Boolean = false,
-    /** The Addons source's tracks for the submitted query; null until one is submitted. */
     addonResults: UiState<List<Song>>? = null,
-    /**
-     * Addon rows the connection's quality setting won't play. Shown dimmed,
-     * kept out of the queue a tap builds, and answered by [onBlockedSongClick]
-     * instead of being played.
-     */
     isBlocked: (Song) -> Boolean = { false },
     onBlockedSongClick: (Song) -> Unit = {},
-    /** Words searched in the Addons tab before, newest first; shown while the field is empty. */
     addonHistory: List<String> = emptyList(),
     onAddonHistoryClick: (String) -> Unit = {},
     onAddonHistoryRemove: (String) -> Unit = {},
     onAddonHistoryClear: () -> Unit = {},
-    /** The Library source's tracks for [query]; null while nothing is typed. */
     libraryResults: UiState<List<Song>>? = null,
-    /** Files on the device are a running order to play through, not a station seed. */
     onLibrarySongClick: (List<Song>, Int) -> Unit = onSongClick,
-    /**
-     * The YouTube / Library switcher, full width at the head of the page. Up
-     * only while the field is empty: once something is typed the page is
-     * about the results, and the switcher would just push them down.
-     */
     sourceSwitcher: (@Composable () -> Unit)? = null,
-    /** Moods and genres for the empty page's colour tiles; empty keeps the classic page. */
     categories: List<MoodGenre> = emptyList(),
     onCategoryClick: (MoodGenre) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    // Tapping the search tab from the nav bar sets focusRequested;
-    // respond by focusing the field and opening the keyboard.
     LaunchedEffect(focusRequested) {
         if (focusRequested && showField) {
             focusRequester.requestFocus()
@@ -181,21 +144,10 @@ fun SearchScreen(
             onFocusHandled()
         }
     }
-    // Search keeps one list state while its contents change. Reset it for each
-    // new request so choosing a recent search cannot inherit the history's
-    // previous scroll position (or a previous result page's position).
     LaunchedEffect(scrollResetTrigger) {
         if (scrollResetTrigger > 0) listState.scrollToItem(0)
     }
-    // A non-empty suggestion list means the field is mid-edit — see
-    // MainViewModel.suggestions. Nothing below it is worth showing while it is
-    // up: the results are for whatever was searched before this edit began,
-    // and so are the filter tabs above them.
     val suggesting = suggestions.isNotEmpty() && !searchingLibrary && !searchingAddons
-    // Live media results arrive from the parallel typeahead pipeline; show
-    // them only while the user is still typing (suggestions visible), so they
-    // appear as a dropdown beneath the text completions rather than floating
-    // after the search has committed.
     val showTypeahead = typeaheadResults.isNotEmpty() && suggesting
     LaunchedEffect(listState, results, loadingMore, searchingLibrary, searchingAddons) {
         if (results !is UiState.Success || searchingLibrary || searchingAddons) return@LaunchedEffect
@@ -207,12 +159,6 @@ fun SearchScreen(
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        // Search field and filter tabs stay fixed at the top, outside the
-        // scrolling list, so they're always reachable rather than scrolling
-        // away with the results or recent searches beneath them.
-        // The FrostedTopBar is visible on this tab (showing "Search"), so we
-        // clear it fully — status bar inset + bar height + breathing gap — so
-        // the search field sits cleanly below the bar instead of overlapping it.
         Column(modifier = Modifier.padding(top = topPadding)) {
             if (showField) {
                 SearchField(
@@ -241,12 +187,6 @@ fun SearchScreen(
                     }
                 }
             }
-            // The filters only mean something once there is a result set to narrow;
-            // they stay up for an empty or failed search too, or picking a filter
-            // that finds nothing would take away the control needed to leave it.
-            // They are YouTube's categories, so the Library source has none.
-            // The same selector as the sources above it and a folder's tabs, so
-            // the app has one look for "pick one of these".
             if (results != null && !suggesting && !searchingLibrary && !searchingAddons) {
                 val filters = remember(youtubeSearch) {
                     SearchFilter.entries.filter { it != SearchFilter.YOUTUBE || youtubeSearch }
@@ -285,8 +225,6 @@ fun SearchScreen(
                 suggesting -> {
                     searchSuggestions(
                         suggestions = suggestions,
-                        // Picking one is done typing, so the keyboard comes down
-                        // with it and the results get the whole screen.
                         onClick = { term ->
                             onSuggestionClick(term)
                             focusManager.clearFocus()
@@ -418,7 +356,6 @@ fun SearchScreen(
 
 private data class SearchSection(val title: String?, val rows: List<SearchResult>)
 
-/** The unfiltered page is useful only when its mixed result types are readable at a glance. */
 private fun searchSections(rows: List<SearchResult>, filter: SearchFilter): List<SearchSection> {
     if (filter != SearchFilter.ALL) return listOf(SearchSection(null, rows))
     return listOf(
@@ -430,11 +367,6 @@ private fun searchSections(rows: List<SearchResult>, filter: SearchFilter): List
     ).filter { it.rows.isNotEmpty() }
 }
 
-/**
- * The Library source's page: the Local Music folder's tracks that match, as
- * plain song rows. An artist or album hit needs no row of its own — every
- * track under that name matches too, so they are already here.
- */
 private fun LazyListScope.librarySearchResults(
     query: String,
     results: UiState<List<Song>>?,
@@ -478,15 +410,11 @@ private fun LazyListScope.librarySearchResults(
                 val blocked = isBlocked(song)
                 SongRow(
                     song = song,
-                    // Dimmed rather than hidden, so the listener can see the
-                    // addon has the song and tap to learn why it won't play.
                     modifier = if (blocked) Modifier.alpha(BLOCKED_ROW_ALPHA) else Modifier,
                     onClick = {
                         if (blocked) {
                             onBlockedSongClick(song)
                         } else {
-                            // The queue skips blocked rows, or playing through
-                            // it would stop at the first one with an error.
                             val playable = tracks.filterNot(isBlocked)
                             onSongClick(playable, playable.indexOfFirst { it === song })
                         }
@@ -510,7 +438,6 @@ private fun LazyListScope.librarySearchResults(
     }
 }
 
-/** The All response carries its highest-confidence music hit as a promoted card. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TopResultCard(
@@ -587,27 +514,12 @@ private fun TopResultCard(
     }
 }
 
-/**
- * What YouTube would complete the half-typed query to, in place of the results
- * while it is being typed.
- *
- * The first row is the text as typed, put there by the view model rather than
- * taken from YouTube's answer, so running exactly what was asked for is always
- * the nearest row to the keyboard rather than something the thumb has to aim
- * past.
- */
 private fun LazyListScope.searchSuggestions(
     suggestions: List<String>,
     onClick: (String) -> Unit,
     onFill: (String) -> Unit,
 ) {
-    // This is a list-level inset rather than padding hidden inside the first
-    // row. It keeps the gap under the field stable even when that row changes
-    // its text or icon treatment.
     item(key = "suggestions:top-inset") { Spacer(Modifier.height(8.dp)) }
-    // Skip the echo of the typed text (element 0) — it's already visible in
-    // the search field itself — and cap at N so the list stays compact above
-    // the playable-media cards.
     itemsIndexed(suggestions.drop(1).take(3), key = { _, term -> "suggest:$term" }) { _, term ->
         SuggestionRow(
             term = term,
@@ -618,12 +530,6 @@ private fun LazyListScope.searchSuggestions(
     }
 }
 
-/**
- * One typeahead row: tap the text to search it, or the arrow to put it in the
- * field and carry on typing — the pair YouTube, Google and every mobile
- * keyboard's own suggestion strip use, and the reason a longer completion
- * isn't a dead end when it's only nearly right.
- */
 @Composable
 private fun SuggestionRow(
     term: String,
@@ -651,9 +557,6 @@ private fun SuggestionRow(
         )
         Spacer(Modifier.width(16.dp))
         Text(
-            // The first row is the deliberate action to search the exact text
-            // in the field, not a server-provided completion. Naming it makes
-            // the otherwise duplicated wording read as intentional.
             text = if (isQueryAction) """${stringResource(Res.string.search)} "$term"""" else term,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
@@ -677,19 +580,11 @@ private fun SuggestionRow(
                 )
             }
         } else {
-            // Match the arrow button's full touch target, not only its width.
-            // A width-only spacer made the first row shorter than the ones
-            // below, so its vertical rhythm looked visibly uneven.
             Spacer(Modifier.size(40.dp))
         }
     }
 }
 
-/**
- * Hybrid dropdown shown beneath text suggestions while typing: a horizontal
- * divider, then live media rows (cover art + title + subtitle) that play on
- * tap and open the song menu on long-press.
- */
 private fun LazyListScope.searchTypeaheadDropdown(
     typeaheadResults: List<SearchResult>,
     onSongClick: (Song) -> Unit,
@@ -727,7 +622,7 @@ private fun LazyListScope.searchTypeaheadDropdown(
             is SearchResult.Browse -> BrowseRow(
                 item = result.item,
                 onClick = { onBrowseClick(result.item) },
-                onLongPress = onSongLongPress?.let { { /* browse long-press not applicable */ } },
+                onLongPress = onSongLongPress?.let { { } },
             )
             is SearchResult.TopTrack -> TypeaheadSongRow(
                 song = result.song,
@@ -740,10 +635,6 @@ private fun LazyListScope.searchTypeaheadDropdown(
     }
 }
 
-/**
- * A single media row inside the typeahead dropdown: 52dp cover art, title,
- * and artist/album subtitle. Tap plays the track; long-press opens the menu.
- */
 @Composable
 private fun TypeaheadSongRow(
     song: Song,
@@ -798,11 +689,6 @@ private fun TypeaheadSongRow(
     }
 }
 
-/**
- * What was searched for before, shown in place of the results while the field
- * is empty — the same spot Spotify and Apple Music put it, and the reason the
- * blank search page isn't just a sentence any more.
- */
 private fun LazyListScope.recentSearches(
     history: List<SearchHistoryEntity>,
     currentSong: Song?,
@@ -838,9 +724,6 @@ private fun LazyListScope.recentSearches(
         }
     }
     items(history, key = { "recent:${it.id}" }) { entity ->
-        // A recent track gets the same menu and swipe as a result row, so it can
-        // be queued without interrupting what's playing. The ids an old build
-        // saved as raw queries ("q:…") have no track behind them.
         val song = entity.toSong()
         RecentSearchEntityRow(
             entity = entity,
@@ -854,7 +737,6 @@ private fun LazyListScope.recentSearches(
     }
 }
 
-/** The Addons tab's recents: just the words that were searched, no song behind them. */
 private fun LazyListScope.recentAddonSearches(
     history: List<String>,
     onClick: (String) -> Unit,
@@ -926,11 +808,6 @@ private fun LazyListScope.recentAddonSearches(
     }
 }
 
-/**
- * Spotify-style entity row: square thumbnail, bold title, subtitle with type,
- * and a removal button. Tapping navigates to the entity or plays it directly;
- * holding a track opens its menu.
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecentSearchEntityRow(
@@ -1059,5 +936,4 @@ private fun BrowseRow(item: BrowseItem, onClick: () -> Unit, onLongPress: (() ->
     }
 }
 
-/** How far an addon row the quality setting won't play is dimmed; Material's disabled level. */
 private const val BLOCKED_ROW_ALPHA = 0.38f

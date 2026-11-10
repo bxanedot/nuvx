@@ -48,12 +48,6 @@ import kotlinx.coroutines.flow.stateIn
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/**
- * The phone's answers to [PlayerHost]: AppSettings, the Media3 Canvas decoder,
- * AudioRouting and the music stream's volume, the party, and the lyric
- * translation endpoint — each exactly what the player read directly before it
- * moved into the shared module.
- */
 class AndroidPlayerHost(context: Context) : PlayerHost {
     private val app = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -129,8 +123,6 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
     override fun rememberRemoteArtworkUrl(song: Song?): String? =
         com.bxane.nuvx.ui.components.rememberRemoteArtworkUrl(song)
 
-    // Lazy, all three: the player is not the first thing the process does, and
-    // none of these objects should be woken for a launch that never opens it.
     override val volume: SystemVolume by lazy { CastAwareVolume(MusicStreamVolume(app), scope) }
 
     @Composable
@@ -138,8 +130,6 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         val outputs = rememberAndroidAudioOutputs()
         val cast by CastController.state.collectAsStateWithLifecycle()
         val watch by WearBridge.watchOutput.collectAsStateWithLifecycle()
-        // While a receiver is the speaker no output of this phone is the one
-        // playing, so none of them is lit; the Cast or watch row is.
         return if (cast.casting || watch.active) outputs.map { it.copy(isActive = false) } else outputs
     }
 
@@ -147,8 +137,6 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
     override fun rememberOutputPicker(onOpen: () -> Unit): () -> Unit = rememberAndroidOutputPicker(onOpen)
 
     override fun selectAudioOutput(id: Int?) {
-        // Picking an output of this phone is picking this phone: the receiver
-        // is let go of, and the music carries on here if it was playing.
         if (CastController.state.value.casting) CastController.disconnect(resumeHere = true)
         AudioRouting.select(id)
         WearBridge.leaveWatchOutput()
@@ -163,8 +151,6 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
     override fun refreshWatchOutput() = WearBridge.refreshWatchOutput(app)
 
     override fun selectWatchOutput() {
-        // One speaker at a time: a receiver lets go first, quietly, and the
-        // watch picks the queue up from where the phone's player is.
         if (CastController.state.value.casting) CastController.disconnect(resumeHere = false)
         WearBridge.selectWatchOutput()
     }
@@ -230,9 +216,6 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
             isPlaying = isPlaying,
         )
 
-    // The ⋯ menu's own material: a still of the player, blurred under each
-    // panel exactly as [menuBackdropFrost] blurs it under the menu. Below
-    // Android 12 there is no RenderEffect to blur it with.
     @Composable
     override fun rememberPlayerFrost(): PlayerFrost? {
         if (!isGlassSupported()) return null
@@ -240,9 +223,6 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         return remember(backdrop) { BackdropPlayerFrost(backdrop) }
     }
 
-    // The phone is the platform that can turn picked lyrics into a picture: a
-    // bitmap, a canvas, the gallery and the chooser are all Android's here. The
-    // desktop has no answer to it, so it never sees the pick mode at all.
     override val lyricsShareAvailable: Boolean get() = true
 
     @Composable
@@ -253,11 +233,6 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
     ) = AndroidLyricsShareSheet(hazeState = hazeState, request = request, onDismiss = onDismiss)
 }
 
-/**
- * The output's format line, and whether the track is reaching the DAC
- * bit-perfect. On the exclusive output the format is the one written to
- * the DAC, not the ordinary AudioTrack's, which is idle meanwhile.
- */
 private fun AudioOutputStatus.Snapshot.toOutputFormat(bitPerfect: BitPerfectOutput.Status): OutputFormatUi {
     val encoding = if (bitPerfect.active) "${bitPerfect.outputBits}-bit PCM" else AudioOutputStatus.encodingLabel(this)
     val rate = (if (bitPerfect.active) bitPerfect.sampleRateHz else actualSampleRateHz)?.takeIf { it > 0 }
@@ -282,11 +257,6 @@ private fun ListenTogether.State.toPartyUi() = PartyUi(
     code = code,
 )
 
-/**
- * The volume bar's level: the receiver's while the music is on one, the DAC's
- * own while direct USB output drives it, the music stream's otherwise. The two are different numbers on different devices, and
- * the bar must never show one while moving the other.
- */
 private class CastAwareVolume(
     private val system: SystemVolume,
     scope: CoroutineScope,
@@ -301,8 +271,6 @@ private class CastAwareVolume(
         when {
             casting -> receiver
             watch.active -> watch.volume
-            // Direct USB: the music stream no longer reaches the DAC, so its
-            // own hardware volume is the only one that means anything.
             dac != null -> dac
             else -> phone
         }
@@ -321,10 +289,6 @@ private class CastAwareVolume(
     override fun refresh() = system.refresh()
 }
 
-/**
- * The music stream's volume. Hardware keys and the system panel change it
- * behind the app's back, so Settings is watched and the level follows.
- */
 private class MusicStreamVolume(private val context: Context) : SystemVolume {
     private val manager = context.getSystemService(AudioManager::class.java)
     private val _level = MutableStateFlow(read())

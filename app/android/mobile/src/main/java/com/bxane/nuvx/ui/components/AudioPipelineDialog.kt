@@ -70,31 +70,6 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-/**
- * Whether decoded samples are reaching the output unaltered, and what is
- * altering them when they aren't.
- *
- * Worth stating outright rather than leaving to be inferred from the rows
- * above it, because it is the one claim in this dialog a listener might act
- * on, and because the app otherwise breaks bit-exactness whenever the
- * equaliser or spatial audio is switched on without saying so anywhere.
- *
- * There are two independent ways to lose it, and the ordering names the
- * *first* one in the signal chain, which is also the first thing someone
- * would change to get it back:
- *
- * 1. A DSP stage is running. Every one of these is a filter or a gain, and
- *    none of them can run and leave the output bit-exact.
- * 2. The output encoding cannot carry the source — a 24-bit stream on a route
- *    that will not open a float track, or 32-bit integer PCM, which no
- *    AudioTrack route can carry. [outputExact] is the sink's own verdict on
- *    that; see `PrecisionAudioSink.publishOutputExactness`.
- *
- * Exactness here stops at the app: Android's mixer may still resample what
- * leaves it. The exclusive output ([bitPerfect], set under Settings → Bit-perfect
- * output) is the one path where it reaches the DAC unchanged, and every DSP
- * stage is bypassed there, so only the source itself can make it inexact.
- */
 private fun bitExactVerdict(
     dsd: Boolean,
     bitPerfect: BitPerfectOutput.Status,
@@ -104,15 +79,10 @@ private fun bitExactVerdict(
     eqActive: Boolean,
     spatialActive: Boolean,
 ): String = when {
-    // Not a fault to fix: there is no DSD output path (native DSD or DoP)
-    // here, so the PCM conversion is a deviation every DSD track carries,
-    // whatever the stages after it do.
     dsd -> "No — DSD converted to PCM"
     bitPerfect.active && bitPerfect.dacLimited ->
         "No — ${bitPerfect.sourceBits}-bit / ${rateText(bitPerfect.sourceRateHz)} converted to " +
             "${bitPerfect.deviceName}'s max"
-    // Every DSP stage is bypassed on the exclusive output, so the only
-    // question left is whether the source itself was integer PCM.
     bitPerfect.active && bitPerfect.exact -> "Yes — bit-perfect to ${bitPerfect.deviceName}"
     bitPerfect.active -> "No — source isn't lossless PCM"
     loudnessActive -> "No — loudness normalization"
@@ -122,19 +92,6 @@ private fun bitExactVerdict(
     else -> "No — ${outputExactDetail ?: "converted downstream"}"
 }
 
-/**
- * Full audio playback pipeline inspection surface, opened from the "Audio Pipeline"
- * row at the bottom of [com.bxane.nuvx.ui.player.AudioOutputSheet].
- *
- * Displays live, authoritative details for each stage in the audio pipeline:
- * Track Info -> Decoder -> Resampler -> DSP -> Output Device.
- *
- * Same frosted card shape as [LyricsSourcesDialog] and [UpdateAvailableDialog] —
- * header with a title and subtitle, hairline-separated groups, a full-width
- * closing action — fixed to this player's own dark palette rather than the
- * theme-adaptive one those settings dialogs use, since everything else on this
- * screen is drawn in [Color.White] alphas regardless of the app's light/dark theme.
- */
 @Composable
 fun AudioPipelineDialog(
     hazeState: HazeState,
@@ -209,7 +166,6 @@ fun AudioPipelineDialog(
         calculateStageActivation(idx, pulseProgress, flowAlpha, stageCenters, interactionRadiusPx)
     }
     val onStageIconPositioned: (Int, Offset) -> Unit = { idx, center ->
-        // Reported on every layout pass; only a real move should redraw.
         if (stageCenters[idx] != center) stageCenters[idx] = center
     }
 
@@ -221,9 +177,6 @@ fun AudioPipelineDialog(
         onDismiss = onDismiss,
         modifier = modifier,
     ) {
-        // The signal flow redraws every frame while playing. On its own
-        // layer, each frame re-records just these lines rather than every
-        // stage row and the frosted card they sit on.
         Spacer(
             Modifier
                 .matchParentSize()
@@ -237,18 +190,11 @@ fun AudioPipelineDialog(
                 .fillMaxWidth()
                 .onGloballyPositioned { columnCoordinates = it },
         ) {
-            // 1. Track Info Stage
             val sourceName = nerdStats?.sourceName ?: "—"
-            // DSD is the one source whose own rate is not the rate the
-            // rest of the pipeline runs at: DsdExtractor hands the
-            // renderer 176.4 kHz PCM, so every stage after this one has
-            // to be told that rate instead of the DSD bit rate.
             val dsdRateHz = nerdStats?.takeIf { it.mimeType?.startsWith("audio/dsd") == true }?.sampleRateHz
             val pcmRateHz = if (dsdRateHz != null) DsdFormat.PCM_RATE else nerdStats?.sampleRateHz
             val codec = NerdStats.codecLabel(nerdStats?.mimeType) ?: nerdStats?.mimeType ?: "—"
             val format = nerdStats?.container?.let { "$codec ($it)" } ?: codec
-            // A lossy codec has no bit depth of its own; the decoder's PCM
-            // depth is not the source's, so it is only shown for lossless.
             val bitDepth = if (nerdStats?.isLossless == true) {
                 nerdStats?.bitDepth?.let { "$it-bit" }
                     ?: nerdStats?.claimed?.bitDepth?.let { "$it-bit" }
@@ -286,7 +232,6 @@ fun AudioPipelineDialog(
                 PipelineRow(stringResource(R.string.pipeline_channels), channels)
             }
 
-            // 2. Decoder Stage
             val decoderName = if (dsdRateHz != null) {
                 "DSD to PCM (native FIR decimator)"
             } else {
@@ -309,11 +254,6 @@ fun AudioPipelineDialog(
                 }
             }
 
-            // 3. Resampler Stage
-            // For DSD this is the decimation DsdExtractor did: the one
-            // step that actually changes the rate, so it is described
-            // as what it is rather than as a resample, and its output
-            // side is the PCM it produced, not the DSD rate.
             val inRate = dsdRateHz ?: nerdStats?.sampleRateHz
             val outRate = when {
                 dsdRateHz != null -> DsdFormat.PCM_RATE
@@ -360,7 +300,6 @@ fun AudioPipelineDialog(
                 PipelineRow(stringResource(R.string.pipeline_quality), qualityText)
             }
 
-            // 4. DSP Stage
             val pcmFormat = outputStatus.dspFormat
             val dspRate = outputStatus.actualSampleRateHz ?: pcmRateHz
             val dspRateText = dspRate?.let(::rateText) ?: "—"
@@ -388,9 +327,6 @@ fun AudioPipelineDialog(
                 }
             } ?: "—"
 
-            // Loudness reads before the rest of the DSP stage because
-            // that is the order the samples meet them in — see
-            // [DspChain] on why the level correction goes first.
             val loudnessGainText = when {
                 !loudnessNormalization -> stringResource(R.string.off)
                 outputStatus.loudnessGainDb == null -> "—"
@@ -420,11 +356,6 @@ fun AudioPipelineDialog(
                 PipelineRow(stringResource(R.string.pipeline_stereo_expand), stereoExpandText)
                 PipelineRow(stringResource(R.string.pipeline_buffers), buffersText)
                 PipelineRow(stringResource(R.string.pipeline_output_api), outputStatus.sink.ifBlank { "AAudio" })
-                // The verdict, rather than the settings. Names whichever
-                // stage is altering samples — or, when none is, whether
-                // the route can carry the decoder's own encoding —
-                // instead of leaving the reader to infer it from four
-                // rows above.
                 PipelineRow(
                     stringResource(R.string.pipeline_bit_exact),
                     bitExactVerdict(
@@ -439,7 +370,6 @@ fun AudioPipelineDialog(
                 )
             }
 
-            // 5. Output Device Stage
             val deviceName = outputStatus.deviceName.ifBlank { "System default" }
             val audioTrackEncoding = when (outputStatus.actualEncoding) {
                 AudioFormat.ENCODING_PCM_FLOAT -> "Float32"
@@ -536,7 +466,6 @@ fun AudioPipelineDialog(
     }
 }
 
-/** The signal bus, the travelling pulse and the node rings behind the five stage icons. */
 private fun DrawScope.drawSignalFlow(
     stageCenters: Map<Int, Offset>,
     flowAlpha: Float,
@@ -562,7 +491,6 @@ private fun DrawScope.drawSignalFlow(
     val stagePoints = listOf(p0, p1, p2, p3, p4)
     val nodeRadius = 11.5.dp.toPx()
 
-    // 1. Static Node-to-Node Signal Bus Segments (~2.dp, butt caps at node rims)
     val busAlpha = if (currentFlowAlpha > 0f) 0.22f + 0.06f * currentFlowAlpha else 0.18f
     val busStroke = 2.dp.toPx()
 
@@ -578,7 +506,6 @@ private fun DrawScope.drawSignalFlow(
                 cap = StrokeCap.Butt,
             )
 
-            // Subtle ambient under-glow along the bus when powered
             if (currentFlowAlpha > 0f) {
                 drawLine(
                     color = Color.White.copy(alpha = 0.05f * currentFlowAlpha),
@@ -591,7 +518,6 @@ private fun DrawScope.drawSignalFlow(
         }
     }
 
-    // 2. Dynamic Travelling Signal Pulse along Segments (When Playing)
     if (currentFlowAlpha > 0f && currentProgress <= 0.95f) {
         val pulseVisibility = if (currentProgress <= 0.85f) {
             1f
@@ -615,7 +541,6 @@ private fun DrawScope.drawSignalFlow(
                 val pEnd = min(yEnd, yPulse + leadLength)
 
                 if (pEnd > pStart) {
-                    // A. Soft Halo Line along Segment
                     val haloBrush = Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color.Transparent,
@@ -634,7 +559,6 @@ private fun DrawScope.drawSignalFlow(
                         cap = StrokeCap.Butt,
                     )
 
-                    // B. Brilliant Core Energy Line along Segment
                     val coreBrush = Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color.Transparent,
@@ -653,7 +577,6 @@ private fun DrawScope.drawSignalFlow(
                         cap = StrokeCap.Butt,
                     )
 
-                    // C. Leading Micro-Photon Pip (when pulse head is on this segment)
                     if (yPulse in yStart..yEnd) {
                         val headCenter = Offset(xCenter, yPulse)
                         drawCircle(
@@ -679,19 +602,16 @@ private fun DrawScope.drawSignalFlow(
         }
     }
 
-    // 3. Precision Node Anchors & White Outline Glow at Each Stage
     for (i in stagePoints.indices) {
         val stageCenter = Offset(xCenter, stagePoints[i].y)
         val act = calculateStageActivation(i, currentProgress, currentFlowAlpha, stageCenters, interactionRadiusPx)
 
-        // A. Dark Backing Base (Seamless with card, guarantees zero bleed into icon interior)
         drawCircle(
             color = Color(0xFF131315),
             radius = nodeRadius,
             center = stageCenter,
         )
 
-        // B. Subtle White Ambient Halo (Restrained when idle, blooms gently when active)
         val haloAlpha = 0.10f + 0.24f * act * currentFlowAlpha
         drawCircle(
             brush = Brush.radialGradient(
@@ -707,7 +627,6 @@ private fun DrawScope.drawSignalFlow(
             center = stageCenter,
         )
 
-        // C. Active Outer Luminous Flare Ring (When pulse arrives)
         if (currentFlowAlpha > 0f && act > 0.02f) {
             drawCircle(
                 color = Color.White.copy(alpha = 0.20f * act * currentFlowAlpha),
@@ -717,7 +636,6 @@ private fun DrawScope.drawSignalFlow(
             )
         }
 
-        // D. Precision White Outline Micro-Ring (Crisp hardware boundary)
         val ringAlpha = (0.35f + 0.55f * act * currentFlowAlpha).coerceIn(0f, 1f)
         drawCircle(
             color = Color.White.copy(alpha = ringAlpha),
@@ -726,7 +644,6 @@ private fun DrawScope.drawSignalFlow(
             style = Stroke(width = 1.dp.toPx()),
         )
 
-        // E. High-Luminance Core Edge (When peak active)
         if (currentFlowAlpha > 0f && act > 0.05f) {
             drawCircle(
                 color = Color.White.copy(alpha = 0.60f * act * currentFlowAlpha),
@@ -773,7 +690,6 @@ private fun calculateStageActivation(
     return (raw * absorption * flowAlpha).coerceIn(0f, 1f)
 }
 
-/** One pipeline stage: an icon, its title, and the label/value rows under it. */
 @Composable
 private fun PipelineSection(
     stageIndex: Int,
@@ -795,7 +711,6 @@ private fun PipelineSection(
         onStageIconPositioned(stageIndex, center)
     }
 
-    // Covers the first pass, when the column may not have reported yet.
     LaunchedEffect(iconCoordinates, columnCoordinates) {
         reportCenter(iconCoordinates, columnCoordinates)
     }
@@ -805,7 +720,6 @@ private fun PipelineSection(
             .fillMaxWidth()
             .padding(start = 14.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
     ) {
-        // Left Column: Dedicated Icon / Signal Node lane (icon size strictly preserved at 15dp)
         Box(
             modifier = Modifier.size(24.dp),
             contentAlignment = Alignment.Center,
@@ -818,9 +732,6 @@ private fun PipelineSection(
                     .size(15.dp)
                     .onGloballyPositioned { coords ->
                         iconCoordinates = coords
-                        // The coordinates object never changes, so the effect
-                        // above only runs once. A section growing when stats
-                        // arrive moves every icon below it; track that here.
                         reportCenter(coords, columnCoordinates)
                     }
                     .graphicsLayer {
@@ -832,7 +743,6 @@ private fun PipelineSection(
 
         Spacer(Modifier.width(14.dp))
 
-        // Right Column: Dedicated Information lane (Title + Telemetry Rows)
         Column(
             modifier = Modifier.weight(1f),
         ) {
@@ -882,7 +792,6 @@ private fun PipelineRow(label: String, value: String) {
     }
 }
 
-/** Hairline separator between stages, indented to align with the text column and clear the signal lane. */
 @Composable
 internal fun PipelineRule(modifier: Modifier = Modifier.padding(start = 52.dp, end = 16.dp)) {
     Box(
@@ -893,7 +802,6 @@ internal fun PipelineRule(modifier: Modifier = Modifier.padding(start = 52.dp, e
     )
 }
 
-/** Full-bleed closing action, [AlertAction]'s shape fixed to this screen's white-on-dark palette. */
 @Composable
 internal fun PipelineDoneAction(label: String, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -938,7 +846,6 @@ private fun PipelineNote(text: String) {
     )
 }
 
-/** 44100 -> "44.1 kHz", 2822400 -> "2.8224 MHz". */
 private fun rateText(hz: Int): String =
     NerdStats.megahertzLabel(hz) ?: "${"%.1f".format(Locale.ROOT, hz / 1000f).removeSuffix(".0")} kHz"
 

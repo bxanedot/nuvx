@@ -7,7 +7,6 @@ import kotlin.test.assertTrue
 
 class AdvancedAutomixPlannerTest {
 
-    /** A synthetic, fully analysed track on a steady grid. */
     private fun track(
         id: String,
         bpm: Double,
@@ -71,8 +70,6 @@ class AdvancedAutomixPlannerTest {
 
     @Test
     fun anUnmixablePairIsCrossfadedAtTheEndIntoTheIntro() {
-        // Tempo out of reach, clashing keys, both sung: every DJ gesture put two
-        // loud unsynced songs on top of each other. The plain crossfade wins.
         val current = track("a", 120.0, "C major", vocal = 0.9)
         val next = track("b", 94.0, "F♯ major", vocal = 0.9)
         val plan = plan(current, next, advanced = true)
@@ -128,8 +125,6 @@ class AdvancedAutomixPlannerTest {
 
     @Test
     fun twoVocalTracksOverrideTheGestureWithVocalSafeSweep() {
-        // Within the stretch window, but the incoming grid is too weak to
-        // beatmatch on, so this is a filter ride — with two singers on it.
         val current = track("vocal-out", 120.0, "C major", vocal = 0.9, bass = 1.0)
         val next = track("vocal-in", 130.0, "C major", vocal = 0.9, bass = 1.0).copy(beatConfidence = 0.4)
         val plan = plan(current, next, advanced = true)
@@ -151,14 +146,12 @@ class AdvancedAutomixPlannerTest {
 
     @Test
     fun aFasterIncomingSongDoesNotRetempoTheAudibleOutgoingDeck() {
-        // 135 against 120 would need the incoming song slowed by 11%: past the 10% window.
         val current = track("a", 120.0, "C major", vocal = 0.1)
         val next = track("b", 135.0, "C major", vocal = 0.1)
         val plan = plan(current, next, advanced = true)
         assertEquals(TransitionStyle.DJ_FILTER, plan.transitionStyle)
         assertEquals(1.0, plan.incomingPlaybackRate, "past the window the incoming song keeps its tempo")
         assertEquals(1.0, plan.outgoingPlaybackRate, "an audible deck must never change speed")
-        // Inside the window (130: slowed by 7.7%) both modes slow the incoming song down.
         val near = track("c", 130.0, "C major", vocal = 0.1)
         assertTrue(plan(current, near, advanced = false).incomingPlaybackRate < 1.0)
         assertEquals(1.0, plan(current, near, advanced = true).outgoingPlaybackRate)
@@ -184,7 +177,6 @@ class AdvancedAutomixPlannerTest {
     @Test
     fun neverSkipsMoreThanAQuarterOfTheIncomingSong() {
         val current = track("a", 120.0, "C major", vocal = 0.1)
-        // A main drop three quarters of the way in outranks everything else.
         val next = track("b", 120.0, "C major", vocal = 0.1).let {
             it.copy(mixInCandidates = listOf(MixCandidate(it.downbeats[70], 1.0, "main_drop")), mixInTime = it.downbeats[70])
         }

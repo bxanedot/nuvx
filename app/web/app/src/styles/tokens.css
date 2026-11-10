@@ -1,19 +1,6 @@
-/*
- * Design tokens, taken from the measurements in web/docs/apple-music-dom.md.
- *
- * The names follow Apple's own token names, so a value can be checked against
- * the report by name. Light first, then dark under prefers-color-scheme.
- *
- * Apple serves higher-contrast text alphas and a deeper key colour to browsers
- * without the system SF font. nuvx renders DM Sans everywhere, so those
- * variants are the ones used here (report §9).
- */
-
 :root {
-  /* ---- Type ------------------------------------------------------------ */
   --font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
-  /* font: <weight> <size>/<line-height> (report §10) */
   --header-emphasized: 700 34px / 40px var(--font-family);
   --large-title: 400 26px / 32px var(--font-family);
   --large-title-emphasized: 700 26px / 32px var(--font-family);
@@ -34,7 +21,6 @@
   --caption-2: 500 10px / 13px var(--font-family);
   --footnote: 400 11px / 14px var(--font-family);
 
-  /* ---- Layout ------------------------------------------------------------ */
   --web-navigation-width: 260px;
   --body-gutter: 25px;
   --player-pill-height: 56px;
@@ -43,21 +29,18 @@
   --mobile-top-bar-height: 52px;
   --mini-player-height: 52px;
 
-  /* ---- Radii ------------------------------------------------------------- */
-  --radius-artwork-small: 5px; /* 40px track rows, horizontal lockups */
-  --radius-artwork-medium: 7px; /* square lockups */
-  --radius-artwork-large: 10px; /* album header, editorial cards */
+  --radius-artwork-small: 5px;
+  --radius-artwork-medium: 7px;
+  --radius-artwork-large: 10px;
   --radius-nav-item: 8px;
   --radius-track-row: 6px;
   --radius-pill: 1000px;
 
-  /* ---- Motion ------------------------------------------------------------ */
   --ease-out-panel: cubic-bezier(0.215, 0.61, 0.355, 1);
   --duration-panel: 0.3s;
   --global-transition: opacity 0.1s ease-in;
   --duration-arrow: 0.25s;
 
-  /* ---- z-index ----------------------------------------------------------- */
   --z-default: 1;
   --z-bubbles: 50;
   --z-gpu: 1001;
@@ -65,7 +48,6 @@
   --z-contextual-menus: 9951;
   --z-modal: 10001;
 
-  /* ---- Colour: light ----------------------------------------------------- */
   color-scheme: light;
 
   --pageBG: #fbf8f9;
@@ -81,7 +63,6 @@
   --systemSecondary-onDark: #ffffffa3;
   --systemTertiary-onDark: #ffffff66;
 
-  /* Accent and page colours from the website (core/website/styles.css). */
   --keyColor: #631e3a;
   --keyColor-rgb: 99, 30, 58;
   --keyColor-rollover: #581b34;
@@ -131,11 +112,9 @@
   --contextMenuOverrideTextColor: #ff3b30;
   --nowPlayingBackdropBG: #878787;
 
-  /* Artwork's 0.5px inner stroke (report §1, "Inner stroke"). */
   --containerInnerStroke: #000000;
   --containerInnerStrokeAlpha: 0.1;
 
-  /* Skeleton fill and shimmer highlight. */
   --skeleton-fill: #0000000f;
   --skeleton-shimmer: #ffffff99;
 }
@@ -169,7 +148,6 @@
     --keyColor-rgb: 217, 138, 166;
     --keyColor-rollover: #e9a6bd;
     --keyColor-pressed: #c97894;
-    /* Darker than the text accent: buttons on it carry white glyphs. */
     --keyColorBG: #631e3a;
     --selectionColor: #631e3a;
 
@@ -216,7 +194,6 @@
   }
 }
 
-/* Increased contrast: drop the translucency, as Apple's _IC tokens do. */
 @media (prefers-contrast: more) {
   :root {
     --glassMaterialBackground: #f2f2f2;
@@ -234,10 +211,6 @@
   }
 }
 
-/*
- * Artwork tint on album and playlist pages (lib/usePageTint.ts): the page's
- * labels recoloured for the artwork's own background.
- */
 [data-tint='dark'] {
   --systemPrimary: #ffffffeb;
   --systemSecondary: color-mix(in srgb, #ffffff 64%, var(--page-tint));
@@ -265,10 +238,6 @@
   color: var(--systemPrimary);
 }
 
-/*
- * The full-screen player always stands on a dark mesh, so it takes the
- * on-dark colours whatever the page's appearance.
- */
 [data-full-screen] {
   color-scheme: dark;
   --systemPrimary: var(--systemPrimary-onDark);

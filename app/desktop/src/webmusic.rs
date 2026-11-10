@@ -1,11 +1,3 @@
-//! Signed-in `/player` call as the YouTube Music web client, for songs the anonymous
-//! visionOS client refuses: Music Premium only and age-restricted.
-//!
-//! Its stream URLs carry challenges that [`crate::jsc`] solves. Premium accounts need
-//! no PO token for them, so this path is used only when the account has Premium;
-//! otherwise googlevideo cuts the stream off after about 1 MiB.
-//! Mirrors yt-dlp's `web_music` client; update together if YouTube changes it.
-
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -19,25 +11,16 @@ use crate::jsc::Solver;
 pub const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const VERSION: &str = "1.20260707.12.00";
 
-/// The signed-in Google session: the youtube.com cookies the sign-in window captured,
-/// plus which signed-in account and channel they are for.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Session {
     pub cookie: String,
     session_index: u32,
-    /// Brand channel to act as (X-Goog-PageId), when it isn't the account's own.
     #[serde(default)]
     page_id: Option<String>,
-    /// The signed-in browser's visitor ID: signed-in requests carry it, as the site's do,
-    /// not an anonymous visitor's.
     #[serde(default)]
     pub visitor_data: Option<String>,
-    /// Cookies Google replaced while answering a request made from here (the Premium
-    /// check, the web player), for the API to take into the session.
     #[serde(skip)]
     replaced: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
-    /// Which sign-in this is, in this run: every copy of it (newer cookies, another
-    /// channel) has the same, another sign-in never does.
     #[serde(skip, default = "new_login")]
     login: u64,
 }
@@ -47,8 +30,6 @@ fn new_login() -> u64 {
     NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Google has signed the session out (password change, "sign out everywhere", or a
-/// copy it took for stolen).
 #[derive(Debug)]
 pub struct Revoked;
 
@@ -60,12 +41,8 @@ impl std::fmt::Display for Revoked {
 
 impl std::error::Error for Revoked {}
 
-/// The credential the session is saved under (see [`crate::vault`]).
 const VAULT: &str = "google session";
-/// Where versions up to 0.2.12 kept the session, in plain text; moved into the
-/// credential store on first launch.
 const FILE: &str = "account.json";
-/// Where versions up to 0.2.11 kept the session (rustypipe's cache).
 const LEGACY: &str = "rustypipe_cache.json";
 
 impl Session {
@@ -73,25 +50,20 @@ impl Session {
         Self { cookie, session_index, page_id, visitor_data: None, replaced: Default::default(), login: new_login() }
     }
 
-    /// The brand channel this session acts as; `None` for the Google account's own.
     pub fn channel(&self) -> Option<&str> {
         self.page_id.as_deref()
     }
 
-    /// The same sign-in acting as another of its channels (`None`: the account's own).
     pub fn on_channel(&self, page_id: Option<String>) -> Self {
         Self { page_id, ..self.clone() }
     }
 
-    /// `None` when signed out. A session saved by an older version is carried over.
     pub fn load(data_dir: &Path) -> Option<Self> {
         if let Some(s) = crate::vault::get(VAULT, data_dir).and_then(|b| serde_json::from_slice(&b).ok()) {
-            // No plain copy may outlive the move (an interrupted one, or an older version run since).
             Self::forget_plain(data_dir);
             return Some(s);
         }
         if let Some(s) = std::fs::read(data_dir.join(FILE)).ok().and_then(|b| serde_json::from_slice::<Self>(&b).ok()) {
-            // Only delete the plain copies once the credential store has it.
             if s.save(data_dir) {
                 Self::forget_plain(data_dir);
                 log::info!("signed-in session moved into the credential store");
@@ -109,7 +81,6 @@ impl Session {
         Some(s)
     }
 
-    /// Save to the credential store; false when it refused.
     pub fn save(&self, data_dir: &Path) -> bool {
         match crate::vault::set(VAULT, data_dir, &serde_json::to_vec(self).unwrap_or_default()) {
             Ok(()) => true,
@@ -120,13 +91,11 @@ impl Session {
         }
     }
 
-    /// Sign out: forget the session, including an older version's copy of it.
     pub fn remove(data_dir: &Path) {
         crate::vault::delete(VAULT, data_dir);
         Self::forget_plain(data_dir);
     }
 
-    /// Remove the plain-text copies older versions kept.
     fn forget_plain(data_dir: &Path) {
         let _ = std::fs::remove_file(data_dir.join(FILE));
         let legacy = data_dir.join(LEGACY);
@@ -142,7 +111,6 @@ impl Session {
         self.cookie.split(';').find_map(|kv| kv.trim().strip_prefix(name)?.strip_prefix('='))
     }
 
-    /// `SAPISIDHASH` authorization, as the web clients send it.
     fn authorization(&self, origin: &str) -> anyhow::Result<String> {
         let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         let parts: Vec<String> = [("SAPISIDHASH", "SAPISID"), ("SAPISID1PHASH", "__Secure-1PAPISID"), ("SAPISID3PHASH", "__Secure-3PAPISID")]
@@ -158,7 +126,6 @@ impl Session {
         Ok(parts.join(" "))
     }
 
-    /// Add the signed-in headers for a request to `origin`.
     pub fn sign(&self, req: reqwest::RequestBuilder, origin: &str) -> anyhow::Result<reqwest::RequestBuilder> {
         let mut req = req
             .header("Cookie", &self.cookie)
@@ -170,11 +137,6 @@ impl Session {
         Ok(req)
     }
 
-    /// Google keeps a signed-in session alive by replacing its cookies as it's used
-    /// (`__Secure-1PSIDTS`, `SIDCC`, …), and treats a copy that never takes the new
-    /// ones as stolen. The session with these `Set-Cookie` headers applied, when they
-    /// change anything. Only youtube.com-wide cookies count, and deletions are left out:
-    /// a revoked session is noticed by the signed-out answers instead.
     pub fn updated<'a>(&self, set_cookies: impl IntoIterator<Item = &'a str>) -> Option<Self> {
         let year = 1970 + SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs() / 31_556_952);
         let mut jar: Vec<(String, String)> = self
@@ -209,9 +171,6 @@ impl Session {
         changed.then(|| Self { cookie: jar.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join("; "), ..self.clone() })
     }
 
-    /// Ask Google for fresh session cookies, as an open YouTube tab does every few
-    /// minutes: the `Set-Cookie` headers it answers with. Fails with [`Revoked`] when
-    /// Google no longer knows the session.
     pub async fn rotate(&self, http: &reqwest::Client) -> anyhow::Result<Vec<String>> {
         const ACCOUNTS: &str = "https://accounts.youtube.com";
         let resp = http
@@ -230,12 +189,10 @@ impl Session {
         Ok(resp.error_for_status()?.headers().get_all("set-cookie").iter().filter_map(|c| c.to_str().ok().map(str::to_owned)).collect())
     }
 
-    /// The `Set-Cookie` lines collected since the last call.
     pub fn take_replaced(&self) -> Vec<String> {
         std::mem::take(&mut *self.replaced.lock().unwrap())
     }
 
-    /// Note a response's `Set-Cookie` lines for the API to take in.
     pub fn note_replaced(&self, headers: &reqwest::header::HeaderMap) {
         let lines: Vec<String> = headers.get_all("set-cookie").iter().filter_map(|c| c.to_str().ok().map(str::to_owned)).collect();
         if !lines.is_empty() {
@@ -243,8 +200,6 @@ impl Session {
         }
     }
 
-    /// The same Google sign-in as `other`, whatever the cookies' age and whichever of
-    /// its channels either acts as: the cookies are the sign-in's.
     pub fn same_login(&self, other: &Self) -> bool {
         self.login == other.login
     }
@@ -260,7 +215,6 @@ impl Session {
             .header("X-Origin", origin);
         let resp = self
             .sign(req, origin)?
-            // The Premium check's browse page is about 1 MB, slow through Tor.
             .timeout(std::time::Duration::from_secs(if crate::proxy::active().resolve().is_some() { 30 } else { 10 }))
             .json(&body)
             .send()
@@ -269,8 +223,6 @@ impl Session {
         Ok(resp.error_for_status()?.json().await?)
     }
 
-    /// Upload an audio file to the account's library, like "Upload music" on
-    /// music.youtube.com: a resumable upload, started and then sent in one go.
     pub async fn upload(&self, http: &reqwest::Client, path: &Path) -> anyhow::Result<()> {
         const ORIGIN: &str = "https://music.youtube.com";
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -312,8 +264,6 @@ impl Session {
         Ok(())
     }
 
-    /// Whether the account has YouTube Premium, read from the YouTube top bar logo
-    /// the way yt-dlp does.
     pub async fn is_premium(&self, http: &reqwest::Client) -> anyhow::Result<bool> {
         const WEB: &str = "2.20260708.00.00";
         let body = json!({"context": {"client": {"clientName": "WEB", "clientVersion": WEB, "hl": "en", "gl": "US"}}, "browseId": "FEwhat_to_watch"});
@@ -337,7 +287,6 @@ impl Session {
         if status["status"] != "OK" {
             anyhow::bail!("{}: {}", status["status"].as_str().unwrap_or("UNPLAYABLE"), status["reason"].as_str().unwrap_or("no reason given"));
         }
-        // 141 is Premium's 256 kbps AAC-LC; 140 is the usual 128 kbps.
         let formats = resp["streamingData"]["adaptiveFormats"].as_array().map(Vec::as_slice).unwrap_or_default();
         let f = [141, 140, 139]
             .iter()
@@ -348,7 +297,6 @@ impl Session {
         let duration_ms = f["approxDurationMs"].as_str().and_then(|d| d.parse().ok()).unwrap_or(0);
         let loudness_db = crate::innertube::loudness(&resp, f);
 
-        // Either a plain URL, or `signatureCipher` = s=<challenge>&sp=<param>&url=<url>.
         let (raw, cipher) = match f["url"].as_str() {
             Some(u) => (u.to_owned(), None),
             None => {
@@ -385,9 +333,7 @@ mod tests {
         let brand = s.on_channel(Some("42".into()));
         assert!(brand.same_login(&s));
         assert_eq!((brand.channel(), brand.on_channel(None).channel()), (Some("42"), None));
-        // Still the same once Google replaces cookies, SAPISID included.
         assert!(brand.updated(["SAPISID=new; Domain=.youtube.com"]).unwrap().same_login(&s));
-        // Another sign-in isn't, even with the same cookies (or none of the ones compared).
         assert!(!Session::new("SID=a; SAPISID=k".into(), 0, None).same_login(&s));
         let loaded: Session = serde_json::from_value(serde_json::to_value(&s).unwrap()).unwrap();
         assert!(!loaded.same_login(&s));
@@ -400,7 +346,6 @@ mod tests {
             .updated([
                 "__Secure-1PSIDTS=new; Domain=.youtube.com; Path=/; Expires=Thu, 28-Oct-2027 02:22:00 GMT; Secure; HttpOnly",
                 "SIDCC=c; expires=Thu, 28-Oct-2027 02:22:00 GMT; path=/; domain=.youtube.com",
-                // Deletions, a host-only cookie and an unchanged one change nothing.
                 "SID=gone; Domain=.youtube.com; Expires=Fri, 02-Feb-2024 02:22:00 GMT",
                 "SAPISID=; Domain=.youtube.com",
                 "SAPISID=x; Domain=.youtube.com; Max-Age=0",
@@ -425,12 +370,10 @@ mod tests {
 
         let s = Session::load(&dir).unwrap();
         assert_eq!((s.cookie.as_str(), s.session_index, s.page_id.as_deref()), ("SAPISID=abc; SID=x", 1, Some("brand")));
-        // Kept in the credential store only.
         assert!(!dir.join(FILE).exists());
         assert!(crate::vault::get(VAULT, &dir).is_some());
         assert!(s.authorization("https://music.youtube.com").unwrap().starts_with("SAPISIDHASH "));
 
-        // A plain account.json from 0.2.12 moves into the store too.
         std::fs::write(dir.join(FILE), serde_json::to_vec(&s).unwrap()).unwrap();
         crate::vault::delete(VAULT, &dir);
         assert_eq!(Session::load(&dir).unwrap().cookie, s.cookie);

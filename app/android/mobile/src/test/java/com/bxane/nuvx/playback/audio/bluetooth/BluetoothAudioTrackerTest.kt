@@ -80,8 +80,8 @@ class BluetoothAudioTrackerTest {
 
     @Test
     fun realmeBudsAir5ProLdacTelemetryVerification() {
-        val sampleRateHz = BluetoothAudioTracker.mapSampleRate(8) // 96000 Hz
-        val bitDepth = BluetoothAudioTracker.mapBitDepth(4) // 32-bit
+        val sampleRateHz = BluetoothAudioTracker.mapSampleRate(8)
+        val bitDepth = BluetoothAudioTracker.mapBitDepth(4)
         val mode = BluetoothAudioTracker.parseLdacQualityMode(1000L)
 
         val telemetry = BluetoothTelemetry(
@@ -112,8 +112,8 @@ class BluetoothAudioTrackerTest {
             isConnected = true,
             deviceName = "AirPods Pro",
             codecName = BluetoothAudioTracker.mapCodecType(BluetoothAudioTracker.SOURCE_CODEC_TYPE_AAC),
-            sampleRateHz = BluetoothAudioTracker.mapSampleRate(2), // 48000 Hz
-            bitDepth = BluetoothAudioTracker.mapBitDepth(1), // 16-bit
+            sampleRateHz = BluetoothAudioTracker.mapSampleRate(2),
+            bitDepth = BluetoothAudioTracker.mapBitDepth(1),
             bitrateLabel = "Not exposed by Android",
             mode = null,
             isAuthoritative = true,
@@ -182,8 +182,6 @@ class BluetoothAudioTrackerTest {
 
     @Test
     fun noLdacInferenceFromSampleRateOrBitDepth() {
-        // Even when sample rate is 96000 Hz and bit depth is 32-bit,
-        // if authoritative codec is not confirmed, it MUST NOT infer LDAC.
         val nonAuthoritativeHiRes = BluetoothTelemetry(
             isConnected = true,
             deviceName = "Generic Hi-Res Earbuds",

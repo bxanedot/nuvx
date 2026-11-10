@@ -7,11 +7,6 @@ interface FavoriteButtonProps {
   size?: number;
 }
 
-/**
- * Apple's Favorite star, backed by YouTube Music's like (a liked song joins
- * Liked Music). Only shown signed in; the state is read from the track's
- * watch page, as YouTube's own player reads it.
- */
 export function FavoriteButton({ videoId, className, size = 18 }: FavoriteButtonProps) {
   const signedIn = useSignedIn();
   const status = useLikeStatus(videoId);

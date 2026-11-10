@@ -1,13 +1,5 @@
 import type { PartyMember, PartyPlayback, PartyQueue, PartyTrack } from './models';
 
-/**
- * Where [videoId] is in the party's queue: PartyQueueReading.kt.
- *
- * A party queue keeps its history, so the playing track can be in it twice.
- * The state frame's own index wins when it names the track; otherwise the
- * nearest copy, looking forward first. Never `indexOf`: that took the first
- * copy from the top and played the wrong part of the queue.
- */
 export function partyQueueIndexOf(queue: PartyQueue, playback: PartyPlayback, videoId: string | null | undefined): number {
   if (!videoId) return -1;
   const items = queue.items;
@@ -26,7 +18,6 @@ export function partyQueueIndexOf(queue: PartyQueue, playback: PartyPlayback, vi
   return best;
 }
 
-/** What the party plays after [videoId], or nothing when the queue doesn't hold it. */
 export function partyUpcomingAfter(queue: PartyQueue, playback: PartyPlayback, videoId: string | null | undefined): PartyTrack[] {
   const at = partyQueueIndexOf(queue, playback, videoId);
   return at < 0 ? [] : queue.items.slice(at + 1);
@@ -38,7 +29,6 @@ export interface QueueMoveDelta {
   videoId: string;
 }
 
-/** Whether [after] is [before] with exactly one item moved (PartySync.detectSingleMove). */
 export function detectSingleMove(before: string[], after: string[], baseOffset = 0): QueueMoveDelta | null {
   if (before.length !== after.length || !before.length || before.every((id, i) => id === after[i])) return null;
   const counts = (list: string[]) => list.reduce((m, id) => m.set(id, (m.get(id) ?? 0) + 1), new Map<string, number>());
@@ -57,11 +47,6 @@ export function detectSingleMove(before: string[], after: string[], baseOffset =
   return null;
 }
 
-/**
- * The one member who tops up AutoPlay (Autoplay.autoplaySupplierId): the
- * host while connected, else the lowest connected member id; nobody stands in
- * for a host who has locked the party.
- */
 export function autoplaySupplierId(members: PartyMember[], hostOnlyControl: boolean): string | null {
   const host = members.find((m) => m.isHost && m.connected)?.memberId ?? null;
   if (hostOnlyControl) return host;

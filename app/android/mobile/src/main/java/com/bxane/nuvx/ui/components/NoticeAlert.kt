@@ -36,13 +36,8 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 
-/** One stacked action row: label, whether it is the default (bold) choice, and what it does. */
 data class NoticeAction(val label: String, val emphasised: Boolean = false, val onClick: () -> Unit)
 
-/**
- * A plain message in the same iOS-alert card as [UpdateAvailableDialog]: title,
- * body, then full-width actions. Tapping the scrim is [onDismiss].
- */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun NoticeAlert(
@@ -96,11 +91,6 @@ fun NoticeAlert(
     }
 }
 
-/**
- * The app's own pop-ups: Radio's and Podcasts' first visits (offer to hide the tab, else say
- * where that lives), and the rare tip / GitHub-star ask. [held] keeps the
- * latter back while the welcome, a greeting or an update is up.
- */
 @Composable
 internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean, hazeState: HazeState) {
     val context = LocalContext.current
@@ -139,7 +129,6 @@ internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean
         )
     }
 
-    // Podcasts' first visit, the same two steps as Radio's.
     if (podcastsIntroStep == 1) {
         NoticeAlert(
             title = stringResource(R.string.podcasts),
@@ -166,7 +155,6 @@ internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean
         )
     }
 
-    // Now and then: a tip or a GitHub star (see AppSettings.nextSupportPrompt).
     if (supportPrompt != 0 && !held && radioIntroStep == 0 && podcastsIntroStep == 0) {
         val tip = supportPrompt == 1
         val url = if (tip) "https://ko-fi.com/bxane" else "https://github.com/bxanedot/nuvx"

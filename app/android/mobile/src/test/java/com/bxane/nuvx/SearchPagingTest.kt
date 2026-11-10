@@ -158,10 +158,6 @@ class SearchPagingTest {
 
     @Test
     fun `a byline that links every artist keeps every channel`() {
-        // The whole point: the byline states one endpoint per artist, and
-        // taking only the first is what left every other credit with no page of
-        // its own — so its name had to be searched for, and a search for a name
-        // finds whoever else answers to it.
         fun artistRun(name: String, id: String) = """
           { "text": "$name", "navigationEndpoint": { "browseEndpoint": {
             "browseId": "$id", "browseEndpointContextSupportedConfigs": {
@@ -197,15 +193,11 @@ class SearchPagingTest {
             listOf("UC_BEDEO", "UC_2115", "UC_FLEXXY"),
             song.artists.map { it.browseId },
         )
-        // The first one is still the track's own artist id, which the rest of
-        // the app reads.
         assertEquals("UC_BEDEO", song.artistId)
     }
 
     @Test
     fun `a partly linked byline keeps the linked artists and no others`() {
-        // Nothing may be completed from what a previous test happened to parse,
-        // or this would be asserting on another test's rows.
         ArtistNameIndex.forget()
         fun artistRun(name: String, id: String) = """
           { "text": "$name", "navigationEndpoint": { "browseEndpoint": {
@@ -231,19 +223,12 @@ class SearchPagingTest {
 
         val song = InnertubeParser.parseWatchQueue(Json.parseToJsonElement(json)).single()
 
-        // "2115" is not credited here, because YouTube did not credit it — it
-        // only named it. Inventing a credit for it would put a link on the wrong
-        // row, and a name is not an identity.
         assertEquals(listOf("BedeoSa"), song.artists.map { it.name })
         assertEquals("BedeoSa & 2115", song.artist)
     }
 
     @Test
     fun `a name a row named but did not link is filled from what another row linked`() {
-        // The real shape of this bug: one album links two of three names and
-        // another album states the third. The gap is in the response, not in the
-        // artist, so the credit the reader is missing is recovered from the rows
-        // that did link it.
         ArtistNameIndex.forget()
         fun artistRun(name: String, id: String) = """
           { "text": "$name", "navigationEndpoint": { "browseEndpoint": {
@@ -265,7 +250,6 @@ class SearchPagingTest {
         }
         """.trimIndent()
 
-        // Another album, where every name is linked.
         InnertubeParser.parseWatchQueue(
             Json.parseToJsonElement(
                 watchQueue("${artistRun("CBW", "UC_CBW")}, { \"text\": \", \" }, ${artistRun("White 2115", "UC_WHITE")}"),
@@ -306,16 +290,9 @@ class SearchPagingTest {
         val songs = InnertubeParser.parseSearchSongs(Json.parseToJsonElement(json).jsonObject)
 
         assertTrue(songs.first { it.videoId == "explicit" }.isExplicit == true)
-        // No badge is not proof of a clean edition: several YouTube renderer
-        // shapes simply omit badges altogether.
         assertNull(songs.first { it.videoId == "clean" }.isExplicit)
     }
 
-    /**
-     * Searching an artist promotes them to a card and hangs three of their
-     * songs off it. Those rows state only "Song • 3:16" — the credit is on the
-     * card, said once — so each one used to come back as "Unknown artist".
-     */
     @Test
     fun `songs under an artist card inherit the card's credit`() {
         val json = """
@@ -362,15 +339,9 @@ class SearchPagingTest {
         assertEquals("basti", song.videoId)
         assertEquals("MC STAN", song.artist)
         assertEquals("UCXPnAUkxJtng8M_5yWuSTjw", song.artistId)
-        // The card names who, never off which release — see [cardShelfCredit].
         assertNull(song.albumId)
     }
 
-    /**
-     * The other card shape lists *related* uploads rather than its own — a
-     * dance cover, a choreography video — so the promoted track's credit must
-     * not be lent to rows that carry their own.
-     */
     @Test
     fun `rows under a song card keep their own credit`() {
         val json = """
@@ -422,10 +393,6 @@ class SearchPagingTest {
         assertNull(songs.first { it.videoId == "cover" }.artistId)
     }
 
-    /**
-     * Signed out, "tum hi ho" promotes an uncatalogued "Episode" upload over
-     * the song itself. The card goes; the real track below it stays first.
-     */
     @Test
     fun `an uncatalogued episode card does not take the top result`() {
         val json = """

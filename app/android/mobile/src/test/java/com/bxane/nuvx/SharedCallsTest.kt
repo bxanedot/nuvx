@@ -17,10 +17,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * The contract that keeps a module's server from being asked the same question
- * over and over — see [SharedCalls] for the traffic that prompted it.
- */
 class SharedCallsTest {
 
     private fun scope() = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -57,8 +53,6 @@ class SharedCallsTest {
                 Result.success(emptyList())
             }
         }
-        // "This catalogue does not hold that recording" is exactly the answer
-        // the second look and the follow-up pass would otherwise re-ask for.
         assertEquals(1, calls.get())
     }
 
@@ -144,8 +138,6 @@ class SharedCallsTest {
         val calls = AtomicInteger()
         val joined = AtomicInteger()
         val release = CompletableDeferred<Unit>()
-        // ttl 0, so nothing is kept once the call completes and only the
-        // in-flight sharing can account for the count below.
         val shared = shared<String>(ttlMs = 0, onReuse = { joined.incrementAndGet() })
 
         val waiters: List<Deferred<Result<String>>> = List(4) {
@@ -157,10 +149,6 @@ class SharedCallsTest {
                 }
             }
         }
-        // Every one of the other three has to have *joined* the running call
-        // before it is allowed to finish. Releasing on the first producer alone
-        // is a race: with ttl 0 the window shuts the moment the work completes,
-        // so a straggler arriving after that legitimately starts its own.
         while (joined.get() < 3) yield()
         release.complete(Unit)
 
@@ -168,11 +156,6 @@ class SharedCallsTest {
         assertEquals(1, calls.get())
     }
 
-    /**
-     * The behaviour the module's operator was actually complaining about: this
-     * app cancels losing lookups routinely, and a cancelled caller used to take
-     * the request down with it *after* the server had already been asked.
-     */
     @Test
     fun `a cancelled caller does not kill the call others still want`() = runBlocking {
         val calls = AtomicInteger()
@@ -192,8 +175,6 @@ class SharedCallsTest {
         abandoning.cancelAndJoin()
         release.complete(Unit)
 
-        // The abandoned request finished into the cache, so the next caller —
-        // which in the app is the second look, moments later — pays nothing.
         val answer = withTimeout(5_000) {
             shared.get("q", { "" }) { Result.success("never asked") }
         }

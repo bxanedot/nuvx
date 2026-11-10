@@ -22,23 +22,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 
-/**
- * The 4×1 widget: a capsule with the cover in a circle, the track, and Like /
- * previous / play / next / Shuffle.
- *
- * Its own provider rather than a third size of [MediaWidget]: a different
- * shape with a different picture. It reads the same [MediaWidgetSnapshot],
- * shares the same [MediaWidgetActions], and draws two bitmaps through
- * [MediaWidgetArt] — the round cover, and the capsule's body, which is the cover
- * blurred to colour at the capsule's exact size.
- */
 class MediaWidgetPill : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         renderAsync(context, ids)
     }
 
-    /** A resize changes the capsule's width, and its body is drawn to size. */
     override fun onAppWidgetOptionsChanged(
         context: Context,
         manager: AppWidgetManager,
@@ -66,7 +55,6 @@ class MediaWidgetPill : AppWidgetProvider() {
 
     companion object {
 
-        /** Redraws every placed 4×1 widget. Called from [MediaWidget.refresh]. */
         internal fun refresh(context: Context) {
             val app = context.applicationContext
             scope.launch {
@@ -79,12 +67,6 @@ class MediaWidgetPill : AppWidgetProvider() {
             }
         }
 
-        /**
-         * Pushes the controls at once when either picture still has to be drawn,
-         * for the same reason [MediaWidget] does: a tap should be answered in a
-         * frame, not after a cover fetch. The disc is one size and shared; the
-         * body is per instance, because each can be a different width.
-         */
         private suspend fun render(context: Context, ids: IntArray) {
             val manager = runCatching { AppWidgetManager.getInstance(context) }.getOrNull() ?: return
             val snapshot = MediaWidgetSnapshot.load(context)
@@ -97,8 +79,6 @@ class MediaWidgetPill : AppWidgetProvider() {
                 val cachedDisc = key?.let { MediaWidgetArt.peekCircle(it, discPx) }
                 val cachedBody = key?.let { MediaWidgetArt.peekPill(it, widthPx, heightPx) }
                 if (cachedDisc == null || cachedBody == null) {
-                    // With what this widget last drew, not with nothing: a
-                    // RemoteViews replaces the whole tree. See MediaWidget.render.
                     manager.push(id, views(context, snapshot, cachedDisc ?: lastDisc, cachedBody ?: lastBody[id]))
                 }
                 val drawn = withTimeoutOrNull(RENDER_TIMEOUT_MS) {
@@ -108,20 +88,12 @@ class MediaWidgetPill : AppWidgetProvider() {
                     disc to (cachedBody ?: MediaWidgetArt.pill(context, snapshot.artworkUrl, widthPx, heightPx, key))
                 } ?: continue
                 val (disc, body) = drawn
-                // A track with no cover, or one that failed, shows the
-                // placeholder disc rather than the previous track's picture.
                 lastDisc = disc
                 lastBody[id] = body
                 manager.push(id, views(context, snapshot, disc, body))
             }
         }
 
-        /**
-         * The capsule's width in pixels: the widget's width for the orientation
-         * in force, as [MediaWidget.measure] reads it. The capsule is
-         * match_parent, so it is exactly this wide and the body bitmap lands
-         * 1:1 — its round ends stay round rather than being stretched.
-         */
         private fun widthPx(context: Context, manager: AppWidgetManager, id: Int): Int {
             val options = runCatching { manager.getAppWidgetOptions(id) }.getOrNull()
             val landscape =
@@ -142,8 +114,6 @@ class MediaWidgetPill : AppWidgetProvider() {
             disc?.let { views.setImageViewBitmap(R.id.widget_art, it) }
             body?.let {
                 views.setImageViewBitmap(R.id.widget_pill_bg, it)
-                // The translucent stand-in capsule would show through the
-                // body's own transparency and darken it unevenly.
                 views.setInt(R.id.widget_pill_bg, "setBackgroundResource", 0)
             }
 
@@ -164,8 +134,6 @@ class MediaWidgetPill : AppWidgetProvider() {
                 R.id.widget_toggle,
                 context.getString(if (snapshot.isPlaying) R.string.widget_pause else R.string.widget_play),
             )
-            // Hidden rather than greyed, like the player's: the spacers either
-            // side of the transport share the room out evenly without it.
             views.setViewVisibility(R.id.widget_like, if (snapshot.canLike) View.VISIBLE else View.GONE)
             views.setImageViewResource(
                 R.id.widget_like,
@@ -204,8 +172,6 @@ class MediaWidgetPill : AppWidgetProvider() {
                     views.setOnClickPendingIntent(button, MediaWidgetActions.pendingIntent(context, action))
                 }
             } else {
-                // Nothing to control yet; every button opens the app instead.
-                // See MediaWidget.views.
                 for ((button, _) in ACTIONS) {
                     views.setImageAlpha(button, ALPHA_DISABLED)
                     views.setOnClickPendingIntent(button, open)
@@ -217,7 +183,6 @@ class MediaWidgetPill : AppWidgetProvider() {
         private fun RemoteViews.setImageAlpha(viewId: Int, alpha: Int) =
             setInt(viewId, "setImageAlpha", alpha)
 
-        /** Same intent as [MediaWidget]'s, and why it has no action is explained there. */
         private fun openPlayer(context: Context): PendingIntent {
             val intent = Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -244,17 +209,13 @@ class MediaWidgetPill : AppWidgetProvider() {
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-        /** The disc all instances currently show. @see render */
         @Volatile
         private var lastDisc: Bitmap? = null
 
-        /** The body each instance currently shows. @see render */
         private val lastBody = ConcurrentHashMap<Int, Bitmap>()
 
-        /** Four cells by the launcher's 70n − 30 arithmetic, for a host that hasn't said. */
         private const val FALLBACK_WIDTH_DP = 250
 
-        /** Bounds the bitmap parcelled to the host on a tablet-wide instance. */
         private const val MAX_WIDTH_PX = 1_600
 
         private const val RENDER_TIMEOUT_MS = 8_000L

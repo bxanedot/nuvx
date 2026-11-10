@@ -48,7 +48,6 @@ class PresenceTest {
         assertEquals(true, open.isOpen())
 
         presence.setOpen(false)
-        // Held back for the debounce, then sent.
         assertNull(nextPing(timeoutSec = 1), "close should wait out the debounce")
         assertEquals(false, nextPing()!!.isOpen())
     }
@@ -62,7 +61,6 @@ class PresenceTest {
         presence.setOpen(false)
         Thread.sleep(300)
         presence.setOpen(true)
-        // The reopen pings straight away; the close it replaced never goes out.
         assertEquals(true, nextPing()!!.isOpen())
         assertNull(nextPing(timeoutSec = 3))
     }
@@ -81,7 +79,6 @@ class PresenceTest {
         presence.setOpen(true)
         nextPing()!!
         presence.closeBlocking()
-        // Already sent by the time closeBlocking returns: no waiting.
         assertEquals(false, nextPing(timeoutSec = 0)!!.isOpen())
     }
 }

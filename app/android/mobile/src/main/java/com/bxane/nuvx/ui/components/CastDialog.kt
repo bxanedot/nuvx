@@ -40,15 +40,6 @@ import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
 
-/**
- * Where to send the music: the receivers on this network, opened from the
- * output drawer's Cast row.
- *
- * Drawn in [AudioPopupCard], the card the audio pipeline readout uses, so the
- * two popups off the same drawer are visibly one family. The list is live —
- * receivers are found, and lost, while it is open — and the router is asked to
- * scan for as long as it is, which is the only time that is worth its cost.
- */
 @Composable
 fun CastDialog(
     hazeState: HazeState,
@@ -57,8 +48,6 @@ fun CastDialog(
 ) {
     val cast by CastController.state.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
-    // Set by tapping a receiver, so the popup closes itself when that receiver
-    // connects — but not when somebody opens it while already casting.
     var picked by remember { mutableStateOf(false) }
 
     DisposableEffect(cast.supported) {
@@ -176,7 +165,6 @@ private fun CastDeviceRow(
     }
 }
 
-/** Shown until the first receiver turns up; it is also what an empty network looks like. */
 @Composable
 private fun SearchingRow() {
     Column(

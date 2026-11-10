@@ -1,5 +1,3 @@
-//! Dev hooks: test screenshots, the theme tour, frame pacing and `NUVX_*` variables.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
@@ -7,13 +5,10 @@ use std::time::Duration;
 use super::App;
 
 impl App {
-    /// Dev hook: `NUVX_THEME_TOUR=<secs>` steps through every theme preset from
-    /// `NUVX_SCREENSHOT_AT`, saving `<NUVX_SCREENSHOT stem>_<id>.png` for each, then exits.
     pub(super) fn theme_tour(&mut self, ctx: &egui::Context, now: f64) {
         let Some(path) = dev_var("NUVX_SCREENSHOT").map(std::path::PathBuf::from) else { return };
         let at: f64 = dev_var("NUVX_SCREENSHOT_AT").and_then(|v| v.parse().ok()).unwrap_or(8.0);
         let step: f64 = dev_var("NUVX_THEME_TOUR").and_then(|v| v.parse().ok()).unwrap_or(3.0);
-        // NUVX_TOUR_ONLY=id,id limits the tour to those presets.
         let only = dev_var("NUVX_TOUR_ONLY").unwrap_or_default();
         let all: Vec<&crate::preset::Preset> = crate::preset::all().iter().filter(|p| only.is_empty() || only.split(',').any(|o| o == p.id)).collect();
         ctx.request_repaint_after(Duration::from_millis(100));
@@ -22,7 +17,6 @@ impl App {
         }
         let n = ((now - at) / step) as usize;
         if n >= all.len() {
-            // Let the last screenshot land, then quit.
             if now - at > step * all.len() as f64 + 1.5 {
                 self.quit(ctx);
             }
@@ -49,11 +43,6 @@ impl App {
     }
 }
 
-/// Dev hook: `NUVX_SCREENSHOT=out.png` saves the app's own framebuffer after
-/// `NUVX_SCREENSHOT_AT` seconds (default 8), independent of OS window capture.
-/// `NUVX_SCREENSHOT_BURST=<n>` instead keeps the next n frames from `NUVX_SCREENSHOT_AT`
-/// (in memory, so saving doesn't slow them) and then writes `<stem>_<i>_<ms>.png`,
-/// `ms` being each frame's time: a filmstrip of an animation and its frame pacing.
 pub(super) fn dev_screenshot(ctx: &egui::Context, now: f64) {
     let Some(path) = dev_var("NUVX_SCREENSHOT") else { return };
     let at: f64 = dev_var("NUVX_SCREENSHOT_AT").and_then(|v| v.parse().ok()).unwrap_or(8.0);
@@ -109,7 +98,6 @@ pub(super) fn dev_screenshot(ctx: &egui::Context, now: f64) {
     }
 }
 
-/// A `NUVX_*` dev hook, read once: several are checked every frame.
 pub(super) fn dev_var(name: &str) -> Option<&'static str> {
     static VARS: std::sync::OnceLock<std::collections::HashMap<String, String>> = std::sync::OnceLock::new();
     VARS.get_or_init(|| {
@@ -119,9 +107,6 @@ pub(super) fn dev_var(name: &str) -> Option<&'static str> {
     .map(String::as_str)
 }
 
-/// Dev hook: NUVX_FPS=<hz> holds each frame to 1/<hz> s, as vsync does on a visible window
-/// of that refresh rate (test windows sit off-screen, where Windows gives them ~21 fps);
-/// NUVX_FPS_LOG logs the rate reached every 5 s.
 pub(super) fn dev_pace() {
     use std::sync::Mutex;
     use std::time::Instant;

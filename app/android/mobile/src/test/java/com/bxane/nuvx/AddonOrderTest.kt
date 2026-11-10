@@ -9,16 +9,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/**
- * The addon priority order.
- *
- * Worth its own tests because the ordering is *implicit*: there is no rank
- * field, the stored list order is the priority, and what makes that work is
- * that `active()` sorts by kind with a stable sort. A change that swapped in an
- * unstable sort, or that rebuilt the list through a map, would break priority
- * silently — every source still present, every one of them tried, just not in
- * the order the user dragged them into.
- */
 class AddonOrderTest {
 
     private val before = SourceRegistry.configs.value
@@ -42,7 +32,6 @@ class AddonOrderTest {
         return addons
     }
 
-    /** The user-added sources in stored order, which is the order they are tried. */
     private fun addonLabels() =
         SourceRegistry.configs.value.filter { it.kind.isUserAdded }.map { it.label }
 
@@ -55,7 +44,6 @@ class AddonOrderTest {
         assertEquals(listOf("c", "a", "b"), addonLabels())
     }
 
-    /** A drag moves addons past each other and must not disturb anything else. */
     @Test
     fun `reordering leaves the fixed-rank sources alone`() {
         val addons = seed("a", "b")
@@ -68,11 +56,6 @@ class AddonOrderTest {
         )
     }
 
-    /**
-     * The list can move under a drag — an addon removed elsewhere, a probe
-     * writing a name back. Reordering what it can beats dropping whatever the
-     * gesture did not know about.
-     */
     @Test
     fun `an addon missing from the order is kept rather than dropped`() {
         val addons = seed("a", "b", "c")
@@ -91,7 +74,6 @@ class AddonOrderTest {
         assertEquals(listOf("b", "a"), addonLabels())
     }
 
-    /** Nothing to reorder, and nothing to write to disk over. */
     @Test
     fun `a single addon is left untouched`() {
         val addons = seed("only")
@@ -101,39 +83,24 @@ class AddonOrderTest {
         assertEquals(listOf("only"), addonLabels())
     }
 
-    // ── Duplicates ────────────────────────────────────────────────────────
-
-    /**
-     * The same catalogue configured twice is not a harmless mistake: it is
-     * every search and every stream lookup run twice per track against one
-     * server, which is exactly the "you are spamming me" shape an addon
-     * operator notices.
-     */
     @Test
     fun `an exact repeat of a configured URL is a duplicate`() {
         val addons = seed("a")
         assertEquals(addons[0].id, SourceRegistry.duplicateOf(addons[0].baseUrl)?.id)
     }
 
-    /** A trailing slash is not a different server. */
     @Test
     fun `a trailing slash does not make a new source`() {
         val addons = seed("a")
         assertEquals(addons[0].id, SourceRegistry.duplicateOf(addons[0].baseUrl + "/")?.id)
     }
 
-    /** Host and scheme are case-insensitive; two spellings are one address. */
     @Test
     fun `a differently-cased host is the same source`() {
         seed("a")
         assertNotNull(SourceRegistry.duplicateOf("https://A.EXAMPLE.COM"))
     }
 
-    /**
-     * The path is *not* case-folded, and this is the case that matters: on this
-     * protocol a token lives in the path, and two tokens differing only in case
-     * are two different credentials, not one address typed twice.
-     */
     @Test
     fun `paths differing only in case are different sources`() {
         SourceRegistry.configs.value = listOf(
@@ -143,7 +110,6 @@ class AddonOrderTest {
         assertNotNull(SourceRegistry.duplicateOf("https://host.example.com/AbC"))
     }
 
-    /** Editing a source without changing its URL must not refuse itself. */
     @Test
     fun `a source is not its own duplicate when it is the one being edited`() {
         val addons = seed("a")
@@ -156,7 +122,6 @@ class AddonOrderTest {
         assertNull(SourceRegistry.duplicateOf("https://b.example.com"))
     }
 
-    /** A built-in source has no address, so nothing can collide with it. */
     @Test
     fun `a blank URL never matches the built-in sources`() {
         seed("a")

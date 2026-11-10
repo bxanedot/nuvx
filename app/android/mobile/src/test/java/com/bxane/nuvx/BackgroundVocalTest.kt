@@ -8,15 +8,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Only Apple's TTML marks the answering vocal outright. Every other provider
- * writes it into the line as a bracket, and left there it was sung over the
- * top of the *next* line's stamp — so the cursor moved on with the bracket
- * half-swept and the strip cut it off. These cover the split that pulls it out.
- *
- * The lines are the shape LyricsPlus serves "Heartbreak Anniversary" in, with
- * placeholder words.
- */
 class BackgroundVocalTest {
 
     private fun words(vararg spans: Triple<Long, Long, String>) =
@@ -55,15 +46,10 @@ class BackgroundVocalTest {
         val backing = line.background!!
         assertEquals("(echoed words)", backing.text)
         assertEquals(listOf("(echoed", "words)"), backing.words.map { it.text })
-        // Its own stamp, so it sweeps on its own clock rather than the lead's.
         assertEquals(2_100L, backing.timeMs)
         assertTrue(backing.isWordSynced)
     }
 
-    /**
-     * The bug the split exists for: the answer runs past the lead's last word,
-     * and the line is not over until it stops.
-     */
     @Test
     fun `the line ends when the answer does, not when the lead does`() {
         val line = listOf(
@@ -77,7 +63,6 @@ class BackgroundVocalTest {
 
     @Test
     fun `a line that is entirely bracketed is left as it is`() {
-        // It is already its own line; there is no lead to hang it under.
         val line = listOf(LyricLine(1_000L, "(ooh ooh)")).withBackgroundVocals().single()
         assertEquals("(ooh ooh)", line.text)
         assertNull(line.background)
@@ -92,8 +77,6 @@ class BackgroundVocalTest {
 
     @Test
     fun `a bracket opening mid-word is not a second voice`() {
-        // "wait(ing)" is one word; there is no word boundary to split on and
-        // nothing to give the answering line for timing.
         val line = listOf(
             wordSynced(
                 Triple(1_000L, 1_400L, "still"),

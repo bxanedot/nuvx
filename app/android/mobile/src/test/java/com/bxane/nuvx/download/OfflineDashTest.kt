@@ -3,7 +3,6 @@ package com.bxane.nuvx.download
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Which rendition of a multi-rendition manifest a download keeps. */
 class OfflineDashTest {
 
     private fun rep(id: String, codecs: String, bandwidth: Int, last: Int) = """
@@ -13,7 +12,6 @@ class OfflineDashTest {
         <SegmentTimeline><S d="176128" r="2"/><S d="$last"/></SegmentTimeline></SegmentTemplate></Representation>
     """
 
-    /** The shape Tidal served on 2026-10-01: HE-AAC first, FLAC last. */
     private val tidal = """<?xml version='1.0'?><MPD type="static" mediaPresentationDuration="PT12S"><Period id="0">
         <AdaptationSet id="0" contentType="audio" mimeType="audio/mp4">
         ${rep("HEAACV1", "mp4a.40.5", 97002, 29960)}
@@ -27,7 +25,6 @@ class OfflineDashTest {
         assertEquals("https://cdn/FLAC,44100,16/0.mp4?a=1&b=2", plan.initialization)
         assertEquals("https://cdn/FLAC,44100,16/4.mp4?a=1&b=2", plan.media.last())
         assertEquals(4, plan.media.size)
-        // That rendition's own final segment, not the first rendition's.
         assertEquals(24902 / 44100.0, plan.seconds.last(), 1e-9)
     }
 

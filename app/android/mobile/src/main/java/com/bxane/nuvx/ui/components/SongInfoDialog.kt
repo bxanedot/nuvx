@@ -26,17 +26,6 @@ import com.bxane.nuvx.data.model.Song
 
 private val INFO_BODY_MAX_HEIGHT = 360.dp
 
-/**
- * Drawn as the same UIAlertController-style card as [AlertScaffold] — centred
- * title, hairline [AlertRule]s, full-width [AlertAction]s — rather than a
- * Material [AlertDialog], so it reads as one of the app's own alerts.
- *
- * Kept in a window [Dialog] because it opens from the song actions menu, which
- * can sit inside the player's own window; an in-tree overlay would be drawn
- * underneath it. A
- * separate window can't sample the app's haze, so the card takes the plain
- * surface the other alerts fall back to under "reduce dynamic blur".
- */
 @Composable
 internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
     var retry by remember(song.videoId) { mutableIntStateOf(0) }
@@ -127,7 +116,6 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
     }
 }
 
-/** Label on the left, value on the right; a small spinner stands in for the value while it loads. */
 @Composable
 private fun SongInfoRow(label: String, value: String?) {
     val onSurface = MaterialTheme.colorScheme.onSurface

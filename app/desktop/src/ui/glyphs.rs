@@ -1,13 +1,7 @@
-//! nuvx's icon set: SF Symbols exported from GlyphStudio (Semibold, as the Android tab
-//! bar draws them), kept as vector paths and rasterised at the exact pixel size they're
-//! drawn at, then tinted. Each path carries its animation group, so a symbol can bounce
-//! layer by layer with GlyphStudio's own curves.
-
 use egui::{Color32, ColorImage, Id, Pos2, Rect, TextureHandle, TextureOptions, Ui, pos2, vec2};
 use std::sync::Arc;
 use tiny_skia::{BlendMode, FillRule, Paint, PathBuilder, Pixmap, Transform};
 
-/// An SVG as written by the GlyphStudio export (or any single-colour SVG of M/L/C/Z paths).
 pub type Glyph = &'static str;
 
 pub const SHUFFLE: Glyph = include_str!("../../assets/icon/glyphs/shuffle.svg");
@@ -49,20 +43,14 @@ pub const WIFI: Glyph = include_str!("../../assets/icon/glyphs/wifi.svg");
 pub const IMPORT: Glyph = include_str!("../../assets/icon/glyphs/import.svg");
 pub const KEYBOARD: Glyph = include_str!("../../assets/icon/glyphs/keyboard.svg");
 pub const HISTORY: Glyph = include_str!("../../assets/icon/glyphs/history.svg");
-/// GlyphStudio's broadcast symbol, as Android's Radio tab; it carries Variable Color's layer order.
 pub const RADIO: Glyph = include_str!("../../assets/icon/glyphs/radio.svg");
-/// Beside the station on air, pulsing while it plays (as Android's).
 pub const WAVEFORM: Glyph = include_str!("../../assets/icon/glyphs/waveform.svg");
-/// Brand marks (Simple Icons, CC0), drawn in one colour like every other glyph.
 pub const SPOTIFY: Glyph = include_str!("../../assets/icon/glyphs/spotify.svg");
 pub const DISCORD: Glyph = include_str!("../../assets/icon/glyphs/discord.svg");
 pub const YOUTUBE_MUSIC: Glyph = include_str!("../../assets/icon/glyphs/youtube_music.svg");
-/// The nuvx mark (white, 880×360).
 pub const MARK: Glyph = include_str!("../../assets/icon/mark.svg");
 
-/// The box the sidebar's section symbols fit in.
 pub const APPLE_GLYPH: f32 = 20.0;
-/// The box the smaller utility symbols fit in.
 pub const LUCIDE_GLYPH: f32 = 17.0;
 
 struct Layer {
@@ -76,7 +64,6 @@ struct Shape {
     view: [f32; 4],
     groups: u32,
     layers: Vec<Layer>,
-    /// Variable Color's layer order (`data-variable`), first lit first.
     variable: Vec<usize>,
 }
 
@@ -127,7 +114,6 @@ fn number(b: &[u8], i: &mut usize) -> Option<f32> {
     std::str::from_utf8(&b[start..*i]).ok()?.parse().ok()
 }
 
-/// Absolute M/L/C/Z path data, which is all the exports use.
 fn path(d: &str) -> Option<tiny_skia::Path> {
     let b = d.as_bytes();
     let mut pb = PathBuilder::new();
@@ -170,7 +156,6 @@ fn path(d: &str) -> Option<tiny_skia::Path> {
 }
 
 fn shape(ui: &Ui, glyph: Glyph) -> Option<Arc<Shape>> {
-    // Each const has its own address, so it doubles as the cache key.
     let id = Id::unique(("nuvx-glyph-shape", glyph.as_ptr()));
     if let Some(s) = ui.ctx().data(|d| d.get_temp::<Arc<Shape>>(id)) {
         return Some(s);
@@ -180,13 +165,9 @@ fn shape(ui: &Ui, glyph: Glyph) -> Option<Arc<Shape>> {
     Some(s)
 }
 
-/// One em of an SF Symbol, in its own units (what GlyphStudio's offsets are measured in).
 const EM: f32 = 2048.0;
-/// The room a bounce needs above and below the symbol, in ems.
 const LIFT_ROOM: f32 = 0.26;
 
-/// `shape` in white on a `w`×`h` pixmap, `k` pixels per unit, centred, each group raised by
-/// `lift(group)` ems and each layer's opacity scaled by `alpha(layer)`.
 fn raster(shape: &Shape, w: u32, h: u32, k: f32, lift: impl Fn(u32) -> f32, alpha: impl Fn(usize) -> f32) -> Option<ColorImage> {
     let mut pix = Pixmap::new(w, h)?;
     let [vx, vy, vw, vh] = shape.view;
@@ -213,8 +194,6 @@ const OPTIONS: TextureOptions = TextureOptions {
     mipmap_mode: None,
 };
 
-/// Draws `glyph` fitted (aspect kept) and centred in `rect`, tinted; `bounce` is seconds into a
-/// bounce, `pulse` seconds into Variable Color's loop.
 fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f32)>, pulse: Option<(Id, f32)>) {
     if tint.a() == 0 {
         return;
@@ -250,25 +229,20 @@ fn paint(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32, bounce: Option<(Id, f
             }
         }
     };
-    // Whole pixels, so the edges stay as sharp as they were rasterised.
     let size = vec2(w as f32, h as f32) / ppp;
     let min = ((rect.center() - size / 2.0) * ppp).round() / ppp;
     let dst = Rect::from_min_size(min, size);
     ui.painter().image(tex.id(), dst, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), tint);
 }
 
-/// Draws `glyph` centred on `center`, fitted in a `size` square, tinted `tint`.
 pub fn draw(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32) {
     paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, None);
 }
 
-/// Draws `glyph` fitted inside `rect` (for wide marks).
 pub fn draw_in(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32) {
     paint(ui, rect, glyph, tint, None, None);
 }
 
-/// Like [draw], with GlyphStudio's Variable Color running on repeat while `active`:
-/// the layers light one after another, as Android's Radio heading does while on air.
 pub fn draw_pulsing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32, id: Id, active: bool) {
     let t = active.then(|| {
         ui.ctx().request_repaint();
@@ -277,7 +251,6 @@ pub fn draw_pulsing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color3
     paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, t.map(|t| (id, t)));
 }
 
-/// Like [draw], but plays the bounce last started with [bounce] for `id`.
 pub fn draw_bouncing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32, id: Id) {
     let start = ui.ctx().data(|d| d.get_temp::<f64>(id.with("nuvx-glyph-bounce")));
     let t = start.map(|s| (ui.input(|i| i.time) - s) as f32).filter(|t| (0.0..BOUNCE_SECS).contains(t));
@@ -287,14 +260,11 @@ pub fn draw_bouncing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color
     paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, t.map(|t| (id, t)), None);
 }
 
-/// Starts the symbol drawn by [draw_bouncing] with `id` bouncing, layer by layer.
 pub fn bounce(ctx: &egui::Context, id: Id) {
     let now = ctx.input(|i| i.time);
     ctx.data_mut(|d| d.insert_temp(id.with("nuvx-glyph-bounce"), now));
 }
 
-// GlyphStudio's Bounce (Up, ByLayer): the offset goes 1 → 1.25 → 0.9094 → 1 over three eased
-// segments, each animation group starting a little after the one before.
 const BOUNCE_UP: f32 = 0.21667;
 const BOUNCE_LAST: f32 = 0.26667;
 const BOUNCE_SECS: f32 = 2.0 * BOUNCE_UP + BOUNCE_LAST;
@@ -302,7 +272,6 @@ const BOUNCE_A: [f32; 4] = [0.55, 0.0, 0.67, 1.0];
 const BOUNCE_B: [f32; 4] = [0.45, 0.0, 0.67, 1.0];
 const BOUNCE_C: [f32; 4] = [0.25, 0.0, 0.55, 1.0];
 
-/// Cubic-bezier easing (x1, y1, x2, y2), solving x by bisection as GlyphStudio does.
 fn ease([x1, y1, x2, y2]: [f32; 4], p: f32) -> f32 {
     let x = p.clamp(0.0, 1.0);
     if x == 0.0 || x == 1.0 {
@@ -323,7 +292,6 @@ fn segment(c: [f32; 4], from: f32, to: f32, t0: f32, dur: f32, t: f32) -> f32 {
     from + (to - from) * ease(c, (t - t0) / dur)
 }
 
-/// How far (ems, up) group `group` of `groups` is raised `t` seconds into a bounce.
 fn bounce_lift(t: f32, group: u32, groups: u32) -> f32 {
     let d = group as f32 * 0.05f32.min(0.15 / groups.max(1) as f32);
     let tl = t - d;
@@ -339,12 +307,9 @@ fn bounce_lift(t: f32, group: u32, groups: u32) -> f32 {
     v - 1.0
 }
 
-// GlyphStudio's Variable Color (Iterative): in `order`, each layer rises from 30% to full over
-// one slot and falls back over the next (smoothstep), the loop lasting a slot more than the layers.
 const VARIABLE_SLOT: f32 = 1.0 / 3.0;
 const VARIABLE_DIM: f32 = 0.3;
 
-/// Layer `layer`'s opacity `t` seconds into Variable Color's loop (1 for layers outside `order`).
 fn variable_alpha(t: f32, layer: usize, order: &[usize]) -> f32 {
     let Some(k) = order.iter().position(|&l| l == layer) else { return 1.0 };
     let t = t.rem_euclid(VARIABLE_SLOT * (order.len() + 1) as f32);
@@ -353,7 +318,6 @@ fn variable_alpha(t: f32, layer: usize, order: &[usize]) -> f32 {
     VARIABLE_DIM + (1.0 - VARIABLE_DIM) * f * f * (3.0 - 2.0 * f)
 }
 
-/// How many of the speaker's three arcs are lit at `volume`, as the desktop app counts them.
 pub fn volume_step(volume: f32) -> usize {
     if volume <= 0.0 {
         0
@@ -387,7 +351,6 @@ mod tests {
 
     #[test]
     fn variable_color_matches_glyphstudio() {
-        // Sampled from GlyphStudio's own VariableColor on dot.radiowaves.left.and.right.
         let order = parse(RADIO).unwrap().variable;
         assert_eq!(order, [3, 2, 1, 0]);
         let samples = [(0.0, [0.3, 0.3, 0.3, 0.3]), (0.167, [0.3, 0.3, 0.3, 0.65]), (0.5, [0.3, 0.3, 0.65, 0.65]), (1.0, [0.3, 1.0, 0.3, 0.3]), (1.125, [0.522, 0.778, 0.3, 0.3])];
@@ -405,7 +368,6 @@ mod tests {
         assert!((bounce_lift(BOUNCE_UP, 0, 1) - 0.25).abs() < 1e-3);
         assert!(bounce_lift(2.0 * BOUNCE_UP, 0, 1) < 0.0);
         assert!(bounce_lift(BOUNCE_SECS, 2, 3).abs() < 1e-4);
-        // Later groups lag behind.
         assert!(bounce_lift(0.1, 2, 3) < bounce_lift(0.1, 0, 3));
     }
 }

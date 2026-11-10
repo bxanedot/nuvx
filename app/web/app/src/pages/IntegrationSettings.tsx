@@ -22,7 +22,6 @@ import {
 import { settingsUi } from './settingsStyles';
 import { Select } from '@/components/Select';
 
-/** Allowed, or an Allow button that opens the extension's permission page. */
 function HostAccessValue({ access, request }: ReturnType<typeof useHostAccess>) {
   const text = { checking: 'Checking…', unavailable: 'Needs the extension', granted: 'Allowed', needed: 'Not allowed' }[access];
   return (
@@ -37,12 +36,10 @@ function HostAccessValue({ access, request }: ReturnType<typeof useHostAccess>) 
   );
 }
 
-/** The Apple Music section's access row: one grant covers artist art and animated artwork. */
 export function AppleMusicIntegration() {
   return <HostAccessValue {...useAppleAccess()} />;
 }
 
-/** The Apple Music section's switches. Neither needs an Apple Music account. */
 export function AppleMusicToggles() {
   const { artistArt, motion, setArtistArt, setMotion } = useAppleSettings();
   return (
@@ -63,17 +60,11 @@ export function AppleMusicToggles() {
   );
 }
 
-/**
- * The lyric sources a page can't ask itself (KuGou, Musixmatch, Genius,
- * PaxSenix…), as in the Lyrics dialog. Apple's hosts are granted under Apple
- * Music, so they aren't asked for twice.
- */
 const LYRIC_ONLY_ORIGINS = LYRIC_EXTENSION_ORIGINS.filter((o) => !APPLE_ORIGINS.includes(o));
 export function LyricSourcesAccess() {
   return <HostAccessValue {...useHostAccess(LYRIC_ONLY_ORIGINS)} />;
 }
 
-/** The Spotify row's words and button (SpotifyLibraryScreen's states). */
 export function SpotifyIntegration() {
   const auth = useSpotifyAuth();
   const connect = useSetSpotifyConnected();
@@ -152,7 +143,6 @@ export function Toggle({ label, detail, checked, onChange }: { label: string; de
   );
 }
 
-/** Spotify Canvas behind the lyrics; only offered once signed in to Spotify. */
 export function CanvasToggle() {
   const auth = useSpotifyAuth();
   const canvas = useSpotifySettings((s) => s.canvas);
@@ -182,7 +172,6 @@ const STATUSES: { value: DiscordPresenceOptions['status']; label: string }[] = [
   { value: 'invisible', label: 'Invisible' },
 ];
 
-/** Discord presence (prompt §7.3): opt-in, with the one-line warning, then how the card reads. */
 export function DiscordSettings() {
   const status = useDiscord();
   const setEnabled = useDiscordEnabled();

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseArtistPage } from './artistPage';
 
-/** The shape AppleArtistArt.kt reads: the header sits somewhere in the page's hydration JSON. */
 function page(header: object): string {
   const data = [{ intent: {}, data: { sections: [{ id: 'header', items: [header] }] } }];
   return `<html><script type="application/json" id="serialized-server-data">${JSON.stringify(data)}</script></html>`;

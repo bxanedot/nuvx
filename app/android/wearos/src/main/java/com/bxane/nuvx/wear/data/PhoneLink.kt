@@ -33,18 +33,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import com.bxane.nuvx.wear.playback.Speaker
 import com.bxane.nuvx.wear.WearProtocol as P
 
-/**
- * The watch's whole view of the phone.
- *
- * Listens only while the app is on screen ([start]/[stop] follow the activity),
- * so a watch app in the background costs nothing: there is no listener service
- * here to be woken by every track change the phone makes.
- *
- * Taps are answered on the watch at once and the phone's word is taken when it
- * arrives. A field the user just changed is held at its new value for a moment,
- * so a state the phone published a few milliseconds *before* the tap reached it
- * can't flick the glyph back.
- */
 class PhoneLink(context: Context, private val scope: CoroutineScope) :
     DataClient.OnDataChangedListener,
     CapabilityClient.OnCapabilityChangedListener {
@@ -59,7 +47,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
     val nowPlaying: StateFlow<NowPlaying?> = _nowPlaying.asStateFlow()
 
-    /** Whether the phone has said anything at all yet, so "nothing playing" can be told from "not heard". */
     private val _heard = MutableStateFlow(false)
     val heard: StateFlow<Boolean> = _heard.asStateFlow()
 
@@ -72,15 +59,9 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     private val _queue = MutableStateFlow<Queue?>(null)
     val queue: StateFlow<Queue?> = _queue.asStateFlow()
 
-    /** The phone's outputs, as its own player lists them. Null until asked. */
     private val _outputs = MutableStateFlow<List<PhoneOutput>?>(null)
     val outputs: StateFlow<List<PhoneOutput>?> = _outputs.asStateFlow()
 
-    /**
-     * Whether this watch is the phone's speaker. The phone still owns the
-     * queue and the state — everything on screen is still the phone's — and
-     * [Speaker] only plays what it is told.
-     */
     private val _watchSpeaker = MutableStateFlow(false)
     val watchSpeaker: StateFlow<Boolean> = _watchSpeaker.asStateFlow()
 
@@ -123,8 +104,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
         scope.launch { connect() }
     }
 
-    // ---- Commands, each answered on the watch first ----
-
     fun togglePlay() {
         val now = System.currentTimeMillis()
         _nowPlaying.update { np ->
@@ -134,8 +113,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
             if (playing) {
                 np.copy(playing = true)
             } else {
-                // Freeze the ring where it is rather than let it run on to the
-                // phone's answer.
                 np.copy(playing = false, advancing = false, positionMs = np.positionAt(now), positionAt = now)
             }
         }
@@ -168,7 +145,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     fun cycleRepeat() {
         _nowPlaying.update { np ->
             np ?: return@update null
-            // Same cycle as the phone: off -> all -> one -> off.
             val next = when (np.repeatMode) {
                 REPEAT_OFF -> REPEAT_ALL
                 REPEAT_ALL -> REPEAT_ONE
@@ -180,7 +156,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
         send(P.CMD_REPEAT)
     }
 
-    /** Hold-to-seek's answer. The ring jumps there now; the phone confirms. */
     fun seekTo(positionMs: Long) {
         val now = System.currentTimeMillis()
         _nowPlaying.update { it?.copy(positionMs = positionMs, positionAt = now) }
@@ -191,11 +166,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
 
     fun requestQueue() = send(P.CMD_QUEUE)
 
-    /**
-     * The crown. Moves the readout at once and sends the steps in small
-     * batches, so a fast spin is a handful of messages rather than dozens.
-     * The phone turns whichever is the speaker — itself, or this watch.
-     */
     fun adjustVolume(steps: Int) {
         if (steps == 0) return
         holdVolumeUntil = System.currentTimeMillis() + VOLUME_HOLD_MS
@@ -210,39 +180,29 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
         }
     }
 
-    // ---- Output: the phone's devices, or this watch ----
-
     fun requestOutputs() = send(P.CMD_OUTPUTS)
 
-    /** Play through one of the phone's outputs — the phone takes the music back if the watch had it. */
     fun playOnPhone(output: PhoneOutput) {
         _watchSpeaker.value = false
         _outputs.update { list -> list?.map { it.copy(active = it.id == output.id) } }
         send(P.CMD_SELECT_OUTPUT, output.id.toString())
     }
 
-    /** Make this watch the phone's speaker. */
     fun playOnWatch(context: Context) {
         if (_watchSpeaker.value) return
         _watchSpeaker.value = true
         _outputs.update { list -> list?.map { it.copy(active = false) } }
-        // Up before the phone's first load arrives, and while the app is on
-        // screen, so it is allowed to become a foreground service.
         Speaker.prepare(context)
         send(P.CMD_SPEAKER_WATCH)
     }
 
-    // ---- Data Layer ----
-
     override fun onDataChanged(events: DataEventBuffer) {
-        // Copied out before returning: the buffer is released after this call.
         val changes = events.mapNotNull { event ->
             if (event.type != DataEvent.TYPE_CHANGED) return@mapNotNull null
             val item = event.dataItem
             Triple(item.uri.path, item.uri.host, DataMapItem.fromDataItem(item).dataMap)
         }
         changes.forEach { (path, host, map) ->
-            // Fresh state is proof of a live phone, and says which node it is.
             if (host != null && phoneNode == null) phoneNode = host
             _link.value = Link.Connected
             when (path) {
@@ -315,7 +275,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
                 messageClient.sendMessage(node, "${P.PATH_COMMAND}/$command", arg.toByteArray()).await()
             }.onFailure { Log.w(TAG, "send $command (attempt $attempt): ${it.message}") }.isSuccess
             if (sent) return true
-            // The node may have changed (phone rebooted, re-paired): look again once.
             phoneNode = null
         }
         _link.value = Link.NoPhone
@@ -374,8 +333,6 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
             )
         }
         _queue.value = Queue(rows, current, mediaId)
-        // Thumbnails after the text, in one go, so the list is readable at once
-        // and recomposes once more rather than once per row.
         scope.launch {
             val art = items.map { item ->
                 async { item.getAsset(P.KEY_ART)?.let { decode(it) } }

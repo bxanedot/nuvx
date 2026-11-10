@@ -3,50 +3,29 @@ package com.bxane.nuvx.playback
 import com.bxane.nuvx.data.model.Song
 import java.util.Collections
 
-/**
- * Identity of a row within a collection. A playlist may list the same video
- * twice; YouTube tells those rows apart by [Song.setVideoId], so both survive.
- */
 fun Song.contextEntryKey(): String =
     setVideoId?.takeIf { it.isNotBlank() }?.let { "$videoId@$it" } ?: videoId
 
-/** The state of the continuation token owned by a registered context. */
 enum class ContinuationState {
-    /** A token is available and no request is currently using it. */
     AVAILABLE,
 
-    /** A loader has claimed the token and may complete it asynchronously. */
     IN_FLIGHT,
 
-    /** The last accepted page had no continuation token. */
     EXHAUSTED,
 
-    /** A page made no progress or repeated a token, so loading is stopped. */
     BLOCKED,
 }
 
-/** A reason the registry stopped or rejected continuation work. */
 enum class ContinuationDiagnostic {
-    /** A page contained no song whose video id was new to the canonical list. */
     DUPLICATE_PAGE,
 
-    /** A page contained no songs at all. */
     NO_PROGRESS,
 
-    /** A page returned a continuation token already seen for this context. */
     REPEATED_CONTINUATION,
 
-    /** A network/load failure released the request for a later retry. */
     REQUEST_FAILED,
 }
 
-/**
- * Read-only state of the active context.
- *
- * [songs] is a defensive, unmodifiable copy. It is the canonical order; queue
- * window or player code must not use a materialised window as a replacement for
- * this list.
- */
 data class ContextSnapshot(
     val contextToken: String,
     val sourceKey: String,
@@ -56,22 +35,14 @@ data class ContextSnapshot(
     val continuationToken: String?,
     val continuationState: ContinuationState,
     val diagnostic: ContinuationDiagnostic? = null,
-    /** Continuation tokens already accepted by this context, in encounter order. */
     val seenContinuationTokens: List<String> = emptyList(),
 )
 
-/** The immutable page returned by a continuation loader. */
 data class ContinuationPage(
     val songs: List<Song>,
     val continuationToken: String?,
 )
 
-/**
- * An exclusive claim on one continuation token.
- *
- * The request carries the context version as well as the token. Either one can
- * make a late completion stale after registration or another append.
- */
 data class ContinuationRequest(
     val requestId: Long,
     val contextToken: String,
@@ -109,14 +80,6 @@ data class ContinuationResult(
     val error: Throwable? = null,
 )
 
-/**
- * Thread-safe, player-free owner of one active browsed context.
- *
- * The service that owns a loader claims a continuation request, performs I/O,
- * and then calls [complete] or [fail]. Registering a new context invalidates
- * every request belonging to the previous one. There is never more than one
- * claimed request for the active continuation token.
- */
 class ContextRegistry(
     onGrowth: (ContextSnapshot) -> Unit = {},
 ) {
@@ -131,10 +94,6 @@ class ContextRegistry(
         growthListeners[nextListenerId++] = onGrowth
     }
 
-    /**
-     * Replaces the active context and invalidates any in-flight continuation.
-     * The initial list is de-duplicated by [contextEntryKey] in arrival order.
-     */
     fun register(
         contextToken: String,
         sourceKey: String,
@@ -166,13 +125,6 @@ class ContextRegistry(
         return snapshot
     }
 
-    /**
-     * Restores a previously persisted context without treating its continuation
-     * state as a new registration.  An interrupted request cannot be resumed
-     * safely after process death, so it becomes available for a retry.  Terminal
-     * states remain terminal even when a stale token is still present in the
-     * persisted record.
-     */
     fun restore(snapshot: ContextSnapshot): ContextSnapshot {
         require(snapshot.contextToken.isNotBlank()) { "contextToken must not be blank" }
         require(snapshot.sourceKey.isNotBlank()) { "sourceKey must not be blank" }
@@ -222,19 +174,8 @@ class ContextRegistry(
         return restored
     }
 
-    /** Returns the current canonical state, or null before the first register. */
     fun snapshot(): ContextSnapshot? = synchronized(lock) { active?.snapshot() }
 
-    /**
-     * Adds songs to the active canonical list. This is intended for direct
-     * service-side additions; continuation responses should use [complete] so
-     * their request and page token are checked together.
-     *
-     * [expectedVersion] is optional for callers that already captured a
-     * snapshot. Supplying it prevents a late direct append from crossing a
-     * context version boundary. An append that succeeds while a request is in
-     * flight invalidates that request and makes its token available again.
-     */
     fun append(
         contextToken: String,
         songs: List<Song>,
@@ -285,7 +226,6 @@ class ContextRegistry(
         return result
     }
 
-    /** Adds a growth listener and returns its removal id. */
     fun addGrowthListener(listener: (ContextSnapshot) -> Unit): Long = synchronized(lock) {
         val id = nextListenerId++
         growthListeners[id] = listener
@@ -296,12 +236,6 @@ class ContextRegistry(
         growthListeners.remove(id) != null
     }
 
-    /**
-     * Claims the one available continuation request.
-     *
-     * Passing [expectedContextToken] is useful when a service has retained a
-     * context handle and does not want to claim a newer context by accident.
-     */
     fun claimContinuation(expectedContextToken: String? = null): ContinuationRequest? =
         synchronized(lock) {
             val state = active ?: return@synchronized null
@@ -327,13 +261,6 @@ class ContextRegistry(
             request
         }
 
-    /**
-     * Completes a claimed request if it still belongs to the active version.
-     *
-     * Pages with no new unique songs, or with a continuation token already seen
-     * in this context, are rejected and block further claims. This deliberately
-     * favors a visible diagnostic over an unbounded continuation loop.
-     */
     fun complete(request: ContinuationRequest, page: ContinuationPage): ContinuationResult {
         var callbackSnapshot: ContextSnapshot? = null
         val result = synchronized(lock) {
@@ -385,10 +312,6 @@ class ContextRegistry(
         return result
     }
 
-    /**
-     * Releases a claimed request after a loader failure. The same continuation
-     * token remains available for a later retry; a stale failure is ignored.
-     */
     fun fail(request: ContinuationRequest, error: Throwable? = null): ContinuationResult =
         synchronized(lock) {
             val state = active

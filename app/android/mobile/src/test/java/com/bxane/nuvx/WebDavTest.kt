@@ -99,7 +99,6 @@ class WebDavTest {
 </d:multistatus>
 """.trimIndent()
         val entries = WebDavClient.parseMultistatus(xml, "https://cloud.example.com/remote.php/dav/files/user/Music")
-        // The directory itself is dropped.
         assertEquals(3, entries.size)
         val audio = entries.first { it.displayName == "Artist - Title.mp3" }
         assertFalse(audio.isCollection)
@@ -135,12 +134,10 @@ class WebDavTest {
                 "Basic dXNlcjpwYXNz",
                 WebDavCoilAuth.authHeaderFor("https://cloud.example.com/Music/Album/cover.jpg"),
             )
-            // Anything else passes through untouched.
             assertNull(WebDavCoilAuth.authHeaderFor("https://other.example.com/cover.jpg"))
             assertNull(WebDavCoilAuth.authHeaderFor("not a url"))
             assertNull(WebDavCoilAuth.authHeaderFor(null))
             assertNull(WebDavCoilAuth.authHeaderFor(42))
-            // A request carrying its own credential is never overridden.
             assertNull(
                 WebDavCoilAuth.authHeaderFor(
                     "https://cloud.example.com/Music/Album/cover.jpg",
@@ -244,8 +241,8 @@ class WebDavTest {
                 ).getOrThrow(),
             )
             assertEquals(5L, progress)
-            server.takeRequest() // HEAD from exists() above
-            val put = server.takeRequest() // the PUT itself
+            server.takeRequest()
+            val put = server.takeRequest()
             assertEquals("PUT", put.method)
             assertEquals("*", put.getHeader("If-None-Match"))
 
@@ -261,7 +258,7 @@ class WebDavTest {
                     overwrite = false,
                 ).getOrThrow(),
             )
-            server.takeRequest() // the refused PUT
+            server.takeRequest()
 
             server.enqueue(MockResponse().setResponseCode(204))
             assertEquals(

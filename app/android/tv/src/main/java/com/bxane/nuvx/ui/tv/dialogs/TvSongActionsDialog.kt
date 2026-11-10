@@ -56,10 +56,6 @@ import com.bxane.nuvx.ui.tv.theme.TvGlass
 import com.bxane.nuvx.ui.tv.theme.TvType
 import kotlinx.coroutines.launch
 
-/**
- * A song's actions from anywhere outside the player: works out whether it's
- * liked and where its album and artist pages are, then shows the menu.
- */
 @Composable
 fun TvSongMenu(
     song: Song,
@@ -86,11 +82,6 @@ fun TvSongMenu(
     )
 }
 
-/**
- * The tvOS action sheet for a track: the song itself at the top, then a short
- * list of plain actions — one line each, a glyph on the right, the white
- * platter on whichever has focus.
- */
 @Composable
 fun TvSongActionMenuDialog(
     song: Song,
@@ -241,11 +232,6 @@ fun TvSongActionMenuDialog(
 
 private enum class SongSheet { Actions, Playlist, Sleep, Equalizer }
 
-/**
- * A station seeded from [song], as the phone builds one: YouTube's radio for
- * it, with the song itself first. If it's already the one playing, it keeps
- * playing and only the rest of the queue is replaced.
- */
 private suspend fun MediaController.startStation(song: Song) {
     val related = YtMusicRepository.radio(song.videoId).getOrNull()
         ?.filterNot { it.videoId == song.videoId }
@@ -262,7 +248,6 @@ private suspend fun MediaController.startStation(song: Song) {
     commitRadioQueue()
 }
 
-/** Picks one of the account's playlists for the song, or names a new one for it. */
 @Composable
 fun TvAddToPlaylistDialog(
     song: Song,
@@ -348,7 +333,6 @@ fun TvAddToPlaylistDialog(
     }
 }
 
-/** Stop playback after a while, or at the end of this song. */
 @Composable
 fun TvSleepTimerDialog(onDismiss: () -> Unit) {
     val deadline by SleepTimer.deadline.collectAsState()

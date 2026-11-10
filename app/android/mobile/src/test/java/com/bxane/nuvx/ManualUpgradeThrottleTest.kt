@@ -20,8 +20,6 @@ class ManualUpgradeThrottleTest {
     fun `time before the first manual request does not consume the cooldown`() {
         val throttle = ManualUpgradeThrottle(cooldownMs = 30_000L)
 
-        // Automatic upgrade activity never calls tryAcquire. However long the
-        // app has been playing, the first explicit request is accepted.
         assertEquals(0L, throttle.tryAcquire(nowMs = 9_000_000L))
     }
 }

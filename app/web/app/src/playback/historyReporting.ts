@@ -9,27 +9,9 @@ import { getAudio, onTrackEnded, usePlayer } from '@/state/player';
 import { getSignedInnertube } from './youtube/innertube';
 import { trackLog } from './trackLog';
 
-/** Settings › Share Listening Activity: whether plays go to the account's YouTube Music history. On by default, as on the phone. */
 export const useHistorySettings = create<{ share: boolean; setShare: (on: boolean) => void }>()(
   persist((set) => ({ share: true, setShare: (share) => set({ share }) }), { name: 'nuvx:history', version: 1 }),
 );
-
-/**
- * Registers plays in the signed-in account's YouTube Music history, as the
- * phone does (PlaybackTracker.kt), so Recently Played and the
- * recommendations follow what's played here too. One play is three pings,
- * all with one client-playback-nonce:
- *
- *  - `videostatsPlaybackUrl` once the track is audible: this makes the entry;
- *  - `atrUrl` a few seconds in: the play happened, it didn't only start;
- *  - `videostatsWatchtimeUrl` every 30 s of new audio and once at the end:
- *    an entry with no watchtime reads as a skip.
- *
- * The URLs come from a signed-in WEB_REMIX /player call, which only includes
- * them when it quotes the current player's signatureTimestamp. The calls and
- * the pings go through the extension, which signs them as the account; the
- * page never sees the cookies. Best effort: nothing here touches playback.
- */
 
 const REPORT_INTERVAL_SEC = 30;
 const DEFAULT_ATR_SEC = 5;
@@ -50,11 +32,9 @@ interface Session {
   videoId: string;
   cpn: string;
   tracking: Tracking;
-  /** Seconds already reported, and the most a report in flight will cover. */
   reported: number;
   flushingTo: number;
   atrSent: boolean;
-  /** The furthest point heard, for the closing report. */
   heard: number;
 }
 
@@ -68,7 +48,6 @@ function extensionSupportsStats(): boolean {
 type Raw = Record<string, unknown>;
 const baseUrl = (tracking: Raw, key: string) => ((tracking[key] as Raw | undefined)?.baseUrl as string | undefined) ?? null;
 
-/** The tracking block for one play; null when YouTube declines to issue one (a verdict, not a failure). */
 async function fetchTracking(videoId: string): Promise<Tracking | null> {
   const yt = await getSignedInnertube();
   const signatureTimestamp = yt.session.player?.signature_timestamp;
@@ -103,7 +82,6 @@ async function fetchTracking(videoId: string): Promise<Tracking | null> {
   };
 }
 
-/** What the web client says about itself on every stats ping (Innertube.pingStats). */
 async function statsUrl(base: string, cpn: string, extra: Record<string, string> = {}, bare = false): Promise<string> {
   const url = new URL(base);
   if (!bare) {
@@ -156,7 +134,6 @@ async function open(videoId: string): Promise<void> {
       if (opening !== videoId) return;
       session = { videoId, cpn, tracking, reported: 0, flushingTo: 0, atrSent: false, heard: 0 };
       trackLog.i(`history: play registered for ${videoId} (HTTP ${status})`);
-      // Recently Played on Home reads that history.
       setTimeout(() => void queryClient.invalidateQueries({ queryKey: ['music', 'library', 'recent'] }), 3_000);
       return;
     } catch (error) {
@@ -168,7 +145,6 @@ async function open(videoId: string): Promise<void> {
 
 async function flush(target: Session, seconds: number, final = false): Promise<void> {
   if (!target.tracking.watchtime) return;
-  // A closing report is worth sending even at a position already covered: it's the final=1 that counts.
   if (!final && seconds <= target.reported) return;
   target.flushingTo = Math.max(target.flushingTo, seconds);
   const s = String(Math.floor(seconds));
@@ -188,7 +164,6 @@ async function flush(target: Session, seconds: number, final = false): Promise<v
   }
 }
 
-/** Ends the current play, reporting how far it got. */
 function close(): void {
   const closing = session;
   session = null;
@@ -221,7 +196,6 @@ function sample(): void {
   const current = session;
   if (!current.atrSent && position >= current.tracking.atrAfterSec && current.tracking.atr) {
     current.atrSent = true;
-    // Its base URL already carries ver, c and cver; it goes as it is, with the nonce.
     void statsUrl(current.tracking.atr, current.cpn, {}, true)
       .then(ping)
       .catch((error: unknown) => trackLog.w(`history: atr for ${current.videoId} failed: ${String(error)}`));
@@ -229,21 +203,16 @@ function sample(): void {
   if (position - Math.max(current.reported, current.flushingTo) >= REPORT_INTERVAL_SEC) void flush(current, position);
 }
 
-/** Runs for the app's lifetime (AppShell). */
 export function startHistoryReporting(): () => void {
   const offPlayer = usePlayer.subscribe((state, before) => {
     if (state.nowPlaying?.videoId !== before.nowPlaying?.videoId || state.status !== before.status) sample();
   });
-  // Switched off mid-play: this play stops being reported, as if it had never been shared.
   const offSettings = useHistorySettings.subscribe((state) => {
     if (!state.share) {
       session = null;
       opening = null;
     }
   });
-  // Played to the end: closed here, as the phone's track transition closes it. A repeat-one
-  // loop keeps the same video, so it is only a new play this way, and the queue's last song
-  // gets its closing report instead of reading as abandoned at the last 30 s sample.
   const offEnded = onTrackEnded(() => {
     const audio = getAudio();
     if (session && audio) session.heard = Math.max(session.heard, audio.currentTime);

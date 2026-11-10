@@ -18,14 +18,12 @@ class TvPinThrottleTest {
 
     @Test
     fun testDelayIncreasesProgressivelyWithoutLockout() {
-        // First 4 attempts have no lockout delay
         assertEquals(0L, TvPinThrottle.calculateDelayMs(0))
         assertEquals(0L, TvPinThrottle.calculateDelayMs(1))
         assertEquals(0L, TvPinThrottle.calculateDelayMs(2))
         assertEquals(0L, TvPinThrottle.calculateDelayMs(3))
         assertEquals(0L, TvPinThrottle.calculateDelayMs(4))
 
-        // Lockout starts at 5 attempts
         assertEquals(10_000L, TvPinThrottle.calculateDelayMs(5))
         assertEquals(30_000L, TvPinThrottle.calculateDelayMs(6))
         assertEquals(60_000L, TvPinThrottle.calculateDelayMs(7))
@@ -52,28 +50,22 @@ class TvPinThrottleTest {
         val key = "profile_test_cooldown"
         val start = 100_000L
 
-        // Attempts 1-4 have no delay
         for (i in 1..4) {
             assertEquals(0L, TvPinThrottle.recordFailure(key, now = start))
             assertEquals(i, TvPinThrottle.getFailedAttempts(key))
             assertEquals(0L, TvPinThrottle.getDelayRemainingMs(key, now = start))
         }
 
-        // 5th attempt triggers 10s lockout
         val delay5 = TvPinThrottle.recordFailure(key, now = start)
         assertEquals(10_000L, delay5)
         assertEquals(5, TvPinThrottle.getFailedAttempts(key))
 
-        // In the middle of cooldown
         assertEquals(5_000L, TvPinThrottle.getDelayRemainingMs(key, now = start + 5_000L))
 
-        // At exact expiry
         assertEquals(0L, TvPinThrottle.getDelayRemainingMs(key, now = start + 10_000L))
 
-        // After expiry
         assertEquals(0L, TvPinThrottle.getDelayRemainingMs(key, now = start + 12_000L))
 
-        // 6th attempt increases delay to 30s
         val delay6 = TvPinThrottle.recordFailure(key, now = start + 12_000L)
         assertEquals(30_000L, delay6)
         assertEquals(6, TvPinThrottle.getFailedAttempts(key))
@@ -133,10 +125,8 @@ class TvPinThrottleTest {
     @Test
     fun testRebootRestartsFullCooldown() {
         val key = "profile_reboot"
-        // Fifth failure late in a long uptime: 10s lockout.
         repeat(5) { TvPinThrottle.recordFailure(key, now = 5_000_000L) }
 
-        // After a reboot the monotonic clock restarts near zero, far below the recorded reading.
         assertEquals(10_000L, TvPinThrottle.getDelayRemainingMs(key, now = 3_000L))
     }
 }

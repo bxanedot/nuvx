@@ -1,5 +1,3 @@
-//! What the backend answers, applied to the app.
-
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -15,7 +13,6 @@ use super::{Action, App, Dialog, HomeState, LibTab, MixFrom, Page, PlayingAs, Re
 impl App {
     pub(super) fn pump(&mut self, now: f64) {
         let cover = self.media_cover.lock().unwrap().take();
-        // The listed track's art, with what plays's title, artists and length.
         if let Some((id, file)) = cover
             && self.current().is_some_and(|t| t.id == id)
             && self.mix_hold().is_none()
@@ -38,11 +35,7 @@ impl App {
                     }
                 }
                 AudioEvent::Finished { .. } => {}
-                // Crossfade into the next song; repeat-one and the end of the queue wait for the end.
                 AudioEvent::Ending { generation } if generation == self.generation && !self.jam.guest() && self.queue.repeat != Repeat::One => {
-                    // Automix: the next song eases in under this one, which keeps the
-                    // player until the blend has given the next song the louder half
-                    // (see `MixFrom`).
                     if let Some(from) = self.playing_track().cloned() {
                         let total = self
                             .audio
@@ -72,8 +65,6 @@ impl App {
                 AudioEvent::Error(e) => self.toast(e),
             }
         }
-        // Once the next song is the louder of the two, it takes the player over; the
-        // caption stays while the handoff's tail runs out.
         let released = self.mix_from.as_ref().is_some_and(|h| h.released);
         let switched = self.watch_mix();
         let over = self.mix_over();
@@ -99,12 +90,10 @@ impl App {
             self.buffering = false;
             self.skip_streak = 0;
             self.prefetch_next();
-            // Dev hook: NUVX_SEEK=<secs> jumps into the first track once it starts.
             if self.generation == 1 {
                 if let Some(s) = std::env::var("NUVX_SEEK").ok().and_then(|v| v.parse::<f32>().ok()) {
                     self.audio.send(AudioCmd::Seek(Duration::from_secs_f32(s)));
                 }
-                // NUVX_SEEK_LATER=<secs>@<delay> seeks again that many seconds later.
                 if let Some((s, d)) = dev_var("NUVX_SEEK_LATER").and_then(|v| v.split_once('@')).and_then(|(s, d)| Some((s.parse::<f32>().ok()?, d.parse::<f32>().ok()?))) {
                     let audio = self.audio.clone();
                     std::thread::spawn(move || {
@@ -117,22 +106,18 @@ impl App {
         if self.suggest_due.is_some_and(|d| now >= d) {
             self.suggest_due = None;
             let q = self.search_text.trim().to_owned();
-            // An empty box signed in shows the account's recent searches.
             if self.forgets_pending == 0 && (!q.is_empty() || self.logged_in) {
                 self.backend.request(Req::Suggest { query: q, round: self.suggest_round });
             }
         }
     }
 
-    /// A search's results are on screen: the first result clicked becomes what
-    /// "Recently Searched" remembers, not the words that were typed.
     pub(super) fn expect_search_click(&mut self, query: &str) {
         if matches!(&self.page, Page::Search(q) if q == query) {
             self.search_pending = true;
         }
     }
 
-    /// The entry a click makes: the item itself, with the artwork it was shown with.
     fn search_click_entry(&self, a: &Action) -> Option<super::RecentSearch> {
         let r = self.search.as_ref()?;
         let best = |thumbs: &[crate::model::Thumb]| thumbs.iter().max_by_key(|t| t.width).map(|t| t.url.clone());
@@ -165,14 +150,12 @@ impl App {
         }
     }
 
-    /// Record the thing the search's first click opened, once.
     pub(super) fn remember_search_click(&mut self, a: &Action) {
         if !self.search_pending || !matches!(self.page, Page::Search(_)) {
             return;
         }
         let Some(entry) = self.search_click_entry(a) else { return };
         self.search_pending = false;
-        // One entry per thing; a bare query left by an older version goes with it.
         self.recent_searches.retain(|s| {
             s.target.as_ref() != entry.target.as_ref() && !(s.target.is_none() && s.query.eq_ignore_ascii_case(&entry.query))
         });
@@ -215,7 +198,6 @@ impl App {
                 self.loading = false;
             }
             Resp::SearchForgotten => {
-                // Replies dropped meanwhile left the list behind what's typed: ask again.
                 self.forgets_pending = self.forgets_pending.saturating_sub(1);
                 if self.forgets_pending == 0 {
                     self.suggest_due = Some(now);
@@ -223,8 +205,6 @@ impl App {
             }
             Resp::Suggest { query, round, terms } => {
                 if round == self.suggest_round && self.forgets_pending == 0 {
-                    // Keep late answers for backspacing/revisiting, but never display
-                    // an answer for a query other than the one currently in the box.
                     self.suggest_cache.retain(|(q, _)| q != &query);
                     self.suggest_cache.push_back((query.clone(), terms.clone()));
                     if self.suggest_cache.len() > 32 {
@@ -239,7 +219,6 @@ impl App {
             Resp::Collection { load, c, more } => self.collection_in(load, c, more),
             Resp::CollectionMore { id, load, tracks, set_ids, more } => self.collection_more(id, load, tracks, set_ids, more),
             Resp::Artist(a) => {
-                // A slow answer for an artist left meanwhile doesn't replace the one on screen.
                 if matches!(&self.page, Page::Artist(id) if *id != a.id) {
                     return;
                 }
@@ -259,8 +238,6 @@ impl App {
                 self.artist = Some(a);
             }
             Resp::Library(mut l) => {
-                // A half that didn't load keeps what was shown (or last launch's sidebar),
-                // rather than emptying it.
                 if l.playlists_failed {
                     l.playlists = self.library.as_ref().map(|o| o.playlists.clone()).or_else(|| self.sidebar_cache.clone()).unwrap_or_default();
                 }
@@ -338,8 +315,6 @@ impl App {
                 }
             }
             Resp::AppleArtist { id, info } => {
-                // A miss is cooled down rather than cached for the session: Apple's
-                // search sometimes fails one time and answers the next.
                 let key = format!("artist:{id}");
                 self.apple_waiting.remove(&key);
                 match info {
@@ -367,7 +342,6 @@ impl App {
             }
             Resp::SongCover { id, song } => {
                 if song.is_some() {
-                    // The square cover came after the video's frame went up: redo the art.
                     let current = self.current_id() == Some(id.as_str());
                     self.song_covers.insert(id, song);
                     if current && let Some(t) = self.shown().cloned() {
@@ -390,7 +364,6 @@ impl App {
                     if std::mem::take(&mut self.video_wanted) {
                         self.play_video_version();
                     } else if let Some(v) = video {
-                        // Loaded ahead ("Load songs and videos together"): its audio and picture.
                         self.backend.request(Req::Prefetch { video_id: v.id.clone(), song_of: None, track: Some(v.clone()) });
                         self.backend.request(Req::Video { id: v.id, height: self.video_height });
                     }
@@ -412,13 +385,11 @@ impl App {
                 self.radio_pending = false;
                 let was_at_end = self.queue.add_radio(&seed, tracks);
                 if was_at_end && self.queue.index.is_some() && !self.buffering && !self.playing() {
-                    // The track ended while radio was loading: continue now.
                     self.next();
                 } else if !self.buffering {
                     self.prefetch_next();
                 }
             }
-            // Unless something else was asked to play meanwhile; shuffled as last asked.
             Resp::PlayQueue { target, mut tracks } => {
                 if let Some((p, shuffled)) = &self.play_pending
                     && *p == target
@@ -455,7 +426,6 @@ impl App {
                     self.set_liked(&tracks, false);
                 }
                 if done == 0 {
-                    // A Spotify transfer is adding to Liked Music (maybe paused): this waits for it.
                     self.toast("Waiting for the transfer to finish adding to Liked Music…");
                 } else if total > 1 && done < total {
                     let note = if self.backend.api().limited() { " (YouTube Music is limiting requests; waiting)" } else { "" };
@@ -482,13 +452,11 @@ impl App {
                 }
             }
             Resp::PlayingAs { generation, listed, song } => {
-                // For the track it was looked up for: joining a jam swaps the queue without a new play.
                 if generation == self.generation
                     && self.current_id() == Some(listed.as_str())
                     && let Some(track) = self.current().cloned()
                 {
                     let shown = match song {
-                        // The song keeps the listed track's album and art when it has none.
                         Some(song) => {
                             let song = Track { album: song.album.or(track.album.clone()), thumbs: if song.thumbs.is_empty() { track.thumbs.clone() } else { song.thumbs }, ..song };
                             self.playing_as = Some(PlayingAs { generation, listed: track.id.clone(), song: song.clone() });
@@ -503,7 +471,6 @@ impl App {
                         self.show_in_media(&shown);
                         self.refresh_lyrics(shown);
                     }
-                    // A jam began while it was being looked up: everyone plays the host's upload.
                     if self.jam.active() {
                         self.play_listed_upload();
                     }
@@ -511,7 +478,6 @@ impl App {
             }
             Resp::PlayError { generation, msg } => self.on_play_error(generation, msg),
             Resp::AudioInfo { generation, info } => {
-                // The stream that answered may already have been skipped past.
                 if generation == self.generation {
                     self.audio_info = Some((generation, info));
                 }
@@ -527,8 +493,6 @@ impl App {
                 match error {
                     Some(e) => self.toast(e),
                     None => {
-                        // Everything reloads as after signing in, but it's the same sign-in
-                        // with the same channels: only which one is used changed.
                         let channels = self.channels.take().map(|c| crate::backend::Channels { current: page_id, epoch, ..c });
                         let asked = self.channels_asked;
                         self.on_resp(Resp::LoggedIn(true), now);
@@ -542,14 +506,11 @@ impl App {
         }
     }
 
-    /// The home feed, replacing the one shown.
     fn on_home(&mut self, page: HomePage) {
-        // Until the account menu answers (Req::Account).
         if self.account_avatar.is_none() {
             self.account_avatar = page.shelves.iter().find(|s| s.title == "Listen again").and_then(|s| s.strap_thumb.clone());
         }
         let mut chips = page.chips;
-        // The feed marks the active mood itself; keep the bar when it doesn't send chips.
         if chips.is_empty() {
             chips = self.home.as_ref().map(|h| h.chips.clone()).unwrap_or_default();
         }
@@ -567,10 +528,7 @@ impl App {
         }
     }
 
-    /// Liking or unliking many songs at once has finished: `failed` are the ones YouTube
-    /// Music refused.
     fn on_liked_many(&mut self, video_ids: Vec<String>, failed: Vec<String>, like: bool) {
-        // Any left (a retry took them) leave the list now.
         if !like {
             let rest: Vec<Track> = video_ids.iter().filter_map(|id| self.unliking.remove(id)).collect();
             self.set_liked(&rest, false);
@@ -580,7 +538,6 @@ impl App {
         }
         log::debug!("like={like} answered: {} taken, {} refused {:?}", video_ids.len(), failed.len(), failed.iter().take(5).collect::<Vec<_>>());
         self.lists.edits.confirm_likes(&video_ids, &failed);
-        // The refused ones come back as they were with a reload.
         if !failed.is_empty() {
             self.request_liked(true);
         }
@@ -594,11 +551,9 @@ impl App {
         self.toast(msg);
     }
 
-    /// A playlist was edited, added to, removed from, saved or deleted; `message` says which.
     fn on_playlist_changed(&mut self, id: String, message: &'static str) {
         self.request_library();
         if message == "Playlist deleted" {
-            // Its load is dropped too, and the queue stops waiting for it.
             self.lists.forget(&id);
             if self.queue.fill.as_ref().is_some_and(|f| f.id == id) {
                 self.queue.fill = None;
@@ -607,7 +562,6 @@ impl App {
             if self.page == gone {
                 self.go(Page::Library(LibTab::Playlists));
             }
-            // Back and Forward skip it.
             self.back.retain(|p| *p != gone);
             self.back.dedup();
             self.forward.retain(|p| *p != gone);
@@ -616,8 +570,6 @@ impl App {
             if message == "Removed from playlist" {
                 self.lists.edits.confirm_removal(&id);
             }
-            // Kept for going back (or playing): reload it. What YouTube Music still
-            // lists after a removal is dropped as it arrives.
             if self.lists.known(&id) {
                 self.load_list(&id, false, true);
             }
@@ -625,7 +577,6 @@ impl App {
         self.toast(message);
     }
 
-    /// A song couldn't play: skip it, or stop when skipping can't help.
     fn on_play_error(&mut self, generation: u64, msg: String) {
         if generation == self.generation {
             self.buffering = false;
@@ -641,13 +592,10 @@ impl App {
                 msg
             };
             let has_next = !self.queue.at_end() && self.queue.index.is_some();
-            // Skipping can't help when the account is the problem: the rest of
-            // an album like this needs it too. Stop on the song instead.
             if let Some(why) = account_block(&reason, self.logged_in) {
                 self.skip_streak = 0;
                 self.toast(why.replace("{title}", &title));
             } else if has_next && self.skip_streak < MAX_SKIPS {
-                // Don't stall the queue on one unplayable song.
                 self.skip_streak += 1;
                 self.toast(format!("Skipped \"{title}\": {reason}"));
                 self.next();
@@ -658,13 +606,10 @@ impl App {
         }
     }
 
-    /// Signed in or out: what belonged to the last account goes, and the new one's home,
-    /// library and likes load.
     fn on_logged_in(&mut self, v: bool, now: f64) {
         self.logged_in = v;
         self.channels = None;
         self.channels_asked = None;
-        // Recent searches belong to the account.
         self.suggestions = Default::default();
         self.suggest_sel = None;
         self.forgetting = None;
@@ -678,8 +623,6 @@ impl App {
         self.library = None;
         self.history = None;
         self.uploads = None;
-        // Your own playlists show differently (and private ones not at all) to another
-        // account, and its likes aren't this one's.
         self.lists.clear();
         self.lists.edits = Default::default();
         self.liked.clear();
@@ -700,16 +643,13 @@ impl App {
         self.toast(if v { "Signed in" } else { "Signed out" });
     }
 
-    /// A request failed: pages waiting for it stop waiting, and the error shows.
     fn on_error(&mut self, e: String) {
         if let Some(Dialog::Collaborate { info, busy, .. }) = &mut self.dialog {
             *busy = false;
-            // Nothing to show if it never loaded.
             if info.is_none() {
                 self.dialog = None;
             }
         }
-        // A page still waiting for its first data shows a retry instead of loading forever.
         self.load_failed |= self.loading || (self.page == Page::Home && self.home_loading);
         self.loading = false;
         self.home_loading = false;
@@ -722,12 +662,8 @@ impl App {
     }
 }
 
-/// Unplayable songs skipped in a row before playback stops.
 const MAX_SKIPS: u32 = 3;
 
-/// When a song failed because of the account (Premium-only, or needs signing in),
-/// the message to show instead of skipping: the rest of an album like that fails the
-/// same way.
 fn account_block(msg: &str, logged_in: bool) -> Option<&'static str> {
     let m = msg.to_ascii_lowercase();
     if m.contains("premium") {

@@ -1,6 +1,5 @@
 import type { BrowseLink, MusicItem } from '@/data/music/types';
 
-/** Where tapping an item goes; null for songs and videos, which play instead. */
 export function hrefFor(item: Pick<MusicItem, 'kind' | 'id'>): string | null {
   switch (item.kind) {
     case 'album':
@@ -26,7 +25,6 @@ export function albumHref(id: string | null): string | null {
   return id ? `/album/${encodeURIComponent(id)}` : null;
 }
 
-/** See All and mood/genre pages. Playlists open as playlists. */
 export function browseHref(link: BrowseLink): string {
   if (link.browseId.startsWith('VL')) return `/playlist/${encodeURIComponent(link.browseId)}`;
   if (link.browseId.startsWith('MPREb_')) return `/album/${encodeURIComponent(link.browseId)}`;

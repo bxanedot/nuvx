@@ -1,8 +1,5 @@
 package com.my.kizzy.rpc
 
-/**
- * Created by Zion Huang
- */
 data class UserInfo(
     val id: String,
     val username: String,

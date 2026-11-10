@@ -38,39 +38,20 @@ data class RawMoreInfo(
     val album: String = "",
     @SerialName("encrypted_media_url") val encryptedMediaUrl: String = "",
     val duration: String = "",
-    /**
-     * Whether a 320kbps rendition exists, as `"true"`/`"false"`.
-     *
-     * The catalogue states this per track and it is frequently false. Asking
-     * the CDN for `_320` anyway does not produce one.
-     */
     @SerialName("320kbps") val has320: String = "",
     val artistMap: RawArtistMap = RawArtistMap(),
 ) {
     val supports320: Boolean get() = has320.equals("true", ignoreCase = true)
 }
 
-/** A decoded CDN URL and the bitrate it will really deliver. */
 data class SaavnStream(val url: String, val kbps: Int?)
 
-/**
- * Select the highest JioSaavn CDN rendition without losing URL parameters.
- *
- * The encrypted URL normally names the 96 kbps file and the catalogue states
- * whether the parallel 320 kbps object exists. CDN URLs are not guaranteed to
- * end at `.mp4`: cache-busting or access query parameters may follow it. The
- * old end-anchored match missed those URLs, left `_96.mp4` in place, and still
- * reported 320 upstream. Playback and Downloads consequently displayed 320
- * while both fetched the 96 kbps object.
- */
 internal fun selectBestSaavnStream(decryptedUrl: String, supports320: Boolean): SaavnStream? {
     if (decryptedUrl.isBlank()) return null
     val rendition = Regex(
         "_(48|96|160|320)\\.(mp4|aac|mp3)(?=[?#]|$)",
         RegexOption.IGNORE_CASE,
     ).find(decryptedUrl)
-        // An unrecognised URL must not be labelled 320 merely because the
-        // catalogue says that rendition exists; no rewrite was actually made.
         ?: return SaavnStream(decryptedUrl, null)
 
     val offered = rendition.groupValues[1].toInt()
@@ -88,7 +69,6 @@ data class RawSongItem(
     val id: String = "",
     val title: String = "",
     val image: String = "",
-    /** JioSaavn sends this as the string `"1"` or `"0"`. */
     @SerialName("explicit_content") val explicitContent: String = "",
     @SerialName("more_info") val moreInfo: RawMoreInfo = RawMoreInfo()
 ) {
@@ -106,19 +86,12 @@ data class RawSongsResponse(
     val songs: List<RawSongItem> = emptyList()
 )
 
-/**
- * Put uncensored catalogue rows ahead of their clean duplicates.
- *
- * Top-level so the pure ordering rule remains unit-testable without
- * initialising Android's Base64-backed service singleton on the JVM.
- */
 internal fun prioritizeExplicit(songs: List<RawSongItem>): List<RawSongItem> =
     songs.sortedByDescending { it.isExplicit }
 
 object JioSaavnService {
     private const val TAG = "nuvx"
     
-    // https://www.jiosaavn.com/api.php
     private val BASE_URL = String(Base64.decode("aHR0cHM6Ly93d3cuamlvc2Fhdm4uY29tL2FwaS5waHA=", Base64.DEFAULT), Charsets.UTF_8)
 
     private val json = Json {
@@ -127,7 +100,6 @@ object JioSaavnService {
         explicitNulls = false
     }
 
-    // Note: nuvx uses OkHttp engine for ktor
     private val client by lazy {
         HttpClient(OkHttp) {
             install(ContentNegotiation) { json(json) }
@@ -152,7 +124,7 @@ object JioSaavnService {
     private fun decryptUrl(encryptedUrl: String): String {
         if (encryptedUrl.isBlank()) return ""
         return try {
-            val key = "38346591" // DES 8-byte key
+            val key = "38346591"
             val secretKey = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "DES")
             val cipher = Cipher.getInstance("DES/ECB/PKCS5Padding")
             cipher.init(Cipher.DECRYPT_MODE, secretKey)
@@ -165,18 +137,6 @@ object JioSaavnService {
         }
     }
 
-    /**
-     * The best CDN URL this track really has, and the bitrate it will deliver.
-     *
-     * The rewrite to `_320` is conditional on [RawMoreInfo.supports320] rather
-     * than applied to everything. Rewriting unconditionally is not an upgrade —
-     * the CDN has no 320 rendition to serve for a track that hasn't got one —
-     * and the old code did it anyway *and* then reported a flat 320 upstream.
-     * A 96kbps stream advertised as 320 clears
-     * [SourceResolver.worthSwapping][com.bxane.nuvx.data.sources.SourceResolver]
-     * against YouTube's 160kbps Opus, so the listener was swapped down to a
-     * third of the bitrate on a line that claimed twice YouTube's.
-     */
     private fun bestStream(encryptedUrl: String, supports320: Boolean): SaavnStream? {
         val decryptedUrl = decryptUrl(encryptedUrl)
         return selectBestSaavnStream(decryptedUrl, supports320)
@@ -222,13 +182,6 @@ object JioSaavnService {
                 return@runCatching null
             }
 
-            // `song.getDetails` does not answer with the `{"songs":[…]}`
-            // envelope `search.getResults` uses. It answers with a map keyed by
-            // the id that was asked for — `{"5xceLLNe":{…}}` — so decoding it
-            // as [RawSongsResponse] found no `songs` key, produced an empty
-            // list under `ignoreUnknownKeys`, and returned null without an
-            // error or an exception to explain itself. Both shapes are read
-            // here so neither endpoint changing its mind breaks the other.
             val root = json.parseToJsonElement(response.bodyAsText()) as? JsonObject
                 ?: return@runCatching null
             val songElement = (root["songs"] as? JsonArray)?.firstOrNull()

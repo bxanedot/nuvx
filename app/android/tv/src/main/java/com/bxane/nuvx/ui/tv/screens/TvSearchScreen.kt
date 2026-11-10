@@ -92,8 +92,6 @@ fun TvSearchScreen(
         scope.launch { mediaController?.playSongs(listOf(song), 0) }
         onNavigateToNowPlaying()
     }
-    // Whatever is played or opened from here is remembered, as the phone does,
-    // so it shows under Recent Searches next time.
     val playResult: (Song) -> Unit = { song ->
         viewModel.recordEntity(
             SearchHistoryEntity(
@@ -200,7 +198,6 @@ fun TvSearchScreen(
                         }
                         when {
                             type != null -> onNavigateToDetail(entity.id, entity.title, entity.subtitle, entity.artworkUrl, type)
-                            // A typed query with nothing behind it: run it again.
                             entity.id.startsWith("q:") || entity.id.isBlank() -> viewModel.searchFor(entity.title)
                             else -> playSong(
                                 Song(
@@ -257,10 +254,6 @@ fun TvSearchScreen(
     }
 }
 
-/**
- * Before a search: what was searched for lately, laid out as the results are —
- * a grid of lockups — with a Clear on its heading.
- */
 private fun LazyListScope.idleContent(
     history: List<com.bxane.nuvx.data.model.SearchHistoryEntity>,
     onHistory: (com.bxane.nuvx.data.model.SearchHistoryEntity) -> Unit,
@@ -299,13 +292,8 @@ private fun LazyListScope.idleContent(
     }
 }
 
-/** Columns in Search's grids: the recent searches and a single-kind result list. */
 private const val GridColumns = 5
 
-/**
- * One row of a five-column grid, aligned to the safe margins. Short rows keep
- * their cells the width of a full row's.
- */
 @Composable
 private fun TvGridRow(count: Int, cell: @Composable RowScope.(index: Int, cell: Modifier) -> Unit) {
     Row(
@@ -317,7 +305,6 @@ private fun TvGridRow(count: Int, cell: @Composable RowScope.(index: Int, cell: 
     }
 }
 
-/** "All": the best matches first, then a shelf per kind. */
 private fun LazyListScope.groupedResults(
     results: List<SearchResult>,
     onPlaySong: (Song) -> Unit,
@@ -360,7 +347,6 @@ private fun LazyListScope.groupedResults(
     }
 }
 
-/** One kind only: songs as a three-column list, everything else as a grid of lockups. */
 private fun LazyListScope.filteredResults(
     results: List<SearchResult>,
     onPlaySong: (Song) -> Unit,
@@ -456,7 +442,6 @@ private fun SearchResult.resultKey(): String = when (this) {
     is SearchResult.Browse -> "b:${item.browseId}"
 }
 
-/** Drops repeats: the same video id, the same title-and-artist, or the same browse id. */
 private fun List<SearchResult>.deduplicated(): List<SearchResult> {
     val ids = HashSet<String>()
     val names = HashSet<String>()

@@ -1,12 +1,3 @@
-//! Solves the challenges on signed-in stream URLs (the `sig` signature and the `n`
-//! throttling parameter) with yt-dlp's EJS solver, run in an embedded QuickJS, so no
-//! Node or yt-dlp process is involved.
-//!
-//! The player script is preprocessed once per player version and cached on disk, along
-//! with its compiled bytecode (source and debug info stripped). Loading that takes a
-//! fraction of parsing the 4 MB script, so the worker thread can exit soon after each
-//! burst of solves and give QuickJS's ~20 MB back instead of holding it all session.
-
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -15,12 +6,9 @@ use crossbeam_channel::{RecvTimeoutError, Sender};
 use rquickjs::{Context, Runtime, qjs};
 use tokio::sync::oneshot;
 
-/// yt-dlp/ejs 0.8.0 (Unlicense; bundles meriyah, ISC, and astring, MIT).
 const LIB: &str = include_str!("../assets/ejs/yt.solver.lib.min.js");
 const CORE: &str = include_str!("../assets/ejs/yt.solver.core.min.js");
-/// A song's resolve and the next one's prefetch solve within seconds of each other.
 const IDLE: Duration = Duration::from_secs(20);
-/// YouTube rolls out new player versions every few days.
 const PLAYER_TTL: Duration = Duration::from_secs(3600);
 
 #[derive(Clone)]
@@ -40,8 +28,6 @@ pub struct Solver {
     dir: PathBuf,
     worker: Mutex<Option<Sender<Job>>>,
     player: tokio::sync::Mutex<Option<(Player, Instant)>>,
-    /// When preparing a player last failed: each song would otherwise download
-    /// base.js (~2.5 MB) and preprocess it again.
     failed: Mutex<Option<Instant>>,
 }
 
@@ -50,7 +36,6 @@ impl Solver {
         Self { dir: data_dir.join("ejs"), worker: Mutex::new(None), player: tokio::sync::Mutex::new(None), failed: Mutex::new(None) }
     }
 
-    /// The current player version, preprocessed and ready to solve with.
     pub async fn player(&self, http: &reqwest::Client) -> anyhow::Result<Player> {
         let mut cached = self.player.lock().await;
         if let Some((p, _)) = cached.as_ref().filter(|(_, at)| at.elapsed() < PLAYER_TTL) {
@@ -81,7 +66,6 @@ impl Solver {
                 let (reply, rx) = oneshot::channel();
                 self.send(Job::Preprocess { base, reply })?;
                 let pre = rx.await??;
-                // Keep only the current player: each is ~4 MB.
                 if let Ok(old) = std::fs::read_dir(&self.dir) {
                     for f in old.flatten() {
                         let _ = std::fs::remove_file(f.path());
@@ -97,13 +81,10 @@ impl Solver {
         Ok(Player { id, sts })
     }
 
-    /// A player has been prepared, so solving won't wait for a download and preprocess
-    /// (an expired one only re-checks the version; a new version is rare).
     pub fn ready(&self) -> bool {
         self.player.try_lock().is_ok_and(|p| p.is_some())
     }
 
-    /// Prepare the current player and load it into the worker ahead of the first song.
     pub async fn warm(&self, http: &reqwest::Client) -> anyhow::Result<()> {
         let player = self.player(http).await?;
         self.solve(&player, None, None).await.map(|_| ())
@@ -115,7 +96,6 @@ impl Solver {
         self.send(Job::Solve { path: path.clone(), n: n.clone(), sig: sig.clone(), reply })?;
         match rx.await {
             Ok(res) => res,
-            // The worker hit its idle timeout just as the job arrived; a new one takes it.
             Err(_) => {
                 let (reply, rx) = oneshot::channel();
                 self.send(Job::Solve { path, n, sig, reply })?;
@@ -124,13 +104,12 @@ impl Solver {
         }
     }
 
-    /// Hand a job to the worker, starting it if it has exited.
     fn send(&self, mut job: Job) -> anyhow::Result<()> {
         let mut worker = self.worker.lock().unwrap();
         if let Some(tx) = worker.as_ref() {
             match tx.send(job) {
                 Ok(()) => return Ok(()),
-                Err(e) => job = e.0, // it went idle and exited
+                Err(e) => job = e.0,
             }
         }
         let (tx, rx) = crossbeam_channel::unbounded();
@@ -175,7 +154,6 @@ fn js_err(ctx: &rquickjs::Ctx, e: rquickjs::Error) -> anyhow::Error {
     }
 }
 
-/// Parse the player and extract its solver functions into a standalone script.
 fn preprocess(base: &str) -> anyhow::Result<String> {
     let rt = Runtime::new()?;
     rt.set_max_stack_size(64 << 20);
@@ -208,13 +186,10 @@ fn load(path: &Path) -> anyhow::Result<(Runtime, Context)> {
     Ok((rt, ctx))
 }
 
-/// Compile the preprocessed solver (a function body that fills `_result`) to bytecode
-/// that defines the global `_r`.
 fn compile(pre: &str) -> anyhow::Result<Vec<u8>> {
     let rt = Runtime::new()?;
     rt.set_max_stack_size(64 << 20);
     let ctx = Context::full(&rt)?;
-    // QuickJS's parser wants a NUL after the source.
     let src = format!("var _r = {{n: null, sig: null}};\n(function (_result) {{\n{pre}\n}})(_r);\n\0");
     ctx.with(|ctx| unsafe {
         let c = ctx.as_raw().as_ptr();
@@ -234,7 +209,6 @@ fn compile(pre: &str) -> anyhow::Result<Vec<u8>> {
     })
 }
 
-/// Run bytecode from `compile` in `ctx`.
 fn run_bytecode(ctx: &rquickjs::Ctx, bc: &[u8]) -> anyhow::Result<()> {
     unsafe {
         let c = ctx.as_raw().as_ptr();
@@ -242,7 +216,6 @@ fn run_bytecode(ctx: &rquickjs::Ctx, bc: &[u8]) -> anyhow::Result<()> {
         if qjs::JS_IsException(f) {
             return Err(js_err(ctx, rquickjs::Error::Exception));
         }
-        // Consumes `f`.
         let r = qjs::JS_EvalFunction(c, f);
         if qjs::JS_IsException(r) {
             return Err(js_err(ctx, rquickjs::Error::Exception));
@@ -264,7 +237,6 @@ fn solve(ctx: &Context, n: Option<String>, sig: Option<String>) -> anyhow::Resul
     })
 }
 
-/// `player\/5203c085\/` in iframe_api's script.
 fn player_id(iframe: &str) -> Option<String> {
     iframe.match_indices("player").find_map(|(i, _)| {
         let rest = iframe[i + 6..].trim_start_matches(['\\', '/']);
@@ -273,7 +245,6 @@ fn player_id(iframe: &str) -> Option<String> {
     })
 }
 
-/// `signatureTimestamp:20732` (or `sts:20732`) in the player script.
 fn signature_timestamp(base: &str) -> Option<u32> {
     ["signatureTimestamp", "sts"].iter().find_map(|key| {
         base.match_indices(key).find_map(|(i, _)| {

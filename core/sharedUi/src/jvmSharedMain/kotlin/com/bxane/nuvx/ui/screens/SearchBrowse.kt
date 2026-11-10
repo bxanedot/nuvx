@@ -40,11 +40,6 @@ import com.bxane.nuvx.sharedui.resources.Res
 import com.bxane.nuvx.sharedui.resources.browse_categories
 import org.jetbrains.compose.resources.stringResource
 
-/**
- * Search's landing, after Convx's (Apple Music's iOS 26 page): every mood and
- * genre a rounded colour tile, two across, with its cover as a duotone in that
- * colour and the name in white at the bottom-left.
- */
 internal fun LazyListScope.browseCategories(categories: List<MoodGenre>, onClick: (MoodGenre) -> Unit) {
     item(key = "search:browse-header") {
         Text(
@@ -95,10 +90,8 @@ internal fun CategoryTile(item: MoodGenre, modifier: Modifier, onClick: () -> Un
                         blendMode = BlendMode.Multiply
                     },
             )
-            // Lifts the duotone's highlights back toward the tile colour.
             Canvas(Modifier.fillMaxSize()) { drawRect(ground.copy(alpha = 0.25f), blendMode = BlendMode.Screen) }
         }
-        // Keeps the name legible where the photo runs dark behind it.
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.28f))))
         Text(
             text = item.title,

@@ -7,13 +7,6 @@ import com.bxane.nuvx.data.model.Song
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/**
- * Persists the user's personal queue, index, playhead, and playing state before
- * entering a Listen Together party, and restores it when the user leaves.
- *
- * Backed by SharedPreferences so the personal queue survives process death or
- * recreation while in a party.
- */
 object PartyPersonalQueueStash {
 
     data class Snapshot(
@@ -34,11 +27,9 @@ object PartyPersonalQueueStash {
         prefs = testPrefs
     }
 
-    /** Stash directly from a live player. */
     fun stashFromPlayer(player: Player): Boolean {
         if (!::prefs.isInitialized) return false
         if (player.mediaItemCount == 0) {
-            // Player is empty; check if LastPlayed holds a restorable personal queue
             val fallback = LastPlayed.load()
             if (fallback != null && fallback.songs.isNotEmpty()) {
                 stash(

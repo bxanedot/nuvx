@@ -2,28 +2,8 @@ package com.bxane.nuvx.data.lyrics
 
 import java.util.Locale
 
-/**
- * One language the translate button can translate lyrics *into*.
- *
- * [code] is what goes on the wire as the endpoint's `tl` parameter, so it is
- * kept exactly as Google spells it — including the handful that are not bare
- * ISO-639-1: `zh-CN` and `zh-TW` are different scripts of the same language and
- * collapsing either to `zh` silently gives you Simplified, and `mni-Mtei` names
- * the script it is actually written in.
- *
- * [fallbackName] is only reached when the platform has no display name for the
- * code — true for most of the long tail here, which Android's ICU data predates
- * or never carried. Where the platform *does* know the language its own name
- * wins, because that one is localised into whatever the app is set to and this
- * one is not.
- */
 data class TranslationLanguage(val code: String, val fallbackName: String)
 
-/**
- * Every language Google Translate offers, in the order its own picker lists
- * them: alphabetical by English name, which is not the order they end up in
- * once localised, but is the order anyone who has used Translate expects.
- */
 val TRANSLATION_LANGUAGES = listOf(
     TranslationLanguage("af", "Afrikaans"),
     TranslationLanguage("sq", "Albanian"),
@@ -162,27 +142,13 @@ val TRANSLATION_LANGUAGES = listOf(
 
 private val byCode = TRANSLATION_LANGUAGES.associateBy { it.code.lowercase(Locale.ROOT) }
 
-/**
- * What to call [code] on screen, written in [inLocale].
- *
- * Asks the platform first so the name arrives in the reader's own language —
- * "Japanese" to an English reader, "japonés" to a Spanish one — and falls back
- * to the English name from the table for the codes ICU does not carry. A code
- * that is not in the table at all comes back as itself rather than blank, which
- * is wrong but legible; an empty label in a picker is neither.
- */
 fun translationLanguageName(code: String, inLocale: Locale): String {
     val entry = byCode[code.lowercase(Locale.ROOT)]
-    // A subtag is the whole point of the codes that carry one, and the platform
-    // renders it as territory: zh-CN comes back "Chinese (China)", which names
-    // the country rather than the script and leaves zh-TW looking like the same
-    // language somewhere else. For those the curated name is the accurate one.
     val platform = if ('-' in code) {
         ""
     } else {
         Locale.forLanguageTag(code).getDisplayName(inLocale)
     }
-    // getDisplayName echoes the tag back when it knows nothing about it.
     val known = platform.isNotBlank() && !platform.equals(code, ignoreCase = true)
     val name = if (known) platform else entry?.fallbackName ?: code
     return name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(inLocale) else it.toString() }

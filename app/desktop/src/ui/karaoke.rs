@@ -1,24 +1,3 @@
-//! Synced lyrics, ported from Better Lyrics' renderer (`@braccato/core` 1.16: engine.js,
-//! inject.js, instrumental.js, lyrics.css, variables.css) to egui.
-//!
-//! What is the same as the extension, by construction:
-//! - Timing: the clock is shown 150 ms ahead for word-synced lyrics and 115 ms for
-//!   line-synced ones, and the view scrolls 0.5 s ahead of that.
-//! - Words: every provider part is split on whitespace with its time pro-rated by
-//!   characters; words between spaces form groups that never wrap unless longer than 20
-//!   characters.
-//! - Karaoke: each word has a lit copy over the dim one, revealed by a linear gradient
-//!   (soft edge one tenth of the word wide) that runs from -0.2..-0.1 to 1.4..1.5 over 1.6×
-//!   the word's duration, 10 % ahead of it. With letters split (the default "letter
-//!   wave"), the gradient advances letter by letter in index space, each letter floats up
-//!   as it is lit, and the word group gives a small sideways pop.
-//! - Glow: `drop-shadow(0 0 0.8rem glow-color)` on the lit copy, decaying to nothing over
-//!   max(1.2×, 1.2 s) with `ease`: a Gaussian blur of the lit glyph pixels only (never a box).
-//! - Lines: scale 0.95 → 1 over 166 ms when they start, back when they end; lit words
-//!   fade back to dim over 0.5 s once the next line starts.
-//! - Scrolling: the view jumps to the new position and every line eases from where it was,
-//!   lines further down taking a little longer (cubic-bezier(0.86, 0, 0.2, 1), 750 ms +).
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -31,9 +10,6 @@ use crate::lyrics::{Line, Lyrics, Part, Sync};
 use crate::preset::{BlurScope, Fill, LyricStyle, ThemeCss, Weight};
 use crate::theme;
 
-// ------------------------------------------------------------------ easing
-
-/// A CSS `cubic-bezier()` timing function.
 #[derive(Clone, Copy, Debug)]
 pub struct Bezier(pub f32, pub f32, pub f32, pub f32);
 
@@ -87,24 +63,15 @@ impl Bezier {
 pub const EASE: Bezier = Bezier(0.25, 0.1, 0.25, 1.0);
 pub const EASE_OUT: Bezier = Bezier(0.0, 0.0, 0.58, 1.0);
 pub const EASE_IN_OUT: Bezier = Bezier(0.42, 0.0, 0.58, 1.0);
-/// `--blyrics-lyric-scroll-timing-function`.
 pub const SCROLL_EASE: Bezier = Bezier(0.86, 0.0, 0.2, 1.0);
-/// `blyrics-decoration-in`.
 const DECO_EASE: Bezier = Bezier(0.25, 1.0, 0.5, 1.0);
 
-// ------------------------------------------------------------------ theme values
-
-/// `--blyrics-richsync-timing-offset` / `--blyrics-timing-offset`.
 pub const RICHSYNC_OFFSET: f64 = 0.150;
 pub const LINE_OFFSET: f64 = 0.115;
-/// `--blyrics-scroll-timing-offset`.
 const SCROLL_OFFSET: f64 = 0.5;
-/// `blyrics-early-scroll-consider-s`.
 const EARLY_SCROLL: f64 = 0.54;
-/// `blyrics-lyric-ending-threshold-s`.
 const ENDING_THRESHOLD: f64 = 0.5;
 const TIME_JUMP: f64 = 0.5;
-/// `blyrics-swipe-lead-ratio`, `blyrics-swipe-duration-ratio` and the swipe ramp.
 const SWIPE_LEAD: f64 = 0.1;
 const SWIPE_DURATION: f64 = 1.6;
 const SWIPE_START: (f32, f32) = (-0.2, 1.4);
@@ -116,23 +83,18 @@ const FADE_OUT: f64 = 0.5;
 const SCALE_DURATION: f64 = 0.166;
 const WOBBLE_DURATION: f64 = 1.0;
 const LETTER_WAVE_CREST: f32 = 0.4;
-/// `blyrics-long-word-threshold` (ms → s): held words swell their letters.
 const LONG_WORD: f64 = 1.5;
-/// `blyrics-line-synced-animation-delay`.
 const LINE_SYNC_DELAY: f64 = 0.05;
-/// Word groups longer than twice `blyrics-long-word-wrap-threshold` may break.
 const LONG_GROUP_CHARS: usize = 20;
 const USER_SCROLL_RESUME: f64 = 25.0;
 const DECO_ENTRY: f64 = 0.35;
 
-/// Resolved look for one frame: the extension's defaults, adjusted by the preset.
 #[derive(Clone)]
 struct Cfg {
     font: String,
     weight: Weight,
     size: f32,
     active: Color32,
-    /// Alpha of dim text on the line being sung.
     inactive_alpha: f32,
     glow: Color32,
     glow_rem: f32,
@@ -151,35 +113,25 @@ struct Cfg {
     past_alpha: Option<f32>,
     blur: f32,
     blur_scope: BlurScope,
-    /// One CSS rem in points (YouTube Music's 10 px when the theme sizes in rem).
     rem: f32,
-    /// `.blyrics-background-lyric` font size (em).
     bg_em: f32,
-    /// `.blyrics-container` inline padding (start, end).
     pad: (f32, f32),
-    /// Word wobble on (themes can set its transforms to identity).
     wobble: bool,
     wave_duration: f64,
-    /// `--blyrics-glow-color` alpha on the container and on held words.
     glow_alpha: f32,
     long_glow_alpha: f32,
     css: Option<ThemeCss>,
 }
 
-/// `GLOW_INVISIBLE_ALPHA`: a glow colour this faint renders nothing and is skipped.
 const GLOW_INVISIBLE: f32 = 0.5 / 255.0;
 
 impl Cfg {
-    /// `width`: the lyrics panel; `viewport`: the window (the theme's media queries).
-    /// The most a line is scaled up: while sung, or under a theme's hover scale.
     fn max_scale(&self) -> f32 {
         self.active_scale.max(self.css.as_ref().and_then(|c| c.hover_scale).unwrap_or(1.0)).max(1.0)
     }
 
     fn new(s: &LyricStyle, accent: Color32, width: f32, viewport: f32, centered: bool, scale: f32) -> Self {
         let css = s.css.clone();
-        // Font size and rem: a theme's own `--blyrics-font-size` steps in YouTube Music's
-        // 10 px rem; otherwise 48 pt scaled by the preset with the extension's proportions.
         let (mut size, mut rem) = match css.as_ref().filter(|c| !c.font_rem.is_empty()) {
             Some(c) => {
                 let r = c.font_rem.iter().filter(|st| viewport >= st[0]).map(|st| st[1]).next_back().unwrap_or(c.font_rem[0][1]);
@@ -190,16 +142,11 @@ impl Cfg {
                 (size, size / 3.0)
             }
         };
-        // Kept to about a dozen CJK characters per row on narrow windows.
         let cap = (width / 10.5).max(22.0);
         if size > cap {
             rem *= cap / size;
             size = cap;
         }
-        // The listener's text size goes on top, everything in rem along with it
-        // (romanization, translation, spacing), so the theme keeps its proportions.
-        // Whole points: every new size fills the font atlas again (it never shrinks),
-        // and resizing the window would otherwise make one per pixel of width.
         let rounded = (size * scale).round().max(1.0);
         rem *= rounded / size;
         size = rounded;
@@ -211,13 +158,9 @@ impl Cfg {
             None => s.weight,
         };
         let wave = css.as_ref().and_then(|c| c.letter_wave).unwrap_or([0.05, 0.02, 0.9, 1.11]);
-        // The app's own look: a letter rises by the preset's lift and stays there, so
-        // the words already sung sit above the line being sung.
         let (crest, settle) = if css.is_some() { (wave[0], wave[1]) } else { (s.lift.clamp(0.0, 8.0) / size, s.lift.clamp(0.0, 8.0) / size) };
         let (glow_alpha, long_glow_alpha) = match css.as_ref().and_then(|c| c.glow_alpha) {
             Some(a) => (a, css.as_ref().and_then(|c| c.long_word_glow_alpha).unwrap_or(a)),
-            // A look without a glow setting of its own glows only as much as its preset asks:
-            // the default look has none.
             None => (glow, glow),
         };
         let pad = css.as_ref().and_then(|c| c.padding_inline).map_or((0.0, 0.0), |p| (p[0] * rem / 10.0, p[1] * rem / 10.0));
@@ -247,7 +190,6 @@ impl Cfg {
             rem,
             bg_em: css.as_ref().and_then(|c| c.background_em).unwrap_or(0.75),
             pad,
-            // A theme opts out of the sideways pop; the app's own look doesn't have it.
             wobble: css.as_ref().is_some_and(|c| !c.no_wobble),
             wave_duration: wave[2] as f64,
             glow_alpha,
@@ -258,7 +200,6 @@ impl Cfg {
     fn rem(&self) -> f32 {
         self.rem
     }
-    // Each takes the text it sets, so a line in a script the font lacks is all Inter.
     fn main_font(&self, text: &str) -> FontId {
         theme::lyric_font_for(&self.font, self.weight, self.size, text)
     }
@@ -273,35 +214,27 @@ impl Cfg {
     }
 }
 
-// ------------------------------------------------------------------ layout
-
-/// One animated word (`.blyrics--word`), relative to its line's content box.
 #[derive(Clone)]
 struct Word {
     text: String,
     font: FontId,
     start: f64,
     dur: f64,
-    /// Zero-duration (line-synced) word: fades in instead of sweeping.
     line_synced: bool,
     bg: bool,
-    /// Held longer than `LONG_WORD`: letters swell as they crest.
     long: bool,
     pos: Pos2,
     w: f32,
     h: f32,
     group: usize,
     letters: bool,
-    /// Right-to-left letters: lit from the right.
     rtl: bool,
 }
 
-/// A word group (`.blyrics-word-group`): what wobbles, driven by its first word.
 #[derive(Clone)]
 struct Group {
     first: usize,
     words: std::ops::Range<usize>,
-    /// Inline (long) groups can't be transformed.
     wobbles: bool,
 }
 
@@ -314,26 +247,22 @@ enum DecoBody {
 #[derive(Clone)]
 struct Deco {
     body: DecoBody,
-    /// Box relative to the line's content origin (the pill, or the translation's text box).
     rect: Rect,
     pill: bool,
 }
 
 #[derive(Clone)]
 struct Block {
-    /// Index into the lyrics' lines (`None` for the credits).
     line: Option<usize>,
     start: f64,
     dur: f64,
     instrumental: bool,
-    /// `v2`/`v3` sing on the right, `v1000` (everyone) in the middle.
     align: Align,
     top: f32,
     height: f32,
     words: Vec<Word>,
     groups: Vec<Group>,
     decos: Vec<Deco>,
-    /// Songwriter credits text.
     credits: Option<(String, FontId)>,
 }
 
@@ -353,7 +282,6 @@ struct Layout {
     richsync: bool,
 }
 
-/// A whitespace run or a piece of a part (`splitPartIntoTokens`).
 struct Tok {
     text: String,
     start: f64,
@@ -394,8 +322,6 @@ fn split_part(p: &Part) -> Vec<Tok> {
         .collect()
 }
 
-/// `buildLineSyncedParts`: a line without timed parts becomes zero-duration words, each
-/// 50 ms after the one before.
 fn line_synced_parts(l: &Line) -> Vec<Part> {
     let mut out = Vec::new();
     let mut word = 0;
@@ -417,7 +343,6 @@ fn line_synced_parts(l: &Line) -> Vec<Part> {
     out
 }
 
-/// Joining scripts (Arabic and friends) keep whole-word sweeps, as in the extension.
 fn joining_script(s: &str) -> bool {
     s.chars().any(|c| matches!(c as u32, 0x0600..=0x06FF | 0x0700..=0x074F | 0x0750..=0x077F | 0x0780..=0x07BF | 0x0840..=0x085F | 0x08A0..=0x08FF | 0x1800..=0x18AF | 0xFB50..=0xFDFF | 0xFE70..=0xFEFF))
 }
@@ -429,24 +354,17 @@ struct Flow {
     width: f32,
 }
 
-/// Lay out tokens the way inline formatting does it in the extension: groups between
-/// spaces don't break (unless long), spaces do.
 fn text_size(fonts: &mut FontsView<'_>, s: &str, font: &FontId) -> Vec2 {
     fonts.layout_no_wrap(s.to_owned(), font.clone(), Color32::WHITE).size()
 }
 
-/// `rtl`: the line reads right to left, so each row is laid out from the right.
 fn flow(fonts: &mut FontsView<'_>, toks: Vec<Tok>, font: &FontId, max_w: f32, line_h: f32, align: Align, rtl: bool) -> Flow {
-    // `groupTokensByWord`
     enum Item {
         Space,
         Group(Vec<Tok>),
     }
     let mut items: Vec<Item> = Vec::new();
-    // A single piece wider than the line (a line-synced CJK phrase arrives as one, with no
-    // spaces to break at) is split into its characters, sharing its time, so it can wrap.
     let toks = toks.into_iter().flat_map(|t| {
-        // Not right-to-left words either: their letters, laid out one by one, would read backwards.
         if t.space || joining_script(&t.text) || crate::bidi::has_rtl(&t.text) || t.text.chars().count() < 2 || text_size(fonts, &t.text, font).x <= max_w {
             return vec![t];
         }
@@ -470,7 +388,7 @@ fn flow(fonts: &mut FontsView<'_>, toks: Vec<Tok>, font: &FontId, max_w: f32, li
     let space_w = text_size(fonts, " ", font).x.max(font.size * 0.25);
     let mut words: Vec<Word> = Vec::new();
     let mut groups: Vec<Group> = Vec::new();
-    let mut rows: Vec<(usize, f32)> = vec![(0, 0.0)]; // (first word index, width)
+    let mut rows: Vec<(usize, f32)> = vec![(0, 0.0)];
     let (mut x, mut row) = (0.0f32, 0usize);
     let mut pending_space = false;
     for item in items {
@@ -485,8 +403,6 @@ fn flow(fonts: &mut FontsView<'_>, toks: Vec<Tok>, font: &FontId, max_w: f32, li
                 let w: f32 = sizes.iter().map(|s| s.x).sum();
                 let sp = if pending_space { space_w } else { 0.0 };
                 pending_space = false;
-                // A group that can't fit even on a row of its own breaks between its parts
-                // rather than running off the side (the extension lets it overflow).
                 let breakable = long || w > max_w;
                 if x > 0.0 && x + sp + w > max_w && !breakable {
                     row += 1;
@@ -525,9 +441,6 @@ fn flow(fonts: &mut FontsView<'_>, toks: Vec<Tok>, font: &FontId, max_w: f32, li
             }
         }
     }
-    // Right to left: words go from the right of each row, except runs of left-to-right
-    // ones (Latin, numbers), which keep their order; in a left-to-right line, the other
-    // way round.
     for (r, &(first, rw)) in rows.iter().enumerate() {
         let end = rows.get(r + 1).map_or(words.len(), |n| n.0);
         let row = &mut words[first..end];
@@ -552,7 +465,6 @@ fn flow(fonts: &mut FontsView<'_>, toks: Vec<Tok>, font: &FontId, max_w: f32, li
             i = j.max(i + 1);
         }
     }
-    // Align rows to the right or centre.
     if align != Align::Left {
         for (r, &(first, rw)) in rows.iter().enumerate() {
             let end = rows.get(r + 1).map_or(words.len(), |n| n.0);
@@ -567,7 +479,6 @@ fn flow(fonts: &mut FontsView<'_>, toks: Vec<Tok>, font: &FontId, max_w: f32, li
     Flow { words, groups, height, width }
 }
 
-/// Romanization for a line: timed (from the lyrics) or plain text.
 pub enum Roman<'a> {
     Timed(&'a [Part], &'a str),
     Text(&'a str),
@@ -590,14 +501,11 @@ fn build_block(fonts: &mut FontsView<'_>, cfg: &Cfg, l: &Line, index: usize, wid
         _ if cfg.centered => Align::Center,
         _ => Align::Left,
     };
-    // Right-to-left lines start on the right (and the second singer's on the left).
     let align = match align {
         Align::Left if rtl => Align::Right,
         Align::Right if rtl => Align::Left,
         a => a,
     };
-    // Wrapped to fit at the line's largest scale (sung, or a theme's hover), which grows
-    // it about its aligned edge: wrapped at full width, a sung line ran off the side.
     let full_w = (width - em * 0.5).max(40.0);
     let content_w = (full_w / cfg.max_scale()).max(40.0);
     let line_h = em * 1.333;
@@ -642,7 +550,7 @@ fn build_block(fonts: &mut FontsView<'_>, cfg: &Cfg, l: &Line, index: usize, wid
         block.groups.extend(f.groups.into_iter().map(|g| Group { first: g.first + base, words: g.words.start + base..g.words.end + base, ..g }));
         y += f.height;
     }
-    let gap = em / 6.0; // margin-top: 8px at 48 px
+    let gap = em / 6.0;
     if let Some(r) = roman {
         y += gap;
         let pad = vec2(cfg.rem() * 0.75, cfg.rem() * 0.25);
@@ -668,7 +576,6 @@ fn build_block(fonts: &mut FontsView<'_>, cfg: &Cfg, l: &Line, index: usize, wid
             Align::Center => (content_w - size.x) * 0.5,
         };
         let rect = Rect::from_min_size(pos2(x, y), size);
-        // Timed words sit inside the pill's padding.
         let body = match body {
             DecoBody::Timed { words, groups } => DecoBody::Timed { words: words.into_iter().map(|w| Word { pos: w.pos + rect.min.to_vec2() + pad + vec2(1.0, 1.0), ..w }).collect(), groups },
             b => b,
@@ -689,7 +596,6 @@ fn build_block(fonts: &mut FontsView<'_>, cfg: &Cfg, l: &Line, index: usize, wid
         y += g.size().y;
     }
     block.height = y + cfg.padding;
-    // Back to the column's edge or centre, which the narrower wrap moved.
     let inset = match align {
         Align::Left => 0.0,
         Align::Right => full_w - content_w,
@@ -712,9 +618,6 @@ fn build_block(fonts: &mut FontsView<'_>, cfg: &Cfg, l: &Line, index: usize, wid
     block
 }
 
-// ------------------------------------------------------------------ state
-
-/// One scroll: every line eases from `delta` above/below its new place.
 #[derive(Clone, Copy)]
 struct ScrollAnim {
     start: f64,
@@ -722,14 +625,12 @@ struct ScrollAnim {
     active: usize,
 }
 
-/// A line shifted by a relayout (a translation or romanization arriving).
 #[derive(Clone, Copy)]
 struct Shift {
     start: f64,
     delta: f32,
 }
 
-/// A CSS transition on one value: eases from where it was to the new target, after a delay.
 #[derive(Clone, Copy, Default)]
 struct Trans {
     from: f32,
@@ -765,17 +666,13 @@ impl Trans {
 
 #[derive(Clone, Copy, Default)]
 struct LineState {
-    /// Whole-line opacity and blur (the theme's line-state rules).
     opacity: Trans,
     blur: Trans,
     selected: bool,
-    /// Wall time the exit animations started (line scale back, lit words fading).
     exit: Option<f64>,
-    /// Song time at exit: which words had started.
     exit_t: f64,
 }
 
-/// The lyrics view's state between frames.
 #[derive(Default)]
 pub struct View {
     layout: Option<Layout>,
@@ -785,28 +682,21 @@ pub struct View {
     scrolls: Vec<ScrollAnim>,
     shifts: Vec<Vec<Shift>>,
     last_scroll: Vec<usize>,
-    /// The line taller than the view being sung, and its row: the view pages down with it.
     page: Option<(usize, i32)>,
     last_t: f64,
     last_wall: f64,
     user_until: f64,
-    /// Reader scrolling was on last frame: when it ends, scroll back to the current line.
     was_user: bool,
     glow: Glow,
     credits_focused: bool,
-    /// The frame (`cumulative_pass_nr`) the view was last drawn in; 0 once its textures
-    /// are freed.
     shown_pass: u64,
 }
 
 pub struct Frame<'a> {
     pub lyrics: &'a Lyrics,
-    /// Identifies the song, source, decorations and settings the layout depends on.
     pub key: u64,
     pub roman: Vec<Option<Roman<'a>>>,
     pub trans: Vec<Option<&'a str>>,
-    /// Audible song position (s), already corrected for output latency and the
-    /// listener's offsets.
     pub t: f64,
     pub playing: bool,
     pub now: f64,
@@ -814,15 +704,12 @@ pub struct Frame<'a> {
     pub style: &'a LyricStyle,
     pub accent: Color32,
     pub centered: bool,
-    /// The listener's lyrics text size, a multiple of the theme's.
     pub scale: f32,
 }
 
 pub struct Out {
     pub seek: Option<f64>,
-    /// Something is moving: keep drawing frames.
     pub animating: bool,
-    /// The reader scrolled away; a "resume" control can bring the view back.
     pub user_scrolling: bool,
 }
 
@@ -831,8 +718,6 @@ impl View {
         *self = Self { glow: std::mem::take(&mut self.glow), ..Default::default() };
     }
 
-    /// Called every frame: once the view isn't drawn (another tab or page), its glows,
-    /// blurred lines and atlas copy go; they're rebuilt as it comes back.
     pub fn release_hidden(&mut self, pass: u64) {
         if self.shown_pass != 0 && self.shown_pass + 1 < pass {
             self.glow = Glow::default();
@@ -844,12 +729,9 @@ impl View {
         self.user_until = 0.0;
     }
 
-    /// CSS `text-shadow: 0 0 <blur>` for a laid-out text at `at`: the same Gaussian the
-    /// lyric glow uses (σ = blur / 2), as a white mask to tint when painting.
     pub fn text_glow(&mut self, ctx: &egui::Context, g: Arc<Galley>, at: Pos2, blur: f32) -> Option<(TextureId, Rect, Rect)> {
         let atlas = ctx.fonts(|fv| fv.font_image_size());
         let ppp = ctx.pixels_per_point();
-        // Cached per position, so a moved or resized view re-renders it.
         let key = (hash(("text-glow", at.x.round() as i32, at.y.round() as i32, g.job.text.as_str())), usize::MAX);
         self.glow.blurred_line(ctx, key, blur / 2.0, &[], &[(g, at, 1.0)], &[], 1.0, atlas, ppp)
     }
@@ -865,16 +747,13 @@ impl View {
         }
         let layout = self.layout.as_ref().unwrap();
         let richsync = layout.richsync;
-        // Lines that aren't credits.
         let lines_n = layout.blocks.iter().filter(|b| b.line.is_some()).count();
 
-        // Clock: the extension shows lyrics this far ahead of the media time.
         let t = f.t + if richsync { RICHSYNC_OFFSET } else { LINE_OFFSET };
         let jumped = (t - self.last_t - (f.now - self.last_wall)).abs() > TIME_JUMP || self.last_wall == 0.0;
         self.last_t = t;
         self.last_wall = f.now;
 
-        // ---- selection and exits (tickView's per-line loop)
         let early = if f.playing { 2.0 } else { 0.0 };
         let mut animating = false;
         for i in 0..lines_n {
@@ -900,12 +779,10 @@ impl View {
             animating |= st.exit.is_some();
         }
 
-        // ---- scrolling
         let view_h = rect.height();
         let scroll_time = t + SCROLL_OFFSET;
         let user = f.now < self.user_until;
         let mut active: Vec<usize> = Vec::new();
-        // Leaving reader scrolling (the button, or the timeout) returns to the current line now.
         let mut new_lyric = jumped || (self.was_user && !user);
         self.was_user = user;
         for i in 0..lines_n {
@@ -926,9 +803,6 @@ impl View {
             self.credits_focused = credits_focused;
             new_lyric = true;
         }
-        // A line taller than the view would run off the bottom while it's sung: how far
-        // down it the singing is (the latest word's row, or for a line-synced line, as far
-        // as its time has gone), so the view pages down with it.
         let line_h = cfg.size * 1.333;
         let sung_y = |i: usize| -> Option<f32> {
             let b = &layout.blocks[i];
@@ -963,7 +837,6 @@ impl View {
                 .or_else(|| sung.iter().rev().find(|&&i| layout.blocks[i].start <= scroll_time))
                 .copied()
                 .unwrap_or(sung[0]);
-            // `computeActiveLinesScrollTop`
             let (first, lastl) = (sung[0], *sung.last().unwrap());
             let centre = sung.iter().map(|&i| pos(i) + layout.blocks[i].height / 2.0).sum::<f32>() / sung.len() as f32;
             let h = |i: usize| layout.blocks[i].height;
@@ -973,7 +846,6 @@ impl View {
             top = top.max(pos(anchor) + h(anchor) - view_h);
             top = top.min(pos(anchor));
             if let Some(y) = sung_y(anchor) {
-                // Keep the row being sung, and the one after it, in view.
                 top = top.max(pos(anchor) + y + line_h * 2.0 - view_h);
             }
             if credits_focused && let (Some(c), Some(ls)) = (credits, last_sung) {
@@ -990,7 +862,6 @@ impl View {
             self.last_scroll = active.clone();
         }
 
-        // Reader scrolling.
         let hovered = ui.rect_contains_pointer(rect);
         let wheel = if hovered { ui.input(|i| i.smooth_scroll_delta.y) } else { 0.0 };
         if wheel != 0.0 {
@@ -1000,7 +871,6 @@ impl View {
         }
         let user = f.now < self.user_until;
 
-        // Scroll animations: per line, eased from where it was.
         self.scrolls.retain(|a| f.now - a.start < 2.0);
         animating |= !self.scrolls.is_empty();
         for s in &mut self.shifts {
@@ -1008,7 +878,6 @@ impl View {
             animating |= !s.is_empty();
         }
 
-        // ---- paint
         let painter = ui.painter_at(rect);
         let first_shape = ctx.graphics(|g| g.get(painter.layer_id()).map_or(ShapeIdx(0), |l| l.next_idx()));
         let origin_y = rect.top() - self.scroll_top + layout.pad_top;
@@ -1057,9 +926,6 @@ impl View {
             let st = self.states[i];
             let sung_now = st.selected && t >= b.start;
 
-            // Whole-line opacity and blur. A theme that styles lines by state (its CSS
-            // `.blyrics--active` rules) gets those values and their transitions; the
-            // others get the preset's approximations.
             let (dim, opacity, blur) = if let Some(css) = &cfg.css {
                 let on = active.contains(&i) && active_real || st.selected;
                 let target = if hovered || on {
@@ -1073,7 +939,6 @@ impl View {
                 };
                 let line_ms = b.dur;
                 let (op_t, blur_t) = if hovered {
-                    // `:hover { transition: all 0.3s ease }`
                     ((0.3, 0.0), (0.3, 0.0))
                 } else {
                     let o = css.opacity_transition.unwrap_or([0.0, 0.0]);
@@ -1111,8 +976,6 @@ impl View {
                 (dim, 1.0, s.blur.value(f.now))
             };
 
-            // Line scale: 0.95 at rest, 1 while sung (enter at its start, exit when it ends);
-            // a theme's hover scale on lines not being sung.
             let mut scale = cfg.scale;
             if st.selected && t >= b.start {
                 scale = lerp(cfg.scale, cfg.active_scale, EASE.at(((t - b.start) / SCALE_DURATION) as f32));
@@ -1139,7 +1002,6 @@ impl View {
             if b.instrumental {
                 animating |= paint_instrumental(&painter, &cfg, b, &xf, t, line_w - cfg.size * 0.5);
             } else if blur > 0.05 {
-                // `filter: blur()` on the whole line: its text, romanization and translation.
                 let r = (blur * 4.0).round() / 4.0;
                 let deco_words: Vec<(&Word, f32)> = b
                     .decos
@@ -1162,10 +1024,8 @@ impl View {
                     })
                     .collect();
                 let words: Vec<(&Word, f32)> = b.words.iter().map(|w| (w, if w.bg { dim * 0.78 } else { dim })).chain(deco_words).collect();
-                // The romanization pill is part of the line, so it's blurred with it.
                 let pills: Vec<(Rect, f32)> = b.decos.iter().filter(|d| d.pill).map(|d| (d.rect, cfg.rem())).collect();
                 if let Some((tex, rr, uv)) = self.glow.blurred_line(&ctx, (f.key, i), r, &words, &texts, &pills, scale, atlas, ppp) {
-                    // Rendered at the line's scale; snapped so it lands 1:1 on screen pixels.
                     let to = xf.rect(rr);
                     let snapped = (to.min.to_vec2() * ppp).round() / ppp;
                     painter.image(tex, to.translate(snapped - to.min.to_vec2()), uv, theme::with_alpha(Color32::WHITE, opacity));
@@ -1197,7 +1057,6 @@ impl View {
                 animating |= lit.animating(b, t);
             }
 
-            // Click a line to seek to it (the extension seeks to the line's time).
             let hit = block_rect.intersect(rect);
             if hit.is_positive() {
                 let resp = ui.interact(hit, ui.scope_id().with(("lyr-line", f.key, i)), egui::Sense::click());
@@ -1209,8 +1068,6 @@ impl View {
                 }
             }
         }
-        // Glows (drop-shadows of the lit text) were queued while painting; draw them under
-        // the lit text they belong to by inserting at the recorded positions.
         self.glow.finish(&ctx, &painter, glow_work, atlas, ppp);
         fade_edges(&ctx, painter.layer_id(), first_shape, rect, cfg.size);
         if f.playing {
@@ -1263,7 +1120,6 @@ impl View {
             y += b.height;
         }
         let view_h = rect.height();
-        // `computeScrollPadding`
         let first_h = blocks.first().map_or(0.0, |b| b.height);
         let pad_top = (view_h * cfg.target_ratio - first_h / 2.0).max(0.0);
         let last_centre = blocks.iter().rev().find(|b| b.line.is_some()).map(|b| b.top + b.height / 2.0);
@@ -1275,7 +1131,6 @@ impl View {
         let richsync = lyrics.sync == Sync::Word;
         let same_song = self.layout.as_ref().is_some_and(|l| l.blocks.len() == blocks.len() && self.states.len() == blocks.len() && l.richsync == richsync && same_lines(l, &blocks));
         if same_song {
-            // Decorations arrived (or the window resized): lines slide to their new places.
             let old = self.layout.as_ref().unwrap();
             let now = ui.input(|i| i.time);
             self.shifts.resize_with(blocks.len(), Vec::new);
@@ -1299,7 +1154,6 @@ fn same_lines(l: &Layout, blocks: &[Block]) -> bool {
     l.blocks.iter().zip(blocks).all(|(a, b)| a.line == b.line && a.start == b.start && a.words.len() == b.words.len())
 }
 
-/// `findNearestAgent`: an instrumental break takes the side of the singer nearest it.
 fn nearest_agent(l: &Lyrics, i: usize) -> Option<String> {
     l.lines[i + 1..].iter().chain(l.lines[..i].iter().rev()).find(|x| !x.instrumental && x.agent.is_some()).and_then(|x| x.agent.clone())
 }
@@ -1308,8 +1162,6 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-/// Duration of one line's part in a scroll, by its distance from the active line
-/// (`LINE_SCROLL_AFTER_FUNCTION` and the `above` variant).
 fn scroll_duration(rel: isize, delta: f32) -> f64 {
     let up = delta < 0.0;
     let above = (rel < 0 && !up) || (rel > 0 && up);
@@ -1325,7 +1177,6 @@ fn transform_origin(block: Rect, align: Align, content_left: f32) -> Pos2 {
     }
 }
 
-/// The line's transform: content-relative positions → screen, scaled about `origin`.
 #[derive(Clone, Copy)]
 struct Xf {
     origin: Pos2,
@@ -1343,10 +1194,6 @@ impl Xf {
     }
 }
 
-/// Lines fade out over the top and bottom edges of the view instead of being cut off
-/// there. Geometry crossing an edge zone is sliced into thin horizontal bands, each
-/// dimmed by its own height, so the fade is smooth and reaches zero exactly at the edge
-/// (per-vertex alpha alone interpolates across a glyph and leaves a visible cut).
 fn fade_edges(ctx: &egui::Context, layer: egui::LayerId, from: ShapeIdx, rect: Rect, size: f32) {
     let zone = (size * 1.6).min(rect.height() * 0.15).max(1.0);
     let edge = EdgeFade { rect, zone };
@@ -1405,7 +1252,6 @@ impl EdgeFade {
             uv: a.uv + (b.uv - a.uv) * t,
             color: a.color.lerp_to_gamma(b.color, t),
         };
-        // The part of a polygon on one side of a horizontal line.
         let clip = |poly: &[Vertex], y: f32, keep_below: bool| -> Vec<Vertex> {
             let inside = |v: &Vertex| if keep_below { v.pos.y >= y } else { v.pos.y <= y };
             let mut out = Vec::with_capacity(poly.len() + 2);
@@ -1447,7 +1293,6 @@ impl EdgeFade {
     }
 }
 
-/// A laid-out galley drawn through a line transform, as glyph quads on the font texture.
 fn paint_galley(painter: &egui::Painter, g: &Galley, at: Pos2, xf: &Xf, color: Color32, atlas: [usize; 2]) {
     let mut mesh = Mesh::with_texture(TextureId::default());
     let none: [f32; 0] = [];
@@ -1468,13 +1313,8 @@ fn paint_galley(painter: &egui::Painter, g: &Galley, at: Pos2, xf: &Xf, color: C
     painter.add(Shape::mesh(mesh));
 }
 
-// ------------------------------------------------------------------ words
-
-/// Where a line's highlight animations are this frame.
 struct LitState {
-    /// Line still running its animations (song time drives them).
     live: bool,
-    /// Exit: wall time since it started, and the song time it happened at.
     exit: Option<(f32, f64)>,
     t: f64,
     fill: Fill,
@@ -1493,16 +1333,11 @@ impl LitState {
     }
 }
 
-/// What a word looks like this frame.
 struct WordLook {
-    /// Lit layer opacity.
     opacity: f32,
-    /// Gradient start/end, as fractions of the word (or letter-index space).
     start: f32,
     end: f32,
-    /// Glow radius in points (0 = none).
     glow: f32,
-    /// Alpha of this word's `--blyrics-glow-color`.
     glow_alpha: f32,
 }
 
@@ -1511,7 +1346,6 @@ fn word_look(w: &Word, lit: &LitState, cfg: &Cfg) -> WordLook {
     let none = WordLook { opacity: 0.0, start: SWIPE_START.0, end: SWIPE_END.0, glow: 0.0, glow_alpha };
     let full = |opacity: f32| WordLook { opacity, start: SWIPE_START.1, end: SWIPE_END.1, glow: 0.0, glow_alpha };
     if let Some((since, exit_t)) = lit.exit {
-        // Words already sung fade back over 0.5 s; the rest were reset.
         if exit_t < w.start {
             return none;
         }
@@ -1524,12 +1358,9 @@ fn word_look(w: &Word, lit: &LitState, cfg: &Cfg) -> WordLook {
     if e < 0.0 {
         return none;
     }
-    // `resolveLineGlowSuppression`: a glow colour too faint to see isn't animated at all.
     let glow_rem = if glow_alpha < GLOW_INVISIBLE { 0.0 } else { cfg.glow_rem * cfg.rem() };
     match lit.fill {
         Fill::Line | Fill::Word => {
-            // Word: a colour flip with a short transition (`data-word-state`);
-            // Line: the line-synced fade.
             let d = if lit.fill == Fill::Word { 0.18 } else { FADE_IN };
             let p = EASE.at((e / d) as f32);
             WordLook { glow: glow_radius(e, GLOW_MIN, glow_rem), ..full(p) }
@@ -1553,7 +1384,6 @@ fn word_look(w: &Word, lit: &LitState, cfg: &Cfg) -> WordLook {
     }
 }
 
-/// `drop-shadow` radius: 0.8rem → 0 with `ease`, then gone.
 fn glow_radius(e: f64, dur: f64, from: f32) -> f32 {
     if e < 0.0 || e >= dur {
         return 0.0;
@@ -1561,7 +1391,6 @@ fn glow_radius(e: f64, dur: f64, from: f32) -> f32 {
     from * (1.0 - EASE.at((e / dur) as f32))
 }
 
-/// `planLetterWave` on the default swipe ramp: (delay, duration) per letter, seconds.
 fn letter_waves(n: usize, d: f64, float: f64) -> Vec<(f64, f64)> {
     let sd = d * SWIPE_DURATION;
     let lead = d * SWIPE_LEAD;
@@ -1583,7 +1412,6 @@ fn letter_waves(n: usize, d: f64, float: f64) -> Vec<(f64, f64)> {
         .collect()
 }
 
-/// A letter's float this frame: (lift in em, scale).
 fn letter_float(e: f64, wave: (f64, f64), long: bool, cfg: &Cfg) -> (f32, f32) {
     let p = (e - wave.0) / wave.1;
     if p < 0.0 {
@@ -1600,7 +1428,6 @@ fn letter_float(e: f64, wave: (f64, f64), long: bool, cfg: &Cfg) -> (f32, f32) {
     }
 }
 
-/// The group's sideways pop: (translateX in em, scaleX).
 fn wobble(e: f64) -> (f32, f32) {
     if !(0.0..WOBBLE_DURATION).contains(&e) {
         return (0.0, 1.0);
@@ -1618,19 +1445,13 @@ fn wobble(e: f64) -> (f32, f32) {
     }
 }
 
-/// One glyph of a word, positioned for this frame.
 struct GlyphQuad {
     rect: Rect,
     uv: Rect,
-    /// Letter index and count, for the letter-space gradient.
     letter: usize,
     letters: usize,
 }
 
-/// A word's glyphs this frame, in content coordinates (before the line transform):
-/// letter floats applied, then the group's wobble. Laid out once, at the font's size,
-/// and scaled with the line: a second size would put a second copy of every glyph in
-/// the shared font atlas, which only ever grows.
 fn word_glyphs(ctx: &egui::Context, w: &Word, lit: &LitState, cfg: &Cfg, wob: Option<(f32, f32, f32)>, atlas: [usize; 2]) -> Vec<GlyphQuad> {
     let g = ctx.fonts_mut(|fv| fv.layout_no_wrap(w.text.clone(), w.font.clone(), Color32::WHITE));
     let n: usize = g.rows.iter().map(|r| r.row.glyphs.len()).sum();
@@ -1650,7 +1471,6 @@ fn word_glyphs(ctx: &egui::Context, w: &Word, lit: &LitState, cfg: &Cfg, wob: Op
             let mut r = Rect::from_min_size(w.pos + row.pos.to_vec2() + gl.pos.to_vec2() + uv.offset, uv.size);
             if let Some(waves) = &waves {
                 let (lift, s) = letter_float(e, waves[idx], w.long, cfg);
-                // Letters scale about their own centre (`.blyrics--letter` box).
                 let c = pos2(w.pos.x + row.pos.x + gl.pos.x + gl.advance_width * 0.5, r.center().y);
                 r = Rect::from_min_max(c + (r.min - c) * s, c + (r.max - c) * s).translate(vec2(0.0, -lift * em));
             }
@@ -1668,8 +1488,6 @@ fn word_glyphs(ctx: &egui::Context, w: &Word, lit: &LitState, cfg: &Cfg, wob: Op
     out
 }
 
-/// Draw a glyph quad, alpha following the lit gradient: 1 left of `a`, 0 right of `b`
-/// (screen x), linear between, so the soft edge is exact and never a box.
 fn push_quad(mesh: &mut Mesh, r: Rect, uv: Rect, color: Color32, alpha: &dyn Fn(f32) -> f32, cuts: &[f32]) {
     let mut xs = vec![r.left()];
     xs.extend(cuts.iter().copied().filter(|&c| c > r.left() && c < r.right()));
@@ -1694,9 +1512,6 @@ fn push_quad(mesh: &mut Mesh, r: Rect, uv: Rect, color: Color32, alpha: &dyn Fn(
     }
 }
 
-/// The lit gradient over one glyph, in screen x: (alpha function, cut points).
-/// Letter mode follows the per-letter masks (index space); otherwise the word box.
-/// `rtl`: the word reads right to left, so it's lit from the right.
 fn lit_gradient(q: &Rect, letter: usize, letters: usize, word: Rect, look: &WordLook, by_letter: bool, rtl: bool) -> (Box<dyn Fn(f32) -> f32>, Vec<f32>) {
     let (s, e) = (look.start, look.end);
     if rtl && !by_letter {
@@ -1707,10 +1522,9 @@ fn lit_gradient(q: &Rect, letter: usize, letters: usize, word: Rect, look: &Word
     }
     if by_letter {
         let n = letters.max(1) as f32;
-        // In letter units across this glyph: X = letter + (x - left) / width.
         let (l, w) = (q.left(), q.width().max(1e-6));
         let i = letter as f32;
-        let x_at = |v: f32| l + (v * n - i) * w; // where X/n == v
+        let x_at = |v: f32| l + (v * n - i) * w;
         let (xs, xe) = (x_at(s), x_at(e) + 1.0);
         let f = move |x: f32| if x <= xs { 1.0 } else if x >= xe { 0.0 } else { 1.0 - (x - xs) / (xe - xs) };
         (Box::new(f), vec![xs, xe])
@@ -1742,7 +1556,6 @@ fn paint_words(
     let mut per_word = Vec::with_capacity(words.len());
     for w in words {
         let gr = &groups[w.group];
-        // Wobble: the group pops with its first word's timing (transform-origin: centre).
         let wob = if cfg.wobble && gr.wobbles && lit.live && lit.exit.is_none() {
             let first = &words[gr.first];
             let (tx, sx) = wobble(lit.t - first.start);
@@ -1760,8 +1573,6 @@ fn paint_words(
         }
         per_word.push((quads, wob));
     }
-    // The dim run, then the highlight run over it (`.blyrics-highlight-run`, z-index 1):
-    // each word's drop-shadow, then its lit text.
     painter.add(Shape::mesh(base));
     for (wi, (w, (quads, wob))) in words.iter().zip(per_word).enumerate() {
         let look = word_look(w, lit, cfg);
@@ -1802,9 +1613,6 @@ fn paint_words(
     }
 }
 
-// ------------------------------------------------------------------ glow
-
-/// A word's drop-shadow to rasterize once this frame's glyphs are known.
 pub struct GlowJob {
     key: (u64, usize, u32, u32),
     quads: Vec<(Rect, Rect, usize, usize, f32)>,
@@ -1812,31 +1620,20 @@ pub struct GlowJob {
     look: WordLook,
     by_letter: bool,
     rtl: bool,
-    /// Blur radius in points (CSS: std deviation = radius / 2).
     radius: f32,
-    /// Romanization pills under the text (box, corner radius): `rgba(255,255,255,.05)` with
-    /// a 1px `rgba(255,255,255,.1)` border.
     pills: Vec<(Rect, f32)>,
     color: Color32,
-    /// Placeholder in the paint list, under the word's lit text.
     layer: ShapeIdx,
 }
 
-/// A GL texture sized in 64 px steps. A new image that fits is written into it in place
-/// (`glTexSubImage2D`); a new texture or a new size makes the driver allocate, and at 144
-/// frames a second it kept over 100 MB of those allocations (a new texture per blur step of
-/// every line was the bulk of it).
 struct Slot {
     tex: TextureHandle,
     size: [usize; 2],
-    /// The part the current image covers.
     used: [usize; 2],
-    /// Of the current image: an unchanged one (a glow that has stopped moving) isn't sent again.
     hash: u64,
 }
 
 const SLOT_STEP: usize = 64;
-/// Unused slots kept for the next glow or line to write into.
 const SPARE_SLOTS: usize = 8;
 
 impl Slot {
@@ -1845,16 +1642,12 @@ impl Slot {
     }
 }
 
-/// A blurred line's radius in 1/4 px and scale in 1/1000.
 type LineStep = (i32, i32, u64);
 
 #[derive(Default)]
 struct Glow {
-    /// A copy of the font atlas, refreshed when glyphs we need aren't in it yet.
     atlas: Option<Arc<Coverage>>,
     textures: HashMap<(u64, usize, u32, u32), (Slot, f64)>,
-    /// Per line: its blurred image, the radius (in 1/4 px) and scale (in 1/1000) it was
-    /// drawn at, where it goes.
     lines: HashMap<(u64, usize), (Slot, LineStep, Rect, f64)>,
     spare: Vec<Slot>,
     scratch: Vec<f32>,
@@ -1867,14 +1660,12 @@ impl Glow {
             Some(a) => a.size != size || need.iter().any(|uv| glyph_blank(a, *uv)),
         };
         if stale {
-            // Only the coverage (alpha) is kept: a quarter of the RGBA image egui hands out.
             let img = ctx.fonts(|f| f.image());
             self.atlas = Some(Arc::new(Coverage { size: img.size, alpha: img.pixels.iter().map(|p| p.a()).collect() }));
         }
         self.atlas.clone().unwrap()
     }
 
-    /// Puts `img` in a texture: `old` if it fits, else a spare one that does, else a new one.
     fn upload(&mut self, ctx: &egui::Context, old: Option<Slot>, img: ColorImage, name: &str) -> Slot {
         let used = img.size;
         let image_hash = hash((used, &img.pixels));
@@ -1884,9 +1675,6 @@ impl Glow {
         {
             return old.unwrap();
         }
-        // The image plus a transparent column and row, so filtering at its edge reads what it
-        // did on a texture of its own; whatever an earlier, bigger image left past them is
-        // never sampled.
         let (w, h) = (used[0] + 1, used[1] + 1);
         let bucket = [w.next_multiple_of(SLOT_STEP), h.next_multiple_of(SLOT_STEP)];
         let fits = |s: &Slot| s.size[0] >= w && s.size[1] >= h && s.size[0] * s.size[1] <= 2 * bucket[0] * bucket[1];
@@ -1900,7 +1688,6 @@ impl Glow {
         };
         let slot = slot.or_else(|| self.spare.iter().position(fits).map(|k| self.spare.swap_remove(k)));
         let size = slot.as_ref().map_or(bucket, |s| s.size);
-        // A new texture gets its full size; an old one only the part being drawn.
         let (pw, ph) = if slot.is_some() { (w, h) } else { (size[0], size[1]) };
         let mut pixels = vec![Color32::TRANSPARENT; pw * ph];
         for (y, row) in img.pixels.chunks_exact(used[0]).enumerate() {
@@ -1948,9 +1735,6 @@ impl Glow {
         }
     }
 
-    /// A whole line blurred (`filter: blur()`): its words, each at its own alpha, its text
-    /// decorations and pills, in content coordinates, rendered at the line's `scale` so the
-    /// image isn't resampled on screen. Cached per line at its latest radius and scale.
     #[allow(clippy::too_many_arguments)]
     fn blurred_line(
         &mut self,
@@ -2018,7 +1802,6 @@ impl Glow {
             look: WordLook { opacity: 1.0, start: 2.0, end: 3.0, glow: 0.0, glow_alpha: 0.0 },
             by_letter: false,
             rtl: false,
-            // CSS `blur(r)` is a Gaussian with σ = r.
             radius: radius * 2.0,
             pills: pills.to_vec(),
             color: Color32::WHITE,
@@ -2033,8 +1816,6 @@ impl Glow {
     }
 }
 
-/// Whether a glyph's texels are all empty in our atlas copy (it was added since).
-/// The font atlas's coverage, one byte per texel.
 struct Coverage {
     size: [usize; 2],
     alpha: Vec<u8>,
@@ -2056,9 +1837,6 @@ fn glyph_blank(a: &Coverage, uv: Rect) -> bool {
     true
 }
 
-/// The lit glyph pixels (coverage × gradient) blurred: CSS `drop-shadow(0 0 r color)`
-/// is a Gaussian with σ = r / 2 of the element's alpha, drawn under it. `ppp`: bitmap
-/// pixels per unit of the quads' coordinates.
 fn rasterize_glow(atlas: &Coverage, j: &GlowJob, ppp: f32, scratch: &mut Vec<f32>) -> Option<(ColorImage, Rect)> {
     let sigma = (j.radius * 0.5 * ppp).max(0.3);
     let pad = (sigma * 3.0).ceil() + 2.0;
@@ -2087,15 +1865,12 @@ fn rasterize_glow(atlas: &Coverage, j: &GlowJob, ppp: f32, scratch: &mut Vec<f32
         if tw <= 0 || th <= 0 {
             continue;
         }
-        // Destination box in bitmap pixels (glyphs may be scaled a little by the line).
         let dx0 = (r.left() - origin.x) * ppp;
         let dy0 = (r.top() - origin.y) * ppp;
         let dw = r.width() * ppp;
         let dh = r.height() * ppp;
         let (ix0, iy0) = (dx0.floor().max(0.0) as usize, dy0.floor().max(0.0) as usize);
         let (ix1, iy1) = (((dx0 + dw).ceil() as usize).min(w), ((dy0 + dh).ceil() as usize).min(h));
-        // Bilinear, with nothing outside the glyph's own texels: at another scale than the
-        // atlas's, nearest-texel picks drop or double rows and the edges go jagged.
         let texel = |x: isize, y: isize| -> f32 {
             if x < 0 || y < 0 || x >= tw || y >= th {
                 return 0.0;
@@ -2133,9 +1908,6 @@ fn rasterize_glow(atlas: &Coverage, j: &GlowJob, ppp: f32, scratch: &mut Vec<f32
     Some((img, Rect::from_min_size(origin, vec2(w as f32, h as f32) / ppp)))
 }
 
-/// Gaussian blur: a true kernel for small σ (Skia's cut-off is 2), else three box passes
-/// per axis (what browsers use for large blurs). Boxes for a σ under 1 come out as one
-/// 3-tap box, which looks blocky instead of soft.
 fn gaussian(buf: &mut [f32], w: usize, h: usize, sigma: f32) {
     if sigma < 2.0 {
         let r = (sigma * 3.0).ceil() as usize;
@@ -2147,7 +1919,6 @@ fn gaussian(buf: &mut [f32], w: usize, h: usize, sigma: f32) {
         convolve(&tmp, buf, w, h, &k, false);
         return;
     }
-    // Box sizes for n = 3 (W3C filter effects / "boxes for gauss").
     let n = 3.0f32;
     let ideal = (12.0 * sigma * sigma / n + 1.0).sqrt();
     let mut wl = ideal.floor() as i32;
@@ -2169,7 +1940,6 @@ fn gaussian(buf: &mut [f32], w: usize, h: usize, sigma: f32) {
     }
 }
 
-/// One axis of a separable kernel (odd length, centred), zero past the edges.
 fn convolve(src: &[f32], dst: &mut [f32], w: usize, h: usize, k: &[f32], horizontal: bool) {
     let r = (k.len() / 2) as isize;
     let (n, lines) = if horizontal { (w, h) } else { (h, w) };
@@ -2188,8 +1958,6 @@ fn convolve(src: &[f32], dst: &mut [f32], w: usize, h: usize, k: &[f32], horizon
     }
 }
 
-/// A romanization pill into an alpha bitmap, anti-aliased like egui's rect: the 5% fill
-/// with its 1-point 10% border inside (`min`/`size`/`radius` in bitmap pixels).
 fn paint_pill(buf: &mut [f32], w: usize, h: usize, min: Vec2, size: Vec2, radius: f32, ppp: f32) {
     let radius = radius.min(size.x * 0.5).min(size.y * 0.5);
     let half = size * 0.5;
@@ -2199,7 +1967,6 @@ fn paint_pill(buf: &mut [f32], w: usize, h: usize, min: Vec2, size: Vec2, radius
     let over = |d: &mut f32, a: f32| *d = (*d + a - *d * a).min(1.0);
     for y in y0..y1 {
         for x in x0..x1 {
-            // Signed distance to the rounded box, negative inside.
             let p = vec2(x as f32 + 0.5, y as f32 + 0.5) - centre;
             let q = vec2(p.x.abs(), p.y.abs()) - half + Vec2::splat(radius);
             let d = vec2(q.x.max(0.0), q.y.max(0.0)).length() + q.x.max(q.y).min(0.0) - radius;
@@ -2233,23 +2000,16 @@ fn box_pass(src: &[f32], dst: &mut [f32], w: usize, h: usize, r: usize, horizont
     }
 }
 
-// ------------------------------------------------------------------ instrumental
-
-/// Bits of a break, its beads' alpha at rest, and its beats.
 const GAP_DOTS: usize = 3;
 const GAP_DOT_REST: f32 = 0.55;
 const GAP_REST_SCALE: f32 = 0.76;
 const GAP_BREATH: f32 = 0.20;
 const GAP_PUFF: f32 = 0.35;
-/// The break's shape in seconds: the beads settle in, fill one per beat, and leave.
 const GAP_ENTER: f64 = 0.620;
 const GAP_EXIT: f64 = 0.350;
 const GAP_SPLIT: f32 = 0.35;
 const GAP_COLLAPSE: f64 = 0.500;
 
-/// Where a break's gesture sits in its own span. The exit is cut out of the end of the
-/// silence and runs backwards from the next line, and the beads spend everything ahead
-/// of it: `(exit start, exit length, one bead's beat)`.
 fn gap_times(start: f64, dur: f64) -> (f64, f64, f64) {
     let until = start + dur.max(0.001);
     let exit_start = start + GAP_ENTER.max(until - start - GAP_COLLAPSE - GAP_EXIT);
@@ -2258,13 +2018,8 @@ fn gap_times(start: f64, dur: f64) -> (f64, f64, f64) {
     (exit_start, exit_len, step)
 }
 
-/// An intermission: three beads that light one after another as the silence runs out,
-/// breathe once per bead, then puff out and vanish before the next line. `true` while
-/// it is moving.
 fn paint_instrumental(painter: &egui::Painter, cfg: &Cfg, b: &Block, xf: &Xf, t: f64, content_w: f32) -> bool {
     let em = cfg.size;
-    // The beads' proportions are the nuvx player's: 13 dp across with 5 dp between
-    // them at a 34 sp lyric size.
     let dot = em * 13.0 / 34.0;
     let gap = em * 5.0 / 34.0;
     let total = dot * GAP_DOTS as f32 + gap * (GAP_DOTS - 1) as f32;
@@ -2278,10 +2033,7 @@ fn paint_instrumental(painter: &egui::Painter, cfg: &Cfg, b: &Block, xf: &Xf, t:
     let into = t - b.start;
     let (exit_start, exit_len, step) = gap_times(b.start, b.dur);
     let until = b.start + b.dur.max(0.001);
-    // Opening: the row settles from just under its size rather than appearing.
     let swell = EASE.at(((into / GAP_ENTER) as f32).clamp(0.0, 1.0));
-    // Closing: a push over the first [GAP_SPLIT], then a pull into the point the beads
-    // grew from and out to nothing.
     let e = ((t - exit_start) / exit_len).clamp(0.0, 1.0) as f32;
     let pull = e > GAP_SPLIT;
     let half = if pull { (e - GAP_SPLIT) / (1.0 - GAP_SPLIT) } else { e / GAP_SPLIT };
@@ -2297,20 +2049,13 @@ fn paint_instrumental(painter: &egui::Painter, cfg: &Cfg, b: &Block, xf: &Xf, t:
     if alpha <= 0.001 || grow <= 0.001 {
         return false;
     }
-    // One breath to each bead it lights, all three on the same phase; once the third is
-    // lit the row holds still and waits for the exit. Raised cosine, so every turn round
-    // is the same movement as the last.
     let beat = if into < step * GAP_DOTS as f64 { ((into % step) / step) as f32 } else { 1.0 };
     let pulse = 1.0 - GAP_BREATH * 0.5 * (1.0 - (std::f32::consts::TAU * beat).cos());
     for i in 0..GAP_DOTS {
-        // Beads and the space between them scale together about the middle of the row,
-        // which is what makes the outer dots drift apart as they fill.
         let x = x0 + dot * 0.5 + i as f32 * (dot + gap);
         let cx = mid + (x - mid) * grow * pulse;
         let c = xf.point(pos2(cx, cy));
         let r = dot * 0.5 * grow * pulse * xf.scale;
-        // Brightness alone is per bead: the count has to read as three arrivals, and
-        // only one of them can be happening at a time.
         let k = ((t - b.start - i as f64 * step) / step).clamp(0.0, 1.0) as f32;
         let lit = k * k * (3.0 - 2.0 * k);
         painter.circle_filled(c, r, theme::with_alpha(Color32::WHITE, GAP_DOT_REST * alpha));
@@ -2321,7 +2066,6 @@ fn paint_instrumental(painter: &egui::Painter, cfg: &Cfg, b: &Block, xf: &Xf, t:
     (into >= 0.0 && into <= GAP_ENTER) || t < b.start + step * GAP_DOTS as f64 || (t >= exit_start && t < until)
 }
 
-/// Dev hook: NUVX_LYR_OFF=glow,blur,view leaves those parts out (memory breakdowns).
 pub fn dev_off(what: &str) -> bool {
     static OFF: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     OFF.get_or_init(|| std::env::var("NUVX_LYR_OFF").unwrap_or_default()).split(',').any(|x| x == what)
@@ -2339,26 +2083,22 @@ mod tests {
         let a = g.upload(&ctx, None, img(100, 40), "t");
         assert_eq!(a.size, [128, 64]);
         let id = a.tex.id();
-        // Smaller, and a little bigger within the slot: the same texture, drawn in part.
         let b = g.upload(&ctx, Some(a), img(60, 30), "t");
         assert_eq!((b.tex.id(), b.used), (id, [60, 30]));
         assert_eq!(b.uv().max, pos2(60.0 / 128.0, 30.0 / 64.0));
         let c = g.upload(&ctx, Some(b), img(120, 60), "t");
         assert_eq!(c.tex.id(), id);
-        // Outgrown: a new texture; the old one is kept for the next image that fits it.
         let d = g.upload(&ctx, Some(c), img(300, 40), "t");
         assert_ne!(d.tex.id(), id);
         assert_eq!(g.spare.len(), 1);
         let e = g.upload(&ctx, None, img(90, 50), "t");
         assert_eq!(e.tex.id(), id);
-        // Far too big for a small image: not reused.
         let f = g.upload(&ctx, Some(d), img(10, 10), "t");
         assert_eq!(f.size, [64, 64]);
     }
 
     #[test]
     fn bezier_matches_css_ease() {
-        // Reference values of CSS `ease` (cubic-bezier(0.25, 0.1, 0.25, 1)).
         assert!((EASE.at(0.5) - 0.8024).abs() < 0.002);
         assert!((EASE.at(0.25) - 0.4094).abs() < 0.002);
         assert_eq!(EASE.at(0.0), 0.0);
@@ -2382,23 +2122,16 @@ mod tests {
         let font = FontId::proportional(20.0);
         let line = |text: &str| line_synced_parts(&Line { start: 0, dur: 1000, text: text.into(), ..Default::default() }).iter().flat_map(split_part).collect::<Vec<_>>();
         let x = |f: &Flow, word: &str| f.words.iter().find(|w| w.text == word).unwrap().pos.x;
-        // Hebrew reads from the right; the English inside it keeps its order.
         let f = flow(&mut fv, line("שלום עולם hello world"), &font, 1000.0, 27.0, Align::Right, true);
         assert!(x(&f, "שלום") > x(&f, "עולם"));
         assert!(x(&f, "עולם") > x(&f, "world"));
         assert!(x(&f, "world") > x(&f, "hello"));
-        // An English line with a Hebrew phrase: only the phrase turns around.
         let f = flow(&mut fv, line("my song שלום עולם remix"), &font, 1000.0, 27.0, Align::Left, false);
         assert!(x(&f, "song") < x(&f, "עולם") && x(&f, "עולם") < x(&f, "שלום") && x(&f, "שלום") < x(&f, "remix"));
-        // A long line wraps instead of running past the edge.
         let f = flow(&mut fv, line(&"word ".repeat(40)), &font, 300.0, 27.0, Align::Left, false);
         assert!(f.height > 27.0 && f.words.iter().all(|w| w.pos.x + w.w <= 300.0 + 0.5));
     }
 
-    /// Where each word of a two-word RTL phrase lands, laid out as before and as now, with
-    /// the app's fonts: the first word belongs on the right (the old layout put it left).
-    /// Needs the system fonts the app falls back to for Hebrew and Arabic.
-    /// `cargo test --release -- --ignored rtl_word_positions --nocapture`
     #[test]
     #[ignore]
     fn rtl_word_positions() {
@@ -2416,7 +2149,6 @@ mod tests {
         }
     }
 
-    /// The app's fonts in a headless egui, for the pictures below.
     fn shot_ctx() -> egui::Context {
         let ctx = egui::Context::default();
         crate::theme::install_fonts(&ctx, "Inter");
@@ -2426,7 +2158,6 @@ mod tests {
         ctx
     }
 
-    /// Draw a galley's glyphs from the font atlas into `img`, only between `clip` (y).
     fn blit(img: &mut image::RgbaImage, atlas: &ColorImage, at: Pos2, g: &Galley, rgb: [u8; 3], clip: (f32, f32)) {
         let (w, h) = (img.width() as i64, img.height() as i64);
         for row in &g.rows {
@@ -2453,10 +2184,6 @@ mod tests {
         }
     }
 
-    /// Before/after picture of a lyric line taller than the view, while its 6th row is
-    /// sung: the old view stayed at the line's top; the new one pages down with it. The
-    /// view positions are the scroll code's (the line's top, then the paging rule).
-    /// `NUVX_SHOT=<file.png> cargo test --release -- --ignored paging_before_after_png`
     #[test]
     #[ignore]
     fn paging_before_after_png() {
@@ -2477,7 +2204,6 @@ mod tests {
         let atlas = ctx.fonts(|f| f.image());
         let sung_row = 5.0;
         let y_row = sung_row * lh;
-        // Old: the line's top. New: the sung row and the one after it in view.
         let tops = [0.0f32, (y_row + lh * 2.0 - view_h).max(0.0)];
         let (col, pad) = (width + 70.0, 30.0);
         let (iw, ih) = ((col * 2.0) as u32, (view_h + 110.0) as u32);
@@ -2486,7 +2212,6 @@ mod tests {
             let x0 = pad + col * k as f32;
             let (v0, v1) = (60.0, 60.0 + view_h);
             blit(&mut img, &atlas, pos2(x0, 20.0), &labels[k], [200, 196, 210], (0.0, ih as f32));
-            // The view's frame.
             for x in (x0 - 10.0) as u32..(x0 + width + 10.0) as u32 {
                 for y in [v0 as u32 - 1, v1 as u32] {
                     img.put_pixel(x, y, image::Rgba([90, 84, 104, 255]));
@@ -2503,8 +2228,6 @@ mod tests {
         println!("wrote {out}");
     }
 
-    /// Before/after picture of right-to-left text with the app's fonts (#29), to a PNG.
-    /// `NUVX_SHOT=<file.png> cargo test --release -- --ignored rtl_before_after_png`
     #[test]
     #[ignore]
     fn rtl_before_after_png() {
@@ -2518,7 +2241,6 @@ mod tests {
         let (col, width) = (560.0, 470.0);
         let title_font = crate::theme::semibold(26.0);
         let lyric_font = crate::theme::lyric_font_for("Inter", crate::preset::Weight::Bold, 30.0, lyric);
-        // (position, galley) for everything drawn.
         let mut draw: Vec<(Pos2, Arc<Galley>)> = Vec::new();
         ctx.fonts_mut(|f| {
             for (i, label) in ["Before (0.2.28)", "After"].into_iter().enumerate() {
@@ -2529,8 +2251,6 @@ mod tests {
                 draw.push((pos2(30.0, y), f.layout_no_wrap(t.to_string(), title_font.clone(), Color32::WHITE)));
                 draw.push((pos2(30.0 + col, y), f.layout_job(crate::bidi::job(t, title_font.clone(), Color32::WHITE))));
             }
-            // Lyrics: the old view put the words left to right, wrapping at the width; the
-            // new one from the right.
             let y = 240.0;
             let (lh, space) = (30.0 * 1.333, text_size(f, " ", &lyric_font).x);
             let mut at = vec2(0.0, 0.0);
@@ -2552,7 +2272,6 @@ mod tests {
         let atlas = ctx.fonts(|f| f.image());
         let (w, h) = ((col * 2.0) as u32, 470u32);
         let mut img = image::RgbaImage::from_pixel(w, h, image::Rgba([24, 22, 30, 255]));
-        // The column divider.
         for y in 0..h {
             img.put_pixel(col as u32 - 15, y, image::Rgba([70, 66, 80, 255]));
         }
@@ -2575,10 +2294,8 @@ mod tests {
 
     #[test]
     fn letter_waves_crest_when_lit() {
-        // A 1 s word with 4 letters: the last letter starts later than the first.
         let w = letter_waves(4, 1.0, 0.9);
         assert!(w[0].0 < w[3].0);
-        // Zero-duration words float all letters together.
         assert!(letter_waves(3, 0.0, 0.9).iter().all(|w| w.0 == 0.0 && (w.1 - 0.9).abs() < 1e-9));
     }
 
@@ -2602,12 +2319,10 @@ mod tests {
 
     #[test]
     fn a_break_finishes_before_the_next_line() {
-        // A 6 s break: the exit starts 0.85 s before the next line and lasts 0.35 s.
         let (exit, len, step) = gap_times(10.0, 6.0);
         assert!((exit - 15.15).abs() < 1e-9);
         assert!((len - 0.35).abs() < 1e-9);
         assert!((step - 5.15 / 3.0).abs() < 1e-9);
-        // A break too short to count still opens, then uses its whole exit.
         let (exit, len, _) = gap_times(10.0, 1.0);
         assert!((exit - 10.62).abs() < 1e-9);
         assert!((len - 0.35).abs() < 1e-9);
