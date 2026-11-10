@@ -19,4 +19,4 @@
 :root[data-motion-paused] .nuvx-ambient::before,.nuvx-ambient[data-motion-paused]::before,body:has(#ambient-pause:checked) .nuvx-ambient::before{animation-play-state:paused}
 .ambient-pause{display:inline-flex;align-items:center;gap:8px;min-height:36px;font-size:13px;cursor:pointer}
 .bxane-signature-corner{position:fixed;top:14px;right:16px;z-index:2;pointer-events:none}
-@media(prefers-reduced-motion:reduce){.nuvx-ambient::before{animation:none}.ambient-pause,.theme-toggle.motion-toggle{display:none}}
+@media(prefers-reduced-motion:reduce){.nuvx-ambient::before{animation:none}.ambient-pause{display:none}}

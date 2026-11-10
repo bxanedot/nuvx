@@ -12,12 +12,11 @@
         <h2 id="showcase-title">Showcase</h2>
         <p class="lede">Now Playing on Android and full-screen lyrics on desktop.</p>
       </div>
-      <button class="button quiet showcase-toggle" type="button" aria-controls="showcase-viewport" hidden>Pause showcase</button>
     </div>
     <figure class="promo">
       <video id="promo-video" src="/showcase/nuvx.mp4" poster="/showcase/nuvx-poster.jpg" width="1920" height="1080" loop muted playsinline preload="metadata" aria-label="nuvx promo video: Now Playing, lyrics, search and the desktop app"></video>
       <figcaption class="promo-controls">
-        <button class="button quiet" type="button" id="promo-play" aria-controls="promo-video">Play</button>
+        <button class="button quiet showcase-toggle" type="button" aria-controls="promo-video showcase-viewport" hidden>Pause showcase and video</button>
         <label class="promo-volume">Volume <input type="range" id="promo-volume" min="0" max="1" step="0.05" value="0"></label>
       </figcaption>
     </figure>

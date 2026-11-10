@@ -19,20 +19,24 @@
   ambient.setAttribute('aria-hidden', 'true');
   document.body.prepend(ambient);
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
-  const motionToggle = document.createElement('button');
-  motionToggle.type = 'button';
-  motionToggle.className = 'theme-toggle motion-toggle';
-  toggle?.after(motionToggle);
+  const control = document.querySelector('.showcase-toggle');
+  const video = document.querySelector('#promo-video');
+  const volume = document.querySelector('#promo-volume');
+  if (video && volume) {
+    volume.addEventListener('input', () => {
+      video.volume = Number(volume.value);
+      video.muted = video.volume === 0;
+    });
+  }
   let manuallyPaused = root.hasAttribute('data-motion-paused');
   let playing = !motion.matches && !manuallyPaused;
   let syncShowcase;
   const syncMotion = () => {
     root.toggleAttribute('data-motion-paused', !playing);
-    const label = playing ? 'Pause motion' : 'Resume motion';
-    motionToggle.textContent = playing ? 'Ⅱ' : '▷';
-    motionToggle.setAttribute('aria-label', label);
-    motionToggle.title = label;
+    if (control) control.textContent = playing ? 'Pause showcase and video' : 'Play showcase and video';
     syncShowcase?.();
+    if (playing) video?.play().catch(() => {});
+    else video?.pause();
   };
   const toggleMotion = () => {
     playing = !playing;
@@ -40,7 +44,8 @@
     try { localStorage.setItem('nuvx-motion', manuallyPaused ? 'paused' : 'on'); } catch {}
     syncMotion();
   };
-  motionToggle.addEventListener('click', toggleMotion);
+  control?.addEventListener('click', toggleMotion);
+  if (control) control.hidden = false;
   motion.addEventListener('change', () => {
     playing = !motion.matches && !manuallyPaused;
     syncMotion();
@@ -51,7 +56,6 @@
     const banners = viewport.querySelector('.showcase-banners');
     const repeat = banners.cloneNode(true);
     repeat.setAttribute('aria-hidden', 'true');
-    const control = document.querySelector('.showcase-toggle');
     let visible = false;
     let frame;
     let lastTime;
@@ -71,7 +75,6 @@
     };
     const sync = () => {
       cancelAnimationFrame(frame);
-      control.textContent = playing ? 'Pause showcase' : 'Play showcase';
       if (!playing || !visible || interacting) return;
       if (!repeat.isConnected) banners.after(repeat);
       position = viewport.scrollLeft;
@@ -97,8 +100,6 @@
       yieldToInput();
     };
     syncShowcase = sync;
-    control.addEventListener('click', toggleMotion);
-    control.hidden = false;
     viewport.addEventListener('keydown', yieldToInput);
     viewport.addEventListener('pointerdown', (event) => {
       pointer = event.pointerId;
@@ -150,25 +151,3 @@
       showNote(version);
     }).catch(() => {});
 })();
-
-// Promo video: loops muted on its own (browsers block sound without a click), unless
-// the visitor asks for reduced motion. Stop rewinds to the start; the slider sets sound.
-{
-  const video = document.getElementById('promo-video');
-  const play = document.getElementById('promo-play');
-  const volume = document.getElementById('promo-volume');
-  if (video && play && volume) {
-    const label = () => { play.textContent = video.paused ? 'Play' : 'Stop'; };
-    video.addEventListener('play', label);
-    video.addEventListener('pause', label);
-    play.addEventListener('click', () => {
-      if (video.paused) video.play().catch(() => {});
-      else { video.pause(); video.currentTime = 0; }
-    });
-    volume.addEventListener('input', () => {
-      video.volume = Number(volume.value);
-      video.muted = video.volume === 0;
-    });
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) video.play().catch(() => {});
-  }
-}
