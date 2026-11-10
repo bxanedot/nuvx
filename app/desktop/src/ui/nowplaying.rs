@@ -146,7 +146,7 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
         app.np_tab
     };
     // Linear 0..1 over the transition; each part eases its own slice of it.
-    let shown = ui.ctx().animate_bool_with_time(egui::Id::unique("np-panel"), app.np_tab != NpTab::Art, 0.6 * theme::SPEED);
+    let shown = ui.ctx().animate_bool_with_time(egui::Id::unique("np-panel"), app.np_tab != NpTab::Art, 0.6 * theme::speed());
     if shown > 0.0 && shown < 1.0 {
         // Every frame while sliding, not the now-playing view's usual 30 fps.
         ui.ctx().request_repaint();
@@ -207,7 +207,7 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
         // Switching between Lyrics and Up next: the old one fades out over the first 55%,
         // the new one fades in and rises into place from a third of the way.
         for (tab, key) in [(NpTab::Lyrics, "np-tab-lyrics"), (NpTab::UpNext, "np-tab-upnext")] {
-            let w = ui.ctx().animate_bool_with_time(egui::Id::unique(key), panel_tab == tab, 0.45 * theme::SPEED);
+            let w = ui.ctx().animate_bool_with_time(egui::Id::unique(key), panel_tab == tab, 0.45 * theme::speed());
             if w > 0.0 && w < 1.0 {
                 ui.ctx().request_repaint();
             }

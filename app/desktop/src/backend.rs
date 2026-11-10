@@ -65,6 +65,8 @@ pub enum Req {
     /// Save a song's audio to the downloads folder. `for_video`: the music video it's the
     /// song version of, which then plays it from the file (offline too).
     Download { track: Track, for_video: Option<String> },
+    /// Every song of these albums and playlists not saved yet; `name` is for the toasts.
+    DownloadAll { name: String, targets: Vec<model::Target> },
     Lyrics(Track),
     /// SponsorBlock's parts of a video to skip.
     Segments { video_id: String },
@@ -135,7 +137,7 @@ impl Req {
             Req::SwitchChannel { .. } => "Switching channel",
             Req::ServerQueue => "Queue from other devices",
             Req::Upload(_) => "Upload",
-            Req::Download { .. } => "Download",
+            Req::Download { .. } | Req::DownloadAll { .. } => "Download",
             Req::Lyrics(_) => "Lyrics",
             Req::Segments { .. } => "SponsorBlock",
             Req::LyricsExtras { .. } => "Translation",
@@ -287,6 +289,7 @@ pub enum Resp {
     /// Upload finished: how many files went up, and which failed.
     Uploaded { done: usize, failed: Vec<String> },
     Downloaded { title: String, path: PathBuf },
+    DownloadedAll { name: String, done: usize, failed: usize },
     /// Every source's lyrics for a song (empty when nobody has them).
     Lyrics { video_id: String, lyrics: LyricsSet },
     Segments { video_id: String, segments: Vec<crate::sponsorblock::Segment> },
@@ -832,6 +835,26 @@ impl Backend {
                 Req::Download { track: t, for_video } => {
                     let path = self.download(&t, for_video).await?;
                     Resp::Downloaded { title: t.title, path }
+                }
+                Req::DownloadAll { name, targets } => {
+                    let mut tracks = Vec::new();
+                    for target in targets {
+                        // Fetched whole here: a playlist page may still be loading its rest.
+                        let c = match &target {
+                            model::Target::Album(id) => ytm::album(api, id).await,
+                            model::Target::Playlist(id) => ytm::playlist(api, id, me, None).await,
+                            _ => continue,
+                        };
+                        match c {
+                            Ok(c) => tracks.extend(c.tracks),
+                            Err(e) => log::warn!("download all {target:?}: {e:#}"),
+                        }
+                    }
+                    let mut seen = std::collections::HashSet::new();
+                    tracks.retain(|t| crate::downloads::path(&t.id).is_none() && seen.insert(t.id.clone()));
+                    let results = futures_util::future::join_all(tracks.iter().map(|t| self.download(t, None))).await;
+                    let failed = results.iter().filter(|r| r.is_err()).count();
+                    Resp::DownloadedAll { name, done: results.len() - failed, failed }
                 }
                 Req::Play { video_id, generation, at, report, song_of, song, track } => match self.start_playback(&video_id, song_of.as_ref(), song, track.as_ref(), generation, at, report).await {
                     Ok(()) => return Ok(None),
@@ -1406,6 +1429,9 @@ impl Backend {
 
     /// Download a song into the downloads folder, at the best quality the account gets.
     async fn download(&self, t: &Track, for_video: Option<String>) -> anyhow::Result<PathBuf> {
+        // A whole catalogue at once would open hundreds of streams; three at a time.
+        static SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(3);
+        let _slot = SLOTS.acquire().await?;
         let (source, s) = self.resolve(&t.id, true, Some(t), false).await?;
         log::info!("download {}: {} bytes from {source:?}", t.id, s.size);
         let shared = Shared::new(s.size, s.duration_ms, s.loudness_db, s.format.clone(), s.info, false);

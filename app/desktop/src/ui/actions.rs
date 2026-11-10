@@ -144,6 +144,10 @@ impl App {
                 let for_video = if self.playing_as().is_some_and(|s| s.id == track.id) { self.current_id().map(str::to_owned) } else { None };
                 self.backend.request(Req::Download { track, for_video });
             }
+            Action::DownloadAll(name, targets) => {
+                self.toast(format!("Downloading \u{201c}{name}\u{201d}"));
+                self.backend.request(Req::DownloadAll { name, targets });
+            }
             Action::AddToPlaylist(tracks) => {
                 if self.logged_in { self.dialog = Some(Dialog::PickPlaylist(tracks)); }
                 else { self.toast("Sign in to edit playlists"); }

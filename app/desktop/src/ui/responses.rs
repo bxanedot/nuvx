@@ -284,6 +284,14 @@ impl App {
                 log::info!("downloaded to {}", path.display());
                 self.toast(format!("Downloaded \u{201c}{title}\u{201d}"));
             }
+            Resp::DownloadedAll { name, done, failed } => {
+                let songs = |n: usize| if n == 1 { "1 song".to_owned() } else { format!("{n} songs") };
+                self.toast(match (done, failed) {
+                    (0, 0) => format!("\u{201c}{name}\u{201d} is already downloaded"),
+                    (d, 0) => format!("Downloaded {} from \u{201c}{name}\u{201d}", songs(d)),
+                    (d, f) => format!("Downloaded {}; {} couldn't be downloaded", songs(d), songs(f)),
+                });
+            }
             Resp::Uploaded { done, failed } => {
                 let songs = |n: usize| if n == 1 { "1 song".to_owned() } else { format!("{n} songs") };
                 self.toast(match (done, failed.len()) {

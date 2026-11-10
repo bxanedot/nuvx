@@ -164,7 +164,7 @@ pub const RAIL_W: f32 = 76.0;
 
 /// How collapsed the sidebar is, 0 (full) to 1 (icon rail), eased over the toggle.
 pub fn sidebar_collapse(app: &App, ctx: &egui::Context) -> f32 {
-    let t = ctx.animate_bool_with_time(egui::Id::unique("sidebar-collapse"), app.sidebar_collapsed, 0.28 * theme::SPEED);
+    let t = ctx.animate_bool_with_time(egui::Id::unique("sidebar-collapse"), app.sidebar_collapsed, 0.28 * theme::speed());
     // Ease in-out: starts and lands gently in both directions.
     t * t * (3.0 - 2.0 * t)
 }
@@ -834,7 +834,14 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
     let lcd = Rect::from_min_max(pos2(snap(lcd_x), snap(cy - 20.0)), pos2(snap(lcd_x + lcd_w), snap(cy + 20.0)));
     // Apple's measured: the display is ~7% lighter than the bar, its edge a hair more.
     const R: f32 = 4.0;
-    let (fill, edge) = if theme::light() { (Color32::from_black_alpha(14), Color32::from_black_alpha(26)) } else { (Color32::from_white_alpha(20), Color32::from_white_alpha(28)) };
+    // Opaque, from the bar's base colour: translucent, the artwork-tinted background shows
+    // through while a song plays and the display reads as glass, unlike Apple's.
+    let base = base_color(app);
+    let (fill, edge) = if theme::light() {
+        (theme::lerp_color(base, Color32::BLACK, 0.055), Color32::from_black_alpha(26))
+    } else {
+        (theme::lerp_color(base, Color32::WHITE, 0.08), Color32::from_white_alpha(28))
+    };
     ui.painter().rect_filled(lcd, R, fill);
     ui.painter().rect_stroke(lcd, R, egui::Stroke::new(1.0 / ctx.pixels_per_point(), edge), egui::StrokeKind::Inside);
     let cover = Rect::from_min_size(lcd.min, Vec2::splat(lcd.height()));
