@@ -68,7 +68,7 @@ class CrossfadeController(
     private val versionSwapActive: () -> Boolean = { false },
     private val onSettled: () -> Unit = {},
     private val nextStreamReady: (MediaItem) -> Boolean = { true },
-    private val mixWaveform: (MediaItem, Long, Double, Double, Int) -> MixWaveform.Bands? = { _, _, _, _, _ -> null },
+    mixWaveform: (MediaItem, Long, Double, Double, Int) -> MixWaveform.Bands? = { _, _, _, _, _ -> null },
     private val loopPortOf: (ExoPlayer) -> LoopMixPort? = { null },
     private val loopRegion: (MediaItem, Long, Double, Double, Int) -> LoopRegion? = { _, _, _, _, _ -> null },
     private val syncedLines: suspend (MediaItem, Long) -> List<LyricLine>? = { _, _ -> null },
@@ -135,8 +135,6 @@ class CrossfadeController(
     private var planInFlight: TransitionPlan? = null
 
     private var lastMarkerVerdict = ""
-
-    private var mixViewJob: Job? = null
 
     private class Render(
         val style: TransitionStyle = TransitionStyle.EQUAL_POWER,
@@ -384,7 +382,7 @@ class CrossfadeController(
         active().volume = 1f
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
-        clearMixView()
+        mixWaves.clearMixView()
         AppSettings.smartMixPreview.value = null
         filters.open()
         filters.parkEchoes()
@@ -615,7 +613,7 @@ class CrossfadeController(
         plannedTransition = currentItem.mediaId to transitionStartMs
         val remaining = transitionStartMs - player.currentPosition
         if (remaining <= MIX_PREFETCH_MS && currentAnalysis.isUsable && nextAnalysis.isUsable) {
-            prefetchMixWaves(
+            mixWaves.prefetchMixWaves(
                 currentItem, nextItem, duration, nextDuration,
                 plan.transitionStart, plan.transitionEnd, plan.incomingCueTime,
                 plan.incomingPlaybackRate / plan.outgoingPlaybackRate.coerceAtLeast(0.01),
@@ -789,7 +787,7 @@ class CrossfadeController(
             if (outItem != null && inItem != null) {
                 val outDuration = out.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
                 val geometry = mixGeometry()
-                prefetchMixWaves(
+                mixWaves.prefetchMixWaves(
                     outItem, inItem, outDuration, queuedDurationMs(inItem),
                     geometry.outStart, geometry.outEnd, geometry.inStart, geometry.ratio,
                 )
@@ -1011,108 +1009,7 @@ class CrossfadeController(
         return MixGeometry(outStart, outEnd, inStart, inStart + (outEnd - outStart) * ratio, ratio)
     }
 
-    private class DeckWave(val mediaId: String, val from: Double, val to: Double, val bands: MixWaveform.Bands) {
-        fun covers(id: String, start: Double, end: Double) = id == mediaId && from <= start + 0.05 && to >= end - 0.05
-    }
-
-    private var outgoingWave: DeckWave? = null
-    private var incomingWave: DeckWave? = null
-
-    private var mixWavePair: String? = null
-
-    private val pendingWaveIds = mutableSetOf<String>()
-
-    private val failedWaveAt = mutableMapOf<String, Long>()
-
-    private fun waveFailedRecently(id: String) =
-        failedWaveAt[id]?.let { SystemClock.elapsedRealtime() - it < MIX_WAVE_RETRY_MS } == true
-
-    private fun prefetchMixWaves(
-        outItem: MediaItem,
-        inItem: MediaItem,
-        outDurationMs: Long,
-        inDurationMs: Long,
-        outStart: Double,
-        outEnd: Double,
-        inStart: Double,
-        ratio: Double,
-        wantOut: Boolean = true,
-        wantIn: Boolean = true,
-    ) {
-        val span = (outEnd - outStart).coerceAtLeast(0.5)
-        val pad = span * MIX_VIEW_CONTEXT + MIX_PREFETCH_PAD_SECONDS
-        val outFrom = (outStart - pad).coerceAtLeast(0.0)
-        val outTo = outEnd + pad
-        val inFrom = (inStart - pad * ratio).coerceAtLeast(0.0)
-        val inTo = inStart + (span + pad) * ratio
-        val pair = "${outItem.mediaId}->${inItem.mediaId}"
-        if (mixWavePair != null && mixWavePair != pair) failedWaveAt.clear()
-        val outReady = !wantOut || waveFailedRecently(outItem.mediaId) ||
-            outgoingWave?.covers(outItem.mediaId, outFrom + MIX_PREFETCH_PAD_SECONDS, outTo - MIX_PREFETCH_PAD_SECONDS) == true
-        val inReady = !wantIn || waveFailedRecently(inItem.mediaId) ||
-            incomingWave?.covers(inItem.mediaId, inFrom + MIX_PREFETCH_PAD_SECONDS, inTo - MIX_PREFETCH_PAD_SECONDS) == true
-        if (outReady && inReady) return
-        if (mixViewJob?.isActive == true && mixWavePair == pair) return
-        mixViewJob?.cancel()
-        mixWavePair = pair
-        pendingWaveIds.clear()
-        if (!outReady) pendingWaveIds += outItem.mediaId
-        if (!inReady) pendingWaveIds += inItem.mediaId
-        republishWaves()
-        mixViewJob = scope.launch {
-            suspend fun wave(item: MediaItem, durationMs: Long, from: Double, to: Double): DeckWave? =
-                withContext(Dispatchers.IO) {
-                    val began = SystemClock.elapsedRealtime()
-                    val bins = ((to - from) * MIX_WAVE_BINS_PER_SECOND).toInt().coerceIn(64, MIX_WAVE_MAX_BINS)
-                    val bands = runCatching { mixWaveform(item, durationMs, from, to, bins) }
-                        .onFailure { Log.w(TAG, "mix waveform failed for ${item.mediaId}", it) }
-                        .getOrNull()
-                    Log.d(
-                        TAG,
-                        "mix waveform ${item.mediaId} " +
-                            String.format(Locale.ROOT, "%.1f-%.1fs", from, to) +
-                            ": ${if (bands == null) "none" else "ok"} in ${SystemClock.elapsedRealtime() - began}ms",
-                    )
-                    bands?.let { DeckWave(item.mediaId, from, to, it) }
-                }
-            if (!outReady) {
-                outgoingWave = wave(outItem, outDurationMs, outFrom, outTo)
-                if (outgoingWave == null) failedWaveAt[outItem.mediaId] = SystemClock.elapsedRealtime()
-                pendingWaveIds -= outItem.mediaId
-                republishWaves()
-            }
-            if (!inReady) {
-                incomingWave = wave(inItem, inDurationMs, inFrom, inTo)
-                if (incomingWave == null) failedWaveAt[inItem.mediaId] = SystemClock.elapsedRealtime()
-                pendingWaveIds -= inItem.mediaId
-                republishWaves()
-            }
-        }
-    }
-
-    private fun republishWaves() {
-        AppSettings.smartMixView.value?.let { AppSettings.smartMixView.value = withWaves(it, mixViewIds) }
-        AppSettings.smartMixPreview.value?.let { AppSettings.smartMixPreview.value = withWaves(it, mixPreviewIds) }
-    }
-
-    private fun withWaves(view: MixTransitionView, ids: Pair<String, String>?): MixTransitionView {
-        fun MixDeck.with(wave: DeckWave?, id: String?): MixDeck {
-            val decoded = if (wave != null && wave.mediaId == id) {
-                withWave(wave.bands.low, wave.bands.mid, wave.bands.high, wave.from, wave.to)
-            } else {
-                this
-            }
-            return decoded.withDecoding(id != null && id in pendingWaveIds)
-        }
-        return view.withDecks(
-            view.outgoing.with(outgoingWave, ids?.first),
-            view.incoming.with(incomingWave, ids?.second),
-        )
-    }
-
-    private var mixViewIds: Pair<String, String>? = null
-
-    private var mixPreviewIds: Pair<String, String>? = null
+    private val mixWaves = CrossfadeWaveforms(scope, mixWaveform, TAG)
 
     private var mixPreviewAt = 0L
 
@@ -1141,7 +1038,7 @@ class CrossfadeController(
         val beatSeconds = if (currentAnalysis.isUsable) plan.beatSeconds else 0.0
         val beats = if (beatSeconds > 0) (geometry.outSpan / beatSeconds).roundToInt() else 0
 
-        prefetchMixWaves(
+        mixWaves.prefetchMixWaves(
             currentItem, nextItem, duration, nextDuration, outStart, outEnd, inStart, ratio,
             wantOut = currentAnalysis.isUsable,
             wantIn = nextAnalysis.isUsable,
@@ -1151,7 +1048,7 @@ class CrossfadeController(
         val key = "${ids.first}|${ids.second}|${round(outStart * 20)}|${round(outEnd * 20)}|${round(inStart * 20)}|" +
             "$beats|$currentAnalysing|$nextAnalysing|${currentAnalysis.bpm}|${nextAnalysis.bpm}|" +
             "${currentAnalysis.key}|${nextAnalysis.key}|${plan.transitionStyle}|${plan.bassSwap}"
-        if (key == mixPreviewKey && mixPreviewIds == ids && AppSettings.smartMixPreview.value != null) return
+        if (key == mixPreviewKey && mixWaves.mixPreviewIds == ids && AppSettings.smartMixPreview.value != null) return
         mixPreviewKey = key
 
         val planned = renderFor(plan, advanced)
@@ -1180,8 +1077,8 @@ class CrossfadeController(
             analysing = analysing,
         )
 
-        mixPreviewIds = ids
-        AppSettings.smartMixPreview.value = withWaves(
+        mixWaves.mixPreviewIds = ids
+        AppSettings.smartMixPreview.value = mixWaves.withWaves(
             MixTransitionView(
                 outgoing = deck(currentItem, currentAnalysis, duration, currentAnalysing, geometry.outFrom, geometry.outTo),
                 incoming = deck(nextItem, nextAnalysis, nextDuration, nextAnalysing, geometry.inFrom, geometry.inTo),
@@ -1209,7 +1106,7 @@ class CrossfadeController(
         val stale = phase == Phase.IDLE && SystemClock.elapsedRealtime() - mixPreviewAt > MIX_PREVIEW_STALE_MS
         if (AppSettings.mixViewOpen.value && AppSettings.smartMixView.value == null && !stale) return
         AppSettings.smartMixPreview.value = null
-        mixPreviewIds = null
+        mixWaves.mixPreviewIds = null
         mixPreviewKey = ""
     }
 
@@ -1253,9 +1150,9 @@ class CrossfadeController(
         )
 
         AppSettings.smartMixProgress.value = 0f
-        mixViewIds = outItem.mediaId to inItem.mediaId
+        mixWaves.mixViewIds = outItem.mediaId to inItem.mediaId
         AppSettings.smartMixPreview.value = null
-        mixPreviewIds = null
+        mixWaves.mixPreviewIds = null
         mixPreviewKey = ""
         AppSettings.smartMixView.value = MixTransitionView(
             outgoing = deck(outItem, out, outgoingAnalysis, geometry.outFrom, geometry.outTo),
@@ -1275,19 +1172,7 @@ class CrossfadeController(
                 else -> -1f
             },
         )
-        republishWaves()
-    }
-
-    private fun clearMixView() {
-        mixViewJob?.cancel()
-        mixViewJob = null
-        mixWavePair = null
-        mixViewIds = null
-        outgoingWave = null
-        incomingWave = null
-        pendingWaveIds.clear()
-        failedWaveAt.clear()
-        AppSettings.smartMixView.value = null
+        mixWaves.republishWaves()
     }
 
     private fun sameGrid(last: MixBlend, beatMs: Float, anchor: Long): Boolean {
@@ -1839,7 +1724,7 @@ class CrossfadeController(
         Log.d(TAG, "bail from $phase")
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
-        clearMixView()
+        mixWaves.clearMixView()
         if (!handedOff && phase != Phase.FADING) {
             finish()
             return
@@ -1861,7 +1746,7 @@ class CrossfadeController(
         }
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
-        clearMixView()
+        mixWaves.clearMixView()
         releaseHold()
         if (handedOff && render.echo) outgoing?.volume = 0f
         filters.open()
@@ -2326,20 +2211,11 @@ class CrossfadeController(
     }
 
     private companion object {
-        const val MIX_VIEW_CONTEXT = 0.24
-
-        const val MIX_WAVE_BINS_PER_SECOND = 40.0
-        const val MIX_WAVE_MAX_BINS = 3_000
-
         const val MIX_PREFETCH_MS = 30_000L
 
         const val PAUSED_MARKER_STEP_MS = 1_000L
 
-        const val MIX_PREFETCH_PAD_SECONDS = 3.0
-
         const val MIX_VIEW_FADER_POINTS = 64
-
-        const val MIX_WAVE_RETRY_MS = 5_000L
 
         const val MIX_PREVIEW_STALE_MS = 1_500L
 
