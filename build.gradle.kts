@@ -12,8 +12,8 @@
  * it is one more, however far the name jumps (0.2.0 or 0.77.0 next is still 2).
  * The TV app reads these too.
  */
-extra["nuvxVersionCode"] = 7
-extra["nuvxVersionName"] = "0.7.0"
+extra["nuvxVersionCode"] = providers.gradleProperty("nuvx.nightlyBaseCode").map(String::toInt).getOrElse(7)
+extra["nuvxVersionName"] = providers.gradleProperty("nuvx.nightlyBaseName").getOrElse("0.7.0")
 
 /*
  * Bump this by hand before cutting each sideloaded test build ("beta2",
@@ -34,7 +34,7 @@ extra["nuvxVersionName"] = "0.7.0"
  * the phone compares the watch's installed APK with the one it carries, so a
  * beta watch app shows "Update available" as soon as the phone has the release.
  */
-extra["nuvxBetaSuffix"] = ""
+extra["nuvxBetaSuffix"] = providers.gradleProperty("nuvx.nightlySuffix").getOrElse("")
 
 plugins {
     id("com.android.application") version "9.5.1" apply false

@@ -245,7 +245,8 @@ object AppUpdateChecker {
      */
     private fun isNewer(latest: String, current: String): Boolean {
         val l = parseVersion(latest)
-        val c = parseVersion(current)
+        // A nightly is based on the last published stable, which isn't an update.
+        val c = parseVersion(current.substringBefore("-nightly."))
         for (i in 0 until maxOf(l.parts.size, c.parts.size)) {
             val a = l.parts.getOrElse(i) { 0 }
             val b = c.parts.getOrElse(i) { 0 }
