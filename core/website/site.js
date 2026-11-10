@@ -163,3 +163,25 @@
     })
     .catch(() => {});
 })();
+
+// Promo video: loops muted on its own (browsers block sound without a click), unless
+// the visitor asks for reduced motion. Stop rewinds to the start; the slider sets sound.
+{
+  const video = document.getElementById('promo-video');
+  const play = document.getElementById('promo-play');
+  const volume = document.getElementById('promo-volume');
+  if (video && play && volume) {
+    const label = () => { play.textContent = video.paused ? 'Play' : 'Stop'; };
+    video.addEventListener('play', label);
+    video.addEventListener('pause', label);
+    play.addEventListener('click', () => {
+      if (video.paused) video.play().catch(() => {});
+      else { video.pause(); video.currentTime = 0; }
+    });
+    volume.addEventListener('input', () => {
+      video.volume = Number(volume.value);
+      video.muted = video.volume === 0;
+    });
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) video.play().catch(() => {});
+  }
+}
