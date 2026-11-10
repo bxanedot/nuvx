@@ -234,10 +234,12 @@ impl App {
         // focused button or slider they still skip and change the volume.
         let editing = ctx.text_edit_focused();
         let i = ctx.input(|i| {
-            let k = |key| !typing && i.key_pressed(key);
+            // Letters only give way to a text box (a focused button doesn't type), and not
+            // with Ctrl: Ctrl+F is search, not full screen.
+            let k = |key| !editing && !i.modifiers.command && i.key_pressed(key);
             let ctrl = |key| !editing && i.modifiers.ctrl && i.key_pressed(key);
             (
-                k(egui::Key::Space),
+                !typing && i.key_pressed(egui::Key::Space),
                 i.pointer.button_pressed(egui::PointerButton::Extra1)
                     || (i.modifiers.alt && i.key_pressed(egui::Key::ArrowLeft)),
                 i.pointer.button_pressed(egui::PointerButton::Extra2)
@@ -252,9 +254,18 @@ impl App {
                 ctrl(egui::Key::ArrowDown),
                 // Once per press: holding it doesn't flip back and forth.
                 i.events.iter().any(|e| matches!(e, egui::Event::Key { key: egui::Key::M, pressed: true, repeat: false, modifiers, .. } if modifiers.ctrl)),
+                i.modifiers.command && i.key_pressed(egui::Key::F),
             )
         });
-        let (space, back, fwd, next, prev, lyr, queue, full, esc, vol_up, vol_down, mini) = i;
+        let (space, back, fwd, next, prev, lyr, queue, full, esc, vol_up, vol_down, mini, find) = i;
+        // Ctrl+F from any page: to Search, with the box focused (see `search_field`).
+        if find && !self.mini.busy() {
+            if !matches!(self.page, Page::Search(_)) {
+                self.actions.push(Action::Go(Page::Search(String::new())));
+            }
+            self.np_open = false;
+            ctx.data_mut(|d| d.insert_temp(egui::Id::unique("focus-search"), true));
+        }
         if mini {
             self.actions.push(Action::Mini(!self.mini.target()));
         }
@@ -284,7 +295,8 @@ impl App {
             self.np_open = true;
             self.np_tab = NpTab::UpNext;
         }
-        if full && self.np_open {
+        if full && (self.np_open || self.current().is_some()) {
+            self.np_open = true;
             self.set_fullscreen(ctx, !self.fullscreen);
         }
         if esc {
