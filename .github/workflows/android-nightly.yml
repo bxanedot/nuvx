@@ -1,0 +1,95 @@
+name: Android nightly
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Build only the commit that landed on main.
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;30.0.16248370" "cmake;3.22.1"
+      - name: Build and verify signed APKs
+        env:
+          NUVX_KEYSTORE_BASE64: ${{ secrets.NUVX_KEYSTORE_BASE64 }}
+          NUVX_KEYSTORE_PASSWORD: ${{ secrets.NUVX_KEYSTORE_PASSWORD }}
+          NUVX_KEY_ALIAS: ${{ secrets.NUVX_KEY_ALIAS }}
+          NUVX_KEY_PASSWORD: ${{ secrets.NUVX_KEY_PASSWORD }}
+        run: |
+          stable=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          [[ $stable =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git fetch --no-tags origin "refs/tags/$stable"
+          version=${stable#v}
+          code=$(git show FETCH_HEAD:build.gradle.kts | sed -nE 's/^extra\["nuvxVersionCode"\] = ([0-9]+)$/\1/p; s/^extra\["nuvxVersionCode"\].*getOrElse\(([0-9]+)\)$/\1/p')
+          [[ $code =~ ^[1-9][0-9]*$ ]]
+          suffix="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
+          umask 077
+          trap 'rm -f keystore.properties "$RUNNER_TEMP/nuvx-nightly.jks"' EXIT
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+
+          key = Path(os.environ["RUNNER_TEMP"]) / "nuvx-nightly.jks"
+          key.write_bytes(base64.b64decode("".join(os.environ.pop("NUVX_KEYSTORE_BASE64").split()), validate=True))
+          properties = {
+              "storeFile": str(key),
+              "storePassword": os.environ["NUVX_KEYSTORE_PASSWORD"],
+              "keyAlias": os.environ["NUVX_KEY_ALIAS"],
+              "keyPassword": os.environ["NUVX_KEY_PASSWORD"],
+          }
+          with Path("keystore.properties").open("w", encoding="ascii") as out:
+              for name, value in properties.items():
+                  assert value and "\n" not in value and "\r" not in value
+                  raw = value.encode("utf-16-be")
+                  escaped = "".join(f"\\u{int.from_bytes(raw[i:i+2], 'big'):04x}" for i in range(0, len(raw), 2))
+                  out.write(f"{name}={escaped}\n")
+          PY
+          unset NUVX_KEYSTORE_BASE64 NUVX_KEYSTORE_PASSWORD NUVX_KEY_ALIAS NUVX_KEY_PASSWORD
+          bash gradlew :app:assembleProdRelease :tv:assembleProdRelease :wearos:assembleProdRelease \
+            -Pnuvx.nightlyBaseCode="$code" -Pnuvx.nightlyBaseName="$version" -Pnuvx.nightlySuffix="$suffix"
+          mkdir nightly
+          tools="$ANDROID_HOME/build-tools/37.0.0"
+          stage() {
+            local source=$1 prefix=$2 package=$3 metadata
+            metadata=$("$tools/aapt2" dump badging "$source")
+            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version-$suffix'"* ]]
+            "$tools/apksigner" verify --print-certs "$source" |
+              grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+            cp "$source" "nightly/$prefix-v$version-$suffix.apk"
+          }
+          stage app/android/mobile/build/outputs/apk/prod/release/app-prod-universal-release.apk nuvx com.bxane.nuvx
+          stage app/android/tv/build/outputs/apk/prod/release/tv-prod-universal-release.apk NuvxTV com.bxane.nuvx.tv
+          stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
+          (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
+          echo "NIGHTLY_SUFFIX=$suffix" >> "$GITHUB_ENV"
+          echo "STABLE_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Publish nightly prerelease
+        run: |
+          gh release create "$NIGHTLY_SUFFIX" nightly/*.apk nightly/SHA256SUMS \
+            --target "$(git rev-parse HEAD)" --draft --prerelease --latest=false \
+            --title "nuvx $STABLE_VERSION-$NIGHTLY_SUFFIX" \
+            --notes "Signed Android nightly for phones, Android TV and Wear OS. Install the APK for your device. A newer stable release can update it in place."
+          gh release edit "$NIGHTLY_SUFFIX" --draft=false --prerelease --latest=false
