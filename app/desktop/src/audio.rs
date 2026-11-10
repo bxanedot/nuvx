@@ -72,6 +72,8 @@ pub struct AudioStatus {
     pub normalize: AtomicBool,
     /// Widen stereo songs (see `Spatial`).
     spatial: AtomicBool,
+    /// What the equaliser aims at (`Tuning::OFF` when it's off).
+    eq: std::sync::Mutex<crate::eq::Tuning>,
     /// The volume slider follows loudness (cubic) rather than amplitude.
     log_volume: AtomicBool,
     /// Smoothed output loudness 0..1 (f32 bits), for audio-reactive visuals.
@@ -324,9 +326,6 @@ impl MixFx {
     }
 }
 
-/// Pass-through source that tracks loudness (RMS over ~23 ms windows, smoothed) and
-/// applies crossfade ramps. `fade_out` is set by the audio thread to the fade-out
-/// length in ms (0 = keep playing); a new value restarts it from the current gain.
 /// Android's "spatial audio": the stereo image widened in mid/side, plus a short, dulled
 /// cross-feed from the other channel, like a far ear hears. O(1) a sample; stereo only.
 struct Spatial<S> {
@@ -403,6 +402,75 @@ impl<S: rodio::Source> rodio::Source for Spatial<S> {
     }
 }
 
+/// Android's equaliser (see `crate::eq`), fed whole frames. It picks up a new tuning
+/// between frames without ever waiting on the UI's lock.
+struct Eq<S> {
+    inner: S,
+    status: Arc<AudioStatus>,
+    eq: crate::eq::Processor,
+    tuning: crate::eq::Tuning,
+    frame: Vec<f32>,
+    /// The next sample of `frame` to hand out.
+    out: usize,
+}
+
+impl<S: rodio::Source> Eq<S> {
+    fn new(inner: S, status: Arc<AudioStatus>) -> Self {
+        let tuning = status.eq.lock().map(|t| *t).unwrap_or(crate::eq::Tuning::OFF);
+        let channels = inner.channels().get() as usize;
+        let eq = crate::eq::Processor::new(inner.sample_rate().get(), channels, tuning);
+        Eq { inner, status, eq, tuning, frame: Vec::with_capacity(channels), out: 0 }
+    }
+}
+
+impl<S: rodio::Source> Iterator for Eq<S> {
+    type Item = f32;
+    fn next(&mut self) -> Option<f32> {
+        if self.out == self.frame.len() {
+            if let Ok(t) = self.status.eq.try_lock() {
+                self.tuning = *t;
+            }
+            self.frame.clear();
+            self.out = 0;
+            let channels = self.inner.channels().get() as usize;
+            self.frame.extend(self.inner.by_ref().take(channels));
+            if self.frame.is_empty() {
+                return None;
+            }
+            if self.frame.len() == channels && !self.eq.idle(&self.tuning) {
+                self.eq.frame(&mut self.frame, &self.tuning);
+            }
+        }
+        self.out += 1;
+        Some(self.frame[self.out - 1])
+    }
+}
+
+impl<S: rodio::Source> rodio::Source for Eq<S> {
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner.current_span_len().map(|n| n + self.frame.len() - self.out)
+    }
+    fn channels(&self) -> rodio::ChannelCount {
+        self.inner.channels()
+    }
+    fn sample_rate(&self) -> rodio::SampleRate {
+        self.inner.sample_rate()
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
+    }
+    fn try_seek(&mut self, pos: Duration) -> Result<(), rodio::source::SeekError> {
+        self.inner.try_seek(pos)?;
+        self.frame.clear();
+        self.out = 0;
+        self.eq.reset();
+        Ok(())
+    }
+}
+
+/// Pass-through source that tracks loudness (RMS over ~23 ms windows, smoothed) and
+/// applies crossfade ramps. `fade_out` is set by the audio thread to the fade-out
+/// length in ms (0 = keep playing); a new value restarts it from the current gain.
 struct Meter<S> {
     inner: S,
     status: Arc<AudioStatus>,
@@ -632,6 +700,12 @@ impl AudioHandle {
 
     pub fn set_spatial(&self, on: bool) {
         self.status.spatial.store(on, Ordering::Relaxed);
+    }
+
+    pub fn set_eq(&self, tuning: crate::eq::Tuning) {
+        if let Ok(mut t) = self.status.eq.lock() {
+            *t = tuning;
+        }
     }
 
     pub fn set_crossfade(&self, secs: u32) {
@@ -1041,7 +1115,7 @@ fn run(
                 status.mix_duration_ms.store(fade_in, Ordering::Relaxed);
                 status.mix_active.store(mix, Ordering::Relaxed);
                 status.mix_generation.store(generation, Ordering::Release);
-                player.append(Meter::new(Spatial::new(decoder, status.clone()), status.clone(), fade_in, fade_out.clone(), mix, s.tempo.clone()));
+                player.append(Meter::new(Eq::new(Spatial::new(decoder, status.clone()), status.clone()), status.clone(), fade_in, fade_out.clone(), mix, s.tempo.clone()));
                 player.play();
                 // 0 means the stream didn't say; keep the length the UI already knows.
                 if s.duration_ms > 0 {
@@ -1069,7 +1143,7 @@ fn run(
                 player.clear();
                 fade_out = Arc::new(AtomicU32::new(0));
                 let analysis = shared.as_ref().expect("a current generation has a stream").tempo.clone();
-                player.append(Meter::new(Spatial::new(decoder, status.clone()), status.clone(), 0, fade_out.clone(), false, analysis));
+                player.append(Meter::new(Eq::new(Spatial::new(decoder, status.clone()), status.clone()), status.clone(), 0, fade_out.clone(), false, analysis));
                 if !paused {
                     player.play();
                 }

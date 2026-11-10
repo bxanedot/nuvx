@@ -82,6 +82,7 @@ pub enum Page {
 pub enum SettingsPane {
     Account,
     Playback,
+    Equalizer,
     Downloads,
     Lyrics,
     Artists,
@@ -384,6 +385,8 @@ pub struct App {
     normalize: bool,
     /// Spatial audio (Android's): stereo widened. On by default.
     spatial: bool,
+    /// Android's equaliser.
+    eq: crate::eq::Prefs,
     log_volume: bool,
     high_quality: bool,
     /// Play an official music video as its song version when one is found.
@@ -719,6 +722,7 @@ impl App {
             autoplay: get("autoplay").is_none_or(|v| v == "1"),
             normalize: get("normalize").is_none_or(|v| v == "1"),
             spatial: get("spatial_audio").is_none_or(|v| v == "1"),
+            eq: get("equalizer").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
             log_volume: get("log_volume").is_none_or(|v| v == "1"),
             high_quality: get("high_quality").is_none_or(|v| v == "1"),
             play_songs: get("play_songs").is_none_or(|v| v == "1"),
@@ -874,6 +878,7 @@ impl App {
             Ok("appearance-settings") => app.go(Page::Setting(SettingsPane::Appearance)),
             Ok("radio") => app.go(Page::Radio),
             Ok("podcasts") => app.go(Page::Mood { browse_id: crate::ytm::PODCASTS.into(), params: None, title: "Podcasts".into() }),
+            Ok("equalizer-settings") => app.go(Page::Setting(SettingsPane::Equalizer)),
             Ok("lyrics-settings") => app.go(Page::Setting(SettingsPane::Lyrics)),
             Ok("account-settings") => app.go(Page::Setting(SettingsPane::Account)),
             Ok("import-settings") => app.go(Page::Setting(SettingsPane::Import)),
@@ -913,6 +918,7 @@ impl App {
         jam::dev_hooks(&mut app);
         app.audio.set_normalize(app.normalize);
         app.audio.set_spatial(app.spatial);
+        app.audio.set_eq(app.eq.tuning());
         app.set_crossfade();
         app
     }
@@ -1495,6 +1501,7 @@ impl eframe::App for App {
         storage.set_string("account_cache", cache.and_then(|c| serde_json::to_string(&c).ok()).unwrap_or_default());
         storage.set_string("normalize", b(self.normalize));
         storage.set_string("spatial_audio", b(self.spatial));
+        storage.set_string("equalizer", serde_json::to_string(&self.eq).unwrap_or_default());
         storage.set_string("log_volume", b(self.log_volume));
         storage.set_string("high_quality", b(self.high_quality));
         storage.set_string("play_songs", b(self.play_songs));

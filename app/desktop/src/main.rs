@@ -14,6 +14,7 @@ mod deeplink;
 mod discord;
 mod dash;
 mod downloads;
+mod eq;
 mod hires;
 mod images;
 mod jam;
