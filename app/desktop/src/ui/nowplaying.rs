@@ -41,7 +41,7 @@ pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
                 // fades out toward the lyrics (reCover).
                 let solid = look.solid();
                 painter.rect_filled(rect, 0.0, solid);
-                if let Some(track) = app.shown() {
+                if let Some(track) = app.shown().cloned().map(|t| app.with_cover(&t)) {
                     let side_by_side = look.cover.layout == crate::preset::Layout::LyricsOnly && rect.width() >= 900.0;
                     let area = if side_by_side { Rect::from_min_size(rect.min, Vec2::splat(rect.height())) } else { rect };
                     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(area));
@@ -244,6 +244,8 @@ fn art_side(cs: &crate::preset::CoverStyle, col: Rect) -> f32 {
 /// at (fixed while the column glides).
 #[allow(clippy::too_many_arguments)]
 fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Track, no_lyrics: bool, now: f64, px: u32) {
+    // Drawn with YouTube Music's square sleeve, not a music video's thumbnail.
+    let track = &app.with_cover(track);
     use crate::preset::Shape;
     // A handoff's outgoing song is still what's heard: its star, menu and seek are its own.
     let hold = app.mix_hold().map(|h| (h.total, h.mix, app.mix_hold_pos(h)));
@@ -253,6 +255,15 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     let side = art_side(cs, col);
     let art = Rect::from_center_size(pos2(col.center().x, col.top() + side / 2.0 + (col.height() - side - 190.0).max(0.0) * 0.42), Vec2::splat(side));
     let round = cs.shape != Shape::Rounded;
+    // A music video plays wide: the sleeve's square becomes a 16:9 frame, as wide as it fits.
+    let video = if round { None } else { app.video_sprite(ui.ctx()) };
+    let art = match &video {
+        Some(_) => {
+            let w = col.width().min(side * 16.0 / 9.0);
+            Rect::from_center_size(art.center(), vec2(w, w * 9.0 / 16.0))
+        }
+        None => art,
+    };
     let radius = if round { side / 2.0 } else { cs.radius.clamp(0.0, side / 2.0) };
     let cr = egui::CornerRadius::same(radius.min(255.0) as u8);
     if cs.glow > 0.0 {
@@ -281,13 +292,12 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
         }
     } else {
         widgets::paint_cover_xfade_px(ui, egui::Id::unique("np-art"), art, &track.thumbs, radius, 1.0, px);
-        // Apple's motion sleeve, over the still until its first frame arrives.
-        if let Some(album) = track.album.as_ref().map(|a| a.name.clone()).filter(|a| !a.is_empty()) {
-            let artist = track.artists.first().map(|a| a.name.clone()).unwrap_or_else(|| track.artist_line());
-            app.apple_cover(&album, &artist, Some(&track.title));
-            if let Some(s) = app.apple_sprite(ui.ctx(), &album, &artist, px) {
-                widgets::paint_motion(ui, art, radius, &s);
-            }
+        // A music video's picture; else the song's looping clip, over the still until its
+        // first frame arrives.
+        if let Some(s) = &video {
+            widgets::paint_motion(ui, art, radius, s);
+        } else if let Some(s) = app.song_canvas(ui.ctx(), &track, px) {
+            widgets::paint_motion(ui, art, radius, &s);
         }
         if cs.brightness < 0.99 {
             ui.painter().rect_filled(art, cr, theme::shade(1.0 - cs.brightness));
@@ -408,6 +418,9 @@ fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate::model::Tra
     if frac > 0.0 {
         let fill = theme::lerp_color(Color32::from_white_alpha(163), Color32::from_white_alpha(240), focus);
         ui.painter().rect_filled(Rect::from_min_size(bar.min, vec2(bar.width() * frac, thick)), thick / 2.0, fill);
+    }
+    if app.version_loading() {
+        widgets::loading_glow(ui, bar, now, Color32::from_white_alpha(200));
     }
     let at = |p: egui::Pos2| (((p.x - x0) / w.max(1.0)).clamp(0.0, 1.0) * total).max(0.0);
     let tc = theme::with_alpha(Color32::WHITE, 0.62);
@@ -782,15 +795,18 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
         if app.queue.upcoming().is_some() && widgets::menu_glyph_action(ui, super::glyphs::SHUFFLE, "Shuffle") {
             app.shuffle_upcoming();
         }
-        // Which recording plays, as Android's switch: a music video's song version, or
-        // the video itself. Only a listed music video has both.
-        if app.current().is_some_and(|t| t.music_video) && !app.jam.active() {
-            if app.playing_as().is_some() {
-                if widgets::menu_glyph_action(ui, super::glyphs::VIDEO, "Switch to video") {
-                    app.play_listed_upload();
+        // Which recording plays, as Android's switch: a song or its music video, either
+        // way round. Back to what's listed is the listed upload again.
+        if let Some(listed) = app.current().map(|t| t.music_video)
+            && !app.jam.active()
+        {
+            let swapped = app.playing_as().is_some();
+            if listed != swapped {
+                if widgets::menu_glyph_action(ui, super::glyphs::MUSIC_NOTE, "Switch to song") {
+                    if swapped { app.play_listed_upload() } else { app.play_song_version() }
                 }
-            } else if widgets::menu_glyph_action(ui, super::glyphs::MUSIC_NOTE, "Switch to song") {
-                app.play_song_version();
+            } else if widgets::menu_glyph_action(ui, super::glyphs::VIDEO, "Switch to video") {
+                if swapped { app.play_listed_upload() } else { app.play_video_version() }
             }
         }
         // Quality toggle at the bottom: revert when hi-res is playing, upgrade when not.
@@ -798,11 +814,21 @@ fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Tr
         if hires_playing || !app.hires_sources.is_empty() {
             menu_divider(ui);
             if hires_playing {
-                if widgets::menu_action(ui, Some(icon::MUSIC), "Revert quality") {
+                if widgets::menu_action(ui, Some(icon::MUSIC), "Revert audio quality") {
                     app.actions.push(Action::RevertQuality);
                 }
-            } else if widgets::menu_action(ui, Some(icon::MUSIC), "Upgrade quality") {
+            } else if widgets::menu_action(ui, Some(icon::MUSIC), "Upgrade audio quality") {
                 app.actions.push(Action::UpgradeQuality);
+            }
+        }
+        // The music video's picture size.
+        if crate::motion::SUPPORTED && app.playing_track().is_some_and(|t| t.music_video) {
+            menu_divider(ui);
+            for h in [1080, 720, 480, 360] {
+                let picked = app.video_height == h;
+                if widgets::menu_choice(ui, picked, &format!("{h}p video")) && !picked {
+                    app.set_video_height(h);
+                }
             }
         }
         ui.add_space(4.0);
