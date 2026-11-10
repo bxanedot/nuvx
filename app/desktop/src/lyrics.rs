@@ -45,8 +45,8 @@ pub enum Provider {
     LrclibPlain,
 }
 
-/// How finely a provider's lyrics are timed.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+/// How finely a provider's lyrics are timed, finest first (the order is the preference).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum SyncKind {
     Syllable,
     Word,

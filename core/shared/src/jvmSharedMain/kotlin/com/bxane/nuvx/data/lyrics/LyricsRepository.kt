@@ -80,9 +80,9 @@ object LyricsRepository {
      * back: off, the highest-priority source's own answer is taken as-is,
      * word-synced or not — priority is priority, and second-guessing it with
      * more network calls after it has already answered is not what "first"
-     * was supposed to mean. On, a merely line-synced answer is kept only as a
-     * fallback, and the search keeps going through the rest of [order] for a
-     * word-synced one, taking the top-priority source that has one.
+     * was supposed to mean. On, the finest timing wins — syllable, then word,
+     * then line — the search going on through [order] until a syllable-timed
+     * answer turns up, and the earlier source winning a tie.
      */
     suspend fun lyrics(
         videoId: String,
@@ -157,19 +157,19 @@ object LyricsRepository {
         }
 
         try {
-            var lineSynced: Result? = null
+            // Best so far by [timing]; on a tie the earlier source in [order] keeps it.
+            var best: Result? = null
             for ((source, job) in racing) {
                 // If we already found a line-synced or better result, skip Genius completely
-                if (lineSynced != null && source == LyricsSource.GENIUS) continue
+                if (best != null && source == LyricsSource.GENIUS) continue
 
                 val found = runCatching { job.await() }.getOrNull() ?: continue
-                if (found.lines.any { it.isWordSynced }) return@coroutineScope found
-                if (!prioritizeSyllableSync && found.lines.any { it.timeMs > 0 }) {
-                    return@coroutineScope found
-                }
-                if (lineSynced == null) lineSynced = found
+                val tier = timing(found)
+                // Nothing finer than syllables exists; off, any timed answer is taken as-is.
+                if (tier == SYLLABLE || (!prioritizeSyllableSync && tier <= LINE)) return@coroutineScope found
+                if (best == null || tier < timing(best)) best = found
             }
-            lineSynced
+            best
         } finally {
             // Whoever lost the race is no longer worth waiting on, and
             // coroutineScope will not return while they are still running.
@@ -177,6 +177,19 @@ object LyricsRepository {
             documents.cancel()
         }
     }
+
+    /** How finely [result] is timed: lower is finer, so syllable < word < line < plain. */
+    internal fun timing(result: Result): Int = when {
+        result.lines.any { line -> line.words.any { it.syllables.isNotEmpty() } } -> SYLLABLE
+        result.lines.any { it.isWordSynced } -> WORD
+        result.lines.any { it.timeMs > 0 } -> LINE
+        else -> PLAIN
+    }
+
+    private const val SYLLABLE = 0
+    private const val WORD = 1
+    private const val LINE = 2
+    private const val PLAIN = 3
 
     private suspend fun fetch(
         source: LyricsSource,
