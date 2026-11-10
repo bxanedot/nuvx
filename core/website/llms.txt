@@ -1,19 +1,19 @@
 # nuvx
 
-> nuvx is an open-source YouTube Music client project built with Kotlin Multiplatform and Compose Multiplatform. Version 0.2.0 is available for Android phones and tablets, Android TV, Wear OS, Windows, Linux and macOS, and as a web player at https://web.nuvx.lol.
+> nuvx is a free, open-source YouTube Music client built with Kotlin Multiplatform, Compose Multiplatform and Rust. Version 0.6.0 is available for Android phones and tablets, Android TV, Wear OS, Windows, Linux and macOS, and as a web player at https://web.nuvx.lol.
 
 ## Current status
 
-nuvx 0.2.0 ships signed universal APKs for Android phones and tablets (with the Wear OS app inside) and Android TV on GitHub releases: https://github.com/bxanedot/nuvx/releases/latest. The web player runs at https://web.nuvx.lol with a browser extension. Desktop installers and portable builds are available on GitHub Releases. iOS/iPadOS is upcoming. nuvx is independent and not affiliated with YouTube or Google.
+nuvx 0.6.0 ships signed universal APKs for Android phones and tablets (with the Wear OS app inside) and Android TV, plus Windows, macOS and Linux installers and portable builds, on GitHub Releases: https://github.com/bxanedot/nuvx/releases/latest. The web player runs at https://web.nuvx.lol with a browser extension. iOS/iPadOS is upcoming. nuvx is independent and not affiliated with YouTube or Google. Release notes for every version: https://www.nuvx.lol/changelog.
 
-## Implemented project capabilities
+## Features
 
-- Shared YouTube Music search and music backend code, with InnerTubeX as the default backend and eXcor as an alternative. eXcor currently cannot resolve streams because YouTube refuses its requests without PO tokens; fallback can route stream requests to the other backend.
-- Android and Windows native playback paths, background playback and media controls on Android.
-- Local music library integration and a bounded streaming cache. The cache is not an offline download feature.
-- Music radio from a seed, synced lyrics formats including LRC, enhanced LRC and TTML, and documented public lyrics provider clients.
-- Listen Together synchronization of playback state through a Cloudflare Worker and Durable Objects; audio is not relayed between listeners.
-- Shared Compose user interfaces, platform builds and focused automated tests. Built artifacts do not mean there is a public release.
+- YouTube Music search, home, artists, albums, playlists, radio and podcasts.
+- Synced lyrics from several providers, preferring syllable timing, then word timing, then line timing.
+- Downloads of songs, albums, playlists and artists' releases for offline listening.
+- Dolby Atmos, spatial audio and an equalizer.
+- Listen Together: synchronized playback state through a Cloudflare Worker and Durable Objects; audio is not relayed between listeners.
+- Local music library, Android Auto, Wear OS controls and an Android TV interface.
 
 ## Links
 
