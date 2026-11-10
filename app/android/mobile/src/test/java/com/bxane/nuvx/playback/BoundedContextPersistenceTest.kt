@@ -249,6 +249,31 @@ class BoundedContextPersistenceTest {
     }
 
     @Test
+    fun `shuffling on mid-context keeps played history saveable and restorable`() {
+        val source = QueueSource("Release", PlaybackSourceType.BROWSE, "release-1")
+        val canonical = List(5) { song("track-$it") }
+        val window = QueueWindow(5).startAt(2, shuffle = false).setShuffle(true, shuffleSeed = 7L)
+        val upcoming = window.upcoming(25)
+        assertTrue(upcoming.any { it.canonicalIndex in 0..1 })
+        val state = state(
+            canonical = canonical,
+            source = source,
+            window = window.snapshot(),
+            entries = listOf(
+                entry("old-0", QueueTier.CONTEXT, 0, 0L),
+                entry("old-1", QueueTier.CONTEXT, 1, 0L),
+                entry("current", QueueTier.CONTEXT, 2, 0L),
+            ) + upcoming.map { entry("next-${it.canonicalIndex}", QueueTier.CONTEXT, it.canonicalIndex, it.cycleId) },
+            currentIndex = 2,
+            sourceSnapshot = context(canonical, source),
+        )
+
+        assertNotNull(BoundedContextPersistence.encode(state))
+        val projected = requireNotNull(BoundedContextPersistence.restoreProjection(state))
+        assertEquals(upcoming.map { it.canonicalIndex }, projected.entries.drop(3).map { it.canonicalIndex })
+    }
+
+    @Test
     fun `invalid anchors duplicate ids schema and malformed json are rejected`() {
         val source = QueueSource("Release", PlaybackSourceType.BROWSE, "release-1")
         val canonical = List(3) { song("track-$it") }
