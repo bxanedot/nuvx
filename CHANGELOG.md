@@ -20,7 +20,9 @@ Turn on **Enable YouTube Search** in Settings to add a YouTube switch over your 
 
 ### Desktop
 
-- The window buttons behave as macOS's do: green goes full screen, or zooms with Option held.
+- Android's equalizer comes to desktop, with its Dynamic tone pad, seven Manual bands and presets, and balance. Find it in Settings.
+- Desktop gets Android's spatial audio, on by default.
+- The red, yellow and green window buttons close, minimize and maximize, as the Windows buttons do.
 - Scrollbars are gone. Pages still scroll with the wheel, trackpad or touch.
 - The app's own window background is now called Dynamic. Your choice is kept.
 - Release notes show pictures, tables, numbered lists, quotes and line breaks as GitHub does. Android's notes keep their line breaks and pictures too.
