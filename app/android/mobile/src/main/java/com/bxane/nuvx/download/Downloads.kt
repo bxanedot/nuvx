@@ -24,7 +24,6 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.io.OutputStream
 import java.io.File
-import java.util.Locale
 
 sealed interface DownloadState {
 
@@ -188,33 +187,15 @@ object Downloads {
         val collections = _collections.value
         tracksOnlyIn(id, collections, saved.value)
             .forEach { videoId -> if (delete(context, videoId)) any = true }
-        droppedWith(id, collections).forEach(::forgetCollection)
+        DownloadCollectionCatalog.droppedWith(id, collections).forEach(::forgetCollection)
         return any
-    }
-
-    private fun droppedWith(id: String, collections: Map<String, SavedCollection>): Set<String> {
-        val record = collections[id] ?: return emptySet()
-        if (!record.artist) return setOf(id)
-        val catalogue = record.videoIds.toHashSet()
-        return collections.values
-            .filter { it.id == id || (!it.artist && !it.playlist && it.videoIds.isNotEmpty() && catalogue.containsAll(it.videoIds)) }
-            .mapTo(HashSet()) { it.id }
     }
 
     internal fun tracksOnlyIn(
         id: String,
         collections: Map<String, SavedCollection>,
         saved: Map<String, String>,
-    ): List<String> {
-        val record = collections[id] ?: return emptyList()
-        val dropped = droppedWith(id, collections)
-        val others = collections.values
-            .filter { it.id !in dropped && (record.artist || !it.artist) }
-            .flatMapTo(HashSet()) { it.videoIds }
-        val otherFiles = others.mapNotNullTo(HashSet()) { saved[it] }
-        return dropped.flatMap { collections.getValue(it).videoIds }.distinct()
-            .filter { it !in others && saved[it] !in otherFiles }
-    }
+    ): List<String> = DownloadCollectionCatalog.tracksOnlyIn(id, collections, saved)
 
     const val PLAYLIST_PREFIX = "local:playlist:"
 
@@ -223,39 +204,11 @@ object Downloads {
     fun recordIdOf(browseId: String): String? =
         browseId.removePrefix(PLAYLIST_PREFIX).takeIf { it != browseId && it.isNotEmpty() && !it.startsWith("sp_local_") }
 
-    fun savedReleases(onDisk: Map<String, String> = _saved.value): List<SavedCollection> {
-        if (_collections.value.isEmpty()) return emptyList()
-        return _collections.value.values
-            .filter { record -> record.videoIds.any { it in onDisk } }
-            .sortedBy { it.title.lowercase(Locale.ROOT) }
-    }
+    fun savedReleases(onDisk: Map<String, String> = _saved.value): List<SavedCollection> =
+        DownloadCollectionCatalog.savedReleases(_collections.value, onDisk)
 
-    fun collectionsAmong(songs: List<Song>): List<DownloadedCollection> {
-        if (songs.isEmpty() || _collections.value.isEmpty()) return emptyList()
-        val byId = songs.associateBy { it.videoId }
-        val byUri = songs.mapNotNull { song -> song.localUri?.let { it to song } }.toMap()
-        val uris = _saved.value
-        return _collections.value.values
-            .mapNotNull { record ->
-                val tracks = record.videoIds
-                    .mapNotNull { id -> byId[id] ?: uris[id]?.let(byUri::get) }
-                    .distinctBy { it.localUri ?: it.videoId }
-                if (tracks.isEmpty()) {
-                    null
-                } else {
-                    DownloadedCollection(
-                        id = record.id,
-                        title = record.title,
-                        subtitle = record.subtitle,
-                        thumbnailUrl = record.thumbnailUrl ?: tracks.firstNotNullOfOrNull { it.thumbnailUrl },
-                        playlist = record.playlist,
-                        songs = tracks,
-                        artist = record.artist,
-                    )
-                }
-            }
-            .sortedBy { it.title.lowercase(Locale.ROOT) }
-    }
+    fun collectionsAmong(songs: List<Song>): List<DownloadedCollection> =
+        DownloadCollectionCatalog.collectionsAmong(_collections.value, _saved.value, songs)
 
     private fun recordCollections(update: (Map<String, SavedCollection>) -> Map<String, SavedCollection>) {
         synchronized(collectionLock) {
