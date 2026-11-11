@@ -109,13 +109,10 @@ import com.bxane.nuvx.playback.smart.VersionAudioAligner
 import com.bxane.nuvx.widget.MediaWidget
 import com.bxane.nuvx.widget.MediaWidgetSnapshot
 import com.bxane.nuvx.wear.WearBridge
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -136,7 +133,6 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.roundToInt
 import kotlin.random.Random
-import kotlinx.coroutines.CancellationException
 import java.util.UUID
 import com.bxane.nuvx.data.model.isLiveRadio
 
@@ -169,10 +165,6 @@ const val ACTION_QUEUE_DRAG = "com.bxane.nuvx.action.QUEUE_DRAG"
 const val EXTRA_QUEUE_DRAG_ACTIVE = "nuvx.queueDrag.active"
 
 private const val INITIAL_STATION_TRACKS = 24
-
-private const val ALIGNMENT_HEAD_TIMEOUT_MS = 20_000L
-
-private const val ALIGNMENT_MEASURE_TIMEOUT_MS = 30_000L
 
 private fun Song.canStartStation(): Boolean =
     videoId.isNotBlank() &&
@@ -228,6 +220,8 @@ class PlaybackService : MediaLibraryService() {
     private var trackSelectedAt: Long? = null
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val versionAlignment = PlaybackVersionAlignmentController(this, scope)
 
     private val listenBrainz = PlaybackListenBrainzController(scope) { player }
     private val scrobbling = PlaybackScrobblingController(scope) { player }
@@ -973,7 +967,7 @@ class PlaybackService : MediaLibraryService() {
             try {
                 val startPosition = activePlayer.currentPosition
                 val alignmentOffsetMs = if (measureAlignment) {
-                    prepareVersionAlignment(sourceSong, targetSong, startPosition)
+                    versionAlignment.prepareVersionAlignment(sourceSong, targetSong, startPosition)
                 } else {
                     0L
                 }
@@ -1155,95 +1149,6 @@ class PlaybackService : MediaLibraryService() {
                     AppSettings.versionAlignmentInProgress.value = false
                 }
             }
-        }
-    }
-
-    private val versionAlignmentMeasurements = ConcurrentHashMap<Pair<String, String>, Deferred<Long?>>()
-
-    private fun measureVersionAlignmentAsync(sourceSong: Song, targetSong: Song): Deferred<Long?> {
-        val sourceId = sourceSong.videoId
-        val targetId = targetSong.videoId
-        val key = sourceId to targetId
-        VersionAudioAligner.getCachedOffsetMs(sourceId, targetId)?.let { return CompletableDeferred(it) }
-        versionAlignmentMeasurements[key]?.let { return it }
-        val deferred = scope.async(Dispatchers.Main) {
-            try {
-                val sourceUri = Uri.parse(sourceSong.localUri ?: AutomixAnalysisSource.opusUri(sourceId))
-                val targetUri = Uri.parse(targetSong.localUri ?: AutomixAnalysisSource.opusUri(targetId))
-                withContext(Dispatchers.IO) {
-                    val sourceHead = async {
-                        sourceSong.localUri != null ||
-                            AudioCache.awaitAnalysisHead(sourceUri, ALIGNMENT_HEAD_TIMEOUT_MS)
-                    }
-                    val targetHead = async {
-                        targetSong.localUri != null ||
-                            AudioCache.awaitAnalysisHead(targetUri, ALIGNMENT_HEAD_TIMEOUT_MS)
-                    }
-                    val sourceReady = sourceHead.await()
-                    val targetReady = targetHead.await()
-                    if (!sourceReady || !targetReady) {
-                        TrackLog.w(
-                            "nuvx",
-                            "version alignment head short on disk (source=$sourceReady, " +
-                                "target=$targetReady) for '${sourceSong.title}'",
-                            sourceId,
-                        )
-                    }
-                }
-                withTimeoutOrNull(ALIGNMENT_MEASURE_TIMEOUT_MS) {
-                    VersionAudioAligner.findOffsetMs(
-                        context = this@PlaybackService,
-                        sourceSong = sourceSong,
-                        targetSong = targetSong,
-                    )
-                }
-            } finally {
-                versionAlignmentMeasurements.remove(key)
-            }
-        }
-        versionAlignmentMeasurements[key] = deferred
-        return deferred
-    }
-
-    private suspend fun prepareVersionAlignment(
-        sourceSong: Song,
-        targetSong: Song,
-        currentPosMs: Long,
-    ): Long {
-        val sourceId = sourceSong.videoId
-        val targetId = targetSong.videoId
-
-        VersionAudioAligner.getCachedOffsetMs(sourceId, targetId)?.let { cached ->
-            val cachedToken = VersionAudioAligner.beginAttempt(sourceId, targetId)
-            VersionAudioAligner.publishPhase(
-                cachedToken,
-                VersionAudioAligner.CutPhase.ALIGNED,
-                cached,
-                fromCache = true,
-            )
-            return cached
-        }
-
-        val token = VersionAudioAligner.beginAttempt(sourceId, targetId)
-        try {
-            VersionAudioAligner.publishPhase(token, VersionAudioAligner.CutPhase.FETCHING)
-            val deferred = measureVersionAlignmentAsync(sourceSong, targetSong)
-            VersionAudioAligner.publishPhase(token, VersionAudioAligner.CutPhase.MEASURING)
-            val measured = deferred.await()
-            if (measured == null) {
-                TrackLog.w(
-                    "nuvx",
-                    "version alignment found nothing to measure for '${sourceSong.title}'; switching with no shift",
-                    sourceId,
-                )
-                VersionAudioAligner.publishPhase(token, VersionAudioAligner.CutPhase.FAILED)
-                return 0L
-            }
-            VersionAudioAligner.publishPhase(token, VersionAudioAligner.CutPhase.ALIGNED, measured)
-            return measured
-        } catch (e: CancellationException) {
-            VersionAudioAligner.publishPhase(token, VersionAudioAligner.CutPhase.FAILED)
-            throw e
         }
     }
 
