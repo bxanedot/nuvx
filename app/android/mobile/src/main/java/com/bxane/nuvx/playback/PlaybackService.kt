@@ -9,8 +9,6 @@ import android.widget.Toast
 import android.os.Bundle
 import android.os.Handler
 import android.os.SystemClock
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -69,8 +67,6 @@ import com.bxane.nuvx.playback.audio.bitperfect.DacVolume
 import com.bxane.nuvx.playback.audio.bitperfect.usb.UsbDirectDevices
 import com.bxane.nuvx.MainActivity
 import com.bxane.nuvx.data.listentogether.ListenTogether
-import com.bxane.nuvx.data.listentogether.partyQueueIndexOf
-import com.bxane.nuvx.data.listentogether.partyUpcomingAfter
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.LocalMediaRepository
 import com.bxane.nuvx.data.OfflinePlaylists
@@ -118,7 +114,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -128,7 +123,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -250,17 +244,23 @@ class PlaybackService : MediaLibraryService() {
         cacheSong = { songCache[it.videoId] = it },
     )
 
-    private val boundedQueue = BoundedQueueController(
+    private val boundedQueue: BoundedQueueController = BoundedQueueController(
         scope = scope,
         player = { player },
         isTransitioning = { crossfade?.isTransitioning() == true },
         isCasting = { CastController.state.value.casting || castPlayback.active },
         refreshLayouts = { refreshCustomLayouts() },
         onContextStarted = {
-            repeatAllStash = emptyList()
-            repeatAllStashSeed = null
+            autoplay.clearRepeatAllStash()
         },
         onRestoring = { persistedQueueStart = 0 },
+    )
+
+    private val autoplay: PlaybackAutoplayController = PlaybackAutoplayController(
+        scope = scope,
+        player = { player },
+        boundedQueueActive = { boundedQueue.active },
+        autoplayEligible = { exoPlayer -> boundedQueue.autoplayEligible(exoPlayer) },
     )
 
     private val streamResolution: StreamResolutionController = StreamResolutionController(
@@ -349,19 +349,11 @@ class PlaybackService : MediaLibraryService() {
 
     private var favoriteActionJob: Job? = null
     private var stationActionJob: Job? = null
-    private var autoplayLoadJob: Job? = null
     private var preferredPrefetchRequest: List<String>? = null
-    private var autoplaySeed: String? = null
 
     private var persistedQueueStart = 0
 
-    private var repeatAllStash: List<MediaItem> = emptyList()
-
-    private var repeatAllStashSeed: String? = null
-
     private var lastRepeatMode = Player.REPEAT_MODE_OFF
-
-    private val sessionSongHistory = mutableListOf<Song>()
 
     private val lyricsController = PlaybackLyricsController(
         context = { this@PlaybackService },
@@ -457,10 +449,7 @@ class PlaybackService : MediaLibraryService() {
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                 partySync?.onLocalIntent()
             }
-            autoplayLoadJob?.cancel()
-            autoplayLoadJob = null
-            autoplaySeed = null
-            loadAutoplayForCurrentTrack()
+            autoplay.resetAndLoadForCurrentTrack()
             loadLyricsForCurrentTrack()
             if (exoPlayer.isPlaying) startLyricsTicker()
             refreshCustomLayouts()
@@ -478,7 +467,7 @@ class PlaybackService : MediaLibraryService() {
                 PlaybackTracker.onPlaybackFinished(lastPositionSeconds)
                 lastPositionSeconds = 0
                 listenBrainz.onPlaybackEnded(exoPlayer)
-                refreshAutoplayIfQueueEmpty()
+                autoplay.refreshIfQueueEmpty()
             }
         }
 
@@ -490,12 +479,12 @@ class PlaybackService : MediaLibraryService() {
             player?.let { activeLoudness().nextMediaId = nextMediaIdOf(it) }
             when {
                 repeatMode == Player.REPEAT_MODE_ALL -> {
-                    stashAutoplayTracks()
+                    autoplay.stashAutoplayTracks()
                     if (boundedQueue.active) boundedQueue.scheduleTopUp()
                 }
-                previous == Player.REPEAT_MODE_ALL -> restoreAutoplayTracks()
+                previous == Player.REPEAT_MODE_ALL -> autoplay.restoreAutoplayTracks()
             }
-            loadAutoplayForCurrentTrack()
+            autoplay.loadForCurrentTrack()
         }
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
@@ -507,7 +496,7 @@ class PlaybackService : MediaLibraryService() {
                 speakers.onLocalQueueChanged()
                 saveQueueSnapshot(exoPlayer)
                 refreshCustomLayouts()
-                refreshAutoplayIfQueueEmpty()
+                autoplay.refreshIfQueueEmpty()
             }
         }
     }
@@ -673,10 +662,7 @@ class PlaybackService : MediaLibraryService() {
                 .distinctUntilChanged()
                 .collectLatest { (code, enabled, supplierId) ->
                     if (code != null && enabled && supplierId == ListenTogether.state.value.you?.memberId) {
-                        autoplayLoadJob?.cancel()
-                        autoplayLoadJob = null
-                        autoplaySeed = null
-                        loadAutoplayForCurrentTrack()
+                        autoplay.resetAndLoadForCurrentTrack()
                     }
                 }
         }
@@ -690,7 +676,7 @@ class PlaybackService : MediaLibraryService() {
                     wasInParty = inParty
                 }
         }
-        loadAutoplayForCurrentTrack()
+        autoplay.loadForCurrentTrack()
 
         exoPlayer.addAnalyticsListener(formatListener)
 
@@ -1363,221 +1349,11 @@ class PlaybackService : MediaLibraryService() {
             return
         }
         if (enabled) {
-            autoplayLoadJob?.cancel()
-            autoplayLoadJob = null
-            autoplaySeed = null
-            loadAutoplayForCurrentTrack()
+            autoplay.resetAndLoadForCurrentTrack()
         } else {
-            autoplayLoadJob?.cancel()
-            autoplayLoadJob = null
-            autoplaySeed = null
-            dropAutoplayTracksFromQueue()
-            repeatAllStash = emptyList()
-            repeatAllStashSeed = null
+            autoplay.disableAutoplay()
         }
         refreshCustomLayouts()
-    }
-
-    private fun loadAutoplayForCurrentTrack() {
-        val exoPlayer = player ?: return
-        val party = ListenTogether.state.value
-        if (!autoplayEnabled(party) ||
-            exoPlayer.repeatMode == Player.REPEAT_MODE_ALL ||
-            (party.inParty && autoplaySupplierId(party) != party.you?.memberId)
-        ) {
-            return
-        }
-        if (boundedQueue.active && !boundedQueue.autoplayEligible(exoPlayer)) {
-            return
-        }
-        val current = exoPlayer.currentMediaItem?.toSong() ?: return
-        if (isLiveRadio(current.videoId)) return
-        if (AppSettings.dontRepeatSuggestions.value) sessionSongHistory += current
-        val queuedAutoplay = partyAutoplayWaiting(party, current.videoId)
-            ?: (exoPlayer.currentMediaItemIndex + 1 until exoPlayer.mediaItemCount)
-                .count { exoPlayer.getMediaItemAt(it).fromAutoplay }
-        val needed = MAX_QUEUED_AUTOPLAY - queuedAutoplay
-        if (needed <= 0) return
-        if (autoplaySeed == current.videoId) return
-        autoplaySeed = current.videoId
-        autoplayLoadJob = scope.launch {
-            var remaining = needed
-            var emptyRefreshesRemaining = MAX_AUTOPLAY_EMPTY_REFRESHES
-            var seedBack = 0
-            while (isActive) {
-                val activePlayer = player ?: return@launch
-                val activeParty = ListenTogether.state.value
-                if (!autoplayEnabled(activeParty) ||
-                    activePlayer.repeatMode == Player.REPEAT_MODE_ALL ||
-                    activePlayer.currentMediaItem?.mediaId != current.videoId ||
-                    (activeParty.inParty && autoplaySupplierId(activeParty) != activeParty.you?.memberId)
-                ) {
-                    return@launch
-                }
-                val queueSongs = (0 until activePlayer.mediaItemCount)
-                    .map { activePlayer.getMediaItemAt(it).toSong() } +
-                    activeParty.queue.items.takeIf { activeParty.inParty }.orEmpty().map { it.toSong() }
-                val existing = if (AppSettings.dontRepeatSuggestions.value) {
-                    queueSongs + sessionSongHistory
-                } else {
-                    queueSongs
-                }
-                val seedSong = if (seedBack == 0) {
-                    current
-                } else {
-                    val at = activePlayer.currentMediaItemIndex - seedBack
-                    if (at >= 0) activePlayer.getMediaItemAt(at).toSong() else current
-                }
-                val result = loadAutoplayTracks(existing, seedSong, remaining)
-                val resolved = result.getOrElse {
-                    TrackLog.w(
-                        "nuvx",
-                        "notification autoplay failed: ${it.message}",
-                        about = current.videoId,
-                    )
-                    emptyList()
-                }
-                val latestPlayer = player ?: return@launch
-                val latestParty = ListenTogether.state.value
-                if (!autoplayEnabled(latestParty) ||
-                    latestPlayer.repeatMode == Player.REPEAT_MODE_ALL ||
-                    latestPlayer.currentMediaItem?.mediaId != current.videoId ||
-                    (latestParty.inParty && autoplaySupplierId(latestParty) != latestParty.you?.memberId)
-                ) {
-                    return@launch
-                }
-                if (resolved.isNotEmpty()) {
-                    if (latestParty.inParty) {
-                        val landed = topUpPartyAutoplay(current.videoId, resolved)
-                        if (!landed) {
-                            TrackLog.w(
-                                "nuvx",
-                                "party did not take AutoPlay's tracks; releasing the seed to retry",
-                                about = current.videoId,
-                            )
-                            autoplaySeed = null
-                            return@launch
-                        }
-                    } else {
-                        val queuedNow = (0 until latestPlayer.mediaItemCount)
-                            .map { latestPlayer.getMediaItemAt(it).toSong() }
-                        val room = MAX_QUEUED_AUTOPLAY -
-                            (latestPlayer.currentMediaItemIndex + 1 until latestPlayer.mediaItemCount)
-                                .count { latestPlayer.getMediaItemAt(it).fromAutoplay }
-                        val fresh = resolved
-                            .filterNot { song -> queuedNow.any { QueueBuilder.isSameRecording(it, song) } }
-                            .take(room.coerceAtLeast(0))
-                        if (fresh.isNotEmpty()) latestPlayer.addMediaItems(fresh.map { it.toMediaItem() })
-                    }
-                    if (AppSettings.dontRepeatSuggestions.value) sessionSongHistory += resolved
-                    return@launch
-                }
-
-                val at = latestPlayer.currentMediaItemIndex
-                if (at < 0 || at != latestPlayer.mediaItemCount - 1) return@launch
-                if (emptyRefreshesRemaining-- > 0) {
-                    delay(AUTOPLAY_EMPTY_REFRESH_DELAY_MS)
-                } else {
-                    delay(AUTOPLAY_WATCHDOG_MS)
-                    while (isActive && player?.playWhenReady == false) delay(AUTOPLAY_WATCHDOG_MS)
-                    seedBack = if (at - (seedBack + 1) >= 0) seedBack + 1 else 0
-                }
-                remaining = MAX_QUEUED_AUTOPLAY
-            }
-        }
-    }
-
-    private fun partyAutoplayWaiting(party: ListenTogether.State, videoId: String): Int? {
-        if (!party.inParty) return null
-        if (partyQueueIndexOf(party.queue, party.playback, videoId) < 0) return null
-        return partyUpcomingAfter(party.queue, party.playback, videoId).count { it.fromAutoplay }
-    }
-
-    private val partyAutoplayLock = Mutex()
-
-    private suspend fun topUpPartyAutoplay(currentId: String, suggestions: List<Song>): Boolean =
-        partyAutoplayLock.withLock {
-            withContext(NonCancellable) {
-                val party = ListenTogether.state.value
-                val waiting = partyUpcomingAfter(party.queue, party.playback, currentId)
-                val waitingIds = waiting.mapTo(HashSet()) { it.videoId }
-                val room = MAX_QUEUED_AUTOPLAY - waiting.count { it.fromAutoplay }
-                val fresh = suggestions.filterNot { it.videoId in waitingIds }.take(room.coerceAtLeast(0))
-                if (fresh.isEmpty()) return@withContext true
-                ListenTogether.queueAdd(fresh.map { it.toPartyTrack(0L) })
-                val added = fresh.first().videoId
-                withTimeoutOrNull(PARTY_QUEUE_ECHO_TIMEOUT_MS) {
-                    ListenTogether.state.first { state -> state.queue.items.any { it.videoId == added } }
-                } != null
-            }
-        }
-
-    private var autoplayAheadSeen = 0
-
-    private fun refreshAutoplayIfQueueEmpty() {
-        val exoPlayer = player ?: return
-        val aheadNow = (exoPlayer.currentMediaItemIndex + 1 until exoPlayer.mediaItemCount)
-            .count { exoPlayer.getMediaItemAt(it).fromAutoplay }
-        val tailShrank = aheadNow < autoplayAheadSeen
-        autoplayAheadSeen = aheadNow
-        if (!autoplayQueueNeedsRefresh(
-                enabled = autoplayEnabled(ListenTogether.state.value),
-                repeatAll = exoPlayer.repeatMode == Player.REPEAT_MODE_ALL,
-                currentIndex = exoPlayer.currentMediaItemIndex,
-                itemCount = exoPlayer.mediaItemCount,
-                loadInProgress = autoplayLoadJob?.isActive == true,
-            ) && !(tailShrank && aheadNow < MAX_QUEUED_AUTOPLAY &&
-                autoplayEnabled(ListenTogether.state.value) &&
-                exoPlayer.repeatMode != Player.REPEAT_MODE_ALL &&
-                autoplayLoadJob?.isActive != true)
-        ) {
-            return
-        }
-        autoplayLoadJob = null
-        autoplaySeed = null
-        loadAutoplayForCurrentTrack()
-    }
-
-    private fun autoplayEnabled(party: ListenTogether.State): Boolean =
-        autoplayEnabledFor(party, AppSettings.autoplay.value)
-
-    private fun dropAutoplayTracksFromQueue(): List<MediaItem> {
-        val exoPlayer = player ?: return emptyList()
-        val dropped = mutableListOf<MediaItem>()
-        for (index in exoPlayer.mediaItemCount - 1 downTo exoPlayer.currentMediaItemIndex + 1) {
-            val item = exoPlayer.getMediaItemAt(index)
-            if (!item.fromAutoplay) continue
-            dropped += item
-            exoPlayer.removeMediaItem(index)
-        }
-        return dropped.reversed()
-    }
-
-    private fun stashAutoplayTracks() {
-        val exoPlayer = player ?: return
-        if (repeatAllStash.isNotEmpty()) return
-        val dropped = dropAutoplayTracksFromQueue()
-        if (dropped.isEmpty()) return
-        repeatAllStash = dropped
-        repeatAllStashSeed = exoPlayer.currentMediaItem?.mediaId
-    }
-
-    private fun restoreAutoplayTracks() {
-        val exoPlayer = player ?: return
-        val stashed = repeatAllStash
-        val seed = repeatAllStashSeed
-        repeatAllStash = emptyList()
-        repeatAllStashSeed = null
-        autoplayLoadJob?.cancel()
-        autoplayLoadJob = null
-        autoplaySeed = null
-        if (stashed.isEmpty() || !autoplayEnabled(ListenTogether.state.value)) return
-        if (exoPlayer.currentMediaItem?.mediaId != seed) return
-        val present = (0 until exoPlayer.mediaItemCount)
-            .mapTo(mutableSetOf()) { exoPlayer.getMediaItemAt(it).mediaId }
-        val restored = stashed.filter { it.mediaId !in present }
-        if (restored.isEmpty()) return
-        exoPlayer.addMediaItems(restored)
     }
 
     private fun toggleFavoriteFromNotification(videoId: String) {
@@ -1641,10 +1417,7 @@ class PlaybackService : MediaLibraryService() {
             alreadyAudible = true,
         )
 
-        autoplayLoadJob?.cancel()
-        autoplayLoadJob = null
-        autoplaySeed = null
-        loadAutoplayForCurrentTrack()
+        autoplay.resetAndLoadForCurrentTrack()
     }
 
     private fun setSessionOwner(target: ExoPlayer, owns: Boolean) {
@@ -1863,12 +1636,7 @@ class PlaybackService : MediaLibraryService() {
     private fun beginRadioQueue() {
         crossfade?.onSkipRequested()
         boundedQueue.clear()
-        autoplayLoadJob?.cancel()
-        autoplayLoadJob = null
-        autoplaySeed = null
-        repeatAllStash = emptyList()
-        repeatAllStashSeed = null
-        sessionSongHistory.clear()
+        autoplay.clearRadioQueueSession()
         persistedQueueStart = 0
         LastPlayed.clearImmediately()
     }
@@ -3343,13 +3111,6 @@ class PlaybackService : MediaLibraryService() {
 
         const val AUDITION_BUFFER_BYTES = 24 * 1024 * 1024
 
-        const val AUTOPLAY_EMPTY_REFRESH_DELAY_MS = 2_000L
-
-        const val MAX_AUTOPLAY_EMPTY_REFRESHES = 1
-
-        const val AUTOPLAY_WATCHDOG_MS = 15_000L
-
-        const val PARTY_QUEUE_ECHO_TIMEOUT_MS = 5_000L
     }
 }
 
