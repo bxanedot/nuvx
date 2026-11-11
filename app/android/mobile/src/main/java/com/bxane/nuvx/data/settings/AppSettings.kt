@@ -102,6 +102,7 @@ object AppSettings {
     )
     private val audioOutputSettings = AudioOutputSettingsController()
     private val equalizerSettings = EqualizerSettingsController()
+    private val transitionSettings = PlaybackTransitionSettingsController()
 
     val audioQualityWifi = audioQualitySettings.audioQualityWifi
     val audioQualityCellular = audioQualitySettings.audioQualityCellular
@@ -118,12 +119,12 @@ object AppSettings {
 
     val meteredConnection = MutableStateFlow<Boolean?>(null)
 
-    val crossfadeSeconds = MutableStateFlow(0)
+    val crossfadeSeconds = transitionSettings.crossfadeSeconds
 
-    val smartFadeEnabled = MutableStateFlow(false)
+    val smartFadeEnabled = transitionSettings.smartFadeEnabled
 
-    val automixPerformanceMode = MutableStateFlow(AutomixPerformanceMode.BALANCED)
-    val skipSilence = MutableStateFlow(false)
+    val automixPerformanceMode = transitionSettings.automixPerformanceMode
+    val skipSilence = transitionSettings.skipSilence
 
     val excorFallback = audioOutputSettings.excorFallback
 
@@ -398,6 +399,7 @@ object AppSettings {
         audioQualitySettings.initialize(prefs)
         audioOutputSettings.initialize(prefs)
         equalizerSettings.initialize(prefs)
+        transitionSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -420,14 +422,7 @@ object AppSettings {
     private fun readAll() {
         audioQualitySettings.read()
         downloadSettings.read()
-        crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
-        smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
-        automixPerformanceMode.value = runCatching {
-            AutomixPerformanceMode.valueOf(
-                prefs.getString(KEY_AUTOMIX_PERFORMANCE_MODE, null) ?: AutomixPerformanceMode.BALANCED.name,
-            )
-        }.getOrDefault(AutomixPerformanceMode.BALANCED)
-        skipSilence.value = prefs.getBoolean(KEY_SKIP_SILENCE, false)
+        transitionSettings.read()
         audioOutputSettings.read()
         equalizerSettings.read()
         playbackSpeed.value = prefs.getFloat(KEY_SPEED, 1.0f)
@@ -523,27 +518,15 @@ object AppSettings {
 
     fun setWifiOnlyDownloads(value: Boolean) = downloadSettings.setWifiOnlyDownloads(value)
 
-    fun setCrossfadeSeconds(value: Int) {
-        crossfadeSeconds.value = value
-        prefs.edit().putInt(KEY_CROSSFADE, value).apply()
-    }
+    fun setCrossfadeSeconds(value: Int) = transitionSettings.setCrossfadeSeconds(value)
 
-    fun setSmartFadeEnabled(value: Boolean) {
-        smartFadeEnabled.value = value
-        prefs.edit().putBoolean(KEY_SMART_FADE, value).apply()
-    }
+    fun setSmartFadeEnabled(value: Boolean) = transitionSettings.setSmartFadeEnabled(value)
 
-    fun setAutomixPerformanceMode(value: AutomixPerformanceMode) {
-        automixPerformanceMode.value = value
-        prefs.edit().putString(KEY_AUTOMIX_PERFORMANCE_MODE, value.name).apply()
-    }
+    fun setAutomixPerformanceMode(value: AutomixPerformanceMode) = transitionSettings.setAutomixPerformanceMode(value)
 
     fun setExcorFallback(value: Boolean) = audioOutputSettings.setExcorFallback(value)
 
-    fun setSkipSilence(value: Boolean) {
-        skipSilence.value = value
-        prefs.edit().putBoolean(KEY_SKIP_SILENCE, value).apply()
-    }
+    fun setSkipSilence(value: Boolean) = transitionSettings.setSkipSilence(value)
 
     fun setDolbyAtmos(value: Boolean) = audioOutputSettings.setDolbyAtmos(value)
 
@@ -998,10 +981,6 @@ object AppSettings {
 
     fun normalizeSignatureApiUrl(raw: String): String = playerPresentationSettings.normalizeSignatureApiUrl(raw)
 
-    private const val KEY_CROSSFADE = "crossfade_seconds"
-    private const val KEY_SMART_FADE = "smart_fade_enabled"
-    private const val KEY_AUTOMIX_PERFORMANCE_MODE = "automix_performance_mode"
-    private const val KEY_SKIP_SILENCE = "skip_silence"
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_APP_FONT = "app_font"
