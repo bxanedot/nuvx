@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +78,29 @@ data class BottomTab(
 
 private val TabBounce = SfSymbolEffect.Bounce(scope = SfEffectScope.ByLayer)
 
+@Composable
+internal fun TabSymbolIcon(
+    symbol: SfSymbol,
+    size: Dp = TAB_SYMBOL_SIZE,
+    tint: Color,
+    contentDescription: String?,
+    trigger: Pair<Int, Int> = 0 to 0,
+    effect: SfSymbolEffect? = null,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.size(TAB_ICON_SIZE), contentAlignment = Alignment.Center) {
+        SfSymbolIcon(
+            symbol = symbol,
+            size = size,
+            weight = SfWeight.Semibold,
+            tint = tint,
+            effect = effect,
+            trigger = trigger,
+            contentDescription = contentDescription,
+        )
+    }
+}
+
 internal val tabReselects = androidx.compose.runtime.mutableStateMapOf<String, Int>()
 
 internal fun reselect(tab: BottomTab) {
@@ -97,17 +121,14 @@ internal fun TabIcon(tab: BottomTab, selected: Boolean, tint: Color, modifier: M
         seen = selected
     }
     val again = tabReselects[tab.label] ?: 0
-    Box(modifier.size(TAB_ICON_SIZE), contentAlignment = Alignment.Center) {
-        SfSymbolIcon(
-            symbol = symbol,
-            size = TAB_SYMBOL_SIZE,
-            weight = SfWeight.Semibold,
-            tint = tint,
-            effect = TabBounce,
-            trigger = taps to again,
-            contentDescription = tab.label,
-        )
-    }
+    TabSymbolIcon(
+        symbol = symbol,
+        tint = tint,
+        contentDescription = tab.label,
+        trigger = taps to again,
+        effect = TabBounce,
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalHazeMaterialsApi::class)
