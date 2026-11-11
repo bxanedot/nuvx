@@ -87,6 +87,7 @@ object AppSettings {
     private lateinit var authStore: AuthStore
     private val discordSettings = DiscordSettingsController()
     private val scrobblingSettings = ScrobblingSettingsController()
+    private val librarySettings = LibrarySettingsController(MAX_PINNED_PLAYLISTS)
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
@@ -269,15 +270,15 @@ object AppSettings {
 
     val filterNonMusicAudio = MutableStateFlow(true)
 
-    val localMusicSort = MutableStateFlow(LocalMusicSort.TITLE_ASC)
-    val downloadedMusicSort = MutableStateFlow(LocalMusicSort.TITLE_ASC)
-    val localMusicViewType = MutableStateFlow(LibraryViewType.LIST)
-    val downloadedMusicViewType = MutableStateFlow(LibraryViewType.LIST)
-    val librarySort = MutableStateFlow(LibrarySort.DEFAULT)
+    val localMusicSort = librarySettings.localMusicSort
+    val downloadedMusicSort = librarySettings.downloadedMusicSort
+    val localMusicViewType = librarySettings.localMusicViewType
+    val downloadedMusicViewType = librarySettings.downloadedMusicViewType
+    val librarySort = librarySettings.librarySort
 
-    val detailSongSorts = MutableStateFlow<Map<String, SongSort>>(emptyMap())
+    val detailSongSorts = librarySettings.detailSongSorts
 
-    val localMusicFolderUri = MutableStateFlow("")
+    val localMusicFolderUri = librarySettings.localMusicFolderUri
 
     val webdavUrl = MutableStateFlow("")
     val webdavUsername = MutableStateFlow("")
@@ -289,7 +290,7 @@ object AppSettings {
     val smbUsername = MutableStateFlow("")
     val smbPassword = MutableStateFlow("")
 
-    val pinnedPlaylists = MutableStateFlow<List<String>>(emptyList())
+    val pinnedPlaylists = librarySettings.pinnedPlaylists
 
     const val MAX_PINNED_PLAYLISTS = 5
 
@@ -385,6 +386,7 @@ object AppSettings {
         )
         discordSettings.initialize(prefs, authStore)
         scrobblingSettings.initialize(prefs)
+        librarySettings.initialize(prefs)
         readAll()
         MeteredConnectionObserver.watch(context, meteredConnection)
     }
@@ -528,15 +530,7 @@ object AppSettings {
         spotifySpdcToken.value = prefs.getString(KEY_SPOTIFY_SPDC_TOKEN, "").orEmpty()
         replayGenres.value = prefs.getBoolean(KEY_REPLAY_GENRES, true)
         filterNonMusicAudio.value = prefs.getBoolean(KEY_FILTER_NON_MUSIC_AUDIO, true)
-        localMusicSort.value = readLocalMusicSort(KEY_LOCAL_MUSIC_SORT)
-        downloadedMusicSort.value = readLocalMusicSort(KEY_DOWNLOADED_MUSIC_SORT)
-        localMusicViewType.value = readLibraryViewType(KEY_LOCAL_MUSIC_VIEW_TYPE)
-        downloadedMusicViewType.value = readLibraryViewType(KEY_DOWNLOADED_MUSIC_VIEW_TYPE)
-        librarySort.value = prefs.getString(KEY_LIBRARY_SORT, null)
-            ?.let { saved -> LibrarySort.entries.firstOrNull { it.name == saved } }
-            ?: LibrarySort.DEFAULT
-        detailSongSorts.value = readDetailSongSorts()
-        localMusicFolderUri.value = prefs.getString(KEY_LOCAL_MUSIC_FOLDER_URI, "").orEmpty()
+        librarySettings.readPreferences()
         webdavUrl.value = prefs.getString(KEY_WEBDAV_URL, "").orEmpty()
         webdavUsername.value = prefs.getString(KEY_WEBDAV_USERNAME, "").orEmpty()
         webdavPassword.value = authStore.webdavPassword.orEmpty()
@@ -557,7 +551,7 @@ object AppSettings {
             webdavUsername.value,
             webdavPassword.value,
         )
-        pinnedPlaylists.value = readPinnedPlaylists()
+        librarySettings.readPinnedPlaylists()
         discordSettings.read()
     }
 
@@ -1213,43 +1207,19 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_FILTER_NON_MUSIC_AUDIO, value).apply()
     }
 
-    fun setLocalMusicSort(value: LocalMusicSort) {
-        localMusicSort.value = value
-        prefs.edit().putString(KEY_LOCAL_MUSIC_SORT, value.name).apply()
-    }
+    fun setLocalMusicSort(value: LocalMusicSort) = librarySettings.setLocalMusicSort(value)
 
-    fun setDownloadedMusicSort(value: LocalMusicSort) {
-        downloadedMusicSort.value = value
-        prefs.edit().putString(KEY_DOWNLOADED_MUSIC_SORT, value.name).apply()
-    }
+    fun setDownloadedMusicSort(value: LocalMusicSort) = librarySettings.setDownloadedMusicSort(value)
 
-    fun setLibrarySort(value: LibrarySort) {
-        librarySort.value = value
-        prefs.edit().putString(KEY_LIBRARY_SORT, value.name).apply()
-    }
+    fun setLibrarySort(value: LibrarySort) = librarySettings.setLibrarySort(value)
 
-    fun setDetailSongSort(browseId: String, value: SongSort) {
-        detailSongSorts.value = detailSongSorts.value + (browseId to value)
-        prefs.edit().putString(
-            KEY_DETAIL_SONG_SORTS,
-            detailSongSorts.value.entries.joinToString(",") { (id, sort) -> "$id=${sort.name}" },
-        ).apply()
-    }
+    fun setDetailSongSort(browseId: String, value: SongSort) = librarySettings.setDetailSongSort(browseId, value)
 
-    fun setLocalMusicViewType(value: LibraryViewType) {
-        localMusicViewType.value = value
-        prefs.edit().putString(KEY_LOCAL_MUSIC_VIEW_TYPE, value.name).apply()
-    }
+    fun setLocalMusicViewType(value: LibraryViewType) = librarySettings.setLocalMusicViewType(value)
 
-    fun setDownloadedMusicViewType(value: LibraryViewType) {
-        downloadedMusicViewType.value = value
-        prefs.edit().putString(KEY_DOWNLOADED_MUSIC_VIEW_TYPE, value.name).apply()
-    }
+    fun setDownloadedMusicViewType(value: LibraryViewType) = librarySettings.setDownloadedMusicViewType(value)
 
-    fun setLocalMusicFolderUri(value: String) {
-        localMusicFolderUri.value = value
-        prefs.edit().putString(KEY_LOCAL_MUSIC_FOLDER_URI, value).apply()
-    }
+    fun setLocalMusicFolderUri(value: String) = librarySettings.setLocalMusicFolderUri(value)
 
     fun setWebDavUrl(value: String) {
         val normalized = value.trim().trimEnd('/')
@@ -1339,43 +1309,7 @@ object AppSettings {
         )
     }
 
-    private fun readLocalMusicSort(key: String): LocalMusicSort =
-        prefs.getString(key, null)
-            ?.let { saved -> LocalMusicSort.entries.firstOrNull { it.name == saved } }
-            ?: LocalMusicSort.TITLE_ASC
-
-    private fun readLibraryViewType(key: String): LibraryViewType =
-        prefs.getString(key, null)
-            ?.let { saved -> LibraryViewType.entries.firstOrNull { it.name == saved } }
-            ?: LibraryViewType.LIST
-
-    fun togglePinnedPlaylist(browseId: String): Boolean {
-        val current = pinnedPlaylists.value
-        val updated = when {
-            browseId in current -> current - browseId
-            current.size >= MAX_PINNED_PLAYLISTS -> return false
-            else -> current + browseId
-        }
-        pinnedPlaylists.value = updated
-        prefs.edit().putString(KEY_PINNED_PLAYLISTS, updated.joinToString(",")).apply()
-        return browseId in updated
-    }
-
-    private fun readDetailSongSorts(): Map<String, SongSort> =
-        prefs.getString(KEY_DETAIL_SONG_SORTS, null)
-            ?.split(",")
-            ?.mapNotNull { entry ->
-                val id = entry.substringBefore('=', "")
-                val sort = SongSort.entries.firstOrNull { it.name == entry.substringAfter('=', "") }
-                if (id.isBlank() || sort == null) null else id to sort
-            }
-            ?.toMap()
-            ?: emptyMap()
-
-    private fun readPinnedPlaylists(): List<String> {
-        val stored = prefs.getString(KEY_PINNED_PLAYLISTS, null) ?: return emptyList()
-        return stored.split(",").filter { it.isNotBlank() }
-    }
+    fun togglePinnedPlaylist(browseId: String): Boolean = librarySettings.togglePinnedPlaylist(browseId)
 
     fun clearDiscordAccount() {
         setDiscordToken("")
@@ -1541,20 +1475,12 @@ object AppSettings {
     private const val KEY_REPLAY_GENRES = "replay_genres"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
     private const val KEY_SHOW_CACHE_FOLDER = "show_cache_folder"
-    private const val KEY_LOCAL_MUSIC_SORT = "local_music_sort"
-    private const val KEY_DOWNLOADED_MUSIC_SORT = "downloaded_music_sort"
-    private const val KEY_LIBRARY_SORT = "library_sort"
-    private const val KEY_DETAIL_SONG_SORTS = "detail_song_sorts"
-    private const val KEY_LOCAL_MUSIC_VIEW_TYPE = "local_music_view_type"
-    private const val KEY_DOWNLOADED_MUSIC_VIEW_TYPE = "downloaded_music_view_type"
-    private const val KEY_LOCAL_MUSIC_FOLDER_URI = "local_music_folder_uri"
     private const val KEY_WEBDAV_URL = "webdav_url"
     private const val KEY_WEBDAV_USERNAME = "webdav_username"
     private const val KEY_SMB_HOST = "smb_host"
     private const val KEY_SMB_SHARE = "smb_share"
     private const val KEY_SMB_BASE_PATH = "smb_base_path"
     private const val KEY_SMB_USERNAME = "smb_username"
-    private const val KEY_PINNED_PLAYLISTS = "pinned_playlists"
 
     private const val KEY_SPOTIFY_SPDC_TOKEN = "spotify_spdc_token"
 
