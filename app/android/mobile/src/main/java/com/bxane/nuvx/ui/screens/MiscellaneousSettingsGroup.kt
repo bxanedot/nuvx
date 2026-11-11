@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -36,13 +37,15 @@ import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.ui.components.IosSwitch
 import com.bxane.nuvx.ui.icons.SfIcons
+import com.composables.sfsymbols.SfSymbol
+
+internal fun hidePodcastsTabIcon(): ImageVector = SfSymbol.named("microphone")!!.toImageVector()
 
 @Composable
 internal fun MiscellaneousSettingsGroup(
     context: Context,
     search: SettingsSearch,
     classicSearch: Boolean,
-    youtubeSearch: Boolean,
     carMode: Boolean,
     hideRadioTab: Boolean,
     hidePodcastsTab: Boolean,
@@ -71,21 +74,6 @@ internal fun MiscellaneousSettingsGroup(
                     )
                 },
                 onClick = { AppSettings.setClassicSearch(!classicSearch) },
-            )
-        }
-        val youtubeSearchTitle = stringResource(R.string.enable_youtube_search)
-        row(youtubeSearchTitle, "search", "youtube", "videos") {
-            SettingsRow(
-                icon = SfIcons.Video,
-                title = youtubeSearchTitle,
-                subtitle = stringResource(R.string.enable_youtube_search_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = youtubeSearch,
-                        onCheckedChange = AppSettings::setYoutubeSearch,
-                    )
-                },
-                onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
             )
         }
         val carModeTitle = stringResource(R.string.car_mode)
@@ -121,7 +109,7 @@ internal fun MiscellaneousSettingsGroup(
         val hidePodcastsTabTitle = stringResource(R.string.hide_podcasts_tab)
         row(hidePodcastsTabTitle, "podcasts", "podcast", "episodes", "tab", "nav") {
             SettingsRow(
-                icon = SfIcons.Recognize,
+                icon = hidePodcastsTabIcon(),
                 title = hidePodcastsTabTitle,
                 subtitle = stringResource(R.string.hide_podcasts_tab_subtitle),
                 trailing = {

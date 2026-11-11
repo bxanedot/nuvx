@@ -535,6 +535,7 @@ fun SettingsScreen(
             ContentPreferenceSettingsGroup(
                 search = search,
                 preferMusicOnly = preferMusicOnly,
+                youtubeSearch = youtubeSearch,
                 hideRecents = hideRecents,
                 hideHomeVideos = hideHomeVideos,
                 hideTopPicks = hideTopPicks,
@@ -794,7 +795,6 @@ fun SettingsScreen(
             context = context,
             search = search,
             classicSearch = classicSearch,
-            youtubeSearch = youtubeSearch,
             carMode = carMode,
             hideRadioTab = hideRadioTab,
             hidePodcastsTab = hidePodcastsTab,
