@@ -75,7 +75,6 @@ import com.bxane.nuvx.data.lyrics.LyricLine
 import com.bxane.nuvx.data.model.NOTIFICATION_ART_PX
 import com.bxane.nuvx.data.model.SearchFilter
 import com.bxane.nuvx.data.model.SearchResult
-import com.bxane.nuvx.data.model.BrowseItem
 import com.bxane.nuvx.data.model.ShelfItem
 import com.bxane.nuvx.data.model.artworkAt
 import com.bxane.nuvx.data.model.QueueTier
@@ -174,8 +173,6 @@ internal const val RECOVERY_DELAY_MS = 350L
 class PlaybackService : MediaLibraryService() {
 
     private var mediaSession: MediaLibrarySession? = null
-    private val searchResults = ConcurrentHashMap<String, List<Song>>()
-    private val searchBrowseResults = ConcurrentHashMap<String, List<BrowseItem>>()
     private val songCache = ConcurrentHashMap<String, Song>()
 
     private var player: ExoPlayer? = null
@@ -2198,8 +2195,8 @@ class PlaybackService : MediaLibraryService() {
             query: String,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<Void>> = scope.future(Dispatchers.IO) {
-            val (songs, browses) = searchAll(query)
-            storeSearchResults(query, songs, browses)
+            val (songs, browses) = autoBrowse.searchAll(query)
+            autoBrowse.storeSearchResults(query, songs, browses)
             session.notifySearchResultChanged(browser, query, songs.size + browses.size, params)
             LibraryResult.ofVoid(params)
         }
@@ -2212,13 +2209,10 @@ class PlaybackService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = scope.future(Dispatchers.IO) {
-            val cachedSongs = searchResults[query]
-            val cachedBrowses = searchBrowseResults[query]
-            val (songs, browses) = if (cachedSongs != null || cachedBrowses != null) {
-                cachedSongs.orEmpty() to cachedBrowses.orEmpty()
-            } else {
-                searchAll(query).also { storeSearchResults(query, it.first, it.second) }
-            }
+            val (songs, browses) = autoBrowse.cachedSearchResults(query)
+                ?: autoBrowse.searchAll(query).also {
+                    autoBrowse.storeSearchResults(query, it.first, it.second)
+                }
             songs.forEach { songCache[it.videoId] = it }
             val items = songs.map { it.toMediaItem() } + browses.map(autoBrowse::browseItemToGridItem)
             LibraryResult.ofItemList(ImmutableList.copyOf(paginate(items, page, pageSize)), params)
@@ -2255,7 +2249,7 @@ class PlaybackService : MediaLibraryService() {
                 val searchQuery = item.requestMetadata.searchQuery
                 when {
                     !searchQuery.isNullOrBlank() -> {
-                        val cached = searchResults[searchQuery]
+                        val cached = autoBrowse.cachedSearchSongs(searchQuery)
                         val songs = if (!cached.isNullOrEmpty()) {
                             cached
                         } else {
@@ -2383,39 +2377,6 @@ class PlaybackService : MediaLibraryService() {
         return items.subList(from, to)
     }
 
-    private suspend fun searchAll(query: String): Pair<List<Song>, List<BrowseItem>> {
-        val safeQuery = query.trim().take(MAX_AUTO_SEARCH_QUERY_CHARS)
-        if (safeQuery.isEmpty()) return emptyList<Song>() to emptyList()
-        val results = try {
-            withTimeoutOrNull(3_500L) {
-                YtMusicRepository.search(safeQuery, SearchFilter.ALL).getOrNull()
-            } ?: emptyList()
-        } catch (_: Exception) {
-            emptyList()
-        }
-        val songs = results.mapNotNull {
-            when (it) {
-                is SearchResult.Track -> it.song
-                is SearchResult.TopTrack -> it.song
-                else -> null
-            }
-        }.distinctBy { it.videoId }
-        val browses = results.mapNotNull { (it as? SearchResult.Browse)?.item }
-            .distinctBy { it.browseId }
-        return songs to browses
-    }
-
-    private fun storeSearchResults(query: String, songs: List<Song>, browses: List<BrowseItem>) {
-        while (searchResults.size >= MAX_AUTO_SEARCH_CACHE_ENTRIES) {
-            val key = searchResults.keys.firstOrNull() ?: break
-            searchResults.remove(key)
-            searchBrowseResults.remove(key)
-        }
-        searchResults[query] = songs
-        searchBrowseResults[query] = browses
-        songs.forEach { songCache[it.videoId] = it }
-    }
-
     private fun ShelfItem.toMediaItemOrNull(): MediaItem? {
         val vid = videoId
         if (vid != null) {
@@ -2496,8 +2457,6 @@ class PlaybackService : MediaLibraryService() {
         const val MEDIA_DOWNLOADS_ID = "downloads"
         const val MEDIA_LOCAL_MUSIC_ID = "local_music"
         const val MAX_AUTO_PAGE_SIZE = 50
-        const val MAX_AUTO_SEARCH_QUERY_CHARS = 200
-        const val MAX_AUTO_SEARCH_CACHE_ENTRIES = 20
 
         val ROOT_CHILDREN: List<String> = listOf(
             MEDIA_QUICK_PICKS_ID,

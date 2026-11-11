@@ -15,6 +15,8 @@ import com.bxane.nuvx.data.model.BrowseItem
 import com.bxane.nuvx.data.model.NOTIFICATION_ART_PX
 import com.bxane.nuvx.data.model.ShelfItem
 import com.bxane.nuvx.data.model.Song
+import com.bxane.nuvx.data.model.SearchFilter
+import com.bxane.nuvx.data.model.SearchResult
 import com.bxane.nuvx.data.model.artworkAt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 
 private const val EXTRA_CONTENT_STYLE_SUPPORTED = "android.media.browse.extra.CONTENT_STYLE_SUPPORTED"
 private const val EXTRA_CONTENT_STYLE_SUPPORTED_AX = "androidx.media.contentstyle.CONTENT_STYLE_SUPPORTED"
@@ -33,12 +36,62 @@ private const val EXTRA_CONTENT_STYLE_BROWSABLE_HINT_LEGACY = "androidx.media.ut
 private const val EXTRA_CONTENT_STYLE_PLAYABLE_HINT_LEGACY = "androidx.media.utils.CONTENT_STYLE_PLAYABLE_HINT"
 internal const val CONTENT_STYLE_LIST_ITEM_HINT_VALUE = 1
 internal const val CONTENT_STYLE_GRID_ITEM_HINT_VALUE = 4
+private const val MAX_AUTO_SEARCH_QUERY_CHARS = 200
+private const val MAX_AUTO_SEARCH_CACHE_ENTRIES = 20
 
 @UnstableApi
 internal class AutoBrowseCatalog(
     private val scope: CoroutineScope,
     private val cacheSong: (Song) -> Unit,
 ) {
+    private val searchResults = ConcurrentHashMap<String, List<Song>>()
+    private val searchBrowseResults = ConcurrentHashMap<String, List<BrowseItem>>()
+
+    fun cachedSearchSongs(query: String): List<Song>? = searchResults[query]
+
+    fun cachedSearchResults(query: String): Pair<List<Song>, List<BrowseItem>>? {
+        val cachedSongs = searchResults[query]
+        val cachedBrowses = searchBrowseResults[query]
+        return if (cachedSongs != null || cachedBrowses != null) {
+            cachedSongs.orEmpty() to cachedBrowses.orEmpty()
+        } else {
+            null
+        }
+    }
+
+    suspend fun searchAll(query: String): Pair<List<Song>, List<BrowseItem>> {
+        val safeQuery = query.trim().take(MAX_AUTO_SEARCH_QUERY_CHARS)
+        if (safeQuery.isEmpty()) return emptyList<Song>() to emptyList()
+        val results = try {
+            withTimeoutOrNull(3_500L) {
+                YtMusicRepository.search(safeQuery, SearchFilter.ALL).getOrNull()
+            } ?: emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val songs = results.mapNotNull {
+            when (it) {
+                is SearchResult.Track -> it.song
+                is SearchResult.TopTrack -> it.song
+                else -> null
+            }
+        }.distinctBy { it.videoId }
+        val browses = results.mapNotNull { (it as? SearchResult.Browse)?.item }
+            .distinctBy { it.browseId }
+        return songs to browses
+    }
+
+    fun storeSearchResults(query: String, songs: List<Song>, browses: List<BrowseItem>) {
+        while (searchResults.size >= MAX_AUTO_SEARCH_CACHE_ENTRIES) {
+            val key = searchResults.keys.firstOrNull() ?: break
+            searchResults.remove(key)
+            searchBrowseResults.remove(key)
+        }
+        searchResults[query] = songs
+        searchBrowseResults[query] = browses
+        songs.forEach(cacheSong)
+    }
+
     private var cachedRecents: Pair<Long, List<Song>>? = null
     private val recentsMutex = Mutex()
     private val RECENTS_CACHE_TTL_MS = 30_000L
