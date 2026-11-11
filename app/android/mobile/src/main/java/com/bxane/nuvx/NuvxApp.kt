@@ -4563,7 +4563,7 @@ private const val TAB_EXPLORE = 3
 private const val TAB_SEARCH = 4
 private const val TAB_PODCASTS = 5
 
-private val PodcastsSymbol: SfSymbol by lazy { SfSymbol.named("microphone")!! }
+internal val PodcastsSymbol: SfSymbol by lazy { SfSymbol.named("microphone")!! }
 
 private var tabBeforeSearch by mutableIntStateOf(TAB_HOME)
 
