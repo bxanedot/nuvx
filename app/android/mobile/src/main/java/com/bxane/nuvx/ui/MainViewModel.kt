@@ -140,17 +140,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val history: StateFlow<UiState<List<Song>>> = libraryHistory.history
     val library: StateFlow<UiState<LibraryPage>> = libraryHistory.library
 
-    private val _detailStack = MutableStateFlow<List<DetailPage>>(emptyList())
-    val detailStack: StateFlow<List<DetailPage>> = _detailStack.asStateFlow()
+    private val detailNavigationController = MainDetailNavigationController(
+        scope = viewModelScope,
+        localPageState = ::localPageState,
+        text = ::text,
+    )
+    val detailStack: StateFlow<List<DetailPage>> = detailNavigationController.detailStack
     private val detailInvalidationController = MainDetailInvalidationController(
         scope = viewModelScope,
-        detailStack = _detailStack,
-        reloadLocalDetail = ::reloadLocalDetail,
-        reloadRemoteDetail = ::reloadRemoteDetail,
+        detailStack = detailNavigationController.mutableDetailStack,
+        reloadLocalDetail = detailNavigationController::reloadLocal,
+        reloadRemoteDetail = detailNavigationController::reloadRemote,
     )
 
     val navigator = AppNavigator(
-        detailDepth = { _detailStack.value.size },
+        detailDepth = { detailNavigationController.detailStack.value.size },
         popDetail = ::closeDetail,
         clearDetails = ::clearDetail,
     )
@@ -193,7 +197,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         requireSignIn = ::requireSignIn,
         markLibraryStale = feedRefreshController::markLibraryStale,
         _library = libraryHistory.mutableLibrary,
-        _detailStack = _detailStack,
+        _detailStack = detailNavigationController.mutableDetailStack,
         _songMenu = songMenuController.mutableSongMenu,
     )
     val releaseLibrary: StateFlow<Map<String, LibraryState>> = collectionController.releaseLibrary
@@ -254,7 +258,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
         navigator = navigator,
         _library = libraryHistory.mutableLibrary,
-        _detailStack = _detailStack,
+        _detailStack = detailNavigationController.mutableDetailStack,
     )
     val playlists: StateFlow<List<UserPlaylist>> = playlistController.playlists
     val playlistsLoading: StateFlow<Boolean> = playlistController.playlistsLoading
@@ -286,20 +290,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val activeProfileId: StateFlow<String?> = accountController.activeProfileId
     private val detailContextController = MainDetailContextController(
         scope = viewModelScope,
-        _detailStack = _detailStack,
+        _detailStack = detailNavigationController.mutableDetailStack,
         localPageState = ::localPageState,
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
         text = ::text,
     )
     private val spotifyPageResolver = MainSpotifyPageResolver(
         scope = viewModelScope,
-        _detailStack = _detailStack,
+        _detailStack = detailNavigationController.mutableDetailStack,
         text = ::text,
     )
     private val detailPageResolver = MainDetailPageResolver(
         application = app,
         scope = viewModelScope,
-        _detailStack = _detailStack,
+        _detailStack = detailNavigationController.mutableDetailStack,
         browseTypeOf = { browseId, fallback -> browseTypeOf(browseId, fallback) },
         downloadedCopyOf = ::downloadedCopyOf,
         isRemoteLibrary = { browseId -> remoteLibrary(browseId) != null },
@@ -362,8 +366,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun closeMoodGenre(): Boolean = exploreFeed.closeMoodGenre()
 
     fun clearDetail() {
-        if (_detailStack.value.isNotEmpty()) _detailStack.value = emptyList()
-        navigator.onDetailStackShrunk(0)
+        detailNavigationController.clear(navigator)
     }
 
     fun loadHome() = homeFeed.loadHome()
@@ -459,12 +462,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun remoteSongsState(remote: RemoteLibrary): UiState<List<Song>> =
         com.bxane.nuvx.data.remote.RemoteListing.state(runCatching { remote.songs() }, text(remote.emptyRes))
 
-    private fun reloadRemoteDetail(browseId: String) {
-        if (_detailStack.value.any { page -> page.browseId == browseId }) {
-            reloadLocalDetail(browseId)
-        }
-    }
-
     fun openDetail(
         browseId: String,
         title: String,
@@ -473,33 +470,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         type: BrowseType = BrowseType.OTHER,
     ) = detailPageResolver.openDetail(browseId, title, subtitle, thumbnailUrl, type)
 
-    fun openLocalGroup(group: LocalGroup) {
-        if (_detailStack.value.lastOrNull()?.browseId == group.browseId) return
-        _detailStack.value += DetailPage(
-            browseId = group.browseId,
-            title = group.title,
-            subtitle = group.subtitle,
-            thumbnailUrl = group.thumbnailUrl,
-            songs = if (group.songs.isEmpty()) UiState.Error(text(R.string.no_tracks_here)) else UiState.Success(group.songs),
-            type = group.type,
-        )
-    }
+    fun openLocalGroup(group: LocalGroup) = detailNavigationController.openLocalGroup(group)
 
-    fun retitleDetail(browseId: String, title: String) {
-        if (title.isBlank()) return
-        _detailStack.value = _detailStack.value.map { if (it.browseId == browseId) it.copy(title = title) else it }
-    }
+    fun retitleDetail(browseId: String, title: String) = detailNavigationController.retitle(browseId, title)
 
-    fun reloadLocalDetail(browseId: String) {
-        viewModelScope.launch {
-            val state = localPageState(browseId) ?: return@launch
-            _detailStack.value = _detailStack.value.map {
-                if (it.browseId == browseId) {
-                    it.copy(songs = state)
-                } else it
-            }
-        }
-    }
+    fun reloadLocalDetail(browseId: String) = detailNavigationController.reloadLocal(browseId)
 
     private val localPageResolver = MainLocalPageResolver(
         application = getApplication(),
@@ -541,11 +516,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun collectCatalog(page: DetailPage, onResult: (List<Pair<ShelfItem, List<Song>>>) -> Unit) =
         catalogController.collectCatalog(page, onResult)
     fun closeDetail(): Boolean {
-        val stack = _detailStack.value
-        if (stack.isEmpty()) return false
-        _detailStack.value = stack.dropLast(1)
-        navigator.onDetailStackShrunk(_detailStack.value.size)
-        return true
+        return detailNavigationController.close(navigator)
     }
 
     fun loadChannels(force: Boolean = false) = accountController.loadChannels(force)
