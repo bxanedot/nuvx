@@ -66,16 +66,7 @@ object SourceResolver {
         trackId: String,
         sourceQuality: String?,
         request: StreamRequest = requestForDownload(),
-    ): SourceStream? {
-        val source = SourceRegistry.activeForDownload().firstOrNull { it.configId == configId } ?: return null
-        return attempt(source) {
-            if (source is AddonSource) {
-                source.stream(trackId, request, stereoOnly = mixOf(sourceQuality) == MIX_STEREO)
-            } else {
-                source.stream(trackId, request)
-            }
-        }?.copy(sourceConfigId = source.configId)
-    }
+    ): SourceStream? = SourceDownloadResolver.forDownloadOfRow(configId, trackId, sourceQuality, request)
 
     fun targetIn(uri: Uri) = TrackMatcher.Target(
         title = uri.getQueryParameter("n").orEmpty(),
@@ -255,118 +246,7 @@ object SourceResolver {
         request: StreamRequest = requestForDownload(),
         keep: suspend (SourceStream) -> SourceStream? = { it },
         budgetMs: Long? = null,
-    ): SourceStream? = coroutineScope {
-        val until = budgetMs?.let { System.nanoTime() + it * 1_000_000 }
-        if (target.title.isBlank()) return@coroutineScope null
-        val wantsLossless = when (request) {
-            is StreamRequest.Lossless -> true
-            is StreamRequest.Best -> false
-            is StreamRequest.Capped -> return@coroutineScope null
-        }
-        val active = SourceRegistry.activeForDownload()
-        val youtubeId = active.firstOrNull { it.kind == SourceKind.YOUTUBE }?.configId
-        val ranked = rankedAbove(youtubeId.orEmpty(), active)
-        val strictLength = target.durationSec != null
-
-        val bitExact = if (wantsLossless) ranked.filter { it.kind.canServeLossless } else emptyList()
-        val elsewhere = ranked - bitExact.toSet()
-
-        var losslessOverBudget: Pair<MusicSource, SourceStream>? = null
-        val elsewhereBest = async {
-            bestAcross(
-                elsewhere,
-                target,
-                StreamRequest.Best,
-                waitForAll = true,
-                strictLength = strictLength,
-                refine = { _, stream -> keep(stream) },
-                timeoutMs = budgetMs,
-            ) { source, stream ->
-                val ok = wantsLossless || stream.format.isLossless != true
-                if (!ok) {
-                    TrackLog.d(
-                        TAG,
-                        "${source.displayName} offered ${stream.format.summary}; " +
-                            "more than this download asked for, kept in reserve",
-                    )
-                    if (losslessOverBudget == null) losslessOverBudget = source to stream
-                }
-                ok
-            }
-        }
-
-        val bitExactRuns = bitExact.map { source ->
-            source to async {
-                matchAndStream(
-                    source,
-                    target,
-                    request,
-                    waitForAll = true,
-                    strictLength = strictLength,
-                )?.let { keep(it) }
-            }
-        }
-
-        var best: Pair<MusicSource, SourceStream>? = null
-        try {
-            for ((source, run) in bitExactRuns) {
-                val stream = when {
-                    run.isCompleted || until == null -> run.await()
-                    else -> withTimeoutOrNull(remainingMs(until)) { run.await() }.also {
-                        if (it == null && !run.isCompleted) {
-                            TrackLog.w(TAG, "${source.displayName} ran out of download lookup time")
-                        }
-                    }
-                } ?: continue
-                if (stream.format.isLossless == true || stream.format.isDolbyAtmos) {
-                    TrackLog.d(
-                        TAG,
-                        "download: '${target.title}' from ${source.displayName} at ${stream.format.summary}",
-                    )
-                    elsewhereBest.cancel()
-                    return@coroutineScope stream
-                }
-                TrackLog.d(
-                    TAG,
-                    "${source.displayName} offered ${stream.format.summary} to download; not lossless or Dolby",
-                )
-                if (isBetter(stream.format, best?.second?.format)) best = source to stream
-            }
-        } finally {
-            bitExactRuns.forEach { (_, run) -> run.cancel() }
-        }
-
-        elsewhereBest.await()?.let { (source, stream) ->
-            if (isBetter(stream.format, best?.second?.format)) best = source to stream
-        }
-        val lossy = best?.takeIf { beatsYouTubeAac(it.second.format) }
-        if (lossy == null) {
-            losslessOverBudget?.let { (source, stream) ->
-                TrackLog.d(
-                    TAG,
-                    "download: nothing lossy for '${target.title}' beats YouTube's AAC; " +
-                        "keeping ${source.displayName}'s ${stream.format.summary} instead",
-                )
-                return@coroutineScope stream
-            }
-        }
-        val (winner, chosen) = lossy ?: run {
-            best?.let { (source, stream) ->
-                TrackLog.d(
-                    TAG,
-                    "best offered for '${target.title}' is ${source.displayName}'s " +
-                        "${stream.format.summary}; taking YouTube's AAC over that",
-                )
-            }
-            return@coroutineScope null
-        }
-        TrackLog.d(
-            TAG,
-            "download: '${target.title}' from ${winner.displayName} at ${chosen.format.summary}, " +
-                "over YouTube's AAC",
-        )
-        chosen
-    }
+    ): SourceStream? = SourceDownloadResolver.forDownload(target, request, keep, budgetMs)
 
     internal fun beatsYouTubeAac(candidate: StreamFormat): Boolean =
         (candidate.kbps ?: 0) > YOUTUBE_BEST_AAC_KBPS
@@ -388,7 +268,7 @@ object SourceResolver {
     fun canSubstituteForYouTube(): Boolean =
         SourceRegistry.activeForPlayback().indexOfFirst { it.kind == SourceKind.YOUTUBE } > 0
 
-    private fun rankedAbove(configId: String, active: List<MusicSource>): List<MusicSource> =
+    internal fun rankedAbove(configId: String, active: List<MusicSource>): List<MusicSource> =
         active.indexOfFirst { it.configId == configId }
             .let { if (it < 0) active.size else it }
             .let { active.take(it) }
@@ -458,7 +338,7 @@ object SourceResolver {
         best
     }
 
-    private suspend fun matchAndStream(
+    internal suspend fun matchAndStream(
         source: MusicSource,
         target: TrackMatcher.Target,
         request: StreamRequest,
@@ -642,10 +522,10 @@ object SourceResolver {
     private val StreamFormat.statesNothingLossy: Boolean
         get() = isLossless == null && kbps == null
 
-    private fun remainingMs(until: Long): Long =
+    internal fun remainingMs(until: Long): Long =
         ((until - System.nanoTime()) / 1_000_000).coerceAtLeast(0)
 
-    private suspend fun <T> attempt(source: MusicSource, block: suspend () -> T): T? = try {
+    internal suspend fun <T> attempt(source: MusicSource, block: suspend () -> T): T? = try {
         block()
     } catch (e: CancellationException) {
         throw e
