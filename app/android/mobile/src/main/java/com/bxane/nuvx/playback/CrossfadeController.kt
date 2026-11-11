@@ -10,7 +10,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.bxane.nuvx.data.listentogether.ListenTogether
 import com.bxane.nuvx.data.settings.AppSettings
-import com.bxane.nuvx.data.settings.MixBlend
 import com.bxane.nuvx.data.settings.SmartAnalysis
 import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput
 import com.bxane.nuvx.data.settings.TrackAnalysisState
@@ -164,6 +163,8 @@ class CrossfadeController(
         incomingAnalysis = { incomingAnalysis },
         positionMs = { positionMs(it) },
     )
+
+    private val blendPublisher = CrossfadeBlendPublisher(phaseLock)
 
     private val speedController = CrossfadeSpeedController(
         scope = scope,
@@ -812,32 +813,15 @@ class CrossfadeController(
     }
 
     private fun publishBlend(out: ExoPlayer, into: ExoPlayer, force: Boolean = false) {
-        if (!smartFadeActive) return
-        val session = if (handedOff) into else out
-        val playing = session.isPlaying
-        val last = AppSettings.smartMixBlend.value
-        if (!force && last != null && !playing && !last.playing) return
-
-        val sides = if (handedOff) {
-            listOf(incomingAnalysis to into, outgoingAnalysis to out)
-        } else {
-            listOf(outgoingAnalysis to out, incomingAnalysis to into)
-        }
-        var beatMs = 0f
-        var anchor = 0L
-        for ((analysis, player) in sides) {
-            if (!phaseLock.beatAt(analysis, positionMs(player) / 1000.0)) continue
-            val rate = player.playbackParameters.speed.toDouble().takeIf { it > 0.0 } ?: 1.0
-            val sinceBeat = phaseLock.beatOffsetSeconds
-            beatMs = (phaseLock.beatIntervalSeconds * 1000.0 / rate).toFloat()
-            anchor = System.nanoTime() - (sinceBeat / rate * 1e9).toLong()
-            break
-        }
-        if (!force && last != null && last.playing == playing && CrossfadeGeometry.sameGrid(last, beatMs, anchor)) return
-        AppSettings.smartMixBlend.value = MixBlend(
-            beatMs = beatMs,
-            beatAnchorNanos = anchor,
-            playing = playing,
+        blendPublisher.publish(
+            out = out,
+            into = into,
+            smartFadeActive = smartFadeActive,
+            handedOff = handedOff,
+            outgoingAnalysis = outgoingAnalysis,
+            incomingAnalysis = incomingAnalysis,
+            positionMs = ::positionMs,
+            force = force,
         )
     }
 
