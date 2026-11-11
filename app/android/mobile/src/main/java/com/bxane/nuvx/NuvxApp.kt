@@ -97,7 +97,6 @@ import com.bxane.nuvx.data.AppUpdateChecker
 import com.bxane.nuvx.data.LocalMediaRepository
 import com.bxane.nuvx.data.listentogether.JamInviteLink
 import com.bxane.nuvx.data.listentogether.ListenTogether
-import com.bxane.nuvx.data.listentogether.partyQueueIndexOf
 import com.bxane.nuvx.data.NerdStats
 import com.bxane.nuvx.data.TrackLog
 import com.bxane.nuvx.data.innertube.InnertubeParser
@@ -109,7 +108,6 @@ import com.bxane.nuvx.data.model.SearchResult
 import com.bxane.nuvx.data.model.ShelfItem
 import com.bxane.nuvx.data.model.DetailPage
 import com.bxane.nuvx.data.model.Song
-import com.bxane.nuvx.data.model.isUnresolvedSpotify
 import com.bxane.nuvx.data.model.UiState
 import com.bxane.nuvx.data.model.withoutVideos
 import com.bxane.nuvx.data.model.UserPlaylist
@@ -172,8 +170,6 @@ import com.bxane.nuvx.playback.fromAutoplay
 import com.bxane.nuvx.playback.hasYouTubeOriginal
 import com.bxane.nuvx.playback.loadAutoplayTracks
 import com.bxane.nuvx.playback.playSongs
-import com.bxane.nuvx.playback.BoundedQueuePlanner
-import com.bxane.nuvx.playback.playBoundedContext
 import com.bxane.nuvx.playback.contextEntryKey
 import com.bxane.nuvx.playback.toMediaItem
 import com.bxane.nuvx.playback.toSong
@@ -208,6 +204,7 @@ import com.bxane.nuvx.playback.rememberPlayerState
 import com.bxane.nuvx.playback.setQueueDragActive
 import com.bxane.nuvx.ui.MainViewModel
 import com.bxane.nuvx.ui.MainBrowseOpener
+import com.bxane.nuvx.ui.MainPlaybackStarter
 import com.bxane.nuvx.ui.SearchSource
 import com.bxane.nuvx.ui.components.BottomFadeScrim
 import com.bxane.nuvx.ui.components.TopFadeBlur
@@ -880,6 +877,16 @@ internal fun NuvxApp(
     val navTabs = remember(tabs, navTabIds) { navTabIds.map { tabs[it] } }
 
     val scope = rememberCoroutineScope()
+    val playbackStarter = MainPlaybackStarter(
+        scope = scope,
+        controller = { controller },
+        currentQueue = { player.queue },
+        refusedByHost = refusedByHost,
+        onRequestStart = {
+            playRequestGeneration++
+            activeRadioSeed = null
+        },
+    )
 
     fun uploadToWebDav(songs: List<Song>) {
         scope.launch {
@@ -926,52 +933,7 @@ internal fun NuvxApp(
         source: QueueSource,
         boundedContext: Boolean = false,
         continuationToken: String? = null,
-    ) {
-        if (allSongs.getOrNull(allIndex)?.isUnresolvedSpotify == true) return
-        val songs = allSongs.filterNot { it.isUnresolvedSpotify }
-        val index = songs.indexOf(allSongs.getOrNull(allIndex)).coerceAtLeast(0)
-        playRequestGeneration++
-        activeRadioSeed = null
-        scope.launch {
-            if (refusedByHost()) return@launch
-            val c = controller ?: return@launch
-            val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
-                ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
-            val currentIndex = c.currentMediaItemIndex
-
-            if (ListenTogether.state.value.inParty) {
-                val selectedSong = songs.getOrNull(index) ?: return@launch
-                val party = ListenTogether.state.value
-                val partyQueue = party.queue.items
-                val partyIndex = partyQueueIndexOf(party.queue, party.playback, party.playback.track?.videoId)
-                val upcomingPartyTracks = if (partyIndex >= 0) {
-                    partyQueue.drop(partyIndex + 1)
-                } else {
-                    emptyList()
-                }
-                val timeline = QueueCoordinator.buildPartyPlaybackQueue(
-                    tappedSong = selectedSong,
-                    source = source,
-                    upcomingPartyTracks = upcomingPartyTracks,
-                )
-                c.playSongs(timeline, 0)
-            } else {
-                val bounded = boundedContext || songs.size > BoundedQueuePlanner.MAX_PHYSICAL_CONTEXT
-                if (bounded && !CastController.state.value.casting) {
-                    c.playBoundedContext(songs, index, source, continuationToken)
-                } else {
-                    val result = QueueCoordinator.buildContextQueue(
-                        currentTimeline = currentTimeline,
-                        currentIndex = currentIndex,
-                        newContextSongs = songs,
-                        selectedIndex = index,
-                        contextSource = source,
-                    )
-                    c.playSongs(result.timeline, result.startIndex)
-                }
-            }
-        }
-    }
+    ) = playbackStarter.playFrom(allSongs, allIndex, source, boundedContext, continuationToken)
     val play: (List<Song>, Int) -> Unit = { songs, index ->
         val first = songs.getOrNull(index)
         val source = QueueSource(
@@ -1014,24 +976,7 @@ internal fun NuvxApp(
         }
     }
 
-    val playRadio: (Song, QueueSource) -> Unit = { song, source ->
-        playRequestGeneration++
-        activeRadioSeed = null
-        scope.launch {
-            if (refusedByHost()) return@launch
-            val c = controller ?: return@launch
-            val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
-                ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
-            val currentIndex = c.currentMediaItemIndex
-            val oneOffQueue = QueueCoordinator.buildOneOffQueue(
-                currentTimeline = currentTimeline,
-                currentIndex = currentIndex,
-                tappedSong = song,
-                source = source,
-            )
-            c.playSongs(oneOffQueue, 0)
-        }
-    }
+    val playRadio: (Song, QueueSource) -> Unit = playbackStarter::playRadio
 
     val startRadio: (Song) -> Unit = { song ->
         val originalController = controller
