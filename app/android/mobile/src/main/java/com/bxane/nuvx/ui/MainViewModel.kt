@@ -17,12 +17,7 @@ import com.bxane.nuvx.data.LikeState
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.model.TopPick
 import kotlinx.coroutines.flow.first
-import com.bxane.nuvx.data.model.SPOTIFY_MISSING_PREFIX
-import com.bxane.nuvx.data.model.SPOTIFY_PENDING_PREFIX
 import com.bxane.nuvx.data.spotify.SPOTIFY_PAGE_PREFIX
-import com.bxane.nuvx.data.spotify.SpotifyImporter
-import com.bxane.nuvx.data.spotify.SpotifyLibrary
-import com.bxane.nuvx.data.spotify.SpotifyTrack
 import com.bxane.nuvx.data.lyrics.LyricLine
 import com.bxane.nuvx.data.lyrics.LyricsSource
 import com.bxane.nuvx.data.settings.AppSettings
@@ -56,9 +51,6 @@ import com.bxane.nuvx.data.model.SearchHistoryEntity
 import com.bxane.nuvx.data.settings.SearchHistory
 import com.bxane.nuvx.download.Downloads
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,8 +61,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import com.bxane.nuvx.playback.AudioCache
 import com.bxane.nuvx.playback.BoundedContextRequests
 import com.bxane.nuvx.ui.screens.CACHE_FOLDER_BROWSE_ID
@@ -339,6 +329,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
         text = ::text,
     )
+    private val spotifyPageResolver = MainSpotifyPageResolver(
+        scope = viewModelScope,
+        _detailStack = _detailStack,
+        text = ::text,
+    )
 
     private fun requireSignIn(): Boolean = _signedIn.value
 
@@ -519,8 +514,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun loadMoreSearchResults() = search.loadMoreSearchResults()
 
     companion object {
-        private const val SPOTIFY_MATCH_PARALLELISM = 6
-
         const val SUGGEST_DEBOUNCE_MS = 180L
 
         const val TYPEAHEAD_MEDIA_DEBOUNCE_MS = 350L
@@ -589,7 +582,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } == true
         ) return
         if (browseId.startsWith(SPOTIFY_PAGE_PREFIX)) {
-            openSpotifyPage(browseId, title, subtitle, thumbnailUrl)
+            spotifyPageResolver.openPage(browseId, title, subtitle, thumbnailUrl)
             return
         }
         val resolved = browseTypeOf(browseId, type)
@@ -716,76 +709,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             more?.let { detailContextController.fillIn(browseId, it, thumbnailUrl ?: artwork) }
         }
     }
-
-    private fun openSpotifyPage(browseId: String, title: String, subtitle: String, thumbnailUrl: String?) {
-        _detailStack.value += DetailPage(
-            browseId = browseId,
-            title = title,
-            subtitle = subtitle,
-            thumbnailUrl = thumbnailUrl,
-            songs = UiState.Loading,
-            type = BrowseType.PLAYLIST,
-        )
-        viewModelScope.launch {
-            val playlistId = browseId.removePrefix(SPOTIFY_PAGE_PREFIX)
-            fun open() = _detailStack.value.any { it.browseId == browseId }
-            fun setSongs(songs: UiState<List<Song>>) {
-                _detailStack.value = _detailStack.value.map {
-                    if (it.browseId == browseId) it.copy(songs = songs) else it
-                }
-            }
-            launch {
-                val cover = runCatching { SpotifyLibrary.cover(playlistId) }.getOrNull() ?: return@launch
-                _detailStack.value = _detailStack.value.map {
-                    if (it.browseId == browseId) it.copy(thumbnailUrl = cover) else it
-                }
-            }
-            val tracks = runCatching {
-                SpotifyLibrary.tracks(playlistId) { soFar ->
-                    setSongs(UiState.Success(soFar.map { it.asPendingSong() }))
-                }
-            }.getOrElse {
-                setSongs(UiState.Error(it.message ?: text(R.string.failed)))
-                return@launch
-            }
-            if (tracks.isEmpty()) {
-                setSongs(UiState.Error(text(R.string.spotify_empty_tracks)))
-                return@launch
-            }
-            val gate = Semaphore(SPOTIFY_MATCH_PARALLELISM)
-            coroutineScope {
-                tracks.forEachIndexed { index, track ->
-                    launch {
-                        gate.withPermit {
-                            if (!open()) return@withPermit
-                            val match = runCatching { SpotifyImporter.matchTrack(track) }.getOrNull()
-                            val found = match?.copy(thumbnailUrl = match.thumbnailUrl ?: track.imageUrl)
-                                ?: track.asPendingSong().let {
-                                    it.copy(videoId = SPOTIFY_MISSING_PREFIX + track.id)
-                                }
-                            _detailStack.value = _detailStack.value.map { page ->
-                                val list = (page.songs as? UiState.Success<List<Song>>)?.data
-                                if (page.browseId == browseId && list != null && index < list.size) {
-                                    page.copy(songs = UiState.Success(list.toMutableList().also { it[index] = found }))
-                                } else page
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun SpotifyTrack.asPendingSong() = Song(
-        videoId = SPOTIFY_PENDING_PREFIX + id,
-        title = title,
-        artist = artist,
-        thumbnailUrl = imageUrl,
-        durationText = durationMs.takeIf { it > 0 }?.let { ms ->
-            "%d:%02d".format(ms / 60000, ms / 1000 % 60)
-        },
-        albumName = album,
-    )
 
     fun openLocalGroup(group: LocalGroup) {
         if (_detailStack.value.lastOrNull()?.browseId == group.browseId) return
