@@ -335,12 +335,6 @@ internal fun LyricsStatusWithChange(
     }
 }
 
-internal fun adjustedLyricsPosition(positionMs: Long, offsetMs: Int): Long =
-    (positionMs - offsetMs.toLong()).coerceAtLeast(0L)
-
-internal fun adjustedLyricsSeekTarget(lineTimeMs: Long, offsetMs: Int): Long =
-    (lineTimeMs + offsetMs.toLong()).coerceAtLeast(0L)
-
 @Composable
 internal fun CurrentLyricStrip(
     lines: List<LyricLine>,
@@ -411,70 +405,6 @@ internal fun CurrentLyricStrip(
         }
     }
 }
-
-@Stable
-internal class LyricPlayhead(
-    private val position: PlaybackPosition,
-    private val offsetMs: State<Int>,
-) {
-    val positionMs: Long get() = adjustedLyricsPosition(position.positionMs, offsetMs.value)
-
-    val sampledAtNanos: Long get() = position.sampledAtNanos
-
-    val discontinuity: Long
-        get() = (position.seeks.toLong() shl 32) or (offsetMs.value.toLong() and 0xFFFF_FFFFL)
-}
-
-@Composable
-internal fun rememberLyricPlayhead(position: PlaybackPosition): LyricPlayhead {
-    val offset = PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
-    return remember(position, offset) { LyricPlayhead(position, offset) }
-}
-
-private fun nanosToMs(nanos: Long): Double = nanos / 1_000_000.0
-
-@Composable
-private fun rememberLyricClock(
-    trackKey: Any,
-    playhead: LyricPlayhead,
-    isPlaying: Boolean,
-): MutableLongState {
-    val clock = remember(trackKey) {
-        mutableLongStateOf(Snapshot.withoutReadObservation { playhead.positionMs })
-    }
-    val engine = remember(trackKey) { LyricClock(clock.longValue) }
-
-    if (!isPlaying) {
-        LaunchedEffect(engine, playhead) {
-            snapshotFlow { playhead.positionMs }.collect { positionMs ->
-                engine.hold(positionMs, nanosToMs(System.nanoTime()))
-                clock.longValue = positionMs
-            }
-        }
-    }
-
-    val foreground = rememberIsForeground()
-    LaunchedEffect(engine, playhead, isPlaying, foreground) {
-        if (!isPlaying || !foreground) return@LaunchedEffect
-        engine.restart()
-        while (true) {
-            withFrameNanos { frameNanos ->
-                val system = System.nanoTime()
-                val now = if (abs(system - frameNanos) < SAME_CLOCK_NANOS) frameNanos else system
-                val sampledAt = playhead.sampledAtNanos
-                clock.longValue = engine.frame(
-                    nowMs = nanosToMs(now),
-                    reportedMs = playhead.positionMs,
-                    sampledAtMs = if (sampledAt > 0L) nanosToMs(sampledAt) else Double.NaN,
-                    discontinuity = playhead.discontinuity,
-                )
-            }
-        }
-    }
-    return clock
-}
-
-private const val SAME_CLOCK_NANOS = 250_000_000L
 
 @Composable
 private fun SweptLyricLine(
