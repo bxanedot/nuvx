@@ -104,8 +104,6 @@ import com.bxane.nuvx.data.innertube.StreamResolver
 import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.model.isUnresolvedSpotify
-import com.bxane.nuvx.data.scrobbling.LastFM
-import com.bxane.nuvx.data.scrobbling.ScrobbleManager
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.AudioQuality
 import com.bxane.nuvx.data.settings.BitPerfectMode
@@ -241,10 +239,10 @@ class PlaybackService : MediaLibraryService() {
 
     private var trackSelectedAt: Long? = null
 
-    private var scrobbleManager: ScrobbleManager? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val listenBrainz = PlaybackListenBrainzController(scope) { player }
+    private val scrobbling = PlaybackScrobblingController(scope) { player }
 
     private val discordPresence = PlaybackDiscordPresenceController(
         context = this,
@@ -403,7 +401,7 @@ class PlaybackService : MediaLibraryService() {
 
             val song = exoPlayer.currentMediaItem?.toSong()
             val durationMs = exoPlayer.duration.takeIf { it > 0 }
-            scrobbleManager?.onPlayerStateChanged(isPlaying, song, durationMs)
+            scrobbling.onPlayerStateChanged(isPlaying, song, durationMs)
 
             if (!isPlaying) ListeningRecorder.onStopped()
 
@@ -738,7 +736,7 @@ class PlaybackService : MediaLibraryService() {
         applySettings(exoPlayer)
         applySettings(sparePlayer)
         observeSettings()
-        observeScrobbling()
+        scrobbling.observe()
         observeDiscord()
         watchSleepTimer()
         val restored = if (PartyPersonalQueueStash.hasStash()) {
@@ -1864,12 +1862,12 @@ class PlaybackService : MediaLibraryService() {
         PlaybackTracker.onTrackChanged(lastPositionSeconds)
         lastPositionSeconds = 0
 
-        scrobbleManager?.onSongStop()
+        scrobbling.onSongStop()
         ListeningRecorder.onStopped()
         val newSong = mediaItem?.toSong()
         val durationMs = exoPlayer.duration.takeIf { it > 0 }
         if (exoPlayer.isPlaying) {
-            scrobbleManager?.onSongStart(newSong, durationMs)
+            scrobbling.onSongStart(newSong, durationMs)
         }
 
         val ended = previousEnded
@@ -2761,90 +2759,6 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    private fun observeScrobbling() {
-        scope.launch {
-            combine<Any, ScrobblingSnapshot>(
-                AppSettings.lastfmEnabled,
-                AppSettings.lastfmScrobbleEnabled,
-                AppSettings.lastfmNowPlaying,
-                AppSettings.lastfmPrimaryArtistOnly,
-                AppSettings.lastfmSessionKey,
-                AppSettings.lastfmApiKey,
-                AppSettings.lastfmSecret,
-                AppSettings.lastfmEndpoint,
-                AppSettings.scrobbleMinDuration,
-                AppSettings.scrobbleDelayPercent,
-                AppSettings.scrobbleDelaySeconds,
-            ) { values ->
-                ScrobblingSnapshot(
-                    lastfmEnabled = values[0] as Boolean,
-                    scrobbleEnabled = values[1] as Boolean,
-                    nowPlaying = values[2] as Boolean,
-                    primaryArtistOnly = values[3] as Boolean,
-                    sessionKey = values[4] as String,
-                    apiKey = values[5] as String,
-                    secret = values[6] as String,
-                    endpoint = values[7] as String,
-                    minDuration = values[8] as Int,
-                    delayPercent = values[9] as Float,
-                    delaySeconds = values[10] as Int,
-                )
-            }.collectLatest { snapshot ->
-                val shouldEnable = AppSettings.scrobblingAvailable &&
-                    snapshot.lastfmEnabled &&
-                    snapshot.scrobbleEnabled &&
-                    snapshot.sessionKey.isNotBlank() &&
-                    snapshot.apiKey.isNotBlank() &&
-                    snapshot.secret.isNotBlank()
-
-                if (!shouldEnable) {
-                    scrobbleManager?.destroy()
-                    scrobbleManager = null
-                    return@collectLatest
-                }
-
-                LastFM.configure(
-                    endpoint = snapshot.endpoint.ifBlank { LastFM.DEFAULT_API_ENDPOINT },
-                    apiKey = snapshot.apiKey,
-                    secret = snapshot.secret,
-                    sessionKey = snapshot.sessionKey,
-                )
-                val manager = scrobbleManager ?: ScrobbleManager(scope).also {
-                    scrobbleManager = it
-                }
-                manager.minSongDuration = snapshot.minDuration
-                manager.scrobbleDelayPercent = snapshot.delayPercent
-                manager.scrobbleDelaySeconds = snapshot.delaySeconds
-                manager.useNowPlaying = snapshot.nowPlaying
-                manager.usePrimaryArtistOnly = snapshot.primaryArtistOnly
-
-                player?.let { exoPlayer ->
-                    if (exoPlayer.isPlaying) {
-                        manager.onPlayerStateChanged(
-                            isPlaying = true,
-                            song = exoPlayer.currentMediaItem?.toSong(),
-                            durationMs = exoPlayer.duration.takeIf { it > 0 },
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private data class ScrobblingSnapshot(
-        val lastfmEnabled: Boolean,
-        val scrobbleEnabled: Boolean,
-        val nowPlaying: Boolean,
-        val primaryArtistOnly: Boolean,
-        val sessionKey: String,
-        val apiKey: String,
-        val secret: String,
-        val endpoint: String,
-        val minDuration: Int,
-        val delayPercent: Float,
-        val delaySeconds: Int,
-    )
-
     private fun observeDiscord() = discordPresence.observe()
 
     private fun pushDiscordPresence(exoPlayer: ExoPlayer) = discordPresence.push(exoPlayer)
@@ -2886,8 +2800,7 @@ class PlaybackService : MediaLibraryService() {
             player?.currentPosition?.div(1000) ?: lastPositionSeconds,
         )
         listenBrainz.release()
-        scrobbleManager?.destroy()
-        scrobbleManager = null
+        scrobbling.release()
         ListeningRecorder.onStopped()
         discordPresence.release()
         scope.cancel()
