@@ -3,7 +3,6 @@ package com.bxane.nuvx.playback
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.widget.Toast
 import android.os.Bundle
@@ -196,7 +195,7 @@ class PlaybackService : MediaLibraryService() {
     private val loudnessB = LoudnessProcessor().apply { gainFor = ::loudnessGainFor }
     private var loudnessRetryJob: Job? = null
 
-    private var advertisedAudioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
+    private val audioEffectSession = PlaybackAudioEffectSessionController(this)
 
     private var activeTrackIsDolbyAtmos = false
 
@@ -388,7 +387,7 @@ class PlaybackService : MediaLibraryService() {
     private val playbackListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             val activePlayer = this@PlaybackService.player ?: return
-            if (player === activePlayer) updateAudioEffectSession(activePlayer)
+            if (player === activePlayer) audioEffectSession.update(activePlayer)
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -1358,43 +1357,6 @@ class PlaybackService : MediaLibraryService() {
         target.setHandleAudioBecomingNoisy(owns)
     }
 
-    private fun updateAudioEffectSession(activePlayer: ExoPlayer) {
-        val sessionId = activePlayer.audioSessionId
-        val shouldAdvertise = activePlayer.playWhenReady &&
-            (activePlayer.playbackState == Player.STATE_BUFFERING ||
-                activePlayer.playbackState == Player.STATE_READY) &&
-            sessionId != C.AUDIO_SESSION_ID_UNSET && sessionId > 0
-
-        if (!shouldAdvertise) {
-            closeAudioEffectSession()
-            return
-        }
-        if (advertisedAudioEffectSessionId == sessionId) return
-
-        closeAudioEffectSession()
-        advertisedAudioEffectSessionId = sessionId
-        sendBroadcast(
-            Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
-                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-                putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
-            },
-        )
-    }
-
-    private fun closeAudioEffectSession() {
-        val sessionId = advertisedAudioEffectSessionId
-        if (sessionId == C.AUDIO_SESSION_ID_UNSET) return
-
-        advertisedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
-        sendBroadcast(
-            Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
-                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-            },
-        )
-    }
-
     private fun sessionActivity(): PendingIntent = PendingIntent.getActivity(
         this,
         0,
@@ -1996,7 +1958,7 @@ class PlaybackService : MediaLibraryService() {
         WearBridge.releaseSpeaker()
         CastController.detach(castPlayback)
         castPlayback.release()
-        closeAudioEffectSession()
+        audioEffectSession.close()
         outputRouter.stop()
         partySync?.stop()
         partySync = null
