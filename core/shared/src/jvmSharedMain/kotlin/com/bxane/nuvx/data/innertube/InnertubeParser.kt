@@ -735,62 +735,15 @@ object InnertubeParser {
     )
 
     fun parseBrowseHeader(root: JsonElement): BrowseHeader? {
-        val header = HEADER_RENDERERS.firstNotNullOfOrNull {
-            collectRenderers(root, it).firstOrNull()
-        } ?: return null
-        val title = header.o("title").runs()
-        if (title.isBlank()) return null
-        val subtitle = HEADER_CREDIT_LINES
-            .map { header.o(it).runs() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .joinToString(" • ")
-        return BrowseHeader(
-            title = title,
-            subtitle = subtitle,
-            thumbnailUrl = collectRenderers(header, "musicThumbnailRenderer").firstOrNull()
-                .o("thumbnail").a("thumbnails").best(),
-        )
+        return InnertubeBrowseHeaderParser.parseBrowseHeader(root)
     }
 
     fun parseAlbumPlaylistId(root: JsonElement): String? {
-        val header = HEADER_RENDERERS.firstNotNullOfOrNull {
-            collectRenderers(root, it).firstOrNull()
-        }
-        if (header != null) {
-            collectRenderers(header, "musicPlayButtonRenderer")
-                .firstNotNullOfOrNull { it.playlistIdFromPlayAction() }
-                ?.let { return it }
-            collectRenderers(header, "buttonRenderer")
-                .firstNotNullOfOrNull { it.playlistIdFromPlayAction() }
-                ?.let { return it }
-        }
-
-        val canonical = root.o("microformat").o("microformatDataRenderer").s("urlCanonical")
-            ?: return null
-        return canonical.substringAfter("list=", missingDelimiterValue = "")
-            .substringBefore('&')
-            .takeIf { it.isNotBlank() }
-    }
-
-    private fun JsonElement.playlistIdFromPlayAction(): String? {
-        val endpoint = o("playNavigationEndpoint")
-            ?: o("navigationEndpoint")
-            ?: this
-        return endpoint.o("watchPlaylistEndpoint").s("playlistId")
-            ?: endpoint.o("watchEndpoint").s("playlistId")
+        return InnertubeBrowseHeaderParser.parseAlbumPlaylistId(root)
     }
 
     fun parseDescription(root: JsonElement): String? {
-        val shelf = collectRenderers(root, "musicDescriptionShelfRenderer")
-            .firstOrNull()?.o("description").runs()
-        if (shelf.isNotBlank()) return shelf
-        val onHeader = (HEADER_RENDERERS + "musicImmersiveHeaderRenderer")
-            .firstNotNullOfOrNull { name ->
-                collectRenderers(root, name).firstOrNull()
-                    ?.o("description").runs().takeIf { it.isNotBlank() }
-            }
-        return onHeader
+        return InnertubeBrowseHeaderParser.parseDescription(root)
     }
 
     fun parseAccount(response: JsonElement): Account? {
@@ -1089,11 +1042,11 @@ object InnertubeParser {
         RegexOption.IGNORE_CASE,
     )
     private val RELEASE_WORDS = setOf("album", "single", "ep")
-    private val HEADER_RENDERERS = listOf(
+    internal val HEADER_RENDERERS = listOf(
         "musicResponsiveHeaderRenderer",
         "musicDetailHeaderRenderer",
     )
-    private val HEADER_CREDIT_LINES = listOf("straplineTextOne", "subtitle")
+    internal val HEADER_CREDIT_LINES = listOf("straplineTextOne", "subtitle")
     private val TYPE_WORDS = setOf(
         "song", "video", "album", "single", "ep", "artist",
         "playlist", "podcast", "episode",
