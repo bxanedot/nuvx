@@ -1,7 +1,6 @@
 package com.bxane.nuvx.data.settings
 
 import com.bxane.nuvx.data.webdav.update
-import com.bxane.nuvx.ui.components.VideoThumbnails
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.media3.common.Player
@@ -90,6 +89,7 @@ object AppSettings {
     private val lyricsSettings = LyricsSettingsController(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
     private val remoteStorageSettings = RemoteStorageSettingsController()
     private val downloadSettings = DownloadSettingsController()
+    private val homeFeedSettings = HomeFeedSettingsController()
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
@@ -207,15 +207,15 @@ object AppSettings {
 
     val preferMusicOnly = MutableStateFlow(false)
 
-    val hideRecents = MutableStateFlow(false)
+    val hideRecents = homeFeedSettings.hideRecents
 
-    val hideHomeVideos = MutableStateFlow(false)
+    val hideHomeVideos = homeFeedSettings.hideHomeVideos
 
-    val hideTopPicks = MutableStateFlow(false)
+    val hideTopPicks = homeFeedSettings.hideTopPicks
 
-    val hideHomeMoods = MutableStateFlow(false)
+    val hideHomeMoods = homeFeedSettings.hideHomeMoods
 
-    val squareVideoThumbnails = MutableStateFlow(false)
+    val squareVideoThumbnails = homeFeedSettings.squareVideoThumbnails
 
     val smartVersionAlignment = MutableStateFlow(true)
 
@@ -380,6 +380,7 @@ object AppSettings {
     fun init(context: Context, authStore: AuthStore) {
         prefs = context.getSharedPreferences("nuvx_settings", Context.MODE_PRIVATE)
         downloadSettings.initialize(prefs)
+        homeFeedSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -479,12 +480,7 @@ object AppSettings {
         swipeToPlayNext.value = prefs.getBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
-        hideRecents.value = prefs.getBoolean(KEY_HIDE_RECENTS, false)
-        hideHomeVideos.value = prefs.getBoolean(KEY_HIDE_HOME_VIDEOS, false)
-        hideTopPicks.value = prefs.getBoolean(KEY_HIDE_TOP_PICKS, false)
-        hideHomeMoods.value = prefs.getBoolean(KEY_HIDE_HOME_MOODS, false)
-        squareVideoThumbnails.value = prefs.getBoolean(KEY_SQUARE_VIDEO_THUMBNAILS, false)
-        VideoThumbnails.square = squareVideoThumbnails.value
+        homeFeedSettings.read()
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
         disableBlendEffects.value = prefs.getBoolean(KEY_DISABLE_BLEND_EFFECTS, false)
@@ -811,31 +807,15 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_PREFER_MUSIC_ONLY, value).apply()
     }
 
-    fun setHideRecents(value: Boolean) {
-        hideRecents.value = value
-        prefs.edit().putBoolean(KEY_HIDE_RECENTS, value).apply()
-    }
+    fun setHideRecents(value: Boolean) = homeFeedSettings.setHideRecents(value)
 
-    fun setHideHomeVideos(value: Boolean) {
-        hideHomeVideos.value = value
-        prefs.edit().putBoolean(KEY_HIDE_HOME_VIDEOS, value).apply()
-    }
+    fun setHideHomeVideos(value: Boolean) = homeFeedSettings.setHideHomeVideos(value)
 
-    fun setHideTopPicks(value: Boolean) {
-        hideTopPicks.value = value
-        prefs.edit().putBoolean(KEY_HIDE_TOP_PICKS, value).apply()
-    }
+    fun setHideTopPicks(value: Boolean) = homeFeedSettings.setHideTopPicks(value)
 
-    fun setHideHomeMoods(value: Boolean) {
-        hideHomeMoods.value = value
-        prefs.edit().putBoolean(KEY_HIDE_HOME_MOODS, value).apply()
-    }
+    fun setHideHomeMoods(value: Boolean) = homeFeedSettings.setHideHomeMoods(value)
 
-    fun setSquareVideoThumbnails(value: Boolean) {
-        squareVideoThumbnails.value = value
-        VideoThumbnails.square = value
-        prefs.edit().putBoolean(KEY_SQUARE_VIDEO_THUMBNAILS, value).apply()
-    }
+    fun setSquareVideoThumbnails(value: Boolean) = homeFeedSettings.setSquareVideoThumbnails(value)
 
     fun setSmartVersionAlignment(value: Boolean) {
         smartVersionAlignment.value = value
@@ -1252,11 +1232,6 @@ object AppSettings {
     private const val KEY_SWIPE_TO_PLAY_NEXT = "swipe_to_play_next"
     private const val KEY_DONT_REPEAT_SUGGESTIONS = "dont_repeat_suggestions"
     private const val KEY_PREFER_MUSIC_ONLY = "prefer_music_only"
-    private const val KEY_HIDE_RECENTS = "hide_recents"
-    private const val KEY_HIDE_HOME_VIDEOS = "hide_home_videos"
-    private const val KEY_HIDE_TOP_PICKS = "hide_top_picks"
-    private const val KEY_HIDE_HOME_MOODS = "hide_home_moods"
-    private const val KEY_SQUARE_VIDEO_THUMBNAILS = "square_video_thumbnails"
     private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"
     private const val KEY_REDUCE_BLUR = "reduce_dynamic_blur"
     private const val KEY_DISABLE_BLEND_EFFECTS = "disable_blend_effects"
