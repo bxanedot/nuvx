@@ -288,6 +288,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val googleAccounts: StateFlow<List<GoogleAccountSession>> = accountController.googleAccounts
     val activeAccountId: StateFlow<String?> = accountController.activeAccountId
     val activeProfileId: StateFlow<String?> = accountController.activeProfileId
+    private val remoteLibraryResolver = MainRemoteLibraryResolver(::text)
     private val detailContextController = MainDetailContextController(
         scope = viewModelScope,
         _detailStack = detailNavigationController.mutableDetailStack,
@@ -306,7 +307,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _detailStack = detailNavigationController.mutableDetailStack,
         browseTypeOf = { browseId, fallback -> browseTypeOf(browseId, fallback) },
         downloadedCopyOf = ::downloadedCopyOf,
-        isRemoteLibrary = { browseId -> remoteLibrary(browseId) != null },
+        isRemoteLibrary = remoteLibraryResolver::isRemoteLibrary,
         localPageState = ::localPageState,
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
         setPlaylistOwned = playlistController::setPlaylistOwned,
@@ -440,28 +441,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private data class RemoteLibrary(
-        val emptyRes: Int,
-        val songs: suspend () -> List<Song>,
-    )
-
-    private fun remoteLibrary(browseId: String): RemoteLibrary? = when (browseId) {
-        com.bxane.nuvx.data.webdav.WebDavConfig.BROWSE_ID ->
-            RemoteLibrary(
-                R.string.webdav_empty,
-                com.bxane.nuvx.data.webdav.WebDavRepository::getSongs,
-            )
-        com.bxane.nuvx.data.smb.SmbConfig.BROWSE_ID ->
-            RemoteLibrary(
-                R.string.smb_empty,
-                com.bxane.nuvx.data.smb.SmbRepository::getSongs,
-            )
-        else -> null
-    }
-
-    private suspend fun remoteSongsState(remote: RemoteLibrary): UiState<List<Song>> =
-        com.bxane.nuvx.data.remote.RemoteListing.state(runCatching { remote.songs() }, text(remote.emptyRes))
-
     fun openDetail(
         browseId: String,
         title: String,
@@ -479,7 +458,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val localPageResolver = MainLocalPageResolver(
         application = getApplication(),
         text = ::text,
-        remotePageState = { browseId -> remoteLibrary(browseId)?.let { remoteSongsState(it) } },
+        remotePageState = remoteLibraryResolver::pageState,
     )
 
     private suspend fun localPageState(browseId: String): UiState<List<Song>>? =
