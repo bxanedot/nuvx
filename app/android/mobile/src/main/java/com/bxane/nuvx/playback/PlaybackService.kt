@@ -3,14 +3,12 @@ package com.bxane.nuvx.playback
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.MediaMetadataRetriever
 import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.widget.Toast
 import android.os.Bundle
 import android.os.Handler
 import android.os.SystemClock
-import com.bxane.nuvx.data.TelemetryProvenance
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import androidx.media3.common.AudioAttributes
@@ -265,7 +263,7 @@ class PlaybackService : MediaLibraryService() {
         onRestoring = { persistedQueueStart = 0 },
     )
 
-    private val streamResolution = StreamResolutionController(
+    private val streamResolution: StreamResolutionController = StreamResolutionController(
         context = this,
         scope = scope,
         player = { player },
@@ -274,6 +272,13 @@ class PlaybackService : MediaLibraryService() {
         buildAuditionPlayer = ::buildAuditionPlayer,
         onSwapping = { swappingMediaId = it },
         onSwapCut = { formatListener.markSwapCut() },
+    )
+
+    private val telemetry = PlaybackTelemetryController(
+        context = this,
+        scope = scope,
+        player = { player },
+        resolveLocalUri = streamResolution::resolveLocalUri,
     )
 
     private val errorRecovery = PlaybackErrorRecovery(
@@ -310,11 +315,6 @@ class PlaybackService : MediaLibraryService() {
             mediaSession?.player = newSessionPlayer(newActive, newCrossfade)
         },
     )
-
-    private val localBitrateCache = ConcurrentHashMap<String, Int>()
-
-    private val measuredBitrateCache = ConcurrentHashMap<String, Int>()
-    private val measuringBitrate: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     private var streamResolver: ResolvingDataSource.Resolver? = null
 
@@ -515,7 +515,7 @@ class PlaybackService : MediaLibraryService() {
     private val formatListener = PlaybackAudioAnalyticsListener(
         onDolbyAtmosChanged = { activeTrackIsDolbyAtmos = it },
         applySpatialAudioEnabled = ::applySpatialAudioEnabled,
-        publishNerdStats = ::publishNerdStats,
+        publishNerdStats = telemetry::publish,
         outputRouter = outputRouter,
     )
 
@@ -526,9 +526,7 @@ class PlaybackService : MediaLibraryService() {
             com.bxane.nuvx.data.innertube.Innertube.cookie = com.bxane.nuvx.auth.AuthStore(this).cookie
         }
 
-        NerdStats.forgetLastSession()
-        localBitrateCache.clear()
-        measuredBitrateCache.clear()
+        telemetry.forgetLastSession()
         QualityUpgrade.forgetLastSession()
 
         setMediaNotificationProvider(
@@ -1718,12 +1716,12 @@ class PlaybackService : MediaLibraryService() {
         }
         outputRouter.currentAudioInputFormat = null
         NerdStats.onTrackTransition(mediaItem?.mediaId)
-        measuredBitrateCache.clear()
+        telemetry.onTrackTransition()
         AudioOutputStatus.onTrackTransition()
         mediaItem?.let { AudioCache.notePlayed(it.toSong(), it.localConfiguration?.uri) }
         scheduleForeignCachePurge()
         mediaItem?.mediaId?.takeUnless(::isLiveRadio)?.let { id ->
-            resolveLocalBitrate(id, mediaItem)
+            telemetry.resolveLocalBitrate(id, mediaItem)
         }
 
         activeTrackIsDolbyAtmos = NerdStats.declaredFormat(mediaItem?.mediaId)?.isDolbyAtmos == true
@@ -1823,188 +1821,7 @@ class PlaybackService : MediaLibraryService() {
             volume = 0f
         }
 
-    private fun isLocalPlayback(mediaId: String, mediaItem: MediaItem?): Boolean {
-        if (mediaId.startsWith("content://") || mediaId.startsWith("file://") || mediaId.startsWith("/")) {
-            return true
-        }
-        val uri = mediaItem?.localConfiguration?.uri
-        if (uri != null && (uri.scheme == "file" || uri.scheme == "content")) {
-            return true
-        }
-        val requestUri = mediaItem?.requestMetadata?.mediaUri
-        if (requestUri != null && (requestUri.scheme == "file" || requestUri.scheme == "content")) {
-            return true
-        }
-        val extras = mediaItem?.mediaMetadata?.extras
-        val localUri = extras?.getString(EXTRA_LOCAL_URI)
-        if (!localUri.isNullOrBlank() && (localUri.startsWith("content://") || localUri.startsWith("file://"))) {
-            return true
-        }
-        val localPath = extras?.getString(EXTRA_LOCAL_PATH)
-        if (!localPath.isNullOrBlank()) {
-            return true
-        }
-        if (Downloads.verifiedSavedUri(mediaId) != null) {
-            return true
-        }
-        return false
-    }
-
-    private fun currentSourceName(mediaId: String?, mediaItem: MediaItem?): String? {
-        val id = mediaId ?: return null
-        if (isLocalPlayback(id, mediaItem)) {
-            return "Local Storage"
-        }
-
-        val uri = mediaItem?.localConfiguration?.uri
-        if (uri != null) {
-            QualityUpgrade.forcedStream(uri)?.let { upgraded ->
-                val name = upgraded.sourceConfigId?.let { SourceRegistry.config(it)?.displayName }
-                if (!name.isNullOrBlank()) return name
-            }
-        }
-
-        val exactRecorded = NerdStats.exactSourceFor(id)
-        if (!exactRecorded.isNullOrBlank()) return exactRecorded
-
-        val sourceTrack = SourceRegistry.parseTrackKey(id)
-        if (sourceTrack != null) {
-            val config = SourceRegistry.config(sourceTrack.first)
-            if (config != null) return config.displayName
-            return "Unknown"
-        }
-
-        StreamChoice.of(id)?.let { serving ->
-            val name = serving.sourceConfigId?.let { SourceRegistry.config(it)?.displayName }
-                ?: if (StreamChoice.isSubstitute(id)) "Module" else null
-            if (!name.isNullOrBlank()) return name
-        }
-
-        if (uri?.authority == "source") {
-            val configId = uri.getQueryParameter("s")
-            val name = configId?.let { SourceRegistry.config(it)?.displayName }
-            if (!name.isNullOrBlank()) return name
-            return "Unknown"
-        }
-
-        val recorded = NerdStats.sourceFor(id)
-        if (!recorded.isNullOrBlank()) return recorded
-
-        if (id.length == 11 || uri?.getQueryParameter("v") != null) {
-            return "YouTube"
-        }
-
-        return "Unknown"
-    }
-
-    private fun resolveLocalBitrate(mediaId: String, mediaItem: MediaItem?) {
-        if (!isLocalPlayback(mediaId, mediaItem)) return
-        if (localBitrateCache.containsKey(mediaId)) return
-
-        val uri = streamResolution.resolveLocalUri(mediaId, mediaItem) ?: return
-        scope.launch(Dispatchers.IO) {
-            val kbps = runCatching {
-                val retriever = MediaMetadataRetriever()
-                var bps: Long? = null
-                var durMs: Long? = null
-                try {
-                    retriever.setDataSource(this@PlaybackService, uri)
-                    bps = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull()
-                    durMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
-                } finally {
-                    retriever.release()
-                }
-
-                if (bps != null && bps > 0) {
-                    ((bps + 500L) / 1000L).toInt()
-                } else if (durMs != null && durMs > 0) {
-                    val sizeBytes = when (uri.scheme) {
-                        "file" -> uri.path?.let { java.io.File(it).length() }
-                        "content" -> contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
-                        else -> null
-                    }
-                    if (sizeBytes != null && sizeBytes > 0) {
-                        ((sizeBytes * 8000L) / durMs / 1000L).toInt().takeIf { it > 0 }
-                    } else null
-                } else null
-            }.getOrNull()
-
-            if (kbps != null && kbps > 0) {
-                localBitrateCache[mediaId] = kbps
-                withContext(Dispatchers.Main) {
-                    if (player?.currentMediaItem?.mediaId == mediaId) {
-                        publishNerdStats()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun publishNerdStats() {
-        val player = player ?: return
-        val format = player.audioFormat
-        val mediaId = player.currentMediaItem?.mediaId
-        val generation = NerdStats.currentGeneration
-        val measured = format?.measure()
-        val dsd = format?.codecs?.takeIf { it.startsWith("dsd") }
-        val dsdRateHz = dsd?.removePrefix("dsd")?.toIntOrNull()?.times(44_100)
-        val isLossless = dsd != null || NerdStats.isLosslessMime(format?.sampleMimeType)
-        val isRawPcm = NerdStats.isRawPcm(format?.sampleMimeType)
-        val pcmDataRate = measured?.pcmBitrateKbps
-
-        val (bitrate, provenance) = when {
-            format?.averageBitrate != null && format.averageBitrate > 0 ->
-                Pair((format.averageBitrate + 500) / 1000, TelemetryProvenance.AUTHORITATIVE)
-            format?.bitrate != null && format.bitrate > 0 ->
-                Pair((format.bitrate + 500) / 1000, TelemetryProvenance.AUTHORITATIVE)
-            mediaId != null && localBitrateCache.containsKey(mediaId) ->
-                Pair(localBitrateCache[mediaId], TelemetryProvenance.AUTHORITATIVE)
-            dsd == null && isRawPcm && pcmDataRate != null ->
-                Pair(pcmDataRate, TelemetryProvenance.DERIVED)
-            else ->
-                NerdStats.sourceBitrate(mediaId) { measuredStreamKbps(player) }
-                    ?: Pair(null, TelemetryProvenance.UNKNOWN)
-        }
-
-        NerdStats.publish(NerdStats.Snapshot(
-            mimeType = dsd?.let { "audio/$it" } ?: format?.sampleMimeType,
-            bitrateKbps = bitrate,
-            bitrateProvenance = provenance,
-            pcmDataRateKbps = if (isLossless) pcmDataRate else null,
-            sampleRateHz = dsdRateHz ?: measured?.sampleRateHz,
-            channels = measured?.channels,
-            bitDepth = if (dsd != null) 1 else if (isLossless) measured?.bitDepth else null,
-            claimed = NerdStats.declaredFormat(mediaId),
-            sourceName = currentSourceName(mediaId, player.currentMediaItem),
-            container = when (format?.containerMimeType) {
-                "audio/x-dsf" -> "DSF"
-                "audio/x-dff" -> "DFF"
-                else -> null
-            },
-            mediaId = mediaId,
-        ), expectedGeneration = generation)
-    }
-
-    private fun measuredStreamKbps(player: Player): Int? {
-        val uri = player.currentMediaItem?.localConfiguration?.uri ?: return null
-        val key = uri.toString()
-        measuredBitrateCache[key]?.let { return it }
-        val durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return null
-        if (measuringBitrate.add(key)) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val bytes = AudioCache.contentLengthOf(uri)
-                    if (bytes > 0) {
-                        val kbps = (bytes * 8 / durationMs).toInt()
-                        if (kbps > 0) measuredBitrateCache[key] = kbps
-                    }
-                } finally {
-                    measuringBitrate.remove(key)
-                }
-            }
-        }
-        return null
-    }
+    private fun publishNerdStats() = telemetry.publish()
 
     private fun saveQueueSnapshot(player: ExoPlayer) {
         if (ListenTogether.state.value.inParty) return
@@ -2721,8 +2538,7 @@ class PlaybackService : MediaLibraryService() {
         spare = null
         AudioOutputStatus.reset()
         NerdStats.forgetLastSession()
-        localBitrateCache.clear()
-        measuredBitrateCache.clear()
+        telemetry.clear()
         super.onDestroy()
     }
 
