@@ -101,6 +101,7 @@ object AppSettings {
         MIN_UPGRADE_LENGTH_SLACK_SECONDS,
         MAX_UPGRADE_LENGTH_SLACK_SECONDS,
     )
+    private val audioOutputSettings = AudioOutputSettingsController()
 
     val audioQualityWifi = audioQualitySettings.audioQualityWifi
     val audioQualityCellular = audioQualitySettings.audioQualityCellular
@@ -124,27 +125,27 @@ object AppSettings {
     val automixPerformanceMode = MutableStateFlow(AutomixPerformanceMode.BALANCED)
     val skipSilence = MutableStateFlow(false)
 
-    val excorFallback = MutableStateFlow(true)
+    val excorFallback = audioOutputSettings.excorFallback
 
-    val outputPcmMode = MutableStateFlow(OutputPcmMode.PCM_16)
+    val outputPcmMode = audioOutputSettings.outputPcmMode
 
-    val preferUsbDac = MutableStateFlow(false)
+    val preferUsbDac = audioOutputSettings.preferUsbDac
 
-    val bitPerfectMode = MutableStateFlow(BitPerfectMode.OFF)
+    val bitPerfectMode = audioOutputSettings.bitPerfectMode
 
-    val usbAllowFixedVolume = MutableStateFlow(false)
+    val usbAllowFixedVolume = audioOutputSettings.usbAllowFixedVolume
 
-    val convertForLimitedDac = MutableStateFlow(false)
+    val convertForLimitedDac = audioOutputSettings.convertForLimitedDac
 
-    val loudnessNormalization = MutableStateFlow(true)
+    val loudnessNormalization = audioOutputSettings.loudnessNormalization
 
-    val loudnessOffOnSpeaker = MutableStateFlow(true)
+    val loudnessOffOnSpeaker = audioOutputSettings.loudnessOffOnSpeaker
 
-    val dolbyAtmos = MutableStateFlow(true)
+    val dolbyAtmos = audioOutputSettings.dolbyAtmos
 
-    val directSourceStream = MutableStateFlow(false)
+    val directSourceStream = audioOutputSettings.directSourceStream
 
-    val spatialAudio = MutableStateFlow(true)
+    val spatialAudio = audioOutputSettings.spatialAudio
 
     val equalizerEnabled = MutableStateFlow(false)
 
@@ -395,6 +396,7 @@ object AppSettings {
         playerPresentationSettings.initialize(prefs)
         audioCacheSettings.initialize(prefs)
         audioQualitySettings.initialize(prefs)
+        audioOutputSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -425,24 +427,7 @@ object AppSettings {
             )
         }.getOrDefault(AutomixPerformanceMode.BALANCED)
         skipSilence.value = prefs.getBoolean(KEY_SKIP_SILENCE, false)
-        excorFallback.value = prefs.getBoolean(KEY_EXCOR_FALLBACK, true)
-        outputPcmMode.value = runCatching {
-            OutputPcmMode.valueOf(
-                prefs.getString(KEY_OUTPUT_PCM_MODE, OutputPcmMode.PCM_16.name)
-                    ?: OutputPcmMode.PCM_16.name,
-            )
-        }.getOrDefault(OutputPcmMode.PCM_16)
-        preferUsbDac.value = prefs.getBoolean(KEY_PREFER_USB_DAC, false)
-        bitPerfectMode.value = runCatching {
-            BitPerfectMode.valueOf(prefs.getString(KEY_BIT_PERFECT_MODE, null) ?: BitPerfectMode.OFF.name)
-        }.getOrDefault(BitPerfectMode.OFF)
-        usbAllowFixedVolume.value = prefs.getBoolean(KEY_USB_ALLOW_FIXED_VOLUME, false)
-        convertForLimitedDac.value = prefs.getBoolean(KEY_CONVERT_FOR_LIMITED_DAC, false)
-        loudnessNormalization.value = prefs.getBoolean(KEY_LOUDNESS_NORMALIZATION, true)
-        loudnessOffOnSpeaker.value = prefs.getBoolean(KEY_LOUDNESS_OFF_ON_SPEAKER, true)
-        dolbyAtmos.value = prefs.getBoolean(KEY_DOLBY_ATMOS, true)
-        directSourceStream.value = prefs.getBoolean(KEY_DIRECT_SOURCE_STREAM, false)
-        spatialAudio.value = prefs.getBoolean(KEY_SPATIAL_AUDIO, true)
+        audioOutputSettings.read()
         equalizerEnabled.value = prefs.getBoolean(KEY_EQ_ENABLED, false)
         equalizerMode.value = runCatching {
             EqualizerMode.valueOf(prefs.getString(KEY_EQ_MODE, null) ?: EqualizerMode.DYNAMIC.name)
@@ -561,30 +546,18 @@ object AppSettings {
         prefs.edit().putString(KEY_AUTOMIX_PERFORMANCE_MODE, value.name).apply()
     }
 
-    fun setExcorFallback(value: Boolean) {
-        excorFallback.value = value
-        prefs.edit().putBoolean(KEY_EXCOR_FALLBACK, value).apply()
-    }
+    fun setExcorFallback(value: Boolean) = audioOutputSettings.setExcorFallback(value)
 
     fun setSkipSilence(value: Boolean) {
         skipSilence.value = value
         prefs.edit().putBoolean(KEY_SKIP_SILENCE, value).apply()
     }
 
-    fun setDolbyAtmos(value: Boolean) {
-        dolbyAtmos.value = value
-        prefs.edit().putBoolean(KEY_DOLBY_ATMOS, value).apply()
-    }
+    fun setDolbyAtmos(value: Boolean) = audioOutputSettings.setDolbyAtmos(value)
 
-    fun setDirectSourceStream(value: Boolean) {
-        directSourceStream.value = value
-        prefs.edit().putBoolean(KEY_DIRECT_SOURCE_STREAM, value).apply()
-    }
+    fun setDirectSourceStream(value: Boolean) = audioOutputSettings.setDirectSourceStream(value)
 
-    fun setSpatialAudio(value: Boolean) {
-        spatialAudio.value = value
-        prefs.edit().putBoolean(KEY_SPATIAL_AUDIO, value).apply()
-    }
+    fun setSpatialAudio(value: Boolean) = audioOutputSettings.setSpatialAudio(value)
 
     fun setEqualizerEnabled(value: Boolean) {
         equalizerEnabled.value = value
@@ -897,40 +870,19 @@ object AppSettings {
 
     fun setLastfmNowPlaying(value: Boolean) = scrobblingSettings.setLastfmNowPlaying(value)
 
-    fun setOutputPcmMode(value: OutputPcmMode) {
-        outputPcmMode.value = value
-        prefs.edit().putString(KEY_OUTPUT_PCM_MODE, value.name).apply()
-    }
+    fun setOutputPcmMode(value: OutputPcmMode) = audioOutputSettings.setOutputPcmMode(value)
 
-    fun setPreferUsbDac(value: Boolean) {
-        preferUsbDac.value = value
-        prefs.edit().putBoolean(KEY_PREFER_USB_DAC, value).apply()
-    }
+    fun setPreferUsbDac(value: Boolean) = audioOutputSettings.setPreferUsbDac(value)
 
-    fun setBitPerfectMode(value: BitPerfectMode) {
-        bitPerfectMode.value = value
-        prefs.edit().putString(KEY_BIT_PERFECT_MODE, value.name).apply()
-    }
+    fun setBitPerfectMode(value: BitPerfectMode) = audioOutputSettings.setBitPerfectMode(value)
 
-    fun setUsbAllowFixedVolume(value: Boolean) {
-        usbAllowFixedVolume.value = value
-        prefs.edit().putBoolean(KEY_USB_ALLOW_FIXED_VOLUME, value).apply()
-    }
+    fun setUsbAllowFixedVolume(value: Boolean) = audioOutputSettings.setUsbAllowFixedVolume(value)
 
-    fun setConvertForLimitedDac(value: Boolean) {
-        convertForLimitedDac.value = value
-        prefs.edit().putBoolean(KEY_CONVERT_FOR_LIMITED_DAC, value).apply()
-    }
+    fun setConvertForLimitedDac(value: Boolean) = audioOutputSettings.setConvertForLimitedDac(value)
 
-    fun setLoudnessOffOnSpeaker(value: Boolean) {
-        loudnessOffOnSpeaker.value = value
-        prefs.edit().putBoolean(KEY_LOUDNESS_OFF_ON_SPEAKER, value).apply()
-    }
+    fun setLoudnessOffOnSpeaker(value: Boolean) = audioOutputSettings.setLoudnessOffOnSpeaker(value)
 
-    fun setLoudnessNormalization(value: Boolean) {
-        loudnessNormalization.value = value
-        prefs.edit().putBoolean(KEY_LOUDNESS_NORMALIZATION, value).apply()
-    }
+    fun setLoudnessNormalization(value: Boolean) = audioOutputSettings.setLoudnessNormalization(value)
 
     fun setExportDownloads(value: Boolean) = downloadSettings.setExportDownloads(value)
 
@@ -1098,17 +1050,6 @@ object AppSettings {
     private const val KEY_SMART_FADE = "smart_fade_enabled"
     private const val KEY_AUTOMIX_PERFORMANCE_MODE = "automix_performance_mode"
     private const val KEY_SKIP_SILENCE = "skip_silence"
-    private const val KEY_EXCOR_FALLBACK = "excor_fallback"
-    private const val KEY_OUTPUT_PCM_MODE = "output_pcm_mode"
-    private const val KEY_PREFER_USB_DAC = "prefer_usb_dac"
-    private const val KEY_BIT_PERFECT_MODE = "bit_perfect_mode"
-    private const val KEY_USB_ALLOW_FIXED_VOLUME = "usb_allow_fixed_volume"
-    private const val KEY_CONVERT_FOR_LIMITED_DAC = "convert_for_limited_dac"
-    private const val KEY_LOUDNESS_NORMALIZATION = "loudness_normalization"
-    private const val KEY_LOUDNESS_OFF_ON_SPEAKER = "loudness_off_on_speaker"
-    private const val KEY_DOLBY_ATMOS = "dolby_atmos"
-    private const val KEY_DIRECT_SOURCE_STREAM = "direct_source_stream"
-    private const val KEY_SPATIAL_AUDIO = "spatial_audio"
     private const val KEY_EQ_ENABLED = "equalizer_enabled"
     private const val KEY_EQ_MODE = "equalizer_mode"
     private const val KEY_EQ_TONE_X = "equalizer_tone_x"
