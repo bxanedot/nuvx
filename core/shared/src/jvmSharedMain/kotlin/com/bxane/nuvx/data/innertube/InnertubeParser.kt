@@ -19,11 +19,9 @@ import com.bxane.nuvx.data.model.ShelfItem
 import com.bxane.nuvx.data.model.shelfLayoutFor
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.model.SongMenu
-import com.bxane.nuvx.data.model.SubscriptionState
 import com.bxane.nuvx.data.model.UserPlaylist
 import com.bxane.nuvx.data.model.VersionPair
 import com.bxane.nuvx.data.model.VersionTimeMap
-import com.bxane.nuvx.data.model.WatchTarget
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -97,7 +95,7 @@ object InnertubeParser {
             }
             .distinct()
 
-    private fun collectRenderers(root: JsonElement, name: String): List<JsonObject> {
+    internal fun collectRenderers(root: JsonElement, name: String): List<JsonObject> {
         val out = mutableListOf<JsonObject>()
         fun walk(node: JsonElement) {
             when (node) {
@@ -286,7 +284,7 @@ object InnertubeParser {
         var moreSongs: String? = null
         val shelves = mutableListOf<HomeShelf>()
         val header = response["header"]
-        val credit = Credits(artistName = artistName(header))
+        val credit = Credits(artistName = InnertubeArtistHeaderParser.artistName(header))
 
         sections.forEach { section ->
             section.o("musicShelfRenderer")?.let { shelf ->
@@ -332,81 +330,19 @@ object InnertubeParser {
         }
         return ArtistPage(
             songs, moreSongs, shelves,
-            thumbnailUrl = artistThumbnail(header),
+            thumbnailUrl = InnertubeArtistHeaderParser.artistThumbnail(header),
             name = credit.artistName,
             description = parseDescription(response),
-            subscriberCountText = subscriberCount(header),
-            monthlyListenerCount = monthlyListeners(header),
-            subscription = subscription(header),
-            radio = headerWatchTarget(header, "startRadioButton"),
-            shuffle = headerWatchTarget(header, "playButton"),
-        )
-    }
-
-    private fun headerWatchTarget(header: JsonElement?, button: String): WatchTarget? {
-        val endpoint = header.o("musicImmersiveHeaderRenderer").o(button)
-            .o("buttonRenderer").o("navigationEndpoint").o("watchEndpoint")
-            ?: return null
-        val playlistId = endpoint.s("playlistId") ?: return null
-        return WatchTarget(
-            playlistId = playlistId,
-            videoId = endpoint.s("videoId"),
-            params = endpoint.s("params")?.let { java.net.URLDecoder.decode(it, "UTF-8") },
+            subscriberCountText = InnertubeArtistHeaderParser.subscriberCount(header),
+            monthlyListenerCount = InnertubeArtistHeaderParser.monthlyListeners(header),
+            subscription = InnertubeArtistHeaderParser.subscription(header),
+            radio = InnertubeArtistHeaderParser.headerWatchTarget(header, "startRadioButton"),
+            shuffle = InnertubeArtistHeaderParser.headerWatchTarget(header, "playButton"),
         )
     }
 
     fun parseTwoRowItemsDeep(root: JsonElement): List<ShelfItem> =
         collectRenderers(root, "musicTwoRowItemRenderer").mapNotNull(::parseTwoRowItem)
-
-    private fun subscription(header: JsonElement?): SubscriptionState? {
-        val immersive = header.o("musicImmersiveHeaderRenderer") ?: return null
-        return listOfNotNull(
-            immersive.o("subscriptionButton2").o("subscribeButtonRenderer"),
-            immersive.o("subscriptionButton").o("subscribeButtonRenderer"),
-        ).firstNotNullOfOrNull { button ->
-            val subscribed = (button["subscribed"] as? JsonPrimitive)?.booleanOrNull
-                ?: return@firstNotNullOfOrNull null
-            val channelId = button.s("channelId")
-                ?: button.a("serviceEndpoints")?.firstNotNullOfOrNull { endpoint ->
-                    (endpoint.o("subscribeEndpoint").a("channelIds")?.firstOrNull()
-                        as? JsonPrimitive)?.contentOrNull
-                }
-                ?: return@firstNotNullOfOrNull null
-            SubscriptionState(channelId = channelId, subscribed = subscribed)
-        }
-    }
-
-    private fun subscriberCount(header: JsonElement?): String? {
-        val immersive = header.o("musicImmersiveHeaderRenderer") ?: return null
-        val button2 = immersive.o("subscriptionButton2").o("subscribeButtonRenderer")
-        val button1 = immersive.o("subscriptionButton").o("subscribeButtonRenderer")
-        return button2.o("subscriberCountWithSubscribeText").firstRunText()
-            ?: button1.o("longSubscriberCountText").firstRunText()
-            ?: button1.o("shortSubscriberCountText").firstRunText()
-    }
-
-    private fun monthlyListeners(header: JsonElement?): String? =
-        header.o("musicImmersiveHeaderRenderer").o("monthlyListenerCount").firstRunText()
-
-    private fun artistName(header: JsonElement?): String? {
-        val renderer = header.o("musicImmersiveHeaderRenderer")
-            ?: header.o("musicVisualHeaderRenderer")
-            ?: return null
-        return renderer.o("title").runs().takeIf { it.isNotBlank() }
-    }
-
-    private fun artistThumbnail(header: JsonElement?): String? {
-        if (header == null) return null
-        val immersive = header.o("musicImmersiveHeaderRenderer")
-        val visual = header.o("musicVisualHeaderRenderer")
-        val renderer = (
-            immersive.o("thumbnail")
-                ?: visual.o("foregroundThumbnail")
-                ?: visual.o("thumbnail")
-            ).o("musicThumbnailRenderer")
-            ?: collectRenderers(header, "musicThumbnailRenderer").firstOrNull()
-        return renderer.o("thumbnail").a("thumbnails").best()
-    }
 
     fun collectSongsDeep(root: JsonElement, show: String? = null): List<Song> {
         val out = LinkedHashMap<String, Song>()
@@ -1165,13 +1101,13 @@ object InnertubeParser {
     private val VIDEO_WORD = Regex("""\bvideos?\b""", RegexOption.IGNORE_CASE)
 }
 
-private fun JsonElement?.o(key: String): JsonObject? =
+internal fun JsonElement?.o(key: String): JsonObject? =
     (this as? JsonObject)?.get(key) as? JsonObject
 
-private fun JsonElement?.a(key: String): JsonArray? =
+internal fun JsonElement?.a(key: String): JsonArray? =
     (this as? JsonObject)?.get(key) as? JsonArray
 
-private fun JsonElement?.s(key: String): String? =
+internal fun JsonElement?.s(key: String): String? =
     ((this as? JsonObject)?.get(key) as? JsonPrimitive)?.contentOrNull
 
 private fun JsonElement?.findString(key: String): String? = when (this) {
@@ -1196,13 +1132,13 @@ private fun JsonObject.isPrivateUpload(): Boolean =
     hasKey("musicDeletePrivatelyOwnedEntityCommand") ||
         findString("musicVideoType")?.contains("PRIVATELY_OWNED", ignoreCase = true) == true
 
-private fun JsonElement?.runs(): String =
+internal fun JsonElement?.runs(): String =
     this.a("runs")?.joinToString("") { it.s("text").orEmpty() }.orEmpty()
 
-private fun JsonElement?.firstRunText(): String? =
+internal fun JsonElement?.firstRunText(): String? =
     this.a("runs")?.firstOrNull().s("text")
 
-private fun JsonArray?.best(): String? = this?.lastOrNull().s("url")
+internal fun JsonArray?.best(): String? = this?.lastOrNull().s("url")
 
 private fun JsonArray?.isNotSquare(): Boolean {
     val last = this?.lastOrNull()
