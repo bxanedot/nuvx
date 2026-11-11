@@ -11,6 +11,7 @@ import com.bxane.nuvx.ui.components.IosSwitch
 internal fun ContentPreferenceSettingsGroup(
     search: SettingsSearch,
     preferMusicOnly: Boolean,
+    youtubeSearch: Boolean,
     hideRecents: Boolean,
     hideHomeVideos: Boolean,
     hideTopPicks: Boolean,
@@ -31,6 +32,21 @@ internal fun ContentPreferenceSettingsGroup(
                     )
                 },
                 onClick = { AppSettings.setPreferMusicOnly(!preferMusicOnly) },
+            )
+        }
+        val youtubeSearchTitle = stringResource(R.string.enable_youtube_search)
+        row(youtubeSearchTitle, "search", "youtube", "videos") {
+            SettingsRow(
+                icon = SfIcons.Video,
+                title = youtubeSearchTitle,
+                subtitle = stringResource(R.string.enable_youtube_search_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = youtubeSearch,
+                        onCheckedChange = AppSettings::setYoutubeSearch,
+                    )
+                },
+                onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
             )
         }
         val hideRecentsTitle = stringResource(R.string.hide_recents)
