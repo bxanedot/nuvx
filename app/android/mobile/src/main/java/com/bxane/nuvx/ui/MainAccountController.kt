@@ -22,6 +22,8 @@ import com.bxane.nuvx.data.model.UserPlaylist
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -29,14 +31,6 @@ internal class MainAccountController(
     private val scope: CoroutineScope,
     private val authStore: AuthStore,
     private val signedIn: MutableStateFlow<Boolean>,
-    private val _account: MutableStateFlow<Account?>,
-    private val _channels: MutableStateFlow<List<AccountChannel>>,
-    private val _channelsLoading: MutableStateFlow<Boolean>,
-    private val _selectedChannelKey: MutableStateFlow<String?>,
-    private val _selectedChannelName: MutableStateFlow<String?>,
-    private val _googleAccounts: MutableStateFlow<List<GoogleAccountSession>>,
-    private val _activeAccountId: MutableStateFlow<String?>,
-    private val _activeProfileId: MutableStateFlow<String?>,
     private val _library: MutableStateFlow<UiState<LibraryPage>>,
     private val _history: MutableStateFlow<UiState<List<Song>>>,
     private val _playlists: MutableStateFlow<List<UserPlaylist>>,
@@ -47,6 +41,33 @@ internal class MainAccountController(
     private val libraryHistory: MainLibraryHistoryController,
     private val playlistController: MainPlaylistController,
 ) {
+    private val _account = MutableStateFlow<Account?>(null)
+    val account: StateFlow<Account?> = _account.asStateFlow()
+
+    private val _channels = MutableStateFlow<List<AccountChannel>>(emptyList())
+    val channels: StateFlow<List<AccountChannel>> = _channels.asStateFlow()
+
+    private val _channelsLoading = MutableStateFlow(false)
+    val channelsLoading: StateFlow<Boolean> = _channelsLoading.asStateFlow()
+
+    private val _selectedChannelKey = MutableStateFlow(
+        authStore.activeSession?.activeProfileId ?: authStore.channelPageId ?: authStore.channelDataSyncId,
+    )
+    val selectedChannelKey: StateFlow<String?> = _selectedChannelKey.asStateFlow()
+
+    private val _selectedChannelName = MutableStateFlow(
+        authStore.activeSession?.profiles?.firstOrNull { it.profileId == authStore.activeProfileId }?.name
+            ?: authStore.channelName,
+    )
+    val selectedChannelName: StateFlow<String?> = _selectedChannelName.asStateFlow()
+
+    private val _googleAccounts = MutableStateFlow(authStore.sessions)
+    val googleAccounts: StateFlow<List<GoogleAccountSession>> = _googleAccounts.asStateFlow()
+    private val _activeAccountId = MutableStateFlow(authStore.activeSession?.accountId)
+    val activeAccountId: StateFlow<String?> = _activeAccountId.asStateFlow()
+    private val _activeProfileId = MutableStateFlow(authStore.activeProfileId)
+    val activeProfileId: StateFlow<String?> = _activeProfileId.asStateFlow()
+
     private data class ListenerSnapshot(
         val account: Account?, val library: UiState<LibraryPage>,
         val history: UiState<List<Song>>, val playlists: List<UserPlaylist>,

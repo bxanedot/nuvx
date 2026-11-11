@@ -130,33 +130,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     ) = lyricsController.loadLyrics(videoId, title, artist, durationMs, album, localUri)
 
     fun selectLyricsProvider(source: LyricsSource) = lyricsController.selectLyricsProvider(source)
-    private val _account = MutableStateFlow<Account?>(null)
-    val account: StateFlow<Account?> = _account.asStateFlow()
-
-    private val _channels = MutableStateFlow<List<AccountChannel>>(emptyList())
-    val channels: StateFlow<List<AccountChannel>> = _channels.asStateFlow()
-
-    private val _channelsLoading = MutableStateFlow(false)
-    val channelsLoading: StateFlow<Boolean> = _channelsLoading.asStateFlow()
-
-    private val _selectedChannelKey = MutableStateFlow(
-        authStore.activeSession?.activeProfileId ?: authStore.channelPageId ?: authStore.channelDataSyncId,
-    )
-    val selectedChannelKey: StateFlow<String?> = _selectedChannelKey.asStateFlow()
-
-    private val _selectedChannelName = MutableStateFlow(
-        authStore.activeSession?.profiles?.firstOrNull { it.profileId == authStore.activeProfileId }?.name
-            ?: authStore.channelName,
-    )
-    val selectedChannelName: StateFlow<String?> = _selectedChannelName.asStateFlow()
-
-    private val _googleAccounts = MutableStateFlow(authStore.sessions)
-    val googleAccounts: StateFlow<List<GoogleAccountSession>> = _googleAccounts.asStateFlow()
-    private val _activeAccountId = MutableStateFlow(authStore.activeSession?.accountId)
-    val activeAccountId: StateFlow<String?> = _activeAccountId.asStateFlow()
-    private val _activeProfileId = MutableStateFlow(authStore.activeProfileId)
-    val activeProfileId: StateFlow<String?> = _activeProfileId.asStateFlow()
-
     private val _history = MutableStateFlow<UiState<List<Song>>>(UiState.Loading)
     val history: StateFlow<UiState<List<Song>>> = _history.asStateFlow()
 
@@ -298,14 +271,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         scope = viewModelScope,
         authStore = authStore,
         signedIn = _signedIn,
-        _account = _account,
-        _channels = _channels,
-        _channelsLoading = _channelsLoading,
-        _selectedChannelKey = _selectedChannelKey,
-        _selectedChannelName = _selectedChannelName,
-        _googleAccounts = _googleAccounts,
-        _activeAccountId = _activeAccountId,
-        _activeProfileId = _activeProfileId,
         _library = _library,
         _history = _history,
         _playlists = playlistController.mutablePlaylists,
@@ -316,6 +281,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         libraryHistory = libraryHistory,
         playlistController = playlistController,
     )
+    val account: StateFlow<Account?> = accountController.account
+    val channels: StateFlow<List<AccountChannel>> = accountController.channels
+    val channelsLoading: StateFlow<Boolean> = accountController.channelsLoading
+    val selectedChannelKey: StateFlow<String?> = accountController.selectedChannelKey
+    val selectedChannelName: StateFlow<String?> = accountController.selectedChannelName
+    val googleAccounts: StateFlow<List<GoogleAccountSession>> = accountController.googleAccounts
+    val activeAccountId: StateFlow<String?> = accountController.activeAccountId
+    val activeProfileId: StateFlow<String?> = accountController.activeProfileId
     private val detailContextController = MainDetailContextController(
         scope = viewModelScope,
         _detailStack = _detailStack,
