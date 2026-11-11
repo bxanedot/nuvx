@@ -123,7 +123,7 @@ internal fun Modifier.barSurface(shape: CornerBasedShape, hazeState: HazeState?)
     return clip(shape).then(surface).border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, shape)
 }
 
-private val TAB_SYMBOL_SIZE = 22.dp
+internal val TAB_SYMBOL_SIZE = 22.dp
 
 internal val PILL_INSET = 4.dp
 
