@@ -29,6 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bxane.nuvx.AppIcon
@@ -36,18 +37,24 @@ import com.bxane.nuvx.PodcastsSymbol
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.ui.components.IosSwitch
-import com.bxane.nuvx.ui.components.RevealIcon
+import com.bxane.nuvx.ui.components.TAB_SYMBOL_SIZE
 import com.bxane.nuvx.ui.icons.SfIcons
 import com.composables.sfsymbols.SfSymbol
+import com.composables.sfsymbols.SfSymbolIcon
+import com.composables.sfsymbols.SfWeight
 
 internal fun hidePodcastsTabSymbol(): SfSymbol = PodcastsSymbol
 
+internal fun hidePodcastsTabGlyphSize(): Dp = TAB_SYMBOL_SIZE
+
 @Composable
 private fun HidePodcastsTabIcon() {
-    RevealIcon(
+    SfSymbolIcon(
         symbol = hidePodcastsTabSymbol(),
+        size = hidePodcastsTabGlyphSize(),
+        weight = SfWeight.Semibold,
         tint = MaterialTheme.colorScheme.onBackground,
-        size = ICON_SIZE,
+        contentDescription = null,
     )
 }
 
