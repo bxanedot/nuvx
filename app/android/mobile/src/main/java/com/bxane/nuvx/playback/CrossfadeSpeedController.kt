@@ -24,8 +24,15 @@ internal class CrossfadeSpeedController(
     private var easeNextAtMs = 0L
     private var easeItemIndex = 0
     private var softSpeedJob: Job? = null
+    private var outgoingRampRate = 1.0
+    private var outgoingRampSteps = 0
+    private var outgoingRampStepMs = 0L
+    private var outgoingRampStartMs = 0L
+    private var outgoingRampStep = 0
 
     val isEasing: Boolean get() = easing != null
+    val hasOutgoingRamp: Boolean get() = outgoingRampSteps > 0
+    val outgoingRampIncomplete: Boolean get() = outgoingRampSteps > 0 && outgoingRampStep < outgoingRampSteps
 
     fun beginEase(player: ExoPlayer, rate: Double, analysis: TrackAnalysis) {
         val stretch = rate - 1.0
@@ -72,6 +79,34 @@ internal class CrossfadeSpeedController(
     fun rampStepsFor(rate: Double): Int {
         val stretch = abs(rate - 1.0)
         return if (stretch < EASE_DONE) 0 else ceil(stretch / TEMPO_STEP_PER_BEAT).toInt()
+    }
+
+    fun beginOutgoingRamp(rate: Double, beatMs: Long, endMs: Long, fadeMs: Long): Int {
+        outgoingRampRate = rate
+        outgoingRampSteps = if (beatMs > 0L) rampStepsFor(rate) else 0
+        outgoingRampStepMs = beatMs
+        outgoingRampStartMs = endMs - fadeMs - outgoingRampSteps * beatMs
+        outgoingRampStep = 0
+        return outgoingRampSteps
+    }
+
+    fun rampOutgoing(player: ExoPlayer) {
+        val due = ((player.currentPosition - outgoingRampStartMs) / outgoingRampStepMs + 1)
+            .toInt()
+            .coerceIn(0, outgoingRampSteps)
+        if (due <= outgoingRampStep) return
+        outgoingRampStep = due
+        val rate = 1.0 + (outgoingRampRate - 1.0) * due / outgoingRampSteps
+        player.setPlaybackSpeed((AppSettings.playbackSpeed.value * rate).toFloat())
+    }
+
+    fun finishOutgoingRamp(player: ExoPlayer) {
+        outgoingRampStep = outgoingRampSteps
+        player.setPlaybackSpeed((AppSettings.playbackSpeed.value * outgoingRampRate).toFloat())
+    }
+
+    fun clearOutgoingRamp() {
+        outgoingRampSteps = 0
     }
 
     fun endEase(clickless: Boolean = true) {

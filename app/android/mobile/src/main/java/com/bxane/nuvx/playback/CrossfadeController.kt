@@ -108,11 +108,6 @@ class CrossfadeController(
 
     private val mediaRatio: Double get() = incomingPlaybackRate / outgoingPlaybackRate
 
-    private var rampSteps = 0
-    private var rampStepMs = 0L
-    private var rampStartMs = 0L
-    private var rampStep = 0
-
     private var render = CrossfadeRender()
 
     private val envelope = CrossfadeEnvelope(
@@ -583,10 +578,7 @@ class CrossfadeController(
         incomingCueTimeMs = cueTimeMs.coerceAtLeast(0L)
         incomingPlaybackRate = playbackRate
         outgoingPlaybackRate = outgoingRate
-        rampSteps = if (beatMs > 0L) speedController.rampStepsFor(outgoingRate) else 0
-        rampStepMs = beatMs
-        rampStartMs = endMs - fade - rampSteps * beatMs
-        rampStep = 0
+        val rampSteps = speedController.beginOutgoingRamp(outgoingRate, beatMs, endMs, fade)
         render = renderStyle
         planInFlight = plan
         armDeadline = SystemClock.elapsedRealtime() + ARM_TIMEOUT_MS + rampSteps * beatMs
@@ -709,7 +701,7 @@ class CrossfadeController(
             0f
         }
         envelope.rideFilters(0f, outgoingAt.takeIf { it > 0f }?.coerceAtMost(1f))
-        if (rampSteps > 0) rampOutgoing(out)
+        if (speedController.hasOutgoingRamp) speedController.rampOutgoing(out)
 
         val atFadePoint = fadeEndMs <= 0L || fadeEndMs - out.currentPosition <= fadeMs
         if (!atFadePoint) return
@@ -727,10 +719,7 @@ class CrossfadeController(
             outClock.reset()
             inClock.reset()
         }
-        if (rampSteps > 0 && rampStep < rampSteps) {
-            rampStep = rampSteps
-            out.setPlaybackSpeed((AppSettings.playbackSpeed.value * outgoingPlaybackRate).toFloat())
-        }
+        if (speedController.outgoingRampIncomplete) speedController.finishOutgoingRamp(out)
         outgoingAnalysis = out.currentMediaItem?.let(analysisFor) ?: TrackAnalysis()
         incomingAnalysis = into.currentMediaItem?.let(analysisFor) ?: TrackAnalysis()
 
@@ -1037,7 +1026,7 @@ class CrossfadeController(
         incomingCueTimeMs = 0L
         incomingPlaybackRate = 1.0
         outgoingPlaybackRate = 1.0
-        rampSteps = 0
+        speedController.clearOutgoingRamp()
         outgoingAnalysis = TrackAnalysis()
         incomingAnalysis = TrackAnalysis()
         phase = Phase.IDLE
@@ -1072,14 +1061,6 @@ class CrossfadeController(
             incomingPlaybackRate != 1.0 ||
             outgoingPlaybackRate != 1.0
         )
-
-    private fun rampOutgoing(out: ExoPlayer) {
-        val due = ((out.currentPosition - rampStartMs) / rampStepMs + 1).toInt().coerceIn(0, rampSteps)
-        if (due <= rampStep) return
-        rampStep = due
-        val rate = 1.0 + (outgoingPlaybackRate - 1.0) * due / rampSteps
-        out.setPlaybackSpeed((AppSettings.playbackSpeed.value * rate).toFloat())
-    }
 
     private fun headroomFor(incomingGain: Float, outgoingGain: Float): Float {
         val sum = incomingGain + outgoingGain
