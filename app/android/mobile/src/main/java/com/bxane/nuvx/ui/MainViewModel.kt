@@ -16,7 +16,6 @@ import com.bxane.nuvx.data.LocalMediaRepository
 import com.bxane.nuvx.data.LikeState
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.model.TopPick
-import android.util.Log
 import kotlinx.coroutines.flow.first
 import com.bxane.nuvx.data.model.SPOTIFY_MISSING_PREFIX
 import com.bxane.nuvx.data.model.SPOTIFY_PENDING_PREFIX
@@ -378,7 +377,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private var songMenuJob: Job? = null
 
-    private var likedSyncJob: Job? = null
 
     fun loadSongMenu(videoId: String?) {
         songMenuJob?.cancel()
@@ -608,68 +606,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadMoreHome() = homeFeed.loadMoreHome()
 
-    fun loadLibrary() {
-        if (!_signedIn.value) return
-        val identity = listenerKey()
-        _library.value = UiState.Loading
-        viewModelScope.launch { fetchLibrary(identity) }
-    }
+    private val libraryHistory = MainLibraryHistoryController(
+        scope = viewModelScope,
+        isSignedIn = { _signedIn.value },
+        listenerKey = ::listenerKey,
+        text = ::text,
+        friendly = { it.friendly() },
+        _library = _library,
+        _history = _history,
+    )
+    fun loadLibrary() = libraryHistory.loadLibrary()
 
-    private suspend fun fetchLibrary(identity: String?) {
-        val next = YtMusicRepository.library().fold(
-            onSuccess = { page ->
-                page.likedContinuation?.let { token -> syncLikedMusic(identity, token) }
-                if (page.isEmpty) UiState.Error(text(R.string.library_empty))
-                else UiState.Success(page.copy(likedContinuation = null))
-            },
-            onFailure = { UiState.Error(it.friendly()) },
-        )
-        if (identity == listenerKey()) _library.value = next
-    }
+    private suspend fun fetchLibrary(identity: String?) = libraryHistory.fetchLibrary(identity)
 
-    private fun syncLikedMusic(identity: String?, token: String) {
-        likedSyncJob?.cancel()
-        likedSyncJob = viewModelScope.launch {
-            YtMusicRepository.syncLikedMusic(token) { next ->
-                if (identity != listenerKey()) null else YtMusicRepository.moreSongs(next).getOrNull()
-            }
-        }
-    }
+    fun loadHistory() = libraryHistory.loadHistory()
 
-    fun loadHistory() {
-        if (!_signedIn.value) {
-            _history.value = UiState.Error(text(R.string.history_sign_in_required))
-            return
-        }
-        val identity = listenerKey()
-        _history.value = UiState.Loading
-        viewModelScope.launch {
-            val next = YtMusicRepository.history().fold(
-                onSuccess = { songs ->
-                    if (songs.isEmpty()) UiState.Error(text(R.string.history_empty))
-                    else UiState.Success(songs)
-                },
-                onFailure = { UiState.Error(it.friendly()) },
-            )
-            if (identity == listenerKey()) _history.value = next
-        }
-    }
-
-    fun removeFromHistory(token: String, onSuccess: () -> Unit = {}, onFailure: (Throwable) -> Unit = {}) {
-        viewModelScope.launch {
-            YtMusicRepository.removeFromHistory(token).onSuccess {
-                val current = _history.value
-                if (current is UiState.Success) {
-                    _history.value = current.copy(data = current.data.filterNot { it.feedbackToken == token })
-                }
-                YtMusicRepository.invalidateHistoryCache()
-                onSuccess()
-            }.onFailure {
-                Log.w("nuvx", "removeFromHistory failed: ${it.message}")
-                onFailure(it)
-            }
-        }
-    }
+    fun removeFromHistory(
+        token: String,
+        onSuccess: () -> Unit = {},
+        onFailure: (Throwable) -> Unit = {},
+    ) = libraryHistory.removeFromHistory(token, onSuccess, onFailure)
 
     val searchHistory: StateFlow<List<SearchHistoryEntity>> = SearchHistory.recent
 
@@ -1398,7 +1354,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun clearListenerState(restoreCached: Boolean = false) {
         _account.value = null
-        likedSyncJob?.cancel()
+        libraryHistory.cancelLikedSync()
         LikeState.clear()
         _playlistsLoading.value = false
         _playlists.value = emptyList()
@@ -1445,7 +1401,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _activeAccountId.value = null
         _activeProfileId.value = null
         _library.value = UiState.Loading
-        likedSyncJob?.cancel()
+        libraryHistory.cancelLikedSync()
         LikeState.clear()
         _playlists.value = emptyList()
         _playlistOwned.value = emptyMap()
