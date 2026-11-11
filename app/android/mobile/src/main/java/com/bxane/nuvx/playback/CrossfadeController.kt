@@ -479,7 +479,7 @@ class CrossfadeController(
         lastSmartPlanStartMs = (plan.transitionStart * 1000).roundToLong()
         publishMixPreview(currentItem, nextItem, duration, nextDuration, currentAnalysis, nextAnalysis, analysisState, plan, advanced)
 
-        val loop = loopPlanFor(
+        val loop = loopPlanner.planFor(
             player, currentItem, nextItem, currentAnalysis, nextAnalysis, duration, nextDuration, analysisState,
         )
         if (loop != null && nextStreamReady(nextItem)) {
@@ -1071,128 +1071,12 @@ class CrossfadeController(
     private var loopBuildJob: Job? = null
     private var loopAlignJob: Job? = null
 
-    private var loopPlanKey: String? = null
-    private var loopPlanned: LoopMix.Plan? = null
+    private val loopPlanner = CrossfadeLoopPlanner(scope, syncedLines, loopPortOf, standby)
 
-    private var loopRefusal: String? = null
-    private var lastLoopVerdict = ""
     private var loopIncomingStarted = false
     private var lastLoopPositionMs = -1L
     private var lastLoopAnnounceAt = 0L
     private var lastLoopBeat = -1
-
-    private class LyricSpans(val spans: List<LoopMix.Span>?)
-
-    private val lyricSpans = java.util.concurrent.ConcurrentHashMap<String, LyricSpans>()
-    private val lyricsAsked = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
-
-    private fun askLyrics(item: MediaItem, durationMs: Long) {
-        val id = item.mediaId
-        if (!lyricsAsked.add(id)) return
-        scope.launch(Dispatchers.IO) {
-            val lines = runCatching { syncedLines(item, durationMs) }.getOrNull()
-            val spans = lines?.takeIf { found -> found.count { it.timeMs > 0 } >= 4 }?.let { found ->
-                LoopMix.sungSpans(
-                    found.map { line ->
-                        val end = line.sungUntilMs ?: line.words.lastOrNull()?.endMs
-                        LoopMix.Line(line.timeMs, end, blank = line.isGap || line.text.isBlank())
-                    },
-                )
-            }
-            lyricSpans[id] = LyricSpans(spans)
-        }
-    }
-
-    private fun loopRefusalFor(player: ExoPlayer, current: MediaItem, next: MediaItem, state: SmartAnalysis): String? = when {
-        !LoopMixRenderer.available -> "no renderer"
-        AppSettings.playbackSpeed.value != 1f -> "playback speed is not 1x"
-        player.skipSilenceEnabled -> "skip silence is on"
-        SleepTimer.afterTrack.value -> "sleep timer"
-        state.current != TrackAnalysisState.ANALYSED || state.next != TrackAnalysisState.ANALYSED -> "waiting on analysis"
-        isSourceBacked(current) || isSourceBacked(next) -> "analysed off another recording"
-        loopPortOf(player)?.supportsLoopMix != true -> "this output can't take it"
-        loopPortOf(standby()) == null -> "no standby sink"
-        else -> null
-    }
-
-    private fun isSourceBacked(item: MediaItem): Boolean {
-        val uri = item.localConfiguration?.uri ?: return true
-        return uri.getQueryParameter("v") == null && uri.authority == "source"
-    }
-
-    private fun loopPlanFor(
-        player: ExoPlayer,
-        current: MediaItem,
-        next: MediaItem,
-        currentAnalysis: TrackAnalysis,
-        nextAnalysis: TrackAnalysis,
-        durationMs: Long,
-        nextDurationMs: Long,
-        state: SmartAnalysis,
-    ): LoopMix.Plan? {
-        val pair = "${current.mediaId}->${next.mediaId}"
-        loopRefusalFor(player, current, next, state)?.let { why ->
-            noteLoopVerdict(pair, null, why)
-            return null
-        }
-        askLyrics(current, durationMs)
-        askLyrics(next, nextDurationMs)
-        val outLyrics = lyricSpans[current.mediaId]
-        val inLyrics = lyricSpans[next.mediaId]
-        if (outLyrics == null || inLyrics == null) {
-            noteLoopVerdict(pair, null, "waiting on lyrics")
-            return null
-        }
-        val key = "$pair|${System.identityHashCode(currentAnalysis)}|${System.identityHashCode(nextAnalysis)}"
-        val cached = loopPlanned
-        if (key == loopPlanKey && (cached == null || cached.out.loopStart * 1000 - player.currentPosition >= LOOP_MIN_LEAD_MS)) {
-            return cached
-        }
-        val why = StringBuilder()
-        val plan = LoopMix.plan(
-            out = currentAnalysis,
-            outDuration = durationMs / 1000.0,
-            inn = nextAnalysis,
-            inDuration = nextDurationMs / 1000.0,
-            earliestOutSec = player.currentPosition / 1000.0 + LOOP_SETUP_SECONDS,
-            sungOut = outLyrics.spans,
-            sungIn = inLyrics.spans,
-            why = why,
-        )
-        loopPlanKey = key
-        loopPlanned = plan
-        val lyricsNote = "lyrics ${if (outLyrics.spans != null) "out" else "-"}/${if (inLyrics.spans != null) "in" else "-"}"
-        noteLoopVerdict(pair, plan, if (plan == null) "$why; $lyricsNote" else null)
-        return plan
-    }
-
-    private fun noteLoopVerdict(pair: String, plan: LoopMix.Plan?, refusal: String?) {
-        loopRefusal = refusal
-        val verdict = "$pair: " + (plan?.let { "loop mix at ${"%.2f".format(Locale.ROOT, it.out.loopStart)}s · ${describeLoop(it)}" } ?: "no loop mix ($refusal)")
-        if (verdict == lastLoopVerdict) return
-        lastLoopVerdict = verdict
-        Log.d(TAG, "loop $verdict")
-    }
-
-    private fun describeLoop(plan: LoopMix.Plan): String {
-        val from = plan.out.bpm.roundToInt()
-        val to = plan.targetBpm.roundToInt()
-        val tempo = if (from == to) "$from BPM" else "$from → $to BPM over ${plan.rampBars} bars"
-        val fold = when {
-            plan.fold > 1 -> " (next in double time)"
-            plan.fold < 1 -> " (next in half time)"
-            else -> ""
-        }
-        fun side(pick: LoopMix.Pick): String {
-            val by = when (pick.checkedBy) {
-                LoopMix.Check.LYRICS -> "lyrics"
-                LoopMix.Check.MASK -> "mask"
-                LoopMix.Check.LYRICS_AND_MASK -> "lyrics + mask"
-            }
-            return "${pick.bars}-bar, clear by $by"
-        }
-        return "out ${side(plan.out)} · in ${side(plan.inn)} · $tempo$fold"
-    }
 
     private fun beginLoop(
         out: ExoPlayer,
@@ -1463,8 +1347,7 @@ class CrossfadeController(
 
     private fun loopFallBack(reason: String) {
         Log.d(TAG, "loop mix falls back to a blend: $reason")
-        loopPlanned = null
-        loopRefusal = reason
+        loopPlanner.clear(reason)
         loopBail(reason, settle = false)
     }
 
@@ -1500,14 +1383,14 @@ class CrossfadeController(
             }
             val aligned = session.alignedErrorMs.takeIf { it.isFinite() }
                 ?.let { " · handover ${"%+.1f".format(Locale.ROOT, it)} ms" }.orEmpty()
-            return "Automix · $stage · ${describeLoop(session.plan)}$aligned"
+            return "Automix · $stage · ${loopPlanner.describeLoop(session.plan)}$aligned"
         }
         val nextIndex = player.nextMediaItemIndex
         val next = if (nextIndex == C.INDEX_UNSET) null else player.getMediaItemAt(nextIndex)
-        val planned = loopPlanned
-        if (planned != null && next != null && loopPlanKey?.startsWith("${item.mediaId}->${next.mediaId}|") == true) {
+        val planned = loopPlanner.planned
+        if (planned != null && next != null && loopPlanner.isPlannedFor(item.mediaId, next.mediaId)) {
             val inSeconds = (planned.out.loopStart - player.currentPosition / 1000.0).coerceAtLeast(0.0)
-            return "Automix · loop mix in ${ceil(inSeconds).toInt()} s · ${describeLoop(planned)}"
+            return "Automix · loop mix in ${ceil(inSeconds).toInt()} s · ${loopPlanner.describeLoop(planned)}"
         }
         val plan = lastSmartPlan
         if (plan != null && !plan.blocked && next != null && AppSettings.smartTransitionWindow.value != null) {
@@ -1516,7 +1399,7 @@ class CrossfadeController(
             val bars = if (plan.beatSeconds > 0) (plan.fadeSeconds / (4 * plan.beatSeconds)).roundToInt() else 0
             val length = if (bars > 0) "$bars bars" else "${"%.1f".format(Locale.ROOT, plan.fadeSeconds)} s"
             val why = plan.policyReasons.firstOrNull()?.let { " · $it" }.orEmpty()
-            val noLoop = loopRefusal?.let { " · no loop: $it" }.orEmpty()
+            val noLoop = loopPlanner.refusal?.let { " · no loop: $it" }.orEmpty()
             return when (plan.transitionStyle) {
                 TransitionStyle.EQUAL_POWER -> "Automix · crossfading $whenText · ${"%.0f".format(Locale.ROOT, plan.fadeSeconds)} s$why$noLoop"
                 TransitionStyle.DJ_FILTER -> "Automix · filter mix $whenText · $length$why$noLoop"
@@ -1698,9 +1581,7 @@ class CrossfadeController(
 
         const val LOOP_STEP_MS = 20L
 
-        const val LOOP_SETUP_SECONDS = 15.0
         const val LOOP_ARM_LEAD_MS = 12_000L
-        const val LOOP_MIN_LEAD_MS = 9_000L
         const val LOOP_BUILD_TIMEOUT_MS = 8_000L
 
         const val LOOP_ALIGN_SETTLE_SECONDS = 1.2
