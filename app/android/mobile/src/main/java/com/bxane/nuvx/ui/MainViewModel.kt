@@ -974,34 +974,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private val _catalogLoading = MutableStateFlow<Set<String>>(emptySet())
+    private val catalogController = MainCatalogController(
+        scope = viewModelScope,
+        withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
+    )
+    val catalogLoading: StateFlow<Set<String>> = catalogController.catalogLoading
 
-    val catalogLoading: StateFlow<Set<String>> = _catalogLoading.asStateFlow()
-
-    fun collectCatalog(page: DetailPage, onResult: (List<Pair<ShelfItem, List<Song>>>) -> Unit) {
-        if (page.browseId in _catalogLoading.value) return
-        _catalogLoading.update { it + page.browseId }
-        viewModelScope.launch {
-            val gate = Semaphore(4)
-            val releases = try {
-                page.sections.catalogReleases().map { release ->
-                    async {
-                        gate.withPermit {
-                            YtMusicRepository.allSongs(release.browseId!!).getOrNull()
-                                ?.map { it.copy(albumName = it.albumName ?: release.title) }
-                                ?.withArtwork(release.thumbnailUrl)
-                                ?.takeIf { it.isNotEmpty() }
-                                ?.let { release to it }
-                        }
-                    }
-                }.awaitAll().filterNotNull()
-            } finally {
-                _catalogLoading.update { it - page.browseId }
-            }
-            onResult(releases)
-        }
-    }
-
+    fun collectCatalog(page: DetailPage, onResult: (List<Pair<ShelfItem, List<Song>>>) -> Unit) =
+        catalogController.collectCatalog(page, onResult)
     fun closeDetail(): Boolean {
         val stack = _detailStack.value
         if (stack.isEmpty()) return false
