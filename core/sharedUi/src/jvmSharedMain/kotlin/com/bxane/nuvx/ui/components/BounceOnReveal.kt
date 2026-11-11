@@ -61,6 +61,11 @@ fun RevealIcon(icon: ImageVector, tint: Color, size: Dp) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size).bounceOnReveal())
         return
     }
+    RevealIcon(symbol, tint, size)
+}
+
+@Composable
+fun RevealIcon(symbol: SfSymbol, tint: Color, size: Dp) {
     val reduce by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     var reveals by remember { mutableIntStateOf(0) }
     Box(

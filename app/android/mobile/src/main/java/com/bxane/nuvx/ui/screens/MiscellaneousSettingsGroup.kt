@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -37,9 +36,20 @@ import com.bxane.nuvx.PodcastsSymbol
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.ui.components.IosSwitch
+import com.bxane.nuvx.ui.components.RevealIcon
 import com.bxane.nuvx.ui.icons.SfIcons
+import com.composables.sfsymbols.SfSymbol
 
-internal fun hidePodcastsTabIcon(): ImageVector = PodcastsSymbol.toImageVector()
+internal fun hidePodcastsTabSymbol(): SfSymbol = PodcastsSymbol
+
+@Composable
+private fun HidePodcastsTabIcon() {
+    RevealIcon(
+        symbol = hidePodcastsTabSymbol(),
+        tint = MaterialTheme.colorScheme.onBackground,
+        size = ICON_SIZE,
+    )
+}
 
 @Composable
 internal fun MiscellaneousSettingsGroup(
@@ -109,7 +119,7 @@ internal fun MiscellaneousSettingsGroup(
         val hidePodcastsTabTitle = stringResource(R.string.hide_podcasts_tab)
         row(hidePodcastsTabTitle, "podcasts", "podcast", "episodes", "tab", "nav") {
             SettingsRow(
-                icon = hidePodcastsTabIcon(),
+                iconContent = { HidePodcastsTabIcon() },
                 title = hidePodcastsTabTitle,
                 subtitle = stringResource(R.string.hide_podcasts_tab_subtitle),
                 trailing = {
