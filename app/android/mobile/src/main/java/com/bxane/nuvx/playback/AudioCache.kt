@@ -133,9 +133,7 @@ object AudioCache {
 
     fun clear(onComplete: () -> Unit = {}) {
         cancel()
-        analysisHeads.clear()
-        analysisHeadsInFlight.clear()
-        analysisHeadWant.clear()
+        analysisHeadController.clear()
         renditionKeys.clear()
         scope.launch {
             cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
@@ -178,7 +176,7 @@ object AudioCache {
         return runCatching { cache.removeResource(key) }
             .onSuccess {
                 TrackLog.d(TAG, "discarded undecodable rendition $key", about = about)
-                uri.getQueryParameter("v")?.let(analysisHeads::remove)
+                uri.getQueryParameter("v")?.let(analysisHeadController::removeRequest)
             }
             .onFailure {
                 TrackLog.d(TAG, "undecodable rendition $key still in use: ${it.message}", about = about)
@@ -471,9 +469,7 @@ object AudioCache {
     suspend fun remove(mediaId: String): Int = withContext(Dispatchers.IO) {
         if (!::cache.isInitialized || mediaId.isBlank()) return@withContext 0
         playedIds.remove(mediaId)
-        analysisHeads.remove(mediaId)
-        analysisHeadsInFlight.remove(mediaId)
-        analysisHeadWant.remove(mediaId)
+        analysisHeadController.removeState(mediaId)
         renditionKeys.remove(mediaId)
         var removed = 0
         keysOf(mediaId).forEach { key ->
@@ -574,8 +570,7 @@ object AudioCache {
                     .onSuccess {
                         dropped++
                         mediaId?.let { id ->
-                            analysisHeads.remove(id)
-                            analysisHeadWant.remove(id)
+                            analysisHeadController.removeRequestAndWant(id)
                             renditionKeys.remove(id)
                         }
                     }
@@ -805,163 +800,27 @@ object AudioCache {
         fetch(key, uri, position, length)
     }
 
-    private val analysisHeads = ConcurrentHashMap<String, Boolean>()
-
-    private val analysisHeadsInFlight = ConcurrentHashMap.newKeySet<String>()
-
-    private val analysisHeadWant = ConcurrentHashMap<String, Long>()
-
     const val MIN_ALIGNMENT_PREFIX_BYTES = 800L * 1024
 
-    private const val MAX_ALIGNMENT_HEAD_ROUNDS = 3
+    private val analysisHeadController = AudioCacheAnalysisHeadController(
+        scope = scope,
+        cache = { cache },
+        cacheInitialized = { ::cache.isInitialized },
+        upstreamAvailable = { upstreamFactory != null },
+        renditionsOf = ::renditionsOf,
+        cachedPrefixBytes = ::cachedPrefixBytes,
+        fetch = { cacheKey, uri, position, length, pinKey -> fetch(cacheKey, uri, position, length, pinKey) },
+        pull = ::pull,
+        tag = TAG,
+        minimumPrefixBytes = MIN_ALIGNMENT_PREFIX_BYTES,
+        maximumAnalysisHeadBytes = MAX_ANALYSIS_HEAD_BYTES,
+        maximumAnalysisTrackBytes = MAX_ANALYSIS_TRACK_BYTES,
+    )
 
-    private const val HEAD_ROUND_SETTLE_MS = 500L
+    suspend fun awaitAnalysisHead(uri: Uri, timeoutMs: Long = 20_000L): Boolean =
+        analysisHeadController.awaitAnalysisHead(uri, timeoutMs)
 
-    suspend fun awaitAnalysisHead(uri: Uri, timeoutMs: Long = 20_000L): Boolean {
-        if (!::cache.isInitialized) return false
-        val videoId = uri.getQueryParameter("v") ?: return false
-        if (alignmentHeadComplete(videoId)) return true
-        val opus = Uri.parse(AutomixAnalysisSource.opusUri(videoId))
-        if (videoId !in analysisHeadsInFlight) {
-            analysisHeads.remove(videoId)
-        }
-        requestAnalysisHead(opus)
-        var rounds = 1
-        var askedAt = SystemClock.elapsedRealtime()
-        val deadline = askedAt + timeoutMs
-        while (SystemClock.elapsedRealtime() < deadline) {
-            if (alignmentHeadComplete(videoId)) return true
-            if (videoId !in analysisHeadsInFlight) {
-                if (rounds >= MAX_ALIGNMENT_HEAD_ROUNDS) return alignmentHeadComplete(videoId)
-                val now = SystemClock.elapsedRealtime()
-                if (now - askedAt >= HEAD_ROUND_SETTLE_MS) {
-                    if (alignmentPrefixBytes(videoId) < MIN_ALIGNMENT_PREFIX_BYTES) {
-                        analysisHeads.remove(videoId)
-                        requestAnalysisHead(opus)
-                        rounds++
-                    }
-                    askedAt = now
-                }
-            }
-            delay(40)
-        }
-        return alignmentHeadComplete(videoId)
-    }
-
-    private fun alignmentHeadComplete(videoId: String): Boolean {
-        val held = alignmentPrefixBytes(videoId)
-        if (held >= MIN_ALIGNMENT_PREFIX_BYTES) return true
-        val want = analysisHeadWant[videoId] ?: return false
-        if (videoId in analysisHeadsInFlight) return false
-        return held >= want
-    }
-
-    private fun alignmentPrefixBytes(videoId: String): Long {
-        val watch = Uri.parse("nuvx://watch?v=$videoId")
-        val opus = Uri.parse(AutomixAnalysisSource.opusUri(videoId))
-        val renditions = renditionsOf(watch)
-        val sameSource = renditions
-            .filter { !it.key.endsWith("#alt") }
-            .maxOfOrNull { it.cachedPrefix } ?: 0L
-        if (sameSource >= MIN_ALIGNMENT_PREFIX_BYTES) return sameSource
-        return maxOf(
-            cachedPrefixBytes(opus),
-            cachedPrefixBytes(watch),
-            renditions.maxOfOrNull { it.cachedPrefix } ?: 0L,
-        )
-    }
-
-    fun requestAnalysisHead(uri: Uri) {
-        if (!::cache.isInitialized) {
-            TrackLog.w(TAG, "analysis head for $uri not started: cache is not initialised")
-            return
-        }
-        if (upstreamFactory == null) {
-            TrackLog.w(TAG, "analysis head for $uri not started: no upstream yet")
-            return
-        }
-        val videoId = uri.getQueryParameter("v") ?: return
-        if (analysisHeads.putIfAbsent(videoId, true) != null) return
-        if (!analysisHeadsInFlight.add(videoId)) return
-        scope.launch {
-            try {
-                val total = runCatching { StreamResolver.contentLength(videoId) }
-                    .onFailure {
-                        TrackLog.w(TAG, "contentLength failed for $videoId: ${it.message}", videoId)
-                    }
-                    .getOrNull() ?: 0L
-                val want = analysisHeadSize(total)
-                analysisHeadWant[videoId] = want
-                TrackLog.w(
-                    TAG,
-                    "analysis head round for $videoId: total=$total want=$want " +
-                        "held=${alignmentPrefixBytes(videoId)}",
-                    videoId,
-                )
-                if (!clearPartialHead(videoId, want)) {
-                    TrackLog.w(TAG, "analysis head round for $videoId skipped: partial is held elsewhere", videoId)
-                    return@launch
-                }
-                fetch(
-                    cacheKey = videoId,
-                    uri = Uri.parse(AutomixAnalysisSource.opusUri(videoId)),
-                    position = 0,
-                    length = want,
-                    pinKey = true,
-                )
-                if (alignmentPrefixBytes(videoId) < MIN_ALIGNMENT_PREFIX_BYTES) {
-                    pull(
-                        videoId,
-                        Uri.parse("nuvx://watch?v=$videoId"),
-                        0,
-                        want,
-                        false,
-                    )
-                }
-                if (total > 0) recordContentLength(videoId, total)
-                val held = alignmentPrefixBytes(videoId)
-                if (held < MIN_ALIGNMENT_PREFIX_BYTES) {
-                    TrackLog.w(
-                        TAG,
-                        "analysis head for $videoId came up short: " +
-                            "held=$held want=$want total=$total " +
-                            "(cause in the read-ahead lines around this one)",
-                        videoId,
-                    )
-                }
-            } finally {
-                analysisHeadsInFlight.remove(videoId)
-            }
-        }
-    }
-
-    private fun analysisHeadSize(total: Long): Long =
-        if (total > 0) minOf(total, MAX_ANALYSIS_TRACK_BYTES) else MAX_ANALYSIS_HEAD_BYTES
-
-    private fun clearPartialHead(videoId: String, want: Long): Boolean {
-        val held = cache.getCachedBytes(videoId, 0, want)
-        if (held <= 0L) return true
-        if (held >= want) return false
-        return runCatching { cache.removeResource(videoId) }
-            .onSuccess {
-                TrackLog.d(TAG, "cleared partial analysis head for $videoId ($held of $want)", about = videoId)
-            }
-            .onFailure {
-                TrackLog.d(TAG, "partial head for $videoId is in use: ${it.message}", about = videoId)
-            }
-            .isSuccess
-    }
-
-    private fun recordContentLength(videoId: String, total: Long) {
-        if (ContentMetadata.getContentLength(cache.getContentMetadata(videoId)) > 0) return
-        if (total <= 0) return
-        runCatching {
-            cache.applyContentMetadataMutations(
-                videoId,
-                ContentMetadataMutations().apply { ContentMetadataMutations.setContentLength(this, total) },
-            )
-        }.onFailure { TrackLog.d(TAG, "could not record length for $videoId: ${it.message}", about = videoId) }
-    }
+    fun requestAnalysisHead(uri: Uri) = analysisHeadController.requestAnalysisHead(uri)
 
     fun isFullyCached(uri: Uri): Boolean {
         val contentLength = contentLengthOf(uri)
