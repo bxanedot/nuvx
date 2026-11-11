@@ -6,7 +6,6 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.SystemClock
-import com.bxane.nuvx.R
 import com.bxane.nuvx.data.TrackLog
 import com.bxane.nuvx.playback.smart.AutomixAnalysisSource
 import androidx.media3.common.C
@@ -25,7 +24,6 @@ import com.bxane.nuvx.data.innertube.StreamResolver
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.sources.DeviceCodecs
-import com.bxane.nuvx.data.sources.SourceKind
 import com.bxane.nuvx.data.sources.SourceRegistry
 import com.bxane.nuvx.data.sources.SourceResolver
 import com.bxane.nuvx.data.sources.SourceStream
@@ -36,15 +34,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 import com.bxane.nuvx.data.model.isLiveRadio
@@ -136,7 +131,7 @@ object AudioCache {
         renditionKeys.clear()
         scope.launch {
             cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
-            _contentsChanged.value++
+            metadataController.publishContentsChanged()
             withContext(Dispatchers.Main) { onComplete() }
         }
     }
@@ -225,26 +220,11 @@ object AudioCache {
         return siblings.firstOrNull { key -> isComplete(key) && isKeptOrigin(key) }
     }
 
-    private fun isKeptOrigin(key: String): Boolean = runCatching {
-        val origin = cache.getContentMetadata(key).get(META_ORIGIN, null as String?)
-        origin == Origin.YOUTUBE.name || origin == Origin.JIOSAAVN.name
-    }.getOrDefault(false)
+    private fun isKeptOrigin(key: String): Boolean = metadataController.isKeptOrigin(key)
 
-    fun originOf(uri: Uri): Origin? {
-        if (!::cache.isInitialized || uri.scheme != "nuvx") return null
-        val key = keyFactory.buildCacheKey(DataSpec(uri))
-        return runCatching { cache.getContentMetadata(key).get(META_ORIGIN, null as String?) }
-            .getOrNull()
-            ?.let { name -> Origin.values().firstOrNull { it.name == name } }
-    }
+    fun originOf(uri: Uri): Origin? = metadataController.originOf(uri)
 
-    fun heldByYouTube(key: String?): Boolean {
-        if (key == null || !::cache.isInitialized) return false
-        return runCatching {
-            cache.getCachedSpans(key).isNotEmpty() &&
-                cache.getContentMetadata(key).get(META_ORIGIN, null as String?) == Origin.YOUTUBE.name
-        }.getOrDefault(false)
-    }
+    fun heldByYouTube(key: String?): Boolean = metadataController.heldByYouTube(key)
 
     private fun isComplete(key: String): Boolean = runCatching {
         val length = ContentMetadata.getContentLength(cache.getContentMetadata(key))
@@ -272,212 +252,42 @@ object AudioCache {
         val complete: Boolean,
     )
 
-    private val _contentsChanged = MutableStateFlow(0)
+    private val metadataController = AudioCacheMetadataController(
+        scope = scope,
+        cacheProvider = { cache },
+        cacheInitialized = { ::cache.isInitialized },
+        appContextProvider = { appContext },
+        keyFactory = keyFactory,
+        cacheKeyBaseOf = ::cacheKeyBaseOf,
+    )
 
-    val contentsChanged: StateFlow<Int> = _contentsChanged.asStateFlow()
+    val contentsChanged: StateFlow<Int> = metadataController.contentsChanged
 
-    private val notedSongs = ConcurrentHashMap<String, Song>()
+    fun noteSongs(songs: List<Song>) = metadataController.noteSongs(songs)
 
-    private val playedIds = ConcurrentHashMap.newKeySet<String>()
+    fun notePlayed(song: Song, uri: Uri?) = metadataController.notePlayed(song, uri)
 
-    fun noteSongs(songs: List<Song>) {
-        val playable = songs.filter { it.localUri == null && it.videoId.isNotBlank() }
-        if (playable.isEmpty()) return
-        if (notedSongs.size > MAX_NOTED_SONGS) notedSongs.clear()
-        playable.forEach { notedSongs[it.videoId] = it }
-        if (!::cache.isInitialized) return
-        scope.launch {
-            val keys = cache.keys
-            playable.forEach { song ->
-                val base = cacheKeyBaseOf(song.videoId)
-                keys.filter { it == base || it.startsWith("$base#") }.forEach { key ->
-                    runCatching {
-                        val meta = cache.getContentMetadata(key)
-                        if (meta.get(META_ORIGIN, null as String?) == null) return@runCatching
-                        if (meta.get(META_TITLE, null as String?) != null &&
-                            meta.get(META_ART, null as String?) != null
-                        ) {
-                            return@runCatching
-                        }
-                        cache.applyContentMetadataMutations(
-                            key,
-                            ContentMetadataMutations().also { describe(it, song, null) },
-                        )
-                    }
-                }
-            }
-        }
-    }
+    fun recordServed(spec: DataSpec, servedUrl: String) = metadataController.recordServed(spec, servedUrl)
 
-    fun notePlayed(song: Song, uri: Uri?) {
-        if (song.localUri != null || song.videoId.isBlank()) return
-        if (playedIds.size > MAX_NOTED_SONGS) playedIds.clear()
-        playedIds += song.videoId
-        noteSongs(listOf(song))
-        if (!::cache.isInitialized || uri?.scheme != "nuvx") return
-        scope.launch {
-            val key = keyFactory.buildCacheKey(DataSpec(uri))
-            runCatching {
-                val meta = cache.getContentMetadata(key)
-                if (meta.get(META_ORIGIN, null as String?) == null) return@runCatching
-                if (meta.get(META_PLAYED, null as String?) != null) return@runCatching
-                cache.applyContentMetadataMutations(
-                    key,
-                    ContentMetadataMutations().set(META_PLAYED, "1"),
-                )
-            }
-        }
-    }
-
-    fun recordServed(spec: DataSpec, servedUrl: String) {
-        if (!::cache.isInitialized) return
-        if (spec.uri.scheme != "nuvx") return
-        val mediaId = mediaIdIn(spec.uri) ?: return
-        val key = spec.key ?: keyFactory.buildCacheKey(spec)
-        val origin = originOf(spec.uri, mediaId, servedUrl)
-        val song = notedSongs[mediaId]
-        val analysis = AutomixAnalysisSource.requestsYouTubeOpus(
-            spec.uri.getQueryParameter(AutomixAnalysisSource.OPUS_QUERY_PARAMETER),
-        )
-        runCatching {
-            val meta = cache.getContentMetadata(key)
-            fun has(name: String) = meta.get(name, null as String?) != null
-            val usedByPlayback = has(META_PLAYBACK) || !analysis
-            val played = has(META_PLAYED) || (!analysis && mediaId in playedIds)
-            val tagged = meta.get(META_ORIGIN, null as String?) == origin.name &&
-                meta.get(META_MEDIA_ID, null as String?) == mediaId &&
-                has(META_PLAYBACK) == usedByPlayback &&
-                (usedByPlayback || has(META_ANALYSIS)) &&
-                has(META_PLAYED) == played
-            if (tagged && (song == null || has(META_TITLE))) return
-            cache.applyContentMetadataMutations(
-                key,
-                ContentMetadataMutations().also { mutations ->
-                    mutations.set(META_ORIGIN, origin.name)
-                    mutations.set(META_MEDIA_ID, mediaId)
-                    if (usedByPlayback) mutations.set(META_PLAYBACK, "1") else mutations.set(META_ANALYSIS, "1")
-                    if (played) mutations.set(META_PLAYED, "1")
-                    describe(mutations, song, spec.uri)
-                },
-            )
-        }.onFailure {
-            TrackLog.d(TAG, "could not tag cache entry $key: ${it.message}", about = mediaId)
-        }
-    }
-
-    private fun originOf(uri: Uri, mediaId: String, servedUrl: String): Origin {
-        val host = runCatching { Uri.parse(servedUrl).host }.getOrNull()?.lowercase(Locale.ROOT).orEmpty()
-        if (host.endsWith("googlevideo.com") || host.endsWith("youtube.com")) return Origin.YOUTUBE
-        if (host.endsWith("saavncdn.com") || host.endsWith("jiosaavn.com")) return Origin.JIOSAAVN
-        val upgrade = QualityUpgrade.forcedStream(uri)
-        val configId = when {
-            upgrade != null -> upgrade.sourceConfigId
-            uri.getQueryParameter("s") != null -> uri.getQueryParameter("s")
-            else -> StreamChoice.of(mediaId)?.sourceConfigId
-        }
-        val kind = configId?.let { SourceRegistry.config(it)?.kind }
-        return if (kind == SourceKind.JIOSAAVN) Origin.JIOSAAVN else Origin.OTHER
-    }
-
-    private fun describe(mutations: ContentMetadataMutations, song: Song?, uri: Uri?) {
-        val title = song?.title?.takeIf { it.isNotBlank() } ?: uri?.getQueryParameter("n")
-        val artist = song?.artist?.takeIf { it.isNotBlank() } ?: uri?.getQueryParameter("a")
-        val album = song?.albumName?.takeIf { it.isNotBlank() } ?: uri?.getQueryParameter("l")
-        val duration = song?.durationText
-            ?: uri?.getQueryParameter("d")?.toIntOrNull()?.let { "%d:%02d".format(Locale.ROOT, it / 60, it % 60) }
-        title?.takeIf { it.isNotBlank() }?.let { mutations.set(META_TITLE, it) }
-        artist?.takeIf { it.isNotBlank() }?.let { mutations.set(META_ARTIST, it) }
-        album?.takeIf { it.isNotBlank() }?.let { mutations.set(META_ALBUM, it) }
-        duration?.takeIf { it.isNotBlank() }?.let { mutations.set(META_DURATION, it) }
-        song?.thumbnailUrl?.takeIf { it.isNotBlank() }?.let { mutations.set(META_ART, it) }
-    }
-
-    suspend fun cachedSongs(): List<CachedSong> = withContext(Dispatchers.IO) {
-        if (!::cache.isInitialized) return@withContext emptyList()
-        class Entry(
-            val origin: Origin,
-            val meta: ContentMetadata,
-            val bytes: Long,
-            val touched: Long,
-            val complete: Boolean,
-        )
-        val byTrack = LinkedHashMap<String, MutableList<Entry>>()
-        for (key in cache.keys) {
-            val meta = runCatching { cache.getContentMetadata(key) }.getOrNull() ?: continue
-            val origin = meta.get(META_ORIGIN, null as String?)
-                ?.let { runCatching { Origin.valueOf(it) }.getOrNull() }
-                ?: continue
-            if (meta.get(META_PLAYED, null as String?) == null) continue
-            val mediaId = meta.get(META_MEDIA_ID, null as String?) ?: continue
-            val spans = cache.getCachedSpans(key).filter { it.isCached && it.file?.exists() == true }
-            val bytes = spans.sumOf { it.length }
-            if (bytes <= 0L) continue
-            val touched = spans.maxOf { it.lastTouchTimestamp }
-            val length = ContentMetadata.getContentLength(meta)
-            val complete = length > 0 && bytes >= length && cache.isCached(key, 0, length)
-            byTrack.getOrPut(mediaId) { mutableListOf() } += Entry(origin, meta, bytes, touched, complete)
-        }
-        byTrack.map { (mediaId, entries) ->
-            fun field(name: String): String? =
-                entries.firstNotNullOfOrNull { it.meta.get(name, null as String?)?.takeIf(String::isNotBlank) }
-            val bytes = entries.sumOf { it.bytes }
-            val lastUsed = entries.maxOf { it.touched }
-            val origin = entries.maxBy { it.bytes }.origin
-            val complete = entries.any { it.complete }
-            val noted = notedSongs[mediaId]
-            val art = field(META_ART) ?: noted?.thumbnailUrl
-                ?: mediaId.takeIf { SourceRegistry.parseTrackKey(it) == null }
-                    ?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" }
-            CachedSong(
-                song = Song(
-                    videoId = mediaId,
-                    title = field(META_TITLE) ?: noted?.title?.takeIf(String::isNotBlank) ?: mediaId,
-                    artist = field(META_ARTIST) ?: noted?.artist.orEmpty(),
-                    thumbnailUrl = art,
-                    durationText = field(META_DURATION) ?: noted?.durationText,
-                    albumName = field(META_ALBUM) ?: noted?.albumName,
-                    downloadFormat = listOfNotNull(
-                        origin.label,
-                        formatBytes(bytes),
-                        appContext.getString(R.string.cached_song_partial).takeUnless { complete },
-                    ).joinToString(" · "),
-                    localDateAddedSeconds = lastUsed / 1000,
-                ),
-                origin = origin,
-                bytes = bytes,
-                lastUsedMs = lastUsed,
-                complete = complete,
-            )
-        }.sortedByDescending { it.lastUsedMs }
-    }
-
-    private fun keysOf(mediaId: String): List<String> {
-        val base = cacheKeyBaseOf(mediaId)
-        return cache.keys.filter { key ->
-            key == base || key.startsWith("$base#") ||
-                runCatching { cache.getContentMetadata(key).get(META_MEDIA_ID, null as String?) }
-                    .getOrNull() == mediaId
-        }
-    }
-
+    suspend fun cachedSongs(): List<CachedSong> = metadataController.cachedSongs()
     fun holds(mediaId: String): Boolean {
         if (!::cache.isInitialized || mediaId.isBlank()) return false
-        return keysOf(mediaId).any { key -> cache.getCachedSpans(key).any { it.isCached } }
+        return metadataController.keysOf(mediaId).any { key -> cache.getCachedSpans(key).any { it.isCached } }
     }
 
     suspend fun remove(mediaId: String): Int = withContext(Dispatchers.IO) {
         if (!::cache.isInitialized || mediaId.isBlank()) return@withContext 0
-        playedIds.remove(mediaId)
+        metadataController.forgetPlayed(mediaId)
         analysisHeadController.removeState(mediaId)
         renditionKeys.remove(mediaId)
         var removed = 0
-        keysOf(mediaId).forEach { key ->
+        metadataController.keysOf(mediaId).forEach { key ->
             runCatching { cache.removeResource(key) }
                 .onSuccess { removed++ }
                 .onFailure { TrackLog.d(TAG, "cache entry $key still in use: ${it.message}", about = mediaId) }
         }
         TrackLog.d(TAG, "removed $removed cache entries at the listener's request", about = mediaId)
-        _contentsChanged.value++
+        metadataController.publishContentsChanged()
         removed
     }
 
@@ -490,10 +300,10 @@ object AudioCache {
 
     fun completeCopyOf(mediaId: String): CompleteCopy? {
         if (!::cache.isInitialized || mediaId.isBlank()) return null
-        return keysOf(mediaId)
+        return metadataController.keysOf(mediaId)
             .filterNot { it.endsWith("#watch") }
             .filterNot { key ->
-                runCatching { cache.getContentMetadata(key).get(META_ORIGIN, null as String?) }
+                runCatching { cache.getContentMetadata(key).get(AudioCacheMetadataKeys.META_ORIGIN, null as String?) }
                     .getOrNull() == Origin.OTHER.name
             }
             .mapNotNull { key ->
@@ -556,14 +366,14 @@ object AudioCache {
             var dropped = 0
             cache.keys.toList().forEach { key ->
                 val meta = runCatching { cache.getContentMetadata(key) }.getOrNull() ?: return@forEach
-                val foreign = meta.get(META_ORIGIN, null as String?) == Origin.OTHER.name &&
+                val foreign = meta.get(AudioCacheMetadataKeys.META_ORIGIN, null as String?) == Origin.OTHER.name &&
                     !keepsAddonCopy(key)
                 val analysisOnly = !keepAnalysis &&
-                    meta.get(META_ANALYSIS, null as String?) != null &&
-                    meta.get(META_PLAYBACK, null as String?) == null &&
-                    meta.get(META_PLAYED, null as String?) == null
+                    meta.get(AudioCacheMetadataKeys.META_ANALYSIS, null as String?) != null &&
+                    meta.get(AudioCacheMetadataKeys.META_PLAYBACK, null as String?) == null &&
+                    meta.get(AudioCacheMetadataKeys.META_PLAYED, null as String?) == null
                 if (!foreign && !analysisOnly) return@forEach
-                val mediaId = meta.get(META_MEDIA_ID, null as String?)
+                val mediaId = meta.get(AudioCacheMetadataKeys.META_MEDIA_ID, null as String?)
                 if (mediaId != null && mediaId in keep) return@forEach
                 runCatching { cache.removeResource(key) }
                     .onSuccess {
@@ -585,32 +395,6 @@ object AudioCache {
     private fun cacheKeyBaseOf(mediaId: String): String =
         SourceRegistry.parseTrackKey(mediaId)?.let { (source, track) -> "$source|$track" } ?: mediaId
 
-    private val Origin.label: String
-        get() = when (this) {
-            Origin.YOUTUBE -> SourceKind.YOUTUBE.label
-            Origin.JIOSAAVN -> SourceKind.JIOSAAVN.label
-            Origin.OTHER -> "Addon"
-        }
-
-    private fun formatBytes(bytes: Long): String {
-        val mb = bytes / (1024.0 * 1024.0)
-        return if (mb >= 1024) "%.1f GB".format(Locale.ROOT, mb / 1024) else "%.1f MB".format(Locale.ROOT, mb)
-    }
-
-    private const val META_ORIGIN = "nx_origin"
-    private const val META_MEDIA_ID = "nx_media_id"
-    private const val META_TITLE = "nx_title"
-    private const val META_ARTIST = "nx_artist"
-    private const val META_ALBUM = "nx_album"
-    private const val META_DURATION = "nx_duration"
-    private const val META_ART = "nx_art"
-
-    private const val META_PLAYBACK = "nx_playback"
-
-    private const val META_ANALYSIS = "nx_analysis"
-
-    private const val META_PLAYED = "nx_played"
-    private const val MAX_NOTED_SONGS = 256
     private const val COPY_BUFFER_BYTES = 64 * 1024
 
     private const val CACHE_DIR_NAME = "audio_cache"
