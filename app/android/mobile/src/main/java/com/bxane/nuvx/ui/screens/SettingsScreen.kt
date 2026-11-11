@@ -495,44 +495,16 @@ fun SettingsScreen(
             }
         }
 
-        if (shows(SettingsCategory.DOWNLOADS)) SearchableSettingsGroup(search, header = stringResource(R.string.downloads)) {
-            val downloadQualityTitle = stringResource(R.string.download_quality)
-            row(downloadQualityTitle, "offline", "lossless") {
-                SettingsRow(
-                    icon = SfIcons.Download,
-                    title = downloadQualityTitle,
-                    subtitle = stringResource(R.string.download_quality_subtitle, downloadQuality.perTrack),
-                    value = downloadQuality.localizedLabel(),
-                    onClick = { onOpenChoice(SettingsChoiceKind.DOWNLOAD_QUALITY) },
-                )
-            }
-            val downloadWifiOnlyTitle = stringResource(R.string.download_wifi_only)
-            row(downloadWifiOnlyTitle, "wi-fi", "cellular", divided = false) {
-                SettingsSubRow(
-                    title = downloadWifiOnlyTitle,
-                    checked = wifiOnlyDownloads,
-                    onCheckedChange = AppSettings::setWifiOnlyDownloads,
-                    badge = stringResource(R.string.blocking).takeIf { wifiOnlyDownloads && metered == true },
-                )
-            }
-            val exportDownloadsTitle = stringResource(R.string.export_compatible_downloads)
-            row(exportDownloadsTitle, "music folder") {
-                SettingsSubRow(
-                    title = exportDownloadsTitle,
-                    checked = exportDownloads,
-                    onCheckedChange = AppSettings::setExportDownloads,
-                    subtitle = "Music/nuvx".takeIf { exportDownloads },
-                )
-            }
-            val syncPlaylistsTitle = stringResource(R.string.sync_downloaded_playlists)
-            row(syncPlaylistsTitle, "playlist", "new songs", "background", "automatic") {
-                SettingsSubRow(
-                    title = syncPlaylistsTitle,
-                    checked = syncDownloadedPlaylists,
-                    onCheckedChange = AppSettings::setSyncDownloadedPlaylists,
-                    subtitle = stringResource(R.string.sync_downloaded_playlists_subtitle),
-                )
-            }
+        if (shows(SettingsCategory.DOWNLOADS)) {
+            DownloadSettingsGroup(
+                search = search,
+                downloadQuality = downloadQuality,
+                wifiOnlyDownloads = wifiOnlyDownloads,
+                metered = metered,
+                exportDownloads = exportDownloads,
+                syncDownloadedPlaylists = syncDownloadedPlaylists,
+                onOpenChoice = onOpenChoice,
+            )
         }
 
         if (shows(SettingsCategory.PLAYBACK)) SearchableSettingsGroup(
@@ -1923,65 +1895,4 @@ fun SettingsScreen(
         )
     }
 
-}
-
-private class SettingsSearch(
-    query: String,
-    val inPage: Boolean = false,
-) {
-    private val needle = query.trim()
-
-    var anyMatch = false
-        private set
-
-    fun matches(vararg keywords: String?): Boolean {
-        val hit = needle.isEmpty() ||
-            keywords.any { it?.contains(needle, ignoreCase = true) == true }
-        if (hit) anyMatch = true
-        return hit
-    }
-}
-
-private class SettingsGroupScope(
-    private val search: SettingsSearch,
-    private val header: String?,
-) {
-    class Entry(val divided: Boolean, val content: @Composable () -> Unit)
-
-    val entries = mutableListOf<Entry>()
-
-    fun row(
-        vararg keywords: String?,
-        divided: Boolean = true,
-        content: @Composable () -> Unit,
-    ) {
-        if (search.matches(header, *keywords)) entries += Entry(divided, content)
-    }
-}
-
-@Composable
-private inline fun SearchableSettingsGroup(
-    search: SettingsSearch,
-    header: String? = null,
-    footer: String? = null,
-    topSpacing: Dp = 26.dp,
-    content: @Composable SettingsGroupScope.() -> Unit,
-) {
-    val scope = SettingsGroupScope(search, header)
-    scope.content()
-    if (scope.entries.isEmpty()) return
-    val inPageHeader = header != null && search.inPage
-    SettingsGroup(
-        header = header.takeUnless { inPageHeader },
-        footer = footer,
-        topSpacing = if (inPageHeader) 0.dp else topSpacing,
-    ) {
-        scope.entries.forEachIndexed { index, entry ->
-            when {
-                index > 0 && entry.divided -> RowDivider()
-                index == 0 && !entry.divided -> Spacer(Modifier.height(10.dp))
-            }
-            entry.content()
-        }
-    }
 }
