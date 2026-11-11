@@ -214,9 +214,9 @@ private val PortraitClipScrim = Brush.verticalGradient(
 
 internal val PLAYER_GUTTER = 30.dp
 internal val PLAYER_MAX_WIDTH = 560.dp
-private val TABLET_PLAYER_MIN_WIDTH = 700.dp
+internal val TABLET_PLAYER_MIN_WIDTH = 700.dp
 
-private val LANDSCAPE_PLAYER_MIN_WIDTH = 560.dp
+internal val LANDSCAPE_PLAYER_MIN_WIDTH = 560.dp
 
 private const val ARTWORK_EXPANDED_SCALE = 1f
 private const val ARTWORK_PAUSE_SHRINK_SCALE = 0.88f
@@ -234,137 +234,13 @@ private const val DOCK_FADE_LEAD = 0.15f
 
 private const val DOCK_FADE_FLOOR = 1f / 255f
 
-private class DockFrame {
-    var anchor: Offset? by mutableStateOf(null)
-    var anchorFor = IntSize.Zero
-    var miniInBox: Rect? = null
-    var offset = 0f
-    var ride = 0f
-    var sleeve: Rect = Rect.Zero
-    private var cornerRadius = Dp.Unspecified
-    private var corner: Shape = RectangleShape
-    fun cornerShape(radius: Dp): Shape {
-        if (radius != cornerRadius) {
-            cornerRadius = radius
-            corner = RoundedCornerShape(radius)
-        }
-        return corner
-    }
-    var portalLeft = 0f
-    var portalTop = 0f
-    var portalScale = 1f
-    var host: LayoutCoordinates? = null
-    var landscapeArt: LayoutCoordinates? = null
-}
-
-private class LandscapeDockPose(val left: Float, val top: Float, val scale: Float)
-
 private val TileShape = RoundedCornerShape(8.dp)
-
-@Composable
-private fun WhileShown(shown: () -> Boolean, content: @Composable () -> Unit) {
-    if (shown()) content()
-}
-
-fun fullBleedArtworkAvailable(windowWidth: Dp): Boolean =
-    playerFillsWindow(windowWidth) || tabletSizedPlayer(windowWidth)
-
-private fun playerFillsWindow(windowWidth: Dp): Boolean =
-    windowWidth <= PLAYER_MAX_WIDTH + PLAYER_GUTTER * 2
-
-private fun tabletSizedPlayer(windowWidth: Dp): Boolean =
-    windowWidth >= TABLET_PLAYER_MIN_WIDTH
-
-fun landscapePlayerAvailable(windowWidth: Dp, windowHeight: Dp): Boolean =
-    windowWidth > windowHeight && windowWidth >= LANDSCAPE_PLAYER_MIN_WIDTH
 
 private const val LYRICS_CONTROLS_IDLE_MS = 5_000L
 private const val SPOTIFY_CANVAS_CONTROLS_IDLE_MS = 5_000L
-private const val SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS = 420
-private const val PLAYER_DECK_FADE_IN_MS = 700
+internal const val SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS = 420
+internal const val PLAYER_DECK_FADE_IN_MS = 700
 private const val SPOTIFY_DECK_TOP_FADE_FRACTION = 0.28f
-
-private fun playerDeckSlideIn() = slideInVertically(
-    animationSpec = tween(
-        SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS,
-        easing = FastOutSlowInEasing,
-    ),
-    initialOffsetY = { it },
-)
-
-private fun playerDeckSlideOut() = slideOutVertically(
-    animationSpec = tween(
-        SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS,
-        easing = FastOutSlowInEasing,
-    ),
-    targetOffsetY = { it },
-)
-
-@Composable
-private fun SlidingPlayerDeck(
-    visible: Boolean,
-    reveal: Animatable<Float, AnimationVector1D>,
-    modifier: Modifier = Modifier,
-    fadeIn: () -> Boolean = { false },
-    content: @Composable () -> Unit,
-) {
-    var mounted by remember { mutableStateOf(visible) }
-    val alpha = remember { Animatable(1f) }
-
-    LaunchedEffect(visible) {
-        if (visible) {
-            if (fadeIn() && reveal.value < 1f) {
-                alpha.snapTo(0f)
-                reveal.snapTo(1f)
-                mounted = true
-                alpha.animateTo(
-                    1f,
-                    tween(PLAYER_DECK_FADE_IN_MS, easing = LinearEasing),
-                )
-            } else {
-                alpha.snapTo(1f)
-                mounted = true
-                reveal.animateTo(
-                    1f,
-                    tween(
-                        SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS,
-                        easing = FastOutSlowInEasing,
-                    ),
-                )
-            }
-        } else {
-            reveal.animateTo(
-                0f,
-                tween(
-                    SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS,
-                    easing = FastOutSlowInEasing,
-                ),
-            )
-            mounted = false
-        }
-    }
-
-    if (mounted) {
-        Box(
-            modifier = modifier
-                .graphicsLayer {
-                    this.alpha = alpha.value
-                    compositingStrategy = CompositingStrategy.ModulateAlpha
-                }
-                .layout { measurable, constraints ->
-                    val placeable = measurable.measure(constraints.copy(minHeight = 0))
-                    val animatedHeight = (placeable.height * reveal.value)
-                        .roundToInt()
-                        .coerceIn(constraints.minHeight, constraints.maxHeight)
-                    layout(placeable.width, animatedHeight) {
-                        placeable.placeRelative(0, 0)
-                    }
-                },
-        ) {
-            content()
-        }
-    }
-}
 
 @Composable
 @OptIn(ExperimentalHazeApi::class, ExperimentalHazeMaterialsApi::class)
