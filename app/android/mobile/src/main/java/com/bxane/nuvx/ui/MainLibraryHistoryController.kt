@@ -9,6 +9,8 @@ import com.bxane.nuvx.data.model.UiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 internal class MainLibraryHistoryController(
@@ -17,9 +19,15 @@ internal class MainLibraryHistoryController(
     private val listenerKey: () -> String?,
     private val text: (Int) -> String,
     private val friendly: (Throwable) -> String,
-    private val _library: MutableStateFlow<UiState<LibraryPage>>,
-    private val _history: MutableStateFlow<UiState<List<Song>>>,
 ) {
+    private val _library = MutableStateFlow<UiState<LibraryPage>>(UiState.Loading)
+    val library: StateFlow<UiState<LibraryPage>> = _library.asStateFlow()
+    internal val mutableLibrary = _library
+
+    private val _history = MutableStateFlow<UiState<List<Song>>>(UiState.Loading)
+    val history: StateFlow<UiState<List<Song>>> = _history.asStateFlow()
+    internal val mutableHistory = _history
+
     private var likedSyncJob: Job? = null
 
     fun loadLibrary() {

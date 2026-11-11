@@ -130,11 +130,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     ) = lyricsController.loadLyrics(videoId, title, artist, durationMs, album, localUri)
 
     fun selectLyricsProvider(source: LyricsSource) = lyricsController.selectLyricsProvider(source)
-    private val _history = MutableStateFlow<UiState<List<Song>>>(UiState.Loading)
-    val history: StateFlow<UiState<List<Song>>> = _history.asStateFlow()
-
-    private val _library = MutableStateFlow<UiState<LibraryPage>>(UiState.Loading)
-    val library: StateFlow<UiState<LibraryPage>> = _library.asStateFlow()
+    private val libraryHistory = MainLibraryHistoryController(
+        scope = viewModelScope,
+        isSignedIn = { _signedIn.value },
+        listenerKey = ::listenerKey,
+        text = ::text,
+        friendly = { it.friendly() },
+    )
+    val history: StateFlow<UiState<List<Song>>> = libraryHistory.history
+    val library: StateFlow<UiState<LibraryPage>> = libraryHistory.library
 
     private val _detailStack = MutableStateFlow<List<DetailPage>>(emptyList())
     val detailStack: StateFlow<List<DetailPage>> = _detailStack.asStateFlow()
@@ -176,7 +180,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         scope = viewModelScope,
         signedIn = { _signedIn.value },
         home = home,
-        library = _library,
+        library = libraryHistory.library,
         listenerKey = ::listenerKey,
         refreshHome = homeFeed::refreshHome,
         refreshExplore = ::fetchExplore,
@@ -188,7 +192,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         scope = viewModelScope,
         requireSignIn = ::requireSignIn,
         markLibraryStale = feedRefreshController::markLibraryStale,
-        _library = _library,
+        _library = libraryHistory.mutableLibrary,
         _detailStack = _detailStack,
         _songMenu = songMenuController.mutableSongMenu,
     )
@@ -249,7 +253,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         text = ::text,
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
         navigator = navigator,
-        _library = _library,
+        _library = libraryHistory.mutableLibrary,
         _detailStack = _detailStack,
     )
     val playlists: StateFlow<List<UserPlaylist>> = playlistController.playlists
@@ -258,21 +262,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resolvePlaylistOwnership(browseId: String?) = playlistController.resolvePlaylistOwnership(browseId)
 
-    private val libraryHistory = MainLibraryHistoryController(
-        scope = viewModelScope,
-        isSignedIn = { _signedIn.value },
-        listenerKey = ::listenerKey,
-        text = ::text,
-        friendly = { it.friendly() },
-        _library = _library,
-        _history = _history,
-    )
     private val accountController = MainAccountController(
         scope = viewModelScope,
         authStore = authStore,
         signedIn = _signedIn,
-        _library = _library,
-        _history = _history,
+        _library = libraryHistory.mutableLibrary,
+        _history = libraryHistory.mutableHistory,
         _playlists = playlistController.mutablePlaylists,
         _playlistsLoading = playlistController.mutablePlaylistsLoading,
         _playlistOwned = playlistController.mutablePlaylistOwned,
