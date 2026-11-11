@@ -14,6 +14,8 @@ import com.bxane.nuvx.data.model.UserPlaylist
 import com.bxane.nuvx.ui.navigation.AppNavigator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 internal class MainPlaylistController(
@@ -22,16 +24,24 @@ internal class MainPlaylistController(
     private val listenerKey: () -> String?,
     private val requireSignIn: () -> Boolean,
     private val markLibraryStale: () -> Unit,
-    private val onPlaylistOwned: (String, Boolean) -> Unit,
     private val text: (Int) -> String,
     private val withArtwork: (List<Song>, String?) -> List<Song>,
     private val navigator: AppNavigator,
-    private val _playlists: MutableStateFlow<List<UserPlaylist>>,
-    private val _playlistsLoading: MutableStateFlow<Boolean>,
-    private val _playlistOwned: MutableStateFlow<Map<String, Boolean>>,
     private val _library: MutableStateFlow<UiState<LibraryPage>>,
     private val _detailStack: MutableStateFlow<List<DetailPage>>,
 ) {
+    private val _playlists = MutableStateFlow<List<UserPlaylist>>(emptyList())
+    val playlists: StateFlow<List<UserPlaylist>> = _playlists.asStateFlow()
+    internal val mutablePlaylists = _playlists
+
+    private val _playlistsLoading = MutableStateFlow(false)
+    val playlistsLoading: StateFlow<Boolean> = _playlistsLoading.asStateFlow()
+    internal val mutablePlaylistsLoading = _playlistsLoading
+
+    private val _playlistOwned = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val playlistOwned: StateFlow<Map<String, Boolean>> = _playlistOwned.asStateFlow()
+    internal val mutablePlaylistOwned = _playlistOwned
+
     fun loadPlaylists() {
         if (!requireSignIn() || _playlistsLoading.value) return
         val identity = listenerKey()
@@ -113,7 +123,7 @@ internal class MainPlaylistController(
                 videoIds = listOfNotNull(song?.videoId),
             ).fold(
                 onSuccess = { playlistId ->
-                    onPlaylistOwned("VL$playlistId", true)
+                    setPlaylistOwned("VL$playlistId", true)
                     markLibraryStale()
                     val created = UserPlaylist(
                         playlistId = playlistId,
@@ -162,7 +172,7 @@ internal class MainPlaylistController(
                                 YtMusicRepository.addToPlaylist(playlistId, chunk)
                             }
                         }
-                        onPlaylistOwned("VL$playlistId", true)
+                        setPlaylistOwned("VL$playlistId", true)
                         markLibraryStale()
                         val created = UserPlaylist(
                             playlistId = playlistId,
@@ -346,6 +356,10 @@ internal class MainPlaylistController(
         return _playlists.value.firstOrNull { it.browseId == browseId }
     }
 
+    fun setPlaylistOwned(browseId: String, owned: Boolean) {
+        _playlistOwned.value = _playlistOwned.value + (browseId to owned)
+    }
+
     fun resolvePlaylistOwnership(browseId: String?) {
         if (!requireSignIn() || browseId == null) return
         if (browseId in _playlistOwned.value || browseId in ownershipInFlight) return
@@ -353,7 +367,7 @@ internal class MainPlaylistController(
         ownershipInFlight += browseId
         scope.launch {
             YtMusicRepository.playlistOwned(browseId).onSuccess { owned ->
-                if (owned != null) onPlaylistOwned(browseId, owned)
+                if (owned != null) setPlaylistOwned(browseId, owned)
             }
             ownershipInFlight -= browseId
         }
