@@ -84,11 +84,11 @@ object AppSettings {
 
     private lateinit var prefs: SharedPreferences
 
-    private lateinit var authStore: AuthStore
     private val discordSettings = DiscordSettingsController()
     private val scrobblingSettings = ScrobblingSettingsController()
     private val librarySettings = LibrarySettingsController(MAX_PINNED_PLAYLISTS)
     private val lyricsSettings = LyricsSettingsController(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
+    private val remoteStorageSettings = RemoteStorageSettingsController()
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
@@ -281,15 +281,14 @@ object AppSettings {
 
     val localMusicFolderUri = librarySettings.localMusicFolderUri
 
-    val webdavUrl = MutableStateFlow("")
-    val webdavUsername = MutableStateFlow("")
-    val webdavPassword = MutableStateFlow("")
-
-    val smbHost = MutableStateFlow("")
-    val smbShare = MutableStateFlow("")
-    val smbBasePath = MutableStateFlow("")
-    val smbUsername = MutableStateFlow("")
-    val smbPassword = MutableStateFlow("")
+    val webdavUrl = remoteStorageSettings.webdavUrl
+    val webdavUsername = remoteStorageSettings.webdavUsername
+    val webdavPassword = remoteStorageSettings.webdavPassword
+    val smbHost = remoteStorageSettings.smbHost
+    val smbShare = remoteStorageSettings.smbShare
+    val smbBasePath = remoteStorageSettings.smbBasePath
+    val smbUsername = remoteStorageSettings.smbUsername
+    val smbPassword = remoteStorageSettings.smbPassword
 
     val pinnedPlaylists = librarySettings.pinnedPlaylists
 
@@ -379,7 +378,7 @@ object AppSettings {
 
     fun init(context: Context, authStore: AuthStore) {
         prefs = context.getSharedPreferences("nuvx_settings", Context.MODE_PRIVATE)
-        this.authStore = authStore
+        remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
             context,
@@ -525,26 +524,7 @@ object AppSettings {
         replayGenres.value = prefs.getBoolean(KEY_REPLAY_GENRES, true)
         filterNonMusicAudio.value = prefs.getBoolean(KEY_FILTER_NON_MUSIC_AUDIO, true)
         librarySettings.readPreferences()
-        webdavUrl.value = prefs.getString(KEY_WEBDAV_URL, "").orEmpty()
-        webdavUsername.value = prefs.getString(KEY_WEBDAV_USERNAME, "").orEmpty()
-        webdavPassword.value = authStore.webdavPassword.orEmpty()
-        smbHost.value = prefs.getString(KEY_SMB_HOST, "").orEmpty()
-        smbShare.value = prefs.getString(KEY_SMB_SHARE, "").orEmpty()
-        smbBasePath.value = prefs.getString(KEY_SMB_BASE_PATH, "").orEmpty()
-        smbUsername.value = prefs.getString(KEY_SMB_USERNAME, "").orEmpty()
-        smbPassword.value = authStore.smbPassword.orEmpty()
-        com.bxane.nuvx.data.smb.SmbAuth.update(
-            smbHost.value,
-            smbShare.value,
-            smbBasePath.value,
-            smbUsername.value,
-            smbPassword.value,
-        )
-        com.bxane.nuvx.data.webdav.WebDavAuth.update(
-            webdavUrl.value,
-            webdavUsername.value,
-            webdavPassword.value,
-        )
+        remoteStorageSettings.read()
         librarySettings.readPinnedPlaylists()
         discordSettings.read()
     }
@@ -1148,93 +1128,25 @@ object AppSettings {
 
     fun setLocalMusicFolderUri(value: String) = librarySettings.setLocalMusicFolderUri(value)
 
-    fun setWebDavUrl(value: String) {
-        val normalized = value.trim().trimEnd('/')
-        webdavUrl.value = normalized
-        prefs.edit().putString(KEY_WEBDAV_URL, normalized).apply()
-        publishWebDavAuth()
-    }
+    fun setWebDavUrl(value: String) = remoteStorageSettings.setWebDavUrl(value)
 
-    fun setWebDavUsername(value: String) {
-        val normalized = value.trim()
-        webdavUsername.value = normalized
-        prefs.edit().putString(KEY_WEBDAV_USERNAME, normalized).apply()
-        publishWebDavAuth()
-    }
+    fun setWebDavUsername(value: String) = remoteStorageSettings.setWebDavUsername(value)
 
-    fun setWebDavPassword(value: String) {
-        webdavPassword.value = value
-        authStore.webdavPassword = value.ifEmpty { null }
-        publishWebDavAuth()
-    }
+    fun setWebDavPassword(value: String) = remoteStorageSettings.setWebDavPassword(value)
 
-    fun clearWebDav() {
-        setWebDavUrl("")
-        setWebDavUsername("")
-        setWebDavPassword("")
-    }
+    fun clearWebDav() = remoteStorageSettings.clearWebDav()
 
-    fun setSmbHost(value: String) {
-        val normalized = value.trim()
-        smbHost.value = normalized
-        prefs.edit().putString(KEY_SMB_HOST, normalized).apply()
-        publishSmbAuth()
-    }
+    fun setSmbHost(value: String) = remoteStorageSettings.setSmbHost(value)
 
-    fun setSmbShare(value: String) {
-        val normalized = value.trim().trim('/')
-        smbShare.value = normalized
-        prefs.edit().putString(KEY_SMB_SHARE, normalized).apply()
-        publishSmbAuth()
-    }
+    fun setSmbShare(value: String) = remoteStorageSettings.setSmbShare(value)
 
-    fun setSmbBasePath(value: String) {
-        val normalized = value.trim().trim('/')
-        smbBasePath.value = normalized
-        prefs.edit().putString(KEY_SMB_BASE_PATH, normalized).apply()
-        publishSmbAuth()
-    }
+    fun setSmbBasePath(value: String) = remoteStorageSettings.setSmbBasePath(value)
 
-    fun setSmbUsername(value: String) {
-        val normalized = value.trim()
-        smbUsername.value = normalized
-        prefs.edit().putString(KEY_SMB_USERNAME, normalized).apply()
-        publishSmbAuth()
-    }
+    fun setSmbUsername(value: String) = remoteStorageSettings.setSmbUsername(value)
 
-    fun setSmbPassword(value: String) {
-        smbPassword.value = value
-        authStore.smbPassword = value.ifEmpty { null }
-        publishSmbAuth()
-    }
+    fun setSmbPassword(value: String) = remoteStorageSettings.setSmbPassword(value)
 
-    fun clearSmb() {
-        setSmbHost("")
-        setSmbShare("")
-        setSmbBasePath("")
-        setSmbUsername("")
-        setSmbPassword("")
-    }
-
-    private fun publishSmbAuth() {
-        if (!this::prefs.isInitialized || !this::authStore.isInitialized) return
-        com.bxane.nuvx.data.smb.SmbAuth.update(
-            smbHost.value,
-            smbShare.value,
-            smbBasePath.value,
-            smbUsername.value,
-            smbPassword.value,
-        )
-    }
-
-    private fun publishWebDavAuth() {
-        if (!this::prefs.isInitialized || !this::authStore.isInitialized) return
-        com.bxane.nuvx.data.webdav.WebDavAuth.update(
-            webdavUrl.value,
-            webdavUsername.value,
-            webdavPassword.value,
-        )
-    }
+    fun clearSmb() = remoteStorageSettings.clearSmb()
 
     fun togglePinnedPlaylist(browseId: String): Boolean = librarySettings.togglePinnedPlaylist(browseId)
 
@@ -1393,12 +1305,6 @@ object AppSettings {
     private const val KEY_REPLAY_GENRES = "replay_genres"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
     private const val KEY_SHOW_CACHE_FOLDER = "show_cache_folder"
-    private const val KEY_WEBDAV_URL = "webdav_url"
-    private const val KEY_WEBDAV_USERNAME = "webdav_username"
-    private const val KEY_SMB_HOST = "smb_host"
-    private const val KEY_SMB_SHARE = "smb_share"
-    private const val KEY_SMB_BASE_PATH = "smb_base_path"
-    private const val KEY_SMB_USERNAME = "smb_username"
 
     private const val KEY_SPOTIFY_SPDC_TOKEN = "spotify_spdc_token"
 
