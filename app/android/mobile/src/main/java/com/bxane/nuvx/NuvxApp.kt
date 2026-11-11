@@ -207,6 +207,7 @@ import com.bxane.nuvx.playback.rememberMediaController
 import com.bxane.nuvx.playback.rememberPlayerState
 import com.bxane.nuvx.playback.setQueueDragActive
 import com.bxane.nuvx.ui.MainViewModel
+import com.bxane.nuvx.ui.MainBrowseOpener
 import com.bxane.nuvx.ui.SearchSource
 import com.bxane.nuvx.ui.components.BottomFadeScrim
 import com.bxane.nuvx.ui.components.TopFadeBlur
@@ -990,6 +991,9 @@ internal fun NuvxApp(
         showQueueNotice = showQueueNotice,
         play = { songs, index -> play(songs, index) },
     )
+    val browseOpener = remember(context, scope, viewModel) {
+        MainBrowseOpener(context, scope, viewModel::openDetail)
+    }
     LaunchedEffect(player.song?.videoId) {
         if (optimisticVersionSong?.videoId == player.song?.videoId ||
             (optimisticVersionSong != null && player.song?.videoId != convertedAudioId && player.song?.videoId != convertedVideoId && player.song?.videoId != keepVideoId)
@@ -1144,42 +1148,7 @@ internal fun NuvxApp(
         subtitle: String?,
         type: BrowseType,
         artwork: String? = null,
-    ) {
-        if (browseId != null) {
-            val credit = subtitle ?: context.getString(
-                if (type == BrowseType.ARTIST) R.string.artist else R.string.album,
-            )
-            viewModel.openDetail(browseId, name, credit, artwork, type)
-            return
-        }
-        scope.launch {
-            val filter = if (type == BrowseType.ARTIST) {
-                SearchFilter.ARTISTS
-            } else {
-                SearchFilter.ALBUMS
-            }
-            val query = listOfNotNull(name, subtitle).joinToString(" ")
-            val hit = YtMusicRepository.search(query, filter).getOrNull()
-                ?.filterIsInstance<SearchResult.Browse>()
-                ?.firstOrNull()
-                ?.item
-            if (hit == null) {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.couldnt_find, name),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            } else {
-                viewModel.openDetail(
-                    hit.browseId,
-                    hit.title,
-                    hit.subtitle,
-                    hit.thumbnailUrl ?: artwork,
-                    hit.type,
-                )
-            }
-        }
-    }
+    ) = browseOpener.openByName(browseId, name, subtitle, type, artwork)
 
     val addSongsToQueue: (List<Song>) -> Unit = { songs -> playbackQueueActions.queueSongs(songs, false) }
     val playSongsNext: (List<Song>) -> Unit = { songs -> playbackQueueActions.queueSongs(songs, true) }
