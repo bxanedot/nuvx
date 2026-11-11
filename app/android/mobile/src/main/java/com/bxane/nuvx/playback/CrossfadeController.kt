@@ -132,6 +132,23 @@ class CrossfadeController(
         currentRender = { render },
     )
 
+    private val sleepFade = CrossfadeSleepFadeController(
+        active = active,
+        outgoing = { outgoing },
+        envelope = envelope,
+        onStart = { out, fade ->
+            outgoing = out
+            incoming = null
+            handedOff = false
+            Log.d(TAG, "sleep timer due: fading out over ${fade}ms instead of transitioning")
+            phase = Phase.SLEEP_FADE
+        },
+        onFinish = {
+            outgoing = null
+            phase = Phase.IDLE
+        },
+    )
+
     private var planInFlight: TransitionPlan? = null
 
     private var lastMarkerVerdict = ""
@@ -142,12 +159,6 @@ class CrossfadeController(
     private var incomingAnalysis = TrackAnalysis()
     private var bailStartedAt = 0L
     private var armDeadline = 0L
-
-    private var sleepFadeMs = 0L
-
-    private var sleepFadeStartPositionMs = 0L
-
-    private var sleepFadeStartGain = 1f
 
     private var settledAt = 0L
 
@@ -336,7 +347,7 @@ class CrossfadeController(
             Phase.IDLE -> considerAutoTransition()
             Phase.ARMING -> driveArming()
             Phase.FADING -> driveFade()
-            Phase.SLEEP_FADE -> driveSleepFade()
+            Phase.SLEEP_FADE -> sleepFade.drive()
             Phase.BAILING -> driveBail()
             Phase.LOOP_ARMING -> driveLoopArming()
             Phase.LOOP_RUNNING -> driveLoopMix()
@@ -416,7 +427,7 @@ class CrossfadeController(
         val remaining = duration - player.currentPosition
         if (SleepTimer.afterTrack.value) {
             if (remaining > fade) return
-            beginSleepFadeOut(fade)
+            sleepFade.begin(fade)
             return
         }
         holdAhead(player, duration)
@@ -545,7 +556,7 @@ class CrossfadeController(
         }
         if (SleepTimer.afterTrack.value) {
             if (remaining > 0L) return
-            beginSleepFadeOut(fade)
+            sleepFade.begin(fade)
             return
         }
         holdAhead(player, duration)
@@ -1011,43 +1022,6 @@ class CrossfadeController(
             },
         )
         mixWaves.republishWaves()
-    }
-
-    private fun beginSleepFadeOut(fade: Long) {
-        val out = active()
-        sleepFadeMs = fade.coerceAtLeast(1L)
-        sleepFadeStartPositionMs = out.currentPosition
-        sleepFadeStartGain = out.volume
-        outgoing = out
-        incoming = null
-        handedOff = false
-        Log.d(TAG, "sleep timer due: fading out over ${fade}ms instead of transitioning")
-        phase = Phase.SLEEP_FADE
-    }
-
-    private fun driveSleepFade() {
-        val out = outgoing ?: return finishSleepFade()
-        if (!SleepTimer.afterTrack.value) {
-            out.volume = 1f
-            outgoing = null
-            phase = Phase.IDLE
-            return
-        }
-        val elapsed = (out.currentPosition - sleepFadeStartPositionMs).coerceAtLeast(0L)
-        val progress = (elapsed.toFloat() / sleepFadeMs).coerceIn(0f, 1f)
-        out.volume = sleepFadeStartGain * envelope.fallGain(progress)
-        val done = progress >= 1f ||
-            out.playbackState == Player.STATE_ENDED ||
-            out.playbackState == Player.STATE_IDLE
-        if (done) finishSleepFade()
-    }
-
-    private fun finishSleepFade() {
-        outgoing?.pause()
-        outgoing?.volume = 1f
-        SleepTimer.cancel()
-        outgoing = null
-        phase = Phase.IDLE
     }
 
     private fun driveBail() {
