@@ -384,6 +384,19 @@ object ListenTogether {
     @Volatile
     private var session: DefaultClientWebSocketSession? = null
     private var socketJob: Job? = null
+    private val frameHandler = PartySocketFrameHandler(
+        json = json,
+        clock = clock,
+        scope = scope,
+        state = { _state.value },
+        updateState = { update -> _state.update(update) },
+        send = ::send,
+        recordActivity = ::recordActivity,
+        recordKick = ::recordKick,
+        leaveParty = { leaveParty() },
+        redact = ::redact,
+        tag = TAG,
+    )
 
     fun init(context: Context) {
         prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -837,7 +850,7 @@ object ListenTogether {
                     launch { pingLoop() }
                     launch { reportLoop() }
                     for (frame in incoming) {
-                        if (frame is Frame.Text) onFrame(frame.readText())
+                        if (frame is Frame.Text) frameHandler.onFrame(frame.readText())
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -889,110 +902,6 @@ object ListenTogether {
                 put("isPlaying", _state.value.playback.isPlaying)
             }
             runCatching { send(Frame.Text(frame.toString())) }
-        }
-    }
-
-    private fun onFrame(text: String) {
-        val received = clock.nowMs()
-        val frame = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
-        when (frame["type"]?.jsonPrimitive?.content) {
-            "welcome" -> {
-                val party = frame["party"]?.let {
-                    runCatching { json.decodeFromJsonElement(PartySnapshot.serializer(), it) }.getOrNull()
-                } ?: return
-                val you = frame["you"]?.let {
-                    runCatching { json.decodeFromJsonElement(PartyMember.serializer(), it) }.getOrNull()
-                }
-                _state.update { it.copy(
-                    code = party.code,
-                    you = you ?: it.you,
-                    members = party.members,
-                    maxMembers = party.maxMembers,
-                    hostOnlyControl = party.hostOnlyControl,
-                    playback = party.playback,
-                    queue = party.queue,
-                    connection = Connection.LIVE,
-                    error = null,
-                ) }
-            }
-
-            "pong" -> {
-                val sentAt = frame["clientMs"]?.jsonPrimitive?.content?.toLongOrNull() ?: return
-                val serverMs = frame["serverMs"]?.jsonPrimitive?.content?.toLongOrNull() ?: return
-                clock.record(sentAt, serverMs, received)
-                _state.update { it.copy(
-                    clockSynced = clock.synced,
-                    roundTripMs = clock.roundTripMs,
-                ) }
-            }
-
-            "state" -> {
-                val playback = frame["playback"]?.let {
-                    runCatching { json.decodeFromJsonElement(PartyPlayback.serializer(), it) }.getOrNull()
-                } ?: return
-                if (playback.seq < _state.value.playback.seq) return
-                _state.update { it.copy(playback = playback) }
-                if (playback.queueSeq != _state.value.queue.seq) {
-                    send(buildJsonObject { put("type", "syncQueue") })
-                }
-            }
-
-            "queue" -> {
-                val queue = frame["queue"]?.let {
-                    runCatching { json.decodeFromJsonElement(PartyQueue.serializer(), it) }.getOrNull()
-                } ?: return
-                if (queue.seq < _state.value.queue.seq) return
-                _state.update { it.copy(queue = queue) }
-            }
-
-            "members" -> {
-                val members = frame["members"]?.let {
-                    runCatching {
-                        json.decodeFromJsonElement(
-                            kotlinx.serialization.builtins.ListSerializer(PartyMember.serializer()),
-                            it,
-                        )
-                    }.getOrNull()
-                } ?: return
-                val maxMembers = frame["maxMembers"]?.jsonPrimitive?.content?.toIntOrNull() ?: _state.value.maxMembers
-                val hostOnly = frame["hostOnlyControl"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
-                    ?: _state.value.hostOnlyControl
-                _state.update { current ->
-                    current.copy(
-                        members = members,
-                        maxMembers = maxMembers,
-                        hostOnlyControl = hostOnly,
-                        you = current.you
-                            ?.let { mine -> members.firstOrNull { it.memberId == mine.memberId } }
-                            ?: current.you,
-                    )
-                }
-            }
-
-            "activity" -> {
-                val action = frame["action"]?.jsonPrimitive?.content ?: return
-                val by = frame["by"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: return
-                val atMs = frame["atMs"]?.jsonPrimitive?.content?.toLongOrNull() ?: received
-                val detail = frame["detail"]?.jsonPrimitive?.content.orEmpty()
-                recordActivity(PartyActivity(action, by, atMs, detail))
-            }
-
-            "error" -> {
-                val reason = frame["error"]?.jsonPrimitive?.content
-                val message = frame["message"]?.jsonPrimitive?.content
-                Log.w(TAG, "party server refused a frame: $reason ${redact(message)}")
-                _state.update { it.copy(error = message) }
-                if (reason == "bad_token" || reason == "no_such_party") {
-                    scope.launch { leaveParty() }
-                }
-            }
-
-            "bye" -> {
-                if (frame["reason"]?.jsonPrimitive?.content == "kicked") {
-                    _state.value.code?.let(::recordKick)
-                }
-                scope.launch { leaveParty() }
-            }
         }
     }
 
