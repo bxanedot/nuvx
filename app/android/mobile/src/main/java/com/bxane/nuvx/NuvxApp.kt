@@ -915,6 +915,7 @@ internal fun NuvxApp(
         convertedFromAudio = convertedFromAudioState,
         convertedVideoId = convertedVideoIdState,
         optimisticVersionSong = optimisticVersionSongState,
+        activeRadioSeed = activeRadioSeed,
     )
     suspend fun switchToMusicOnly(song: Song, pauseWhileResolving: Boolean) =
         playbackVersionSwitcher.switchToMusicOnly(song, pauseWhileResolving)
@@ -951,23 +952,7 @@ internal fun NuvxApp(
         MainBrowseOpener(context, scope, viewModel::openDetail)
     }
     LaunchedEffect(player.song?.videoId) {
-        if (optimisticVersionSong?.videoId == player.song?.videoId ||
-            (optimisticVersionSong != null && player.song?.videoId != convertedAudioId && player.song?.videoId != convertedVideoId && player.song?.videoId != keepVideoId)
-        ) {
-            optimisticVersionSong = null
-        }
-        if (activeRadioSeed.value?.first != player.song?.videoId) activeRadioSeed.value = null
-        if (keepVideoId != player.song?.videoId) keepVideoId = null
-        if (player.song?.videoId != convertedAudioId) {
-            convertedFromVideo = null
-            convertedAudioId = null
-            switchingAudioVersion = false
-        }
-        if (player.song?.videoId != convertedVideoId) {
-            convertedFromAudio = null
-            convertedVideoId = null
-            switchingAudioVersion = false
-        }
+        playbackVersionSwitcher.onCurrentTrackChanged(player.song?.videoId)
     }
 
     val playRadio: (Song, QueueSource) -> Unit = playbackStarter::playRadio

@@ -23,7 +23,28 @@ internal class PlaybackVersionSwitcher(
     private val convertedFromAudio: MutableState<Song?>,
     private val convertedVideoId: MutableState<String?>,
     private val optimisticVersionSong: MutableState<Song?>,
+    private val activeRadioSeed: MutableState<Pair<String, String>?>,
 ) {
+    fun onCurrentTrackChanged(videoId: String?) {
+        if (optimisticVersionSong.value?.videoId == videoId ||
+            (optimisticVersionSong.value != null && videoId != convertedAudioId.value && videoId != convertedVideoId.value && videoId != keepVideoId.value)
+        ) {
+            optimisticVersionSong.value = null
+        }
+        if (activeRadioSeed.value?.first != videoId) activeRadioSeed.value = null
+        if (keepVideoId.value != videoId) keepVideoId.value = null
+        if (videoId != convertedAudioId.value) {
+            convertedFromVideo.value = null
+            convertedAudioId.value = null
+            switchingAudioVersion.value = false
+        }
+        if (videoId != convertedVideoId.value) {
+            convertedFromAudio.value = null
+            convertedVideoId.value = null
+            switchingAudioVersion.value = false
+        }
+    }
+
     suspend fun switchToMusicOnly(song: Song, pauseWhileResolving: Boolean) {
         val controller = mediaController ?: return
         val index = controller.currentMediaItemIndex
