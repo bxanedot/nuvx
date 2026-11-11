@@ -1,11 +1,9 @@
 package com.bxane.nuvx.download
 
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import com.bxane.nuvx.data.DebugLog as Log
-import androidx.core.content.ContextCompat
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.DownloadQuality
@@ -13,7 +11,6 @@ import com.bxane.nuvx.playback.AudioCache
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,9 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -74,12 +68,6 @@ object Downloads {
 
     val collections: StateFlow<Map<String, SavedCollection>> = _collections.asStateFlow()
 
-    private val pending = LinkedHashMap<String, Song>()
-
-    private val lock = Any()
-
-    private val running = LinkedHashMap<String, Job?>()
-
     fun init(context: Context) {
         prefs = context.getSharedPreferences("nuvx_settings", Context.MODE_PRIVATE)
         _saved.value = runCatching {
@@ -93,34 +81,19 @@ object Downloads {
         }.getOrDefault(emptyMap())
     }
 
-    fun enqueue(context: Context, song: Song, from: String? = null) {
-        val id = song.videoId
-        if (!AppSettings.downloadsAllowedNow && !servableFromCache(id)) {
-            val inFlight = _active.value[id]
-            if (inFlight !is DownloadState.Queued && inFlight !is DownloadState.Running) {
-                DownloadSession.queued(song, from)
-                fail(id, WIFI_ONLY_REFUSAL)
-            }
-            return
-        }
-        synchronized(lock) {
-            if (id in pending || id in running) return
-            pending[id] = song
-        }
-        _active.update { it + (id to DownloadState.Queued) }
-        DownloadSession.queued(song, from)
-
-        val app = context.applicationContext
-        runCatching {
-            ContextCompat.startForegroundService(app, Intent(app, DownloadService::class.java))
-        }.onFailure {
-            Log.w(TAG, "could not start the download service: ${it.message}")
-            synchronized(lock) { pending.remove(id) }
-            fail(id, "Downloads can't start right now")
-        }
-    }
-
     private val fromCache = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private val queueController = DownloadQueueController(
+        active = _active,
+        downloadsAllowedNow = { AppSettings.downloadsAllowedNow },
+        servableFromCache = ::servableFromCache,
+        run = ::run,
+        clear = ::clear,
+        fail = ::fail,
+    )
+
+    fun enqueue(context: Context, song: Song, from: String? = null) =
+        queueController.enqueue(context, song, from)
 
     fun preferCachedCopy(videoIds: Collection<String>) {
         fromCache += videoIds
@@ -129,69 +102,10 @@ object Downloads {
     fun servableFromCache(videoId: String): Boolean =
         videoId in fromCache && AudioCache.completeCopyOf(videoId)?.let(::cachedRoute) != null
 
-    fun cancel(videoId: String) {
-        val job = synchronized(lock) {
-            pending.remove(videoId)
-            if (videoId !in running) return@synchronized null
-            running.remove(videoId)
-        }
-        job?.cancel()
-        clear(videoId)
-        DownloadSession.forget(videoId)
-    }
+    fun cancel(videoId: String) = queueController.cancel(videoId)
 
-    internal suspend fun downloadNow(context: Context, songs: List<Song>, from: String?): Set<String> {
-        val handled = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
-        val claimed = synchronized(lock) {
-            songs.filter { song ->
-                val id = song.videoId
-                if (id in pending || id in running) {
-                    handled += id
-                    false
-                } else {
-                    running[id] = null
-                    true
-                }
-            }
-        }
-        claimed.forEach { song ->
-            _active.update { it + (song.videoId to DownloadState.Queued) }
-            DownloadSession.queued(song, from)
-        }
-        val slots = Semaphore(BATCH_WORKERS)
-        try {
-            coroutineScope {
-                claimed.forEach { song ->
-                    launch {
-                        slots.withPermit {
-                            val id = song.videoId
-                            if (synchronized(lock) { id !in running }) {
-                                handled += id
-                                return@withPermit
-                            }
-                            if (!AppSettings.downloadsAllowedNow) return@withPermit
-                            val job = launch { run(context, song) }
-                            onRunning(id, job)
-                            job.join()
-                            val calledOff = synchronized(lock) { id !in running }
-                            if (calledOff || id in _saved.value) handled += id
-                        }
-                    }
-                }
-            }
-        } finally {
-            claimed.forEach { song ->
-                val id = song.videoId
-                onIdle(id)
-                val state = _active.value[id]
-                if (state is DownloadState.Queued || state is DownloadState.Running) {
-                    clear(id)
-                    DownloadSession.forget(id)
-                }
-            }
-        }
-        return handled
-    }
+    internal suspend fun downloadNow(context: Context, songs: List<Song>, from: String?): Set<String> =
+        queueController.downloadNow(context, songs, from)
 
     suspend fun savedUri(context: Context, videoId: String): Uri? = withContext(Dispatchers.IO) {
         val recorded = _saved.value[videoId] ?: return@withContext null
@@ -533,31 +447,15 @@ object Downloads {
 
     private fun String.toUri(): Uri = Uri.parse(this)
 
-    internal fun takeNext(): Song? = synchronized(lock) {
-        val entry = pending.entries.firstOrNull() ?: return null
-        pending.remove(entry.key)
-        running[entry.key] = null
-        entry.value
-    }
+    internal fun takeNext(): Song? = queueController.takeNext()
 
-    internal fun onRunning(videoId: String, job: Job) {
-        val cancelled = synchronized(lock) {
-            if (videoId !in running) return@synchronized true
-            running[videoId] = job
-            false
-        }
-        if (cancelled) job.cancel()
-    }
+    internal fun onRunning(videoId: String, job: kotlinx.coroutines.Job) = queueController.onRunning(videoId, job)
 
-    internal fun onIdle(videoId: String) {
-        synchronized(lock) { running.remove(videoId) }
-    }
+    internal fun onIdle(videoId: String) = queueController.onIdle(videoId)
 
-    internal fun busy(): Boolean = synchronized(lock) { pending.isNotEmpty() || running.isNotEmpty() }
+    internal fun busy(): Boolean = queueController.busy()
 
-    internal fun onStopped() {
-        synchronized(lock) { running.clear() }
-    }
+    internal fun onStopped() = queueController.onStopped()
 
     internal suspend fun run(context: Context, song: Song) = withContext(Dispatchers.IO) {
         val id = song.videoId
@@ -752,8 +650,6 @@ object Downloads {
     private val LOSSLESS_EXTENSIONS = listOf("flac", "wav")
 
     internal const val WIFI_ONLY_REFUSAL = "Downloads are set to Wi-Fi only"
-
-    private const val BATCH_WORKERS = 4
 
     fun dismissFailure(videoId: String) {
         if (_active.value[videoId] is DownloadState.Failed) clear(videoId)
