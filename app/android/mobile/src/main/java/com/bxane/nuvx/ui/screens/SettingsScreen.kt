@@ -93,7 +93,6 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import com.bxane.nuvx.ui.components.PillSegmentedControl
 import com.bxane.nuvx.ui.components.isGlassSupported
@@ -127,7 +126,6 @@ import com.bxane.nuvx.data.stats.Backup
 import com.bxane.nuvx.playback.AudioCache
 import com.bxane.nuvx.ui.player.fullBleedArtworkAvailable
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import java.util.Locale
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -672,67 +670,15 @@ fun SettingsScreen(
         val cacheLimitMb = if (cacheUnlimited) CACHE_UNLIMITED_STOP_MB else (cacheLimitBytes / (1024 * 1024)).toInt()
         val unlimitedLabel = stringResource(R.string.song_cache_unlimited)
         val cacheLimitLabel = if (cacheUnlimited) unlimitedLabel else formatCacheSize(cacheLimitMb)
-        if (shows(SettingsCategory.STORAGE)) SearchableSettingsGroup(search, header = stringResource(R.string.storage)) {
-            val showCacheFolderTitle = stringResource(R.string.show_cache_folder)
-            row(showCacheFolderTitle, "cache", "cached songs", "library", "folder") {
-                SettingsRow(
-                    icon = SfIcons.Cached,
-                    title = showCacheFolderTitle,
-                    subtitle = stringResource(R.string.show_cache_folder_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = showCacheFolder,
-                            onCheckedChange = AppSettings::setShowCacheFolder,
-                        )
-                    },
-                    onClick = { AppSettings.setShowCacheFolder(!showCacheFolder) },
-                )
-            }
-            val songCacheLimitTitle = stringResource(R.string.song_cache_limit)
-            row(songCacheLimitTitle, "cache", "space", "unlimited") {
-                SliderRow(
-                    icon = SfIcons.Storage,
-                    title = songCacheLimitTitle,
-                    subtitle = when {
-                        cacheUnlimited -> stringResource(R.string.song_cache_unlimited_subtitle)
-                        cacheLimitMb > CACHE_WARNING_MB ->
-                            stringResource(R.string.song_cache_large_subtitle, cacheLimitLabel)
-                        else -> stringResource(R.string.song_cache_limit_subtitle)
-                    },
-                    value = cacheLimitLabel,
-                    sliderValue = cacheLimitMb.toFloat(),
-                    onSliderValue = {
-                        AppSettings.setAudioCacheLimitBytes(it.roundToInt().toLong() * 1024 * 1024)
-                    },
-                    valueRange = (AppSettings.DEFAULT_CACHE_LIMIT_BYTES / (1024 * 1024)).toFloat()..
-                        CACHE_UNLIMITED_STOP_MB.toFloat(),
-                    steps = 19,
-                )
-            }
-            val clearSongCacheTitle = stringResource(R.string.clear_song_cache)
-            row(clearSongCacheTitle, "cache", "free space") {
-                SettingsRow(
-                    icon = SfIcons.DeleteSweep,
-                    title = clearSongCacheTitle,
-                    subtitle = stringResource(R.string.clear_song_cache_subtitle),
-                    onClick = { confirmClearSongCache = true },
-                )
-            }
-            val clearImageCacheTitle = stringResource(R.string.clear_image_cache)
-            row(clearImageCacheTitle, "cache", "artwork", "free space") {
-                SettingsRow(
-                    icon = SfIcons.DeleteSweep,
-                    title = clearImageCacheTitle,
-                    subtitle = stringResource(R.string.clear_image_cache_subtitle),
-                    onClick = {
-                        val loader = SingletonImageLoader.get(context)
-                        loader.memoryCache?.clear()
-                        loader.diskCache?.clear()
-                        Toast.makeText(context, context.getString(R.string.image_cache_cleared), Toast.LENGTH_SHORT).show()
-                    },
-                )
-            }
-        }
+        if (shows(SettingsCategory.STORAGE)) StorageSettingsGroup(
+            context = context,
+            search = search,
+            cacheUnlimited = cacheUnlimited,
+            cacheLimitMb = cacheLimitMb,
+            cacheLimitLabel = cacheLimitLabel,
+            showCacheFolder = showCacheFolder,
+            onClearSongCache = { confirmClearSongCache = true },
+        )
 
         if (searching && watchAvailable) {
             SearchableSettingsGroup(search) {
