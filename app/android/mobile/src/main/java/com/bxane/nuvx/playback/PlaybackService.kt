@@ -3,7 +3,6 @@ package com.bxane.nuvx.playback
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import android.os.Bundle
 import android.os.Handler
@@ -69,12 +68,9 @@ import com.bxane.nuvx.data.listentogether.ListenTogether
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.LocalMediaRepository
 import com.bxane.nuvx.data.OfflinePlaylists
-import com.bxane.nuvx.data.innertube.InnertubeParser
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.lyrics.LyricLine
-import com.bxane.nuvx.data.model.NOTIFICATION_ART_PX
 import com.bxane.nuvx.data.model.ShelfItem
-import com.bxane.nuvx.data.model.artworkAt
 import com.bxane.nuvx.data.model.QueueTier
 import com.bxane.nuvx.data.sources.SourceRegistry
 import com.bxane.nuvx.download.Downloads
@@ -2249,55 +2245,12 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun <T> paginate(items: List<T>, page: Int, pageSize: Int): List<T> {
-        if (page < 0 || pageSize <= 0 || items.isEmpty()) return emptyList()
-        val safePageSize = pageSize.coerceAtMost(MAX_AUTO_PAGE_SIZE)
-        val fromLong = page.toLong() * safePageSize.toLong()
-        if (fromLong >= items.size.toLong()) return emptyList()
-        val from = fromLong.toInt()
-        val to = (fromLong + safePageSize).coerceAtMost(items.size.toLong()).toInt()
-        return items.subList(from, to)
+        return autoBrowse.paginate(items, page, pageSize)
     }
 
-    private fun ShelfItem.toMediaItemOrNull(): MediaItem? {
-        val vid = videoId
-        if (vid != null) {
-            val song = Song(
-                videoId = vid,
-                title = title,
-                artist = InnertubeParser.artistFromSubtitle(subtitle),
-                thumbnailUrl = thumbnailUrl,
-            )
-            songCache[vid] = song
-            return song.toMediaItem()
-        }
-        val bid = browseId
-        if (bid != null) {
-            return MediaItem.Builder()
-                .setMediaId("browse:$bid")
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(title)
-                        .setSubtitle(subtitle)
-                        .setArtworkUri(thumbnailUrl.artworkAt(NOTIFICATION_ART_PX)?.let { Uri.parse(it) })
-                        .setIsBrowsable(true)
-                        .setIsPlayable(false)
-                        .setFolderType(MediaMetadata.FOLDER_TYPE_ALBUMS)
-                        .build(),
-                )
-                .build()
-        }
-        return null
-    }
+    private fun ShelfItem.toMediaItemOrNull(): MediaItem? = autoBrowse.shelfToMediaItemOrNull(this)
 
-    private fun ShelfItem.toSongOrNull(): Song? {
-        val id = videoId ?: return null
-        return Song(
-            videoId = id,
-            title = title,
-            artist = InnertubeParser.artistFromSubtitle(subtitle),
-            thumbnailUrl = thumbnailUrl,
-        )
-    }
+    private fun ShelfItem.toSongOrNull(): Song? = autoBrowse.shelfToSongOrNull(this)
 
     private fun createLoginPromptItem(): MediaItem =
         MediaItem.Builder()
@@ -2313,23 +2266,11 @@ class PlaybackService : MediaLibraryService() {
             .build()
 
     private fun createInfoItem(mediaId: String, title: String, subtitle: String? = null): MediaItem =
-        MediaItem.Builder()
-            .setMediaId(mediaId)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setSubtitle(subtitle)
-                    .setIsBrowsable(false)
-                    .setIsPlayable(false)
-                    .setExtras(autoBrowse.buildContentStyleBundle(CONTENT_STYLE_LIST_ITEM_HINT_VALUE, CONTENT_STYLE_LIST_ITEM_HINT_VALUE))
-                    .build(),
-            )
-            .build()
+        autoBrowse.createInfoItem(mediaId, title, subtitle)
 
     private companion object {
         const val FOREIGN_CACHE_PURGE_DELAY_MS = 30_000L
         const val FOREIGN_CACHE_KEEP_AHEAD = 3
-        const val MAX_AUTO_PAGE_SIZE = 50
 
         val ROOT_CHILDREN: List<String> = listOf(
             MEDIA_QUICK_PICKS_ID,

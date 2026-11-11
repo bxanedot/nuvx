@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
+import com.bxane.nuvx.data.innertube.InnertubeParser
 import com.bxane.nuvx.data.LikeState
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.model.BrowseItem
@@ -38,6 +39,7 @@ internal const val CONTENT_STYLE_LIST_ITEM_HINT_VALUE = 1
 internal const val CONTENT_STYLE_GRID_ITEM_HINT_VALUE = 4
 private const val MAX_AUTO_SEARCH_QUERY_CHARS = 200
 private const val MAX_AUTO_SEARCH_CACHE_ENTRIES = 20
+private const val MAX_AUTO_PAGE_SIZE = 50
 
 @UnstableApi
 internal class AutoBrowseCatalog(
@@ -306,6 +308,71 @@ internal class AutoBrowseCatalog(
             putBoolean(EXTRA_CONTENT_STYLE_SUPPORTED, true)
             putBoolean(EXTRA_CONTENT_STYLE_SUPPORTED_AX, true)
         }
+
+    fun <T> paginate(items: List<T>, page: Int, pageSize: Int): List<T> {
+        if (page < 0 || pageSize <= 0 || items.isEmpty()) return emptyList()
+        val safePageSize = pageSize.coerceAtMost(MAX_AUTO_PAGE_SIZE)
+        val fromLong = page.toLong() * safePageSize.toLong()
+        if (fromLong >= items.size.toLong()) return emptyList()
+        val from = fromLong.toInt()
+        val to = (fromLong + safePageSize).coerceAtMost(items.size.toLong()).toInt()
+        return items.subList(from, to)
+    }
+
+    fun shelfToMediaItemOrNull(item: ShelfItem): MediaItem? {
+        val videoId = item.videoId
+        if (videoId != null) {
+            val song = Song(
+                videoId = videoId,
+                title = item.title,
+                artist = InnertubeParser.artistFromSubtitle(item.subtitle),
+                thumbnailUrl = item.thumbnailUrl,
+            )
+            cacheSong(song)
+            return song.toMediaItem()
+        }
+        val browseId = item.browseId
+        if (browseId != null) {
+            return MediaItem.Builder()
+                .setMediaId("browse:$browseId")
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(item.title)
+                        .setSubtitle(item.subtitle)
+                        .setArtworkUri(item.thumbnailUrl.artworkAt(NOTIFICATION_ART_PX)?.let(Uri::parse))
+                        .setIsBrowsable(true)
+                        .setIsPlayable(false)
+                        .setFolderType(MediaMetadata.FOLDER_TYPE_ALBUMS)
+                        .build(),
+                )
+                .build()
+        }
+        return null
+    }
+
+    fun shelfToSongOrNull(item: ShelfItem): Song? {
+        val id = item.videoId ?: return null
+        return Song(
+            videoId = id,
+            title = item.title,
+            artist = InnertubeParser.artistFromSubtitle(item.subtitle),
+            thumbnailUrl = item.thumbnailUrl,
+        )
+    }
+
+    fun createInfoItem(mediaId: String, title: String, subtitle: String? = null): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setSubtitle(subtitle)
+                    .setIsBrowsable(false)
+                    .setIsPlayable(false)
+                    .setExtras(buildContentStyleBundle(CONTENT_STYLE_LIST_ITEM_HINT_VALUE, CONTENT_STYLE_LIST_ITEM_HINT_VALUE))
+                    .build(),
+            )
+            .build()
 
     fun createGridPlaylistItem(
         mediaId: String,
