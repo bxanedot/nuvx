@@ -10,8 +10,6 @@ import com.bxane.nuvx.auth.GoogleAccountSession
 import com.bxane.nuvx.auth.YouTubeProfile
 import com.bxane.nuvx.data.AppUpdateChecker
 import com.bxane.nuvx.data.LocalMediaRepository
-import com.bxane.nuvx.data.LikeState
-import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.model.TopPick
 import kotlinx.coroutines.flow.first
 import com.bxane.nuvx.data.lyrics.LyricLine
@@ -43,7 +41,6 @@ import com.bxane.nuvx.data.model.UserPlaylist
 import com.bxane.nuvx.data.model.SearchHistoryEntity
 import com.bxane.nuvx.data.settings.SearchHistory
 import com.bxane.nuvx.download.Downloads
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -197,8 +194,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleLibrary(browseId: String) = collectionController.toggleLibrary(browseId)
 
     fun toggleSubscription(browseId: String) = collectionController.toggleSubscription(browseId)
-    private val _songMenu = MutableStateFlow<SongMenu?>(null)
-    val songMenu: StateFlow<SongMenu?> = _songMenu.asStateFlow()
+    private val songMenuController = MainSongMenuController(
+        scope = viewModelScope,
+        signedIn = { _signedIn.value },
+    )
+    val songMenu: StateFlow<SongMenu?> = songMenuController.songMenu
     private val feedRefreshController: MainFeedRefreshController = MainFeedRefreshController(
         scope = viewModelScope,
         signedIn = { _signedIn.value },
@@ -217,24 +217,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         markLibraryStale = feedRefreshController::markLibraryStale,
         _library = _library,
         _detailStack = _detailStack,
-        _songMenu = _songMenu,
+        _songMenu = songMenuController.mutableSongMenu,
     )
     val releaseLibrary: StateFlow<Map<String, LibraryState>> = collectionController.releaseLibrary
     val likeStatuses: StateFlow<Map<String, LikeStatus>> = collectionController.likeStatuses
 
-    private var songMenuJob: Job? = null
-
-
-    fun loadSongMenu(videoId: String?) {
-        songMenuJob?.cancel()
-        _songMenu.value = null
-        if (videoId == null || !_signedIn.value) return
-        songMenuJob = viewModelScope.launch {
-            val menu = YtMusicRepository.songMenu(videoId).getOrNull() ?: return@launch
-            _songMenu.value = menu
-            LikeState.rememberStated(videoId, menu.likeStatus)
-        }
-    }
+    fun loadSongMenu(videoId: String?) = songMenuController.loadSongMenu(videoId)
 
     private val _playlists = MutableStateFlow<List<UserPlaylist>>(emptyList())
     val playlists: StateFlow<List<UserPlaylist>> = _playlists.asStateFlow()
@@ -336,7 +324,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _playlists = _playlists,
         _playlistsLoading = _playlistsLoading,
         _playlistOwned = _playlistOwned,
-        _songMenu = _songMenu,
+        _songMenu = songMenuController.mutableSongMenu,
         homeFeed = homeFeed,
         libraryHistory = libraryHistory,
         playlistController = playlistController,
