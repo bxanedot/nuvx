@@ -197,10 +197,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleSubscription(browseId: String) = collectionController.toggleSubscription(browseId)
     private val _songMenu = MutableStateFlow<SongMenu?>(null)
     val songMenu: StateFlow<SongMenu?> = _songMenu.asStateFlow()
+    private val feedRefreshController: MainFeedRefreshController = MainFeedRefreshController(
+        scope = viewModelScope,
+        signedIn = { _signedIn.value },
+        home = home,
+        library = _library,
+        listenerKey = ::listenerKey,
+        refreshHome = homeFeed::refreshHome,
+        refreshExplore = ::fetchExplore,
+        refreshLibrary = ::fetchLibrary,
+        refreshHomeRecents = homeFeed::refreshHomeRecents,
+        loadPlaylists = ::loadPlaylists,
+    )
     private val collectionController = MainCollectionController(
         scope = viewModelScope,
         requireSignIn = ::requireSignIn,
-        markLibraryStale = { libraryStale = true },
+        markLibraryStale = feedRefreshController::markLibraryStale,
         _library = _library,
         _detailStack = _detailStack,
         _songMenu = _songMenu,
@@ -278,7 +290,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         authStore = authStore,
         listenerKey = ::listenerKey,
         requireSignIn = ::requireSignIn,
-        markLibraryStale = { libraryStale = true },
+        markLibraryStale = feedRefreshController::markLibraryStale,
         onPlaylistOwned = ::setPlaylistOwned,
         text = ::text,
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
@@ -359,14 +371,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun requireSignIn(): Boolean = _signedIn.value
 
-    private var libraryStale = false
-
-    fun onLibraryShown() {
-        loadPlaylists()
-        if (!libraryStale) return
-        libraryStale = false
-        if (_library.value is UiState.Success) refresh(Feed.LIBRARY)
-    }
+    fun onLibraryShown() = feedRefreshController.onLibraryShown()
 
     init {
         search.start()
@@ -377,7 +382,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             loadPlaylists()
         }
         viewModelScope.launch {
-            PlaybackTracker.registeredPlays.drop(1).collect { homeStale = true }
+            PlaybackTracker.registeredPlays.drop(1).collect { feedRefreshController.markHomeStale() }
         }
         viewModelScope.launch {
             BoundedContextRequests.snapshot.collect { snapshot ->
@@ -421,33 +426,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private var homeStale = false
-
-    fun onHomeShown() {
-        if (!homeStale) return
-        homeStale = false
-        if (home.value is UiState.Success) homeFeed.refreshHomeRecents()
-    }
+    fun onHomeShown() = feedRefreshController.onHomeShown()
 
     enum class Feed { HOME, EXPLORE, LIBRARY }
 
-    private val _refreshing = MutableStateFlow(emptySet<Feed>())
-    val refreshing: StateFlow<Set<Feed>> = _refreshing.asStateFlow()
+    val refreshing: StateFlow<Set<Feed>> = feedRefreshController.refreshing
 
-    fun refresh(feed: Feed) {
-        if (feed in _refreshing.value) return
-        if (feed == Feed.LIBRARY && !_signedIn.value) return
-        val identity = listenerKey()
-        _refreshing.value = _refreshing.value + feed
-        viewModelScope.launch {
-            when (feed) {
-                Feed.HOME -> homeFeed.refreshHome(identity)
-                Feed.EXPLORE -> fetchExplore()
-                Feed.LIBRARY -> fetchLibrary(identity)
-            }
-            _refreshing.value = _refreshing.value - feed
-        }
-    }
+    fun refresh(feed: Feed) = feedRefreshController.refresh(feed)
 
     fun loadExplore() = exploreFeed.loadExplore()
 
