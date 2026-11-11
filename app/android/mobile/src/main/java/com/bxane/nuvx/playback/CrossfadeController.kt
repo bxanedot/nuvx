@@ -165,31 +165,8 @@ class CrossfadeController(
 
     private var lastPlanVerdict = ""
 
-    private val outClock = PositionClock()
-    private val inClock = PositionClock()
-
-    private class PositionClock {
-        private var player: ExoPlayer? = null
-        private var reported = 0L
-        private var seenAt = 0L
-
-        fun reset() {
-            player = null
-        }
-
-        fun read(p: ExoPlayer): Double {
-            val now = System.nanoTime()
-            val position = p.currentPosition
-            if (p !== player || position != reported) {
-                seenAt = if (p === player) now - HALF_TICK_NANOS else now
-                player = p
-                reported = position
-            }
-            if (!p.isPlaying) return position.toDouble()
-            val since = (now - seenAt).coerceIn(0L, MAX_EXTRAPOLATION_NANOS)
-            return position + since / 1e6 * p.playbackParameters.speed
-        }
-    }
+    private val outClock = CrossfadePositionClock(HALF_TICK_NANOS, MAX_EXTRAPOLATION_NANOS)
+    private val inClock = CrossfadePositionClock(HALF_TICK_NANOS, MAX_EXTRAPOLATION_NANOS)
 
     private fun positionMs(player: ExoPlayer): Double =
         if (player === incoming) inClock.read(player) else outClock.read(player)
