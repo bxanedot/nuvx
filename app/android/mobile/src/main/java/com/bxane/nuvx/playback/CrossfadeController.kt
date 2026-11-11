@@ -12,8 +12,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.bxane.nuvx.data.listentogether.ListenTogether
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.MixBlend
-import com.bxane.nuvx.data.settings.MixDeck
-import com.bxane.nuvx.data.settings.MixTransitionView
 import com.bxane.nuvx.data.settings.SmartAnalysis
 import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput
 import com.bxane.nuvx.data.settings.TrackAnalysisState
@@ -36,7 +34,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.round
-import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import java.util.Locale
 
@@ -890,6 +887,20 @@ class CrossfadeController(
         isIdle = { phase == Phase.IDLE },
     )
 
+    private val mixViewPublisher = CrossfadeMixViewPublisher(
+        waves = mixWaves,
+        preview = mixPreview,
+        envelope = envelope,
+        currentRender = { render },
+        fadeEndTimeMs = { fadeEndMs },
+        configuredFadeMs = { fadeMs },
+        currentMediaRatio = { mediaRatio },
+        incomingCueMs = { incomingCueTimeMs },
+        currentPlan = { planInFlight },
+        outgoingTrackAnalysis = { outgoingAnalysis },
+        incomingTrackAnalysis = { incomingAnalysis },
+    )
+
     private fun publishMixPreview(
         currentItem: MediaItem,
         nextItem: MediaItem,
@@ -909,63 +920,7 @@ class CrossfadeController(
     }
 
     private fun publishMixView(out: ExoPlayer, into: ExoPlayer) {
-        val plan = planInFlight ?: return
-        val outItem = out.currentMediaItem ?: return
-        val inItem = into.currentMediaItem ?: return
-        val geometry = CrossfadeGeometry.playback(
-            fadeEndMs,
-            fadeMs,
-            render.advanced,
-            mediaRatio,
-            incomingCueTimeMs,
-        )
-        val outStart = geometry.outStart
-        val outEnd = geometry.outEnd
-        val outSpan = geometry.outSpan
-        val beatSeconds = plan.beatSeconds
-        val beats = if (beatSeconds > 0) (outSpan / beatSeconds).roundToInt() else 0
-        val marks = CrossfadeGeometry.beatMarks(outgoingAnalysis, outStart, outEnd, beatSeconds)
-        val wallSpan = (fadeMs * if (render.advanced) mediaRatio else 1.0).toFloat()
-        val samples = CrossfadeGeometry.MIX_VIEW_FADER_POINTS
-        val fadeOut = FloatArray(samples) { envelope.outgoingLevel(it / (samples - 1f), wallSpan).coerceIn(0f, 1f) }
-        val fadeIn = FloatArray(samples) { envelope.mixRise(it / (samples - 1f)).coerceIn(0f, 1f) }
-
-        fun deck(item: MediaItem, player: ExoPlayer, analysis: TrackAnalysis, from: Double, to: Double) = MixDeck(
-            title = item.mediaMetadata.title?.toString().orEmpty(),
-            artist = item.mediaMetadata.artist?.toString().orEmpty(),
-            artworkUrl = item.mediaMetadata.artworkUri?.toString(),
-            bpm = analysis.bpm,
-            key = analysis.key,
-            durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0L }
-                ?: (analysis.duration * 1000).roundToLong(),
-            waveStart = from,
-            waveEnd = to,
-        )
-
-        AppSettings.smartMixProgress.value = 0f
-        mixWaves.mixViewIds = outItem.mediaId to inItem.mediaId
-        AppSettings.smartMixPreview.value = null
-        mixWaves.mixPreviewIds = null
-        mixPreview.resetKey()
-        AppSettings.smartMixView.value = MixTransitionView(
-            outgoing = deck(outItem, out, outgoingAnalysis, geometry.outFrom, geometry.outTo),
-            incoming = deck(inItem, into, incomingAnalysis, geometry.inFrom, geometry.inTo),
-            outStart = outStart,
-            outEnd = outEnd,
-            inStart = geometry.inStart,
-            inEnd = geometry.inEnd,
-            beats = beats,
-            beatMarks = marks,
-            fadeOut = fadeOut,
-            fadeIn = fadeIn,
-            bassSwapAt = when {
-                render.style == TransitionStyle.DJ_FILTER && render.filterVariant == FilterTransitionVariant.BASS_HANDOFF ->
-                    render.filterSwapAtF
-                render.bassSwap -> render.swapAtF
-                else -> -1f
-            },
-        )
-        mixWaves.republishWaves()
+        mixViewPublisher.publish(out, into)
     }
 
     private fun driveBail() {
