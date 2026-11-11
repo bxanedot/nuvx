@@ -106,8 +106,6 @@ import com.bxane.nuvx.data.sources.SourceStream
 import com.bxane.nuvx.data.sources.TrackMatcher
 import com.bxane.nuvx.playback.smart.AutomixAnalysisSource
 import com.bxane.nuvx.playback.smart.VersionAudioAligner
-import com.bxane.nuvx.widget.MediaWidget
-import com.bxane.nuvx.widget.MediaWidgetSnapshot
 import com.bxane.nuvx.wear.WearBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -351,6 +349,13 @@ class PlaybackService : MediaLibraryService() {
         boundedQueue = boundedQueue,
         queueStart = { persistedQueueStart },
         setQueueStart = { persistedQueueStart = it },
+    )
+
+    private val widgetPublisher = PlaybackWidgetPublisher(
+        context = this,
+        player = { player },
+        reportedPlayer = { mediaSession?.player },
+        canLike = ::canLike,
     )
 
     private var lastRepeatMode = Player.REPEAT_MODE_OFF
@@ -650,8 +655,7 @@ class PlaybackService : MediaLibraryService() {
         if (restored) {
             publishWidgetState()
         } else {
-            MediaWidgetSnapshot.save(this, MediaWidgetSnapshot.EMPTY)
-            MediaWidget.refresh(this)
+            widgetPublisher.clear()
         }
         lastRepeatMode = exoPlayer.repeatMode
         exoPlayer.addListener(playbackListener)
@@ -1536,28 +1540,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun publishWidgetState(playing: Boolean? = null) {
-        val exoPlayer = player ?: return
-        val song = exoPlayer.currentMediaItem?.toSong() ?: return
-        val liked = (if (song.localUri != null) OfflinePlaylists.isLiked(song) else null)
-            ?: LikeState.overrides.value[song.videoId]?.let { it == LikeStatus.LIKE }
-            ?: MediaWidgetSnapshot.load(this).takeIf { it.mediaId == song.videoId }?.isLiked
-            ?: false
-        val reported: Player = mediaSession?.player ?: exoPlayer
-        val snapshot = MediaWidgetSnapshot(
-            mediaId = song.videoId,
-            title = song.title,
-            artist = song.artist,
-            artworkUrl = song.thumbnailUrl,
-            isPlaying = playing ?: reported.playWhenReady,
-            hasPrevious = exoPlayer.hasPreviousMediaItem(),
-            hasNext = exoPlayer.hasNextMediaItem(),
-            isLiked = liked,
-            canLike = canLike(exoPlayer.currentMediaItem),
-            shuffleEnabled = QueueShuffle.enabled.value,
-        )
-        MediaWidgetSnapshot.save(this, snapshot)
-        MediaWidget.refresh(this)
-        WearBridge.publish(this, snapshot, reported, playing)
+        widgetPublisher.publish(playing)
     }
 
     private var foreignCachePurgeJob: Job? = null
