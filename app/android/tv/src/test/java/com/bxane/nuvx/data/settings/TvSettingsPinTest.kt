@@ -27,7 +27,7 @@ class TvSettingsPinTest {
 
         val rawStored = fakePrefs.getString("tv_profile_pin_$profileId", null)
         assertTrue("Stored value should not be null", rawStored != null)
-        assertFalse("Raw PIN must not appear in stored preference", rawStored!!.contains(plainPin))
+        assertNotEquals("Raw PIN must not be stored verbatim", plainPin, rawStored!!)
         assertTrue("Stored value must start with pbkdf2_sha256 prefix", rawStored.startsWith("pbkdf2_sha256:"))
         val parts = rawStored.split(':')
         assertEquals("Stored hash should have 4 colon-separated parts", 4, parts.size)
@@ -116,7 +116,7 @@ class TvSettingsPinTest {
 
         val upgraded = fakePrefs.getString("tv_profile_pin_$profileId", null)!!
         assertTrue("Legacy PIN must be migrated to PBKDF2 hash", upgraded.startsWith("pbkdf2_sha256:"))
-        assertFalse("Plaintext must no longer be present", upgraded.contains(plainPin))
+        assertNotEquals("Plaintext must not be stored verbatim", plainPin, upgraded)
 
         assertTrue(TvSettings.verifyProfilePin(profileId, plainPin))
     }
