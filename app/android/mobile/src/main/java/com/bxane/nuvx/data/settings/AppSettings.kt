@@ -88,6 +88,7 @@ object AppSettings {
     private val discordSettings = DiscordSettingsController()
     private val scrobblingSettings = ScrobblingSettingsController()
     private val librarySettings = LibrarySettingsController(MAX_PINNED_PLAYLISTS)
+    private val lyricsSettings = LyricsSettingsController(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
@@ -227,11 +228,11 @@ object AppSettings {
 
     val progressiveBlur = MutableStateFlow(false)
 
-    val lyricsBlur = MutableStateFlow(true)
+    val lyricsBlur = lyricsSettings.lyricsBlur
 
-    val lyricsOffsetMs = MutableStateFlow(0)
+    val lyricsOffsetMs = lyricsSettings.lyricsOffsetMs
 
-    val translationLanguage = MutableStateFlow("")
+    val translationLanguage = lyricsSettings.translationLanguage
 
     val animatedCanvas = MutableStateFlow(true)
 
@@ -252,15 +253,15 @@ object AppSettings {
 
     val lastPlayerScreen = MutableStateFlow(LastPlayerScreen.MAIN)
 
-    val syncedLyrics = MutableStateFlow(true)
+    val syncedLyrics = lyricsSettings.syncedLyrics
 
-    val lyricsSources = MutableStateFlow(LyricsSource.offered.toSet())
+    val lyricsSources = lyricsSettings.lyricsSources
 
-    val lyricsSourceOrder = MutableStateFlow<List<LyricsSource>>(LyricsSource.offered)
+    val lyricsSourceOrder = lyricsSettings.lyricsSourceOrder
 
-    val prioritizeSyllableSync = MutableStateFlow(true)
+    val prioritizeSyllableSync = lyricsSettings.prioritizeSyllableSync
 
-    val paxSenixApiKey = MutableStateFlow("")
+    val paxSenixApiKey = lyricsSettings.paxSenixApiKey
 
     val audioCacheLimitBytes = MutableStateFlow(DEFAULT_CACHE_LIMIT_BYTES)
 
@@ -387,6 +388,7 @@ object AppSettings {
         discordSettings.initialize(prefs, authStore)
         scrobblingSettings.initialize(prefs)
         librarySettings.initialize(prefs)
+        lyricsSettings.initialize(prefs)
         readAll()
         MeteredConnectionObserver.watch(context, meteredConnection)
     }
@@ -492,10 +494,7 @@ object AppSettings {
         liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, true)
         glassPerformance.value = prefs.getBoolean(KEY_GLASS_PERFORMANCE, true)
         progressiveBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_BLUR, false)
-        lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
-        lyricsOffsetMs.value = prefs.getInt(KEY_LYRICS_OFFSET_MS, 0)
-            .coerceIn(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
-        translationLanguage.value = prefs.getString(KEY_TRANSLATION_LANGUAGE, "").orEmpty()
+        lyricsSettings.readPresentationPreferences()
         if (highPerformanceMode.value) {
             reduceAnimation.value = false
             reduceDynamicBlur.value = false
@@ -518,12 +517,7 @@ object AppSettings {
                 prefs.getString(KEY_LAST_PLAYER_SCREEN, null) ?: LastPlayerScreen.MAIN.name,
             )
         }.getOrDefault(LastPlayerScreen.MAIN)
-        syncedLyrics.value = prefs.getBoolean(KEY_SYNCED_LYRICS, true)
-        lyricsSources.value = readLyricsSources()
-        lyricsSourceOrder.value = readLyricsSourceOrder()
-        prioritizeSyllableSync.value = prefs.getBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, true)
-        paxSenixApiKey.value = prefs.getString(KEY_PAXSENIX_API_KEY, "").orEmpty()
-        com.bxane.nuvx.data.lyrics.PaxSenix.setApiKey(paxSenixApiKey.value)
+        lyricsSettings.readProviderPreferences()
         audioCacheLimitBytes.value = clampCacheLimit(prefs.getLong(KEY_CACHE_LIMIT, DEFAULT_CACHE_LIMIT_BYTES))
         showCacheFolder.value = prefs.getBoolean(KEY_SHOW_CACHE_FOLDER, false)
         scrobblingSettings.read()
@@ -934,90 +928,23 @@ object AppSettings {
         prefs.edit().putInt(KEY_PERFORMANCE_REFRESH_RATE, normalized).apply()
     }
 
-    fun setLyricsBlur(value: Boolean) {
-        lyricsBlur.value = value
-        prefs.edit().putBoolean(KEY_LYRICS_BLUR, value).apply()
-    }
+    fun setLyricsBlur(value: Boolean) = lyricsSettings.setLyricsBlur(value)
 
-    fun setLyricsOffsetMs(value: Int) {
-        val normalized = value.coerceIn(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
-        if (lyricsOffsetMs.value == normalized) return
-        lyricsOffsetMs.value = normalized
-        prefs.edit().putInt(KEY_LYRICS_OFFSET_MS, normalized).apply()
-    }
+    fun setLyricsOffsetMs(value: Int) = lyricsSettings.setLyricsOffsetMs(value)
 
-    fun setTranslationLanguage(value: String) {
-        translationLanguage.value = value
-        prefs.edit().putString(KEY_TRANSLATION_LANGUAGE, value).apply()
-    }
+    fun setTranslationLanguage(value: String) = lyricsSettings.setTranslationLanguage(value)
 
-    fun setSyncedLyrics(value: Boolean) {
-        syncedLyrics.value = value
-        prefs.edit().putBoolean(KEY_SYNCED_LYRICS, value).apply()
-    }
+    fun setSyncedLyrics(value: Boolean) = lyricsSettings.setSyncedLyrics(value)
 
-    fun setLyricsSources(value: Set<LyricsSource>) {
-        lyricsSources.value = value
-        prefs.edit()
-            .putString(KEY_LYRICS_SOURCES, value.joinToString(",") { it.name })
-            .putString(KEY_LYRICS_SOURCES_SEEN, LyricsSource.offered.joinToString(",") { it.name })
-            .apply()
-    }
+    fun setLyricsSources(value: Set<LyricsSource>) = lyricsSettings.setLyricsSources(value)
 
-    private fun readLyricsSources(): Set<LyricsSource> {
-        val stored = prefs.getString(KEY_LYRICS_SOURCES, null)
-            ?: return LyricsSource.offered.toSet()
-        val chosen = stored.split(",").toSources()
-        val seen = prefs.getString(KEY_LYRICS_SOURCES_SEEN, null)
-            ?.split(",")?.toSources()
-            ?: LEGACY_SOURCES
-        return (chosen + LyricsSource.entries.filter { it !in seen }).filterNot { it.hidden }.toSet()
-    }
+    fun setLyricsSourceOrder(value: List<LyricsSource>) = lyricsSettings.setLyricsSourceOrder(value)
 
-    private fun List<String>.toSources(): Set<LyricsSource> =
-        mapNotNull { name -> LyricsSource.entries.firstOrNull { it.name == name } }.toSet()
+    fun setPrioritizeSyllableSync(value: Boolean) = lyricsSettings.setPrioritizeSyllableSync(value)
 
-    private val LEGACY_SOURCES = setOf(
-        LyricsSource.LYRICS_PLUS,
-        LyricsSource.PAXSENIX,
-        LyricsSource.BETTER_LYRICS,
-        LyricsSource.SIMP_MUSIC,
-        LyricsSource.KUGOU,
-        LyricsSource.LRCLIB,
-        LyricsSource.MUSIXMATCH,
-        LyricsSource.GENIUS,
-    )
+    fun setPaxSenixApiKey(value: String) = lyricsSettings.setPaxSenixApiKey(value)
 
-    fun setLyricsSourceOrder(value: List<LyricsSource>) {
-        lyricsSourceOrder.value = value
-        prefs.edit().putString(KEY_LYRICS_SOURCE_ORDER, value.joinToString(",") { it.name }).apply()
-    }
-
-    private fun readLyricsSourceOrder(): List<LyricsSource> {
-        val stored = prefs.getString(KEY_LYRICS_SOURCE_ORDER, null)
-            ?: return LyricsSource.offered
-        val saved = stored.split(",")
-            .mapNotNull { name -> LyricsSource.entries.firstOrNull { it.name == name } }
-        return LyricsSource.ordered(saved)
-    }
-
-    fun setPrioritizeSyllableSync(value: Boolean) {
-        prioritizeSyllableSync.value = value
-        prefs.edit().putBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, value).apply()
-    }
-
-    fun setPaxSenixApiKey(value: String) {
-        val normalized = com.bxane.nuvx.data.lyrics.normalizePaxSenixApiKey(value)
-        paxSenixApiKey.value = normalized
-        prefs.edit().putString(KEY_PAXSENIX_API_KEY, normalized).apply()
-        com.bxane.nuvx.data.lyrics.PaxSenix.setApiKey(normalized)
-    }
-
-    fun resetLyricsSourceSettings() {
-        setLyricsSources(LyricsSource.offered.toSet())
-        setLyricsSourceOrder(LyricsSource.offered)
-        setPrioritizeSyllableSync(true)
-    }
+    fun resetLyricsSourceSettings() = lyricsSettings.resetLyricsSourceSettings()
 
     fun setAnimatedCanvas(value: Boolean) {
         animatedCanvas.value = value
@@ -1452,9 +1379,6 @@ object AppSettings {
     private const val KEY_LIQUID_GLASS = "liquid_glass"
     private const val KEY_GLASS_PERFORMANCE = "glass_performance"
     private const val KEY_PROGRESSIVE_BLUR = "progressive_blur"
-    private const val KEY_LYRICS_BLUR = "lyrics_blur"
-    private const val KEY_LYRICS_OFFSET_MS = "lyrics_offset_ms"
-    private const val KEY_TRANSLATION_LANGUAGE = "translation_language"
     private const val KEY_ANIMATED_CANVAS = "animated_canvas"
     private const val KEY_CANVAS_OVER_CELLULAR = "canvas_over_cellular"
     private const val KEY_SPOTIFY_CANVAS_AUTO_HIDE = "spotify_canvas_auto_hide"
@@ -1466,12 +1390,6 @@ object AppSettings {
     private const val KEY_PLAYER_THEME = "player_theme"
     private const val KEY_LEGACY_MESH_GRADIENT = "legacy_mesh_gradient"
     private const val KEY_LAST_PLAYER_SCREEN = "last_player_screen"
-    private const val KEY_SYNCED_LYRICS = "synced_lyrics"
-    private const val KEY_LYRICS_SOURCES = "lyrics_sources"
-    private const val KEY_LYRICS_SOURCES_SEEN = "lyrics_sources_seen"
-    private const val KEY_LYRICS_SOURCE_ORDER = "lyrics_source_order"
-    private const val KEY_PRIORITIZE_SYLLABLE_SYNC = "prioritize_syllable_sync"
-    private const val KEY_PAXSENIX_API_KEY = "paxsenix_api_key"
     private const val KEY_REPLAY_GENRES = "replay_genres"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
     private const val KEY_SHOW_CACHE_FOLDER = "show_cache_folder"
