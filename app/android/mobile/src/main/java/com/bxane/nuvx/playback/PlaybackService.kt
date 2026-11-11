@@ -353,6 +353,12 @@ class PlaybackService : MediaLibraryService() {
 
     private var persistedQueueStart = 0
 
+    private val queuePersistence: PlaybackQueuePersistenceController = PlaybackQueuePersistenceController(
+        boundedQueue = boundedQueue,
+        queueStart = { persistedQueueStart },
+        setQueueStart = { persistedQueueStart = it },
+    )
+
     private var lastRepeatMode = Player.REPEAT_MODE_OFF
 
     private val lyricsController = PlaybackLyricsController(
@@ -1597,40 +1603,11 @@ class PlaybackService : MediaLibraryService() {
     private fun publishNerdStats() = telemetry.publish()
 
     private fun saveQueueSnapshot(player: ExoPlayer) {
-        if (ListenTogether.state.value.inParty) return
-        if (player.mediaItemCount == 0) {
-            persistedQueueStart = 0
-            LastPlayed.clear()
-            BoundedContextPersistence.clear()
-            return
-        }
-        val range = LastPlayed.window(player.mediaItemCount, player.currentMediaItemIndex)
-        if (range.isEmpty()) return
-        persistedQueueStart = range.first
-        LastPlayed.saveQueue(
-            songs = range.map { player.getMediaItemAt(it).toSong() },
-            index = player.currentMediaItemIndex - range.first,
-        )
-        boundedQueue.saveSnapshot(player)
-        savePlaybackState(player)
+        queuePersistence.saveQueueSnapshot(player)
     }
 
     private fun saveQueueSnapshotImmediately(player: ExoPlayer) {
-        if (ListenTogether.state.value.inParty) return
-        if (player.mediaItemCount == 0) {
-            persistedQueueStart = 0
-            LastPlayed.clearImmediately()
-            BoundedContextPersistence.clearImmediately()
-            return
-        }
-        val range = LastPlayed.window(player.mediaItemCount, player.currentMediaItemIndex)
-        persistedQueueStart = range.first
-        LastPlayed.saveQueueImmediately(
-            songs = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).toSong() },
-            index = player.currentMediaItemIndex,
-            positionMs = player.currentPosition,
-        )
-        boundedQueue.saveSnapshot(player, immediately = true)
+        queuePersistence.saveQueueSnapshotImmediately(player)
     }
 
     private fun beginRadioQueue() {
@@ -1642,26 +1619,15 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun savePlaybackState(player: ExoPlayer) {
-        if (player.mediaItemCount == 0) return
-        boundedQueue.savePlaybackState(player)
-        LastPlayed.savePlaybackState(
-            index = player.currentMediaItemIndex - persistedQueueStart,
-            positionMs = player.currentPosition,
-        )
+        queuePersistence.savePlaybackState(player)
     }
 
     private fun restoreLastQueue(player: ExoPlayer): Boolean {
-        val last = LastPlayed.load() ?: return false
-        persistedQueueStart = 0
-        player.setMediaItems(last.songs.map { it.toMediaItem() }, last.index, last.positionMs)
-        return true
+        return queuePersistence.restoreLastQueue(player)
     }
 
     private fun restoreBoundedQueueOrLast(player: ExoPlayer): Boolean {
-        val persisted = BoundedContextPersistence.load()
-        if (persisted != null && boundedQueue.restore(player, persisted)) return true
-        if (persisted != null) BoundedContextPersistence.clearImmediately()
-        return restoreLastQueue(player)
+        return queuePersistence.restoreBoundedQueueOrLast(player)
     }
 
     private fun publishWidgetState(playing: Boolean? = null) {
