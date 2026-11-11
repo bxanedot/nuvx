@@ -159,6 +159,7 @@ import com.bxane.nuvx.playback.LinkRequest
 import com.bxane.nuvx.playback.MusicLink
 import com.bxane.nuvx.playback.OriginalVersion
 import com.bxane.nuvx.playback.PlayerDeepLink
+import com.bxane.nuvx.playback.PlaybackVersionSwitcher
 import com.bxane.nuvx.playback.PlaybackQueueActions
 import com.bxane.nuvx.playback.QueueCoordinator
 import com.bxane.nuvx.playback.QueueShuffle
@@ -724,13 +725,20 @@ internal fun NuvxApp(
     val shuffleEnabled by QueueShuffle.enabled.collectAsStateWithLifecycle()
     val versionContext = LocalContext.current
     val missingVersions = remember { mutableStateListOf<String>() }
-    var convertedFromVideo by remember { mutableStateOf<Song?>(null) }
-    var convertedAudioId by remember { mutableStateOf<String?>(null) }
-    var switchingAudioVersion by remember { mutableStateOf(false) }
-    var keepVideoId by remember { mutableStateOf<String?>(null) }
-    var convertedFromAudio by remember { mutableStateOf<Song?>(null) }
-    var convertedVideoId by remember { mutableStateOf<String?>(null) }
-    var optimisticVersionSong by remember { mutableStateOf<Song?>(null) }
+    val convertedFromVideoState = remember { mutableStateOf<Song?>(null) }
+    var convertedFromVideo by convertedFromVideoState
+    val convertedAudioIdState = remember { mutableStateOf<String?>(null) }
+    var convertedAudioId by convertedAudioIdState
+    val switchingAudioVersionState = remember { mutableStateOf(false) }
+    var switchingAudioVersion by switchingAudioVersionState
+    val keepVideoIdState = remember { mutableStateOf<String?>(null) }
+    var keepVideoId by keepVideoIdState
+    val convertedFromAudioState = remember { mutableStateOf<Song?>(null) }
+    var convertedFromAudio by convertedFromAudioState
+    val convertedVideoIdState = remember { mutableStateOf<String?>(null) }
+    var convertedVideoId by convertedVideoIdState
+    val optimisticVersionSongState = remember { mutableStateOf<Song?>(null) }
+    var optimisticVersionSong by optimisticVersionSongState
 
     val syncedLyricsEnabled by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricsSources by AppSettings.lyricsSources.collectAsStateWithLifecycle()
@@ -893,119 +901,23 @@ internal fun NuvxApp(
         }
     }
 
-    suspend fun switchToMusicOnly(song: Song, pauseWhileResolving: Boolean) {
-        val c = controller ?: return
-        val index = c.currentMediaItemIndex
-        if (index !in 0 until c.mediaItemCount ||
-            c.currentMediaItem?.mediaId != song.videoId ||
-            switchingAudioVersion
-        ) return
-
-        val resumeAfterResolution = pauseWhileResolving && c.playWhenReady
-        switchingAudioVersion = true
-        keepVideoId = null
-        val holdUntilAligned = AppSettings.smartVersionAlignment.value
-        if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = true
-        if (pauseWhileResolving) c.pause()
-        try {
-            TrackLog.d("Player", "audio switch requested for '${song.title}'", song.videoId)
-            val audio = runCatching { YtMusicRepository.resolveAudio(song) }.getOrNull()
-            val stillCurrent = c.currentMediaItemIndex == index &&
-                c.currentMediaItem?.mediaId == song.videoId
-
-            if (audio == null || audio.videoId == song.videoId) {
-                TrackLog.w("Player", "audio switch found no distinct official song", song.videoId)
-                if (song.videoId !in missingVersions) missingVersions += song.videoId
-                if (stillCurrent) showQueueNotice(versionContext.getString(R.string.no_audio_version))
-                if (stillCurrent && resumeAfterResolution) c.play()
-                return
-            }
-            if (!stillCurrent) {
-                TrackLog.d("Player", "audio switch discarded; listener changed track", song.videoId)
-                return
-            }
-
-            convertedFromVideo = song
-            convertedAudioId = audio.videoId
-            TrackLog.d("Player", "audio switch applying '${audio.title}' (${audio.videoId})", song.videoId)
-            val target = audio.copy(
-                isVideoOrigin = true,
-                queueTier = song.queueTier,
-                queueEntryId = song.queueEntryId,
-                radioName = song.radioName,
-                playbackSource = song.playbackSource,
-                playbackSourceType = song.playbackSourceType,
-                playbackSourceId = song.playbackSourceId,
-            )
-            if (!holdUntilAligned ||
-                VersionAudioAligner.getCachedOffsetMs(song.videoId, target.videoId) != null ||
-                YtMusicRepository.versionTimeMap(song.videoId, target.videoId) != null
-            ) {
-                optimisticVersionSong = target
-            }
-            if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = false
-            c.swapToVersion(target)
-        } finally {
-            if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = false
-            switchingAudioVersion = false
-        }
-    }
-
-    suspend fun switchToVideo(song: Song, pauseWhileResolving: Boolean) {
-        val c = controller ?: return
-        val index = c.currentMediaItemIndex
-        if (index !in 0 until c.mediaItemCount ||
-            c.currentMediaItem?.mediaId != song.videoId ||
-            switchingAudioVersion
-        ) return
-
-        val resumeAfterResolution = pauseWhileResolving && c.playWhenReady
-        switchingAudioVersion = true
-        val holdUntilAligned = AppSettings.smartVersionAlignment.value
-        if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = true
-        if (pauseWhileResolving) c.pause()
-        try {
-            TrackLog.d("Player", "video switch requested for '${song.title}'", song.videoId)
-            val video = runCatching { YtMusicRepository.resolveVideo(song) }.getOrNull()
-            val stillCurrent = c.currentMediaItemIndex == index &&
-                c.currentMediaItem?.mediaId == song.videoId
-
-            if (video == null || video.videoId == song.videoId) {
-                TrackLog.w("Player", "video switch found no distinct video", song.videoId)
-                if (song.videoId !in missingVersions) missingVersions += song.videoId
-                if (stillCurrent) showQueueNotice(versionContext.getString(R.string.no_video_version))
-                if (stillCurrent && resumeAfterResolution) c.play()
-                return
-            }
-            if (!stillCurrent) {
-                TrackLog.d("Player", "video switch discarded; listener changed track", song.videoId)
-                return
-            }
-
-            convertedFromAudio = song
-            convertedVideoId = video.videoId
-            TrackLog.d("Player", "video switch applying '${video.title}' (${video.videoId})", song.videoId)
-            val target = video.copy(
-                queueTier = song.queueTier,
-                queueEntryId = song.queueEntryId,
-                radioName = song.radioName,
-                playbackSource = song.playbackSource,
-                playbackSourceType = song.playbackSourceType,
-                playbackSourceId = song.playbackSourceId,
-            )
-            if (!holdUntilAligned ||
-                VersionAudioAligner.getCachedOffsetMs(song.videoId, target.videoId) != null ||
-                YtMusicRepository.versionTimeMap(song.videoId, target.videoId) != null
-            ) {
-                optimisticVersionSong = target
-            }
-            if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = false
-            c.swapToVersion(target)
-        } finally {
-            if (holdUntilAligned) AppSettings.versionAlignmentInProgress.value = false
-            switchingAudioVersion = false
-        }
-    }
+    val playbackVersionSwitcher = PlaybackVersionSwitcher(
+        mediaController = controller,
+        versionContext = versionContext,
+        showQueueNotice = showQueueNotice,
+        missingVersions = missingVersions,
+        switchingAudioVersion = switchingAudioVersionState,
+        keepVideoId = keepVideoIdState,
+        convertedFromVideo = convertedFromVideoState,
+        convertedAudioId = convertedAudioIdState,
+        convertedFromAudio = convertedFromAudioState,
+        convertedVideoId = convertedVideoIdState,
+        optimisticVersionSong = optimisticVersionSongState,
+    )
+    suspend fun switchToMusicOnly(song: Song, pauseWhileResolving: Boolean) =
+        playbackVersionSwitcher.switchToMusicOnly(song, pauseWhileResolving)
+    suspend fun switchToVideo(song: Song, pauseWhileResolving: Boolean) =
+        playbackVersionSwitcher.switchToVideo(song, pauseWhileResolving)
 
     fun playFrom(
         allSongs: List<Song>,
