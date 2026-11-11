@@ -224,12 +224,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadSongMenu(videoId: String?) = songMenuController.loadSongMenu(videoId)
 
-    private val _playlists = MutableStateFlow<List<UserPlaylist>>(emptyList())
-    val playlists: StateFlow<List<UserPlaylist>> = _playlists.asStateFlow()
-
-    private val _playlistsLoading = MutableStateFlow(false)
-    val playlistsLoading: StateFlow<Boolean> = _playlistsLoading.asStateFlow()
-
     fun loadPlaylists() = playlistController.loadPlaylists()
 
     fun addToPlaylists(
@@ -273,30 +267,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun editablePlaylist(browseId: String?): UserPlaylist? =
         playlistController.editablePlaylist(browseId)
 
-    private val _playlistOwned = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val playlistOwned: StateFlow<Map<String, Boolean>> = _playlistOwned.asStateFlow()
     private val playlistController = MainPlaylistController(
         scope = viewModelScope,
         authStore = authStore,
         listenerKey = ::listenerKey,
         requireSignIn = ::requireSignIn,
         markLibraryStale = feedRefreshController::markLibraryStale,
-        onPlaylistOwned = ::setPlaylistOwned,
         text = ::text,
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
         navigator = navigator,
-        _playlists = _playlists,
-        _playlistsLoading = _playlistsLoading,
-        _playlistOwned = _playlistOwned,
         _library = _library,
         _detailStack = _detailStack,
     )
+    val playlists: StateFlow<List<UserPlaylist>> = playlistController.playlists
+    val playlistsLoading: StateFlow<Boolean> = playlistController.playlistsLoading
+    val playlistOwned: StateFlow<Map<String, Boolean>> = playlistController.playlistOwned
 
     fun resolvePlaylistOwnership(browseId: String?) = playlistController.resolvePlaylistOwnership(browseId)
-
-    private fun setPlaylistOwned(browseId: String, owned: Boolean) {
-        _playlistOwned.value = _playlistOwned.value + (browseId to owned)
-    }
 
     private val libraryHistory = MainLibraryHistoryController(
         scope = viewModelScope,
@@ -321,9 +308,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _activeProfileId = _activeProfileId,
         _library = _library,
         _history = _history,
-        _playlists = _playlists,
-        _playlistsLoading = _playlistsLoading,
-        _playlistOwned = _playlistOwned,
+        _playlists = playlistController.mutablePlaylists,
+        _playlistsLoading = playlistController.mutablePlaylistsLoading,
+        _playlistOwned = playlistController.mutablePlaylistOwned,
         _songMenu = songMenuController.mutableSongMenu,
         homeFeed = homeFeed,
         libraryHistory = libraryHistory,
@@ -350,7 +337,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         isRemoteLibrary = { browseId -> remoteLibrary(browseId) != null },
         localPageState = ::localPageState,
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
-        setPlaylistOwned = ::setPlaylistOwned,
+        setPlaylistOwned = playlistController::setPlaylistOwned,
         fillIn = { browseId, token, fallback -> detailContextController.fillIn(browseId, token, fallback) },
         openSpotifyPage = { browseId, title, subtitle, thumbnailUrl ->
             spotifyPageResolver.openPage(browseId, title, subtitle, thumbnailUrl)
