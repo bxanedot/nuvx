@@ -81,9 +81,7 @@ import com.bxane.nuvx.data.LocalMediaRepository
 import com.bxane.nuvx.data.OfflinePlaylists
 import com.bxane.nuvx.data.innertube.InnertubeParser
 import com.bxane.nuvx.data.YtMusicRepository
-import com.bxane.nuvx.data.lyrics.EmbeddedLyrics
 import com.bxane.nuvx.data.lyrics.LyricLine
-import com.bxane.nuvx.data.lyrics.LyricsRepository
 import com.bxane.nuvx.data.model.NOTIFICATION_ART_PX
 import com.bxane.nuvx.data.model.SearchFilter
 import com.bxane.nuvx.data.model.SearchResult
@@ -377,11 +375,13 @@ class PlaybackService : MediaLibraryService() {
 
     private val sessionSongHistory = mutableListOf<Song>()
 
-    private var serviceLyricsJob: Job? = null
-    private var serviceLyrics: List<LyricLine>? = null
-    private var lastPublishedSubtitle: String? = null
-    private var lyricsTickerJob: Job? = null
-
+    private val lyricsController = PlaybackLyricsController(
+        context = { this@PlaybackService },
+        scope = scope,
+        player = { player },
+        crossfade = { crossfade },
+        loopMixLyricsTimeoutMs = LOOP_MIX_LYRICS_TIMEOUT_MS,
+    )
     private val playbackListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             val activePlayer = this@PlaybackService.player ?: return
@@ -841,7 +841,7 @@ class PlaybackService : MediaLibraryService() {
         deferPlayToParty = { partySync?.shouldDeferPlay() == true },
         lockedTransport = { playing -> partySync?.onLockedTransport(playing) == true },
         cast = speakers,
-    ) { lastPublishedSubtitle }
+    ) { lyricsController.subtitle }
 
     private suspend fun resolveForCast(item: MediaItem): CastStream? = withContext(Dispatchers.IO) {
         val uri = item.localConfiguration?.uri ?: return@withContext null
@@ -939,23 +939,8 @@ class PlaybackService : MediaLibraryService() {
             onMixPositionJump = { wrapped -> (mediaSession?.player as? SessionPlayer)?.announceMixPosition(wrapped) },
         )
 
-    private suspend fun loopMixLyrics(item: MediaItem, durationMs: Long): List<LyricLine>? {
-        if (!AppSettings.syncedLyrics.value) return null
-        val song = item.toSong()
-        if (isLiveRadio(song.videoId)) return null
-        return kotlinx.coroutines.withTimeoutOrNull(LOOP_MIX_LYRICS_TIMEOUT_MS) {
-            song.localUri?.let { EmbeddedLyrics.forUri(this@PlaybackService, it) }
-                ?: LyricsRepository.lyrics(
-                    videoId = song.videoId,
-                    title = song.title,
-                    artist = song.artist,
-                    durationMs = durationMs,
-                    album = song.albumName,
-                    sources = AppSettings.lyricsSources.value,
-                    order = AppSettings.lyricsSourceOrder.value,
-                )?.lines
-        }
-    }
+    private suspend fun loopMixLyrics(item: MediaItem, durationMs: Long): List<LyricLine>? =
+        lyricsController.loopMixLyrics(item, durationMs)
 
     private fun canLike(item: MediaItem?): Boolean =
         item != null && (item.toSong().localUri != null || SignedIn.state(this).value)
@@ -3054,11 +3039,7 @@ class PlaybackService : MediaLibraryService() {
             savePlaybackState(it)
         }
         publishWidgetState(playing = false)
-        lyricsTickerJob?.cancel()
-        lyricsTickerJob = null
-        serviceLyricsJob?.cancel()
-        serviceLyricsJob = null
-        serviceLyrics = null
+        lyricsController.release()
         cancelPrefetch()
         trackAnalyzer.release()
         loudnessRetryJob?.cancel()
@@ -3114,92 +3095,13 @@ class PlaybackService : MediaLibraryService() {
         super.onDestroy()
     }
 
-    private fun loadLyricsForCurrentTrack() {
-        val currentSong = player?.currentMediaItem?.toSong() ?: run {
-            serviceLyrics = null
-            stopLyricsTicker()
-            return
-        }
+    private fun loadLyricsForCurrentTrack() = lyricsController.loadLyricsForCurrentTrack()
 
-        if (!AppSettings.syncedLyrics.value || isLiveRadio(currentSong.videoId)) {
-            serviceLyrics = null
-            stopLyricsTicker()
-            return
-        }
+    private fun startLyricsTicker() = lyricsController.startLyricsTicker()
 
-        val trackDurationMs = (player?.duration ?: 0L).takeIf { it > 0 } ?: 0L
+    private fun stopLyricsTicker() = lyricsController.stopLyricsTicker()
 
-        serviceLyricsJob?.cancel()
-        serviceLyricsJob = scope.launch(Dispatchers.IO) {
-            val localUri = currentSong.localUri
-            var lines: List<LyricLine>? = null
-            if (localUri != null) {
-                lines = EmbeddedLyrics.forUri(this@PlaybackService, localUri)
-            }
-            if (lines == null) {
-                val found = LyricsRepository.lyrics(
-                    videoId = currentSong.videoId,
-                    title = currentSong.title,
-                    artist = currentSong.artist,
-                    durationMs = trackDurationMs,
-                    album = currentSong.albumName,
-                    sources = AppSettings.lyricsSources.value,
-                    order = AppSettings.lyricsSourceOrder.value,
-                    prioritizeSyllableSync = AppSettings.prioritizeSyllableSync.value,
-                )
-                lines = found?.lines
-            }
-            withContext(Dispatchers.Main) {
-                serviceLyrics = lines
-                if (player?.isPlaying == true) {
-                    updateLyricSubtitle()
-                }
-            }
-        }
-    }
-
-    private fun startLyricsTicker() {
-        if (lyricsTickerJob?.isActive == true) return
-        lyricsTickerJob = scope.launch(Dispatchers.Main) {
-            while (isActive) {
-                updateLyricSubtitle()
-                delay(500L)
-            }
-        }
-    }
-
-    private fun stopLyricsTicker() {
-        lyricsTickerJob?.cancel()
-        lyricsTickerJob = null
-        updateLyricSubtitle()
-    }
-
-    private fun updateLyricSubtitle() {
-        val exoPlayer = player ?: return
-        val currentSong = exoPlayer.currentMediaItem?.toSong() ?: return
-        val lines = serviceLyrics
-        val pos = crossfade?.loopPositionMs() ?: exoPlayer.currentPosition
-        val subtitleText = if (lines != null && lines.isNotEmpty() && AppSettings.syncedLyrics.value) {
-            val idx = lines.indexOfLast { it.timeMs <= pos }
-            val currentLine = lines.getOrNull(idx)
-            if (currentLine != null && !currentLine.isGap && currentLine.text.isNotBlank()) {
-                "♪ ${currentLine.text}"
-            } else {
-                currentSong.artist
-            }
-        } else {
-            currentSong.artist
-        }
-
-        if (subtitleText != lastPublishedSubtitle) {
-            lastPublishedSubtitle = subtitleText
-            exoPlayer.playlistMetadata = exoPlayer.mediaMetadata
-                .buildUpon()
-                .setSubtitle(subtitleText)
-                .build()
-        }
-    }
-
+    private fun updateLyricSubtitle() = lyricsController.updateLyricSubtitle()
     private inner class MediaLibraryCallback : MediaLibrarySession.Callback {
 
         override fun onConnect(
