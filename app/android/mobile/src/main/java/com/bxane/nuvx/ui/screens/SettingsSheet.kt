@@ -3,7 +3,6 @@ package com.bxane.nuvx.ui.screens
 import com.bxane.nuvx.ui.icons.SfIcons
 import com.bxane.nuvx.wear.WatchInstaller
 import android.content.Context
-import androidx.annotation.StringRes
 import android.content.Intent
 import android.media.AudioFormat
 import android.media.audiofx.AudioEffect
@@ -75,12 +74,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
@@ -448,7 +444,7 @@ fun SettingsScreen(
                         icon = SfIcons.Wifi,
                         title = onWifiTitle,
                         badge = stringResource(R.string.in_use).takeIf { metered == false },
-                        value = wifiQuality.localizedLabel(),
+                        value = wifiQuality.settingsChoiceLabel(),
                         onClick = { onOpenChoice(SettingsChoiceKind.AUDIO_QUALITY_WIFI) },
                     )
                 }
@@ -458,7 +454,7 @@ fun SettingsScreen(
                         icon = SfIcons.SignalCellularAlt,
                         title = onMobileDataTitle,
                         badge = stringResource(R.string.in_use).takeIf { metered == true },
-                        value = cellularQuality.localizedLabel(),
+                        value = cellularQuality.settingsChoiceLabel(),
                         onClick = { onOpenChoice(SettingsChoiceKind.AUDIO_QUALITY_CELLULAR) },
                     )
                 }
@@ -1936,7 +1932,7 @@ private fun Context.countOfMonths(months: Int): String = if (months == 0) {
 }
 
 @Composable
-private fun AudioQuality.localizedLabel(): String = stringResource(
+internal fun AudioQuality.settingsChoiceLabel(): String = stringResource(
     when (this) {
         AudioQuality.LOW -> R.string.low
         AudioQuality.MEDIUM -> R.string.medium
@@ -1946,7 +1942,7 @@ private fun AudioQuality.localizedLabel(): String = stringResource(
 )
 
 @Composable
-private fun DownloadQuality.localizedLabel(): String = stringResource(
+internal fun DownloadQuality.localizedLabel(): String = stringResource(
     when (this) {
         DownloadQuality.STANDARD -> R.string.standard
         DownloadQuality.HIGH -> R.string.high
@@ -1982,7 +1978,7 @@ private fun PlayerTheme.description(): String = stringResource(
 )
 
 @Composable
-private fun AppFont.localizedLabel(): String = stringResource(
+internal fun AppFont.localizedLabel(): String = stringResource(
     when (this) {
         AppFont.DEFAULT -> R.string.font_default
         AppFont.LEGACY -> R.string.font_legacy
@@ -1990,7 +1986,7 @@ private fun AppFont.localizedLabel(): String = stringResource(
 )
 
 @Composable
-private fun AppFont.description(): String = stringResource(
+internal fun AppFont.description(): String = stringResource(
     when (this) {
         AppFont.DEFAULT -> R.string.font_default_subtitle
         AppFont.LEGACY -> R.string.font_legacy_subtitle
@@ -1998,7 +1994,7 @@ private fun AppFont.description(): String = stringResource(
 )
 
 @Composable
-private fun AutomixPerformanceMode.localizedLabel(): String = stringResource(
+internal fun AutomixPerformanceMode.localizedLabel(): String = stringResource(
     when (this) {
         AutomixPerformanceMode.EFFICIENT -> R.string.automix_mode_efficient
         AutomixPerformanceMode.BALANCED -> R.string.automix_mode_balanced
@@ -2149,7 +2145,7 @@ private fun BypassedByBitPerfect(bypassed: Boolean, content: @Composable () -> U
 }
 
 @Composable
-private fun BitPerfectMode.localizedLabel(): String = stringResource(
+internal fun BitPerfectMode.localizedLabel(): String = stringResource(
     when (this) {
         BitPerfectMode.OFF -> R.string.off
         BitPerfectMode.USB_ANDROID -> R.string.bit_perfect_mode_usb_android
@@ -2158,7 +2154,7 @@ private fun BitPerfectMode.localizedLabel(): String = stringResource(
     },
 )
 
-private val BitPerfectMode.isSupported: Boolean
+internal val BitPerfectMode.isSupported: Boolean
     get() = when (this) {
         BitPerfectMode.OFF -> true
         BitPerfectMode.USB_ANDROID -> Build.VERSION.SDK_INT >= 34
@@ -2167,7 +2163,7 @@ private val BitPerfectMode.isSupported: Boolean
     }
 
 @Composable
-private fun BitPerfectMode.description(): String = stringResource(
+internal fun BitPerfectMode.description(): String = stringResource(
     when {
         this == BitPerfectMode.USB_ANDROID && !isSupported -> R.string.bit_perfect_requires_android_14
         this == BitPerfectMode.DAP_EXCLUSIVE && !isSupported -> R.string.bit_perfect_requires_android_8_1
@@ -2258,222 +2254,6 @@ private inline fun SearchableSettingsGroup(
                 index == 0 && !entry.divided -> Spacer(Modifier.height(10.dp))
             }
             entry.content()
-        }
-    }
-}
-
-enum class SettingsCategory(@param:StringRes val title: Int) {
-    DOWNLOADS(R.string.downloads),
-    PLAYBACK(R.string.playback),
-    CONTENT_PREFERENCES(R.string.content_preferences),
-    APPEARANCE(R.string.appearance),
-    PERFORMANCE(R.string.performance),
-    LOCAL_MUSIC(R.string.local_music),
-    STORAGE(R.string.storage),
-    YOUR_DATA(R.string.your_data),
-    MISCELLANEOUS(R.string.miscellaneous),
-    LANGUAGE(R.string.language),
-    ;
-
-    val icon: ImageVector
-        get() = when (this) {
-            DOWNLOADS -> SfIcons.Download
-            PLAYBACK -> SfIcons.PlayCircle
-            CONTENT_PREFERENCES -> SfIcons.Video
-            APPEARANCE -> SfIcons.Appearance
-            PERFORMANCE -> SfIcons.Performance
-            LOCAL_MUSIC -> SfIcons.LibraryMusic
-            STORAGE -> SfIcons.Storage
-            YOUR_DATA -> SfIcons.YourData
-            MISCELLANEOUS -> SfIcons.Miscellaneous
-            LANGUAGE -> SfIcons.Language
-        }
-}
-
-enum class SettingsChoiceKind(@param:StringRes val title: Int) {
-    AUDIO_QUALITY_WIFI(R.string.on_wifi),
-    AUDIO_QUALITY_CELLULAR(R.string.on_mobile_data),
-    DOWNLOAD_QUALITY(R.string.download_quality),
-    AUTOMIX_PERFORMANCE(R.string.automix_performance),
-    BIT_PERFECT(R.string.bit_perfect_output),
-    FONT(R.string.font),
-}
-
-@Composable
-private fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
-    SettingsGroup {
-        SettingsCategory.entries.forEachIndexed { index, category ->
-            if (index > 0) RowDivider()
-            SettingsRow(
-                icon = category.icon,
-                title = stringResource(category.title),
-                onClick = { onOpen(category) },
-            )
-        }
-    }
-}
-
-@Composable
-fun SettingsChoicePage(
-    choice: SettingsChoiceKind,
-    onChosen: () -> Unit,
-    onConfirmBitPerfect: (BitPerfectMode) -> Unit,
-    contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding),
-    ) {
-        SettingsPageTitle(stringResource(choice.title))
-        when (choice) {
-            SettingsChoiceKind.AUDIO_QUALITY_WIFI, SettingsChoiceKind.AUDIO_QUALITY_CELLULAR -> {
-                val wifi = choice == SettingsChoiceKind.AUDIO_QUALITY_WIFI
-                val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
-                val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
-                ChoiceGroup(
-                    options = AudioQuality.entries.reversed(),
-                    selected = if (wifi) wifiQuality else cellularQuality,
-                    label = { it.localizedLabel() },
-                    detail = { stringResource(R.string.quality_hourly, it.detail, it.hourly) },
-                    footer = stringResource(
-                        R.string.audio_quality_connection,
-                        stringResource(if (wifi) R.string.wifi else R.string.mobile_data).lowercase(Locale.getDefault()),
-                    ),
-                ) { quality ->
-                    if (wifi) AppSettings.setAudioQualityWifi(quality) else AppSettings.setAudioQualityCellular(quality)
-                    onChosen()
-                }
-            }
-
-            SettingsChoiceKind.DOWNLOAD_QUALITY -> {
-                val selected by AppSettings.downloadQuality.collectAsStateWithLifecycle()
-                ChoiceGroup(
-                    options = DownloadQuality.entries.reversed(),
-                    selected = selected,
-                    label = { it.localizedLabel() },
-                    detail = { stringResource(R.string.quality_per_track, it.detail, it.perTrack) },
-                    footer = stringResource(R.string.download_quality_dialog_subtitle),
-                ) { quality ->
-                    AppSettings.setDownloadQuality(quality)
-                    onChosen()
-                }
-            }
-
-            SettingsChoiceKind.AUTOMIX_PERFORMANCE -> {
-                val selected by AppSettings.automixPerformanceMode.collectAsStateWithLifecycle()
-                ChoiceGroup(
-                    options = AutomixPerformanceMode.entries,
-                    selected = selected,
-                    label = { it.localizedLabel() },
-                    detail = {
-                        stringResource(
-                            when (it) {
-                                AutomixPerformanceMode.EFFICIENT -> R.string.automix_mode_efficient_subtitle
-                                AutomixPerformanceMode.BALANCED -> R.string.automix_mode_balanced_subtitle
-                                AutomixPerformanceMode.PERFORMANCE -> R.string.automix_mode_performance_subtitle
-                            },
-                        )
-                    },
-                    footer = stringResource(R.string.automix_performance_warning),
-                ) { mode ->
-                    AppSettings.setAutomixPerformanceMode(mode)
-                    onChosen()
-                }
-            }
-
-            SettingsChoiceKind.BIT_PERFECT -> {
-                val selected by AppSettings.bitPerfectMode.collectAsStateWithLifecycle()
-                ChoiceGroup(
-                    options = BitPerfectMode.entries,
-                    selected = selected,
-                    label = { it.localizedLabel() },
-                    detail = { it.description() },
-                    footer = stringResource(R.string.bit_perfect_sheet_warning),
-                    enabled = { it.isSupported },
-                ) { mode ->
-                    onChosen()
-                    if (mode == BitPerfectMode.OFF) AppSettings.setBitPerfectMode(mode) else onConfirmBitPerfect(mode)
-                }
-            }
-
-            SettingsChoiceKind.FONT -> {
-                val selected by AppSettings.appFont.collectAsStateWithLifecycle()
-                ChoiceGroup(
-                    options = AppFont.entries,
-                    selected = selected,
-                    label = { it.localizedLabel() },
-                    detail = { it.description() },
-                    footer = stringResource(R.string.font_footer),
-                ) { font ->
-                    AppSettings.setAppFont(font)
-                    onChosen()
-                }
-            }
-        }
-        Spacer(Modifier.height(32.dp))
-    }
-}
-
-@Composable
-internal fun <T> ChoiceGroup(
-    options: List<T>,
-    selected: T,
-    label: @Composable (T) -> String,
-    footer: String?,
-    detail: (@Composable (T) -> String)? = null,
-    enabled: (T) -> Boolean = { true },
-    onSelect: (T) -> Unit,
-) {
-    val haptics = LocalHapticFeedback.current
-    SettingsGroup(footer = footer, topSpacing = 0.dp) {
-        options.forEachIndexed { index, option ->
-            if (index > 0) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = ROW_INSET),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                )
-            }
-            val available = enabled(option)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = available) {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onSelect(option)
-                    }
-                    .alpha(if (available) 1f else 0.45f)
-                    .heightIn(min = 52.dp)
-                    .padding(horizontal = ROW_INSET, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = label(option),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    detail?.let {
-                        Text(
-                            text = it(option),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (option == selected) {
-                    Spacer(Modifier.width(12.dp))
-                    Icon(
-                        SfIcons.Check,
-                        contentDescription = stringResource(R.string.selected),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
         }
     }
 }
