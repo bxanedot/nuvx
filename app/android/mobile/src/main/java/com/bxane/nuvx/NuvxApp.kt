@@ -166,13 +166,9 @@ import com.bxane.nuvx.playback.cast.CastController
 import com.bxane.nuvx.playback.autoplayEnabledFor
 import com.bxane.nuvx.playback.beginRadioQueue
 import com.bxane.nuvx.playback.commitRadioQueue
-import com.bxane.nuvx.playback.fromAutoplay
 import com.bxane.nuvx.playback.hasYouTubeOriginal
-import com.bxane.nuvx.playback.loadAutoplayTracks
 import com.bxane.nuvx.playback.playSongs
 import com.bxane.nuvx.playback.contextEntryKey
-import com.bxane.nuvx.playback.toMediaItem
-import com.bxane.nuvx.playback.toSong
 import com.bxane.nuvx.playback.toggleAutoplay
 import com.bxane.nuvx.playback.toggleShuffle
 import com.bxane.nuvx.playback.upgradeQuality
@@ -333,7 +329,6 @@ private const val TOP_FADE_START = 0.55f
 
 private const val TOP_FADE_RAMP = 0.3f
 
-private const val INITIAL_RADIO_TRACKS = 24
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -463,8 +458,8 @@ internal fun NuvxApp(
     val listenBrainzToken by AppSettings.listenBrainzToken.collectAsStateWithLifecycle()
     var searchFocusRequested by remember { mutableStateOf(false) }
     val searchFieldFocus = remember { FocusRequester() }
-    var playRequestGeneration by remember { mutableIntStateOf(0) }
-    var activeRadioSeed by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val playRequestGeneration = remember { mutableIntStateOf(0) }
+    val activeRadioSeed = remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val onboardingComplete by AppSettings.onboardingComplete.collectAsStateWithLifecycle()
     val onboardingShown = remember { MutableTransitionState(!onboardingComplete) }
@@ -878,14 +873,13 @@ internal fun NuvxApp(
 
     val scope = rememberCoroutineScope()
     val playbackStarter = MainPlaybackStarter(
+        context = context,
         scope = scope,
         controller = { controller },
         currentQueue = { player.queue },
         refusedByHost = refusedByHost,
-        onRequestStart = {
-            playRequestGeneration++
-            activeRadioSeed = null
-        },
+        playRequestGeneration = playRequestGeneration,
+        activeRadioSeed = activeRadioSeed,
     )
 
     fun uploadToWebDav(songs: List<Song>) {
@@ -962,7 +956,7 @@ internal fun NuvxApp(
         ) {
             optimisticVersionSong = null
         }
-        if (activeRadioSeed?.first != player.song?.videoId) activeRadioSeed = null
+        if (activeRadioSeed.value?.first != player.song?.videoId) activeRadioSeed.value = null
         if (keepVideoId != player.song?.videoId) keepVideoId = null
         if (player.song?.videoId != convertedAudioId) {
             convertedFromVideo = null
@@ -978,69 +972,7 @@ internal fun NuvxApp(
 
     val playRadio: (Song, QueueSource) -> Unit = playbackStarter::playRadio
 
-    val startRadio: (Song) -> Unit = { song ->
-        val originalController = controller
-        if (originalController != null && !refusedByHost()) {
-            val request = ++playRequestGeneration
-            val originalManualQueue = (0 until originalController.mediaItemCount)
-                .map { originalController.getMediaItemAt(it) }
-                .filterNot { it.fromAutoplay }
-                .map { it.mediaId }
-            scope.launch {
-                val seed = song.copy(
-                    radioName = song.title,
-                    playbackSource = song.title,
-                    playbackSourceType = PlaybackSourceType.SHARED_LINK,
-                    playbackSourceId = song.videoId,
-                )
-                val related = loadAutoplayTracks(
-                    existing = listOf(seed),
-                    seedSong = seed,
-                    limit = INITIAL_RADIO_TRACKS,
-                ).getOrElse {
-                    if (request == playRequestGeneration) {
-                        Toast.makeText(context, R.string.couldnt_load_tracks, Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-                if (related.isEmpty()) {
-                    if (request == playRequestGeneration) {
-                        Toast.makeText(context, R.string.couldnt_load_tracks, Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-                val activeController = controller
-                val activeManualQueue = (0 until activeController.mediaItemCount)
-                    .map { activeController.getMediaItemAt(it) }
-                    .filterNot { it.fromAutoplay }
-                    .map { it.mediaId }
-                if (request != playRequestGeneration || activeManualQueue != originalManualQueue) {
-                    return@launch
-                }
-                activeController.beginRadioQueue()
-                val currentIndex = activeController.currentMediaItemIndex
-                val currentItem = activeController.currentMediaItem
-                if (currentIndex >= 0 && currentItem?.mediaId == song.videoId) {
-                    activeController.addMediaItems(currentIndex + 1, related.map { it.toMediaItem() })
-                    val oldTail = currentIndex + 1 + related.size
-                    if (oldTail < activeController.mediaItemCount) {
-                        activeController.removeMediaItems(oldTail, activeController.mediaItemCount)
-                    }
-                    if (currentIndex > 0) activeController.removeMediaItems(0, currentIndex)
-                    activeRadioSeed = song.videoId to song.title
-                } else {
-                    activeRadioSeed = null
-                    activeController.playSongs(listOf(seed) + related, 0)
-                }
-                activeController.commitRadioQueue()
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.radio_started, song.title),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }
-        }
-    }
+    val startRadio: (Song) -> Unit = playbackStarter::startRadio
     val openTopPick: (TopPick, String) -> Unit = { pick, label ->
         val browseId = pick.browseId
         if (pick.kind == TopPickKind.LATEST_RELEASE && browseId != null) {
@@ -1051,10 +983,10 @@ internal fun NuvxApp(
                 thumbnailUrl = pick.images.firstOrNull(),
             )
         } else if (controller != null && !refusedByHost()) {
-            val request = ++playRequestGeneration
+            val request = ++playRequestGeneration.intValue
             scope.launch {
                 val songs = TopPicks.queue(pick).getOrNull().orEmpty()
-                if (request != playRequestGeneration) return@launch
+                if (request != playRequestGeneration.intValue) return@launch
                 val activeController = controller ?: return@launch
                 if (songs.isEmpty()) {
                     Toast.makeText(context, R.string.couldnt_load_tracks, Toast.LENGTH_SHORT).show()
@@ -1069,7 +1001,7 @@ internal fun NuvxApp(
                         playbackSourceId = sourceId,
                     )
                 }
-                activeRadioSeed = null
+                activeRadioSeed.value = null
                 activeController.beginRadioQueue()
                 activeController.playSongs(station, 0)
                 activeController.commitRadioQueue()
@@ -1468,7 +1400,7 @@ internal fun NuvxApp(
             it.videoId == YtMusicRepository.cachedAudioVersion(song.videoId)?.videoId ||
             it.videoId == YtMusicRepository.cachedVideoVersion(song.videoId)?.videoId
         } ?: song
-        val displayedSong = activeRadioSeed
+        val displayedSong = activeRadioSeed.value
             ?.takeIf { (videoId, _) -> effectiveSong.radioName == null && videoId == effectiveSong.videoId }
             ?.let { (videoId, name) ->
                 effectiveSong.copy(
@@ -2271,8 +2203,8 @@ internal fun NuvxApp(
                                 playingId = player.song?.videoId,
                                 isPlaying = player.isPlaying,
                                 onPlay = { station ->
-                                    playRequestGeneration++
-                                    activeRadioSeed = null
+                                    playRequestGeneration.intValue++
+                                    activeRadioSeed.value = null
                                     scope.launch {
                                         if (refusedByHost()) return@launch
                                         controller?.playSongs(listOf(station.toSong()), 0)
