@@ -47,14 +47,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.bxane.nuvx.playback.AudioCache
 import com.bxane.nuvx.playback.BoundedContextRequests
-import com.bxane.nuvx.ui.screens.CACHE_FOLDER_BROWSE_ID
 import com.bxane.nuvx.data.LocalGroup
 import com.bxane.nuvx.data.LocalGroups
 import com.bxane.nuvx.data.OfflinePlaylists
@@ -172,6 +168,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _detailStack = MutableStateFlow<List<DetailPage>>(emptyList())
     val detailStack: StateFlow<List<DetailPage>> = _detailStack.asStateFlow()
+    private val detailInvalidationController = MainDetailInvalidationController(
+        scope = viewModelScope,
+        detailStack = _detailStack,
+        reloadLocalDetail = ::reloadLocalDetail,
+        reloadRemoteDetail = ::reloadRemoteDetail,
+    )
 
     val navigator = AppNavigator(
         detailDepth = { _detailStack.value.size },
@@ -389,37 +391,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 snapshot?.let(::applyBoundedContextSnapshot)
             }
         }
-        viewModelScope.launch {
-            AppSettings.filterNonMusicAudio.drop(1).collect {
-                if (_detailStack.value.any { page -> page.browseId == "local:all" }) {
-                    reloadLocalDetail("local:all")
-                }
-            }
-        }
-        viewModelScope.launch {
-            AudioCache.contentsChanged.drop(1).collect {
-                if (_detailStack.value.any { page -> page.browseId == CACHE_FOLDER_BROWSE_ID }) {
-                    reloadLocalDetail(CACHE_FOLDER_BROWSE_ID)
-                }
-            }
-        }
-        viewModelScope.launch {
-            AppSettings.webdavUrl.drop(1).collect {
-                reloadRemoteDetail(com.bxane.nuvx.data.webdav.WebDavConfig.BROWSE_ID)
-            }
-        }
-        viewModelScope.launch {
-            combine(
-                AppSettings.smbHost,
-                AppSettings.smbShare,
-                AppSettings.smbBasePath,
-                AppSettings.smbUsername,
-                AppSettings.smbPassword,
-            ) { fields -> fields.toList() }
-                .drop(1)
-                .debounce(300)
-                .collect { reloadRemoteDetail(com.bxane.nuvx.data.smb.SmbConfig.BROWSE_ID) }
-        }
+        detailInvalidationController.start()
         viewModelScope.launch {
             AppUpdateChecker.clearCache(getApplication())
             AppUpdateChecker.check()
