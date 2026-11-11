@@ -157,7 +157,6 @@ import com.bxane.nuvx.ui.components.SHELF_CARD_WIDTH
 import com.bxane.nuvx.ui.components.SongRow
 import com.bxane.nuvx.ui.components.SearchPlayingBars
 import com.bxane.nuvx.ui.components.libraryGrid
-import com.bxane.nuvx.ui.components.lightweightLiquidGlass
 import com.bxane.nuvx.ui.components.thumbnailBorder
 import com.bxane.nuvx.ui.components.detailSkeleton
 import com.bxane.nuvx.ui.components.topBarContentPadding
@@ -169,6 +168,7 @@ import com.bxane.nuvx.ui.graphics.smootherStep
 import com.bxane.nuvx.ui.player.CanvasArtworkPlayer
 import com.bxane.nuvx.ui.theme.ArtworkPalette
 import com.bxane.nuvx.ui.theme.rememberArtworkPalette
+import com.bxane.nuvx.ui.icons.SfIcons
 import kotlin.math.roundToInt
 import java.util.Locale
 import androidx.compose.animation.core.Animatable
@@ -189,7 +189,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.runtime.rememberCoroutineScope
 import com.bxane.nuvx.download.DownloadState
 import com.bxane.nuvx.download.Downloads
-import com.bxane.nuvx.ui.icons.SfIcons
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
@@ -222,9 +221,9 @@ private const val SEARCH_ITEM_INDEX = 1
 
 private val HEADER_GUTTER = PAGE_GUTTER + 8.dp
 
-private val ABOUT_GUTTER = PAGE_GUTTER + 6.dp
+internal val ABOUT_GUTTER = PAGE_GUTTER + 6.dp
 
-private val ARTIST_CONTENT_GUTTER = PAGE_GUTTER
+internal val ARTIST_CONTENT_GUTTER = PAGE_GUTTER
 
 private val HEADER_DROP = 44.dp
 
@@ -238,7 +237,7 @@ private val ARTIST_ACTION_GAP = 24.dp
 
 private const val ARTIST_LOGO_WIDTH = 0.82f
 
-private val ABOUT_LOGO_HEIGHT = 56.dp
+internal val ABOUT_LOGO_HEIGHT = 56.dp
 
 private const val SIGNATURE_SCALE = 0.7f
 private const val ARTIST_LOGO_MAX_HEIGHT = 0.30f
@@ -246,7 +245,7 @@ private const val ARTIST_LOGO_MAX_HEIGHT = 0.30f
 private const val LOGO_RETRIES = 2
 private const val LOGO_RETRY_DELAY_MS = 800L
 
-private const val SVG_DECODE_WIDTH = 1600
+internal const val SVG_DECODE_WIDTH = 1600
 
 private val CREDIT_SEPARATOR = Regex(""",\s|\s&\s|\s(?:x|and|feat\.?|ft\.?|with)\s""", RegexOption.IGNORE_CASE)
 
@@ -1573,182 +1572,6 @@ private fun CoverGrid(urls: List<String>, modifier: Modifier = Modifier) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ArtistStatsRow(
-    subscriberCountText: String?,
-    monthlyListenerCount: String?,
-    palette: ArtworkPalette,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = ARTIST_CONTENT_GUTTER, end = ARTIST_CONTENT_GUTTER, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalAlignment = Alignment.Start,
-    ) {
-        subscriberCountText?.let {
-            StatChip(
-                icon = SfIcons.Person,
-                text = stringResource(R.string.subscribers, it.substringBefore(' ')),
-                palette = palette,
-            )
-        }
-        monthlyListenerCount?.let {
-            StatChip(
-                icon = SfIcons.GraphicEq,
-                text = stringResource(R.string.monthly_listeners, it.substringBefore(' ')),
-                palette = palette,
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatChip(icon: ImageVector, text: String, palette: ArtworkPalette) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .lightweightLiquidGlass(
-                shape = CircleShape,
-                fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-            )
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = palette.onBackgroundVariant,
-            modifier = Modifier.size(15.dp),
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = palette.onBackgroundVariant,
-        )
-    }
-}
-
-@Composable
-private fun SignedByCaption(
-    name: String,
-    palette: ArtworkPalette,
-    modifier: Modifier = Modifier,
-    textAlign: TextAlign = TextAlign.Center,
-) {
-    val signed = stringResource(R.string.signed_by, name)
-    val nameAt = signed.indexOf(name)
-    Text(
-        text = buildAnnotatedString {
-            append(signed)
-            if (nameAt >= 0) {
-                addStyle(SpanStyle(fontWeight = FontWeight.Bold), nameAt, nameAt + name.length)
-            }
-        },
-        style = MaterialTheme.typography.bodyMedium,
-        color = palette.onBackground.copy(alpha = 0.8f),
-        textAlign = textAlign,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun AboutSignature(
-    signature: ArtistSignature,
-    name: String,
-    palette: ArtworkPalette,
-    horizontalPadding: Dp,
-) {
-    val context = LocalPlatformContext.current
-    val isSvg = signature.format == "svg"
-    val aspect = signature.aspect.coerceIn(0.4f, 6f)
-    val request = remember(signature.imageUrl) {
-        ImageRequest.Builder(context).data(signature.imageUrl).apply {
-            if (isSvg) {
-                size(SVG_DECODE_WIDTH, (SVG_DECODE_WIDTH / aspect).roundToInt())
-            } else {
-                size(coil3.size.Size.ORIGINAL)
-                transformations(SignatureInkTransformation)
-            }
-        }.build()
-    }
-    var loaded by remember(signature.imageUrl) { mutableStateOf(false) }
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
-        horizontalAlignment = Alignment.Start,
-    ) {
-        AsyncImage(
-            model = request,
-            contentDescription = name,
-            contentScale = ContentScale.Fit,
-            colorFilter = if (isSvg) ColorFilter.tint(Color.White) else null,
-            onState = { if (it is AsyncImagePainter.State.Success) loaded = true },
-            modifier = Modifier
-                .padding(top = 20.dp, bottom = 6.dp)
-                .height(ABOUT_LOGO_HEIGHT)
-                .aspectRatio(aspect),
-        )
-        if (loaded) SignedByCaption(name = name, palette = palette, textAlign = TextAlign.Start)
-    }
-}
-
-@Composable
-private fun AboutSection(
-    title: String,
-    text: String?,
-    palette: ArtworkPalette,
-    horizontalPadding: Dp = ABOUT_GUTTER,
-    stats: (@Composable () -> Unit)? = null,
-    footer: (@Composable () -> Unit)? = null,
-) {
-    var expanded by remember(text) { mutableStateOf(false) }
-    var clipped by remember(text) { mutableStateOf(false) }
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = palette.onBackground,
-            modifier = Modifier.padding(
-                start = horizontalPadding,
-                end = horizontalPadding,
-                top = 2.dp,
-                bottom = 6.dp,
-            ),
-        )
-        if (text != null) Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = palette.onBackgroundVariant,
-            maxLines = if (expanded) Int.MAX_VALUE else 2,
-            overflow = TextOverflow.Ellipsis,
-            onTextLayout = { result -> if (!expanded) clipped = result.hasVisualOverflow },
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize()
-                .padding(horizontal = horizontalPadding)
-                .let { m -> if (clipped || expanded) m.clickable { expanded = !expanded } else m },
-        )
-        if (clipped || expanded) {
-            Text(
-                text = stringResource(if (expanded) R.string.less else R.string.more),
-                style = MaterialTheme.typography.labelLarge,
-                color = palette.accent,
-                modifier = Modifier
-                    .padding(horizontal = horizontalPadding, vertical = 4.dp)
-                    .clickable { expanded = !expanded },
-            )
-        }
-        if (stats != null) {
-            Spacer(Modifier.height(if (text != null) 12.dp else 4.dp))
-            stats()
-        }
-        footer?.invoke()
     }
 }
 
