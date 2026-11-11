@@ -266,6 +266,15 @@ class PlaybackService : MediaLibraryService() {
         onSwapCut = { formatListener.markSwapCut() },
     )
 
+    private val musicOnlyController = PlaybackMusicOnlyController(
+        scope = scope,
+        player = { player },
+        isTransitioning = { crossfade?.isTransitioning() == true },
+        isVersionSwapActive = { versionSwapJob?.isActive == true },
+        prefetchAround = ::prefetchAround,
+        smoothSwapCurrentTrackVersion = ::smoothSwapCurrentTrackVersion,
+    )
+
     private val telemetry = PlaybackTelemetryController(
         context = this,
         scope = scope,
@@ -494,7 +503,7 @@ class PlaybackService : MediaLibraryService() {
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             val exoPlayer = player ?: return
-            convertVideosAround(exoPlayer)
+            musicOnlyController.convertVideosAround(exoPlayer)
             if (exoPlayer.isPlaying) prefetchAround(exoPlayer)
             activeLoudness().nextMediaId = nextMediaIdOf(exoPlayer)
             if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
@@ -1477,7 +1486,7 @@ class PlaybackService : MediaLibraryService() {
         }
         if (exoPlayer.isPlaying) registerCurrentPlay()
         savePlaybackState(exoPlayer)
-        convertVideosAround(exoPlayer)
+        musicOnlyController.convertVideosAround(exoPlayer)
         prefetchAround(exoPlayer)
         streamResolution.cancelStaleUpgradeJob()
         streamResolution.lookForBetterCopy(exoPlayer)
@@ -1625,70 +1634,6 @@ class PlaybackService : MediaLibraryService() {
         }
 
         warm(upcomingSongs)
-    }
-
-    private val musicOnlyLookups = HashMap<String, Job>()
-
-    private fun convertVideosAround(exoPlayer: ExoPlayer) {
-        if (!MusicOnlyPlayback.isActive()) return
-        if (crossfade?.isTransitioning() == true || versionSwapJob?.isActive == true) return
-        val rows = listOf(exoPlayer.currentMediaItemIndex, exoPlayer.nextMediaItemIndex)
-            .filter { it in 0 until exoPlayer.mediaItemCount }
-            .distinct()
-        MusicOnlyPlayback.forgetExcept(rows.map { exoPlayer.getMediaItemAt(it).mediaId }.toSet())
-        for (index in rows) {
-            val item = exoPlayer.getMediaItemAt(index)
-            if (!MusicOnlyPlayback.wants(item)) continue
-            val video = item.toSong()
-            val audio = YtMusicRepository.cachedAudioVersion(video.videoId)
-            when {
-                audio == null -> lookUpMusicOnly(video)
-                audio.videoId == video.videoId || audio.isVideo -> MusicOnlyPlayback.settle(video.videoId)
-                else -> {
-                    applyMusicOnly(exoPlayer, index, item, video, audio)
-                    convertVideosAround(exoPlayer)
-                    return
-                }
-            }
-        }
-    }
-
-    private fun lookUpMusicOnly(video: Song) {
-        if (musicOnlyLookups[video.videoId]?.isActive == true) return
-        musicOnlyLookups[video.videoId] = scope.launch {
-            val audio = withTimeoutOrNull(MusicOnlyPlayback.ANSWER_TIMEOUT_MS) {
-                runCatching { YtMusicRepository.resolveAudio(video) }.getOrNull()
-            }
-            musicOnlyLookups.remove(video.videoId)
-            if (audio == null || audio.videoId == video.videoId) {
-                TrackLog.d("nuvx", "music-only: no audio version, playing the video's own audio", about = video.videoId)
-                MusicOnlyPlayback.settle(video.videoId)
-            }
-            val live = player ?: return@launch
-            convertVideosAround(live)
-            if (live.isPlaying) prefetchAround(live)
-        }
-    }
-
-    private fun applyMusicOnly(exoPlayer: ExoPlayer, index: Int, item: MediaItem, video: Song, audio: Song) {
-        TrackLog.d("nuvx", "music-only: playing '${audio.title}' (${audio.videoId})", about = video.videoId)
-        YtMusicRepository.rememberVideoVersion(audio.videoId, video)
-        val replacement = QueueShuffle.withQueueMetadata(
-            audio.asMusicOnlyOf(video).toMediaItem(),
-            newCanonicalIndex = item.canonicalIndex,
-            newContextCycleId = item.contextCycleId,
-        )
-        val isCurrent = index == exoPlayer.currentMediaItemIndex
-        if (isCurrent && exoPlayer.isPlaying) {
-            smoothSwapCurrentTrackVersion(replacement)
-            return
-        }
-        val position = if (isCurrent) exoPlayer.currentPosition else 0L
-        exoPlayer.replaceMediaItem(index, replacement)
-        if (position > 0L) {
-            val mapped = YtMusicRepository.versionTimeMap(video.videoId, audio.videoId)?.map(position) ?: position
-            exoPlayer.seekTo(exoPlayer.currentMediaItemIndex, mapped.coerceAtLeast(0L))
-        }
     }
 
     private var lengthCheckedUri: String? = null
@@ -1931,7 +1876,7 @@ class PlaybackService : MediaLibraryService() {
                 MusicOnlyPlayback.reset()
                 cancelPrefetch()
                 player?.let { live ->
-                    convertVideosAround(live)
+                    musicOnlyController.convertVideosAround(live)
                     if (live.isPlaying) prefetchAround(live)
                 }
             }
