@@ -26,6 +26,7 @@ class PartySync(
 
     private val jobs = mutableListOf<Job>()
     private val queueReconciler = PartyQueueReconciler()
+    private val driftController = PartyPlaybackDriftController()
     private var publishJob: Job? = null
     private var startJob: Job? = null
 
@@ -34,14 +35,7 @@ class PartySync(
     private var awaitPlaybackSeq = Long.MAX_VALUE
     private var awaitQueueSeq = Long.MAX_VALUE
 
-    private var lastAnchorMs = 0L
-    private var lastPositionMs = 0L
-    private var lastTrackId: String? = null
-    private var lastIsPlaying = false
-
     private var loadingVideoId: String? = null
-
-    private var alignedSeq = -1L
 
     private var deferredPlayPending: Boolean
         get() = ListenTogether.awaitingStart.value
@@ -52,10 +46,6 @@ class PartySync(
 
     @Volatile
     private var rejoining = false
-
-    private var driftStrikes = 0
-
-    private var driftCooldownUntilMs = 0L
 
     private var lastPartyCode: String? = null
 
@@ -209,10 +199,7 @@ class PartySync(
             rejoining = false
             deferredPlayPending = false
             locallyPaused = false
-            lastAnchorMs = 0L
-            lastPositionMs = 0L
-            lastTrackId = null
-            lastIsPlaying = false
+            driftController.resetPlaybackAnchor()
             return
         }
         clearLocalPauseIfFreed(party)
@@ -267,49 +254,14 @@ class PartySync(
             deferredPlayPending = false
             startJob?.cancel()
             exo.play()
-            alignedSeq = target.seq
+            driftController.markAligned(target.seq)
             return
         }
 
         deferredPlayPending = false
 
         if (want == null) return
-
-        if (exo.playbackState != Player.STATE_READY) {
-            driftStrikes = 0
-            return
-        }
-
-        val drift = exo.currentPosition - want
-        if (target.seq != alignedSeq) {
-            val isPlaybackAnchorChanged = lastAnchorMs != target.anchorMs ||
-                lastPositionMs != target.positionMs ||
-                lastTrackId != track.videoId ||
-                lastIsPlaying != target.isPlaying
-
-            alignedSeq = target.seq
-            lastAnchorMs = target.anchorMs
-            lastPositionMs = target.positionMs
-            lastTrackId = track.videoId
-            lastIsPlaying = target.isPlaying
-
-            if (isPlaybackAnchorChanged && abs(drift) > ALIGN_TOLERANCE_MS) {
-                Log.i(TAG, "aligning ${drift}ms onto party control ${target.seq}")
-                exo.seekTo(want)
-                return
-            }
-        }
-        if (abs(drift) <= DRIFT_LIMIT_MS) {
-            driftStrikes = 0
-            return
-        }
-        val now = SystemClock.elapsedRealtime()
-        if (now < driftCooldownUntilMs) return
-        if (++driftStrikes < DRIFT_STRIKES) return
-        Log.i(TAG, "correcting ${drift}ms of drift against the party")
-        driftStrikes = 0
-        driftCooldownUntilMs = now + DRIFT_COOLDOWN_MS
-        exo.seekTo(want)
+        driftController.reconcile(exo, target, track.videoId, want)
     }
 
     private fun load(party: ListenTogether.State) {
@@ -502,15 +454,7 @@ class PartySync(
 
         const val TICK_MS = 700L
 
-        const val DRIFT_LIMIT_MS = 1_200L
-
-        const val DRIFT_STRIKES = 2
-
-        const val DRIFT_COOLDOWN_MS = 6_000L
-
         const val PAUSED_TOLERANCE_MS = 400L
-
-        const val ALIGN_TOLERANCE_MS = 120L
 
         const val SEEK_REPORT_FLOOR_MS = 1_000L
 
