@@ -91,6 +91,11 @@ object AppSettings {
     private val downloadSettings = DownloadSettingsController()
     private val homeFeedSettings = HomeFeedSettingsController()
     private val playerPresentationSettings = PlayerPresentationSettingsController()
+    private val audioCacheSettings = AudioCacheSettingsController(
+        DEFAULT_CACHE_LIMIT_BYTES,
+        MAX_CACHE_LIMIT_BYTES,
+        UNLIMITED_CACHE_LIMIT_BYTES,
+    )
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
@@ -265,9 +270,9 @@ object AppSettings {
 
     val paxSenixApiKey = lyricsSettings.paxSenixApiKey
 
-    val audioCacheLimitBytes = MutableStateFlow(DEFAULT_CACHE_LIMIT_BYTES)
+    val audioCacheLimitBytes = audioCacheSettings.cacheLimitBytes
 
-    val showCacheFolder = MutableStateFlow(false)
+    val showCacheFolder = audioCacheSettings.showCacheFolder
 
     val replayGenres = MutableStateFlow(true)
 
@@ -383,6 +388,7 @@ object AppSettings {
         downloadSettings.initialize(prefs)
         homeFeedSettings.initialize(prefs)
         playerPresentationSettings.initialize(prefs)
+        audioCacheSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -496,8 +502,7 @@ object AppSettings {
         }
         playerPresentationSettings.read()
         lyricsSettings.readProviderPreferences()
-        audioCacheLimitBytes.value = clampCacheLimit(prefs.getLong(KEY_CACHE_LIMIT, DEFAULT_CACHE_LIMIT_BYTES))
-        showCacheFolder.value = prefs.getBoolean(KEY_SHOW_CACHE_FOLDER, false)
+        audioCacheSettings.read()
         scrobblingSettings.read()
         spotifySpdcToken.value = prefs.getString(KEY_SPOTIFY_SPDC_TOKEN, "").orEmpty()
         replayGenres.value = prefs.getBoolean(KEY_REPLAY_GENRES, true)
@@ -893,20 +898,9 @@ object AppSettings {
 
     fun setLastPlayerScreen(value: LastPlayerScreen) = playerPresentationSettings.setLastPlayerScreen(value)
 
-    fun setAudioCacheLimitBytes(value: Long) {
-        val clamped = clampCacheLimit(value)
-        audioCacheLimitBytes.value = clamped
-        prefs.edit().putLong(KEY_CACHE_LIMIT, clamped).apply()
-    }
+    fun setAudioCacheLimitBytes(value: Long) = audioCacheSettings.setCacheLimitBytes(value)
 
-    private fun clampCacheLimit(value: Long): Long =
-        if (value > MAX_CACHE_LIMIT_BYTES) UNLIMITED_CACHE_LIMIT_BYTES
-        else value.coerceAtLeast(DEFAULT_CACHE_LIMIT_BYTES)
-
-    fun setShowCacheFolder(value: Boolean) {
-        showCacheFolder.value = value
-        prefs.edit().putBoolean(KEY_SHOW_CACHE_FOLDER, value).apply()
-    }
+    fun setShowCacheFolder(value: Boolean) = audioCacheSettings.setShowCacheFolder(value)
 
     fun setLastfmEnabled(value: Boolean) = scrobblingSettings.setLastfmEnabled(value)
 
@@ -1161,7 +1155,6 @@ object AppSettings {
     private const val KEY_REPEAT_MODE = "repeat_mode"
     private const val KEY_NERD_STATS = "show_nerd_stats"
     private const val KEY_LISTEN_TOGETHER_BUTTON = "show_listen_together_button"
-    private const val KEY_CACHE_LIMIT = "audio_cache_limit_bytes"
     private const val KEY_REDUCE_ANIMATION = "reduce_animation"
     private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     private const val KEY_DIWALI_GREETING_SHOWN = "diwali_greeting_2026_shown"
@@ -1192,7 +1185,6 @@ object AppSettings {
     private const val KEY_PROGRESSIVE_BLUR = "progressive_blur"
     private const val KEY_REPLAY_GENRES = "replay_genres"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
-    private const val KEY_SHOW_CACHE_FOLDER = "show_cache_folder"
 
     private const val KEY_SPOTIFY_SPDC_TOKEN = "spotify_spdc_token"
 
