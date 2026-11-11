@@ -203,7 +203,6 @@ private const val SUBVIEW_STATUS_SCRIM_MIN_ALPHA = 0.40f
 
 private const val MESH_REFRESH_MS = 3_000L
 
-private const val MESH_SEAM_MOVE_MS = 320
 
 private const val PORTRAIT_SCRIM_MAX_ASPECT = 0.7f
 
@@ -212,71 +211,6 @@ private val PortraitClipScrim = Brush.verticalGradient(
     0.40f to Color.Transparent,
     1f to Color.Black.copy(alpha = 0.70f),
 )
-
-@Composable
-private fun PlayerMeshBackdrop(
-    trackKey: String,
-    imageUrl: String?,
-    canvasFrame: () -> ImageBitmap?,
-    seamTarget: () -> Dp,
-    alpha: () -> Float,
-) {
-    val mesh = key(trackKey) { rememberArtworkMesh(imageUrl, canvasFrame(), ART_PX) }
-    val currentSeamTarget by rememberUpdatedState(seamTarget)
-    val seam = remember { Animatable(Snapshot.withoutReadObservation { seamTarget() }, Dp.VectorConverter) }
-    LaunchedEffect(seam) {
-        snapshotFlow { currentSeamTarget() }.collectLatest { target ->
-            if (seam.value == 0.dp || target == 0.dp) {
-                seam.snapTo(target)
-            } else {
-                seam.animateTo(target, tween(MESH_SEAM_MOVE_MS, easing = FastOutSlowInEasing))
-            }
-        }
-    }
-    ArtworkMeshBackdrop(
-        mesh = mesh,
-        seam = { seam.value },
-        modifier = Modifier.graphicsLayer { this.alpha = alpha() },
-    )
-}
-
-@Composable
-private fun LegacyMeshBackdrop(
-    imageUrl: String?,
-    canvasFrame: () -> ImageBitmap?,
-    trackKey: String,
-    modifier: Modifier,
-) {
-    MeshGradientBackground(
-        palette = rememberArtworkColors(imageUrl, canvasFrame()),
-        trackKey = trackKey,
-        modifier = modifier,
-    )
-}
-
-private const val SPOTIFY_CANVAS_RESUME_DELAY_MS = 1_000L
-
-private fun DrawScope.drawCropped(image: ImageBitmap) {
-    if (size.width <= 0f || size.height <= 0f) return
-    val scale = maxOf(size.width / image.width, size.height / image.height)
-    val srcWidth = (size.width / scale).roundToInt().coerceIn(1, image.width)
-    val srcHeight = (size.height / scale).roundToInt().coerceIn(1, image.height)
-    drawImage(
-        image = image,
-        srcOffset = IntOffset((image.width - srcWidth) / 2, (image.height - srcHeight) / 2),
-        srcSize = IntSize(srcWidth, srcHeight),
-        dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-    )
-}
-
-@Immutable
-internal class CanvasStill(val url: String, val image: ImageBitmap, val positionMs: Long)
-
-internal object CanvasStills {
-    var current by mutableStateOf<CanvasStill?>(null)
-
-    var fresh by mutableStateOf(false)
-}
 
 internal val PLAYER_GUTTER = 30.dp
 internal val PLAYER_MAX_WIDTH = 560.dp
