@@ -25,6 +25,7 @@ class PartySync(
 ) {
 
     private val jobs = mutableListOf<Job>()
+    private val queueReconciler = PartyQueueReconciler()
     private var publishJob: Job? = null
     private var startJob: Job? = null
 
@@ -233,7 +234,7 @@ class PartySync(
             return
         }
         loadingVideoId = null
-        reconcileQueue(party, exo)
+        queueReconciler.reconcile(party, exo, MAX_PARTY_UPCOMING_QUEUE)
 
         if (locallyPaused) {
             deferredPlayPending = false
@@ -488,57 +489,6 @@ class PartySync(
             PartyPersonalQueueStash.clear()
         }
     }
-
-    private fun reconcileQueue(party: ListenTogether.State, exo: Player) {
-        val partyQueue = party.queue.items
-        if (partyQueue.isEmpty()) return
-
-        val currentIndex = exo.currentMediaItemIndex
-        val currentMediaId = exo.currentMediaItem?.mediaId ?: return
-        val partyIndex = partyQueueIndexOf(party.queue, party.playback, currentMediaId)
-        if (partyIndex < 0) return
-
-        val desiredUpcoming = partyQueue.subList(partyIndex + 1, partyQueue.size).take(MAX_PARTY_UPCOMING_QUEUE)
-        val desiredUpcomingIds = desiredUpcoming.map { it.videoId }
-
-        val localUpcomingIds = (currentIndex + 1 until exo.mediaItemCount).map {
-            exo.getMediaItemAt(it).mediaId
-        }
-
-        if (localUpcomingIds != desiredUpcomingIds) {
-            if (desiredUpcomingIds.startsWith(localUpcomingIds)) {
-                exo.addMediaItems(desiredUpcoming.drop(localUpcomingIds.size).map { it.toSong().toMediaItem() })
-                return
-            }
-
-            if (localUpcomingIds.startsWith(desiredUpcomingIds)) {
-                exo.removeMediaItems(currentIndex + 1 + desiredUpcomingIds.size, exo.mediaItemCount)
-                return
-            }
-
-            val singleMove = if (localUpcomingIds.size == desiredUpcomingIds.size) {
-                detectSingleMove(localUpcomingIds, desiredUpcomingIds)
-            } else {
-                null
-            }
-
-            if (singleMove != null) {
-                exo.moveMediaItem(
-                    currentIndex + 1 + singleMove.fromIndex,
-                    currentIndex + 1 + singleMove.toIndex,
-                )
-            } else {
-                exo.replaceMediaItems(
-                    currentIndex + 1,
-                    exo.mediaItemCount,
-                    desiredUpcoming.map { it.toSong().toMediaItem() },
-                )
-            }
-        }
-    }
-
-    private fun <T> List<T>.startsWith(prefix: List<T>): Boolean =
-        size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
 
     private data class ReconcileKey(
         val seq: Long,
