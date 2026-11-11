@@ -193,13 +193,11 @@ class CrossfadeController(
     private fun positionMs(player: ExoPlayer): Double =
         if (player === incoming) inClock.read(player) else outClock.read(player)
 
-    private var easing: ExoPlayer? = null
-    private var easeRate = 1.0
-    private var easeStep = 0.0
-    private var easeStepMs = 0L
-    private var easeNextAtMs = 0L
-    private var easeItemIndex = 0
-    private var softSpeedJob: Job? = null
+    private val speedController = CrossfadeSpeedController(
+        scope = scope,
+        active = active,
+        isIdle = { phase == Phase.IDLE },
+    )
 
     fun isTransitioning(): Boolean = phase != Phase.IDLE
 
@@ -301,7 +299,7 @@ class CrossfadeController(
             closeLater(it.renderer)
         }
         loopSession = null
-        endEase(clickless = false)
+        speedController.endEase(clickless = false)
         releaseHold()
         listeningTo?.removeListener(listener)
         listeningTo = null
@@ -332,7 +330,7 @@ class CrossfadeController(
         publishAutomixDetail()
         expireMixPreview()
 
-        if (easing != null && phase == Phase.IDLE) driveEase()
+        if (speedController.isEasing && phase == Phase.IDLE) speedController.driveEase()
 
         when (phase) {
             Phase.IDLE -> considerAutoTransition()
@@ -552,7 +550,7 @@ class CrossfadeController(
         }
         holdAhead(player, duration)
         val beatMs = (plan.beatSeconds * 1000).roundToLong()
-        val rampMs = if (beatMs > 0L) rampStepsFor(plan.outgoingPlaybackRate) * beatMs else 0L
+        val rampMs = if (beatMs > 0L) speedController.rampStepsFor(plan.outgoingPlaybackRate) * beatMs else 0L
         if (remaining > ARM_LEAD_MS + rampMs) return
 
         begin(
@@ -649,7 +647,7 @@ class CrossfadeController(
         if (out === into) return false
         val nextIndex = out.nextMediaItemIndex
         if (nextIndex == C.INDEX_UNSET) return false
-        endEase(clickless = false)
+        speedController.endEase(clickless = false)
 
         fadeMs = fade
         fadeEndMs = endMs
@@ -657,7 +655,7 @@ class CrossfadeController(
         incomingCueTimeMs = cueTimeMs.coerceAtLeast(0L)
         incomingPlaybackRate = playbackRate
         outgoingPlaybackRate = outgoingRate
-        rampSteps = if (beatMs > 0L) rampStepsFor(outgoingRate) else 0
+        rampSteps = if (beatMs > 0L) speedController.rampStepsFor(outgoingRate) else 0
         rampStepMs = beatMs
         rampStartMs = endMs - fade - rampSteps * beatMs
         rampStep = 0
@@ -1307,7 +1305,7 @@ class CrossfadeController(
         if (nextIndex == C.INDEX_UNSET) return
         val outPort = loopPortOf(out) ?: return
         val inPort = loopPortOf(into) ?: return
-        endEase(clickless = false)
+        speedController.endEase(clickless = false)
         phase = Phase.LOOP_ARMING
         smartFadeActive = true
         handedOff = false
@@ -1687,14 +1685,14 @@ class CrossfadeController(
         if (handedOff) {
             incoming?.let {
                 it.volume = 1f
-                beginEase(it, incomingPlaybackRate, incomingAnalysis)
+                speedController.beginEase(it, incomingPlaybackRate, incomingAnalysis)
             }
             outgoing?.let(::retire)
         } else {
             outgoing?.let { out ->
                 out.volume = 1f
                 if (outgoingPlaybackRate != 1.0) {
-                    beginEase(out, outgoingPlaybackRate, out.currentMediaItem?.let(analysisFor) ?: TrackAnalysis())
+                    speedController.beginEase(out, outgoingPlaybackRate, out.currentMediaItem?.let(analysisFor) ?: TrackAnalysis())
                 }
             }
             incoming?.let(::retire)
@@ -1822,98 +1820,12 @@ class CrossfadeController(
         return true
     }
 
-    private fun beginEase(player: ExoPlayer, rate: Double, analysis: TrackAnalysis) {
-        val stretch = rate - 1.0
-        if (abs(stretch) < EASE_DONE) {
-            player.setPlaybackSpeed(AppSettings.playbackSpeed.value)
-            return
-        }
-        val beat = when {
-            analysis.beatInterval > 0.0 -> analysis.beatInterval
-            analysis.bpm > 0.0 -> 60.0 / analysis.bpm
-            else -> 0.0
-        }
-        val steps = rampStepsFor(rate)
-        easeStep = stretch / steps
-        easeRate = rate
-        easeStepMs = if (beat > 0.0) (beat * 1000).roundToLong() else EASE_FALLBACK_STEP_MS
-        easeItemIndex = player.currentMediaItemIndex
-        easeNextAtMs = player.currentPosition + easeStepMs
-        easing = player
-        player.setPlaybackSpeed((AppSettings.playbackSpeed.value * rate).toFloat())
-    }
-
-    private fun driveEase() {
-        val player = easing ?: return
-        val position = player.currentPosition
-        if (player !== active() ||
-            player.currentMediaItemIndex != easeItemIndex ||
-            position < easeNextAtMs - 2 * easeStepMs ||
-            ListenTogether.state.value.inParty
-        ) {
-            endEase()
-            return
-        }
-        if (position < easeNextAtMs) return
-        easeRate -= easeStep
-        if (abs(easeRate - 1.0) < EASE_DONE) {
-            endEase(clickless = false)
-            return
-        }
-        player.setPlaybackSpeed((AppSettings.playbackSpeed.value * easeRate).toFloat())
-        easeNextAtMs += easeStepMs
-    }
-
     private fun rampOutgoing(out: ExoPlayer) {
         val due = ((out.currentPosition - rampStartMs) / rampStepMs + 1).toInt().coerceIn(0, rampSteps)
         if (due <= rampStep) return
         rampStep = due
         val rate = 1.0 + (outgoingPlaybackRate - 1.0) * due / rampSteps
         out.setPlaybackSpeed((AppSettings.playbackSpeed.value * rate).toFloat())
-    }
-
-    private fun rampStepsFor(rate: Double): Int {
-        val stretch = abs(rate - 1.0)
-        return if (stretch < EASE_DONE) 0 else ceil(stretch / TEMPO_STEP_PER_BEAT).toInt()
-    }
-
-    private fun endEase(clickless: Boolean = true) {
-        val player = easing ?: return
-        easing = null
-        if (clickless) {
-            setPlaybackSpeedClickless(player, AppSettings.playbackSpeed.value)
-        } else {
-            softSpeedJob?.cancel()
-            softSpeedJob = null
-            player.volume = 1f
-            player.setPlaybackSpeed(AppSettings.playbackSpeed.value)
-        }
-    }
-
-    private fun setPlaybackSpeedClickless(player: ExoPlayer, target: Float) {
-        if (abs(player.playbackParameters.speed - target) < SPEED_CHANGE_EPSILON) return
-        if (!player.isPlaying || player !== active() || player.volume <= 0f) {
-            player.setPlaybackSpeed(target)
-            return
-        }
-        softSpeedJob?.cancel()
-        softSpeedJob = scope.launch {
-            val level = player.volume
-            try {
-                for (step in 1..SPEED_NOTCH_STEPS) {
-                    player.volume = level * (1f - step.toFloat() / SPEED_NOTCH_STEPS)
-                    delay(SPEED_NOTCH_STEP_MS)
-                }
-                player.setPlaybackSpeed(target)
-                delay(SPEED_NOTCH_HOLD_MS)
-                for (step in 1..SPEED_NOTCH_STEPS) {
-                    player.volume = level * step.toFloat() / SPEED_NOTCH_STEPS
-                    delay(SPEED_NOTCH_STEP_MS)
-                }
-            } finally {
-                if (player === active() && phase == Phase.IDLE) player.volume = level
-            }
-        }
     }
 
     private fun headroomFor(incomingGain: Float, outgoingGain: Float): Float {
@@ -1969,18 +1881,7 @@ class CrossfadeController(
 
         const val LOCK_MAX_BEATS = 0.3
 
-        const val TEMPO_STEP_PER_BEAT = 0.0075
-
         const val MAX_TOTAL_SPEED_UP = 1.12
-
-        const val EASE_DONE = 1e-4
-
-        const val EASE_FALLBACK_STEP_MS = 500L
-
-        const val SPEED_NOTCH_STEPS = 2
-        const val SPEED_NOTCH_STEP_MS = 2L
-        const val SPEED_NOTCH_HOLD_MS = 2L
-        const val SPEED_CHANGE_EPSILON = 0.0001f
 
         const val HANDOFF_GUARD_MS = 400L
 
