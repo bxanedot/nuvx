@@ -97,8 +97,6 @@ import com.bxane.nuvx.auth.SignedIn
 import com.bxane.nuvx.data.LikeState
 import com.bxane.nuvx.data.NerdStats
 import com.bxane.nuvx.data.TrackLog
-import com.bxane.nuvx.data.discord.DiscordRPC
-import com.bxane.nuvx.data.discord.discordAudioQualityLine
 import com.bxane.nuvx.data.innertube.PlaybackTracker
 import com.bxane.nuvx.data.stats.ListeningRecorder
 import com.bxane.nuvx.data.innertube.PlayerClient
@@ -251,13 +249,15 @@ class PlaybackService : MediaLibraryService() {
 
     private var listenBrainzDurationMs: Long? = null
 
-    private var discordRpc: DiscordRPC? = null
-
-    private var discordUpdateJob: Job? = null
-
-    private var discordPresenceUp = false
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val discordPresence = PlaybackDiscordPresenceController(
+        context = this,
+        scope = scope,
+        player = { player },
+        teardownTimeoutMs = DISCORD_TEARDOWN_TIMEOUT_MS,
+    )
 
     private val autoBrowse = AutoBrowseCatalog(
         scope = scope,
@@ -2877,121 +2877,11 @@ class PlaybackService : MediaLibraryService() {
         val delaySeconds: Int,
     )
 
-    private fun observeDiscord() {
-        scope.launch {
-            combine(
-                AppSettings.discordToken,
-                AppSettings.discordRpcEnabled,
-            ) { token, enabled -> token.takeIf { enabled && it.isNotBlank() } }
-                .distinctUntilChanged()
-                .collectLatest { token ->
-                    discordUpdateJob?.cancel()
-                    discordRpc?.let { rpc ->
-                        val wasUp = discordPresenceUp
-                        discordPresenceUp = false
-                        withContext(Dispatchers.IO + NonCancellable) {
-                            withTimeoutOrNull(DISCORD_TEARDOWN_TIMEOUT_MS) {
-                                if (wasUp) runCatching { rpc.close() }
-                            }
-                            runCatching { rpc.closeRPC() }
-                        }
-                    }
-                    discordRpc = null
+    private fun observeDiscord() = discordPresence.observe()
 
-                    if (token == null) return@collectLatest
-                    discordRpc = DiscordRPC(this@PlaybackService, token)
-                    player?.takeIf { it.isPlaying }?.let(::pushDiscordPresence)
-                }
-        }
+    private fun pushDiscordPresence(exoPlayer: ExoPlayer) = discordPresence.push(exoPlayer)
 
-        scope.launch {
-            combine<Any, List<Any>>(
-                AppSettings.discordUseDetails,
-                AppSettings.discordStatus,
-                AppSettings.discordActivityType,
-                AppSettings.discordActivityName,
-                AppSettings.discordButton1Text,
-                AppSettings.discordButton1Visible,
-                AppSettings.discordButton2Text,
-                AppSettings.discordButton2Visible,
-                AppSettings.playbackSpeed,
-            ) { it.toList() }
-                .distinctUntilChanged()
-                .drop(1)
-                .collect {
-                    player?.takeIf { p -> p.isPlaying }?.let(::pushDiscordPresence)
-                }
-        }
-
-        scope.launch {
-            combine(
-                NerdStats.current,
-                AppSettings.discordShowAudioQuality,
-            ) { stats, enabled ->
-                discordAudioQualityLine(stats).takeIf { enabled }
-            }
-                .distinctUntilChanged()
-                .drop(1)
-                .collect {
-                    player?.takeIf { p -> p.isPlaying }?.let(::pushDiscordPresence)
-                }
-        }
-
-        scope.launch {
-            AppSettings.meteredConnection
-                .drop(1)
-                .collect { metered ->
-                    if (metered == null) return@collect
-                    val rpc = discordRpc ?: return@collect
-                    withContext(Dispatchers.IO) { runCatching { rpc.wakeUp() } }
-                    if (discordPresenceUp) {
-                        player?.takeIf { p -> p.isPlaying }?.let(::pushDiscordPresence)
-                    }
-                }
-        }
-    }
-
-    private fun pushDiscordPresence(exoPlayer: ExoPlayer) {
-        val rpc = discordRpc ?: return
-        val song = exoPlayer.currentMediaItem?.toSong() ?: return
-        val positionMs = exoPlayer.currentPosition.coerceAtLeast(0L)
-        val durationMs = exoPlayer.duration.takeIf { it > 0 } ?: 0L
-        val speed = AppSettings.playbackSpeed.value
-        val audioQuality = discordAudioQualityLine(NerdStats.current.value)
-            .takeIf { AppSettings.discordShowAudioQuality.value }
-
-        discordUpdateJob?.cancel()
-        discordPresenceUp = true
-        discordUpdateJob = scope.launch(Dispatchers.IO) {
-            rpc.updateSong(
-                song = song,
-                currentPlaybackTimeMillis = positionMs,
-                durationMillis = durationMs,
-                playbackSpeed = speed,
-                useDetails = AppSettings.discordUseDetails.value,
-                status = AppSettings.discordStatus.value,
-                button1Text = AppSettings.discordButton1Text.value,
-                button1Visible = AppSettings.discordButton1Visible.value,
-                button2Text = AppSettings.discordButton2Text.value,
-                button2Visible = AppSettings.discordButton2Visible.value,
-                activityType = AppSettings.discordActivityType.value,
-                activityName = AppSettings.discordActivityName.value,
-                audioQuality = audioQuality,
-            ).onFailure {
-                TrackLog.d("nuvx", "Discord presence failed: ${it.message}", about = song.videoId)
-            }
-        }
-    }
-
-    private fun clearDiscordPresence() {
-        val rpc = discordRpc ?: return
-        if (!discordPresenceUp) return
-        discordPresenceUp = false
-        discordUpdateJob?.cancel()
-        discordUpdateJob = scope.launch(Dispatchers.IO) {
-            runCatching { rpc.close() }
-        }
-    }
+    private fun clearDiscordPresence() = discordPresence.clear()
 
     private fun submitListenBrainzFinished(song: Song, startMs: Long, durationMs: Long?) {
         val lbEnabled = AppSettings.scrobblingAvailable && AppSettings.listenBrainzEnabled.value
@@ -3065,17 +2955,7 @@ class PlaybackService : MediaLibraryService() {
         scrobbleManager?.destroy()
         scrobbleManager = null
         ListeningRecorder.onStopped()
-        discordRpc?.let { rpc ->
-            discordRpc = null
-            val wasUp = discordPresenceUp
-            discordPresenceUp = false
-            CoroutineScope(Dispatchers.IO).launch {
-                withTimeoutOrNull(DISCORD_TEARDOWN_TIMEOUT_MS) {
-                    if (wasUp) runCatching { rpc.close() }
-                }
-                runCatching { rpc.closeRPC() }
-            }
-        }
+        discordPresence.release()
         scope.cancel()
         QueueShuffle.isCrossfadeTransitioning = null
         crossfade?.release()
