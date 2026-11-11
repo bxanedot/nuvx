@@ -6,7 +6,6 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.bxane.nuvx.data.listentogether.ListenTogether
@@ -25,7 +24,6 @@ import com.bxane.nuvx.playback.smart.MixWaveform
 import com.bxane.nuvx.playback.smart.TrackAnalysis
 import com.bxane.nuvx.playback.smart.TransitionPlan
 import com.bxane.nuvx.playback.smart.TransitionStyle
-import com.bxane.nuvx.playback.smart.TransitionTrackInfo
 import com.bxane.nuvx.playback.smart.planTransition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -59,6 +57,7 @@ class CrossfadeController(
     private val loudnessGain: (String) -> Float = { 1f },
     private val onMixPositionJump: (wrapped: Boolean) -> Unit = {},
 ) {
+    private val trackInfoResolver = CrossfadeTrackInfoResolver(active)
 
     private enum class Phase {
         IDLE,
@@ -335,7 +334,7 @@ class CrossfadeController(
         if (!player.hasNextMediaItem() || player.repeatMode == Player.REPEAT_MODE_ONE) return
         val item = player.currentMediaItem ?: return
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0L }
-            ?: queuedDurationMs(item).takeIf { it > 0L }
+            ?: trackInfoResolver.queuedDurationMs(item).takeIf { it > 0L }
             ?: (analysisFor(item).duration * 1000).roundToLong().takeIf { it > 0L }
             ?: return
         considerSmartTransition(duration, markerOnly = true)
@@ -407,7 +406,7 @@ class CrossfadeController(
             AppSettings.smartMixInProgress.value = false
             return
         }
-        val nextDuration = nextItemDurationMs(nextIndex, nextItem)
+        val nextDuration = trackInfoResolver.nextItemDurationMs(nextIndex, nextItem)
 
         requestAnalysisAround(player, duration)
 
@@ -557,31 +556,8 @@ class CrossfadeController(
         val nextItem = player.getMediaItemAt(nextIndex)
         if (currentItem.isVideoOrigin || nextItem.isVideoOrigin) return
         requestAnalysis(currentItem, duration)
-        requestAnalysis(nextItem, nextItemDurationMs(nextIndex, nextItem))
+        requestAnalysis(nextItem, trackInfoResolver.nextItemDurationMs(nextIndex, nextItem))
     }
-
-    private fun nextItemDurationMs(nextIndex: Int, item: MediaItem): Long {
-        val timeline = active().currentTimeline
-        if (!timeline.isEmpty) {
-            timeline.getWindow(nextIndex, Timeline.Window()).durationMs
-                .takeIf { it != C.TIME_UNSET && it > 0 }
-                ?.let { return it }
-        }
-        return queuedDurationMs(item)
-    }
-
-    private fun queuedDurationMs(item: MediaItem): Long {
-        val uri = item.localConfiguration?.uri ?: return 0L
-        val seconds = runCatching { uri.getQueryParameter("d") }.getOrNull()?.toLongOrNull() ?: return 0L
-        return if (seconds > 0) seconds * 1000L else 0L
-    }
-
-    private fun MediaItem.toTransitionInfo(durationMs: Long) = TransitionTrackInfo(
-        id = mediaId,
-        durationMs = durationMs,
-        title = mediaMetadata.title?.toString().orEmpty(),
-        artist = mediaMetadata.artist?.toString().orEmpty(),
-    )
 
     private fun begin(
         fade: Long,
@@ -670,7 +646,7 @@ class CrossfadeController(
                     incomingCueTimeMs,
                 )
                 mixWaves.prefetchMixWaves(
-                    outItem, inItem, outDuration, queuedDurationMs(inItem),
+                    outItem, inItem, outDuration, trackInfoResolver.queuedDurationMs(inItem),
                     geometry.outStart, geometry.outEnd, geometry.inStart, geometry.ratio,
                 )
             }
