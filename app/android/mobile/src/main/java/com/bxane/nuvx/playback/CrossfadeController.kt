@@ -710,7 +710,13 @@ class CrossfadeController(
             val inItem = items.getOrNull(nextIndex)
             if (outItem != null && inItem != null) {
                 val outDuration = out.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
-                val geometry = mixGeometry()
+                val geometry = CrossfadeGeometry.playback(
+                    fadeEndMs,
+                    fadeMs,
+                    render.advanced,
+                    mediaRatio,
+                    incomingCueTimeMs,
+                )
                 mixWaves.prefetchMixWaves(
                     outItem, inItem, outDuration, queuedDurationMs(inItem),
                     geometry.outStart, geometry.outEnd, geometry.inStart, geometry.ratio,
@@ -911,29 +917,12 @@ class CrossfadeController(
             anchor = System.nanoTime() - (sinceBeat / rate * 1e9).toLong()
             break
         }
-        if (!force && last != null && last.playing == playing && sameGrid(last, beatMs, anchor)) return
+        if (!force && last != null && last.playing == playing && CrossfadeGeometry.sameGrid(last, beatMs, anchor)) return
         AppSettings.smartMixBlend.value = MixBlend(
             beatMs = beatMs,
             beatAnchorNanos = anchor,
             playing = playing,
         )
-    }
-
-    private class MixGeometry(val outStart: Double, val outEnd: Double, val inStart: Double, val inEnd: Double, val ratio: Double) {
-        val outSpan get() = outEnd - outStart
-        val context get() = outSpan * MIX_VIEW_CONTEXT
-        val outFrom get() = outStart - context
-        val outTo get() = outEnd + context
-        val inFrom get() = inStart - context * ratio
-        val inTo get() = inEnd + context * ratio
-    }
-
-    private fun mixGeometry(): MixGeometry {
-        val outEnd = fadeEndMs / 1000.0
-        val outStart = outEnd - (fadeMs / 1000.0).coerceAtLeast(0.5)
-        val ratio = if (render.advanced) mediaRatio else 1.0
-        val inStart = incomingCueTimeMs / 1000.0
-        return MixGeometry(outStart, outEnd, inStart, inStart + (outEnd - outStart) * ratio, ratio)
     }
 
     private val mixWaves = CrossfadeWaveforms(scope, mixWaveform, TAG)
@@ -955,11 +944,11 @@ class CrossfadeController(
     ) {
         if (!AppSettings.mixViewOpen.value || AppSettings.smartMixView.value != null) return
         mixPreviewAt = SystemClock.elapsedRealtime()
-        val outStart = plan.transitionStart
-        val outEnd = maxOf(plan.transitionEnd, outStart + 0.5)
-        val inStart = plan.incomingCueTime
-        val ratio = plan.incomingPlaybackRate / plan.outgoingPlaybackRate.coerceAtLeast(0.01)
-        val geometry = MixGeometry(outStart, outEnd, inStart, inStart + (outEnd - outStart) * ratio, ratio)
+        val geometry = CrossfadeGeometry.planned(plan)
+        val outStart = geometry.outStart
+        val outEnd = geometry.outEnd
+        val inStart = geometry.inStart
+        val ratio = geometry.ratio
         val currentAnalysing = state.current == TrackAnalysisState.WAITING || state.current == TrackAnalysisState.ANALYSING
         val nextAnalysing = state.next == TrackAnalysisState.WAITING || state.next == TrackAnalysisState.ANALYSING
         val beatSeconds = if (currentAnalysis.isUsable) plan.beatSeconds else 0.0
@@ -981,7 +970,7 @@ class CrossfadeController(
         val planned = renderFor(plan, advanced)
         val running = render
         render = planned
-        val samples = MIX_VIEW_FADER_POINTS
+        val samples = CrossfadeGeometry.MIX_VIEW_FADER_POINTS
         val wallSpan = (plan.fadeMs * if (planned.advanced) ratio else 1.0).toFloat()
         val fadeOut: FloatArray
         val fadeIn: FloatArray
@@ -1014,7 +1003,7 @@ class CrossfadeController(
                 inStart = geometry.inStart,
                 inEnd = geometry.inEnd,
                 beats = beats,
-                beatMarks = beatMarks(currentAnalysis, outStart, outEnd, beatSeconds),
+                beatMarks = CrossfadeGeometry.beatMarks(currentAnalysis, outStart, outEnd, beatSeconds),
                 fadeOut = fadeOut,
                 fadeIn = fadeIn,
                 bassSwapAt = when {
@@ -1037,30 +1026,25 @@ class CrossfadeController(
         mixPreviewKey = ""
     }
 
-    private fun beatMarks(analysis: TrackAnalysis, outStart: Double, outEnd: Double, beatSeconds: Double): FloatArray {
-        if (beatSeconds <= 0) return FloatArray(0)
-        val span = outEnd - outStart
-        val anchor = analysis.downbeats.lastOrNull { it <= outStart } ?: outStart
-        val first = anchor + ceil((outStart - anchor) / beatSeconds) * beatSeconds
-        return generateSequence(first) { it + beatSeconds }
-            .takeWhile { it <= outEnd + 1e-6 }
-            .map { ((it - outStart) / span).toFloat() }
-            .toList().toFloatArray()
-    }
-
     private fun publishMixView(out: ExoPlayer, into: ExoPlayer) {
         val plan = planInFlight ?: return
         val outItem = out.currentMediaItem ?: return
         val inItem = into.currentMediaItem ?: return
-        val geometry = mixGeometry()
+        val geometry = CrossfadeGeometry.playback(
+            fadeEndMs,
+            fadeMs,
+            render.advanced,
+            mediaRatio,
+            incomingCueTimeMs,
+        )
         val outStart = geometry.outStart
         val outEnd = geometry.outEnd
         val outSpan = geometry.outSpan
         val beatSeconds = plan.beatSeconds
         val beats = if (beatSeconds > 0) (outSpan / beatSeconds).roundToInt() else 0
-        val marks = beatMarks(outgoingAnalysis, outStart, outEnd, beatSeconds)
+        val marks = CrossfadeGeometry.beatMarks(outgoingAnalysis, outStart, outEnd, beatSeconds)
         val wallSpan = (fadeMs * if (render.advanced) mediaRatio else 1.0).toFloat()
-        val samples = MIX_VIEW_FADER_POINTS
+        val samples = CrossfadeGeometry.MIX_VIEW_FADER_POINTS
         val fadeOut = FloatArray(samples) { envelope.outgoingLevel(it / (samples - 1f), wallSpan).coerceIn(0f, 1f) }
         val fadeIn = FloatArray(samples) { envelope.mixRise(it / (samples - 1f)).coerceIn(0f, 1f) }
 
@@ -1100,14 +1084,6 @@ class CrossfadeController(
             },
         )
         mixWaves.republishWaves()
-    }
-
-    private fun sameGrid(last: MixBlend, beatMs: Float, anchor: Long): Boolean {
-        if (beatMs <= 0f || last.beatMs <= 0f) return beatMs <= 0f && last.beatMs <= 0f
-        if (abs(beatMs - last.beatMs) > beatMs * TEMPO_TOLERANCE) return false
-        val beatNanos = (beatMs * 1_000_000.0).toLong().coerceAtLeast(1L)
-        val offset = Math.floorMod(anchor - last.beatAnchorNanos, beatNanos)
-        return minOf(offset, beatNanos - offset) <= ANCHOR_TOLERANCE_NANOS
     }
 
     private fun beginSleepFadeOut(fade: Long) {
@@ -1838,8 +1814,6 @@ class CrossfadeController(
 
         const val PAUSED_MARKER_STEP_MS = 1_000L
 
-        const val MIX_VIEW_FADER_POINTS = 64
-
         const val MIX_PREVIEW_STALE_MS = 1_500L
 
         const val TAG = "NuvxCrossfade"
@@ -1884,10 +1858,6 @@ class CrossfadeController(
         const val MAX_TOTAL_SPEED_UP = 1.12
 
         const val HANDOFF_GUARD_MS = 400L
-
-        const val ANCHOR_TOLERANCE_NANOS = 25_000_000L
-
-        const val TEMPO_TOLERANCE = 0.005f
 
         const val IDLE_STEP_MS = 250L
 
