@@ -90,6 +90,7 @@ object AppSettings {
     private val remoteStorageSettings = RemoteStorageSettingsController()
     private val downloadSettings = DownloadSettingsController()
     private val homeFeedSettings = HomeFeedSettingsController()
+    private val playerPresentationSettings = PlayerPresentationSettingsController()
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
@@ -235,24 +236,24 @@ object AppSettings {
 
     val translationLanguage = lyricsSettings.translationLanguage
 
-    val animatedCanvas = MutableStateFlow(true)
+    val animatedCanvas = playerPresentationSettings.animatedCanvas
 
-    val canvasOverCellular = MutableStateFlow(false)
+    val canvasOverCellular = playerPresentationSettings.canvasOverCellular
 
-    val spotifyCanvasAutoHide = MutableStateFlow(true)
+    val spotifyCanvasAutoHide = playerPresentationSettings.spotifyCanvasAutoHide
 
-    val prioritizeSpotifyCanvas = MutableStateFlow(false)
+    val prioritizeSpotifyCanvas = playerPresentationSettings.prioritizeSpotifyCanvas
 
-    val signatureApiEnabled = MutableStateFlow(false)
-    val signatureApiUrl = MutableStateFlow("")
+    val signatureApiEnabled = playerPresentationSettings.signatureApiEnabled
+    val signatureApiUrl = playerPresentationSettings.signatureApiUrl
 
-    val fullBleedArtwork = MutableStateFlow(true)
+    val fullBleedArtwork = playerPresentationSettings.fullBleedArtwork
 
-    val fullBleedDetailArtwork = MutableStateFlow(false)
+    val fullBleedDetailArtwork = playerPresentationSettings.fullBleedDetailArtwork
 
-    val playerTheme = MutableStateFlow(PlayerTheme.DEFAULT)
+    val playerTheme = playerPresentationSettings.playerTheme
 
-    val lastPlayerScreen = MutableStateFlow(LastPlayerScreen.MAIN)
+    val lastPlayerScreen = playerPresentationSettings.lastPlayerScreen
 
     val syncedLyrics = lyricsSettings.syncedLyrics
 
@@ -381,6 +382,7 @@ object AppSettings {
         prefs = context.getSharedPreferences("nuvx_settings", Context.MODE_PRIVATE)
         downloadSettings.initialize(prefs)
         homeFeedSettings.initialize(prefs)
+        playerPresentationSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -492,24 +494,7 @@ object AppSettings {
             reduceAnimation.value = false
             reduceDynamicBlur.value = false
         }
-        animatedCanvas.value = prefs.getBoolean(KEY_ANIMATED_CANVAS, true)
-        canvasOverCellular.value = prefs.getBoolean(KEY_CANVAS_OVER_CELLULAR, false)
-        spotifyCanvasAutoHide.value = prefs.getBoolean(KEY_SPOTIFY_CANVAS_AUTO_HIDE, true)
-        prioritizeSpotifyCanvas.value = prefs.getBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, false)
-        signatureApiEnabled.value = prefs.getBoolean(KEY_SIGNATURE_API_ENABLED, false)
-        signatureApiUrl.value = normalizeSignatureApiUrl(prefs.getString(KEY_SIGNATURE_API_URL, "").orEmpty())
-        fullBleedArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_ARTWORK, true)
-        fullBleedDetailArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_DETAIL_ARTWORK, false)
-        playerTheme.value = runCatching {
-            PlayerTheme.valueOf(prefs.getString(KEY_PLAYER_THEME, null).orEmpty())
-        }.getOrElse {
-            if (prefs.getBoolean(KEY_LEGACY_MESH_GRADIENT, false)) PlayerTheme.LEGACY else PlayerTheme.DEFAULT
-        }
-        lastPlayerScreen.value = runCatching {
-            LastPlayerScreen.valueOf(
-                prefs.getString(KEY_LAST_PLAYER_SCREEN, null) ?: LastPlayerScreen.MAIN.name,
-            )
-        }.getOrDefault(LastPlayerScreen.MAIN)
+        playerPresentationSettings.read()
         lyricsSettings.readProviderPreferences()
         audioCacheLimitBytes.value = clampCacheLimit(prefs.getLong(KEY_CACHE_LIMIT, DEFAULT_CACHE_LIMIT_BYTES))
         showCacheFolder.value = prefs.getBoolean(KEY_SHOW_CACHE_FOLDER, false)
@@ -888,57 +873,25 @@ object AppSettings {
 
     fun resetLyricsSourceSettings() = lyricsSettings.resetLyricsSourceSettings()
 
-    fun setAnimatedCanvas(value: Boolean) {
-        animatedCanvas.value = value
-        prefs.edit().putBoolean(KEY_ANIMATED_CANVAS, value).apply()
-    }
+    fun setAnimatedCanvas(value: Boolean) = playerPresentationSettings.setAnimatedCanvas(value)
 
-    fun setCanvasOverCellular(value: Boolean) {
-        canvasOverCellular.value = value
-        prefs.edit().putBoolean(KEY_CANVAS_OVER_CELLULAR, value).apply()
-    }
+    fun setCanvasOverCellular(value: Boolean) = playerPresentationSettings.setCanvasOverCellular(value)
 
-    fun setSpotifyCanvasAutoHide(value: Boolean) {
-        spotifyCanvasAutoHide.value = value
-        prefs.edit().putBoolean(KEY_SPOTIFY_CANVAS_AUTO_HIDE, value).apply()
-    }
+    fun setSpotifyCanvasAutoHide(value: Boolean) = playerPresentationSettings.setSpotifyCanvasAutoHide(value)
 
-    fun setPrioritizeSpotifyCanvas(value: Boolean) {
-        prioritizeSpotifyCanvas.value = value
-        prefs.edit().putBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, value).apply()
-    }
+    fun setPrioritizeSpotifyCanvas(value: Boolean) = playerPresentationSettings.setPrioritizeSpotifyCanvas(value)
 
-    fun setSignatureApiEnabled(value: Boolean) {
-        signatureApiEnabled.value = value
-        prefs.edit().putBoolean(KEY_SIGNATURE_API_ENABLED, value).apply()
-    }
+    fun setSignatureApiEnabled(value: Boolean) = playerPresentationSettings.setSignatureApiEnabled(value)
 
-    fun setSignatureApiUrl(value: String) {
-        val normalized = normalizeSignatureApiUrl(value)
-        signatureApiUrl.value = normalized
-        prefs.edit().putString(KEY_SIGNATURE_API_URL, normalized).apply()
-    }
+    fun setSignatureApiUrl(value: String) = playerPresentationSettings.setSignatureApiUrl(value)
 
-    fun setFullBleedArtwork(value: Boolean) {
-        fullBleedArtwork.value = value
-        prefs.edit().putBoolean(KEY_FULL_BLEED_ARTWORK, value).apply()
-    }
+    fun setFullBleedArtwork(value: Boolean) = playerPresentationSettings.setFullBleedArtwork(value)
 
-    fun setFullBleedDetailArtwork(value: Boolean) {
-        fullBleedDetailArtwork.value = value
-        prefs.edit().putBoolean(KEY_FULL_BLEED_DETAIL_ARTWORK, value).apply()
-    }
+    fun setFullBleedDetailArtwork(value: Boolean) = playerPresentationSettings.setFullBleedDetailArtwork(value)
 
-    fun setPlayerTheme(value: PlayerTheme) {
-        playerTheme.value = value
-        prefs.edit().putString(KEY_PLAYER_THEME, value.name).apply()
-    }
+    fun setPlayerTheme(value: PlayerTheme) = playerPresentationSettings.setPlayerTheme(value)
 
-    fun setLastPlayerScreen(value: LastPlayerScreen) {
-        if (lastPlayerScreen.value == value) return
-        lastPlayerScreen.value = value
-        prefs.edit().putString(KEY_LAST_PLAYER_SCREEN, value.name).apply()
-    }
+    fun setLastPlayerScreen(value: LastPlayerScreen) = playerPresentationSettings.setLastPlayerScreen(value)
 
     fun setAudioCacheLimitBytes(value: Long) {
         val clamped = clampCacheLimit(value)
@@ -1172,8 +1125,7 @@ object AppSettings {
     private fun normalizePerformanceRefreshRate(value: Int): Int =
         value.takeIf { it in 50..240 } ?: DEFAULT_PERFORMANCE_REFRESH_RATE
 
-    fun normalizeSignatureApiUrl(raw: String): String =
-        raw.trim().trimEnd('/').take(500)
+    fun normalizeSignatureApiUrl(raw: String): String = playerPresentationSettings.normalizeSignatureApiUrl(raw)
 
     private const val KEY_QUALITY_LEGACY = "audio_quality"
     private const val KEY_QUALITY_WIFI = "audio_quality_wifi"
@@ -1238,17 +1190,6 @@ object AppSettings {
     private const val KEY_LIQUID_GLASS = "liquid_glass"
     private const val KEY_GLASS_PERFORMANCE = "glass_performance"
     private const val KEY_PROGRESSIVE_BLUR = "progressive_blur"
-    private const val KEY_ANIMATED_CANVAS = "animated_canvas"
-    private const val KEY_CANVAS_OVER_CELLULAR = "canvas_over_cellular"
-    private const val KEY_SPOTIFY_CANVAS_AUTO_HIDE = "spotify_canvas_auto_hide"
-    private const val KEY_PRIORITIZE_SPOTIFY_CANVAS = "prioritize_spotify_canvas"
-    private const val KEY_SIGNATURE_API_ENABLED = "signature_api_enabled"
-    private const val KEY_SIGNATURE_API_URL = "signature_api_url"
-    private const val KEY_FULL_BLEED_ARTWORK = "full_bleed_artwork"
-    private const val KEY_FULL_BLEED_DETAIL_ARTWORK = "full_bleed_detail_artwork"
-    private const val KEY_PLAYER_THEME = "player_theme"
-    private const val KEY_LEGACY_MESH_GRADIENT = "legacy_mesh_gradient"
-    private const val KEY_LAST_PLAYER_SCREEN = "last_player_screen"
     private const val KEY_REPLAY_GENRES = "replay_genres"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
     private const val KEY_SHOW_CACHE_FOLDER = "show_cache_folder"
