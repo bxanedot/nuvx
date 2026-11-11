@@ -28,7 +28,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -276,7 +275,6 @@ import com.bxane.nuvx.sharedui.resources.search_hint
 import com.bxane.nuvx.sharedui.resources.search_addons_hint
 import com.bxane.nuvx.sharedui.resources.search_library_hint
 import com.bxane.nuvx.ui.components.TopBarDownloadButton
-import com.bxane.nuvx.ui.components.optimizedHazeEffect
 import com.bxane.nuvx.ui.components.topBarContentPadding
 import com.bxane.nuvx.ui.components.topBarHeight
 import com.bxane.nuvx.ui.components.AppLanguageDialog
@@ -325,10 +323,7 @@ import com.bxane.nuvx.ui.screens.ExploreScreen
 import com.bxane.nuvx.ui.screens.LocalFolder
 import com.bxane.nuvx.ui.screens.LocalFolderState
 import com.bxane.nuvx.ui.screens.LocalFolderTab
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.bxane.nuvx.ui.screens.localizedLabel
 import com.bxane.nuvx.data.LocalGroups
 import com.bxane.nuvx.data.OfflinePlaylists
 import com.bxane.nuvx.data.toGroup
@@ -359,8 +354,6 @@ import com.bxane.nuvx.ui.utils.rememberIosOverscrollFactory
 import com.bxane.nuvx.ui.performance.resolvePerformanceRefreshRate
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -4854,185 +4847,8 @@ private val explainedDownloadExclusions = java.util.Collections.synchronizedSet(
 
 private val OnboardingDismissEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
-private fun tween(durationMillis: Int) =
+internal fun tween(durationMillis: Int) =
     androidx.compose.animation.core.tween<Float>(durationMillis)
-
-@Composable
-private fun LibrarySort.localizedLabel(): String = when (this) {
-    LibrarySort.DEFAULT -> stringResource(R.string.sort_default)
-    LibrarySort.TITLE_ASC -> stringResource(R.string.sort_title_ascending)
-    LibrarySort.TITLE_DESC -> stringResource(R.string.sort_title_descending)
-}
-
-@Composable
-private fun FrostedSortMenu(
-    hazeState: HazeState,
-    selected: SongSort,
-    onSelect: (SongSort) -> Unit,
-    onFlipDateDirection: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    FrostedMenuPanel(hazeState = hazeState, onDismiss = onDismiss) {
-        val dateActive = selected == SongSort.DATE_ADDED_ASC ||
-            selected == SongSort.DATE_ADDED_DESC
-        val arrowRotation by animateFloatAsState(
-            targetValue = if (selected == SongSort.DATE_ADDED_ASC) 180f else 0f,
-            animationSpec = tween(durationMillis = 200),
-            label = "dateAddedArrow",
-        )
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp)
-                .clickable(role = Role.Button) { onFlipDateDirection() }
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(R.string.sort_date_added_toggle),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-            )
-            if (dateActive) {
-                Icon(
-                    SfIcons.ArrowUpward,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.rotate(arrowRotation),
-                )
-            }
-        }
-        SongSort.entries
-            .filter { it != SongSort.DATE_ADDED_ASC && it != SongSort.DATE_ADDED_DESC }
-            .forEach { option ->
-                FrostedMenuRow(
-                    label = option.localizedLabel(),
-                    checked = option == selected,
-                    onClick = { onSelect(option) },
-                )
-            }
-    }
-}
-
-@Composable
-private fun FrostedFolderMenu(
-    hazeState: HazeState,
-    sort: LocalMusicSort,
-    viewType: LibraryViewType,
-    onSort: (LocalMusicSort) -> Unit,
-    onToggleViewType: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    FrostedMenuPanel(hazeState = hazeState, onDismiss = onDismiss) {
-        val grid = viewType == LibraryViewType.GRID
-        FrostedMenuRow(
-            label = stringResource(if (grid) R.string.switch_to_list_view else R.string.switch_to_grid_view),
-            checked = false,
-            onClick = onToggleViewType,
-            icon = if (grid) SfIcons.ListView else SfIcons.GridView,
-        )
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 4.dp),
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-        )
-        LocalMusicSort.entries.forEach { option ->
-            FrostedMenuRow(
-                label = option.localizedLabel(),
-                checked = option == sort,
-                onClick = { onSort(option) },
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalHazeMaterialsApi::class)
-@Composable
-private fun FrostedMenuPanel(
-    hazeState: HazeState,
-    onDismiss: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
-    val shape = MaterialTheme.shapes.extraLarge
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = .48f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.TopEnd,
-    ) {
-        Surface(
-            color = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shape = shape,
-            modifier = Modifier
-                .padding(top = 56.dp, end = 20.dp)
-                .width(IntrinsicSize.Max)
-                .clip(shape)
-                .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(MaterialTheme.colorScheme.surface)
-                    } else {
-                        Modifier.optimizedHazeEffect(
-                            state = hazeState,
-                            style = HazeMaterials.thin(MaterialTheme.colorScheme.surface),
-                        )
-                    },
-                )
-                .clickable(onClick = {}),
-        ) {
-            Column(Modifier.padding(vertical = 8.dp), content = content)
-        }
-    }
-}
-
-@Composable
-private fun FrostedMenuRow(
-    label: String,
-    checked: Boolean,
-    onClick: () -> Unit,
-    icon: ImageVector? = null,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 44.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
-        if (checked) {
-            Icon(
-                SfIcons.Check,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        } else if (icon != null) {
-            Spacer(Modifier.width(16.dp))
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SongSort.localizedLabel(): String = when (this) {
-    SongSort.DEFAULT -> stringResource(R.string.sort_default)
-    SongSort.TITLE_ASC -> stringResource(R.string.sort_title_ascending)
-    SongSort.TITLE_DESC -> stringResource(R.string.sort_title_descending)
-    SongSort.DATE_ADDED_ASC -> stringResource(R.string.sort_date_added_oldest)
-    SongSort.DATE_ADDED_DESC -> stringResource(R.string.sort_date_added)
-}
 
 private fun String?.isDeviceFolder(): Boolean =
     this != null && startsWith("local:") &&
