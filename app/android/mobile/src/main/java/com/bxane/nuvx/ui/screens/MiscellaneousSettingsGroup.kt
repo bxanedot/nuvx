@@ -33,13 +33,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bxane.nuvx.AppIcon
+import com.bxane.nuvx.PodcastsSymbol
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.ui.components.IosSwitch
 import com.bxane.nuvx.ui.icons.SfIcons
-import com.composables.sfsymbols.SfSymbol
 
-internal fun hidePodcastsTabIcon(): ImageVector = SfSymbol.named("microphone")!!.toImageVector()
+internal fun hidePodcastsTabIcon(): ImageVector = PodcastsSymbol.toImageVector()
 
 @Composable
 internal fun MiscellaneousSettingsGroup(
