@@ -10,10 +10,13 @@ import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.playback.smart.VersionAudioAligner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 internal class PlaybackVersionSwitcher(
     private val mediaController: MediaController?,
     private val versionContext: Context,
+    private val scope: CoroutineScope,
     private val showQueueNotice: (String) -> Unit,
     private val missingVersions: SnapshotStateList<String>,
     private val switchingAudioVersion: MutableState<Boolean>,
@@ -44,6 +47,89 @@ internal class PlaybackVersionSwitcher(
             switchingAudioVersion.value = false
         }
     }
+
+    fun versionEffectiveSong(song: Song): Song = optimisticVersionSong.value?.takeIf {
+        it.videoId == convertedAudioId.value || it.videoId == convertedVideoId.value || it.videoId == keepVideoId.value ||
+            it.videoId == YtMusicRepository.cachedAudioVersion(song.videoId)?.videoId ||
+            it.videoId == YtMusicRepository.cachedVideoVersion(song.videoId)?.videoId
+    } ?: song
+
+    fun isAudioVersion(song: Song): Boolean = if (optimisticVersionSong.value != null) {
+        !optimisticVersionSong.value!!.isVideo
+    } else {
+        !song.isVideo && convertedVideoId.value != song.videoId
+    }
+
+    fun toggleVersion(song: Song, effectiveSong: Song, inParty: Boolean) {
+        if (inParty) {
+            showQueueNotice(versionContext.getString(R.string.version_switch_in_party))
+            return
+        }
+        if (switchingAudioVersion.value) return
+        val controller = mediaController
+        val original = convertedFromVideo.value
+        val originalAudio = convertedFromAudio.value
+        when {
+            controller == null -> Unit
+            original != null && (
+                convertedAudioId.value == song.videoId ||
+                    convertedAudioId.value == effectiveSong.videoId ||
+                    convertedAudioId.value == optimisticVersionSong.value?.videoId
+                ) -> {
+                keepVideoId.value = original.videoId
+                convertedFromVideo.value = null
+                convertedAudioId.value = null
+                if (!versionAlignmentPending(song.videoId, original.videoId)) optimisticVersionSong.value = original
+                controller.swapToVersion(original)
+            }
+            originalAudio != null && (
+                convertedVideoId.value == song.videoId ||
+                    convertedVideoId.value == effectiveSong.videoId ||
+                    convertedVideoId.value == optimisticVersionSong.value?.videoId
+                ) -> {
+                convertedFromAudio.value = null
+                convertedVideoId.value = null
+                if (!versionAlignmentPending(song.videoId, originalAudio.videoId)) optimisticVersionSong.value = originalAudio
+                controller.swapToVersion(originalAudio)
+            }
+            effectiveSong.isVideo || song.isVideo -> {
+                val cached = YtMusicRepository.cachedAudioVersion(song.videoId)
+                    ?: YtMusicRepository.cachedAudioVersion(effectiveSong.videoId)
+                if (cached != null && cached.videoId != song.videoId && !versionAlignmentPending(song.videoId, cached.videoId)) {
+                    optimisticVersionSong.value = cached.copy(
+                        isVideoOrigin = true,
+                        queueTier = song.queueTier,
+                        queueEntryId = song.queueEntryId,
+                        radioName = song.radioName,
+                        playbackSource = song.playbackSource,
+                        playbackSourceType = song.playbackSourceType,
+                        playbackSourceId = song.playbackSourceId,
+                    )
+                }
+                scope.launch { switchToMusicOnly(song, pauseWhileResolving = false) }
+            }
+            else -> {
+                val cached = YtMusicRepository.cachedVideoVersion(song.videoId)
+                    ?: YtMusicRepository.cachedVideoVersion(effectiveSong.videoId)
+                if (cached != null && cached.videoId != song.videoId && !versionAlignmentPending(song.videoId, cached.videoId)) {
+                    optimisticVersionSong.value = cached.copy(
+                        queueTier = song.queueTier,
+                        queueEntryId = song.queueEntryId,
+                        radioName = song.radioName,
+                        playbackSource = song.playbackSource,
+                        playbackSourceType = song.playbackSourceType,
+                        playbackSourceId = song.playbackSourceId,
+                    )
+                }
+                scope.launch { switchToVideo(song, pauseWhileResolving = false) }
+            }
+        }
+    }
+
+    private fun versionAlignmentPending(sourceId: String, targetId: String): Boolean =
+        AppSettings.smartVersionAlignment.value &&
+            VersionAudioAligner.getCachedOffsetMs(sourceId, targetId) == null &&
+            YtMusicRepository.versionTimeMap(sourceId, targetId) == null
 
     suspend fun switchToMusicOnly(song: Song, pauseWhileResolving: Boolean) {
         val controller = mediaController ?: return
