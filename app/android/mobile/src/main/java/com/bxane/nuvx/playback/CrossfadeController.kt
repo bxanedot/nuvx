@@ -14,8 +14,8 @@ import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.MixBlend
 import com.bxane.nuvx.data.settings.MixDeck
 import com.bxane.nuvx.data.settings.MixTransitionView
-import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput
 import com.bxane.nuvx.data.settings.SmartAnalysis
+import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput
 import com.bxane.nuvx.data.settings.TrackAnalysisState
 import com.bxane.nuvx.data.settings.TransitionWindow
 import com.bxane.nuvx.data.lyrics.LyricLine
@@ -336,7 +336,7 @@ class CrossfadeController(
             }
         }
 
-        publishAnalysisState()
+        analysisStatus.publish()
         automixDetail.publish()
         expireMixPreview()
 
@@ -597,25 +597,6 @@ class CrossfadeController(
         if (currentItem.isVideoOrigin || nextItem.isVideoOrigin) return
         requestAnalysis(currentItem, duration)
         requestAnalysis(nextItem, nextItemDurationMs(nextIndex, nextItem))
-    }
-
-    private fun publishAnalysisState() {
-        val player = active()
-        val currentItem = player.currentMediaItem
-        val nextIndex = player.nextMediaItemIndex
-        val nextItem = if (nextIndex == C.INDEX_UNSET) null else player.getMediaItemAt(nextIndex)
-        AppSettings.smartAnalysis.value = SmartAnalysis(
-            current = currentItem?.let { stateOf(it, analysisFor(it)) } ?: TrackAnalysisState.WAITING,
-            next = nextItem?.let { stateOf(it, analysisFor(it)) } ?: TrackAnalysisState.WAITING,
-        )
-    }
-
-    private fun stateOf(item: MediaItem, analysis: TrackAnalysis): TrackAnalysisState = when {
-        analysis.isUsable ->
-            if (analysisRunningFor(item)) TrackAnalysisState.REFINING else TrackAnalysisState.ANALYSED
-        analysisRunningFor(item) -> TrackAnalysisState.ANALYSING
-        analysis.status == TrackAnalysis.STATUS_READY -> TrackAnalysisState.FAILED
-        else -> TrackAnalysisState.WAITING
     }
 
     private fun nextItemDurationMs(nextIndex: Int, item: MediaItem): Long {
@@ -1334,6 +1315,12 @@ class CrossfadeController(
     private var lastSmartPlan: TransitionPlan? = null
     private var lastSmartPlanStartMs = 0L
 
+    private val analysisStatus = CrossfadeAnalysisStatusController(
+        active = active,
+        analysisFor = analysisFor,
+        analysisRunningFor = analysisRunningFor,
+    )
+
     private val automixDetail = CrossfadeAutomixDetailController(
         active = active,
         loopSession = { loopSession },
@@ -1343,7 +1330,7 @@ class CrossfadeController(
         lastSmartPlan = { lastSmartPlan },
         lastSmartPlanStartMs = { lastSmartPlanStartMs },
         analysisFor = analysisFor,
-        stateOf = ::stateOf,
+        stateOf = analysisStatus::stateOf,
     )
 
     private fun bail() {
