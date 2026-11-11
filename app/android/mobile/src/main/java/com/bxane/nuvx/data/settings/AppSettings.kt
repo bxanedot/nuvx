@@ -86,6 +86,7 @@ object AppSettings {
     private lateinit var prefs: SharedPreferences
 
     private lateinit var authStore: AuthStore
+    private val discordSettings = DiscordSettingsController()
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
@@ -311,31 +312,22 @@ object AppSettings {
     val listenBrainzPrimaryArtistOnly = MutableStateFlow(false)
     val spotifySpdcToken = MutableStateFlow("")
 
-    val discordToken = MutableStateFlow("")
-
-    val discordUsername = MutableStateFlow("")
-    val discordName = MutableStateFlow("")
-    val discordAvatar = MutableStateFlow("")
-
-    val discordRpcEnabled = MutableStateFlow(true)
-
-    val discordUseDetails = MutableStateFlow(false)
-
-    val discordShowAudioQuality = MutableStateFlow(true)
-
-    val discordAdvancedMode = MutableStateFlow(false)
-
-    val discordStatus = MutableStateFlow("online")
-    val discordActivityType = MutableStateFlow("listening")
-
-    val discordActivityName = MutableStateFlow("")
-
-    val discordButton1Text = MutableStateFlow("")
-    val discordButton1Visible = MutableStateFlow(true)
-    val discordButton2Text = MutableStateFlow("")
-    val discordButton2Visible = MutableStateFlow(true)
-
-    val discordInfoDismissed = MutableStateFlow(false)
+    val discordToken = discordSettings.discordToken
+    val discordUsername = discordSettings.discordUsername
+    val discordName = discordSettings.discordName
+    val discordAvatar = discordSettings.discordAvatar
+    val discordRpcEnabled = discordSettings.discordRpcEnabled
+    val discordUseDetails = discordSettings.discordUseDetails
+    val discordShowAudioQuality = discordSettings.discordShowAudioQuality
+    val discordAdvancedMode = discordSettings.discordAdvancedMode
+    val discordStatus = discordSettings.discordStatus
+    val discordActivityType = discordSettings.discordActivityType
+    val discordActivityName = discordSettings.discordActivityName
+    val discordButton1Text = discordSettings.discordButton1Text
+    val discordButton1Visible = discordSettings.discordButton1Visible
+    val discordButton2Text = discordSettings.discordButton2Text
+    val discordButton2Visible = discordSettings.discordButton2Visible
+    val discordInfoDismissed = discordSettings.discordInfoDismissed
 
     val audioSessionId = MutableStateFlow(0)
 
@@ -391,6 +383,7 @@ object AppSettings {
             context,
             likedTitle = context.getString(com.bxane.nuvx.R.string.auto_liked),
         )
+        discordSettings.initialize(prefs, authStore)
         readAll()
         MeteredConnectionObserver.watch(context, meteredConnection)
     }
@@ -578,22 +571,7 @@ object AppSettings {
             webdavPassword.value,
         )
         pinnedPlaylists.value = readPinnedPlaylists()
-        discordToken.value = authStore.discordToken.orEmpty()
-        discordUsername.value = prefs.getString(KEY_DISCORD_USERNAME, "").orEmpty()
-        discordName.value = prefs.getString(KEY_DISCORD_NAME, "").orEmpty()
-        discordAvatar.value = prefs.getString(KEY_DISCORD_AVATAR, "").orEmpty()
-        discordRpcEnabled.value = prefs.getBoolean(KEY_DISCORD_RPC_ENABLED, true)
-        discordUseDetails.value = prefs.getBoolean(KEY_DISCORD_USE_DETAILS, false)
-        discordShowAudioQuality.value = prefs.getBoolean(KEY_DISCORD_SHOW_AUDIO_QUALITY, true)
-        discordAdvancedMode.value = prefs.getBoolean(KEY_DISCORD_ADVANCED_MODE, false)
-        discordStatus.value = prefs.getString(KEY_DISCORD_STATUS, "online").orEmpty()
-        discordActivityType.value = prefs.getString(KEY_DISCORD_ACTIVITY_TYPE, "listening").orEmpty()
-        discordActivityName.value = prefs.getString(KEY_DISCORD_ACTIVITY_NAME, "").orEmpty()
-        discordButton1Text.value = prefs.getString(KEY_DISCORD_BUTTON_1_TEXT, "").orEmpty()
-        discordButton1Visible.value = prefs.getBoolean(KEY_DISCORD_BUTTON_1_VISIBLE, true)
-        discordButton2Text.value = prefs.getString(KEY_DISCORD_BUTTON_2_TEXT, "").orEmpty()
-        discordButton2Visible.value = prefs.getBoolean(KEY_DISCORD_BUTTON_2_VISIBLE, true)
-        discordInfoDismissed.value = prefs.getBoolean(KEY_DISCORD_INFO_DISMISSED, false)
+        discordSettings.read()
     }
 
     fun consumeVersionUpdate(currentVersionCode: Int): Boolean {
@@ -1258,81 +1236,34 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY, value).apply()
     }
 
-    fun setDiscordToken(value: String) {
-        discordToken.value = value
-        authStore.discordToken = value.ifEmpty { null }
-    }
+    fun setDiscordToken(value: String) = discordSettings.setToken(value)
 
-    fun setDiscordAccount(username: String, name: String, avatar: String?) {
-        discordUsername.value = username
-        discordName.value = name
-        discordAvatar.value = avatar.orEmpty()
-        prefs.edit()
-            .putString(KEY_DISCORD_USERNAME, username)
-            .putString(KEY_DISCORD_NAME, name)
-            .putString(KEY_DISCORD_AVATAR, avatar.orEmpty())
-            .apply()
-    }
+    fun setDiscordAccount(username: String, name: String, avatar: String?) =
+        discordSettings.setAccount(username, name, avatar)
 
-    fun setDiscordRpcEnabled(value: Boolean) {
-        discordRpcEnabled.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_RPC_ENABLED, value).apply()
-    }
+    fun setDiscordRpcEnabled(value: Boolean) = discordSettings.setRpcEnabled(value)
 
-    fun setDiscordUseDetails(value: Boolean) {
-        discordUseDetails.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_USE_DETAILS, value).apply()
-    }
+    fun setDiscordUseDetails(value: Boolean) = discordSettings.setUseDetails(value)
 
-    fun setDiscordShowAudioQuality(value: Boolean) {
-        discordShowAudioQuality.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_SHOW_AUDIO_QUALITY, value).apply()
-    }
+    fun setDiscordShowAudioQuality(value: Boolean) = discordSettings.setShowAudioQuality(value)
 
-    fun setDiscordAdvancedMode(value: Boolean) {
-        discordAdvancedMode.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_ADVANCED_MODE, value).apply()
-    }
+    fun setDiscordAdvancedMode(value: Boolean) = discordSettings.setAdvancedMode(value)
 
-    fun setDiscordStatus(value: String) {
-        discordStatus.value = value
-        prefs.edit().putString(KEY_DISCORD_STATUS, value).apply()
-    }
+    fun setDiscordStatus(value: String) = discordSettings.setStatus(value)
 
-    fun setDiscordActivityType(value: String) {
-        discordActivityType.value = value
-        prefs.edit().putString(KEY_DISCORD_ACTIVITY_TYPE, value).apply()
-    }
+    fun setDiscordActivityType(value: String) = discordSettings.setActivityType(value)
 
-    fun setDiscordActivityName(value: String) {
-        discordActivityName.value = value
-        prefs.edit().putString(KEY_DISCORD_ACTIVITY_NAME, value).apply()
-    }
+    fun setDiscordActivityName(value: String) = discordSettings.setActivityName(value)
 
-    fun setDiscordButton1Text(value: String) {
-        discordButton1Text.value = value
-        prefs.edit().putString(KEY_DISCORD_BUTTON_1_TEXT, value).apply()
-    }
+    fun setDiscordButton1Text(value: String) = discordSettings.setButton1Text(value)
 
-    fun setDiscordButton1Visible(value: Boolean) {
-        discordButton1Visible.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_BUTTON_1_VISIBLE, value).apply()
-    }
+    fun setDiscordButton1Visible(value: Boolean) = discordSettings.setButton1Visible(value)
 
-    fun setDiscordButton2Text(value: String) {
-        discordButton2Text.value = value
-        prefs.edit().putString(KEY_DISCORD_BUTTON_2_TEXT, value).apply()
-    }
+    fun setDiscordButton2Text(value: String) = discordSettings.setButton2Text(value)
 
-    fun setDiscordButton2Visible(value: Boolean) {
-        discordButton2Visible.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_BUTTON_2_VISIBLE, value).apply()
-    }
+    fun setDiscordButton2Visible(value: Boolean) = discordSettings.setButton2Visible(value)
 
-    fun setDiscordInfoDismissed(value: Boolean) {
-        discordInfoDismissed.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_INFO_DISMISSED, value).apply()
-    }
+    fun setDiscordInfoDismissed(value: Boolean) = discordSettings.setInfoDismissed(value)
 
     fun setReplayGenres(value: Boolean) {
         replayGenres.value = value
@@ -1704,21 +1635,6 @@ object AppSettings {
     private const val KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY = "listenbrainz_primary_artist_only"
     private const val KEY_SPOTIFY_SPDC_TOKEN = "spotify_spdc_token"
 
-    private const val KEY_DISCORD_USERNAME = "discord_username"
-    private const val KEY_DISCORD_NAME = "discord_name"
-    private const val KEY_DISCORD_AVATAR = "discord_avatar"
-    private const val KEY_DISCORD_RPC_ENABLED = "discord_rpc_enabled"
-    private const val KEY_DISCORD_USE_DETAILS = "discord_use_details"
-    private const val KEY_DISCORD_SHOW_AUDIO_QUALITY = "discord_show_audio_quality"
-    private const val KEY_DISCORD_ADVANCED_MODE = "discord_advanced_mode"
-    private const val KEY_DISCORD_STATUS = "discord_status"
-    private const val KEY_DISCORD_ACTIVITY_TYPE = "discord_activity_type"
-    private const val KEY_DISCORD_ACTIVITY_NAME = "discord_activity_name"
-    private const val KEY_DISCORD_BUTTON_1_TEXT = "discord_button_1_text"
-    private const val KEY_DISCORD_BUTTON_1_VISIBLE = "discord_button_1_visible"
-    private const val KEY_DISCORD_BUTTON_2_TEXT = "discord_button_2_text"
-    private const val KEY_DISCORD_BUTTON_2_VISIBLE = "discord_button_2_visible"
-    private const val KEY_DISCORD_INFO_DISMISSED = "discord_info_dismissed"
     private const val KEY_LAST_VERSION_CODE = "last_version_code"
 }
 
