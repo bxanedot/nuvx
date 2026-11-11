@@ -15,7 +15,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
@@ -31,12 +30,10 @@ import androidx.media3.decoder.ffmpeg.FfmpegLibrary
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -148,7 +145,6 @@ import kotlin.math.sqrt
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
-import java.util.Locale
 import java.util.UUID
 import com.bxane.nuvx.data.model.isLiveRadio
 
@@ -274,10 +270,10 @@ class PlaybackService : MediaLibraryService() {
         scope = scope,
         player = { player },
         crossfade = { crossfade },
-        audioFormatFor = { audioFormatFor },
+        audioFormatFor = { formatListener.audioFormatFor },
         buildAuditionPlayer = ::buildAuditionPlayer,
         onSwapping = { swappingMediaId = it },
-        onSwapCut = { swapCutAt = SystemClock.elapsedRealtime() },
+        onSwapCut = { formatListener.markSwapCut() },
     )
 
     private val errorRecovery = PlaybackErrorRecovery(
@@ -516,100 +512,12 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    private val formatListener = object : AnalyticsListener {
-        override fun onAudioInputFormatChanged(
-            eventTime: AnalyticsListener.EventTime,
-            format: Format,
-            decoderReuseEvaluation: DecoderReuseEvaluation?,
-        ) {
-            audioFormatFor = eventTime.mediaId()
-            val measured = format.measure()
-            val khz = measured.sampleRateHz
-                ?.let { "%.1fkHz".format(Locale.ROOT, it / 1000.0) } ?: "?kHz"
-            val kbps = format.bitrate.takeIf { it > 0 }
-                ?.let { "${it / 1000}kbps" } ?: "bitrate n/a"
-            val depth = measured.bitDepth?.let { "${it}-bit" } ?: "?-bit"
-            val channels = measured.channels?.let { "${it}ch" } ?: "?ch"
-            TrackLog.i(
-                "DECODE",
-                "$audioFormatFor <- ${format.sampleMimeType} $khz $kbps $depth $channels",
-                about = audioFormatFor,
-            )
-            activeTrackIsDolbyAtmos = NerdStats.isDolbyAtmosMime(format.sampleMimeType)
-            applySpatialAudioEnabled()
-            publishNerdStats()
-            outputRouter.currentAudioInputFormat = format
-            outputRouter.applyOutputRoute()
-        }
-
-        override fun onAudioPositionAdvancing(
-            eventTime: AnalyticsListener.EventTime,
-            playoutStartSystemTimeMs: Long,
-        ) {
-            val cutAt = swapCutAt ?: return
-            swapCutAt = null
-            TrackLog.d(
-                "nuvx",
-                "swap seam: ${SystemClock.elapsedRealtime() - cutAt}ms of silence",
-                about = eventTime.mediaId(),
-            )
-        }
-
-        override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
-            val cutAt = swapCutAt ?: return
-            if (state == Player.STATE_READY) {
-                TrackLog.d(
-                    "nuvx",
-                    "swap leg: ready ${SystemClock.elapsedRealtime() - cutAt}ms after the cut",
-                    about = eventTime.mediaId(),
-                )
-            }
-        }
-
-        override fun onAudioDecoderInitialized(
-            eventTime: AnalyticsListener.EventTime,
-            decoderName: String,
-            initializedTimestampMs: Long,
-            initializationDurationMs: Long,
-        ) {
-            AudioOutputStatus.publishDecoder(decoderName)
-            TrackLog.i(
-                "AUDIO_OUT",
-                "decoder=$decoderName initialized in ${initializationDurationMs}ms",
-                about = eventTime.mediaId(),
-            )
-            val cutAt = swapCutAt ?: return
-            TrackLog.d(
-                "nuvx",
-                "swap leg: $decoderName stood up in ${initializationDurationMs}ms, " +
-                    "${SystemClock.elapsedRealtime() - cutAt}ms after the cut",
-                about = eventTime.mediaId(),
-            )
-        }
-
-        override fun onAudioTrackInitialized(
-            eventTime: AnalyticsListener.EventTime,
-            audioTrackConfig: AudioSink.AudioTrackConfig,
-        ) {
-            AudioOutputStatus.publishAudioTrack(
-                encoding = audioTrackConfig.encoding,
-                sampleRateHz = audioTrackConfig.sampleRate,
-                bufferSize = audioTrackConfig.bufferSize,
-            )
-            TrackLog.i(
-                "AUDIO_OUT",
-                "AudioTrack ${audioTrackConfig.sampleRate}Hz encoding=${audioTrackConfig.encoding}",
-                about = eventTime.mediaId(),
-            )
-        }
-
-    }
-
-    private fun AnalyticsListener.EventTime.mediaId(): String? = timeline
-        .takeIf { windowIndex < it.windowCount }
-        ?.getWindow(windowIndex, Timeline.Window())
-        ?.mediaItem
-        ?.mediaId
+    private val formatListener = PlaybackAudioAnalyticsListener(
+        onDolbyAtmosChanged = { activeTrackIsDolbyAtmos = it },
+        applySpatialAudioEnabled = ::applySpatialAudioEnabled,
+        publishNerdStats = ::publishNerdStats,
+        outputRouter = outputRouter,
+    )
 
     override fun onCreate() {
         super.onCreate()
@@ -1351,7 +1259,7 @@ class PlaybackService : MediaLibraryService() {
 
     private fun adoptFormatOf(incoming: ExoPlayer) {
         if (incoming.audioFormat == null) return
-        audioFormatFor = incoming.currentMediaItem?.mediaId
+        formatListener.audioFormatFor = incoming.currentMediaItem?.mediaId
     }
 
     private fun adoptPlayerForVersionSwap(outgoing: ExoPlayer, incoming: ExoPlayer) {
@@ -1893,10 +1801,6 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private var swappingMediaId: String? = null
-
-    private var swapCutAt: Long? = null
-
-    private var audioFormatFor: String? = null
 
     private fun buildAuditionPlayer(meter: BandwidthMeter): ExoPlayer = ExoPlayer.Builder(this)
         .setRenderersFactory(FfmpegFallbackRenderersFactory(this))
