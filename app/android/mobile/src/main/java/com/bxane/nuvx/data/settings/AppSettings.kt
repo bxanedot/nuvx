@@ -96,11 +96,16 @@ object AppSettings {
         MAX_CACHE_LIMIT_BYTES,
         UNLIMITED_CACHE_LIMIT_BYTES,
     )
+    private val audioQualitySettings = AudioQualitySettingsController(
+        DEFAULT_UPGRADE_LENGTH_SLACK_SECONDS,
+        MIN_UPGRADE_LENGTH_SLACK_SECONDS,
+        MAX_UPGRADE_LENGTH_SLACK_SECONDS,
+    )
 
-    val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
-    val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
+    val audioQualityWifi = audioQualitySettings.audioQualityWifi
+    val audioQualityCellular = audioQualitySettings.audioQualityCellular
 
-    val upgradeLengthSlackSeconds = MutableStateFlow(DEFAULT_UPGRADE_LENGTH_SLACK_SECONDS)
+    val upgradeLengthSlackSeconds = audioQualitySettings.upgradeLengthSlackSeconds
 
     val downloadQuality = downloadSettings.downloadQuality
 
@@ -389,6 +394,7 @@ object AppSettings {
         homeFeedSettings.initialize(prefs)
         playerPresentationSettings.initialize(prefs)
         audioCacheSettings.initialize(prefs)
+        audioQualitySettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -409,13 +415,7 @@ object AppSettings {
     }
 
     private fun readAll() {
-        migrateSingleQuality()
-        audioQualityWifi.value = readQuality(KEY_QUALITY_WIFI)
-        audioQualityCellular.value = readQuality(KEY_QUALITY_CELLULAR)
-        upgradeLengthSlackSeconds.value = prefs.getInt(
-            KEY_UPGRADE_LENGTH_SLACK_SECONDS,
-            DEFAULT_UPGRADE_LENGTH_SLACK_SECONDS,
-        ).coerceIn(MIN_UPGRADE_LENGTH_SLACK_SECONDS, MAX_UPGRADE_LENGTH_SLACK_SECONDS)
+        audioQualitySettings.read()
         downloadSettings.read()
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
         smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
@@ -521,20 +521,6 @@ object AppSettings {
         return currentVersionCode > last
     }
 
-    private fun migrateSingleQuality() {
-        val legacy = prefs.getString(KEY_QUALITY_LEGACY, null) ?: return
-        prefs.edit()
-            .putString(KEY_QUALITY_WIFI, legacy)
-            .putString(KEY_QUALITY_CELLULAR, legacy)
-            .remove(KEY_QUALITY_LEGACY)
-            .apply()
-    }
-
-    private fun readQuality(key: String): AudioQuality {
-        val stored = prefs.getString(key, null) ?: return AudioQuality.LOSSLESS
-        return runCatching { AudioQuality.valueOf(stored) }.getOrDefault(AudioQuality.LOSSLESS)
-    }
-
     fun setAutoplay(value: Boolean) {
         autoplay.value = value
         prefs.edit().putBoolean(KEY_AUTOPLAY, value).apply()
@@ -550,24 +536,11 @@ object AppSettings {
         prefs.edit().putInt(KEY_REPEAT_MODE, value).apply()
     }
 
-    fun setAudioQualityWifi(value: AudioQuality) {
-        audioQualityWifi.value = value
-        prefs.edit().putString(KEY_QUALITY_WIFI, value.name).apply()
-    }
+    fun setAudioQualityWifi(value: AudioQuality) = audioQualitySettings.setAudioQualityWifi(value)
 
-    fun setAudioQualityCellular(value: AudioQuality) {
-        audioQualityCellular.value = value
-        prefs.edit().putString(KEY_QUALITY_CELLULAR, value.name).apply()
-    }
+    fun setAudioQualityCellular(value: AudioQuality) = audioQualitySettings.setAudioQualityCellular(value)
 
-    fun setUpgradeLengthSlackSeconds(value: Int) {
-        val normalized = value.coerceIn(
-            MIN_UPGRADE_LENGTH_SLACK_SECONDS,
-            MAX_UPGRADE_LENGTH_SLACK_SECONDS,
-        )
-        upgradeLengthSlackSeconds.value = normalized
-        prefs.edit().putInt(KEY_UPGRADE_LENGTH_SLACK_SECONDS, normalized).apply()
-    }
+    fun setUpgradeLengthSlackSeconds(value: Int) = audioQualitySettings.setUpgradeLengthSlackSeconds(value)
 
     fun setDownloadQuality(value: DownloadQuality) = downloadSettings.setDownloadQuality(value)
 
@@ -1121,10 +1094,6 @@ object AppSettings {
 
     fun normalizeSignatureApiUrl(raw: String): String = playerPresentationSettings.normalizeSignatureApiUrl(raw)
 
-    private const val KEY_QUALITY_LEGACY = "audio_quality"
-    private const val KEY_QUALITY_WIFI = "audio_quality_wifi"
-    private const val KEY_QUALITY_CELLULAR = "audio_quality_cellular"
-    private const val KEY_UPGRADE_LENGTH_SLACK_SECONDS = "upgrade_length_slack_seconds"
     private const val KEY_CROSSFADE = "crossfade_seconds"
     private const val KEY_SMART_FADE = "smart_fade_enabled"
     private const val KEY_AUTOMIX_PERFORMANCE_MODE = "automix_performance_mode"
