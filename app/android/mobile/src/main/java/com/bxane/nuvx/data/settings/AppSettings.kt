@@ -89,19 +89,20 @@ object AppSettings {
     private val librarySettings = LibrarySettingsController(MAX_PINNED_PLAYLISTS)
     private val lyricsSettings = LyricsSettingsController(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
     private val remoteStorageSettings = RemoteStorageSettingsController()
+    private val downloadSettings = DownloadSettingsController()
 
     val audioQualityWifi = MutableStateFlow(AudioQuality.LOSSLESS)
     val audioQualityCellular = MutableStateFlow(AudioQuality.LOSSLESS)
 
     val upgradeLengthSlackSeconds = MutableStateFlow(DEFAULT_UPGRADE_LENGTH_SLACK_SECONDS)
 
-    val downloadQuality = MutableStateFlow(DownloadQuality.LOSSLESS)
+    val downloadQuality = downloadSettings.downloadQuality
 
-    val wifiOnlyDownloads = MutableStateFlow(true)
+    val wifiOnlyDownloads = downloadSettings.wifiOnlyDownloads
 
-    val exportDownloads = MutableStateFlow(false)
+    val exportDownloads = downloadSettings.exportDownloads
 
-    val syncDownloadedPlaylists = MutableStateFlow(false)
+    val syncDownloadedPlaylists = downloadSettings.syncDownloadedPlaylists
 
     val meteredConnection = MutableStateFlow<Boolean?>(null)
 
@@ -378,6 +379,7 @@ object AppSettings {
 
     fun init(context: Context, authStore: AuthStore) {
         prefs = context.getSharedPreferences("nuvx_settings", Context.MODE_PRIVATE)
+        downloadSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -405,11 +407,7 @@ object AppSettings {
             KEY_UPGRADE_LENGTH_SLACK_SECONDS,
             DEFAULT_UPGRADE_LENGTH_SLACK_SECONDS,
         ).coerceIn(MIN_UPGRADE_LENGTH_SLACK_SECONDS, MAX_UPGRADE_LENGTH_SLACK_SECONDS)
-        migrateDownloadQuality()
-        downloadQuality.value = readDownloadQuality()
-        wifiOnlyDownloads.value = prefs.getBoolean(KEY_WIFI_ONLY_DOWNLOADS, true)
-        exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
-        syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
+        downloadSettings.read()
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
         smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
         automixPerformanceMode.value = runCatching {
@@ -551,16 +549,6 @@ object AppSettings {
         return runCatching { AudioQuality.valueOf(stored) }.getOrDefault(AudioQuality.LOSSLESS)
     }
 
-    private fun migrateDownloadQuality() {
-        if (prefs.contains(KEY_QUALITY_DOWNLOAD)) return
-        prefs.edit().putString(KEY_QUALITY_DOWNLOAD, DownloadQuality.LOSSLESS.name).apply()
-    }
-
-    private fun readDownloadQuality(): DownloadQuality {
-        val stored = prefs.getString(KEY_QUALITY_DOWNLOAD, null) ?: return DownloadQuality.LOSSLESS
-        return runCatching { DownloadQuality.valueOf(stored) }.getOrDefault(DownloadQuality.LOSSLESS)
-    }
-
     fun setAutoplay(value: Boolean) {
         autoplay.value = value
         prefs.edit().putBoolean(KEY_AUTOPLAY, value).apply()
@@ -595,15 +583,9 @@ object AppSettings {
         prefs.edit().putInt(KEY_UPGRADE_LENGTH_SLACK_SECONDS, normalized).apply()
     }
 
-    fun setDownloadQuality(value: DownloadQuality) {
-        downloadQuality.value = value
-        prefs.edit().putString(KEY_QUALITY_DOWNLOAD, value.name).apply()
-    }
+    fun setDownloadQuality(value: DownloadQuality) = downloadSettings.setDownloadQuality(value)
 
-    fun setWifiOnlyDownloads(value: Boolean) {
-        wifiOnlyDownloads.value = value
-        prefs.edit().putBoolean(KEY_WIFI_ONLY_DOWNLOADS, value).apply()
-    }
+    fun setWifiOnlyDownloads(value: Boolean) = downloadSettings.setWifiOnlyDownloads(value)
 
     fun setCrossfadeSeconds(value: Int) {
         crossfadeSeconds.value = value
@@ -1050,15 +1032,9 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_LOUDNESS_NORMALIZATION, value).apply()
     }
 
-    fun setExportDownloads(value: Boolean) {
-        exportDownloads.value = value
-        prefs.edit().putBoolean(KEY_EXPORT_DOWNLOADS, value).apply()
-    }
+    fun setExportDownloads(value: Boolean) = downloadSettings.setExportDownloads(value)
 
-    fun setSyncDownloadedPlaylists(value: Boolean) {
-        syncDownloadedPlaylists.value = value
-        prefs.edit().putBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, value).apply()
-    }
+    fun setSyncDownloadedPlaylists(value: Boolean) = downloadSettings.setSyncDownloadedPlaylists(value)
 
     fun setLastfmPrimaryArtistOnly(value: Boolean) = scrobblingSettings.setLastfmPrimaryArtistOnly(value)
 
@@ -1223,10 +1199,6 @@ object AppSettings {
     private const val KEY_QUALITY_WIFI = "audio_quality_wifi"
     private const val KEY_QUALITY_CELLULAR = "audio_quality_cellular"
     private const val KEY_UPGRADE_LENGTH_SLACK_SECONDS = "upgrade_length_slack_seconds"
-    private const val KEY_QUALITY_DOWNLOAD = "audio_quality_download"
-    private const val KEY_WIFI_ONLY_DOWNLOADS = "wifi_only_downloads"
-    private const val KEY_EXPORT_DOWNLOADS = "export_downloads"
-    private const val KEY_SYNC_DOWNLOADED_PLAYLISTS = "sync_downloaded_playlists"
     private const val KEY_CROSSFADE = "crossfade_seconds"
     private const val KEY_SMART_FADE = "smart_fade_enabled"
     private const val KEY_AUTOMIX_PERFORMANCE_MODE = "automix_performance_mode"
