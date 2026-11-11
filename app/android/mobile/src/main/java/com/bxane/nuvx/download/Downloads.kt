@@ -1,7 +1,6 @@
 package com.bxane.nuvx.download
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.net.Uri
 import com.bxane.nuvx.data.DebugLog as Log
 import com.bxane.nuvx.data.model.Song
@@ -17,13 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.Json
 import java.io.OutputStream
-import java.io.File
 
 sealed interface DownloadState {
 
@@ -37,14 +31,7 @@ sealed interface DownloadState {
 object Downloads {
 
     private const val TAG = "nuvx"
-    private const val KEY_SAVED_METADATA = "downloaded_tracks_metadata"
-    private const val KEY_SAVED_COLLECTIONS = "downloaded_collections"
-
-    private lateinit var prefs: SharedPreferences
-    private val json = Json { ignoreUnknownKeys = true }
-    private val serializer = MapSerializer(String.serializer(), String.serializer())
-    private val metadataSerializer = MapSerializer(String.serializer(), SavedSongMetadata.serializer())
-    private val collectionSerializer = MapSerializer(String.serializer(), SavedCollection.serializer())
+    private val library = DownloadLibraryController()
 
     private val _active = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
     val active: StateFlow<Map<String, DownloadState>> = _active.asStateFlow()
@@ -57,28 +44,11 @@ object Downloads {
         _requested.update { it + (browseId to (it[browseId].orEmpty() + videoIds)) }
     }
 
-    private val _saved = MutableStateFlow<Map<String, String>>(emptyMap())
+    val saved: StateFlow<Map<String, String>> = library.saved
 
-    val saved: StateFlow<Map<String, String>> = _saved.asStateFlow()
+    val collections: StateFlow<Map<String, SavedCollection>> = library.collections
 
-    private val _savedMetadata = MutableStateFlow<Map<String, SavedSongMetadata>>(emptyMap())
-
-    private val _collections = MutableStateFlow<Map<String, SavedCollection>>(emptyMap())
-
-    val collections: StateFlow<Map<String, SavedCollection>> = _collections.asStateFlow()
-
-    fun init(context: Context) {
-        prefs = context.getSharedPreferences("nuvx_settings", Context.MODE_PRIVATE)
-        _saved.value = runCatching {
-            json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-        _savedMetadata.value = runCatching {
-            json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-        _collections.value = runCatching {
-            json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-    }
+    fun init(context: Context) = library.init(context)
 
     private val fromCache = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
@@ -106,90 +76,24 @@ object Downloads {
     internal suspend fun downloadNow(context: Context, songs: List<Song>, from: String?): Set<String> =
         queueController.downloadNow(context, songs, from)
 
-    suspend fun savedUri(context: Context, videoId: String): Uri? = withContext(Dispatchers.IO) {
-        val recorded = _saved.value[videoId] ?: return@withContext null
-        val uri = recorded.toUri()
-        if (DownloadStore.exists(context, uri)) return@withContext uri
-        Log.d(TAG, "$videoId was downloaded but the file is gone; forgetting it")
-        forget(videoId)
-        null
-    }
+    suspend fun savedUri(context: Context, videoId: String): Uri? = library.savedUri(context, videoId)
 
-    fun isMissingLocalFile(uriString: String): Boolean {
-        if (!uriString.startsWith("file://")) return false
-        val path = runCatching { uriString.toUri().path }.getOrNull() ?: return false
-        return !File(path).exists()
-    }
+    fun isMissingLocalFile(uriString: String): Boolean = library.isMissingLocalFile(uriString)
 
-    fun verifiedSavedUri(videoId: String): String? {
-        val recorded = _saved.value[videoId] ?: return null
-        if (!isMissingLocalFile(recorded)) return recorded
-        Log.d(TAG, "$videoId was downloaded but the file is gone; forgetting it")
-        forget(videoId)
-        return null
-    }
+    fun verifiedSavedUri(videoId: String): String? = library.verifiedSavedUri(videoId)
 
-    suspend fun delete(context: Context, videoId: String): Boolean = withContext(Dispatchers.IO) {
-        val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
-        val deleted = DownloadStore.delete(context, uri)
-        forget(videoId)
-        deleted
-    }
+    suspend fun delete(context: Context, videoId: String): Boolean = library.delete(context, videoId)
 
-    private fun forget(videoId: String) {
-        record(saved = { it - videoId }, meta = { it - videoId })
-    }
+    fun forgetMissing(videoId: String) = library.forgetMissing(videoId)
 
-    fun forgetMissing(videoId: String) {
-        if (videoId !in _saved.value) return
-        Log.d(TAG, "$videoId could not be opened; forgetting the download")
-        forget(videoId)
-    }
+    fun rememberCollection(target: DownloadTarget, songs: List<Song>) = library.rememberCollection(target, songs)
 
-    fun rememberCollection(target: DownloadTarget, songs: List<Song>) {
-        if (songs.isEmpty()) return
-        val ids = songs.map { it.videoId }.distinct()
-        recordCollections { current ->
-            val existing = current[target.id]
-            val record = SavedCollection(
-                id = target.id,
-                title = target.title,
-                subtitle = target.subtitle,
-                thumbnailUrl = existing?.thumbnailUrl?.takeIf(::isLocalArtwork)
-                    ?: target.thumbnailUrl
-                    ?: existing?.thumbnailUrl,
-                playlist = target.playlist,
-                artist = target.artist,
-                videoIds = (ids + (existing?.videoIds ?: emptyList())).distinct(),
-            )
-            current + (target.id to record)
-        }
-    }
+    fun rememberCollectionArtwork(id: String, thumbnailUrl: String) =
+        library.rememberCollectionArtwork(id, thumbnailUrl)
 
-    fun rememberCollectionArtwork(id: String, thumbnailUrl: String) {
-        recordCollections { current ->
-            val existing = current[id] ?: return@recordCollections current
-            if (existing.thumbnailUrl == thumbnailUrl) current
-            else current + (id to existing.copy(thumbnailUrl = thumbnailUrl))
-        }
-    }
+    fun forgetCollection(id: String) = library.forgetCollection(id)
 
-    private fun isLocalArtwork(url: String): Boolean =
-        url.startsWith("file:") || url.startsWith("content:")
-
-    fun forgetCollection(id: String) {
-        if (id !in _collections.value) return
-        recordCollections { it - id }
-    }
-
-    suspend fun deleteCollection(context: Context, id: String): Boolean {
-        var any = false
-        val collections = _collections.value
-        tracksOnlyIn(id, collections, saved.value)
-            .forEach { videoId -> if (delete(context, videoId)) any = true }
-        DownloadCollectionCatalog.droppedWith(id, collections).forEach(::forgetCollection)
-        return any
-    }
+    suspend fun deleteCollection(context: Context, id: String): Boolean = library.deleteCollection(context, id)
 
     internal fun tracksOnlyIn(
         id: String,
@@ -204,25 +108,10 @@ object Downloads {
     fun recordIdOf(browseId: String): String? =
         browseId.removePrefix(PLAYLIST_PREFIX).takeIf { it != browseId && it.isNotEmpty() && !it.startsWith("sp_local_") }
 
-    fun savedReleases(onDisk: Map<String, String> = _saved.value): List<SavedCollection> =
-        DownloadCollectionCatalog.savedReleases(_collections.value, onDisk)
+    fun savedReleases(onDisk: Map<String, String> = saved.value): List<SavedCollection> =
+        library.savedReleases(onDisk)
 
-    fun collectionsAmong(songs: List<Song>): List<DownloadedCollection> =
-        DownloadCollectionCatalog.collectionsAmong(_collections.value, _saved.value, songs)
-
-    private fun recordCollections(update: (Map<String, SavedCollection>) -> Map<String, SavedCollection>) {
-        synchronized(collectionLock) {
-            val map = update(_collections.value)
-            _collections.value = map
-            if (::prefs.isInitialized) {
-                prefs.edit()
-                    .putString(KEY_SAVED_COLLECTIONS, json.encodeToString(collectionSerializer, map))
-                    .apply()
-            }
-        }
-    }
-
-    private val collectionLock = Any()
+    fun collectionsAmong(songs: List<Song>): List<DownloadedCollection> = library.collectionsAmong(songs)
 
     private fun remember(
         asked: Song,
@@ -230,175 +119,12 @@ object Downloads {
         uri: Uri,
         downloadFormat: String? = null,
         artworkUri: String? = null,
-    ) {
-        val ids = setOf(asked.videoId, fetched.videoId)
-        val fileModifiedMillis = uri.takeIf { it.scheme == "file" }
-            ?.path
-            ?.let(::File)
-            ?.lastModified()
-            ?.takeIf { it > 0 }
-        val existingAdded = ids.firstNotNullOfOrNull { _savedMetadata.value[it]?.dateAddedSeconds }
-        val dateAddedSeconds = resolvedDownloadDates(existingAdded, fileModifiedMillis).first
-            ?: System.currentTimeMillis() / 1_000
-        val savedArtwork = uri.takeIf { it.scheme == "file" && it.lastPathSegment == "playlist.m3u8" }
-            ?.path?.let(::File)?.parentFile
-            ?.listFiles()?.firstOrNull { it.nameWithoutExtension == "cover" }
-            ?.let(Uri::fromFile)?.toString()
-        val album = fetched.albumName?.takeIf { it.isNotBlank() }
-            ?: asked.albumName?.takeIf { it.isNotBlank() }
-        val metaAsked = SavedSongMetadata(
-            videoId = asked.videoId,
-            title = asked.title,
-            artist = asked.artist,
-            thumbnailUrl = savedArtwork ?: artworkUri ?: asked.thumbnailUrl,
-            durationText = asked.durationText,
-            albumName = album,
-            uri = uri.toString(),
-            downloadFormat = downloadFormat,
-            dateAddedSeconds = dateAddedSeconds,
-        )
-        val metaFetched = SavedSongMetadata(
-            videoId = fetched.videoId,
-            title = fetched.title,
-            artist = fetched.artist,
-            thumbnailUrl = savedArtwork ?: artworkUri ?: fetched.thumbnailUrl,
-            durationText = fetched.durationText,
-            albumName = album,
-            uri = uri.toString(),
-            downloadFormat = downloadFormat,
-            dateAddedSeconds = dateAddedSeconds,
-        )
-        record(
-            saved = { it + ids.associateWith { id -> uri.toString() } },
-            meta = {
-                it + mapOf(asked.videoId to metaAsked, fetched.videoId to metaFetched)
-            },
-        )
-    }
+    ) = library.remember(asked, fetched, uri, downloadFormat, artworkUri)
 
-    private fun record(
-        saved: (Map<String, String>) -> Map<String, String>,
-        meta: (Map<String, SavedSongMetadata>) -> Map<String, SavedSongMetadata>,
-    ) {
-        val savedMap = _saved.updateAndGet(saved)
-        val metaMap = _savedMetadata.updateAndGet(meta)
-        if (!::prefs.isInitialized) return
-        synchronized(recordLock) {
-            prefs.edit()
-                .putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
-                .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
-                .apply()
-        }
-    }
-
-    private val recordLock = Any()
-
-    suspend fun getDownloadedSongs(context: Context): List<Song> = withContext(Dispatchers.IO) {
-        val metaMap = _savedMetadata.value
-        val result = mutableListOf<Song>()
-        val seenUris = mutableSetOf<String>()
-        val migratedAddedByUri = mutableMapOf<String, Long>()
-        val migratedFormatByUri = mutableMapOf<String, String>()
-
-        for ((_, meta) in metaMap) {
-            if (!seenUris.add(meta.uri)) continue
-            val uri = meta.uri.toUri()
-            if (DownloadStore.exists(context, uri)) {
-                val fileModifiedMillis = uri.takeIf { it.scheme == "file" }
-                    ?.path
-                    ?.let(::File)
-                    ?.lastModified()
-                    ?.takeIf { it > 0 }
-                val (dateAddedSeconds, dateModifiedSeconds) = resolvedDownloadDates(
-                    persistedAddedSeconds = meta.dateAddedSeconds,
-                    fileModifiedMillis = fileModifiedMillis,
-                )
-                if (meta.dateAddedSeconds == null && dateAddedSeconds != null) {
-                    migratedAddedByUri[meta.uri] = dateAddedSeconds
-                }
-                val downloadFormat = meta.downloadFormat
-                    ?: legacyYoutubeDownloadBadge(context, uri)?.also {
-                        migratedFormatByUri[meta.uri] = it
-                    }
-                result.add(
-                    Song(
-                        videoId = meta.videoId,
-                        title = meta.title,
-                        artist = meta.artist,
-                        thumbnailUrl = meta.thumbnailUrl,
-                        durationText = meta.durationText,
-                        albumName = meta.albumName,
-                        localUri = meta.uri,
-                        downloadFormat = downloadFormat,
-                        localDateAddedSeconds = dateAddedSeconds,
-                        localDateModifiedSeconds = dateModifiedSeconds,
-                    )
-                )
-            } else {
-                metaMap.filterValues { it.uri == meta.uri }.keys.forEach(::forget)
-            }
-        }
-        if (migratedAddedByUri.isNotEmpty() || migratedFormatByUri.isNotEmpty()) {
-            record(
-                saved = { it },
-                meta = { current ->
-                    current.mapValues { (_, saved) ->
-                        saved.copy(
-                            dateAddedSeconds = saved.dateAddedSeconds
-                                ?: migratedAddedByUri[saved.uri],
-                            downloadFormat = saved.downloadFormat
-                                ?: migratedFormatByUri[saved.uri],
-                        )
-                    }
-                },
-            )
-        }
-        result
-    }
+    suspend fun getDownloadedSongs(context: Context): List<Song> = library.getDownloadedSongs(context)
 
     suspend fun getCollectionSongs(context: Context, collectionId: String): List<Song> =
-        withContext(Dispatchers.IO) {
-            val record = _collections.value[collectionId] ?: return@withContext emptyList()
-            val metadata = _savedMetadata.value
-            val saved = _saved.value
-            val metadataByUri = metadata.values.associateBy { it.uri }
-            val seenUris = HashSet<String>()
-
-            record.videoIds.mapNotNull { videoId ->
-                val uriString = saved[videoId] ?: metadata[videoId]?.uri ?: return@mapNotNull null
-                if (!seenUris.add(uriString)) return@mapNotNull null
-                val uri = uriString.toUri()
-                if (!DownloadStore.exists(context, uri)) {
-                    saved.filterValues { it == uriString }.keys.forEach(::forget)
-                    return@mapNotNull null
-                }
-
-                val meta = metadata[videoId] ?: metadataByUri[uriString] ?: return@mapNotNull null
-                val fileModifiedMillis = uri.takeIf { it.scheme == "file" }
-                    ?.path
-                    ?.let(::File)
-                    ?.lastModified()
-                    ?.takeIf { it > 0 }
-                val (dateAddedSeconds, dateModifiedSeconds) = resolvedDownloadDates(
-                    persistedAddedSeconds = meta.dateAddedSeconds,
-                    fileModifiedMillis = fileModifiedMillis,
-                )
-                Song(
-                    videoId = videoId,
-                    title = meta.title,
-                    artist = meta.artist,
-                    thumbnailUrl = meta.thumbnailUrl,
-                    durationText = meta.durationText,
-                    albumName = meta.albumName,
-                    localUri = uriString,
-                    downloadFormat = meta.downloadFormat ?: legacyYoutubeDownloadBadge(context, uri),
-                    localDateAddedSeconds = dateAddedSeconds,
-                    localDateModifiedSeconds = dateModifiedSeconds,
-                )
-            }
-        }
-
-    private fun String.toUri(): Uri = Uri.parse(this)
+        library.getCollectionSongs(context, collectionId)
 
     internal fun takeNext(): Song? = queueController.takeNext()
 
@@ -608,5 +334,4 @@ object Downloads {
         if (_active.value[videoId] is DownloadState.Failed) clear(videoId)
     }
 
-    private const val KEY_SAVED = "downloaded_tracks"
 }
