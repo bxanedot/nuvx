@@ -59,9 +59,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,7 +73,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import com.bxane.nuvx.playback.AudioCache
 import com.bxane.nuvx.playback.BoundedContextRequests
-import com.bxane.nuvx.playback.contextEntryKey
 import com.bxane.nuvx.ui.screens.CACHE_FOLDER_BROWSE_ID
 import com.bxane.nuvx.data.LocalGroup
 import com.bxane.nuvx.data.LocalGroups
@@ -209,8 +206,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         clearDetails = ::clearDetail,
     )
 
-    private val fillInJobs = mutableMapOf<String, Job>()
-
     fun loadReleaseLibrary(browseId: String) = collectionController.loadReleaseLibrary(browseId)
 
     fun toggleReleaseLibrary(browseId: String) = collectionController.toggleReleaseLibrary(browseId)
@@ -336,6 +331,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         friendly = { it.friendly() },
         _library = _library,
         _history = _history,
+    )
+    private val detailContextController = MainDetailContextController(
+        scope = viewModelScope,
+        _detailStack = _detailStack,
+        localPageState = ::localPageState,
+        withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
+        text = ::text,
     )
 
     private fun requireSignIn(): Boolean = _signedIn.value
@@ -711,7 +713,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     it
                 }
             }
-            more?.let { fillIn(browseId, it, thumbnailUrl ?: artwork) }
+            more?.let { detailContextController.fillIn(browseId, it, thumbnailUrl ?: artwork) }
         }
     }
 
@@ -824,89 +826,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun downloadedCopyOf(browseId: String): List<Song> =
         localPageResolver.downloadedCopyOf(browseId)
-    private fun fillIn(browseId: String, token: String, artworkFallback: String?) {
-        fillInJobs[browseId]?.cancel()
-        fillInJobs[browseId] = viewModelScope.launch {
-            delay(150)
-            var next: String? = token
-            while (next != null) {
-                val fetched = YtMusicRepository.moreSongs(next).getOrNull() ?: return@launch
-                currentCoroutineContext().ensureActive()
-                val stack = _detailStack.value
-                if (stack.none { it.browseId == browseId }) return@launch
-                var progressed = false
-                val updated = stack.map { current ->
-                    if (current.browseId != browseId) return@map current
-                    val existing = (current.songs as? UiState.Success)?.data ?: return@map current
-                    val known = existing.mapTo(HashSet()) { it.contextEntryKey() }
-                    val added = fetched.songs
-                        .filter { known.add(it.contextEntryKey()) }
-                        .withArtwork(artworkFallback)
-                    val knownVideoIds = (existing + added).mapTo(HashSet()) { it.videoId }
-                    val knownSuggested = current.suggestedSongs.mapTo(HashSet()) { it.videoId }
-                    val addedSuggested = fetched.suggested
-                        .filter { it.videoId !in knownVideoIds && knownSuggested.add(it.videoId) }
-                        .withArtwork(artworkFallback)
-                    if (added.isEmpty() && addedSuggested.isEmpty()) return@map current
-                    progressed = true
-                    current.copy(
-                        songs = UiState.Success(existing + added),
-                        suggestedSongs = current.suggestedSongs + addedSuggested,
-                        continuation = fetched.continuation,
-                    )
-                }
-                if (!progressed) return@launch
-                _detailStack.value = updated
-                next = fetched.continuation
-            }
-        }.also { job ->
-            job.invokeOnCompletion {
-                if (fillInJobs[browseId] === job) fillInJobs.remove(browseId)
-            }
-        }
-    }
+    private fun applyBoundedContextSnapshot(snapshot: BoundedContextRequests.Snapshot) =
+        detailContextController.applyBoundedContextSnapshot(snapshot)
 
-    private fun applyBoundedContextSnapshot(snapshot: BoundedContextRequests.Snapshot) {
-        val browseId = snapshot.request.source.id ?: return
-        val stack = _detailStack.value
-        val index = stack.indexOfLast { it.browseId == browseId }
-        if (index < 0) return
-        val page = stack[index]
-        if (page.type != BrowseType.ALBUM && page.type != BrowseType.PLAYLIST) return
-        if (snapshot.serviceOwned) {
-            if (snapshot.continuationToken != null) fillInJobs.remove(browseId)?.cancel()
-        } else if (snapshot.released && snapshot.continuationToken != null &&
-            fillInJobs[browseId]?.isActive != true
-        ) {
-            fillIn(browseId, snapshot.continuationToken, page.thumbnailUrl)
-        }
-        val existing = (page.songs as? UiState.Success)?.data ?: return
-        val known = existing.mapTo(HashSet()) { it.contextEntryKey() }
-        val added = snapshot.songs
-            .filter { known.add(it.contextEntryKey()) }
-            .withArtwork(page.thumbnailUrl)
-        val continuation = if (snapshot.songs.size >= existing.size) snapshot.continuationToken else page.continuation
-        if (added.isEmpty() && page.continuation == continuation) return
-        _detailStack.value = stack.toMutableList().also {
-            it[index] = page.copy(
-                songs = UiState.Success(existing + added),
-                continuation = continuation,
-            )
-        }
-    }
-
-    fun takePlaybackContext(browseId: String): DetailPage? {
-        val stack = _detailStack.value
-        val index = stack.indexOfLast { it.browseId == browseId }
-        if (index < 0) return null
-        val mirrored = BoundedContextRequests.snapshot.value
-            ?.takeIf { it.request.source.id == browseId }
-        if (mirrored != null) {
-            applyBoundedContextSnapshot(mirrored)
-            return _detailStack.value.getOrNull(index)
-        }
-        return stack[index]
-    }
+    fun takePlaybackContext(browseId: String): DetailPage? =
+        detailContextController.takePlaybackContext(browseId)
 
     private fun List<Song>.withArtwork(fallback: String?): List<Song> {
         if (fallback == null) return this
@@ -920,17 +844,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         browseId: String,
         artworkFallback: String? = null,
         onResult: (Result<List<Song>>) -> Unit,
-    ) {
-        viewModelScope.launch {
-            val result = when (val local = localPageState(browseId)) {
-                is UiState.Success -> Result.success(local.data)
-                is UiState.Error -> Result.failure(IllegalStateException(local.message))
-                UiState.Loading -> Result.failure(IllegalStateException(text(R.string.no_tracks_here)))
-                null -> YtMusicRepository.allSongs(browseId)
-            }
-            onResult(result.map { it.withArtwork(artworkFallback) })
-        }
-    }
+    ) = detailContextController.collectSongs(browseId, artworkFallback, onResult)
 
     private val catalogController = MainCatalogController(
         scope = viewModelScope,
