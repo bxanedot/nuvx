@@ -18,7 +18,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.timeout
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -30,8 +29,6 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.websocket.Frame
-import io.ktor.websocket.readText
-import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -394,6 +391,21 @@ object ListenTogether {
         recordActivity = ::recordActivity,
         recordKick = ::recordKick,
         leaveParty = { leaveParty() },
+        redact = ::redact,
+        tag = TAG,
+    )
+    private val socketConnection = PartySocketConnection(
+        scope = scope,
+        http = http,
+        partyCode = { _state.value.code },
+        token = { token },
+        state = { _state.value },
+        updateState = { update -> _state.update(update) },
+        clock = clock,
+        socketBase = ::wsBase,
+        setSession = { session = it },
+        onFrame = frameHandler::onFrame,
+        partyPositionMs = ::partyPositionMs,
         redact = ::redact,
         tag = TAG,
     )
@@ -830,79 +842,7 @@ object ListenTogether {
 
     private fun connect() {
         socketJob?.cancel()
-        socketJob = scope.launch { runSocketLoop() }
-    }
-
-    private suspend fun runSocketLoop() {
-        var backoffMs = 1_000L
-        while (currentScopeActive()) {
-            val code = _state.value.code ?: return
-            val held = token ?: return
-            try {
-                _state.update { it.copy(connection = Connection.CONNECTING) }
-                http.webSocket(
-                    urlString = "${wsBase()}/ws/parties/$code",
-                    request = { header("Authorization", "Bearer $held") },
-                ) {
-                    session = this
-                    backoffMs = 1_000L
-                    _state.update { it.copy(connection = Connection.LIVE, error = null) }
-                    launch { pingLoop() }
-                    launch { reportLoop() }
-                    for (frame in incoming) {
-                        if (frame is Frame.Text) frameHandler.onFrame(frame.readText())
-                    }
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                Log.w(TAG, "party socket dropped: ${redact(failure.message)}")
-            } finally {
-                session = null
-            }
-            if (!currentScopeActive()) return
-            _state.update { it.copy(connection = Connection.CONNECTING) }
-            clock.reset()
-            _state.update { it.copy(clockSynced = false) }
-            delay(backoffMs / 2 + Random.nextLong(backoffMs + 1))
-            backoffMs = (backoffMs * 2).coerceAtMost(30_000L)
-        }
-    }
-
-    private suspend fun currentScopeActive(): Boolean =
-        kotlinx.coroutines.currentCoroutineContext().isActive
-
-    private suspend fun DefaultClientWebSocketSession.pingLoop() {
-        repeat(4) {
-            ping()
-            delay(300)
-        }
-        while (true) {
-            delay(PING_INTERVAL_MS)
-            ping()
-        }
-    }
-
-    private suspend fun DefaultClientWebSocketSession.ping() {
-        val sentAt = clock.nowMs()
-        val frame = buildJsonObject {
-            put("type", "ping")
-            put("clientMs", sentAt)
-        }
-        runCatching { send(Frame.Text(frame.toString())) }
-    }
-
-    private suspend fun DefaultClientWebSocketSession.reportLoop() {
-        while (true) {
-            delay(REPORT_INTERVAL_MS)
-            val position = partyPositionMs() ?: continue
-            val frame = buildJsonObject {
-                put("type", "report")
-                put("positionMs", position)
-                put("isPlaying", _state.value.playback.isPlaying)
-            }
-            runCatching { send(Frame.Text(frame.toString())) }
-        }
+        socketJob = scope.launch { socketConnection.run() }
     }
 
     private data class Identity(
@@ -1083,9 +1023,7 @@ object ListenTogether {
 
     private const val KICK_BLOCK_MS = 24L * 60 * 60 * 1000
 
-    private const val PING_INTERVAL_MS = 15_000L
     private const val HEALTH_POLL_INTERVAL_MS = 10_000L
     private const val HEALTH_MIN_GAP_MS = 5_000L
-    private const val REPORT_INTERVAL_MS = 10_000L
     private const val HEALTH_TIMEOUT_MS = 45_000L
 }
