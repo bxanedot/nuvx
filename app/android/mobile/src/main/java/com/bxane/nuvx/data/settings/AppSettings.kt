@@ -8,7 +8,6 @@ import com.bxane.nuvx.auth.AuthStore
 import com.bxane.nuvx.data.canvas.SpotifyToken
 import com.bxane.nuvx.data.lyrics.LyricsSource
 import com.bxane.nuvx.data.sources.SourceKind
-import com.bxane.nuvx.playback.EqLayout
 import com.bxane.nuvx.playback.EqualizerPreset
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -102,6 +101,7 @@ object AppSettings {
         MAX_UPGRADE_LENGTH_SLACK_SECONDS,
     )
     private val audioOutputSettings = AudioOutputSettingsController()
+    private val equalizerSettings = EqualizerSettingsController()
 
     val audioQualityWifi = audioQualitySettings.audioQualityWifi
     val audioQualityCellular = audioQualitySettings.audioQualityCellular
@@ -147,21 +147,21 @@ object AppSettings {
 
     val spatialAudio = audioOutputSettings.spatialAudio
 
-    val equalizerEnabled = MutableStateFlow(false)
+    val equalizerEnabled = equalizerSettings.enabled
 
-    val equalizerMode = MutableStateFlow(EqualizerMode.DYNAMIC)
+    val equalizerMode = equalizerSettings.mode
 
-    val equalizerToneX = MutableStateFlow(0)
+    val equalizerToneX = equalizerSettings.toneX
 
-    val equalizerToneY = MutableStateFlow(0)
+    val equalizerToneY = equalizerSettings.toneY
 
-    val equalizerFocused = MutableStateFlow(false)
+    val equalizerFocused = equalizerSettings.focused
 
-    val equalizerBalance = MutableStateFlow(0f)
+    val equalizerBalance = equalizerSettings.balance
 
-    val equalizerBands = MutableStateFlow(EqualizerPreset.FLAT.bands)
+    val equalizerBands = equalizerSettings.bands
 
-    val equalizerPreset = MutableStateFlow(EqualizerPreset.FLAT)
+    val equalizerPreset = equalizerSettings.preset
 
     val playbackSpeed = MutableStateFlow(1.0f)
     val themeMode = MutableStateFlow(ThemeMode.LIGHT)
@@ -397,6 +397,7 @@ object AppSettings {
         audioCacheSettings.initialize(prefs)
         audioQualitySettings.initialize(prefs)
         audioOutputSettings.initialize(prefs)
+        equalizerSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -428,16 +429,7 @@ object AppSettings {
         }.getOrDefault(AutomixPerformanceMode.BALANCED)
         skipSilence.value = prefs.getBoolean(KEY_SKIP_SILENCE, false)
         audioOutputSettings.read()
-        equalizerEnabled.value = prefs.getBoolean(KEY_EQ_ENABLED, false)
-        equalizerMode.value = runCatching {
-            EqualizerMode.valueOf(prefs.getString(KEY_EQ_MODE, null) ?: EqualizerMode.DYNAMIC.name)
-        }.getOrDefault(EqualizerMode.DYNAMIC)
-        equalizerToneX.value = prefs.getInt(KEY_EQ_TONE_X, 0).coerceIn(-EqLayout.TONE_STEPS, EqLayout.TONE_STEPS)
-        equalizerToneY.value = prefs.getInt(KEY_EQ_TONE_Y, 0).coerceIn(-EqLayout.TONE_STEPS, EqLayout.TONE_STEPS)
-        equalizerFocused.value = prefs.getBoolean(KEY_EQ_FOCUSED, false)
-        equalizerBalance.value = prefs.getFloat(KEY_EQ_BALANCE, 0f).coerceIn(-1f, 1f)
-        equalizerBands.value = readEqualizerBands()
-        equalizerPreset.value = EqualizerPreset.matching(equalizerBands.value)
+        equalizerSettings.read()
         playbackSpeed.value = prefs.getFloat(KEY_SPEED, 1.0f)
         themeMode.value = runCatching {
             ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: "LIGHT")
@@ -559,59 +551,19 @@ object AppSettings {
 
     fun setSpatialAudio(value: Boolean) = audioOutputSettings.setSpatialAudio(value)
 
-    fun setEqualizerEnabled(value: Boolean) {
-        equalizerEnabled.value = value
-        prefs.edit().putBoolean(KEY_EQ_ENABLED, value).apply()
-    }
+    fun setEqualizerEnabled(value: Boolean) = equalizerSettings.setEnabled(value)
 
-    fun setEqualizerMode(value: EqualizerMode) {
-        equalizerMode.value = value
-        prefs.edit().putString(KEY_EQ_MODE, value.name).apply()
-    }
+    fun setEqualizerMode(value: EqualizerMode) = equalizerSettings.setMode(value)
 
-    fun setEqualizerTone(x: Int, y: Int) {
-        val steps = EqLayout.TONE_STEPS
-        val clampedX = x.coerceIn(-steps, steps)
-        val clampedY = y.coerceIn(-steps, steps)
-        equalizerToneX.value = clampedX
-        equalizerToneY.value = clampedY
-        prefs.edit().putInt(KEY_EQ_TONE_X, clampedX).putInt(KEY_EQ_TONE_Y, clampedY).apply()
-    }
+    fun setEqualizerTone(x: Int, y: Int) = equalizerSettings.setTone(x, y)
 
-    fun setEqualizerFocused(value: Boolean) {
-        equalizerFocused.value = value
-        prefs.edit().putBoolean(KEY_EQ_FOCUSED, value).apply()
-    }
+    fun setEqualizerFocused(value: Boolean) = equalizerSettings.setFocused(value)
 
-    fun setEqualizerBalance(value: Float) {
-        val clamped = value.coerceIn(-1f, 1f)
-        equalizerBalance.value = clamped
-        prefs.edit().putFloat(KEY_EQ_BALANCE, clamped).apply()
-    }
+    fun setEqualizerBalance(value: Float) = equalizerSettings.setBalance(value)
 
-    fun setEqualizerBands(values: List<Float>) {
-        val clamped = List(EqLayout.MANUAL_COUNT) {
-            values.getOrElse(it) { 0f }.coerceIn(-EqLayout.MANUAL_RANGE_DB, EqLayout.MANUAL_RANGE_DB)
-        }
-        equalizerBands.value = clamped
-        equalizerPreset.value = EqualizerPreset.matching(clamped)
-        prefs.edit().putString(KEY_EQ_BANDS, clamped.joinToString(",")).apply()
-    }
+    fun setEqualizerBands(values: List<Float>) = equalizerSettings.setBands(values)
 
-    fun setEqualizerPreset(preset: EqualizerPreset) {
-        if (preset == EqualizerPreset.CUSTOM) return
-        setEqualizerBands(preset.bands)
-    }
-
-    private fun readEqualizerBands(): List<Float> {
-        val stored = prefs.getString(KEY_EQ_BANDS, null)
-            ?.split(",")
-            ?.mapNotNull { it.trim().toFloatOrNull() }
-            .orEmpty()
-        return List(EqLayout.MANUAL_COUNT) {
-            stored.getOrElse(it) { 0f }.coerceIn(-EqLayout.MANUAL_RANGE_DB, EqLayout.MANUAL_RANGE_DB)
-        }
-    }
+    fun setEqualizerPreset(preset: EqualizerPreset) = equalizerSettings.setPreset(preset)
 
     fun setPlaybackSpeed(value: Float) {
         playbackSpeed.value = value
@@ -1050,13 +1002,6 @@ object AppSettings {
     private const val KEY_SMART_FADE = "smart_fade_enabled"
     private const val KEY_AUTOMIX_PERFORMANCE_MODE = "automix_performance_mode"
     private const val KEY_SKIP_SILENCE = "skip_silence"
-    private const val KEY_EQ_ENABLED = "equalizer_enabled"
-    private const val KEY_EQ_MODE = "equalizer_mode"
-    private const val KEY_EQ_TONE_X = "equalizer_tone_x"
-    private const val KEY_EQ_TONE_Y = "equalizer_tone_y"
-    private const val KEY_EQ_FOCUSED = "equalizer_focused"
-    private const val KEY_EQ_BALANCE = "equalizer_balance"
-    private const val KEY_EQ_BANDS = "equalizer_bands"
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_APP_FONT = "app_font"
