@@ -4,9 +4,6 @@ import com.bxane.nuvx.data.webdav.update
 import com.bxane.nuvx.ui.components.VideoThumbnails
 import android.content.Context
 import android.content.SharedPreferences
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
 import androidx.media3.common.Player
 import com.bxane.nuvx.BuildConfig
 import com.bxane.nuvx.auth.AuthStore
@@ -395,7 +392,7 @@ object AppSettings {
             likedTitle = context.getString(com.bxane.nuvx.R.string.auto_liked),
         )
         readAll()
-        watchConnection(context)
+        MeteredConnectionObserver.watch(context, meteredConnection)
     }
 
     fun reload() {
@@ -629,28 +626,6 @@ object AppSettings {
     private fun readDownloadQuality(): DownloadQuality {
         val stored = prefs.getString(KEY_QUALITY_DOWNLOAD, null) ?: return DownloadQuality.LOSSLESS
         return runCatching { DownloadQuality.valueOf(stored) }.getOrDefault(DownloadQuality.LOSSLESS)
-    }
-
-    private fun watchConnection(context: Context) {
-        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return
-        val refresh = {
-            meteredConnection.value = runCatching {
-                if (manager.activeNetwork == null) null else manager.isActiveNetworkMetered
-            }.getOrNull()
-        }
-        refresh()
-        runCatching {
-            manager.registerDefaultNetworkCallback(
-                object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) = refresh()
-                    override fun onLost(network: Network) = refresh()
-                    override fun onCapabilitiesChanged(
-                        network: Network,
-                        capabilities: NetworkCapabilities,
-                    ) = refresh()
-                },
-            )
-        }
     }
 
     fun setAutoplay(value: Boolean) {
