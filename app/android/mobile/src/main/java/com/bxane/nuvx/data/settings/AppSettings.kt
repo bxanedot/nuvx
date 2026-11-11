@@ -103,6 +103,7 @@ object AppSettings {
     private val audioOutputSettings = AudioOutputSettingsController()
     private val equalizerSettings = EqualizerSettingsController()
     private val transitionSettings = PlaybackTransitionSettingsController()
+    private val appearanceSettings = AppearanceSettingsController()
 
     val audioQualityWifi = audioQualitySettings.audioQualityWifi
     val audioQualityCellular = audioQualitySettings.audioQualityCellular
@@ -165,8 +166,8 @@ object AppSettings {
     val equalizerPreset = equalizerSettings.preset
 
     val playbackSpeed = MutableStateFlow(1.0f)
-    val themeMode = MutableStateFlow(ThemeMode.LIGHT)
-    val appFont = MutableStateFlow(AppFont.DEFAULT)
+    val themeMode = appearanceSettings.themeMode
+    val appFont = appearanceSettings.appFont
 
     val autoplay = MutableStateFlow(true)
 
@@ -178,7 +179,7 @@ object AppSettings {
 
     val showListenTogetherButton = MutableStateFlow(true)
 
-    val reduceAnimation = MutableStateFlow(false)
+    val reduceAnimation = appearanceSettings.reduceAnimation
 
     val onboardingComplete = MutableStateFlow(false)
 
@@ -200,9 +201,9 @@ object AppSettings {
 
     val diwaliGreetingShown = MutableStateFlow(false)
 
-    val highPerformanceMode = MutableStateFlow(false)
+    val highPerformanceMode = appearanceSettings.highPerformanceMode
 
-    val performanceRefreshRate = MutableStateFlow(DEFAULT_PERFORMANCE_REFRESH_RATE)
+    val performanceRefreshRate = appearanceSettings.performanceRefreshRate
 
     val stopOnTaskRemoved = MutableStateFlow(false)
 
@@ -230,17 +231,17 @@ object AppSettings {
 
     val squareVideoThumbnails = homeFeedSettings.squareVideoThumbnails
 
-    val smartVersionAlignment = MutableStateFlow(true)
+    val smartVersionAlignment = appearanceSettings.smartVersionAlignment
 
-    val reduceDynamicBlur = MutableStateFlow(false)
+    val reduceDynamicBlur = appearanceSettings.reduceDynamicBlur
 
-    val disableBlendEffects = MutableStateFlow(false)
+    val disableBlendEffects = appearanceSettings.disableBlendEffects
 
-    val liquidGlass = MutableStateFlow(true)
+    val liquidGlass = appearanceSettings.liquidGlass
 
-    val glassPerformance = MutableStateFlow(true)
+    val glassPerformance = appearanceSettings.glassPerformance
 
-    val progressiveBlur = MutableStateFlow(false)
+    val progressiveBlur = appearanceSettings.progressiveBlur
 
     val lyricsBlur = lyricsSettings.lyricsBlur
 
@@ -400,6 +401,7 @@ object AppSettings {
         audioOutputSettings.initialize(prefs)
         equalizerSettings.initialize(prefs)
         transitionSettings.initialize(prefs)
+        appearanceSettings.initialize(prefs)
         remoteStorageSettings.initialize(prefs, authStore)
         com.bxane.nuvx.data.spotify.LocalPlaylistStore.init(context)
         com.bxane.nuvx.data.OfflinePlaylists.init(
@@ -426,18 +428,13 @@ object AppSettings {
         audioOutputSettings.read()
         equalizerSettings.read()
         playbackSpeed.value = prefs.getFloat(KEY_SPEED, 1.0f)
-        themeMode.value = runCatching {
-            ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: "LIGHT")
-        }.getOrDefault(ThemeMode.LIGHT)
-        appFont.value = runCatching {
-            AppFont.valueOf(prefs.getString(KEY_APP_FONT, null) ?: AppFont.DEFAULT.name)
-        }.getOrDefault(AppFont.DEFAULT)
+        appearanceSettings.readThemeAndFont()
         autoplay.value = prefs.getBoolean(KEY_AUTOPLAY, true)
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
         showNerdStats.value = prefs.getBoolean(KEY_NERD_STATS, false)
         showListenTogetherButton.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_BUTTON, true)
-        reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, false)
+        appearanceSettings.readReduceAnimation()
         onboardingComplete.value = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false)
         diwaliGreetingShown.value = prefs.getBoolean(KEY_DIWALI_GREETING_SHOWN, false)
         hideRadioTab.value = prefs.getBoolean(KEY_HIDE_RADIO_TAB, false)
@@ -448,10 +445,7 @@ object AppSettings {
         hidePodcastsTab.value = prefs.getBoolean(KEY_HIDE_PODCASTS_TAB, false)
         podcastsIntroShown.value = prefs.getBoolean(KEY_PODCASTS_INTRO_SHOWN, false)
         supportPromptsOff.value = prefs.getBoolean(KEY_SUPPORT_PROMPTS_OFF, false)
-        highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-        performanceRefreshRate.value = normalizePerformanceRefreshRate(
-            prefs.getInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE),
-        )
+        appearanceSettings.readPerformanceMode()
         stopOnTaskRemoved.value = prefs.getBoolean(KEY_STOP_ON_TASK_REMOVED, false)
         hideVolumeBar.value = prefs.getBoolean(KEY_HIDE_VOLUME_BAR, false)
         hideStatusBarInPlayer.value = prefs.getBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, false)
@@ -461,17 +455,9 @@ object AppSettings {
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         homeFeedSettings.read()
-        smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
-        reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
-        disableBlendEffects.value = prefs.getBoolean(KEY_DISABLE_BLEND_EFFECTS, false)
-        liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, true)
-        glassPerformance.value = prefs.getBoolean(KEY_GLASS_PERFORMANCE, true)
-        progressiveBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_BLUR, false)
+        appearanceSettings.readVisualEffects()
         lyricsSettings.readPresentationPreferences()
-        if (highPerformanceMode.value) {
-            reduceAnimation.value = false
-            reduceDynamicBlur.value = false
-        }
+        appearanceSettings.applyPerformanceModeOverrides()
         playerPresentationSettings.read()
         lyricsSettings.readProviderPreferences()
         audioCacheSettings.read()
@@ -563,23 +549,11 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_LISTEN_TOGETHER_BUTTON, value).apply()
     }
 
-    fun setThemeMode(value: ThemeMode) {
-        themeMode.value = value
-        prefs.edit().putString(KEY_THEME, value.name).apply()
-    }
+    fun setThemeMode(value: ThemeMode) = appearanceSettings.setThemeMode(value)
 
-    fun setAppFont(value: AppFont) {
-        appFont.value = value
-        prefs.edit().putString(KEY_APP_FONT, value.name).apply()
-    }
+    fun setAppFont(value: AppFont) = appearanceSettings.setAppFont(value)
 
-    fun setReduceAnimation(value: Boolean) {
-        reduceAnimation.value = value
-        if (value) highPerformanceMode.value = false
-        val editor = prefs.edit().putBoolean(KEY_REDUCE_ANIMATION, value)
-        if (value) editor.putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-        editor.apply()
-    }
+    fun setReduceAnimation(value: Boolean) = appearanceSettings.setReduceAnimation(value)
 
     fun setOnboardingComplete() {
         onboardingComplete.value = true
@@ -688,58 +662,21 @@ object AppSettings {
 
     fun setSquareVideoThumbnails(value: Boolean) = homeFeedSettings.setSquareVideoThumbnails(value)
 
-    fun setSmartVersionAlignment(value: Boolean) {
-        smartVersionAlignment.value = value
-        prefs.edit().putBoolean(KEY_SMART_VERSION_ALIGNMENT, value).apply()
-    }
+    fun setSmartVersionAlignment(value: Boolean) = appearanceSettings.setSmartVersionAlignment(value)
 
-    fun setDisableBlendEffects(value: Boolean) {
-        disableBlendEffects.value = value
-        prefs.edit().putBoolean(KEY_DISABLE_BLEND_EFFECTS, value).apply()
-    }
+    fun setDisableBlendEffects(value: Boolean) = appearanceSettings.setDisableBlendEffects(value)
 
-    fun setReduceDynamicBlur(value: Boolean) {
-        reduceDynamicBlur.value = value
-        if (value) highPerformanceMode.value = false
-        val editor = prefs.edit().putBoolean(KEY_REDUCE_BLUR, value)
-        if (value) editor.putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-        editor.apply()
-    }
+    fun setReduceDynamicBlur(value: Boolean) = appearanceSettings.setReduceDynamicBlur(value)
 
-    fun setLiquidGlass(value: Boolean) {
-        liquidGlass.value = value
-        prefs.edit().putBoolean(KEY_LIQUID_GLASS, value).apply()
-    }
+    fun setLiquidGlass(value: Boolean) = appearanceSettings.setLiquidGlass(value)
 
-    fun setGlassPerformance(value: Boolean) {
-        glassPerformance.value = value
-        prefs.edit().putBoolean(KEY_GLASS_PERFORMANCE, value).apply()
-    }
+    fun setGlassPerformance(value: Boolean) = appearanceSettings.setGlassPerformance(value)
 
-    fun setProgressiveBlur(value: Boolean) {
-        progressiveBlur.value = value
-        prefs.edit().putBoolean(KEY_PROGRESSIVE_BLUR, value).apply()
-    }
+    fun setProgressiveBlur(value: Boolean) = appearanceSettings.setProgressiveBlur(value)
 
-    fun setHighPerformanceMode(value: Boolean) {
-        highPerformanceMode.value = value
-        if (value) {
-            reduceAnimation.value = false
-            reduceDynamicBlur.value = false
-        }
-        val editor = prefs.edit().putBoolean(KEY_HIGH_PERFORMANCE_MODE, value)
-        if (value) {
-            editor.putBoolean(KEY_REDUCE_ANIMATION, false)
-            editor.putBoolean(KEY_REDUCE_BLUR, false)
-        }
-        editor.apply()
-    }
+    fun setHighPerformanceMode(value: Boolean) = appearanceSettings.setHighPerformanceMode(value)
 
-    fun setPerformanceRefreshRate(value: Int) {
-        val normalized = normalizePerformanceRefreshRate(value)
-        performanceRefreshRate.value = normalized
-        prefs.edit().putInt(KEY_PERFORMANCE_REFRESH_RATE, normalized).apply()
-    }
+    fun setPerformanceRefreshRate(value: Int) = appearanceSettings.setPerformanceRefreshRate(value)
 
     fun setLyricsBlur(value: Boolean) = lyricsSettings.setLyricsBlur(value)
 
@@ -974,22 +911,14 @@ object AppSettings {
     const val MIN_UPGRADE_LENGTH_SLACK_SECONDS = 0
     const val MAX_UPGRADE_LENGTH_SLACK_SECONDS = 10
 
-    private const val DEFAULT_PERFORMANCE_REFRESH_RATE = 120
-
-    private fun normalizePerformanceRefreshRate(value: Int): Int =
-        value.takeIf { it in 50..240 } ?: DEFAULT_PERFORMANCE_REFRESH_RATE
-
     fun normalizeSignatureApiUrl(raw: String): String = playerPresentationSettings.normalizeSignatureApiUrl(raw)
 
     private const val KEY_SPEED = "playback_speed"
-    private const val KEY_THEME = "theme_mode"
-    private const val KEY_APP_FONT = "app_font"
     private const val KEY_AUTOPLAY = "autoplay"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"
     private const val KEY_NERD_STATS = "show_nerd_stats"
     private const val KEY_LISTEN_TOGETHER_BUTTON = "show_listen_together_button"
-    private const val KEY_REDUCE_ANIMATION = "reduce_animation"
     private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     private const val KEY_DIWALI_GREETING_SHOWN = "diwali_greeting_2026_shown"
     private const val KEY_HIDE_RADIO_TAB = "hide_radio_tab"
@@ -1001,8 +930,6 @@ object AppSettings {
     private const val KEY_PODCASTS_INTRO_SHOWN = "podcasts_intro_shown"
     private const val KEY_SUPPORT_PROMPTS_OFF = "support_prompts_off"
     private const val KEY_LAUNCHES = "launch_count"
-    private const val KEY_HIGH_PERFORMANCE_MODE = "high_performance_mode"
-    private const val KEY_PERFORMANCE_REFRESH_RATE = "performance_refresh_rate"
     private const val KEY_STOP_ON_TASK_REMOVED = "stop_on_task_removed"
     private const val KEY_HIDE_VOLUME_BAR = "hide_volume_bar"
     private const val KEY_HIDE_STATUS_BAR_IN_PLAYER = "hide_status_bar_in_player"
@@ -1011,12 +938,6 @@ object AppSettings {
     private const val KEY_SWIPE_TO_PLAY_NEXT = "swipe_to_play_next"
     private const val KEY_DONT_REPEAT_SUGGESTIONS = "dont_repeat_suggestions"
     private const val KEY_PREFER_MUSIC_ONLY = "prefer_music_only"
-    private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"
-    private const val KEY_REDUCE_BLUR = "reduce_dynamic_blur"
-    private const val KEY_DISABLE_BLEND_EFFECTS = "disable_blend_effects"
-    private const val KEY_LIQUID_GLASS = "liquid_glass"
-    private const val KEY_GLASS_PERFORMANCE = "glass_performance"
-    private const val KEY_PROGRESSIVE_BLUR = "progressive_blur"
     private const val KEY_REPLAY_GENRES = "replay_genres"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
 
