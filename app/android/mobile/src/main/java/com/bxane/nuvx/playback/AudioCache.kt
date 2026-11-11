@@ -33,7 +33,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -261,6 +260,12 @@ object AudioCache {
         cacheKeyBaseOf = ::cacheKeyBaseOf,
     )
 
+    private val copyController = AudioCacheCopyController(
+        cacheProvider = { cache },
+        cacheInitialized = { ::cache.isInitialized },
+        keysOf = metadataController::keysOf,
+        isComplete = ::isComplete,
+    )
     val contentsChanged: StateFlow<Int> = metadataController.contentsChanged
 
     fun noteSongs(songs: List<Song>) = metadataController.noteSongs(songs)
@@ -298,67 +303,13 @@ object AudioCache {
         val mimeType: String,
     )
 
-    fun completeCopyOf(mediaId: String): CompleteCopy? {
-        if (!::cache.isInitialized || mediaId.isBlank()) return null
-        return metadataController.keysOf(mediaId)
-            .filterNot { it.endsWith("#watch") }
-            .filterNot { key ->
-                runCatching { cache.getContentMetadata(key).get(AudioCacheMetadataKeys.META_ORIGIN, null as String?) }
-                    .getOrNull() == Origin.OTHER.name
-            }
-            .mapNotNull { key ->
-                val length = runCatching { ContentMetadata.getContentLength(cache.getContentMetadata(key)) }
-                    .getOrDefault(C.LENGTH_UNSET.toLong())
-                if (length <= 0 || !cache.isCached(key, 0, length)) return@mapNotNull null
-                val (extension, mime) = containerOf(key) ?: return@mapNotNull null
-                CompleteCopy(key, length, extension, mime)
-            }
-            .maxByOrNull { it.length }
-    }
-
-    private fun containerOf(key: String): Pair<String, String>? {
-        val head = cache.getCachedSpans(key)
-            .firstOrNull { it.position == 0L && it.isCached }
-            ?.file
-            ?.takeIf { it.exists() }
-            ?: return null
-        val magic = ByteArray(CONTAINER_MAGIC_BYTES)
-        val read = runCatching { head.inputStream().use { it.read(magic) } }.getOrDefault(-1)
-        if (read < magic.size) return null
-        return cachedContainerOf(magic)
-    }
+    fun completeCopyOf(mediaId: String): CompleteCopy? = copyController.completeCopyOf(mediaId)
 
     suspend fun copyOut(
         copy: CompleteCopy,
         sink: java.io.OutputStream,
         onProgress: (written: Long, total: Long) -> Unit,
-    ) = withContext(Dispatchers.IO) {
-        val source = CacheDataSource.Factory().setCache(cache).createDataSource()
-        val spec = DataSpec.Builder()
-            .setUri(Uri.parse("nuvx://cache"))
-            .setKey(copy.key)
-            .setPosition(0)
-            .setLength(copy.length)
-            .build()
-        try {
-            source.open(spec)
-            val buffer = ByteArray(COPY_BUFFER_BYTES)
-            var written = 0L
-            while (written < copy.length) {
-                ensureActive()
-                val read = source.read(buffer, 0, buffer.size)
-                if (read == C.RESULT_END_OF_INPUT) break
-                sink.write(buffer, 0, read)
-                written += read
-                onProgress(written, copy.length)
-            }
-            if (written < copy.length) {
-                throw IOException("cached copy ended at $written of ${copy.length} bytes")
-            }
-        } finally {
-            source.close()
-        }
-    }
+    ) = copyController.copyOut(copy, sink, onProgress)
 
     fun dropForeignEntries(keep: Set<String>, keepAnalysis: Boolean = false) {
         if (!::cache.isInitialized) return
@@ -389,13 +340,10 @@ object AudioCache {
         }
     }
 
-    private fun keepsAddonCopy(key: String): Boolean =
-        !key.contains("#hifi") && isComplete(key) && containerOf(key) != null
+    private fun keepsAddonCopy(key: String): Boolean = copyController.keepsAddonCopy(key)
 
     private fun cacheKeyBaseOf(mediaId: String): String =
         SourceRegistry.parseTrackKey(mediaId)?.let { (source, track) -> "$source|$track" } ?: mediaId
-
-    private const val COPY_BUFFER_BYTES = 64 * 1024
 
     private const val CACHE_DIR_NAME = "audio_cache"
     private const val LEGACY_CACHE_DIR_NAME = "audio"
