@@ -37,11 +37,10 @@ import com.bxane.nuvx.PodcastsSymbol
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.ui.components.IosSwitch
+import com.bxane.nuvx.ui.components.TabSymbolIcon
 import com.bxane.nuvx.ui.components.TAB_SYMBOL_SIZE
 import com.bxane.nuvx.ui.icons.SfIcons
 import com.composables.sfsymbols.SfSymbol
-import com.composables.sfsymbols.SfSymbolIcon
-import com.composables.sfsymbols.SfWeight
 
 internal fun hidePodcastsTabSymbol(): SfSymbol = PodcastsSymbol
 
@@ -49,10 +48,9 @@ internal fun hidePodcastsTabGlyphSize(): Dp = TAB_SYMBOL_SIZE
 
 @Composable
 private fun HidePodcastsTabIcon() {
-    SfSymbolIcon(
+    TabSymbolIcon(
         symbol = hidePodcastsTabSymbol(),
         size = hidePodcastsTabGlyphSize(),
-        weight = SfWeight.Semibold,
         tint = MaterialTheme.colorScheme.onBackground,
         contentDescription = null,
     )
