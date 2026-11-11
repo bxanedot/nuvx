@@ -105,7 +105,6 @@ import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.model.isUnresolvedSpotify
 import com.bxane.nuvx.data.scrobbling.LastFM
-import com.bxane.nuvx.data.scrobbling.ListenBrainzManager
 import com.bxane.nuvx.data.scrobbling.ScrobbleManager
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.AudioQuality
@@ -243,14 +242,9 @@ class PlaybackService : MediaLibraryService() {
     private var trackSelectedAt: Long? = null
 
     private var scrobbleManager: ScrobbleManager? = null
-    private var listenBrainzSong: Song? = null
-
-    private var listenBrainzStartMs: Long = 0L
-
-    private var listenBrainzDurationMs: Long? = null
-
-
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val listenBrainz = PlaybackListenBrainzController(scope) { player }
 
     private val discordPresence = PlaybackDiscordPresenceController(
         context = this,
@@ -414,14 +408,7 @@ class PlaybackService : MediaLibraryService() {
             if (!isPlaying) ListeningRecorder.onStopped()
 
             if (isPlaying && song != null) {
-                if (listenBrainzSong?.videoId != song.videoId || listenBrainzStartMs == 0L) {
-                    listenBrainzSong = song
-                    listenBrainzStartMs = System.currentTimeMillis()
-                    listenBrainzDurationMs = durationMs
-                } else if (listenBrainzDurationMs == null) {
-                    listenBrainzDurationMs = durationMs
-                }
-                submitListenBrainzPlayingNow(song, exoPlayer.currentPosition, durationMs)
+                listenBrainz.onIsPlayingChanged(song, exoPlayer.currentPosition, durationMs)
             }
 
             if (isPlaying) {
@@ -496,16 +483,7 @@ class PlaybackService : MediaLibraryService() {
                 SleepTimer.cancel()
                 PlaybackTracker.onPlaybackFinished(lastPositionSeconds)
                 lastPositionSeconds = 0
-                val lastSong = listenBrainzSong
-                if (lastSong != null && listenBrainzStartMs > 0L) {
-                    val lastStart = listenBrainzStartMs
-                    val lastDuration = listenBrainzDurationMs
-                        ?: exoPlayer.duration.takeIf { it > 0 }
-                    submitListenBrainzFinished(lastSong, lastStart, lastDuration)
-                }
-                listenBrainzSong = null
-                listenBrainzStartMs = 0L
-                listenBrainzDurationMs = null
+                listenBrainz.onPlaybackEnded(exoPlayer)
                 refreshAutoplayIfQueueEmpty()
             }
         }
@@ -1895,17 +1873,7 @@ class PlaybackService : MediaLibraryService() {
         }
 
         val ended = previousEnded
-        val prevSong = listenBrainzSong
-        val prevStart = listenBrainzStartMs
-        if (prevSong != null && ended && prevStart > 0L) {
-            submitListenBrainzFinished(prevSong, prevStart, listenBrainzDurationMs)
-        }
-        listenBrainzSong = newSong
-        listenBrainzStartMs = if (exoPlayer.isPlaying) System.currentTimeMillis() else 0L
-        listenBrainzDurationMs = durationMs
-        if (newSong != null && exoPlayer.isPlaying) {
-            submitListenBrainzPlayingNow(newSong, 0L, durationMs)
-        }
+        listenBrainz.onTrackChanged(newSong, exoPlayer.isPlaying, durationMs, ended)
 
         NerdStats.current.value = null
 
@@ -2883,25 +2851,6 @@ class PlaybackService : MediaLibraryService() {
 
     private fun clearDiscordPresence() = discordPresence.clear()
 
-    private fun submitListenBrainzFinished(song: Song, startMs: Long, durationMs: Long?) {
-        val lbEnabled = AppSettings.scrobblingAvailable && AppSettings.listenBrainzEnabled.value
-        val lbToken = AppSettings.listenBrainzToken.value
-        if (!lbEnabled || lbToken.isBlank()) return
-        val endMs = System.currentTimeMillis()
-        scope.launch {
-            ListenBrainzManager.submitFinished(lbToken, song, startMs, endMs, durationMs, AppSettings.listenBrainzPrimaryArtistOnly.value)
-        }
-    }
-
-    private fun submitListenBrainzPlayingNow(song: Song, positionMs: Long, durationMs: Long?) {
-        val lbEnabled = AppSettings.scrobblingAvailable && AppSettings.listenBrainzEnabled.value
-        val lbToken = AppSettings.listenBrainzToken.value
-        if (!lbEnabled || lbToken.isBlank()) return
-        scope.launch {
-            ListenBrainzManager.submitPlayingNow(lbToken, song, positionMs, durationMs, AppSettings.listenBrainzPrimaryArtistOnly.value)
-        }
-    }
-
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
         mediaSession
 
@@ -2936,22 +2885,7 @@ class PlaybackService : MediaLibraryService() {
         PlaybackTracker.onPlaybackFinished(
             player?.currentPosition?.div(1000) ?: lastPositionSeconds,
         )
-        val lastSong = listenBrainzSong
-        if (lastSong != null && listenBrainzStartMs > 0L) {
-            val lbEnabled =
-                AppSettings.scrobblingAvailable && AppSettings.listenBrainzEnabled.value
-            val lbToken = AppSettings.listenBrainzToken.value
-            if (lbEnabled && lbToken.isNotBlank()) {
-                val lastStart = listenBrainzStartMs
-                val lastDuration = player?.duration?.takeIf { it > 0 }
-                CoroutineScope(Dispatchers.IO).launch {
-                    ListenBrainzManager.submitFinished(
-                        lbToken, lastSong, lastStart, System.currentTimeMillis(), lastDuration,
-                        AppSettings.listenBrainzPrimaryArtistOnly.value,
-                    )
-                }
-            }
-        }
+        listenBrainz.release()
         scrobbleManager?.destroy()
         scrobbleManager = null
         ListeningRecorder.onStopped()
