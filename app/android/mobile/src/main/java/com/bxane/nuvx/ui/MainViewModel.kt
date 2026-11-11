@@ -328,6 +328,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _playlistOwned.value = _playlistOwned.value + (browseId to owned)
     }
 
+    private val libraryHistory = MainLibraryHistoryController(
+        scope = viewModelScope,
+        isSignedIn = { _signedIn.value },
+        listenerKey = ::listenerKey,
+        text = ::text,
+        friendly = { it.friendly() },
+        _library = _library,
+        _history = _history,
+    )
 
     private fun requireSignIn(): Boolean = _signedIn.value
 
@@ -471,15 +480,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadMoreHome() = homeFeed.loadMoreHome()
 
-    private val libraryHistory = MainLibraryHistoryController(
-        scope = viewModelScope,
-        isSignedIn = { _signedIn.value },
-        listenerKey = ::listenerKey,
-        text = ::text,
-        friendly = { it.friendly() },
-        _library = _library,
-        _history = _history,
-    )
     fun loadLibrary() = libraryHistory.loadLibrary()
 
     private suspend fun fetchLibrary(identity: String?) = libraryHistory.fetchLibrary(identity)
