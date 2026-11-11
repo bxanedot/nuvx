@@ -6,10 +6,12 @@ import androidx.media3.session.MediaController
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import com.bxane.nuvx.R
+import com.bxane.nuvx.data.TopPicks
 import com.bxane.nuvx.data.listentogether.ListenTogether
 import com.bxane.nuvx.data.listentogether.partyQueueIndexOf
 import com.bxane.nuvx.data.model.PlaybackSourceType
 import com.bxane.nuvx.data.model.Song
+import com.bxane.nuvx.data.model.TopPick
 import com.bxane.nuvx.data.model.isUnresolvedSpotify
 import com.bxane.nuvx.playback.BoundedQueuePlanner
 import com.bxane.nuvx.playback.QueueCoordinator
@@ -167,6 +169,34 @@ internal class MainPlaybackStarter(
                     context.getString(R.string.radio_started, song.title),
                     Toast.LENGTH_SHORT,
                 ).show()
+            }
+        }
+    }
+
+    fun playTopPick(pick: TopPick, label: String) {
+        if (controller() != null && !refusedByHost()) {
+            val request = ++playRequestGeneration.intValue
+            scope.launch {
+                val songs = TopPicks.queue(pick).getOrNull().orEmpty()
+                if (request != playRequestGeneration.intValue) return@launch
+                val activeController = controller() ?: return@launch
+                if (songs.isEmpty()) {
+                    Toast.makeText(context, R.string.couldnt_load_tracks, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val sourceId = pick.watch?.playlistId ?: pick.mood?.name
+                val station = songs.map {
+                    it.copy(
+                        radioName = label,
+                        playbackSource = label,
+                        playbackSourceType = PlaybackSourceType.HOME,
+                        playbackSourceId = sourceId,
+                    )
+                }
+                activeRadioSeed.value = null
+                activeController.beginRadioQueue()
+                activeController.playSongs(station, 0)
+                activeController.commitRadioQueue()
             }
         }
     }
