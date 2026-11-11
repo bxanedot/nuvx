@@ -982,30 +982,8 @@ internal fun NuvxApp(
                 subtitle = pick.artistName.orEmpty(),
                 thumbnailUrl = pick.images.firstOrNull(),
             )
-        } else if (controller != null && !refusedByHost()) {
-            val request = ++playRequestGeneration.intValue
-            scope.launch {
-                val songs = TopPicks.queue(pick).getOrNull().orEmpty()
-                if (request != playRequestGeneration.intValue) return@launch
-                val activeController = controller ?: return@launch
-                if (songs.isEmpty()) {
-                    Toast.makeText(context, R.string.couldnt_load_tracks, Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                val sourceId = pick.watch?.playlistId ?: pick.mood?.name
-                val station = songs.map {
-                    it.copy(
-                        radioName = label,
-                        playbackSource = label,
-                        playbackSourceType = PlaybackSourceType.HOME,
-                        playbackSourceId = sourceId,
-                    )
-                }
-                activeRadioSeed.value = null
-                activeController.beginRadioQueue()
-                activeController.playSongs(station, 0)
-                activeController.commitRadioQueue()
-            }
+        } else {
+            playbackStarter.playTopPick(pick, label)
         }
     }
     val playMood: (TopPickMood, String) -> Unit = { mood, title ->
