@@ -108,20 +108,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val topPicks: StateFlow<List<TopPick>?> = homeFeed.topPicks
     val topPicksLoading: StateFlow<Boolean> = homeFeed.topPicksLoading
 
-    private val _explore = MutableStateFlow<UiState<List<MoodGenreSection>>>(UiState.Loading)
-    val explore: StateFlow<UiState<List<MoodGenreSection>>> = _explore.asStateFlow()
-
-    private val _exploreShelves = MutableStateFlow<List<HomeShelf>>(emptyList())
-    val exploreShelves: StateFlow<List<HomeShelf>> = _exploreShelves.asStateFlow()
-
-    private val _selectedMoodGenre = MutableStateFlow<MoodGenre?>(null)
-    val selectedMoodGenre: StateFlow<MoodGenre?> = _selectedMoodGenre.asStateFlow()
-
-    private val _moodGenreShelves = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
-    val moodGenreShelves: StateFlow<UiState<List<HomeShelf>>> = _moodGenreShelves.asStateFlow()
-
-    private val _podcasts = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
-    val podcasts: StateFlow<UiState<List<HomeShelf>>> = _podcasts.asStateFlow()
+    private val exploreFeed = MainExploreController(
+        viewModelScope,
+        { text(it) },
+        { it.friendly() },
+    )
+    val explore: StateFlow<UiState<List<MoodGenreSection>>> = exploreFeed.explore
+    val exploreShelves: StateFlow<List<HomeShelf>> = exploreFeed.exploreShelves
+    val selectedMoodGenre: StateFlow<MoodGenre?> = exploreFeed.selectedMoodGenre
+    val moodGenreShelves: StateFlow<UiState<List<HomeShelf>>> = exploreFeed.moodGenreShelves
+    val podcasts: StateFlow<UiState<List<HomeShelf>>> = exploreFeed.podcasts
 
     private val search = MainSearch(
         scope = viewModelScope,
@@ -857,94 +853,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun loadExplore() {
-        exploreRequested = true
-        _explore.value = UiState.Loading
-        viewModelScope.launch { fetchExplore() }
-    }
+    fun loadExplore() = exploreFeed.loadExplore()
 
-    private var exploreRequested = false
+    private suspend fun fetchExplore() = exploreFeed.fetchExplore()
 
-    fun onExploreShown() {
-        if (!exploreRequested) loadExplore()
-    }
+    fun onExploreShown() = exploreFeed.onExploreShown()
 
-    private suspend fun fetchExplore() {
-        viewModelScope.launch {
-            YtMusicRepository.homeSupplement(EXPLORE_BROWSE_ID).onSuccess { _exploreShelves.value = it }
-        }
-        val state = YtMusicRepository.moodAndGenres().fold(
-            onSuccess = { sections ->
-                if (sections.isEmpty()) {
-                    UiState.Error(text(R.string.nothing_to_explore))
-                } else {
-                    UiState.Success(sections)
-                }
-            },
-            onFailure = { UiState.Error(it.friendly()) },
-        )
-        _explore.value = state
-        (state as? UiState.Success)?.data?.let(::loadMoodGenreArtwork)
-    }
+    fun openMoodGenre(item: MoodGenre) = exploreFeed.openMoodGenre(item)
 
-    private fun loadMoodGenreArtwork(sections: List<MoodGenreSection>) {
-        viewModelScope.launch {
-            val limiter = Semaphore(4)
-            coroutineScope {
-                sections.flatMap(MoodGenreSection::items).forEach { item ->
-                    launch {
-                        val artwork = limiter.withPermit {
-                            YtMusicRepository.moodGenreArtwork(item.browseId, item.params).getOrNull()
-                        } ?: return@launch
-                        val current = (_explore.value as? UiState.Success)?.data ?: return@launch
-                        _explore.value = UiState.Success(current.map { section ->
-                            section.copy(items = section.items.map { currentItem ->
-                                if (currentItem.browseId == item.browseId && currentItem.params == item.params) {
-                                    currentItem.copy(thumbnailUrl = artwork)
-                                } else {
-                                    currentItem
-                                }
-                            })
-                        })
-                    }
-                }
-            }
-        }
-    }
+    fun loadPodcasts(force: Boolean = false) = exploreFeed.loadPodcasts(force)
 
-    fun openMoodGenre(item: MoodGenre) {
-        _selectedMoodGenre.value = item
-        _moodGenreShelves.value = UiState.Loading
-        viewModelScope.launch {
-            _moodGenreShelves.value = YtMusicRepository.moodGenreShelves(item.browseId, item.params).fold(
-                onSuccess = { shelves ->
-                    if (shelves.isEmpty()) UiState.Error(text(R.string.nothing_to_explore))
-                    else UiState.Success(shelves)
-                },
-                onFailure = { UiState.Error(it.friendly()) },
-            )
-        }
-    }
-
-    fun loadPodcasts(force: Boolean = false) {
-        if (!force && _podcasts.value is UiState.Success) return
-        _podcasts.value = UiState.Loading
-        viewModelScope.launch {
-            _podcasts.value = YtMusicRepository.podcasts().fold(
-                onSuccess = { shelves ->
-                    if (shelves.isEmpty()) UiState.Error(text(R.string.nothing_to_explore))
-                    else UiState.Success(shelves)
-                },
-                onFailure = { UiState.Error(it.friendly()) },
-            )
-        }
-    }
-
-    fun closeMoodGenre(): Boolean {
-        if (_selectedMoodGenre.value == null) return false
-        _selectedMoodGenre.value = null
-        return true
-    }
+    fun closeMoodGenre(): Boolean = exploreFeed.closeMoodGenre()
 
     fun clearDetail() {
         if (_detailStack.value.isNotEmpty()) _detailStack.value = emptyList()
@@ -1820,5 +1739,3 @@ internal fun lyricsLookupKey(
     order: List<LyricsSource>,
     prioritizeSyllableSync: Boolean,
 ): List<Any> = listOf(videoId, sources, order, prioritizeSyllableSync)
-
-private const val EXPLORE_BROWSE_ID = "FEmusic_explore"
