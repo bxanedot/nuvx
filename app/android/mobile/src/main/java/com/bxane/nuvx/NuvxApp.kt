@@ -159,12 +159,11 @@ import com.bxane.nuvx.playback.LinkRequest
 import com.bxane.nuvx.playback.MusicLink
 import com.bxane.nuvx.playback.OriginalVersion
 import com.bxane.nuvx.playback.PlayerDeepLink
+import com.bxane.nuvx.playback.PlaybackQueueActions
 import com.bxane.nuvx.playback.QueueCoordinator
-import com.bxane.nuvx.playback.QueueCoordinator.asQueueEntry
 import com.bxane.nuvx.playback.QueueShuffle
 import com.bxane.nuvx.playback.QueueSource
 import com.bxane.nuvx.playback.cast.CastController
-import com.bxane.nuvx.data.model.QueueTier
 import com.bxane.nuvx.playback.autoplayEnabledFor
 import com.bxane.nuvx.playback.beginRadioQueue
 import com.bxane.nuvx.playback.commitRadioQueue
@@ -1069,6 +1068,16 @@ internal fun NuvxApp(
         )
         playFrom(songs, index, source)
     }
+    val playbackQueueActions = PlaybackQueueActions(
+        scope = scope,
+        context = context,
+        mediaController = { controller },
+        currentQueue = { player.queue },
+        queueLabel = queueLabel,
+        refusedByHost = refusedByHost,
+        showQueueNotice = showQueueNotice,
+        play = { songs, index -> play(songs, index) },
+    )
     LaunchedEffect(player.song?.videoId) {
         if (optimisticVersionSong?.videoId == player.song?.videoId ||
             (optimisticVersionSong != null && player.song?.videoId != convertedAudioId && player.song?.videoId != convertedVideoId && player.song?.videoId != keepVideoId)
@@ -1213,69 +1222,9 @@ internal fun NuvxApp(
             title,
         )
     }
-    val addToQueue: (Song) -> Unit = { song ->
-        scope.launch {
-            if (refusedByHost()) return@launch
-            controller?.let {
-                if (ListenTogether.state.value.inParty) {
-                    val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
-                    if (upcoming >= 25) {
-                        showQueueNotice(context.getString(R.string.party_queue_full, 25))
-                        return@launch
-                    }
-                }
-                val current = it.currentMediaItem?.toSong()
-                val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
-                    ?: (0 until it.mediaItemCount).map { idx -> it.getMediaItemAt(idx).toSong() }
-                val at = QueueCoordinator.findUserQueueInsertionIndex(
-                    timeline = timeline,
-                    currentIndex = it.currentMediaItemIndex,
-                    isNext = false,
-                )
-                val queued = song.copy(
-                    radioName = current?.radioName,
-                    playbackSource = current?.playbackSource ?: queueLabel,
-                    playbackSourceType = current?.playbackSourceType ?: PlaybackSourceType.QUEUE,
-                    playbackSourceId = current?.playbackSourceId,
-                ).asQueueEntry(QueueTier.USER_QUEUE)
-                it.addMediaItem(at, queued.toMediaItem())
-                showQueueNotice(context.getString(R.string.song_added_to_queue))
-            }
-        }
-    }
-    val playNext: (Song) -> Unit = { song ->
-        scope.launch {
-            if (refusedByHost()) return@launch
-            controller?.let {
-                if (ListenTogether.state.value.inParty) {
-                    val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
-                    if (upcoming >= 25) {
-                        showQueueNotice(context.getString(R.string.party_queue_full, 25))
-                        return@launch
-                    }
-                }
-                val current = it.currentMediaItem?.toSong()
-                val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
-                    ?: (0 until it.mediaItemCount).map { idx -> it.getMediaItemAt(idx).toSong() }
-                val at = QueueCoordinator.findUserQueueInsertionIndex(
-                    timeline = timeline,
-                    currentIndex = it.currentMediaItemIndex,
-                    isNext = true,
-                )
-                val queued = song.copy(
-                    radioName = current?.radioName,
-                    playbackSource = current?.playbackSource ?: queueLabel,
-                    playbackSourceType = current?.playbackSourceType ?: PlaybackSourceType.QUEUE,
-                    playbackSourceId = current?.playbackSourceId,
-                ).asQueueEntry(QueueTier.USER_QUEUE)
-                it.addMediaItem(at, queued.toMediaItem())
-                showQueueNotice(context.getString(R.string.song_will_play_next))
-            }
-        }
-    }
-    val onSongSwipe: (Song) -> Unit = { song ->
-        if (AppSettings.swipeToPlayNext.value) playNext(song) else addToQueue(song)
-    }
+    val addToQueue: (Song) -> Unit = playbackQueueActions::addToQueue
+    val playNext: (Song) -> Unit = playbackQueueActions::playNext
+    val onSongSwipe: (Song) -> Unit = playbackQueueActions::onSongSwipe
 
     fun openByName(
         browseId: String?,
@@ -1320,57 +1269,8 @@ internal fun NuvxApp(
         }
     }
 
-    val queueSongs: (List<Song>, Boolean) -> Unit = { songs, next ->
-        if (songs.isNotEmpty()) {
-            scope.launch {
-                if (refusedByHost()) return@launch
-                val c = controller
-                if (c == null || c.mediaItemCount == 0) {
-                    play(songs, 0)
-                } else {
-                    val toAdd = if (ListenTogether.state.value.inParty) {
-                        val upcoming = (c.mediaItemCount - (c.currentMediaItemIndex + 1)).coerceAtLeast(0)
-                        val slotsLeft = (25 - upcoming).coerceAtLeast(0)
-                        if (slotsLeft <= 0) {
-                            showQueueNotice(context.getString(R.string.party_queue_full, 25))
-                            return@launch
-                        }
-                        songs.take(slotsLeft)
-                    } else {
-                        songs
-                    }
-                    val timeline = player.queue.takeIf { q -> q.size == c.mediaItemCount }
-                        ?: (0 until c.mediaItemCount).map { idx -> c.getMediaItemAt(idx).toSong() }
-                    val at = QueueCoordinator.findUserQueueInsertionIndex(
-                        timeline = timeline,
-                        currentIndex = c.currentMediaItemIndex,
-                        isNext = next,
-                    )
-                    val current = c.currentMediaItem?.toSong()
-                    c.addMediaItems(
-                        at,
-                        toAdd.map {
-                            it.copy(
-                                radioName = current?.radioName,
-                                playbackSource = current?.playbackSource ?: queueLabel,
-                                playbackSourceType = current?.playbackSourceType
-                                    ?: PlaybackSourceType.QUEUE,
-                                playbackSourceId = current?.playbackSourceId,
-                            ).asQueueEntry(QueueTier.USER_QUEUE).toMediaItem()
-                        },
-                    )
-                    val message = context.resources.getQuantityString(
-                        if (next) R.plurals.songs_will_play_next else R.plurals.songs_added_to_queue,
-                        toAdd.size,
-                        toAdd.size,
-                    )
-                    showQueueNotice(message)
-                }
-            }
-        }
-    }
-    val addSongsToQueue: (List<Song>) -> Unit = { songs -> queueSongs(songs, false) }
-    val playSongsNext: (List<Song>) -> Unit = { songs -> queueSongs(songs, true) }
+    val addSongsToQueue: (List<Song>) -> Unit = { songs -> playbackQueueActions.queueSongs(songs, false) }
+    val playSongsNext: (List<Song>) -> Unit = { songs -> playbackQueueActions.queueSongs(songs, true) }
 
     val linkRequest by MusicLink.pending.collectAsStateWithLifecycle()
     LaunchedEffect(linkRequest, controller) {
