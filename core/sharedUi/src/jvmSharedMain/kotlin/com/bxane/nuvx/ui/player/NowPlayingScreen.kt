@@ -68,7 +68,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.derivedStateOf
@@ -113,12 +112,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.AwaitPointerEventScope
-import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -194,8 +188,6 @@ private val THUMB_SIZE = 54.dp
 private val HEADER_HEIGHT = 60.dp
 private val ART_TITLE_GAP = 20.dp
 private const val QUEUE_TRAVEL_MS = 420
-private const val QUEUE_CARRY_FRACTION = 0.3f
-private const val QUEUE_FLICK_VELOCITY = 450f
 private val DISMISS_STRIP_HEIGHT = 32.dp
 private val ART_BOX_TOP_PAD = 8.dp
 private const val HERO_FADE_FRACTION = 0.42f
@@ -2393,43 +2385,4 @@ fun NowPlayingScreen(
             }
         }
     }
-}
-
-private suspend fun AwaitPointerEventScope.dragQueueIn(
-    down: PointerInputChange,
-    travel: Float,
-    slide: MutableFloatState,
-    onHold: (Boolean) -> Unit,
-    onSettle: (Boolean) -> Unit,
-) {
-    if (travel < 1f) return
-
-    var pulled = 0f
-    val drag = awaitVerticalTouchSlopOrCancellation(down.id) { change, overSlop ->
-        if (overSlop < 0f) {
-            pulled = -overSlop
-            change.consume()
-        }
-    }
-    if (drag == null || pulled <= 0f) return
-
-    onHold(true)
-    val velocity = VelocityTracker()
-    velocity.addPointerInputChange(drag)
-    slide.floatValue = (pulled / travel).coerceIn(0f, 1f)
-    verticalDrag(drag.id) { change ->
-        velocity.addPointerInputChange(change)
-        pulled -= change.positionChange().y
-        slide.floatValue = (pulled / travel).coerceIn(0f, 1f)
-        change.consume()
-    }
-
-    val flick = -velocity.calculateVelocity().y
-    val open = when {
-        flick >= QUEUE_FLICK_VELOCITY -> true
-        flick <= -QUEUE_FLICK_VELOCITY -> false
-        else -> slide.floatValue >= QUEUE_CARRY_FRACTION
-    }
-    onHold(false)
-    onSettle(open)
 }
