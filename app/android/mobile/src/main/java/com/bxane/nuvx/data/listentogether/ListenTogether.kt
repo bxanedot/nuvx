@@ -1,12 +1,10 @@
 package com.bxane.nuvx.data.listentogether
 
-import com.bxane.nuvx.data.model.artworkAt
 import android.content.Context
 import android.os.SystemClock
 import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.Network
-import com.bxane.nuvx.NuvxApplication
 import com.bxane.nuvx.BuildConfig
 import com.bxane.nuvx.data.DebugLog as Log
 import com.bxane.nuvx.data.settings.AppSettings
@@ -53,8 +51,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
-import java.security.MessageDigest
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 sealed interface ServerUrlError {
@@ -380,6 +376,12 @@ object ListenTogether {
         key = KEY_KICKED,
         blockMs = KICK_BLOCK_MS,
     )
+    private val identityResolver = PartyIdentityResolver(
+        preferences = { prefs },
+        defaultNickname = ::nickname,
+        deviceIdKey = KEY_DEVICE,
+        avatarSizePx = AVATAR_PX,
+    )
     private var token: String? = null
 
     @Volatile
@@ -504,7 +506,7 @@ object ListenTogether {
         return job.await()
     }
 
-    fun canJoin(): Boolean = identity() != null
+    fun canJoin(): Boolean = identityResolver.resolve() != null
 
     fun nickname(): String = prefs.getString(KEY_NICKNAME, null).orEmpty()
 
@@ -550,7 +552,7 @@ object ListenTogether {
     }
 
     private suspend fun doCreateOnServer(serverBase: String, nickname: String, maxMembers: Int): String {
-        val who = identity(nickname) ?: throw PartyException("not_signed_in", "Sign in to listen together.")
+        val who = identityResolver.resolve(nickname) ?: throw PartyException("not_signed_in", "Sign in to listen together.")
         if (serverBase.isBlank()) throw PartyException("no_server", "Set the party server address first.")
         val membership = post(
             "$serverBase/api/parties",
@@ -593,7 +595,7 @@ object ListenTogether {
     }
 
     private suspend fun doJoinOnServer(serverBase: String, code: String, nickname: String): String {
-        val who = identity(nickname) ?: throw PartyException("not_signed_in", "Sign in to listen together.")
+        val who = identityResolver.resolve(nickname) ?: throw PartyException("not_signed_in", "Sign in to listen together.")
         if (serverBase.isBlank()) throw PartyException("no_server", "Set the party server address first.")
         val cleaned = code.filter { it.isLetterOrDigit() }.uppercase()
         if (cleaned.length != CODE_LENGTH) {
@@ -633,7 +635,7 @@ object ListenTogether {
         nickname: String = nickname(),
     ): SwitchPartyResult = switchMutex.withLock {
         withContext(Dispatchers.IO) {
-            val who = identity(nickname)
+            val who = identityResolver.resolve(nickname)
                 ?: return@withContext if (_state.value.inParty) {
                     SwitchPartyResult.TargetFailedRecovered(_state.value.code.orEmpty(), "Sign in to listen together.")
                 } else {
@@ -849,32 +851,6 @@ object ListenTogether {
         socketJob = scope.launch { socketConnection.run() }
     }
 
-    private data class Identity(
-        val userId: String,
-        val deviceId: String,
-        val name: String,
-        val avatar: String?,
-    )
-
-    private fun identity(nickname: String = nickname()): Identity? {
-        val store = NuvxApplication.authStore
-        if (!store.isSignedIn) return null
-        val account = store.activeSession ?: return null
-        val profile = account.profiles.firstOrNull { it.profileId == account.activeProfileId }
-            ?: account.profiles.firstOrNull()
-        val name = nickname.trim().takeIf { it.isNotBlank() }
-            ?: profile?.name?.takeIf { it.isNotBlank() }
-            ?: account.name.takeIf { it.isNotBlank() }
-            ?: account.email.substringBefore('@').takeIf { it.isNotBlank() }
-            ?: return null
-        return Identity(
-            userId = sha256("${account.accountId}:${profile?.profileId.orEmpty()}").take(32),
-            deviceId = deviceId(),
-            name = name,
-            avatar = profile?.avatar?.takeIf { it.startsWith("http") }?.artworkAt(AVATAR_PX),
-        )
-    }
-
     private fun recordKick(code: String) = kickLedger.record(code)
 
     private fun refuseIfRecentlyKicked(code: String) {
@@ -886,14 +862,7 @@ object ListenTogether {
         }
     }
 
-    fun myAvatarUrl(): String? = identity()?.avatar
-
-    private fun deviceId(): String {
-        prefs.getString(KEY_DEVICE, null)?.let { return it }
-        return UUID.randomUUID().toString().also {
-            prefs.edit().putString(KEY_DEVICE, it).apply()
-        }
-    }
+    fun myAvatarUrl(): String? = identityResolver.resolve()?.avatar
 
     private fun recordActivity(entry: PartyActivity) {
         val next = (listOf(entry) + _activity.value).take(100)
@@ -975,10 +944,6 @@ object ListenTogether {
             .replaceFirst("https://", "wss://")
             .replaceFirst("http://", "ws://")
     }
-
-    private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
-        .digest(value.toByteArray())
-        .joinToString("") { "%02x".format(it) }
 
     const val CODE_LENGTH = 6
 
