@@ -36,8 +36,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -376,6 +374,12 @@ object ListenTogether {
     )
 
     private lateinit var prefs: SharedPreferences
+    private val kickLedger = PartyKickLedger(
+        preferences = { prefs },
+        json = json,
+        key = KEY_KICKED,
+        blockMs = KICK_BLOCK_MS,
+    )
     private var token: String? = null
 
     @Volatile
@@ -663,7 +667,7 @@ object ListenTogether {
                 }
             }
 
-            if (recentKicks().containsKey(cleanedTargetCode)) {
+            if (kickLedger.contains(cleanedTargetCode)) {
                 val refusal = "Couldn’t let you in — you’ve recently been kicked out of this party."
                 return@withContext if (_state.value.inParty) {
                     SwitchPartyResult.TargetFailedRecovered(_state.value.code.orEmpty(), refusal)
@@ -871,37 +875,10 @@ object ListenTogether {
         )
     }
 
-    private fun recentKicks(): Map<String, Long> {
-        val raw = prefs.getString(KEY_KICKED, null) ?: return emptyMap()
-        val stored = runCatching {
-            json.decodeFromString(MapSerializer(String.serializer(), Long.serializer()), raw)
-        }.getOrNull() ?: return emptyMap()
-        val now = System.currentTimeMillis()
-        val live = stored.filterValues { it > now }
-        if (live.size != stored.size) writeKicks(live)
-        return live
-    }
-
-    private fun writeKicks(entries: Map<String, Long>) {
-        if (entries.isEmpty()) {
-            prefs.edit().remove(KEY_KICKED).apply()
-            return
-        }
-        val encoded = json.encodeToString(
-            MapSerializer(String.serializer(), Long.serializer()),
-            entries,
-        )
-        prefs.edit().putString(KEY_KICKED, encoded).apply()
-    }
-
-    private fun recordKick(code: String) {
-        val normalised = code.filter { it.isLetterOrDigit() }.uppercase()
-        if (normalised.isEmpty()) return
-        writeKicks(recentKicks() + (normalised to System.currentTimeMillis() + KICK_BLOCK_MS))
-    }
+    private fun recordKick(code: String) = kickLedger.record(code)
 
     private fun refuseIfRecentlyKicked(code: String) {
-        if (recentKicks().containsKey(code)) {
+        if (kickLedger.contains(code)) {
             throw PartyException(
                 "recently_kicked",
                 "Couldn’t let you in — you’ve recently been kicked out of this party.",
