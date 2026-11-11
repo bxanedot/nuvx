@@ -34,7 +34,6 @@ import com.bxane.nuvx.data.sources.TrackMatcher
 import com.bxane.nuvx.download.Downloads
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -731,99 +730,35 @@ object AudioCache {
         upstreamFactory = factory
     }
 
-    private var job: Job? = null
     private var pendingQueue: List<String> = emptyList()
 
-    fun prefetchQueue(upcoming: List<Upcoming>) {
-        val mediaIds = upcoming.map { it.mediaId }
-        if (mediaIds == pendingQueue) return
-        android.util.Log.d("BCFetchDebug", "prefetchQueue: head ${pendingQueue.firstOrNull()} -> ${mediaIds.firstOrNull()}")
-        pendingQueue = mediaIds
-        job?.cancel()
-        val videoIds = mediaIds.filter { SourceRegistry.parseTrackKey(it) == null }
-            .filter { it !in Downloads.saved.value }
-        val substitutable = SourceResolver.canSubstituteForYouTube()
-        job = videoIds.firstOrNull()?.let { next ->
-            val target = upcoming.firstOrNull { it.mediaId == next }?.target
-            val pinnedToYouTube = OriginalVersion.isPinned(next)
-            scope.launch {
-                val youTubeFilled = heldByYouTube(cacheKeyOf(Uri.parse("nuvx://watch?v=$next")))
-                val warmed = if (substitutable && target != null && !pinnedToYouTube && !youTubeFilled) {
-                    runCatching { SourceResolver.prefetchSubstitute(target) }
-                        .onFailure { TrackLog.d(TAG, "warm-up substitute failed for $next: ${it.message}", about = next) }
-                        .getOrNull()
-                        ?.also { StreamChoice.remember(next, it, substituted = true) }
-                } else {
-                    null
-                }
-                val cacheBytes = (!substitutable || warmed != null) && !pinnedToYouTube
-                if (cacheBytes) {
-                    launch(TrackLog.about(next)) {
-                        delay(PREFETCH_DELAY_MS)
-                        fetch(next, 0, PRELOAD_BYTES)
-                        fetchWhole(next)
-                    }
-                }
-                launch {
-                    delay(PREFETCH_DELAY_MS)
-                    for (id in videoIds.take(QUEUE_LOOKAHEAD + 1).let { if (cacheBytes) it.drop(1) else it }) {
-                        if (id == next && warmed != null) continue
-                        runCatching { StreamResolver.resolve(id) }
-                            .onFailure { TrackLog.d(TAG, "queue warm-up skipped $id: ${it.message}", about = id) }
-                        delay(QUEUE_RESOLVE_STAGGER_MS)
-                    }
-                }
-            }
-        }
-    }
+    private val readAheadController = AudioCacheReadAheadController(
+        scope = scope,
+        pendingQueue = { pendingQueue },
+        setPendingQueue = { pendingQueue = it },
+        tag = TAG,
+        cacheKeyOf = ::cacheKeyOf,
+        heldByYouTube = ::heldByYouTube,
+        dropYouTubeEntry = ::dropYouTubeEntry,
+        fetch = ::fetch,
+        fetchWhole = ::fetchWhole,
+        preloadBytes = PRELOAD_BYTES,
+        prefetchDelayMs = PREFETCH_DELAY_MS,
+        queueLookahead = QUEUE_LOOKAHEAD,
+        queueResolveStaggerMs = QUEUE_RESOLVE_STAGGER_MS,
+    )
 
-    private var directJob: Job? = null
+    fun prefetchQueue(upcoming: List<Upcoming>) = readAheadController.prefetchQueue(upcoming)
 
-    fun prefetchDirect(upcoming: Upcoming) {
-        directJob?.cancel()
-        val id = upcoming.mediaId
-        if (SourceRegistry.parseTrackKey(id) != null || id in Downloads.saved.value || OriginalVersion.isPinned(id)) {
-            directJob = null
-            return
-        }
-        directJob = scope.launch(TrackLog.about(id)) {
-            if (StreamChoice.of(id) == null) {
-                val addon = runCatching { DirectSourceGate.lookup(id, upcoming.target) }
-                    .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
-                    .getOrNull()
-                val stream = addon ?: runCatching {
-                    val url = StreamResolver.resolve(id)
-                    SourceStream(url, headers = StreamResolver.mediaHeadersFor(url))
-                }
-                    .onFailure {
-                        if (it is kotlinx.coroutines.CancellationException) throw it
-                        TrackLog.d(TAG, "direct read-ahead could not resolve $id: ${it.message}", about = id)
-                    }
-                    .getOrNull()
-                    ?: return@launch
-                if (StreamChoice.of(id) == null) {
-                    val key = cacheKeyOf(Uri.parse("nuvx://watch?v=$id"))
-                    if (addon != null && heldByYouTube(key)) dropYouTubeEntry(key, id)
-                    if (addon != null && heldByYouTube(key)) return@launch
-                    StreamChoice.remember(id, stream, substituted = addon != null)
-                    if (addon == null) DirectSourceGate.startedOnYouTube(id, upcoming.target)
-                }
-            }
-            fetch(id, 0, PRELOAD_BYTES)
-        }
-    }
+    fun prefetchDirect(upcoming: Upcoming) = readAheadController.prefetchDirect(upcoming)
 
-    fun cancelDirect() {
-        directJob?.cancel()
-        directJob = null
-    }
+    fun cancelDirect() = readAheadController.cancelDirect()
 
     data class Upcoming(val mediaId: String, val target: TrackMatcher.Target)
 
     fun cancel() {
         pendingQueue = emptyList()
-        job?.cancel()
-        job = null
+        readAheadController.cancelQueue()
     }
 
     private suspend fun fetchWhole(videoId: String) {
