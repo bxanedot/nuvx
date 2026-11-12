@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use super::credits::{dedup, is_credit_label, writers_on};
-use super::{Line, Part, insert_instrumentals};
+use super::timeline::insert_instrumentals;
+use super::{Line, Part};
 
 struct QrcLine {
     time: i32,
