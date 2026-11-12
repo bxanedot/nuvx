@@ -9,11 +9,12 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
-use crate::model::Track;
-
 mod wire;
 mod control;
+mod types;
 use control::*;
+pub use types::{Cmd, Event, Member, RoomState, Tick};
+use types::Out;
 use wire::*;
 
 const SERVER: &str = "https://nuvx-listen.bxane.workers.dev";
@@ -39,77 +40,6 @@ pub fn normalize_code(code: &str) -> Option<String> {
         })
         .collect();
     (c.len() == CODE_LEN && c.chars().all(|ch| ALPHABET.contains(ch))).then_some(c)
-}
-
-#[derive(Clone, Debug)]
-pub struct Member {
-    pub id: String,
-    pub name: String,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct RoomState {
-    pub queue: Vec<Track>,
-    pub index: usize,
-    pub by: std::collections::HashMap<String, String>,
-    pub owner: std::collections::HashMap<String, String>,
-    pub vid: String,
-    pub pos: u64,
-    pub playing: bool,
-}
-
-#[derive(Clone, Debug)]
-pub struct Tick {
-    pub vid: String,
-    pub pos: u64,
-    pub playing: bool,
-}
-
-impl Tick {
-    pub fn position_at(&self, at: Instant) -> Duration {
-        let pos = Duration::from_millis(self.pos);
-        if !self.playing {
-            return pos;
-        }
-        let now = Instant::now();
-        if now >= at { pos + (now - at) } else { pos.saturating_sub(at - now) }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Cmd {
-    Add { track: Track },
-    Next { track: Track },
-    Toggle,
-    Skip,
-    Prev,
-    Seek { pos: u64 },
-    Jump { index: usize },
-}
-
-impl Cmd {
-    pub fn is_control(&self) -> bool {
-        !matches!(self, Cmd::Add { .. } | Cmd::Next { .. })
-    }
-}
-
-#[derive(Debug)]
-pub enum Event {
-    Welcome { you: String, host: String, control: bool, queue: bool, members: Vec<Member> },
-    Members { host: String, members: Vec<Member> },
-    Control { on: bool, queue: bool },
-    State(RoomState, Instant),
-    Notice(String),
-    Closed(String),
-    Reconnecting,
-}
-
-enum Out {
-    State(RoomState),
-    Tick(Tick),
-    HostOnly(bool),
-    Cmd(Cmd),
-    Leave,
 }
 
 pub struct Jam {
@@ -455,6 +385,7 @@ impl Conn {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::Track;
 
     fn track(id: &str) -> Track {
         from_wire(&WireTrack { video_id: id.into(), title: id.into(), artist: "A".into(), ..Default::default() })
