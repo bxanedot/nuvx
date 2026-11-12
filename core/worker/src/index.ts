@@ -238,9 +238,11 @@ export class Party extends DurableObject<Env> {
   async join(req: P.JoinRequest): Promise<Reply> {
     const party = await this.load();
     if (!party) return NO_PARTY;
+    const existing = party.members.find((member) => member.deviceId === req.deviceId);
     const now = Date.now();
     const m = P.join(party, req, random, now);
     if (isFail(m)) return err(m);
+    if (existing) for (const ws of this.sockets(existing.memberId)) try { ws.close(1000, "device rejoined"); } catch { }
     await this.save(party);
     return this.joined(party, m, now);
   }
