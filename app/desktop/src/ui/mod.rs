@@ -39,6 +39,7 @@ mod persistence;
 mod app_motion;
 mod app_init;
 mod app_appearance;
+mod app_notifications;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -431,16 +432,6 @@ pub(super) struct MixFrom {
     pub(super) started: bool,
     pub(super) released: bool,
 }
-
-impl App {
-    fn toast(&mut self, msg: impl Into<String>) {
-        self.toast = Some((msg.into(), -1.0));
-    }
-
-
-}
-
-
 
 fn relaunch() {
     let Ok(exe) = std::env::current_exe() else { return };
