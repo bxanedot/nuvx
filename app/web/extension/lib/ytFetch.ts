@@ -1,6 +1,7 @@
 import type { HttpResponse, YtFetchParams } from '@nuvx/shared/bridge';
 import { installExtensionFetchRule } from './rules';
 import { activeIdentity, signedFetch, SignedOutError } from './ytAuth';
+import { serialiseResponse } from './httpResponse';
 
 const ALLOWED = [/^https:\/\/www\.youtube\.com\/api\/jnn\//];
 const ALLOWED_SIGNED = [/^https:\/\/(music|www)\.youtube\.com\/youtubei\/v1\//];
@@ -12,12 +13,6 @@ let ruleReady: Promise<void> | null = null;
 
 function toBytes(base64: string): Uint8Array {
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
 }
 
 function forbidden(url: string): Error {
@@ -66,15 +61,5 @@ async function signedYtFetch(request: YtFetchParams): Promise<HttpResponse> {
 }
 
 async function serialise(response: Response): Promise<HttpResponse> {
-  const headers: Record<string, string> = {};
-  response.headers.forEach((value, key) => (headers[key] = value));
-  const type = response.headers.get('content-type') ?? '';
-  const textual = /json|text|javascript|xml/.test(type);
-  return {
-    status: response.status,
-    headers,
-    url: response.url,
-    bodyEncoding: textual ? 'text' : 'base64',
-    body: textual ? await response.text() : toBase64(new Uint8Array(await response.arrayBuffer())),
-  };
+  return serialiseResponse(response);
 }
