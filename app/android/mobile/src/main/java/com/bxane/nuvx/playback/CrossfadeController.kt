@@ -270,7 +270,7 @@ class CrossfadeController(
         active().volume = 1f
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
-        mixWaves.clearMixView()
+        mixPresentation.clear()
         AppSettings.smartMixPreview.value = null
         filters.open()
         filters.parkEchoes()
@@ -292,7 +292,7 @@ class CrossfadeController(
 
         analysisStatus.publish()
         automixDetail.publish()
-        expireMixPreview()
+        mixPresentation.expirePreview()
 
         if (speedController.isEasing && phase == Phase.IDLE) speedController.driveEase()
 
@@ -441,7 +441,7 @@ class CrossfadeController(
 
         lastSmartPlan = plan
         lastSmartPlanStartMs = (plan.transitionStart * 1000).roundToLong()
-        publishMixPreview(currentItem, nextItem, duration, nextDuration, currentAnalysis, nextAnalysis, analysisState, plan, advanced)
+        mixPresentation.publishPreview(currentItem, nextItem, duration, nextDuration, currentAnalysis, nextAnalysis, analysisState, plan, advanced)
 
         val loop = loopPlanner.planFor(
             player, currentItem, nextItem, currentAnalysis, nextAnalysis, duration, nextDuration, analysisState,
@@ -501,7 +501,7 @@ class CrossfadeController(
         plannedTransition = currentItem.mediaId to transitionStartMs
         val remaining = transitionStartMs - player.currentPosition
         if (remaining <= MIX_PREFETCH_MS && currentAnalysis.isUsable && nextAnalysis.isUsable) {
-            mixWaves.prefetchMixWaves(
+            mixPresentation.prefetch(
                 currentItem, nextItem, duration, nextDuration,
                 plan.transitionStart, plan.transitionEnd, plan.incomingCueTime,
                 plan.incomingPlaybackRate / plan.outgoingPlaybackRate.coerceAtLeast(0.01),
@@ -636,7 +636,7 @@ class CrossfadeController(
                     mediaRatio,
                     incomingCueTimeMs,
                 )
-                mixWaves.prefetchMixWaves(
+                mixPresentation.prefetch(
                     outItem, inItem, outDuration, trackInfoResolver.queuedDurationMs(inItem),
                     geometry.outStart, geometry.outEnd, geometry.inStart, geometry.ratio,
                 )
@@ -693,7 +693,7 @@ class CrossfadeController(
 
         publishBlend(out, into, force = true)
         AppSettings.smartMixInProgress.value = isRealMix()
-        if (isRealMix()) publishMixView(out, into)
+        if (isRealMix()) mixPresentation.publishView(out, into)
         AppSettings.smartTransitionWindow.value = null
         phase = Phase.FADING
     }
@@ -790,22 +790,15 @@ class CrossfadeController(
         )
     }
 
-    private val mixWaves = CrossfadeWaveforms(scope, mixWaveform, TAG)
-
-    private val mixPreview = CrossfadePreviewController(
-        waves = mixWaves,
+    private val mixPresentation = CrossfadeMixPresentationController(
+        scope = scope,
+        mixWaveform = mixWaveform,
+        tag = TAG,
         envelope = envelope,
         currentRender = { render },
         updateRender = { render = it },
         renderFor = { plan, advanced -> this.renderFor(plan, advanced) },
         isIdle = { phase == Phase.IDLE },
-    )
-
-    private val mixViewPublisher = CrossfadeMixViewPublisher(
-        waves = mixWaves,
-        preview = mixPreview,
-        envelope = envelope,
-        currentRender = { render },
         fadeEndTimeMs = { fadeEndMs },
         configuredFadeMs = { fadeMs },
         currentMediaRatio = { mediaRatio },
@@ -814,28 +807,6 @@ class CrossfadeController(
         outgoingTrackAnalysis = { outgoingAnalysis },
         incomingTrackAnalysis = { incomingAnalysis },
     )
-
-    private fun publishMixPreview(
-        currentItem: MediaItem,
-        nextItem: MediaItem,
-        duration: Long,
-        nextDuration: Long,
-        currentAnalysis: TrackAnalysis,
-        nextAnalysis: TrackAnalysis,
-        state: SmartAnalysis,
-        plan: TransitionPlan,
-        advanced: Boolean,
-    ) {
-        mixPreview.publish(currentItem, nextItem, duration, nextDuration, currentAnalysis, nextAnalysis, state, plan, advanced)
-    }
-
-    private fun expireMixPreview() {
-        mixPreview.expire()
-    }
-
-    private fun publishMixView(out: ExoPlayer, into: ExoPlayer) {
-        mixViewPublisher.publish(out, into)
-    }
 
     private fun driveBail() {
         val leaving = leavingOnBail()
@@ -920,7 +891,7 @@ class CrossfadeController(
         Log.d(TAG, "bail from $phase")
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
-        mixWaves.clearMixView()
+        mixPresentation.clear()
         if (!handedOff && phase != Phase.FADING) {
             finish()
             return
@@ -942,7 +913,7 @@ class CrossfadeController(
         }
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
-        mixWaves.clearMixView()
+        mixPresentation.clear()
         readAhead.releaseHold()
         if (handedOff && render.echo) outgoing?.volume = 0f
         filters.open()
