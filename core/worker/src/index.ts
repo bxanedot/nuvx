@@ -95,8 +95,13 @@ export default {
     const m = url.pathname.match(/^\/(?:api\/parties|ws\/parties|invite)\/([^/]+)(\/join|\/preview|\/leave)?$/);
     if (!m) return send({ status: 404, body: { error: "not_found", message: "Not found." } });
     if (!(await env.PARTY_LIMIT.limit({ key: ip })).success) return send(err(P.fail(429, "rate_limited", "Too many requests. Please try again shortly.")));
-    const code = P.normaliseCode(decodeURIComponent(m[1]));
     const isInvite = url.pathname.startsWith("/invite/");
+    let code: string;
+    try {
+      code = P.normaliseCode(decodeURIComponent(m[1]));
+    } catch {
+      code = "";
+    }
     if (!P.isValidCode(code)) {
       return isInvite ? new Response(invitePage({ code: m[1], active: false }, url.origin), { status: 400, headers: { "content-type": "text/html; charset=utf-8" } }) : send(NO_PARTY);
     }
