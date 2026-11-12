@@ -9,7 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -73,7 +72,7 @@ internal class DownloadLibraryController {
     suspend fun delete(context: Context, videoId: String): Boolean = withContext(Dispatchers.IO) {
         val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
         val deleted = DownloadStore.delete(context, uri)
-        forget(videoId)
+        if (deleted) forget(videoId)
         deleted
     }
 
@@ -206,14 +205,17 @@ internal class DownloadLibraryController {
         saved: (Map<String, String>) -> Map<String, String>,
         meta: (Map<String, SavedSongMetadata>) -> Map<String, SavedSongMetadata>,
     ) {
-        val savedMap = _saved.updateAndGet(saved)
-        val metaMap = _savedMetadata.updateAndGet(meta)
-        if (!::prefs.isInitialized) return
         synchronized(recordLock) {
-            prefs.edit()
-                .putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
-                .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
-                .apply()
+            val savedMap = saved(_saved.value)
+            val metaMap = meta(_savedMetadata.value)
+            _saved.value = savedMap
+            _savedMetadata.value = metaMap
+            if (::prefs.isInitialized) {
+                prefs.edit()
+                    .putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
+                    .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
+                    .apply()
+            }
         }
     }
 
