@@ -38,6 +38,7 @@ mod widgets;
 mod persistence;
 mod app_motion;
 mod app_init;
+mod app_appearance;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -432,32 +433,6 @@ pub(super) struct MixFrom {
 }
 
 impl App {
-    fn accent_color(&self) -> Color32 {
-        let c = self.look().accent(self.accent);
-        if theme::light() {
-            let luma = 0.299 * c.r() as f32 + 0.587 * c.g() as f32 + 0.114 * c.b() as f32;
-            if luma > 150.0 {
-                return theme::lerp_color(c, Color32::BLACK, ((luma - 150.0) / 105.0 * 0.45).min(0.45));
-            }
-        }
-        c
-    }
-
-    fn light_pages(&self, ctx: &egui::Context) -> bool {
-        self.look().id == crate::preset::DEFAULT_ID && self.appearance.is_light(ctx)
-    }
-
-    fn look(&self) -> &'static crate::preset::Preset {
-        crate::preset::active()
-    }
-
-    fn sync_look(&self) {
-        let id = self.theme_id.as_str();
-        if crate::preset::active().id != id {
-            crate::preset::set_active(id);
-        }
-    }
-
     fn toast(&mut self, msg: impl Into<String>) {
         self.toast = Some((msg.into(), -1.0));
     }
