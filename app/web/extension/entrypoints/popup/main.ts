@@ -39,7 +39,19 @@ function simpleRow(name: string, detail: string): HTMLLIElement {
   return row;
 }
 
-function youtubeRow(state: YtAuthState | null, refresh: (state: YtAuthState) => void): HTMLLIElement {
+function youtubeRow(state: YtAuthState | null, refresh: (state: YtAuthState) => void, error: string | null): HTMLLIElement {
+  if (error) {
+    const row = el('li', 'row account');
+    const who = el('span', 'who');
+    who.append(el('span', 'title', 'YouTube Music'), el('span', 'detail', error));
+    row.append(el('span', 'avatar'), who, button('Retry', () => {
+      void call('yt.authState', { refresh: true }).then(refresh).catch(() => {
+        youtubeError = 'Couldn’t read the session';
+        render();
+      });
+    }));
+    return row;
+  }
   if (!state) return simpleRow('YouTube Music', 'Checking…');
   const row = el('li', 'row account');
   let avatar: HTMLElement = el('span', 'avatar');
@@ -161,11 +173,12 @@ function discordRow(state: DiscordState | null): HTMLLIElement | null {
 
 const list = document.getElementById('integrations')!;
 let youtubeState: YtAuthState | null = null;
+let youtubeError: string | null = null;
 let spotifyState: SpotifyAuthState | null = null;
 let discordStateNow: DiscordState | null = null;
 
 function render(): void {
-  const youtube = youtubeRow(youtubeState, setYoutube) as HTMLLIElement & { problemRow?: HTMLLIElement };
+  const youtube = youtubeRow(youtubeState, setYoutube, youtubeError) as HTMLLIElement & { problemRow?: HTMLLIElement };
   const discord = discordRow(discordStateNow);
   list.replaceChildren(
     youtube,
@@ -177,6 +190,7 @@ function render(): void {
 
 function setYoutube(state: YtAuthState): void {
   youtubeState = state;
+  youtubeError = null;
   render();
 }
 function setSpotify(state: SpotifyAuthState): void {
@@ -195,6 +209,9 @@ site.href = __SITE_ORIGINS__[0] ?? '#';
 render();
 call('yt.authState', {})
   .then(setYoutube)
-  .catch(() => list.replaceChildren(simpleRow('YouTube Music', 'Couldn’t read the session')));
+  .catch(() => {
+    youtubeError = 'Couldn’t read the session';
+    render();
+  });
 call('spotify.authState', {}).then(setSpotify).catch(() => undefined);
 call('discord.state', {}).then(setDiscord).catch(() => undefined);
