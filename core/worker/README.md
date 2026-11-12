@@ -22,7 +22,8 @@ in [docs/designs/listen-together-worker.md](../docs/designs/listen-together-work
 devices (5 by default). Anyone may control the music unless the host turns on host-only control. A member
 disconnected for 45 s is removed; a party is deleted 2 minutes after its last device disconnects, or after 12 hours.
 Each member may send 30 frames and 25 controls per second. Per IP: 2 party creations, 60 other party requests and
-20 presence pings per minute. Bodies and frames are limited to 16 KiB. Nothing is logged.
+20 presence pings per minute. The approximate live counter accepts at most five active install IDs per hashed IP;
+stale rows are removed on the next stats query or open ping. Bodies and frames are limited to 16 KiB. The worker does not log raw IPs or request bodies.
 
 ## Develop
 
