@@ -12,6 +12,7 @@ mod library_pages;
 mod lists;
 mod lyric_prefs;
 mod mini;
+mod network_settings;
 mod notes;
 mod nowplaying;
 mod pages;
