@@ -660,7 +660,7 @@ fun SettingsScreen(
                     append("Developer")
                 }
                 append("  ")
-                withLink(LinkAnnotation.Url("https://discord.gg/h4Wsu824Uf", linkStyles)) {
+                withLink(LinkAnnotation.Url(AppSettings.DISCORD_INVITE_URL, linkStyles)) {
                     append("Discord")
                 }
                 append("  ")
