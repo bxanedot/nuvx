@@ -113,7 +113,6 @@ import com.bxane.nuvx.data.model.SearchHistoryEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.bxane.nuvx.data.model.durationMillis
-import com.bxane.nuvx.data.scrobbling.LastFM
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.BitPerfectMode
 import com.bxane.nuvx.ui.AddonBlockedAlert
@@ -207,7 +206,6 @@ import com.bxane.nuvx.ui.components.SearchDock
 import com.bxane.nuvx.ui.components.GlassNavBar
 import com.bxane.nuvx.ui.components.floatingtabbar.rememberFloatingTabBarScrollConnection
 import com.bxane.nuvx.ui.components.FrostedTopBar
-import com.bxane.nuvx.ui.components.LastfmLoginAlert
 import com.bxane.nuvx.ui.components.LocalLiquidGlassEnabled
 import com.bxane.nuvx.ui.components.backdrop.backdrops.LayerBackdrop
 import com.bxane.nuvx.ui.components.backdrop.backdrops.layerBackdrop
@@ -219,7 +217,7 @@ import com.bxane.nuvx.data.sources.SourceConfig
 import com.bxane.nuvx.data.sources.SourceKind
 import com.bxane.nuvx.data.sources.SourceRegistry
 import com.bxane.nuvx.ui.components.ChoiceAlert
-import com.bxane.nuvx.ui.components.ListenBrainzTokenAlert
+import com.bxane.nuvx.ui.components.ScrobbleLoginDialogs
 import com.bxane.nuvx.ui.components.MiniPlayer
 import com.bxane.nuvx.ui.components.QueueActionNotice
 import com.bxane.nuvx.ui.components.QueueActionNoticeHost
@@ -3805,62 +3803,26 @@ internal fun NuvxApp(
             )
         }
 
-        if (showListenBrainzLogin) {
-            var tokenInput by remember { mutableStateOf(listenBrainzToken) }
-            ListenBrainzTokenAlert(
-                hazeState = hazeState,
-                tokenInput = tokenInput,
-                onTokenInputChange = { tokenInput = it },
-                onSave = {
-                    AppSettings.setListenBrainzToken(tokenInput.trim())
-                    showListenBrainzLogin = false
-                },
-                onDismiss = { showListenBrainzLogin = false },
-            )
-        }
-
-        if (showLastfmLogin) {
-            var usernameInput by remember { mutableStateOf("") }
-            var passwordInput by remember { mutableStateOf("") }
-            var lastfmError by remember { mutableStateOf<String?>(null) }
-            var lastfmLoading by remember { mutableStateOf(false) }
-            LastfmLoginAlert(
-                hazeState = hazeState,
-                usernameInput = usernameInput,
-                onUsernameInputChange = { usernameInput = it },
-                passwordInput = passwordInput,
-                onPasswordInputChange = { passwordInput = it },
-                error = lastfmError,
-                loading = lastfmLoading,
-                onSignIn = {
-                    lastfmLoading = true
-                    lastfmError = null
-                    scope.launch {
-                        try {
-                            LastFM.initialize(
-                                apiKey = AppSettings.lastfmApiKey.value,
-                                secret = AppSettings.lastfmSecret.value,
-                            )
-                            LastFM.getMobileSession(usernameInput.trim(), passwordInput)
-                                .onSuccess { auth ->
-                                    AppSettings.setLastfmSessionKey(auth.session.key)
-                                    AppSettings.setLastfmUsername(auth.session.name)
-                                    AppSettings.setLastfmEnabled(true)
-                                    showLastfmLogin = false
-                                }
-                                .onFailure { e ->
-                                    lastfmError = e.message ?: context.getString(R.string.login_failed)
-                                }
-                        } catch (e: Exception) {
-                            lastfmError = e.message ?: context.getString(R.string.login_failed)
-                        } finally {
-                            lastfmLoading = false
-                        }
-                    }
-                },
-                onDismiss = { if (!lastfmLoading) showLastfmLogin = false },
-            )
-        }
+        ScrobbleLoginDialogs(
+            hazeState = hazeState,
+            showListenBrainzLogin = showListenBrainzLogin,
+            listenBrainzToken = listenBrainzToken,
+            onListenBrainzSave = { token ->
+                AppSettings.setListenBrainzToken(token)
+                showListenBrainzLogin = false
+            },
+            onListenBrainzDismiss = { showListenBrainzLogin = false },
+            showLastfmLogin = showLastfmLogin,
+            onLastfmSession = { key, username ->
+                AppSettings.setLastfmSessionKey(key)
+                AppSettings.setLastfmUsername(username)
+                AppSettings.setLastfmEnabled(true)
+                showLastfmLogin = false
+            },
+            onLastfmDismiss = { showLastfmLogin = false },
+            scope = scope,
+            context = context,
+        )
 
         RemoteStorageSettingsDialogs(
             hazeState = hazeState,
