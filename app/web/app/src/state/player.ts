@@ -61,7 +61,7 @@ interface PlayerState extends Settings {
   automixState: AutoDJSnapshot | null;
   mixing: boolean;
 
-  playTracks: (tracks: Track[], startIndex: number, source: QueueSource) => void;
+  playTracks: (tracks: Track[], startIndex: number, source: QueueSource, sourceIndices?: number[]) => void;
   playTrack: (track: Track, source: QueueSource) => void;
   playVideo: (videoId: string, hint?: Partial<Omit<NowPlaying, 'videoId'>>) => Promise<void>;
   playNext: (tracks: Track[], source?: QueueSource | null) => void;
@@ -358,10 +358,10 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   automixState: null,
   mixing: false,
 
-  playTracks(tracks, startIndex, source) {
+  playTracks(tracks, startIndex, source, sourceIndices) {
     if (!tracks.length) return;
     const { queue, index, shuffle } = get();
-    const built = buildContextQueue(queue, index, tracks, startIndex, source);
+    const built = buildContextQueue(queue, index, tracks, startIndex, source, sourceIndices);
     if (shuffle) {
       canonical = positions(built.timeline);
       set({ queue: shuffledStartingOrder(built.timeline, built.startIndex) });
