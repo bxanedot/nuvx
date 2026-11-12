@@ -115,7 +115,6 @@ import kotlinx.coroutines.withContext
 import com.bxane.nuvx.data.model.durationMillis
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.BitPerfectMode
-import com.bxane.nuvx.ui.AddonBlockedAlert
 import com.bxane.nuvx.data.settings.LibrarySort
 import com.bxane.nuvx.ui.components.AccountProfileSelector
 import com.bxane.nuvx.ui.components.PodcastsSymbol
@@ -144,7 +143,6 @@ import com.bxane.nuvx.ui.screens.ListenTogetherScreen
 import com.bxane.nuvx.ui.screens.PartyServerEditor
 import com.bxane.nuvx.ui.screens.SignatureApiEditor
 import com.bxane.nuvx.ui.screens.SettingsScreen
-import com.bxane.nuvx.ui.screens.SourceEditorAlert
 import com.bxane.nuvx.ui.screens.SourcesScreen
 import com.bxane.nuvx.ui.screens.SpotifyLibraryScreen
 import com.bxane.nuvx.data.spotify.SPOTIFY_PAGE_PREFIX
@@ -175,7 +173,6 @@ import com.bxane.nuvx.download.Downloads
 import com.bxane.nuvx.ui.components.BrowseActionsMenu
 import com.bxane.nuvx.ui.components.BrowseTarget
 import com.bxane.nuvx.ui.components.ConfirmationAlert
-import com.bxane.nuvx.ui.components.InfoAlert
 import com.bxane.nuvx.ui.components.DownloadManagerPage
 import com.bxane.nuvx.ui.components.PlaylistPickerSheet
 import com.bxane.nuvx.ui.components.ReorderPlaylistPage
@@ -216,7 +213,8 @@ import com.bxane.nuvx.ui.components.isGlassSupported
 import com.bxane.nuvx.data.sources.SourceConfig
 import com.bxane.nuvx.data.sources.SourceKind
 import com.bxane.nuvx.data.sources.SourceRegistry
-import com.bxane.nuvx.ui.components.ChoiceAlert
+import com.bxane.nuvx.ui.SourceConfigurationDialogs
+import com.bxane.nuvx.ui.AddonPlaybackAlerts
 import com.bxane.nuvx.ui.components.ScrobbleLoginDialogs
 import com.bxane.nuvx.ui.components.MiniPlayer
 import com.bxane.nuvx.ui.components.QueueActionNotice
@@ -3871,62 +3869,18 @@ internal fun NuvxApp(
             )
         }
 
-        editingSource?.let { config ->
-            SourceEditorAlert(
-                hazeState = hazeState,
-                config = config,
-                onDismiss = { editingSource = null },
-                onSaved = { editingSource = null },
-                onDelete = {
-                    SourceRegistry.remove(config.id)
-                    editingSource = null
-                },
-                scope = scope,
-            )
-        }
-
-        choosingSourceQuality?.let { config ->
-            ChoiceAlert(
-                hazeState = hazeState,
-                title = stringResource(R.string.audio_quality),
-                message = null,
-                options = config.qualityOptions,
-                selected = config.activeQuality,
-                label = { it?.label.orEmpty() },
-                onSelect = { option ->
-                    SourceRegistry.config(config.id)?.let {
-                        SourceRegistry.update(it.copy(pickedQuality = option?.value))
-                    }
-                    choosingSourceQuality = null
-                },
-                onDismiss = { choosingSourceQuality = null },
-            )
-        }
-
-        explainingOutdatedAddon?.let { config ->
-            InfoAlert(
-                hazeState = hazeState,
-                title = config.displayName,
-                description = stringResource(R.string.source_needs_update),
-                onDismiss = { explainingOutdatedAddon = null },
-            )
-        }
-
-        if (confirmJioSaavn) {
-            ConfirmationAlert(
-                hazeState = hazeState,
-                title = stringResource(R.string.enable_jiosaavn),
-                description = stringResource(R.string.jiosaavn_mismatch_warning),
-                confirmLabel = stringResource(R.string.enable_anyway),
-                onConfirm = {
-                    SourceRegistry.configs.value
-                        .firstOrNull { it.kind == SourceKind.JIOSAAVN }
-                        ?.let { SourceRegistry.setEnabled(it.id, true) }
-                    confirmJioSaavn = false
-                },
-                onDismiss = { confirmJioSaavn = false },
-            )
-        }
+        SourceConfigurationDialogs(
+            hazeState = hazeState,
+            editingSource = editingSource,
+            onEditSourceDismiss = { editingSource = null },
+            scope = scope,
+            choosingSourceQuality = choosingSourceQuality,
+            onSourceQualityDismiss = { choosingSourceQuality = null },
+            explainingOutdatedAddon = explainingOutdatedAddon,
+            onOutdatedAddonDismiss = { explainingOutdatedAddon = null },
+            confirmJioSaavn = confirmJioSaavn,
+            onJioSaavnDismiss = { confirmJioSaavn = false },
+        )
 
         confirmBitPerfect?.let { mode ->
             ConfirmationAlert(
@@ -3958,28 +3912,14 @@ internal fun NuvxApp(
 
         DacVolumeHud(hazeState)
 
-        blockedAddonSong?.let { song ->
-            AddonBlockedAlert(
-                hazeState = hazeState,
-                song = song,
-                onDismiss = { blockedAddonSong = null },
-            )
-        }
-
-        addonLeftOutOfDownload?.let { (addon, why) ->
-            InfoAlert(
-                hazeState = hazeState,
-                title = stringResource(R.string.download_addon_left_out_title, addon),
-                description = when (why) {
-                    SourceRegistry.DownloadExclusion.DOWNLOADS_NOT_ALLOWED ->
-                        stringResource(R.string.download_addon_not_allowed, addon)
-                    SourceRegistry.DownloadExclusion.NEEDS_LOSSLESS_OUTPUT ->
-                        stringResource(R.string.download_addon_needs_lossless_output, addon)
-                },
-                onDismiss = { addonLeftOutOfDownload = null },
-                inOwnWindow = playerRaised || songActions != null || browseActions != null,
-            )
-        }
+        AddonPlaybackAlerts(
+            hazeState = hazeState,
+            blockedAddonSong = blockedAddonSong,
+            onBlockedAddonDismiss = { blockedAddonSong = null },
+            addonLeftOutOfDownload = addonLeftOutOfDownload,
+            inOwnWindow = playerRaised || songActions != null || browseActions != null,
+            onAddonLeftOutDismiss = { addonLeftOutOfDownload = null },
+        )
 
     }
 }
