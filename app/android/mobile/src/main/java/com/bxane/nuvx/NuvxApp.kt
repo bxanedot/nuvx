@@ -122,6 +122,7 @@ import com.bxane.nuvx.data.settings.BitPerfectMode
 import com.bxane.nuvx.ui.AddonBlockedAlert
 import com.bxane.nuvx.data.settings.LibrarySort
 import com.bxane.nuvx.ui.components.AccountProfileSelector
+import com.bxane.nuvx.ui.components.PodcastsSymbol
 import com.bxane.nuvx.ui.components.DacVolumeHud
 import com.bxane.nuvx.ui.components.DacVolumeKeys
 import com.bxane.nuvx.ui.components.LocalPlayingBarsMotion
@@ -315,12 +316,12 @@ import com.bxane.nuvx.data.radio.RadioBrowser
 import com.bxane.nuvx.ui.screens.RadioScreen
 import com.bxane.nuvx.ui.screens.RadioSymbol
 import com.bxane.nuvx.ui.screens.toSong
-import com.composables.sfsymbols.SfSymbol
 import com.bxane.nuvx.ui.components.AppPrompts
 import com.bxane.nuvx.recognition.RecognitionSheet
 import com.bxane.nuvx.recognition.TopBarRecognizeButton
 import com.bxane.nuvx.ui.components.TracedMark
 import com.bxane.nuvx.data.model.MoodGenre
+import com.composables.sfsymbols.SfSymbol
 
 
 private const val TOP_FADE_START = 0.55f
@@ -4248,8 +4249,6 @@ private const val TAB_RADIO = 2
 private const val TAB_EXPLORE = 3
 private const val TAB_SEARCH = 4
 private const val TAB_PODCASTS = 5
-
-internal val PodcastsSymbol: SfSymbol by lazy { SfSymbol.named("microphone")!! }
 
 private var tabBeforeSearch by mutableIntStateOf(TAB_HOME)
 

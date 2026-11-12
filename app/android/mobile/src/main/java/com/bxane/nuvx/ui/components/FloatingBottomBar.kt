@@ -76,6 +76,8 @@ data class BottomTab(
     val symbol: SfSymbol? = null,
 )
 
+internal val PodcastsSymbol: SfSymbol by lazy { SfSymbol.named("microphone")!! }
+
 private val TabBounce = SfSymbolEffect.Bounce(scope = SfEffectScope.ByLayer)
 
 @Composable
