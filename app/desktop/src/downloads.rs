@@ -1,5 +1,8 @@
 use std::collections::HashMap;
+use std::io::Write;
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, RwLock};
 
 use serde::{Deserialize, Serialize};
@@ -132,31 +135,77 @@ pub fn save(t: &Track, audio: &[u8], duration_ms: u64, loudness_db: Option<f32>,
     let ext = if audio.get(4..8) == Some(b"ftyp") { "m4a" } else { "webm" };
     let mine = STATE.read().unwrap().index.get(&t.id).map(|e| e.path.clone());
     let stem = file_stem(t);
-    let mut path = folder.join(format!("{stem}.{ext}"));
-    let mut n = 2;
-    while path.exists() && Some(&path) != mine.as_ref() {
-        path = folder.join(format!("{stem} ({n}).{ext}"));
-        n += 1;
-    }
-    let part = path.with_extension(format!("{ext}.part"));
+    let (path, part, mut part_file) = {
+        let mut n = 1;
+        loop {
+            let name = if n == 1 { format!("{stem}.{ext}") } else { format!("{stem} ({n}).{ext}") };
+            let path = folder.join(name);
+            if path.exists() && Some(&path) != mine.as_ref() {
+                n += 1;
+                continue;
+            }
+            let part = path.with_extension(format!("{ext}.part"));
+            match OpenOptions::new().write(true).create_new(true).open(&part) {
+                Ok(file) => break (path, part, file),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
+                Err(e) => return Err(e.into()),
+            }
+        }
+    };
     let mut audio = audio.to_vec();
     if audio.get(8..12) == Some(b"dash") {
         audio[8..12].copy_from_slice(b"M4A ");
     }
-    std::fs::write(&part, &audio)?;
+    if let Err(e) = part_file.write_all(&audio) {
+        let _ = std::fs::remove_file(&part);
+        return Err(e.into());
+    }
+    drop(part_file);
     if ext == "m4a"
         && let Err(e) = tag(&part, t, cover)
     {
         log::warn!("couldn't tag {}: {e:#}", path.display());
     }
-    std::fs::rename(&part, &path)?;
+    if let Err(e) = std::fs::rename(&part, &path) {
+        let _ = std::fs::remove_file(&part);
+        return Err(e.into());
+    }
     let mut st = STATE.write().unwrap();
     let song = Some(t.clone());
-    st.index.insert(t.id.clone(), Entry { path: path.clone(), duration_ms, loudness_db, stands_for, song });
-    if let Ok(json) = serde_json::to_vec(&st.index) {
-        let _ = std::fs::write(&st.file, json);
+    let previous = st.index.insert(t.id.clone(), Entry { path: path.clone(), duration_ms, loudness_db, stands_for, song });
+    let persisted = (|| -> anyhow::Result<()> {
+        let json = serde_json::to_vec(&st.index)?;
+        write_atomically(&st.file, &json)?;
+        Ok(())
+    })();
+    if let Err(e) = persisted {
+        match previous {
+            Some(entry) => { st.index.insert(t.id.clone(), entry); }
+            None => { st.index.remove(&t.id); }
+        }
+        if !st.index.get(&t.id).is_some_and(|entry| entry.path.as_path() == path.as_path()) {
+            let _ = std::fs::remove_file(&path);
+        }
+        return Err(e);
     }
     Ok(path)
+}
+
+fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("downloads.json");
+    let tmp = parent.join(format!(".{name}.{}.{}.tmp", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+    let result = (|| {
+        let mut file = OpenOptions::new().write(true).create_new(true).open(&tmp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        std::fs::rename(&tmp, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(tmp);
+    }
+    result
 }
 
 fn file_stem(t: &Track) -> String {
