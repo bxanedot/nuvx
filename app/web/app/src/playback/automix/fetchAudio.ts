@@ -52,6 +52,7 @@ export async function fetchTrackAudio(videoId: string, signal?: AbortSignal): Pr
   let at = 0;
   let refusals = 0;
   for (;;) {
+    signal?.throwIfAborted();
     const { url, total } = source;
     const end = total ? Math.min(total, at + CHUNK_BYTES) - 1 : at + CHUNK_BYTES - 1;
     url.searchParams.set('range', `${at}-${end}`);
