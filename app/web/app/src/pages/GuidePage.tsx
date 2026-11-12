@@ -4,12 +4,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { currentBrowser, downloadsFor, type Browser } from '@/extension/downloads';
 import { useExtension } from '@/extension/useExtension';
-import { usePublishedExtension } from '@/extension/useExtensionUpdate';
 import { settingsUi } from './settingsStyles';
 
 export default function GuidePage() {
   const status = useExtension();
-  const downloads = downloadsFor(usePublishedExtension());
+  const downloads = downloadsFor();
   const [browser, setBrowser] = useState<Browser>(currentBrowser);
   const chosen = downloads.find((d) => d.browser === browser)!;
 
@@ -52,28 +51,36 @@ export default function GuidePage() {
           ))}
         </div>
         <section className={settingsUi.group}>
-          <a className={settingsUi.download} href={chosen.href} download>
-            <chosen.Icon size={28} className="text-primary" />
-            <span className={settingsUi.downloadText}>
-              <span className={settingsUi.downloadTitle}>{chosen.title}</span>
-              <span className={settingsUi.downloadDetail}>{chosen.detail}</span>
-            </span>
-            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
-          </a>
+          {chosen.href ? (
+            <a className={settingsUi.download} href={chosen.href} target="_blank" rel="noreferrer">
+              <chosen.Icon size={28} className="text-primary" />
+              <span className={settingsUi.downloadText}>
+                <span className={settingsUi.downloadTitle}>{chosen.title}</span>
+                <span className={settingsUi.downloadDetail}>{chosen.detail}</span>
+              </span>
+              <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+            </a>
+          ) : (
+            <div className={settingsUi.download} aria-disabled="true">
+              <chosen.Icon size={28} className="text-primary" />
+              <span className={settingsUi.downloadText}>
+                <span className={settingsUi.downloadTitle}>{chosen.title}</span>
+                <span className={settingsUi.downloadDetail}>{chosen.detail}</span>
+              </span>
+            </div>
+          )}
         </section>
-        <ol className={settingsUi.steps}>
-          {chosen.steps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
+        <p className={settingsUi.footer}>
+          {chosen.href
+            ? 'Install from the store. Approved extension updates are installed automatically by your browser.'
+            : 'Firefox installation will be available after the desktop add-on passes Mozilla review.'}
+        </p>
 
-        <h2 className={settingsUi.sectionHeader}>Update it later</h2>
-        <ol className={settingsUi.steps}>
-          <li>When a new version is out, nuvx Extension in the sidebar shows Update.</li>
-          {chosen.updateSteps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
+        <h2 className={settingsUi.sectionHeader}>Automatic updates</h2>
+        <p className={settingsUi.footer}>
+          Chrome installs approved Chrome Web Store updates automatically. Firefox updates will be managed by Firefox
+          after the nuvx listing is approved.
+        </p>
         <p className={settingsUi.footer}>
           Spotify, Discord and Listen Together are set up on the{' '}
           <PrefetchLink to="/extension" className={settingsUi.inlineLink}>

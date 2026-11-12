@@ -1,5 +1,6 @@
 import type { YTMusic, YTNodes } from 'youtubei.js/web';
 import type { Candidate } from '@/playback/queue/builder';
+import { ensureYtAuth } from '@/extension/useYtAuth';
 import { getInnertube, getMusicClient, getSignedInnertube } from '@/playback/youtube/innertube';
 import { isExactArtistMatch, normalizedArtistName } from '@/lib/artistCredits';
 import { LIBRARY_SECTIONS, LIKED_MUSIC_PLAYLIST, type LibrarySection } from './library';
@@ -61,11 +62,49 @@ export async function fetchExplore(): Promise<Shelf[]> {
 }
 
 export async function fetchPodcasts(): Promise<Shelf[]> {
-  const yt = await getMusicClient();
-  const home = await yt.music.getHomeFeed();
-  const filter = home.header?.chips?.find((chip) => chip.text.toLowerCase() === 'podcasts');
-  if (!filter) throw new Error('YouTube Music did not provide a Podcasts feed');
-  return mapShelves((await home.applyFilter(filter)).sections);
+  const auth = await ensureYtAuth().catch(() => null);
+  if (auth?.signedIn) {
+    try {
+      const yt = await getMusicClient();
+      const home = await yt.music.getHomeFeed();
+      const filter = home.header?.chips?.find((chip) => chip.text.toLowerCase() === 'podcasts');
+      if (filter) {
+        const shelves = mapShelves((await home.applyFilter(filter)).sections);
+        if (shelves.length) return shelves;
+      }
+    } catch {
+      // Fall through to YouTube's public search if the account feed is unavailable.
+    }
+  }
+
+  const yt = await getInnertube();
+  const search = await yt.search('podcast full episodes', { type: 'video', duration: 'long' });
+  const items: MusicItem[] = search.videos.map((result) => {
+    const video = result as unknown as {
+      id?: string;
+      title?: { toString(): string };
+      author?: { name?: string; id?: string };
+      thumbnails?: { url: string; width: number }[];
+      duration?: { seconds: number };
+    };
+    const artist = video.author?.name ?? 'YouTube';
+    return {
+      kind: 'video',
+      id: video.id ?? '',
+      title: video.title?.toString().trim() ?? '',
+      subtitle: artist,
+      artists: [{ name: artist, id: video.author?.id ?? null }],
+      album: null,
+      thumbnail: [...(video.thumbnails ?? [])].sort((a, b) => b.width - a.width)[0]?.url ?? null,
+      wide: true,
+      durationSec: video.duration?.seconds ?? null,
+      explicit: false,
+    };
+  }).filter((item) => !!item.id && !!item.title);
+
+  return items.length
+    ? [{ title: 'Podcasts on YouTube', strapline: 'Long-form episodes', layout: 'video', items, seeAll: null }]
+    : [];
 }
 
 interface RadioCountry { name: string; iso_3166_1: string; stationcount: number }
