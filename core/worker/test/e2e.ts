@@ -58,6 +58,17 @@ await guest.next("welcome");
 await host.next("members", (m) => m.members.every((x: any) => x.connected));
 await expectListeners(0);
 
+const previousGuest = guest;
+const rotated = await post(`/api/parties/${code}/join`, joinReq("Guest"));
+assert.equal(rotated.status, 200);
+assert.notEqual(rotated.body.token, joined.body.token);
+assert.equal(rotated.body.you.memberId, joined.body.you.memberId);
+for (let attempt = 0; attempt < 100 && previousGuest.ws.readyState === WebSocket.OPEN; attempt++) await new Promise((resolve) => setTimeout(resolve, 20));
+assert.notEqual(previousGuest.ws.readyState, WebSocket.OPEN);
+guest = client(code, rotated.body.token);
+await guest.open;
+await guest.next("welcome");
+
 host.send({ type: "ping", clientMs: 42 });
 assert.equal((await host.next("pong")).clientMs, 42);
 
@@ -77,7 +88,7 @@ await expectListeners(2);
 guest.ws.close();
 await host.next("members", (m) => m.members.some((x: any) => !x.connected));
 await expectListeners(1);
-guest = client(code, joined.body.token);
+guest = client(code, rotated.body.token);
 await guest.open;
 await guest.next("welcome");
 await expectListeners(2);
