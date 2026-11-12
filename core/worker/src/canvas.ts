@@ -41,9 +41,19 @@ export function isMp4(bytes: Uint8Array): boolean {
   const ftyp = top[0];
   if (ftyp.end - ftyp.start < 16 || (ftyp.end - ftyp.start - 16) % 4 !== 0) return false;
   if (!top.some(box => box.type === "mdat" && box.end > box.payload)) return false;
-  return top.some(box => box.type === "moov" && boxes(box.payload, box.end)?.some(trak => trak.type === "trak" && boxes(trak.payload, trak.end)?.some(mdia => mdia.type === "mdia" && boxes(mdia.payload, mdia.end)?.some(hdlr =>
-    hdlr.type === "hdlr" && hdlr.end - hdlr.start >= 20 && String.fromCharCode(...bytes.subarray(hdlr.start + 16, hdlr.start + 20)) === "vide"
-  )))));
+  for (const moov of top) {
+    if (moov.type !== "moov") continue;
+    for (const trak of boxes(moov.payload, moov.end) ?? []) {
+      if (trak.type !== "trak") continue;
+      for (const mdia of boxes(trak.payload, trak.end) ?? []) {
+        if (mdia.type !== "mdia") continue;
+        for (const hdlr of boxes(mdia.payload, mdia.end) ?? []) {
+          if (hdlr.type === "hdlr" && hdlr.end - hdlr.start >= 20 && String.fromCharCode(...bytes.subarray(hdlr.start + 16, hdlr.start + 20)) === "vide") return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 export function samePasscode(given: string, expected: string): boolean {
