@@ -6,20 +6,22 @@ import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.model.SearchFilter
 import com.bxane.nuvx.data.model.SearchResult
 import com.bxane.nuvx.data.model.Song
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.PrintWriter
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class TvRemoteStatus(
@@ -38,8 +40,6 @@ object TvAuthServer {
 
     private var serverSocket: ServerSocket? = null
     private val isRunning = AtomicBoolean(false)
-    private val scope = CoroutineScope(Dispatchers.IO)
-
     var statusProvider: (() -> TvRemoteStatus)? = null
     var onPlayPauseAction: (() -> Unit)? = null
     var onNextAction: (() -> Unit)? = null
@@ -119,10 +119,10 @@ object TvAuthServer {
     private fun handleClient(client: Socket, onCookieReceived: ((String) -> Unit)?) {
         Thread {
             try {
-                val reader = BufferedReader(InputStreamReader(client.getInputStream()))
+                val input = BufferedInputStream(client.getInputStream())
                 val writer = PrintWriter(client.getOutputStream(), true)
 
-                val requestLine = reader.readLine() ?: return@Thread
+                val requestLine = readHttpLine(input) ?: return@Thread
                 val parts = requestLine.split(" ")
                 val method = parts.getOrNull(0) ?: "GET"
                 val rawPath = parts.getOrNull(1) ?: "/"
@@ -130,24 +130,30 @@ object TvAuthServer {
                 val query = if (rawPath.contains("?")) rawPath.substringAfter("?") else ""
 
                 var contentLength = 0
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    if (line.isNullOrBlank()) break
-                    if (line!!.startsWith("Content-Length:", ignoreCase = true)) {
-                        contentLength = line!!.substringAfter(":").trim().toIntOrNull() ?: 0
+                var bodyCharset: Charset = StandardCharsets.UTF_8
+                while (true) {
+                    val line = readHttpLine(input) ?: break
+                    if (line.isBlank()) break
+                    if (line.startsWith("Content-Length:", ignoreCase = true)) {
+                        contentLength = line.substringAfter(":").trim().toIntOrNull() ?: 0
+                    } else if (line.startsWith("Content-Type:", ignoreCase = true)) {
+                        val charsetName = line.substringAfter(":").split(';')
+                            .firstOrNull { it.trim().startsWith("charset=", ignoreCase = true) }
+                            ?.substringAfter('=')?.trim() ?: "UTF-8"
+                        bodyCharset = runCatching { Charset.forName(charsetName) }.getOrDefault(StandardCharsets.UTF_8)
                     }
                 }
 
                 var requestBody = ""
                 if (contentLength > 0) {
-                    val bodyChars = CharArray(contentLength)
+                    val bodyBytes = ByteArray(contentLength)
                     var read = 0
                     while (read < contentLength) {
-                        val count = reader.read(bodyChars, read, contentLength - read)
+                        val count = input.read(bodyBytes, read, contentLength - read)
                         if (count <= 0) break
                         read += count
                     }
-                    requestBody = String(bodyChars)
+                    requestBody = String(bodyBytes, 0, read, bodyCharset)
                 }
 
                 when {
@@ -191,23 +197,23 @@ object TvAuthServer {
                         if (q.isBlank()) {
                             sendJsonResponse(writer, "[]")
                         } else {
-                            scope.launch {
-                                val results = YtMusicRepository.search(q, SearchFilter.SONGS).getOrDefault(emptyList())
-                                val arr = JSONArray()
-                                results.take(15).forEach { item ->
-                                    val song = (item as? SearchResult.Track)?.song
-                                    if (song != null) {
-                                        val itemObj = JSONObject().apply {
-                                            put("videoId", song.videoId)
-                                            put("title", song.title)
-                                            put("subtitle", song.artist)
-                                            put("thumbnailUrl", song.thumbnailUrl ?: "")
-                                        }
-                                        arr.put(itemObj)
-                                    }
-                                }
-                                sendJsonResponse(writer, arr.toString())
+                            val results = runBlocking(Dispatchers.IO) {
+                                YtMusicRepository.search(q, SearchFilter.SONGS).getOrDefault(emptyList())
                             }
+                            val arr = JSONArray()
+                            results.take(15).forEach { item ->
+                                val song = (item as? SearchResult.Track)?.song
+                                if (song != null) {
+                                    val itemObj = JSONObject().apply {
+                                        put("videoId", song.videoId)
+                                        put("title", song.title)
+                                        put("subtitle", song.artist)
+                                        put("thumbnailUrl", song.thumbnailUrl ?: "")
+                                    }
+                                    arr.put(itemObj)
+                                }
+                            }
+                            sendJsonResponse(writer, arr.toString())
                         }
                     }
 
@@ -248,6 +254,17 @@ object TvAuthServer {
                 try { client.close() } catch (_: Exception) {}
             }
         }.start()
+    }
+
+    private fun readHttpLine(input: InputStream): String? {
+        val bytes = ByteArrayOutputStream()
+        while (true) {
+            val next = input.read()
+            if (next < 0) return if (bytes.size() == 0) null else String(bytes.toByteArray(), StandardCharsets.ISO_8859_1)
+            if (next == '\n'.code) break
+            if (next != '\r'.code) bytes.write(next)
+        }
+        return String(bytes.toByteArray(), StandardCharsets.ISO_8859_1)
     }
 
     private fun sendJsonResponse(writer: PrintWriter, json: String) {
@@ -398,6 +415,7 @@ body { background: #08080B; color: #FFF; font-family: -apple-system, BlinkMacSys
 
 <script>
 let dur = 0;
+let searchRequest = 0;
 function fmtTime(ms) {
   if (ms <= 0) return "0:00";
   let s = Math.floor(ms / 1000), m = Math.floor(s / 60), r = s % 60;
@@ -430,8 +448,10 @@ function handleSeek(e) {
 }
 function searchMusic() {
   let q = document.getElementById('sQuery').value;
-  if (!q) return;
+  if (!q.trim()) return;
+  const request = ++searchRequest;
   fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json()).then(items => {
+    if (request !== searchRequest) return;
     let container = document.getElementById('sResults');
     container.innerHTML = '';
     items.forEach(item => {
@@ -444,6 +464,8 @@ function searchMusic() {
       };
       container.appendChild(div);
     });
+  }).catch(() => {
+    if (request === searchRequest) document.getElementById('sResults').innerHTML = '<div style="padding:10px;text-align:center;color:#999;">Search failed. Try again.</div>';
   });
 }
 setInterval(updateStatus, 1200);
