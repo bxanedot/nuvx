@@ -76,11 +76,17 @@ interface RowProps {
   position: number;
   fallbackArtwork: string | null | undefined;
   onPlayRow: () => void;
+  source?: ListContext['source'];
 }
 
-function Row({ track, variant, position, fallbackArtwork, onPlayRow }: RowProps) {
-  const current = usePlayer((s) => s.nowPlaying?.videoId === track.videoId);
-  const playing = usePlayer((s) => s.nowPlaying?.videoId === track.videoId && (s.status === 'playing' || s.status === 'buffering'));
+function Row({ track, variant, position, fallbackArtwork, onPlayRow, source }: RowProps) {
+  const current = usePlayer((s) => {
+    const active = s.queue[s.index];
+    if (active?.track.videoId !== track.videoId) return false;
+    if (source && (active.source?.type !== source.type || active.source?.id !== source.id)) return false;
+    return active.sourceIndex === undefined || active.sourceIndex === position - 1;
+  });
+  const playing = usePlayer((s) => current && (s.status === 'playing' || s.status === 'buffering'));
   const togglePlay = usePlayer((s) => s.togglePlay);
   const unavailable = track.unavailable;
   const onPlay = () => (unavailable ? undefined : current ? togglePlay() : onPlayRow());
@@ -194,8 +200,13 @@ function Header() {
 export function TrackList({ tracks, variant, fallbackArtwork, fallbackArtists, onNearEnd, source }: TrackListProps) {
   const playRow = (i: number) => {
     if (source) {
-      const playable = tracks.filter((t) => !t.unavailable);
-      return playList(playable, Math.max(0, playable.indexOf(tracks[i]!)), { source, fallbackArtwork, fallbackArtists });
+      const playable = tracks.map((track, index) => ({ track, index })).filter(({ track }) => !track.unavailable);
+      return playList(
+        playable.map(({ track }) => track),
+        playable.findIndex(({ index }) => index === i),
+        { source, fallbackArtwork, fallbackArtists },
+        playable.map(({ index }) => index),
+      );
     }
     const track = tracks[i]!;
     playTrack(track.artists.length || !fallbackArtists ? track : { ...track, artists: fallbackArtists }, fallbackArtwork);
@@ -242,6 +253,7 @@ export function TrackList({ tracks, variant, fallbackArtwork, fallbackArtists, o
                   variant={variant}
                   position={item.index + 1}
                   fallbackArtwork={fallbackArtwork}
+                  source={source}
                   onPlayRow={() => playRow(item.index)}
                 />
               </div>
@@ -255,6 +267,7 @@ export function TrackList({ tracks, variant, fallbackArtwork, fallbackArtists, o
               variant={variant}
               position={i + 1}
               fallbackArtwork={fallbackArtwork}
+              source={source}
               onPlayRow={() => playRow(i)}
             />
           ))

@@ -59,6 +59,7 @@ const FIRST_AUDIO_TIMEOUT_MS = 15_000;
 export class YouTubeEngine {
   readonly audio: HTMLAudioElement;
   private player: shaka.Player | null = null;
+  private playerPromise: Promise<shaka.Player> | null = null;
   private adapter: SabrStreamingAdapter | null = null;
   private yt: Innertube | null = null;
   private generation = 0;
@@ -76,8 +77,20 @@ export class YouTubeEngine {
     this.preferredCodecs = opus ? ['opus', 'mp4a'] : ['mp4a'];
   }
 
-  private async ensurePlayer(): Promise<shaka.Player> {
-    if (this.player) return this.player;
+  private ensurePlayer(): Promise<shaka.Player> {
+    if (this.player) return Promise.resolve(this.player);
+    if (this.playerPromise) return this.playerPromise;
+    this.playerPromise = this.initPlayer().then(
+      (player) => (this.player = player),
+      (error: unknown) => {
+        this.playerPromise = null;
+        throw error;
+      },
+    );
+    return this.playerPromise;
+  }
+
+  private async initPlayer(): Promise<shaka.Player> {
     shaka.polyfill.installAll();
     if (!shaka.Player.isBrowserSupported()) throw new Error('This browser can’t play YouTube streams (no Media Source Extensions)');
     const player = new shaka.Player();
@@ -95,9 +108,13 @@ export class YouTubeEngine {
         },
       },
     });
-    await player.attach(this.audio);
+    try {
+      await player.attach(this.audio);
+    } catch (error) {
+      await player.destroy();
+      throw error;
+    }
     player.addEventListener('error', (event) => this.onShakaError((event as unknown as { detail: shaka.util.Error }).detail));
-    this.player = player;
     return player;
   }
 

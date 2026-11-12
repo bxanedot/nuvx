@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { RadioIcon } from '@/components/icons/NavIcons';
 import { PlayIcon } from '@/components/icons/Transport';
@@ -17,6 +17,7 @@ export default function RadioPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const stations = useRadioStations(search ? null : country || null, search);
+  const stationList = useRef<HTMLUListElement>(null);
   const current = usePlayer((state) => state.nowPlaying?.videoId);
   const playing = usePlayer((state) => state.status === 'playing' || state.status === 'buffering');
 
@@ -26,6 +27,10 @@ export default function RadioPage() {
       setCountry(countries.data.find((item) => item.iso_3166_1 === region)?.iso_3166_1 ?? countries.data[0]!.iso_3166_1);
     }
   }, [countries.data, country]);
+
+  useEffect(() => {
+    stationList.current?.scrollTo({ top: 0 });
+  }, [country, search]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -50,7 +55,7 @@ export default function RadioPage() {
         {stations.isError && <LoadError error={stations.error} onRetry={() => void stations.refetch()} />}
         {!stations.isError && stations.isPending && <div className="py-12 text-center type-body text-secondary">Loading stations…</div>}
         {stations.data?.length === 0 && <EmptyState title="No stations found" />}
-        <ul aria-label="Radio stations" className="mt-3 flex max-h-[65vh] flex-col gap-1 overflow-y-auto overscroll-contain">{stations.data?.map((station) => {
+        <ul ref={stationList} aria-label="Radio stations" className="mt-3 flex max-h-[65vh] flex-col gap-1 overflow-y-auto overscroll-contain">{stations.data?.map((station) => {
           const onAir = current === station.videoId;
           return <li key={station.videoId}><button className={row} onClick={() => tune(station)} aria-label={`Play ${station.title}`}>
             <div className="relative size-12 shrink-0 overflow-hidden rounded-[8px] bg-quinary">
