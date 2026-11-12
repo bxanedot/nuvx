@@ -11,9 +11,11 @@ import { config } from '@/config';
 import { useExtension } from '@/extension/useExtension';
 import { isMobileBrowser } from '@/lib/platform';
 import { useUi } from '@/state/ui';
+import { usePlayer } from '@/state/player';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { Banner, bannerButtonClass } from './Banner';
 import { MobileTopBar } from './MobileTopBar';
+import { MobilePlayerBar } from './MobilePlayerBar';
 import { PlayerBar } from './PlayerBar';
 import { SidePanel } from './SidePanel';
 import { Sidebar } from './Sidebar';
@@ -50,6 +52,7 @@ export function AppShell() {
   const dismissBanner = useUi((s) => s.dismissInstallBanner);
   const fullScreen = useUi((s) => s.fullScreen);
   const backgroundMotion = useUi((s) => s.backgroundMotion);
+  const hasTrack = usePlayer((s) => s.nowPlaying !== null);
 
   let banner = null;
   if (mobile) {
@@ -95,11 +98,16 @@ export function AppShell() {
           className="absolute inset-0 isolate overflow-x-hidden overflow-y-auto pl-(--web-navigation-width) [scrollbar-gutter:stable] data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-in max-sm:pt-(--mobile-top-bar-height) max-sm:pl-0"
         >
           <div className="nuvx-ambient" data-motion-paused={backgroundMotion ? undefined : ''} aria-hidden="true" />
-          <div className="min-h-full pb-[calc(var(--player-pill-height)+var(--player-bottom-offset)+40px)]">
+          <div
+            className={`min-h-full pb-[calc(var(--player-pill-height)+var(--player-bottom-offset)+40px)] ${
+              hasTrack ? 'max-sm:pb-[calc(var(--mini-player-height)+24px)]' : 'max-sm:pb-10'
+            }`}
+          >
             <Outlet />
           </div>
         </main>
         <PlayerBar />
+        <MobilePlayerBar />
         <SidePanel />
       </div>
       {banner}
