@@ -153,7 +153,6 @@ import com.bxane.nuvx.ui.screens.SpotifyCanvasAuthScreen
 import com.bxane.nuvx.ui.screens.SpotifyLibraryScreen
 import com.bxane.nuvx.data.spotify.SPOTIFY_PAGE_PREFIX
 import com.bxane.nuvx.playback.AudioCache
-import com.bxane.nuvx.playback.LinkRequest
 import com.bxane.nuvx.playback.MusicLink
 import com.bxane.nuvx.playback.OriginalVersion
 import com.bxane.nuvx.playback.PlayerDeepLink
@@ -197,6 +196,7 @@ import com.bxane.nuvx.playback.rememberMediaController
 import com.bxane.nuvx.playback.rememberPlayerState
 import com.bxane.nuvx.playback.setQueueDragActive
 import com.bxane.nuvx.ui.MainViewModel
+import com.bxane.nuvx.ui.MainMusicLinkHandler
 import com.bxane.nuvx.ui.MainBrowseOpener
 import com.bxane.nuvx.ui.MainPlaybackStarter
 import com.bxane.nuvx.ui.SearchSource
@@ -992,59 +992,19 @@ internal fun NuvxApp(
     LaunchedEffect(linkRequest, controller) {
         val request = linkRequest ?: return@LaunchedEffect
         val session = controller ?: return@LaunchedEffect
-        when (request) {
-            is LinkRequest.Track -> {
-                val song = YtMusicRepository.trackLinks(request.videoId).getOrNull()
-                if (song == null) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.couldnt_open_link),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                } else {
-                    playRadio(
-                        song,
-                        QueueSource(sharedLinkLabel, PlaybackSourceType.SHARED_LINK, song.videoId),
-                    )
-                }
-            }
-            is LinkRequest.Page -> {
-                dismissPlayer()
-                viewModel.openDetail(request.browseId, title = "")
-            }
-            is LinkRequest.Search -> {
-                val songs = if (!request.play) null else {
-                    YtMusicRepository.search(request.query, SearchFilter.SONGS).getOrNull()
-                        ?.filterIsInstance<SearchResult.Track>()
-                }
-                val top = songs?.firstOrNull()?.song
-                if (top != null) {
-                    playRadio(top, QueueSource(searchLabel, PlaybackSourceType.SEARCH))
-                } else {
-                    dismissPlayer()
-                    navigator.clear()
-                    selectedTab = TAB_SEARCH
-                    viewModel.searchFor(request.query)
-                }
-            }
-            LinkRequest.Resume -> if (session.mediaItemCount > 0) session.play()
-            is LinkRequest.LocalFile -> {
-                runCatching {
-                    context.contentResolver.takePersistableUriPermission(
-                        request.uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                    )
-                }
-                val song = LocalMediaRepository.songFromUri(context, request.uri)
-                playFrom(
-                    listOf(song),
-                    0,
-                    QueueSource(openedFileLabel, PlaybackSourceType.SHARED_LINK, song.localUri),
-                )
-                showNowPlaying = true
-            }
-        }
-        MusicLink.handled()
+        MainMusicLinkHandler(
+            context = context,
+            viewModel = viewModel,
+            playbackStarter = playbackStarter,
+            dismissPlayer = dismissPlayer,
+            navigator = navigator,
+            searchTab = TAB_SEARCH,
+            sharedLinkLabel = sharedLinkLabel,
+            searchLabel = searchLabel,
+            openedFileLabel = openedFileLabel,
+            selectTab = { selectedTab = it },
+            setShowNowPlaying = { showNowPlaying = it },
+        ).handle(request, session)
     }
 
     val onBrowseLongPress: (ShelfItem) -> Unit = { item ->
