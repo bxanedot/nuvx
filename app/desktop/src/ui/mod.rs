@@ -13,6 +13,7 @@ mod karaoke;
 mod library_pages;
 mod lists;
 mod lyric_prefs;
+mod lyrics_settings;
 mod mini;
 mod network_settings;
 mod notes;
