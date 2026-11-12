@@ -40,6 +40,7 @@ export interface Shelf {
 
 export interface Track {
   videoId: string;
+  streamUrl?: string;
   title: string;
   artists: ArtistRef[];
   album: AlbumRef | null;

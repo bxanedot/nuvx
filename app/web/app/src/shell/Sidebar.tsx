@@ -11,6 +11,8 @@ import {
   NewIcon,
   RecentlyAddedIcon,
   SearchIcon,
+  RadioIcon,
+  PodcastIcon,
   SongsIcon,
   type NavIconProps,
 } from '@/components/icons/NavIcons';
@@ -34,6 +36,8 @@ const PRIMARY: NavItem[] = [
   { to: '/search', label: 'Search', Icon: SearchIcon },
   { to: '/home', label: 'Home', Icon: HomeIcon },
   { to: '/new', label: 'New', Icon: NewIcon },
+  { to: '/podcasts', label: 'Podcasts', Icon: PodcastIcon },
+  { to: '/radio', label: 'Radio', Icon: RadioIcon },
 ];
 
 const LIBRARY_ICONS: Record<Exclude<LibrarySection, 'playlists'>, NavItem['Icon']> = {

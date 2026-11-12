@@ -118,6 +118,7 @@ interface Deck {
   engine: YouTubeEngine;
   audio: HTMLAudioElement;
   gain: number;
+  radio: boolean;
 }
 
 let decks: Deck[] | null = null;
@@ -127,6 +128,8 @@ let active = 0;
 export function getAudio(): HTMLAudioElement | null {
   return decks?.[active]?.audio ?? null;
 }
+
+const boundAudio = new WeakSet<HTMLAudioElement>();
 
 export function getPlayhead(): { sec: number; paused: boolean } | null {
   const audio = getAudio();
@@ -150,7 +153,7 @@ function getDecks(): Promise<Deck[]> {
       audio.preload = 'auto';
       audio.crossOrigin = 'anonymous';
       const engine = new YouTubeEngine(audio);
-      const deck: Deck = { engine, audio, gain: 1 };
+      const deck: Deck = { engine, audio, gain: 1, radio: false };
       engine.onFatal = (videoId, message) => {
         if (decks?.[active] !== deck) return;
         trackLog.e(`stopped: ${message}`, videoId);
@@ -179,7 +182,7 @@ function applyVolumes() {
     const now = graph.ctx.currentTime;
     graph.master.gain.setTargetAtTime(level, now, 0.015);
     (decks ?? []).forEach((deck, n) => {
-      deck.audio.volume = 1;
+      deck.audio.volume = deck.radio ? level * deck.gain : 1;
       graph!.decks[n]!.fader.gain.setTargetAtTime(deck.gain, now, 0.015);
     });
     return;
@@ -296,7 +299,7 @@ function automixHandoff() {
 }
 
 function syncAutomix() {
-  if (!usePlayer.getState().automix) {
+  if (!usePlayer.getState().automix || usePlayer.getState().queue[usePlayer.getState().index]?.track.streamUrl) {
     graph?.dj.stop();
     return;
   }
@@ -589,7 +592,7 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
   cancelCrossfade();
   const token = ++loadToken;
 
-  if (!extensionReady()) {
+  if (!entry.track.streamUrl && !extensionReady()) {
     usePlayer.setState({
       index: at,
       nowPlaying: { ...hintOf(entry.track), title: entry.track.title || 'Can’t play this here yet' },
@@ -605,6 +608,36 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
     const all = await getDecks();
     const deck = all[active]!;
     all[1 - active]!.engine.stop().catch(() => {});
+    if (entry.track.streamUrl) {
+      await deck.engine.stop().catch(() => {});
+      if (!deck.radio) {
+        deck.audio.pause();
+        deck.audio = new Audio();
+        deck.audio.preload = 'none';
+        deck.radio = true;
+        bindElement(deck, active);
+      }
+      deck.audio.src = entry.track.streamUrl;
+      deck.audio.load();
+      deck.gain = 1;
+      applyVolumes();
+      await deck.audio.play();
+      if (token !== loadToken) return;
+      const nowPlaying = { ...hintOf(entry.track), artist: artistNames(entry.track) || 'Live radio', durationSec: 0, streamInfo: 'Live radio' };
+      usePlayer.setState({ nowPlaying, status: 'playing', error: null, automixState: null });
+      updateMediaSession(nowPlaying);
+      graph?.dj.stop();
+      afterTrackStarted();
+      return;
+    }
+    if (deck.radio) {
+      deck.audio.pause();
+      deck.audio.removeAttribute('src');
+      deck.audio.load();
+      deck.audio = deck.engine.audio;
+      deck.radio = false;
+      bindElement(deck, active);
+    }
     deck.gain = 1;
     applyVolumes();
     const track = await deck.engine.load(entry.track.videoId, { startSec, autoplay });
@@ -672,7 +705,7 @@ function afterTrackStarted() {
       index: index - [...played].filter((i) => i < index).length,
     });
   }
-  void refillAutoplay();
+  if (!queue[index]?.track.streamUrl) void refillAutoplay();
 }
 
 const MAX_QUEUED_AUTOPLAY = 10;
@@ -687,6 +720,7 @@ function refillAutoplay(force = false, anySeed = false): Promise<void> {
   const needed = MAX_QUEUED_AUTOPLAY - queue.slice(index + 1).filter((e) => e.tier === 'autoplay').length;
   if (needed <= 0) return Promise.resolve();
   const playing = queue[index]?.track;
+  if (playing?.streamUrl) return Promise.resolve();
   let seed = playing;
   if (seed && exhaustedSeeds.has(seed.videoId) && anySeed) {
     seed = queue
@@ -766,7 +800,7 @@ function cancelCrossfade() {
 
 function maybeCrossfade() {
   const state = usePlayer.getState();
-  if (!decks || fade || state.automix || !state.crossfadeSec || state.status !== 'playing') return;
+  if (!decks || fade || state.automix || state.queue[state.index]?.track.streamUrl || !state.crossfadeSec || state.status !== 'playing') return;
   const front = decks[active]!;
   const remaining = front.audio.duration - front.audio.currentTime;
   if (!Number.isFinite(remaining) || remaining > state.crossfadeSec || remaining < 1) return;
@@ -852,6 +886,8 @@ export function onTrackEnded(listener: () => void): () => void {
 
 function bindElement(deck: Deck, n: number) {
   const element = deck.audio;
+  if (boundAudio.has(element)) return;
+  boundAudio.add(element);
   const inFront = () => active === n;
   const set = (status: PlayerStatus) => {
     if (!inFront() || holding) return;

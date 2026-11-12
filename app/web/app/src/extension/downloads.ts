@@ -43,7 +43,7 @@ export function downloadsFor(published: PublishedExtension | null): Download[] {
     {
       browser: 'firefox',
       title: 'Download for Firefox',
-      detail: 'Firefox 128 or newer',
+      detail: 'Firefox 140 or newer',
       href: published ? downloadUrl(published.files.firefox) : config.extensionFirefoxUrl,
       Icon: FaFirefoxBrowser,
       steps: [

@@ -1,6 +1,10 @@
 import type { YtAccount, YtAuthState, YtChannel } from '@nuvx/shared/bridge';
 import { installExtensionFetchRule } from './rules';
 
+declare const __STORE_BUILD__: boolean;
+
+const STORE_BUILD = typeof __STORE_BUILD__ !== 'undefined' && __STORE_BUILD__;
+
 export const MUSIC_ORIGIN = 'https://music.youtube.com';
 
 const SIGNING_COOKIES = ['SAPISID', '__Secure-3PAPISID', '__Secure-1PAPISID'];
@@ -19,7 +23,7 @@ const PREFS_KEY = 'yt.prefs';
 
 async function loadPrefs(): Promise<Prefs> {
   const stored = (await browser.storage.local.get(PREFS_KEY))[PREFS_KEY] as Partial<Prefs> | undefined;
-  return { connected: stored?.connected ?? true, selectedChannelId: stored?.selectedChannelId ?? null };
+  return { connected: stored?.connected ?? !STORE_BUILD, selectedChannelId: stored?.selectedChannelId ?? null };
 }
 
 async function savePrefs(change: Partial<Prefs>): Promise<void> {

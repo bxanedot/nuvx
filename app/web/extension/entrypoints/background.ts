@@ -10,7 +10,6 @@ import {
   type BridgeResponse,
   type Capability,
 } from '@nuvx/shared/bridge';
-import * as discord from '../lib/discord';
 import { grantedOrigins, lyricsFetch, requestOrigins } from '../lib/lyricsFetch';
 import { installRules } from '../lib/rules';
 import { authState, invalidateAccounts, isSessionCookie, selectChannel, setConnected } from '../lib/ytAuth';
@@ -18,11 +17,12 @@ import * as spotify from '../lib/spotify';
 import { ytFetch } from '../lib/ytFetch';
 
 declare const __SITE_ORIGINS__: string[];
+declare const __DISCORD_PRESENCE__: boolean;
 
 const ALLOWED_ORIGINS = new Set(__SITE_ORIGINS__);
 const OWN_ORIGIN = new URL(browser.runtime.getURL('/')).origin;
 
-const CAPABILITIES: Capability[] = ['yt', 'yt.auth', 'yt.stats', 'lyrics', 'spotify', ...(discord.AVAILABLE ? (['discord'] as const) : [])];
+const CAPABILITIES: Capability[] = ['yt', 'yt.auth', 'yt.stats', 'lyrics', 'spotify', ...(__DISCORD_PRESENCE__ ? (['discord'] as const) : [])];
 
 function originOf(sender: Browser.runtime.MessageSender): string | null {
   if (sender.origin) return sender.origin;
@@ -129,21 +129,25 @@ async function handle(request: BridgeRequest): Promise<BridgeResponse> {
           url: await spotify.canvas((request as BridgeRequest<'spotify.canvas'>).params.trackId),
         });
       case 'discord.state':
-        return okResponse<'discord.state'>(request.id, await discord.discordState());
+        if (!__DISCORD_PRESENCE__) return errorResponse(request.id, 'unsupported', 'This build of the extension leaves Discord out.');
+        return okResponse<'discord.state'>(request.id, await (await import('../lib/discord')).discordState());
       case 'discord.connect':
-        if (!discord.AVAILABLE) return errorResponse(request.id, 'unsupported', 'This build of the extension leaves Discord out.');
-        await discord.openConnectPage();
+        if (!__DISCORD_PRESENCE__) return errorResponse(request.id, 'unsupported', 'This build of the extension leaves Discord out.');
+        await (await import('../lib/discord')).openConnectPage();
         return okResponse<'discord.connect'>(request.id, {});
       case 'discord.disconnect':
-        return okResponse<'discord.disconnect'>(request.id, await discord.disconnect());
+        if (!__DISCORD_PRESENCE__) return errorResponse(request.id, 'unsupported', 'This build of the extension leaves Discord out.');
+        return okResponse<'discord.disconnect'>(request.id, await (await import('../lib/discord')).disconnect());
       case 'discord.setEnabled':
+        if (!__DISCORD_PRESENCE__) return errorResponse(request.id, 'unsupported', 'This build of the extension leaves Discord out.');
         return okResponse<'discord.setEnabled'>(
           request.id,
-          await discord.setEnabled((request as BridgeRequest<'discord.setEnabled'>).params.enabled === true),
+          await (await import('../lib/discord')).setEnabled((request as BridgeRequest<'discord.setEnabled'>).params.enabled === true),
         );
       case 'discord.presence': {
+        if (!__DISCORD_PRESENCE__) return errorResponse(request.id, 'unsupported', 'This build of the extension leaves Discord out.');
         const { track, options } = (request as BridgeRequest<'discord.presence'>).params;
-        await discord.setPresence(track, options);
+        await (await import('../lib/discord')).setPresence(track, options);
         return okResponse<'discord.presence'>(request.id, {});
       }
       default:
@@ -191,7 +195,9 @@ function acceptPort(port: Browser.runtime.Port): void {
   port.onDisconnect.addListener(() => {
     ports.delete(port);
     clearTimeout(lastPortTimer);
-    if (!ports.size) lastPortTimer = setTimeout(() => !ports.size && discord.allPagesClosed(), 30_000);
+    if (!ports.size) lastPortTimer = setTimeout(() => {
+      if (__DISCORD_PRESENCE__) void import('../lib/discord').then((discord) => discord.allPagesClosed());
+    }, 30_000);
   });
 }
 
@@ -241,9 +247,13 @@ export default defineBackground(() => {
 
   browser.cookies.onChanged.addListener(onCookieChanged);
 
-  discord.onDiscordState((data) => broadcast({ event: 'discord.state', data }));
-  browser.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local' || !Object.keys(changes).some((key) => key.startsWith('discord.'))) return;
-    void discord.discordState().then((data) => broadcast({ event: 'discord.state', data }));
-  });
+  if (__DISCORD_PRESENCE__) {
+    void import('../lib/discord').then((discord) => {
+      discord.onDiscordState((data) => broadcast({ event: 'discord.state', data }));
+      browser.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local' || !Object.keys(changes).some((key) => key.startsWith('discord.'))) return;
+        void discord.discordState().then((data) => broadcast({ event: 'discord.state', data }));
+      });
+    });
+  }
 });

@@ -16,12 +16,13 @@ export default defineConfig({
     define: {
       __SITE_ORIGINS__: JSON.stringify(SITE_ORIGINS),
       __DISCORD_PRESENCE__: JSON.stringify(DISCORD_PRESENCE),
+      __STORE_BUILD__: JSON.stringify(STORE_BUILD),
     },
   }),
   manifest: ({ browser }) => ({
     name: 'nuvx',
-    description: 'Connects the nuvx web player to YouTube Music, Spotify and Discord.',
-    homepage_url: SITE_ORIGINS[0],
+    description: 'Connects the nuvx web player to YouTube Music and Spotify.',
+    homepage_url: `${SITE_ORIGINS[0]}/extension`,
     permissions: ['storage', 'declarativeNetRequest', 'cookies', ...(DISCORD_PRESENCE ? ['scripting'] : [])],
     host_permissions: [
       'https://music.youtube.com/*',
@@ -41,8 +42,10 @@ export default defineConfig({
           browser_specific_settings: {
             gecko: {
               id: 'extension@nuvx.lol',
-              strict_min_version: '128.0',
-              data_collection_permissions: { required: ['none'] },
+              strict_min_version: '140.0',
+              data_collection_permissions: {
+                required: ['authenticationInfo', 'personallyIdentifyingInfo', 'searchTerms', 'websiteContent'],
+              },
             },
           },
         }

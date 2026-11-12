@@ -2,6 +2,15 @@ import type { SVGProps } from 'react';
 
 export type NavIconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number };
 
+function glyph(name: 'radio' | 'podcast') {
+  return function GlyphIcon({ size = 24, className, style }: NavIconProps) {
+    return <span aria-hidden="true" className={className} style={{ width: size, height: size, display: 'inline-block', flex: 'none', backgroundColor: 'currentColor', mask: `url(/glyphs/${name}.svg) center / contain no-repeat`, WebkitMask: `url(/glyphs/${name}.svg) center / contain no-repeat`, ...style }} />;
+  };
+}
+
+export const RadioIcon = glyph('radio');
+export const PodcastIcon = glyph('podcast');
+
 function make(paths: { d: string; fillOpacity?: number; transform?: string }[]) {
   return function NavIcon({ size = 28, ...props }: NavIconProps) {
     return (

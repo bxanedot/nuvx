@@ -48,7 +48,7 @@ function Scrubber() {
   const { bar, elapsed, remaining, mixLabel, dragging, handlers } = useScrubber();
   return (
     <div className="group/scrub mt-3.5" data-dragging={dragging || undefined}>
-      <div className="group/hit flex h-4 cursor-pointer touch-none items-center" {...handlers}>
+      <div className="group/hit flex h-4 touch-none items-center" {...handlers}>
         <div
           className="relative h-1 flex-1 overflow-hidden rounded-[999px] bg-quaternary transition-[height] duration-120 ease-in group-hover/hit:h-2 group-data-dragging/scrub:h-2"
           aria-hidden="true"
@@ -123,7 +123,8 @@ export function FullScreenPlayer() {
     const entry = s.queue[s.index]?.track;
     return entry && entry.videoId === s.nowPlaying?.videoId ? entry : null;
   });
-  const motion = useTrackMotion(nowPlaying?.title, nowPlaying?.artist, track?.album?.name);
+  const liveRadio = !!track?.streamUrl;
+  const motion = useTrackMotion(liveRadio ? null : nowPlaying?.title, liveRadio ? null : nowPlaying?.artist, track?.album?.name);
   const { pathname } = useLocation();
   const openedAt = useRef(pathname);
   const playing = usePlayer((s) => s.status === 'playing' || s.status === 'buffering');
@@ -150,6 +151,9 @@ export function FullScreenPlayer() {
   useEffect(() => {
     if (video && !picked.current) setPanel(null);
   }, [video]);
+  useEffect(() => {
+    if (liveRadio) setPanel('queue');
+  }, [liveRadio]);
 
   const wake = () => {
     setIdle(false);
@@ -318,12 +322,12 @@ export function FullScreenPlayer() {
               </span>
               <NerdStats />
             </div>
-            <FavoriteButton
+            {!liveRadio && <FavoriteButton
               videoId={nowPlaying.videoId}
               className="grid size-8 flex-none place-items-center rounded-full bg-quinary text-primary hover:bg-quaternary"
               size={18}
-            />
-            {track && (
+            />}
+            {!liveRadio && track && (
               <TrackMenu
                 track={track}
                 className="grid size-8 flex-none place-items-center rounded-full bg-quinary text-primary hover:bg-quaternary"
@@ -336,7 +340,7 @@ export function FullScreenPlayer() {
           <Transport />
         </section>
 
-        {showLyrics && (
+        {showLyrics && !liveRadio && (
           <section className="flex min-h-0 animate-fade-in self-stretch" aria-label="Lyrics">
             <LyricsPanel variant="full" />
           </section>
@@ -351,14 +355,14 @@ export function FullScreenPlayer() {
         )}
       </div>
 
-      <button
+      {!liveRadio && <button
         className={`${corner} bottom-5 left-5 aria-pressed:text-primary`}
         aria-label="Lyrics"
         aria-pressed={showLyrics}
         onClick={() => togglePanel('lyrics')}
       >
         {showLyrics ? <LyricsActiveIcon size={18} /> : <LyricsIcon size={18} />}
-      </button>
+      </button>}
       <div
         className={`group/actions absolute right-5 bottom-5 z-1 flex items-center [--volume-gap:36px] transition-opacity duration-300${hidden}`}
         data-volume-open={volumeOpen || undefined}
