@@ -1,6 +1,7 @@
 package com.bxane.nuvx.ui.tv.auth
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.model.SearchFilter
@@ -22,6 +23,7 @@ import java.net.Socket
 import java.net.URLDecoder
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
+import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class TvRemoteStatus(
@@ -37,9 +39,13 @@ object TvAuthServer {
 
     private const val TAG = "TvAuthServer"
     private const val DEFAULT_PORT = 8765
+    private const val MAX_REQUEST_BODY_BYTES = 64 * 1024
+    private const val PAIRING_WINDOW_MS = 10 * 60 * 1000L
 
     private var serverSocket: ServerSocket? = null
     private val isRunning = AtomicBoolean(false)
+    @Volatile private var pairingToken: String? = null
+    @Volatile private var pairingExpiresAtMs = 0L
     var statusProvider: (() -> TvRemoteStatus)? = null
     var onPlayPauseAction: (() -> Unit)? = null
     var onNextAction: (() -> Unit)? = null
@@ -76,7 +82,7 @@ object TvAuthServer {
 
     suspend fun start(
         onCookieReceived: ((String) -> Unit)? = null,
-    ): Pair<Int, String>? = withContext(Dispatchers.IO) {
+    ): Triple<Int, String, String>? = withContext(Dispatchers.IO) {
         stop()
 
         val ip = getLocalIpAddress() ?: return@withContext null
@@ -87,6 +93,11 @@ object TvAuthServer {
                 ServerSocket(0)
             }
             serverSocket = socket
+            val tokenBytes = ByteArray(32)
+            SecureRandom().nextBytes(tokenBytes)
+            val token = tokenBytes.joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+            pairingToken = token
+            pairingExpiresAtMs = SystemClock.elapsedRealtime() + PAIRING_WINDOW_MS
             isRunning.set(true)
             val port = socket.localPort
 
@@ -101,7 +112,7 @@ object TvAuthServer {
                 }
             }.start()
 
-            Pair(port, ip)
+            Triple(port, ip, token)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start TV server", e)
             null
@@ -114,6 +125,17 @@ object TvAuthServer {
             serverSocket?.close()
         } catch (_: Exception) {}
         serverSocket = null
+        pairingToken = null
+        pairingExpiresAtMs = 0L
+    }
+
+    private fun isPaired(supplied: String?): Boolean {
+        val expected = pairingToken ?: return false
+        val candidate = supplied ?: return false
+        if (SystemClock.elapsedRealtime() >= pairingExpiresAtMs || candidate.length != expected.length) return false
+        var difference = 0
+        for (index in expected.indices) difference = difference or (expected[index].code xor candidate[index].code)
+        return difference == 0
     }
 
     private fun handleClient(client: Socket, onCookieReceived: ((String) -> Unit)?) {
@@ -131,16 +153,28 @@ object TvAuthServer {
 
                 var contentLength = 0
                 var bodyCharset: Charset = StandardCharsets.UTF_8
+                var pairingHeader: String? = null
                 while (true) {
                     val line = readHttpLine(input) ?: break
                     if (line.isBlank()) break
                     if (line.startsWith("Content-Length:", ignoreCase = true)) {
-                        contentLength = line.substringAfter(":").trim().toIntOrNull() ?: 0
+                        val length = line.substringAfter(":").trim().toIntOrNull()
+                        if (length == null || length < 0) {
+                            sendJsonResponse(writer, """{"error":"invalid content length"}""", 400)
+                            return@Thread
+                        }
+                        if (length > MAX_REQUEST_BODY_BYTES) {
+                            sendJsonResponse(writer, """{"error":"request body too large"}""", 413)
+                            return@Thread
+                        }
+                        contentLength = length
                     } else if (line.startsWith("Content-Type:", ignoreCase = true)) {
                         val charsetName = line.substringAfter(":").split(';')
                             .firstOrNull { it.trim().startsWith("charset=", ignoreCase = true) }
                             ?.substringAfter('=')?.trim() ?: "UTF-8"
                         bodyCharset = runCatching { Charset.forName(charsetName) }.getOrDefault(StandardCharsets.UTF_8)
+                    } else if (line.startsWith("X-Nuvx-Pairing:", ignoreCase = true)) {
+                        pairingHeader = line.substringAfter(":").trim()
                     }
                 }
 
@@ -155,6 +189,19 @@ object TvAuthServer {
                     }
                     requestBody = String(bodyBytes, 0, read, bodyCharset)
                 }
+
+                if (path == "/remote" || path == "/submit" || path.startsWith("/api/")) {
+                    val supplied = when (path) {
+                        "/remote" -> parseQueryParam(query, "pair")
+                        "/submit" -> parseFormParam(requestBody, "pair")
+                        else -> pairingHeader
+                    }
+                    if (!isPaired(supplied)) {
+                        sendJsonResponse(writer, """{"error":"pair this client from the TV screen"}""", 401)
+                        return@Thread
+                    }
+                }
+                val pageToken = parseQueryParam(query, "pair").takeIf { isPaired(it) }
 
                 when {
                     path == "/api/status" -> {
@@ -234,18 +281,18 @@ object TvAuthServer {
                         val cookieValue = parseCookieFromBody(requestBody)
                         if (!cookieValue.isNullOrBlank()) {
                             onCookieReceived?.invoke(cookieValue)
-                            sendHtmlResponse(writer, getSuccessHtml())
+                            sendHtmlResponse(writer, getSuccessHtml(pageToken ?: parseFormParam(requestBody, "pair").orEmpty()))
                         } else {
-                            sendHtmlResponse(writer, getAuthHtml(error = "No cookie detected. Please follow the instructions."))
+                            sendHtmlResponse(writer, getAuthHtml(pairToken = parseFormParam(requestBody, "pair").orEmpty(), error = "No cookie detected. Please follow the instructions."))
                         }
                     }
 
                     path == "/remote" -> {
-                        sendHtmlResponse(writer, getRemoteControlHtml())
+                        sendHtmlResponse(writer, getRemoteControlHtml(pageToken.orEmpty()))
                     }
 
                     else -> {
-                        sendHtmlResponse(writer, getAuthHtml())
+                        sendHtmlResponse(writer, getAuthHtml(pageToken))
                     }
                 }
             } catch (e: Exception) {
@@ -267,10 +314,17 @@ object TvAuthServer {
         return String(bytes.toByteArray(), StandardCharsets.ISO_8859_1)
     }
 
-    private fun sendJsonResponse(writer: PrintWriter, json: String) {
-        writer.print("HTTP/1.1 200 OK\r\n")
+    private fun sendJsonResponse(writer: PrintWriter, json: String, status: Int = 200) {
+        val statusText = when (status) {
+            400 -> "400 Bad Request"
+            401 -> "401 Unauthorized"
+            413 -> "413 Payload Too Large"
+            else -> "200 OK"
+        }
+        writer.print("HTTP/1.1 $statusText\r\n")
         writer.print("Content-Type: application/json; charset=utf-8\r\n")
-        writer.print("Access-Control-Allow-Origin: *\r\n")
+        writer.print("Cache-Control: no-store\r\n")
+        writer.print("Referrer-Policy: no-referrer\r\n")
         writer.print("Content-Length: ${json.toByteArray().size}\r\n")
         writer.print("\r\n")
         writer.print(json)
@@ -280,6 +334,8 @@ object TvAuthServer {
     private fun sendHtmlResponse(writer: PrintWriter, html: String) {
         writer.print("HTTP/1.1 200 OK\r\n")
         writer.print("Content-Type: text/html; charset=utf-8\r\n")
+        writer.print("Cache-Control: no-store\r\n")
+        writer.print("Referrer-Policy: no-referrer\r\n")
         writer.print("Content-Length: ${html.toByteArray().size}\r\n")
         writer.print("\r\n")
         writer.print(html)
@@ -327,7 +383,7 @@ object TvAuthServer {
         return null
     }
 
-    private fun getRemoteControlHtml(): String = """
+    private fun getRemoteControlHtml(pairToken: String): String = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -415,18 +471,39 @@ body { background: #08080B; color: #FFF; font-family: -apple-system, BlinkMacSys
 
 <script>
 let dur = 0;
-let searchRequest = 0;
+let searchRequest = 0, statusTimer, statusInFlight = false, statusExpired = false;
+const pairingToken = "$pairToken";
+const imageHosts = ['i.ytimg.com', 'lh3.googleusercontent.com', 'yt3.ggpht.com', 'yt3.googleusercontent.com'];
+function apiFetch(url, options = {}) {
+  return fetch(url, { ...options, headers: { ...(options.headers || {}), 'X-Nuvx-Pairing': pairingToken } });
+}
+function safeImageUrl(value) {
+  try { const url = new URL(value); return url.protocol === 'https:' && imageHosts.includes(url.hostname) ? url.href : ''; }
+  catch { return ''; }
+}
 function fmtTime(ms) {
   if (ms <= 0) return "0:00";
   let s = Math.floor(ms / 1000), m = Math.floor(s / 60), r = s % 60;
   return m + ":" + (r < 10 ? "0" : "") + r;
 }
-function updateStatus() {
-  fetch('/api/status').then(r => r.json()).then(data => {
+async function updateStatus() {
+  if (statusInFlight || statusExpired) return;
+  statusInFlight = true;
+  try {
+    const response = await apiFetch('/api/status');
+    if (response.status === 401) {
+      statusExpired = true;
+      document.getElementById('trackTitle').innerText = 'Pairing expired';
+      document.getElementById('trackArtist').innerText = 'Reopen this remote from the TV screen.';
+      return;
+    }
+    if (!response.ok) return;
+    const data = await response.json();
     document.getElementById('trackTitle').innerText = data.title || "No Song Playing";
     document.getElementById('trackArtist').innerText = data.artist || "nuvx TV";
     let art = document.getElementById('trackArt');
-    if (data.artworkUrl) { art.src = data.artworkUrl; art.style.display = 'block'; } else { art.style.display = 'none'; }
+    const artworkUrl = safeImageUrl(data.artworkUrl || '');
+    if (artworkUrl) { art.src = artworkUrl; art.style.display = 'block'; } else { art.style.display = 'none'; }
     document.getElementById('playBtn').innerText = data.isPlaying ? '❚❚' : '▶';
     dur = data.durationMs || 1;
     let pos = data.currentPositionMs || 0;
@@ -434,11 +511,16 @@ function updateStatus() {
     document.getElementById('pFill').style.width = pct + '%';
     document.getElementById('tElapsed').innerText = fmtTime(pos);
     document.getElementById('tRemain').innerText = '-' + fmtTime(Math.max(0, dur - pos));
-  }).catch(() => {});
+  } catch {} finally {
+    statusInFlight = false;
+    if (!statusExpired) statusTimer = setTimeout(updateStatus, 1200);
+  }
 }
 function sendAction(act, extra = '') {
-  fetch('/api/action?action=' + act + extra, { method: 'POST' });
-  setTimeout(updateStatus, 150);
+  if (statusExpired) return;
+  apiFetch('/api/action?action=' + act + extra, { method: 'POST' });
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(updateStatus, 150);
 }
 function handleSeek(e) {
   let rect = document.getElementById('pBar').getBoundingClientRect();
@@ -450,32 +532,48 @@ function searchMusic() {
   let q = document.getElementById('sQuery').value;
   if (!q.trim()) return;
   const request = ++searchRequest;
-  fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json()).then(items => {
+  apiFetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json()).then(items => {
     if (request !== searchRequest) return;
     let container = document.getElementById('sResults');
-    container.innerHTML = '';
+    container.replaceChildren();
     items.forEach(item => {
       let div = document.createElement('div');
       div.className = 'result-item';
-      div.innerHTML = '<img class="result-thumb" src="' + (item.thumbnailUrl || '') + '" /><div class="result-text"><div class="result-title">' + item.title + '</div><div class="result-sub">' + item.subtitle + '</div></div>';
+      const thumbnailUrl = safeImageUrl(item.thumbnailUrl || '');
+      if (thumbnailUrl) {
+        const image = document.createElement('img');
+        image.className = 'result-thumb'; image.src = thumbnailUrl; image.alt = '';
+        div.appendChild(image);
+      }
+      const text = document.createElement('div'); text.className = 'result-text';
+      const title = document.createElement('div'); title.className = 'result-title'; title.textContent = item.title || '';
+      const subtitle = document.createElement('div'); subtitle.className = 'result-sub'; subtitle.textContent = item.subtitle || '';
+      text.append(title, subtitle); div.appendChild(text);
       div.onclick = () => {
-        fetch('/api/play?videoId=' + encodeURIComponent(item.videoId) + '&title=' + encodeURIComponent(item.title) + '&artist=' + encodeURIComponent(item.subtitle) + '&thumbnailUrl=' + encodeURIComponent(item.thumbnailUrl), { method: 'POST' });
-        container.innerHTML = '<div style="padding:10px;text-align:center;color:#00E5FF;">Playing ' + item.title + ' on TV!</div>';
+        apiFetch('/api/play?videoId=' + encodeURIComponent(item.videoId) + '&title=' + encodeURIComponent(item.title) + '&artist=' + encodeURIComponent(item.subtitle) + '&thumbnailUrl=' + encodeURIComponent(item.thumbnailUrl), { method: 'POST' });
+        const message = document.createElement('div');
+        message.style.cssText = 'padding:10px;text-align:center;color:#00E5FF';
+        message.textContent = 'Playing ' + (item.title || 'track') + ' on TV!';
+        container.replaceChildren(message);
       };
       container.appendChild(div);
     });
   }).catch(() => {
-    if (request === searchRequest) document.getElementById('sResults').innerHTML = '<div style="padding:10px;text-align:center;color:#999;">Search failed. Try again.</div>';
+    if (request === searchRequest) {
+      const message = document.createElement('div');
+      message.style.cssText = 'padding:10px;text-align:center;color:#999';
+      message.textContent = 'Search failed. Try again.';
+      document.getElementById('sResults').replaceChildren(message);
+    }
   });
 }
-setInterval(updateStatus, 1200);
 updateStatus();
 </script>
 </body>
 </html>
 """.trimIndent()
 
-    private fun getAuthHtml(error: String? = null): String = """
+    private fun getAuthHtml(pairToken: String? = null, error: String? = null): String = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -519,6 +617,7 @@ textarea { width: 100%; height: 90px; background: rgba(0,0,0,0.5); border: 1px s
   <p style="font-size: 13px; color: #AAA; line-height: 1.4;">Paste your YouTube Music session cookie / headers to immediately log in on TV:</p>
   ${if (error != null) "<div style='color:#FF375F;font-size:13px;margin-top:8px;'>$error</div>" else ""}
   <form action="/submit" method="POST">
+    <input type="hidden" name="pair" value="${pairToken.orEmpty()}">
     <textarea name="cookie" placeholder="Paste SAPISID / Session Cookie here..."></textarea>
     <button type="submit" class="btn-primary">Connect Account to TV</button>
   </form>
@@ -527,7 +626,7 @@ textarea { width: 100%; height: 90px; background: rgba(0,0,0,0.5); border: 1px s
 </html>
 """.trimIndent()
 
-    private fun getSuccessHtml(): String = """
+    private fun getSuccessHtml(pairToken: String): String = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -545,7 +644,7 @@ body { background: #08080B; color: #FFF; font-family: -apple-system, sans-serif;
   <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
   <h1 style="font-size: 22px; font-weight: bold; margin-bottom: 8px;">Paired Successfully!</h1>
   <p style="font-size: 14px; color: #AAA;">Your nuvx TV is now connected. You can now use the mobile remote to control playback.</p>
-  <a href="/remote" class="btn">📱 Open TV Remote</a>
+  <a href="/remote?pair=$pairToken" class="btn">📱 Open TV Remote</a>
 </div>
 </body>
 </html>
