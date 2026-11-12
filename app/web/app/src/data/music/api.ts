@@ -119,7 +119,7 @@ async function radioRequest<T>(path: string, params: Record<string, string> = {}
     try {
       const url = new URL(`https://${host}/json/${path}`);
       for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) throw new Error(`Radio Browser answered ${response.status}`);
       return await response.json() as T;
     } catch (error) { failure = error; }
