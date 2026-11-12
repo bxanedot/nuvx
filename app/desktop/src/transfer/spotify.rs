@@ -7,6 +7,7 @@ use futures_util::{StreamExt, TryStreamExt, stream};
 use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
 use sha1::Sha1;
+use url::Url;
 
 use crate::ytmapi::between;
 
@@ -55,25 +56,23 @@ pub enum Source {
 impl Source {
     pub fn parse(link: &str) -> Result<Self> {
         let link = link.trim();
-        if link.ends_with("/collection/tracks") {
-            return Ok(Self::Liked);
-        }
-        let id = if let Some(rest) = link.strip_prefix("spotify:playlist:") {
-            rest
-        } else if let Some((_, rest)) = link.split_once("://") {
-            let (host, path) = rest.split_once('/').unwrap_or((rest, ""));
-            ensure!(matches!(host, "open.spotify.com" | "www.open.spotify.com"), "That isn't an open.spotify.com link");
-            let path = path.split(['?', '#']).next().unwrap_or("");
-            let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty() && !p.starts_with("intl-")).collect();
-            match parts[..] {
-                ["playlist", id] => id,
+        let id: String = if let Some(rest) = link.strip_prefix("spotify:playlist:") {
+            rest.to_owned()
+        } else if link.contains("://") {
+            let url = Url::parse(link).context("That isn't a valid Spotify link")?;
+            ensure!(matches!(url.scheme(), "http" | "https"), "That isn't an open.spotify.com link");
+            ensure!(matches!(url.host_str(), Some("open.spotify.com" | "www.open.spotify.com")), "That isn't an open.spotify.com link");
+            let parts: Vec<String> = url.path_segments().into_iter().flatten().filter(|p| !p.is_empty() && !p.starts_with("intl-")).map(str::to_owned).collect();
+            match parts.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
+                ["collection", "tracks"] => return Ok(Self::Liked),
+                ["playlist", id] => (*id).to_owned(),
                 _ => bail!("That isn't a playlist link"),
             }
         } else {
-            link
+            link.to_owned()
         };
         ensure!(id.len() == 22 && id.bytes().all(|b| b.is_ascii_alphanumeric()), "That isn't a Spotify playlist link");
-        Ok(Self::Playlist(id.to_owned()))
+        Ok(Self::Playlist(id))
     }
 
     pub fn key(&self) -> &str {
