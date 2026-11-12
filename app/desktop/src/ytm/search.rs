@@ -20,7 +20,7 @@ impl Filter {
     }
 }
 
-pub async fn search_as(api: &Api, query: &str, filter: Filter, auth: bool) -> anyhow::Result<Vec<Value>> {
+pub(super) async fn search_as(api: &Api, query: &str, filter: Filter, auth: bool) -> anyhow::Result<Vec<Value>> {
     let v = api.call("search", json!({ "query": query, "params": filter.params() }), auth).await?;
     let sections = &v["contents"]["tabbedSearchResultsRenderer"]["tabs"][0]["tabRenderer"]["content"]["sectionListRenderer"]["contents"];
     Ok(arr(sections).iter().flat_map(|s| arr(&s["musicShelfRenderer"]["contents"]).iter().cloned()).collect())
@@ -42,7 +42,7 @@ pub async fn youtube_search(api: &Api, query: &str) -> anyhow::Result<Vec<Track>
     Ok(youtube_videos(&api.youtube_search(query).await?))
 }
 
-pub fn youtube_videos(v: &Value) -> Vec<Track> {
+pub(super) fn youtube_videos(v: &Value) -> Vec<Track> {
     let sections = &v["contents"]["twoColumnSearchResultsRenderer"]["primaryContents"]["sectionListRenderer"]["contents"];
     arr(sections)
         .iter()
@@ -77,7 +77,7 @@ pub async fn suggestions(api: &Api, input: &str, auth: bool) -> anyhow::Result<V
     Ok(parse_suggestions(&v))
 }
 
-pub fn parse_suggestions(v: &Value) -> Vec<Suggestion> {
+pub(super) fn parse_suggestions(v: &Value) -> Vec<Suggestion> {
     let items = &v["contents"][0]["searchSuggestionsSectionRenderer"]["contents"];
     arr(items)
         .iter()
