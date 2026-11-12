@@ -151,7 +151,7 @@ private fun fallbackVariantFor(
     beatSeconds: Double,
 ): FilterTransitionVariant {
     val window = ENERGY_WINDOW_BEATS * (beatSeconds.takeIf { it > 0 } ?: 0.5)
-    val entry = incomingStartPoint(nextAnalysis)
+    val entry = IncomingCuePlanner.incomingStartPoint(nextAnalysis)
     val outReference = BassHandoffPlanner.lowEnergyReference(analysis.lowEnergyCurve)
         ?: return FilterTransitionVariant.SWEEP
     val inReference = BassHandoffPlanner.lowEnergyReference(nextAnalysis.lowEnergyCurve)
@@ -206,101 +206,14 @@ private fun harmonicallyCompatible(left: String, right: String): Boolean {
 private fun trustedKey(analysis: TrackAnalysis): String =
     if (analysis.key.isBlank() || analysis.keyConfidence < 0.25) "" else analysis.key
 
-private fun nearestTimedValue(
-    values: List<Double>,
-    target: Double,
-    tolerance: Double = Double.POSITIVE_INFINITY,
-    minimum: Double = 0.0,
-): Double? = values
-    .filter { it.isFinite() && it >= minimum && abs(it - target) <= tolerance }
-    .minByOrNull { abs(it - target) }
-
-private fun timedValueNearOrBefore(
-    values: List<Double>,
-    target: Double,
-    tolerance: Double = Double.POSITIVE_INFINITY,
-    minimum: Double = 0.0,
-): Double? = values
-    .filter { it.isFinite() && it >= minimum && it <= target && target - it <= tolerance }
-    .maxOrNull()
-
-private fun alignedTransitionStart(
-    analysis: TrackAnalysis,
-    target: Double,
-    end: Double,
-    preferEarlier: Boolean,
-    minimum: Double,
-): Double {
-    val interval = analysis.beatInterval.orZero().takeIf { it > 0 }
-        ?: if (analysis.bpm.orZero() > 0) 60 / analysis.bpm else 0.0
-    val phraseTolerance = max(1.0, interval * 4)
-    val downbeatTolerance = max(0.75, interval * 2)
-    val phrase = if (preferEarlier) {
-        timedValueNearOrBefore(analysis.phraseBoundaries, target, phraseTolerance, minimum)
-    } else {
-        nearestTimedValue(analysis.phraseBoundaries, target, phraseTolerance, minimum)
-    }
-    val downbeat = if (preferEarlier) {
-        timedValueNearOrBefore(analysis.downbeats, target, downbeatTolerance, minimum)
-    } else {
-        nearestTimedValue(analysis.downbeats, target, downbeatTolerance, minimum)
-    }
-    return clamp(phrase ?: downbeat ?: target, minimum, end)
-}
-
 const val MAX_INCOMING_SKIP_FRACTION = 0.25
 
-fun latestIncomingCue(length: Double): Double =
-    if (length.isFinite() && length > 0) length * MAX_INCOMING_SKIP_FRACTION else Double.POSITIVE_INFINITY
+fun latestIncomingCue(length: Double): Double = IncomingCuePlanner.latestIncomingCue(length)
 
- fun incomingCuePoint(analysis: TrackAnalysis, latest: Double = Double.POSITIVE_INFINITY): Double {
-    rankMixInCandidates(analysis).firstOrNull { it.time <= latest }?.let { return it.time }
-
-    val interval = analysis.beatInterval.orZero().takeIf { it > 0 }
-        ?: if (analysis.bpm.orZero() > 0) 60 / analysis.bpm else 0.0
-    val downbeats = analysis.downbeats
-    fun within(time: Double): Double =
-        if (time <= latest) time else nearestAtOrBefore(downbeats, latest) ?: latest
-
-    val analyzedMixIn = analysis.mixInTime
-    if (analyzedMixIn.isFinite() && analyzedMixIn > 0) {
-        return within(nearestTimedValue(downbeats, analyzedMixIn, max(0.5, interval * 2)) ?: analyzedMixIn)
-    }
-
-    val pickup = max(
-        0.0,
-        analysis.introEndTime.orZero().takeIf { it != 0.0 }
-            ?: (analysis.audibleStartTime ?: analysis.pickupTime).orZero().takeIf { it != 0.0 }
-            ?: analysis.firstBeat.orZero(),
-    )
-    val duration = analysis.duration.orZero().takeIf { it != 0.0 } ?: 300.0
-    if (pickup > 0 && pickup < duration - 10) {
-        downbeats.firstOrNull { it >= pickup }?.let { return within(it) }
-    }
-    val phrases = analysis.phraseBoundaries
-    if (phrases.size > 1 && phrases[1] > 4) return within(phrases[1])
-    if (downbeats.size >= 8) return within(downbeats[min(8, downbeats.size - 1)].orZero())
-    return within(pickup)
-}
-
-private fun capIncomingSkip(plan: TransitionPlan, nextAnalysis: TrackAnalysis, nextLength: Double): TransitionPlan {
-    val latest = latestIncomingCue(nextLength)
-    if (plan.incomingCueTime <= latest) return plan
-    val beat = nextAnalysis.beatInterval.orZero().takeIf { it > 0 }
-        ?: if (nextAnalysis.bpm.orZero() > 0) 60 / nextAnalysis.bpm else 0.0
-    val over = plan.incomingCueTime - latest
-    val shift = if (beat > 0) ceil(over / (4 * beat)) * 4 * beat else over
-    val cue = max(0.0, plan.incomingCueTime - shift)
-    val moved = plan.incomingCueTime - cue
-    return plan.copy(
-        incomingCueTime = cue,
-        incomingHandoffTime = max(cue, plan.incomingHandoffTime - moved),
-    )
-}
-
-private fun incomingStartPoint(analysis: TrackAnalysis): Double =
-    listOfNotNull(analysis.audibleStartTime, analysis.pickupTime, analysis.firstBeat)
-        .firstOrNull { it.isFinite() && it >= 0 } ?: 0.0
+fun incomingCuePoint(
+    analysis: TrackAnalysis,
+    latest: Double = Double.POSITIVE_INFINITY,
+): Double = IncomingCuePlanner.incomingCuePoint(analysis, latest)
 
 const val PHRASE_BARS_SHORT = 8
 const val PHRASE_BARS_LONG = 16
@@ -336,7 +249,7 @@ private fun phraseBarPlan(
     val latestStart = mixEnd - requestedOverlap
     if (latestStart < MIN_CLEARANCE_SECONDS) return null
     val transitionStart = if (gridTrusted) {
-        alignedTransitionStart(
+        IncomingCuePlanner.alignedTransitionStart(
             analysis,
             latestStart,
             mixEnd - 0.05,
@@ -362,8 +275,11 @@ private fun phraseBarPlan(
     val outgoingPlaybackRate = outgoingRateFor(mediaRatio, advanced)
     val incomingBeatSeconds = if (alignedIncomingBpm > 0) 60.0 / alignedIncomingBpm else beatSeconds
 
-    val audibleStart = incomingStartPoint(nextAnalysis)
-    val incomingDropTime = incomingCuePoint(nextAnalysis, latestIncomingCue(nextLength))
+    val audibleStart = IncomingCuePlanner.incomingStartPoint(nextAnalysis)
+    val incomingDropTime = IncomingCuePlanner.incomingCuePoint(
+        nextAnalysis,
+        IncomingCuePlanner.latestIncomingCue(nextLength),
+    )
     val finalIncomingCueTime = audibleStart
     val incomingHandoffTime =
         if (nextLength > 0) {
@@ -459,9 +375,6 @@ private fun plannedVocalOverlap(
     ) ?: 0.0
 }
 
-private fun nearestAtOrBefore(values: List<Double>, target: Double): Double? =
-    values.filter { it.isFinite() && it >= 0 && it <= target }.maxOrNull()
-
 sealed interface WsolaPlanResult {
     data class Refused(val reason: String) : WsolaPlanResult
 
@@ -490,19 +403,10 @@ sealed interface WsolaPlanResult {
 }
 
 fun incomingMixInPoint(analysis: TrackAnalysis, latest: Double = Double.POSITIVE_INFINITY): Double? {
-    val beatSeconds = analysis.beatInterval.orZero().takeIf { it > 0 }
-        ?: if (analysis.bpm.orZero() > 0) 60 / analysis.bpm else 0.0
-    val tolerance = max(0.5, beatSeconds * 2)
-    val target = listOfNotNull(
-        rankMixInCandidates(analysis).firstOrNull { it.time <= latest }?.time,
-        analysis.mixInTime,
-    )
-        .firstOrNull { it.isFinite() && it > 0 && it <= latest }
-        ?: return null
-    return nearestValue(analysis.downbeats, target, tolerance)?.takeIf { it <= latest } ?: target
+    return IncomingCuePlanner.incomingMixInPoint(analysis, latest)
 }
 
-fun incomingAudibleStart(analysis: TrackAnalysis): Double = audibleStartOf(analysis)
+fun incomingAudibleStart(analysis: TrackAnalysis): Double = IncomingCuePlanner.incomingAudibleStart(analysis)
 
 fun planWsolaTransition(
     analysis: TrackAnalysis,
@@ -527,7 +431,10 @@ fun planWsolaTransition(
     val incomingBeatSeconds = 60 / incomingBpm
     val outgoingBeatSeconds = 60 / outgoingBpm
 
-    val incomingDropTime = incomingMixInPoint(nextAnalysis, latestIncomingCue(incomingLength))
+    val incomingDropTime = IncomingCuePlanner.incomingMixInPoint(
+        nextAnalysis,
+        IncomingCuePlanner.latestIncomingCue(incomingLength),
+    )
     if (incomingDropTime == null || !incomingDropTime.isFinite() || incomingDropTime < 0) {
         return WsolaPlanResult.Refused("incoming-mix-in")
     }
@@ -543,7 +450,7 @@ fun planWsolaTransition(
         }
     val overlapEndTarget = max(MIN_CLEARANCE_SECONDS, unshiftedOverlapEnd - outgoingArrangementOverlap)
 
-    val audibleStart = incomingAudibleStart(nextAnalysis)
+    val audibleStart = IncomingCuePlanner.incomingAudibleStart(nextAnalysis)
     val availableFadeBeats = max(0.0, incomingDropTime - audibleStart) / incomingBeatSeconds
     val cappedByOverlap = floor(floor(MAX_OVERLAP_SECONDS / incomingBeatSeconds) / 4).toInt() * 4
     if (cappedByOverlap < MIN_FADE_BEATS) return WsolaPlanResult.Refused("overlap-too-long")
@@ -602,7 +509,7 @@ fun planWsolaTransition(
     if (incomingCueTime < audibleStart - 0.05) return WsolaPlanResult.Refused("incoming-no-runway")
 
     val startTarget = overlapEndTarget - outgoingOverlapSeconds
-    val transitionStart = nearestAtOrBefore(analysis.downbeats, startTarget) ?: startTarget
+    val transitionStart = IncomingCuePlanner.nearestAtOrBefore(analysis.downbeats, startTarget) ?: startTarget
     if (transitionStart < MIN_CLEARANCE_SECONDS) return WsolaPlanResult.Refused("outgoing-too-short")
     val transitionEnd = transitionStart + outgoingOverlapSeconds
     if (transitionEnd > outgoingLength + 0.05) return WsolaPlanResult.Refused("outgoing-overlap-overruns")
@@ -676,7 +583,7 @@ private fun phraseSwitch(
         incomingHandoffTime = planned.incomingHandoffTime,
         incomingPlaybackRate = renderedIncomingRate,
         outgoingPlaybackRate = outgoingRateFor(planned.stretchRatio, advanced),
-        pickupSeconds = incomingAudibleStart(nextAnalysis),
+        pickupSeconds = IncomingCuePlanner.incomingAudibleStart(nextAnalysis),
         transitionBeats = planned.beats,
         bassSwap = true,
         handoffFraction = planned.handoffFraction,
@@ -775,7 +682,7 @@ private fun energyScale(
 ): Double {
     if (beatSeconds <= 0 || traits.outgoingMeanEnergy <= 0 || traits.incomingMeanEnergy <= 0) return 1.0
     val window = ENERGY_WINDOW_BEATS * beatSeconds
-    val entry = incomingStartPoint(nextAnalysis)
+    val entry = IncomingCuePlanner.incomingStartPoint(nextAnalysis)
     val out = BassHandoffPlanner.averageEnergy(analysis.energyCurve, exitAt - window, exitAt) ?: return 1.0
     val into = BassHandoffPlanner.averageEnergy(nextAnalysis.energyCurve, entry, entry + window) ?: return 1.0
     val outLevel = out / traits.outgoingMeanEnergy
@@ -792,7 +699,7 @@ private fun wholeBars(seconds: Double, beatSeconds: Double, maximum: Double): Do
 }
 
 private fun onDownbeatBefore(analysis: TrackAnalysis, time: Double, tolerance: Double): Double =
-    timedValueNearOrBefore(analysis.downbeats, time, tolerance) ?: time
+    IncomingCuePlanner.timedValueNearOrBefore(analysis.downbeats, time, tolerance) ?: time
 
 private fun adaptiveOverlap(
     analysis: TrackAnalysis,
@@ -1022,7 +929,7 @@ private fun planTransitionInner(
             transitionEnd = mixAnchor,
             fadeSeconds = mixAnchor - transitionStart,
             transitionStyle = TransitionStyle.EQUAL_POWER,
-            incomingCueTime = incomingStartPoint(nextAnalysis),
+            incomingCueTime = IncomingCuePlanner.incomingStartPoint(nextAnalysis),
             policyReasons = policy.reasons,
             reason = if (started) "smart-plain-crossfade" else "before-plain-crossfade-window",
         )
@@ -1032,7 +939,7 @@ private fun planTransitionInner(
 
     if (isUnmixablePair(analysis, nextAnalysis)) {
         val transitionStart = max(0.0, finalMixAnchor - standardFade)
-        val incomingCueTime = incomingStartPoint(nextAnalysis)
+        val incomingCueTime = IncomingCuePlanner.incomingStartPoint(nextAnalysis)
         val started = playbackTime >= transitionStart
         return TransitionPlan(
             shouldStart = started,
@@ -1068,7 +975,7 @@ private fun planTransitionInner(
         )?.let { plan ->
             if (playbackTime < plan.transitionEnd) {
                 val started = playbackTime >= plan.transitionStart
-                return capIncomingSkip(
+                return IncomingCuePlanner.capIncomingSkip(
                     plan.copy(
                         shouldStart = started,
                         policyReasons = policy.reasons,
@@ -1085,7 +992,7 @@ private fun planTransitionInner(
         ?.takeIf { playbackTime < it.transitionEnd }
         ?.let { plan ->
             val started = playbackTime >= plan.transitionStart
-            return capIncomingSkip(
+            return IncomingCuePlanner.capIncomingSkip(
                 plan.copy(
                     shouldStart = started,
                     policyReasons = policy.reasons,
@@ -1114,7 +1021,7 @@ private fun planTransitionInner(
         primary
     }
     val started = playbackTime >= plan.transitionStart
-    return capIncomingSkip(
+    return IncomingCuePlanner.capIncomingSkip(
         plan.copy(
             shouldStart = started,
             policyReasons = policy.reasons,
@@ -1198,7 +1105,10 @@ private fun mixPlan(
     } else {
         0.0
     }
-    val incomingDropTime = incomingCuePoint(nextAnalysis, latestIncomingCue(nextLength))
+    val incomingDropTime = IncomingCuePlanner.incomingCuePoint(
+        nextAnalysis,
+        IncomingCuePlanner.latestIncomingCue(nextLength),
+    )
     val alignedIncomingBpm = alignTempoOctave(currentBpm, nextBpm)
     val requestedIncomingHandoff =
         if (sameBeatBlend && alignedIncomingBpm > 0) {
@@ -1213,7 +1123,7 @@ private fun mixPlan(
         } else {
             incomingDropTime
         }
-    val rawIncomingCueTime = incomingStartPoint(nextAnalysis)
+    val rawIncomingCueTime = IncomingCuePlanner.incomingStartPoint(nextAnalysis)
 
     val finalIncomingCueTime: Double
     val transitionStart: Double
@@ -1224,7 +1134,7 @@ private fun mixPlan(
         val totalOverlap = if (traits != null) wholeBars(clamped, beatSeconds, maximumOverlap) else clamped
         val targetStart = max(0.0, mixEnd - totalOverlap)
         val earliestTransitionStart = max(0.0, mixEnd - maximumOverlap)
-        transitionStart = alignedTransitionStart(
+        transitionStart = IncomingCuePlanner.alignedTransitionStart(
             analysis,
             targetStart,
             mixEnd - 0.05,
@@ -1238,7 +1148,7 @@ private fun mixPlan(
         val actualOverlap = if (traits != null) wholeBars(clamped, beatSeconds, maximumOverlap) else clamped
         val targetStart = max(0.0, mixEnd - actualOverlap)
         val earliestTransitionStart = max(0.0, mixEnd - maximumOverlap)
-        transitionStart = alignedTransitionStart(
+        transitionStart = IncomingCuePlanner.alignedTransitionStart(
             analysis,
             targetStart,
             mixEnd - 0.05,
