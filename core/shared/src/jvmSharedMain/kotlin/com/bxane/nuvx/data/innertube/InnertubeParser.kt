@@ -31,68 +31,14 @@ import java.util.Locale
 
 object InnertubeParser {
 
-    fun parseSearchSongs(response: JsonObject): List<Song> =
-        parseSearch(response).filterIsInstance<SearchResult.Track>().map { it.song }
+    fun parseSearchSongs(response: JsonObject): List<Song> = InnertubeSearchParser.parseSearchSongs(response)
 
     data class SearchPage(val rows: List<SearchResult>, val continuation: String?)
 
-    fun parseSearch(response: JsonObject): List<SearchResult> = parseSearchPage(response).rows
+    fun parseSearch(response: JsonObject): List<SearchResult> = InnertubeSearchParser.parseSearch(response)
 
-    fun parseSearchPage(response: JsonObject, includeVideos: Boolean = false): SearchPage {
-        val topResults: List<SearchResult> = if (includeVideos) emptyList() else {
-            collectRenderers(response, "musicCardShelfRenderer")
-                .mapNotNull { card ->
-                    parseCardShelfSong(card)?.let(SearchResult::TopTrack)
-                        ?: parseCardShelfBrowse(card)?.let(SearchResult::Browse)
-                }
-        }
-        val rows = collectRenderers(response, "musicResponsiveListItemRenderer")
-
-        val cardCredits: List<Pair<JsonObject, Credits>> = if (includeVideos) emptyList() else {
-            collectRenderers(response, "musicCardShelfRenderer").flatMap { card ->
-                val credit = cardShelfCredit(card) ?: return@flatMap emptyList()
-                collectRenderers(card, "musicResponsiveListItemRenderer").map { it to credit }
-            }
-        }
-
-        val seen = HashSet<String>()
-        val parsed = buildList {
-            topResults.forEach { result ->
-                when (result) {
-                    is SearchResult.TopTrack -> {
-                        if (!result.song.isVideo && seen.add("v:${result.song.videoId}")) add(result)
-                    }
-                    is SearchResult.Browse -> {
-                        if (seen.add("b:${result.item.browseId}")) add(result)
-                    }
-                    is SearchResult.Track -> Unit
-                }
-            }
-            rows.forEach { renderer ->
-                val browse = parseBrowseItem(renderer)
-                if (browse != null) {
-                    if (seen.add("b:${browse.browseId}")) add(SearchResult.Browse(browse))
-                } else {
-                    val fallback = cardCredits.firstOrNull { it.first === renderer }?.second
-                    parseResponsiveListItem(renderer, fallback ?: Credits())?.let { song ->
-                        if (song.isVideo == includeVideos && seen.add("v:${song.videoId}")) {
-                            add(SearchResult.Track(song))
-                        }
-                    }
-                }
-            }
-        }
-        return SearchPage(parsed, continuationToken(response))
-    }
-
-    fun parseSearchSuggestions(response: JsonObject): List<String> =
-        collectRenderers(response, "searchSuggestionRenderer")
-            .mapNotNull { renderer ->
-                val query = renderer.o("navigationEndpoint").o("searchEndpoint").s("query")
-                    ?: renderer.o("suggestion").runs()
-                query.takeIf { it.isNotBlank() }
-            }
-            .distinct()
+    fun parseSearchPage(response: JsonObject, includeVideos: Boolean = false): SearchPage =
+        InnertubeSearchParser.parseSearchPage(response, includeVideos)
 
     internal fun collectRenderers(root: JsonElement, name: String): List<JsonObject> {
         val out = mutableListOf<JsonObject>()
@@ -110,7 +56,7 @@ object InnertubeParser {
         return out
     }
 
-    private fun parseBrowseItem(renderer: JsonObject): BrowseItem? {
+    internal fun parseBrowseItem(renderer: JsonObject): BrowseItem? {
         val endpoint = renderer.o("navigationEndpoint").o("browseEndpoint") ?: return null
         val browseId = endpoint.s("browseId") ?: return null
         val pageType = endpoint.o("browseEndpointContextSupportedConfigs")
@@ -152,26 +98,9 @@ object InnertubeParser {
         }
     }
 
-    fun parseYoutubeSearch(root: JsonObject): List<SearchResult> =
-        root.o("contents").o("twoColumnSearchResultsRenderer").o("primaryContents")
-            .o("sectionListRenderer").a("contents").orEmpty()
-            .flatMap { it.o("itemSectionRenderer").a("contents").orEmpty() }
-            .mapNotNull { item ->
-                val r = item.o("videoRenderer") ?: return@mapNotNull null
-                val videoId = r.s("videoId") ?: return@mapNotNull null
-                val length = r.o("lengthText").s("simpleText") ?: return@mapNotNull null
-                val title = r.o("title").runs().takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                SearchResult.Track(
-                    Song(
-                        videoId = videoId,
-                        title = title,
-                        artist = r.o("ownerText").runs().ifBlank { "YouTube" },
-                        thumbnailUrl = r.o("thumbnail").a("thumbnails").best(),
-                        durationText = length,
-                        isVideo = true,
-                    ),
-                )
-            }
+    fun parseYoutubeSearch(root: JsonObject): List<SearchResult> = InnertubeSearchParser.parseYoutubeSearch(root)
+
+    fun parseSearchSuggestions(response: JsonObject): List<String> = InnertubeSearchParser.parseSearchSuggestions(response)
 
     fun podcastsChipParams(home: JsonObject): String? {
         val chips = home.o("contents")
@@ -431,7 +360,7 @@ object InnertubeParser {
         return collectRenderers(root, "nextContinuationData").firstOrNull().s("continuation")
     }
 
-    private fun parseResponsiveListItem(
+    internal fun parseResponsiveListItem(
         renderer: JsonObject?,
         fallback: Credits = Credits(),
     ): Song? {
@@ -553,7 +482,7 @@ object InnertubeParser {
                 .orEmpty().contains("PODCAST_SHOW")
         }?.s("text")?.trim()?.takeIf { it.isNotBlank() }
 
-    private fun parseCardShelfSong(renderer: JsonObject): Song? {
+    internal fun parseCardShelfSong(renderer: JsonObject): Song? {
         val videoId = renderer.o("onTap").o("watchEndpoint").s("videoId") ?: return null
         val title = renderer.o("title").runs()
         if (title.isBlank()) return null
@@ -590,7 +519,7 @@ object InnertubeParser {
         )
     }
 
-    private fun cardShelfCredit(card: JsonObject): Credits? {
+    internal fun cardShelfCredit(card: JsonObject): Credits? {
         val endpoint = card.o("onTap").o("browseEndpoint") ?: return null
         val pageType = endpoint.o("browseEndpointContextSupportedConfigs")
             .o("browseEndpointContextMusicConfig").s("pageType").orEmpty()
@@ -599,7 +528,7 @@ object InnertubeParser {
         return Credits(artistId = endpoint.s("browseId"), artistName = name)
     }
 
-    private fun parseCardShelfBrowse(renderer: JsonObject): BrowseItem? {
+    internal fun parseCardShelfBrowse(renderer: JsonObject): BrowseItem? {
         val endpoint = renderer.o("onTap").o("browseEndpoint") ?: return null
         val browseId = endpoint.s("browseId") ?: return null
         val pageType = endpoint.o("browseEndpointContextSupportedConfigs")
@@ -651,7 +580,7 @@ object InnertubeParser {
         )
     }
 
-    private data class Credits(
+    internal data class Credits(
         val artistId: String? = null,
         val artistName: String? = null,
         val artists: List<ArtistRef> = emptyList(),
