@@ -20,6 +20,7 @@ mod feed_pages;
 mod search_pages;
 mod settings_pages;
 mod playback;
+mod playback_settings;
 mod queue;
 mod radio;
 mod responses;
