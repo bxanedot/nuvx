@@ -155,7 +155,7 @@ internal class MainPlaylistController(
         privacy: PlaylistPrivacy,
         videoIds: List<String>,
         songs: List<Song> = emptyList(),
-        onResult: ((browseId: String?, title: String, savedLocally: Boolean) -> Unit)? = null,
+        onResult: ((browseId: String?, title: String, savedLocally: Boolean, failedSongs: Int) -> Unit)? = null,
     ) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         scope.launch {
@@ -167,9 +167,12 @@ internal class MainPlaylistController(
                     videoIds = initialBatch,
                 ).fold(
                     onSuccess = { playlistId ->
+                        var failedSongs = 0
                         if (videoIds.size > 50) {
                             videoIds.drop(50).chunked(50).forEach { chunk ->
-                                YtMusicRepository.addToPlaylist(playlistId, chunk)
+                                YtMusicRepository.addToPlaylist(playlistId, chunk).onFailure {
+                                    failedSongs += chunk.size
+                                }
                             }
                         }
                         setPlaylistOwned("VL$playlistId", true)
@@ -177,7 +180,7 @@ internal class MainPlaylistController(
                         val created = UserPlaylist(
                             playlistId = playlistId,
                             title = name,
-                            subtitle = "${videoIds.size} songs",
+                            subtitle = "${videoIds.size - failedSongs} songs",
                             thumbnailUrl = null,
                         )
                         _playlists.value = listOf(created) +
@@ -193,16 +196,16 @@ internal class MainPlaylistController(
                                 ),
                             ) + items.filterNot { it.browseId == created.browseId }
                         }
-                        onResult?.invoke(created.browseId, created.title, false)
+                        onResult?.invoke(created.browseId, created.title, false, failedSongs)
                     },
                     onFailure = {
                         val local = com.bxane.nuvx.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
-                        onResult?.invoke(local.browseId, local.title, true)
+                        onResult?.invoke(local.browseId, local.title, true, 0)
                     },
                 )
             } else {
                 val local = com.bxane.nuvx.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
-                onResult?.invoke(local.browseId, local.title, true)
+                onResult?.invoke(local.browseId, local.title, true, 0)
             }
         }
     }

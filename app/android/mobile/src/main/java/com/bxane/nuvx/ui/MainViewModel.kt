@@ -218,7 +218,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         privacy: PlaylistPrivacy,
         videoIds: List<String>,
         songs: List<Song> = emptyList(),
-        onResult: ((browseId: String?, title: String, savedLocally: Boolean) -> Unit)? = null,
+        onResult: ((browseId: String?, title: String, savedLocally: Boolean, failedSongs: Int) -> Unit)? = null,
     ) = playlistController.createPlaylistWithVideoIds(title, privacy, videoIds, songs, onResult)
 
     fun removeFromPlaylist(browseId: String, song: Song) =
