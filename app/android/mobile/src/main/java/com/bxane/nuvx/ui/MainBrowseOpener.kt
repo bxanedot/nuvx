@@ -15,6 +15,8 @@ internal class MainBrowseOpener(
     private val scope: CoroutineScope,
     private val openDetail: (String, String, String, String?, BrowseType) -> Unit,
 ) {
+    private var lookupGeneration = 0L
+
     fun openByName(
         browseId: String?,
         name: String,
@@ -22,6 +24,7 @@ internal class MainBrowseOpener(
         type: BrowseType,
         artwork: String? = null,
     ) {
+        val generation = ++lookupGeneration
         if (browseId != null) {
             val credit = subtitle ?: context.getString(
                 if (type == BrowseType.ARTIST) R.string.artist else R.string.album,
@@ -40,6 +43,7 @@ internal class MainBrowseOpener(
                 ?.filterIsInstance<SearchResult.Browse>()
                 ?.firstOrNull()
                 ?.item
+            if (generation != lookupGeneration) return@launch
             if (hit == null) {
                 Toast.makeText(
                     context,
