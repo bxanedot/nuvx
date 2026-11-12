@@ -1,4 +1,5 @@
 import { MAX_CANVAS_BYTES, commitCanvas, isMp4, samePasscode, shareCanvas, videoIdFromLink } from "./canvas.ts";
+import { readRequestBytes } from "./request-body.ts";
 
 export interface CanvasUploadEnv {
   CANVAS_PASSCODE?: string;
@@ -12,9 +13,13 @@ const json = (body: unknown, status = 200) =>
 export async function handleCanvasUpload(req: Request, env: CanvasUploadEnv, fetcher: typeof fetch = fetch): Promise<Response> {
   if (!env.CANVAS_PASSCODE || !env.CANVAS_GITHUB_TOKEN) return json({ error: "Uploads are not set up yet." }, 503);
   if (!(await env.CANVAS_LIMIT.limit({ key: req.headers.get("cf-connecting-ip") ?? "local" })).success) return json({ error: "Too many tries. Wait a minute." }, 429);
-  if (Number(req.headers.get("content-length") ?? 0) > MAX_CANVAS_BYTES + 64 * 1024) return json({ error: "The video is over 10 MB." }, 413);
+  const body = await readRequestBytes(req, MAX_CANVAS_BYTES + 64 * 1024);
+  if (!body) return json({ error: "The video is over 10 MB." }, 413);
   let form: FormData;
-  try { form = await req.formData(); } catch { return json({ error: "Send the form from canvas.nuvx.lol." }, 400); }
+  try {
+    const contentType = req.headers.get("content-type");
+    form = await new Response(body, { headers: contentType ? { "content-type": contentType } : undefined }).formData();
+  } catch { return json({ error: "Send the form from canvas.nuvx.lol." }, 400); }
   if (!samePasscode(String(form.get("passcode") ?? ""), env.CANVAS_PASSCODE)) return json({ error: "Wrong passcode." }, 403);
   const id = videoIdFromLink(String(form.get("link") ?? ""));
   if (!id) return json({ error: "That isn't a YouTube Music song link." }, 400);

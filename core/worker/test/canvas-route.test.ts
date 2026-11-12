@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { handleCanvasUpload } from "../src/canvas-route.ts";
+import { MAX_CANVAS_BYTES } from "../src/canvas.ts";
 
 const ID = "9qnqYL0eNNI";
 const mp4 = new Uint8Array([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0]);
@@ -32,6 +33,42 @@ test("upload route rejects a wrong passcode before contacting providers", async 
   const response = await handleCanvasUpload(request("wrong"), env("correct", "token"), fetcher);
   assert.equal(response.status, 403);
   assert.equal(requests, 0);
+});
+
+test("upload route cancels oversized multipart bodies without content-length", async () => {
+  const boundary = "nuvx-test";
+  const prefix = new TextEncoder().encode(`--${boundary}\r\nContent-Disposition: form-data; name="link"\r\n\r\nhttps://music.youtube.com/watch?v=${ID}\r\n--${boundary}\r\nContent-Disposition: form-data; name="passcode"\r\n\r\ncorrect\r\n--${boundary}\r\nContent-Disposition: form-data; name="video"; filename="canvas.mp4"\r\nContent-Type: video/mp4\r\n\r\n`);
+  const suffix = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
+  let cancelled = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let step = 0;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(prefix);
+    },
+    pull(controller) {
+      if (step++ === 0) {
+        controller.enqueue(new Uint8Array(MAX_CANVAS_BYTES + 64 * 1024));
+      } else if (step === 2) {
+        controller.enqueue(suffix);
+        timeout = setTimeout(() => controller.close(), 50);
+      }
+    },
+    cancel() {
+      cancelled = true;
+      clearTimeout(timeout);
+    },
+  });
+  const req = new Request("https://worker.test/canvas", {
+    method: "POST",
+    headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+    body,
+    duplex: "half",
+  } as RequestInit);
+  assert.equal(req.headers.get("content-length"), null);
+  const response = await handleCanvasUpload(req, env("correct", "token"));
+  assert.equal(response.status, 413);
+  assert.equal(cancelled, true);
 });
 
 test("upload route rejects non-MP4 data", async () => {
