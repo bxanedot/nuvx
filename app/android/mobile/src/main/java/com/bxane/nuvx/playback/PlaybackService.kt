@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import android.os.Bundle
-import android.os.Handler
 import android.os.SystemClock
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -19,16 +18,11 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer
-import androidx.media3.decoder.ffmpeg.FfmpegLibrary
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
@@ -1924,39 +1918,3 @@ class PlaybackService : MediaLibraryService() {
 
     }
 }
-
-private open class FfmpegFallbackRenderersFactory(context: Context) : DefaultRenderersFactory(context) {
-    override fun buildAudioRenderers(
-        context: Context,
-        extensionRendererMode: Int,
-        mediaCodecSelector: MediaCodecSelector,
-        enableDecoderFallback: Boolean,
-        audioSink: AudioSink,
-        eventHandler: Handler,
-        eventListener: AudioRendererEventListener,
-        out: ArrayList<Renderer>,
-    ) {
-        super.buildAudioRenderers(
-            context,
-            extensionRendererMode,
-            withoutPlatformAlac(mediaCodecSelector),
-            enableDecoderFallback,
-            audioSink,
-            eventHandler,
-            eventListener,
-            out,
-        )
-        out.add(FfmpegAudioRenderer(eventHandler, eventListener, audioSink))
-    }
-}
-
-private fun withoutPlatformAlac(selector: MediaCodecSelector) =
-    MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
-        if (mimeType == MimeTypes.AUDIO_ALAC && ffmpegDecodesAlac) {
-            emptyList()
-        } else {
-            selector.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
-        }
-    }
-
-private val ffmpegDecodesAlac by lazy { FfmpegLibrary.supportsFormat(MimeTypes.AUDIO_ALAC) }
