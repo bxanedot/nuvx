@@ -21,6 +21,11 @@ jobs:
   release:
     if: github.event.pull_request.merged == true || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
+    outputs:
+      nightly_suffix: ${{ steps.build.outputs.nightly_suffix }}
+      stable_version: ${{ steps.build.outputs.stable_version }}
+      source_ref: ${{ steps.build.outputs.source_ref }}
+      desktop_version: ${{ steps.build.outputs.desktop_version }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -38,6 +43,7 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;30.0.16248370" "cmake;3.22.1"
       - name: Build and verify signed APKs
+        id: build
         env:
           NUVX_KEYSTORE_BASE64: ${{ secrets.NUVX_KEYSTORE_BASE64 }}
           NUVX_KEYSTORE_PASSWORD: ${{ secrets.NUVX_KEYSTORE_PASSWORD }}
@@ -91,13 +97,142 @@ jobs:
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           echo "NIGHTLY_SUFFIX=$suffix" >> "$GITHUB_ENV"
           echo "STABLE_VERSION=$version" >> "$GITHUB_ENV"
-      - name: Publish nightly prerelease
+          desktop_version=$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' app/desktop/Cargo.toml | head -1)
+          [[ $desktop_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "nightly_suffix=$suffix" >> "$GITHUB_OUTPUT"
+          echo "stable_version=$version" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "desktop_version=$desktop_version" >> "$GITHUB_OUTPUT"
+      - name: Create nightly draft
         run: |
           gh release create "$NIGHTLY_SUFFIX" nightly/*.apk nightly/SHA256SUMS \
             --target "$(git rev-parse HEAD)" --draft --prerelease --latest=false \
             --title "nuvx $STABLE_VERSION-$NIGHTLY_SUFFIX" \
-            --notes "Signed Android nightly for phones, Android TV and Wear OS. Install the APK for your device. A newer stable release can update it in place."
-          gh release edit "$NIGHTLY_SUFFIX" --draft=false --prerelease --latest=false
+            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. A newer stable release can update Android installs in place."
+
+  windows:
+    needs: release
+    runs-on: windows-2022
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
+      DESKTOP_VERSION: ${{ needs.release.outputs.desktop_version }}
+      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.source_ref }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop }
+      - run: cargo build --release --locked
+      - name: Package and upload
+        run: |
+          choco install innosetup --no-progress -y
+          MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$DESKTOP_VERSION" windows/nuvx.iss
+          mv "windows/Output/nuvx-setup-$DESKTOP_VERSION.exe" "nuvx-setup-$NIGHTLY_TAG.exe"
+          mkdir portable && cp target/release/nuvx.exe windows/portable.txt README.md LICENSE portable/
+          (cd portable && 7z a "../nuvx-portable-$NIGHTLY_TAG.zip" nuvx.exe portable.txt README.md LICENSE)
+          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG.exe" "nuvx-portable-$NIGHTLY_TAG.zip" --clobber
+
+  linux:
+    needs: release
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
+      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.source_ref }}
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev libasound2-dev libxdo-dev libssl-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop }
+      - run: cargo build --release --locked
+      - name: Package and upload
+        run: |
+          mkdir -p dist/nuvx
+          cp target/release/nuvx linux/install.sh linux/nuvx.desktop README.md LICENSE dist/nuvx/
+          cp assets/icon/icon.png dist/nuvx/nuvx.png
+          chmod 755 dist/nuvx/nuvx dist/nuvx/install.sh
+          tar -C dist -czf "nuvx-$NIGHTLY_TAG-linux-x86_64.tar.gz" nuvx
+          cp linux/portable.txt dist/nuvx/
+          tar -C dist -czf "nuvx-portable-$NIGHTLY_TAG-linux-x86_64.tar.gz" nuvx
+          gh release upload "$NIGHTLY_TAG" "nuvx-$NIGHTLY_TAG-linux-x86_64.tar.gz" "nuvx-portable-$NIGHTLY_TAG-linux-x86_64.tar.gz" --clobber
+
+  macos:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64
+            target: aarch64-apple-darwin
+            runner: macos-15
+          - arch: x86_64
+            target: x86_64-apple-darwin
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
+      DESKTOP_VERSION: ${{ needs.release.outputs.desktop_version }}
+      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.source_ref }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
+      - run: cargo build --release --locked --target "${{ matrix.target }}"
+      - name: Package and upload
+        run: |
+          bin="target/${{ matrix.target }}/release/nuvx"
+          sh macos/bundle.sh "$bin" "$DESKTOP_VERSION" dmg
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname nuvx -srcfolder dmg -format UDZO "nuvx-setup-$NIGHTLY_TAG-macos-${{ matrix.arch }}.dmg"
+          sh macos/bundle.sh "$bin" "$DESKTOP_VERSION" portable portable
+          (cd portable && ditto -c -k --keepParent nuvx.app "../nuvx-portable-$NIGHTLY_TAG-macos-${{ matrix.arch }}.zip")
+          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-macos-${{ matrix.arch }}.dmg" "nuvx-portable-$NIGHTLY_TAG-macos-${{ matrix.arch }}.zip" --clobber
+
+  publish:
+    needs: [release, windows, linux, macos]
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
+    steps:
+      - name: Publish nightly and prune older builds
+        run: |
+          gh release edit "$NIGHTLY_TAG" --draft=false --prerelease --latest=false
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
             --jq '.[] | select(.prerelease and (not .draft) and (.tag_name | startswith("nightly."))) | [.published_at, .tag_name] | @tsv' |
             sort -r | tail -n +2 | cut -f2- |
