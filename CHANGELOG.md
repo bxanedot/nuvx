@@ -6,6 +6,8 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ### Android
 
+- Reconnect Listen Together sockets after server closes and stop session workers cleanly.
+- Keep new account, download, Spotify import, and Discord invite resource keys in sync with the current locale fallback text.
 - Secure TV sign-in and remote routes, bound request bodies and client connections, and render remote search metadata as text.
 - Advance the launch animation using elapsed time so dropped frames do not keep the intro open.
 - Keep Now Playing open when an artist lookup fails, and initialize signed-in account state reliably.

@@ -1327,4 +1327,12 @@
     <string name="classic_search_subtitle">Trang tìm kiếm đơn giản thay cho các ô danh mục màu</string>
     <string name="enable_youtube_search">Bật tìm kiếm YouTube</string>
     <string name="enable_youtube_search_subtitle">Thêm bộ lọc YouTube cho video ngoài YouTube Music</string>
+    <string name="discord_account_checking">Checking Discord account…</string>
+    <string name="discord_account_lookup_failed">Couldn\'t verify this Discord account. Check your connection or reconnect.</string>
+    <string name="delete_download_failed">Couldn’t delete the download. Try again.</string>
+    <string name="spotify_import_partial">Imported \'%1$s\', but %2$d songs could not be added.</string>
+    <string name="discord_invite_title">Join Discord Server</string>
+    <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
+    <string name="discord_invite_join">Join Server</string>
+    <string name="discord_invite_not_now">Not Now</string>
 </resources>

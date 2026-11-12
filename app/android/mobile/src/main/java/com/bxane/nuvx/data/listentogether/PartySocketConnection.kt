@@ -45,10 +45,15 @@ internal class PartySocketConnection(
                     setSession(this)
                     backoffMs = 1_000L
                     updateState { it.copy(connection = ListenTogether.Connection.LIVE, error = null) }
-                    launch { pingLoop() }
-                    launch { reportLoop() }
-                    for (frame in incoming) {
-                        if (frame is Frame.Text) onFrame(frame.readText())
+                    val pingJob = launch { pingLoop() }
+                    val reportJob = launch { reportLoop() }
+                    try {
+                        for (frame in incoming) {
+                            if (frame is Frame.Text) onFrame(frame.readText())
+                        }
+                    } finally {
+                        pingJob.cancel()
+                        reportJob.cancel()
                     }
                 }
             } catch (cancelled: CancellationException) {
