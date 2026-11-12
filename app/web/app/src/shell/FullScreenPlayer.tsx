@@ -1,5 +1,5 @@
 import { Maximize, Minimize, X } from 'lucide-react';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { useLocation } from 'react-router';
 import {
   BackwardIcon,
@@ -46,9 +46,19 @@ function useBrowserFullScreen(): boolean {
 
 function Scrubber() {
   const { bar, elapsed, remaining, mixLabel, dragging, handlers } = useScrubber();
+  const liveRadio = usePlayer((s) => !!s.queue[s.index]?.track.streamUrl);
   return (
     <div className="group/scrub mt-3.5" data-dragging={dragging || undefined}>
-      <div className="group/hit flex h-4 touch-none items-center" {...handlers}>
+      <div
+        className="group/hit flex h-4 touch-none items-center"
+        role={liveRadio ? 'progressbar' : 'slider'}
+        aria-label={liveRadio ? 'Live radio progress' : 'Playback position'}
+        aria-valuemin={0}
+        aria-valuenow={liveRadio ? undefined : 0}
+        aria-valuetext={liveRadio ? 'Live radio' : '0:00'}
+        tabIndex={liveRadio ? undefined : 0}
+        {...handlers}
+      >
         <div
           className="relative h-1 flex-1 overflow-hidden rounded-[999px] bg-quaternary transition-[height] duration-120 ease-in group-hover/hit:h-2 group-data-dragging/scrub:h-2"
           aria-hidden="true"
@@ -139,6 +149,7 @@ export function FullScreenPlayer() {
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const browserFullScreen = useBrowserFullScreen();
   const close = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
   const enteredBrowserFullScreen = useRef(false);
 
   const showLyrics = panel === 'lyrics';
@@ -170,11 +181,43 @@ export function FullScreenPlayer() {
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     close.current?.focus({ preventScroll: true });
+    const containFocus = (event: FocusEvent) => {
+      const target = event.target as Node;
+      if (dialog.current?.contains(target) || (target instanceof Element && target.closest('[role="menu"]'))) return;
+      close.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('focusin', containFocus);
     return () => {
+      document.removeEventListener('focusin', containFocus);
       if (enteredBrowserFullScreen.current && document.fullscreenElement) void document.exitFullscreen();
       opener?.focus({ preventScroll: true });
     };
   }, []);
+
+  const containKeys = (event: KeyboardEvent<HTMLDivElement>) => {
+    wake();
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      setFullScreen(false);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [...(dialog.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])') ?? [])]
+      .filter((item) => item.getClientRects().length > 0);
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    const active = document.activeElement;
+    if (!first || !last) {
+      event.preventDefault();
+      close.current?.focus();
+    } else if (event.shiftKey && (active === first || !dialog.current?.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || !dialog.current?.contains(active))) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   useEffect(() => {
     if (pathname !== openedAt.current) setFullScreen(false);
@@ -206,6 +249,7 @@ export function FullScreenPlayer() {
 
   return (
     <div
+      ref={dialog}
       className="fixed inset-0 z-[calc(var(--z-contextual-menus)-2)] isolate animate-enter overflow-hidden text-primary [--art:min(32vw,calc(100dvh-330px),720px)] motion-reduce:[animation-name:fade-in] max-md:[--art:min(84vw,calc(100dvh-330px),420px)]"
       role="dialog"
       aria-modal="true"
@@ -214,7 +258,7 @@ export function FullScreenPlayer() {
       data-paused={!playing || undefined}
       onPointerMove={wake}
       onPointerDown={wake}
-      onKeyDown={wake}
+      onKeyDown={containKeys}
       style={theater && playing && idle ? { cursor: 'none' } : undefined}
     >
       <MeshBackdrop artworkUrl={nowPlaying.artworkUrl} playing={playing} />

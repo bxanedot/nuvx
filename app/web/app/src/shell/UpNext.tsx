@@ -16,14 +16,20 @@ function Row({
   onDragStart,
   onDropAt,
   dragging,
+  currentIndex,
+  queueLength,
+  announce,
 }: {
   entry: QueueEntry;
   at: number;
   onDragStart: (at: number) => void;
   onDropAt: (at: number) => void;
   dragging: boolean;
+  currentIndex: number;
+  queueLength: number;
+  announce: (message: string) => void;
 }) {
-  const { jumpTo, removeAt, playNext } = usePlayer.getState();
+  const { jumpTo, removeAt, playNext, move } = usePlayer.getState();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [over, setOver] = useState(false);
   const close = useCallback(() => setAnchor(null), []);
@@ -68,7 +74,7 @@ function Row({
       <div className="relative grid items-center justify-items-end">
         <span className="type-body tabular-nums text-secondary group-hover/row:invisible group-has-[[data-open]]/row:invisible">{formatDuration(track.durationSec)}</span>
         <button
-          className="absolute inset-y-0 right-0 my-auto hidden size-7 place-items-center rounded-full text-primary group-hover/row:grid data-open:grid"
+          className="absolute inset-y-0 right-0 my-auto hidden size-7 place-items-center rounded-full text-primary group-hover/row:grid group-focus-within/row:grid data-open:grid"
           aria-label={`More options for ${track.title}`}
           aria-haspopup="menu"
           data-open={anchor !== null || undefined}
@@ -79,6 +85,9 @@ function Row({
       </div>
       {anchor && (
         <Menu anchor={anchor} onClose={close} label={track.title}>
+          {at > currentIndex + 1 && <MenuItem onSelect={() => (close(), move(at, at - 1), announce(`${track.title} moved to position ${at - currentIndex - 1} of ${queueLength - currentIndex - 1} in Up Next`))}>Move up</MenuItem>}
+          {at < queueLength - 1 && <MenuItem onSelect={() => (close(), move(at, at + 1), announce(`${track.title} moved to position ${at - currentIndex + 1} of ${queueLength - currentIndex - 1} in Up Next`))}>Move down</MenuItem>}
+          {(at > currentIndex + 1 || at < queueLength - 1) && <MenuSeparator />}
           <MenuItem onSelect={() => (close(), jumpTo(at))}>Play Now</MenuItem>
           <MenuItem
             onSelect={() => {
@@ -112,6 +121,7 @@ export function UpNext() {
   const { clearUpNext, setAutoplay, setCrossfade, setAutomix, move } = usePlayer.getState();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [announcement, setAnnouncement] = useState('');
   const close = useCallback(() => setAnchor(null), []);
 
   const tiers = queue.map((e) => e.tier);
@@ -129,6 +139,9 @@ export function UpNext() {
         entry={entry}
         at={at}
         dragging={dragFrom === at}
+        currentIndex={index}
+        queueLength={queue.length}
+        announce={setAnnouncement}
         onDragStart={setDragFrom}
         onDropAt={(to) => {
           if (dragFrom !== null) move(dragFrom, to);
@@ -139,6 +152,7 @@ export function UpNext() {
 
   return (
     <>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
       <div className="flex items-center gap-1.5 px-5 pt-[23px] pb-3">
         <h3 className="flex-1 type-title-2-emphasized">Up Next</h3>
         {canClear && (
