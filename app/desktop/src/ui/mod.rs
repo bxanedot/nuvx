@@ -7,6 +7,7 @@ mod glyphs;
 mod integrations;
 mod jam;
 mod karaoke;
+mod library_pages;
 mod lists;
 mod lyric_prefs;
 mod mini;
