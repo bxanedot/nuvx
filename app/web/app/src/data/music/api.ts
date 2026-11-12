@@ -73,13 +73,12 @@ export async function fetchPodcasts(): Promise<Shelf[]> {
         if (shelves.length) return shelves;
       }
     } catch {
-      // Fall through to YouTube's public search if the account feed is unavailable.
     }
   }
 
   const yt = await getInnertube();
-  const search = await yt.search('podcast full episodes', { type: 'video', duration: 'long' });
-  const items: MusicItem[] = search.videos.map((result) => {
+  const search = await yt.search('podcast full episodes', { type: 'video', duration: 'over_twenty_mins' });
+  const items: MusicItem[] = search.videos.map((result): MusicItem => {
     const video = result as unknown as {
       id?: string;
       title?: { toString(): string };
