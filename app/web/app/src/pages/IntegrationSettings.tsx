@@ -116,7 +116,7 @@ export function DiscordIntegration() {
         className={settingsUi.inlineButton}
         onClick={() => {
           if (connected) disconnect.mutate();
-          else if (window.confirm('Connect YouTube Music to nuvx? nuvx will use this browser’s YouTube Music session to read your account, library, playlists and track details. Requests go directly from this browser to YouTube Music.')) connect.mutate();
+          else if (window.confirm('Connect Discord to nuvx? nuvx will read your Discord profile and update your Discord presence to show what you play.')) connect.mutate();
         }}
         disabled={connect.isPending || disconnect.isPending}
       >

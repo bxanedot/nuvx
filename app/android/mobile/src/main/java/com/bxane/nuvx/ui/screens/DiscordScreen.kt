@@ -62,6 +62,7 @@ import com.bxane.nuvx.ui.components.TextValueAlert
 import com.bxane.nuvx.ui.components.thumbnailBorder
 import com.my.kizzy.rpc.KizzyRPC
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -156,24 +157,39 @@ fun DiscordScreen(
     val button2Visible by AppSettings.discordButton2Visible.collectAsStateWithLifecycle()
     val infoDismissed by AppSettings.discordInfoDismissed.collectAsStateWithLifecycle()
     val nerdStats by NerdStats.current.collectAsStateWithLifecycle()
+    var accountLoading by remember { mutableStateOf(false) }
+    var accountLookupFailed by remember { mutableStateOf(false) }
 
     val connected = token.isNotEmpty()
     val discordIcon = ImageVector.vectorResource(R.drawable.ic_discord)
 
     LaunchedEffect(token) {
+        accountLookupFailed = false
         if (token.isEmpty()) {
             AppSettings.setDiscordAccount("", "", null)
+            accountLoading = false
             return@LaunchedEffect
         }
-        withContext(Dispatchers.IO) {
-            KizzyRPC.getUserInfo(
-                token,
-                SuperProperties.userAgent,
-                SuperProperties.superPropertiesBase64,
-            ).onSuccess {
-                AppSettings.setDiscordAccount(it.username, it.name, it.avatar)
+        accountLoading = true
+        try {
+            val result = withContext(Dispatchers.IO) {
+                KizzyRPC.getUserInfo(
+                    token,
+                    SuperProperties.userAgent,
+                    SuperProperties.superPropertiesBase64,
+                )
             }
+            if (AppSettings.discordToken.value != token) return@LaunchedEffect
+            result.fold(
+                onSuccess = { AppSettings.setDiscordAccount(it.username, it.name, it.avatar) },
+                onFailure = { accountLookupFailed = true },
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            if (AppSettings.discordToken.value == token) accountLookupFailed = true
         }
+        if (AppSettings.discordToken.value == token) accountLoading = false
     }
 
     Column(
@@ -193,6 +209,14 @@ fun DiscordScreen(
             icon = discordIcon,
             onConnect = onOpenLogin,
         )
+        if (accountLoading || accountLookupFailed) {
+            Text(
+                text = stringResource(if (accountLookupFailed) R.string.discord_account_lookup_failed else R.string.discord_account_checking),
+                color = if (accountLookupFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = GROUP_INSET, end = GROUP_INSET, top = 8.dp),
+            )
+        }
 
         if (!connected) {
             SettingsGroup(
@@ -703,8 +727,8 @@ fun DiscordDialogHost(
                             )
                         }
                         info.onSuccess {
-                            AppSettings.setDiscordAccount(it.username, it.name, it.avatar)
                             AppSettings.setDiscordToken(trimmed)
+                            AppSettings.setDiscordAccount(it.username, it.name, it.avatar)
                             onDismiss()
                         }.onFailure {
                             error = rejectedToken
