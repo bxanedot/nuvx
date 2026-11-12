@@ -199,6 +199,7 @@ export function FullScreenPlayer() {
   const { videoId, title, artist } = nowPlaying;
   const album = track?.album ?? null;
   const column = showLyrics || showQueue;
+  const videoPanel = video && column;
   const theater = video && !column;
   const hidden = theater && playing && idle ? ' pointer-events-none opacity-0' : '';
   const corner = `${chrome} transition-[background-color,color,opacity] duration-300${hidden}`;
@@ -243,24 +244,30 @@ export function FullScreenPlayer() {
         className={
           theater
             ? `absolute inset-x-0 bottom-0 flex justify-center bg-[linear-gradient(to_top,rgb(0_0_0/0.72),rgb(0_0_0/0.35)_55%,transparent)] px-6 pt-32 pb-16 transition-opacity duration-300${hidden}`
-            : `grid h-full items-center justify-center gap-x-[clamp(48px,7vw,144px)] px-[clamp(24px,9vw,144px)] py-16 max-md:px-6 max-md:pb-18 ${
-                column
-                  ? 'grid-cols-[var(--art)_minmax(0,38vw)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
-                  : 'grid-cols-[var(--art)]'
+            : `grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 ${
+                videoPanel
+                  ? 'gap-x-[clamp(24px,4vw,64px)] px-[clamp(24px,5vw,80px)] grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)] max-md:items-stretch max-md:gap-y-4'
+                  : column
+                    ? 'gap-x-[clamp(48px,7vw,144px)] px-[clamp(24px,9vw,144px)] grid-cols-[var(--art)_minmax(0,38vw)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
+                    : 'gap-x-[clamp(48px,7vw,144px)] px-[clamp(24px,9vw,144px)] grid-cols-[var(--art)]'
               }`
         }
         data-lyrics={column || undefined}
       >
         <section
           className={
-            theater ? 'flex w-[min(720px,100%)] min-w-0 flex-col' : `flex w-(--art) min-w-0 flex-col${column ? ' max-md:order-2 max-md:w-full' : ''}`
+            theater
+              ? 'flex w-[min(720px,100%)] min-w-0 flex-col'
+              : `flex ${videoPanel ? 'w-full' : 'w-(--art)'} min-w-0 flex-col${
+                  videoPanel ? ' max-md:order-1 max-md:w-full' : column ? ' max-md:order-2 max-md:w-full' : ''
+                }`
           }
           aria-label="Player"
         >
           <div
-            className={`relative w-(--art) rounded-[10px] transition-[scale] duration-450 ease-[cubic-bezier(0.34,1.3,0.64,1)] motion-reduce:transition-none${
+            className={`relative ${videoPanel ? 'w-full max-h-[calc(100dvh-400px)] max-md:w-full max-md:max-w-[320px] max-md:max-h-[min(32vh,180px)] max-md:self-center' : 'w-(--art)'} rounded-[10px] transition-[scale] duration-450 ease-[cubic-bezier(0.34,1.3,0.64,1)] motion-reduce:transition-none${
               video ? ' aspect-video overflow-hidden bg-black' : ' aspect-square'
-            }${playing ? '' : ' scale-92'}${column ? ' max-md:hidden' : ''}${theater ? ' hidden' : ''}`}
+            }${playing ? '' : ' scale-92'}${column && !videoPanel ? ' max-md:hidden' : ''}${theater ? ' hidden' : ''}`}
           >
             {nowPlaying.artworkUrl && (
               <>
@@ -341,13 +348,13 @@ export function FullScreenPlayer() {
         </section>
 
         {showLyrics && !liveRadio && (
-          <section className="flex min-h-0 animate-fade-in self-stretch" aria-label="Lyrics">
+          <section className={`flex min-h-0 animate-fade-in self-stretch${videoPanel ? ' max-md:order-2' : ''}`} aria-label="Lyrics">
             <LyricsPanel variant="full" />
           </section>
         )}
         {showQueue && (
           <section
-            className="flex min-h-0 animate-fade-in flex-col self-stretch [mask-image:linear-gradient(180deg,#000_calc(100%-80px),transparent)]"
+            className={`flex min-h-0 animate-fade-in flex-col self-stretch [mask-image:linear-gradient(180deg,#000_calc(100%-80px),transparent)]${videoPanel ? ' max-md:order-2' : ''}`}
             aria-label="Up Next"
           >
             <UpNext />
