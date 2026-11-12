@@ -40,7 +40,6 @@ import com.bxane.nuvx.data.model.UiState
 import com.bxane.nuvx.data.model.UserPlaylist
 import com.bxane.nuvx.data.model.SearchHistoryEntity
 import com.bxane.nuvx.data.settings.SearchHistory
-import com.bxane.nuvx.download.Downloads
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,8 +48,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.bxane.nuvx.playback.BoundedContextRequests
 import com.bxane.nuvx.data.LocalGroup
-import com.bxane.nuvx.data.LocalGroups
-import com.bxane.nuvx.data.OfflinePlaylists
 
 enum class SearchSource { YOUTUBE, LIBRARY, ADDONS }
 
@@ -425,20 +422,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
         const val SOURCE_SEARCH_LIMIT = 12
 
-        fun browseTypeOf(browseId: String, fallback: BrowseType = BrowseType.OTHER): BrowseType = when {
-            browseId.startsWith(Downloads.PLAYLIST_PREFIX) ->
-                Downloads.recordIdOf(browseId)
-                    ?.let { Downloads.collections.value[it] }
-                    ?.takeIf { !it.playlist }
-                    ?.let { BrowseType.ALBUM }
-                    ?: BrowseType.PLAYLIST
-            browseId.startsWith(LocalGroups.PREFIX) -> LocalGroups.typeOf(browseId) ?: fallback
-            browseId.startsWith(OfflinePlaylists.PREFIX) -> BrowseType.PLAYLIST
-            browseId.startsWith("UC") -> BrowseType.ARTIST
-            browseId.startsWith("MPREb") || browseId.startsWith("VLOLAK") || browseId.startsWith("OLAK") -> BrowseType.ALBUM
-            browseId.startsWith("VL") || browseId.startsWith("PL") -> BrowseType.PLAYLIST
-            else -> fallback
-        }
+        fun browseTypeOf(browseId: String, fallback: BrowseType = BrowseType.OTHER): BrowseType =
+            MainBrowseTypeResolver.resolve(browseId, fallback)
     }
 
     fun openDetail(
