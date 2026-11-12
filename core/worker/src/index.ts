@@ -178,6 +178,7 @@ export class Party extends DurableObject<Env> {
 
   private async expire() {
     for (const ws of this.ctx.getWebSockets()) try { ws.close(1000, "party ended"); } catch { }
+    this.buckets.clear();
     await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll();
   }
@@ -185,6 +186,8 @@ export class Party extends DurableObject<Env> {
   private async save(party: P.Party, except?: WebSocket) {
     const connected = this.connected(except);
     P.refreshEmptiness(party, connected, Date.now());
+    const active = new Set(party.members.map((member) => member.memberId));
+    for (const memberId of this.buckets.keys()) if (!active.has(memberId)) this.buckets.delete(memberId);
     await this.ctx.storage.put("party", party);
     await this.ctx.storage.setAlarm(P.nextExpiry(party, connected));
     this.publishListeners(party, connected);
