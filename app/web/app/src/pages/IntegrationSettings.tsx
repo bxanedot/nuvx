@@ -74,7 +74,12 @@ export function SpotifyIntegration() {
   const action = !browserSignedIn
     ? { label: 'Sign In', run: openSpotifySignIn }
     : !connected
-      ? { label: 'Connect', run: () => connect.mutate(true) }
+      ? {
+          label: 'Connect',
+          run: () => {
+            if (window.confirm('Connect Spotify to nuvx? nuvx will use this browser’s Spotify session to read your profile, playlists and track details. Requests go directly from this browser to Spotify.')) connect.mutate(true);
+          },
+        }
       : !signedIn
         ? { label: 'Retry', run: () => retry.mutate() }
         : { label: 'Disconnect', run: () => connect.mutate(false) };
@@ -109,7 +114,10 @@ export function DiscordIntegration() {
       <span title={status.discord.problem ?? undefined}>{text}</span>
       <button
         className={settingsUi.inlineButton}
-        onClick={() => (connected ? disconnect.mutate() : connect.mutate())}
+        onClick={() => {
+          if (connected) disconnect.mutate();
+          else if (window.confirm('Connect YouTube Music to nuvx? nuvx will use this browser’s YouTube Music session to read your account, library, playlists and track details. Requests go directly from this browser to YouTube Music.')) connect.mutate();
+        }}
         disabled={connect.isPending || disconnect.isPending}
       >
         {connected ? 'Disconnect' : 'Connect'}

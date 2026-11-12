@@ -1,6 +1,10 @@
 import type { SpotifyAuthState, SpotifyPage, SpotifyPlaylist, SpotifyTrack } from '@nuvx/shared/bridge';
 import { installSpotifyFetchRule } from './rules';
 
+declare const __STORE_BUILD__: boolean;
+
+const STORE_BUILD = typeof __STORE_BUILD__ !== 'undefined' && __STORE_BUILD__;
+
 const WEB_PLAYER = 'https://open.spotify.com';
 const CDN = 'https://open.spotifycdn.com/cdn/build/web-player/';
 const PATHFINDER = 'https://api-partner.spotify.com/pathfinder/v2/query';
@@ -479,7 +483,7 @@ const PREFS_KEY = 'spotify.prefs';
 
 async function prefs(): Promise<Prefs> {
   const stored = (await browser.storage.local.get(PREFS_KEY))[PREFS_KEY] as Partial<Prefs> | undefined;
-  return { connected: stored?.connected ?? true };
+  return { connected: stored?.connected ?? !STORE_BUILD };
 }
 
 export async function setConnected(connected: boolean): Promise<SpotifyAuthState> {

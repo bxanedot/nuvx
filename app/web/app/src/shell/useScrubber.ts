@@ -56,6 +56,7 @@ export function useScrubber() {
   const status = usePlayer((s) => s.status);
   const deck = usePlayer((s) => s.deck);
   const mixing = usePlayer((s) => s.mixing);
+  const liveRadio = usePlayer((s) => !!s.queue[s.index]?.track.streamUrl);
   const seek = usePlayer((s) => s.seek);
   const [dragging, setDragging] = useState<number | null>(null);
 
@@ -75,7 +76,7 @@ export function useScrubber() {
       element.style.setProperty('--progress', String(base + (1 - base) * mix.cover));
       element.style.opacity = mix.active ? String(mix.alpha) : '';
       if (elapsed.current) elapsed.current.textContent = clock(time);
-      if (remaining.current) remaining.current.textContent = `-${clock((duration || 0) - time)}`;
+      if (remaining.current) remaining.current.textContent = liveRadio ? 'LIVE' : `-${clock((duration || 0) - time)}`;
       for (const span of [elapsed.current, remaining.current]) {
         if (span) span.style.opacity = mix.active ? String(1 - mix.cover) : '';
       }
@@ -89,7 +90,7 @@ export function useScrubber() {
       cancelAnimationFrame(frame);
       audio.removeEventListener('seeked', onSeeked);
     };
-  }, [status, deck, dragging, mixing]);
+  }, [status, deck, dragging, mixing, liveRadio]);
 
   const fractionAt = (event: React.PointerEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -98,7 +99,7 @@ export function useScrubber() {
 
   const handlers = {
     onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
-      if (!getAudio()) return;
+      if (!getAudio() || liveRadio) return;
       e.currentTarget.setPointerCapture(e.pointerId);
       setDragging(fractionAt(e));
     },

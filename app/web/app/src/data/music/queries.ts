@@ -18,6 +18,9 @@ import {
   fetchBrowse,
   fetchCategories,
   fetchExplore,
+  fetchPodcasts,
+  fetchRadioCountries,
+  fetchRadioStations,
   fetchHome,
   fetchLibrary,
   fetchLibraryPlaylists,
@@ -42,6 +45,12 @@ export const artistQuery = (id: string) =>
   queryOptions({ queryKey: ['music', 'artist', id], queryFn: () => fetchArtist(id), staleTime: STALE });
 export const exploreQuery = () =>
   queryOptions({ queryKey: ['music', 'explore'], queryFn: fetchExplore, staleTime: STALE });
+export const podcastsQuery = () =>
+  queryOptions({ queryKey: ['music', 'podcasts'], queryFn: fetchPodcasts, staleTime: STALE });
+export const radioCountriesQuery = () =>
+  queryOptions({ queryKey: ['radio', 'countries'], queryFn: fetchRadioCountries, staleTime: 60 * 60_000 });
+export const radioStationsQuery = (country: string | null, query: string) =>
+  queryOptions({ queryKey: ['radio', country, query], queryFn: () => fetchRadioStations(country, query), staleTime: STALE });
 export const categoriesQuery = () =>
   queryOptions({ queryKey: ['music', 'categories'], queryFn: fetchCategories, staleTime: 60 * 60_000 });
 export const searchQuery = (query: string) =>
@@ -101,6 +110,14 @@ export function useExplore() {
   const { ready } = useYouTubeReady();
   return useQuery({ ...exploreQuery(), enabled: ready });
 }
+export function usePodcasts() {
+  const { ready } = useYouTubeReady();
+  return useQuery({ ...podcastsQuery(), enabled: ready });
+}
+export function useRadioCountries() { return useQuery(radioCountriesQuery()); }
+export function useRadioStations(country: string | null, query: string) {
+  return useQuery({ ...radioStationsQuery(country, query), enabled: !!country || !!query });
+}
 export function useCategories() {
   const { ready } = useYouTubeReady();
   return useQuery({ ...categoriesQuery(), enabled: ready });
@@ -145,6 +162,7 @@ export function prefetchPageData(pathname: string): void {
   if (!id) {
     if (kind === 'home') void queryClient.prefetchInfiniteQuery(homeQuery());
     if (kind === 'new') void queryClient.prefetchQuery(exploreQuery());
+    if (kind === 'podcasts') void queryClient.prefetchQuery(podcastsQuery());
     return;
   }
   const decoded = decodeURIComponent(id);

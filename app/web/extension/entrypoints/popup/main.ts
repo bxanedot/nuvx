@@ -61,7 +61,9 @@ function youtubeRow(state: YtAuthState | null, refresh: (state: YtAuthState) => 
       action.onclick = () => void call('yt.authState', { refresh: true }).then(refresh);
     } else {
       action = el('button', 'action', 'Connect');
-      action.onclick = () => void call('yt.setConnected', { connected: true }).then(refresh);
+      action.onclick = () => {
+        if (window.confirm('Connect YouTube Music to nuvx? nuvx will use this browser’s YouTube Music session to read your account and music library. Requests go directly from this browser to YouTube Music.')) void call('yt.setConnected', { connected: true }).then(refresh);
+      };
     }
   } else {
     if (state.active.avatarUrl) {
@@ -110,7 +112,9 @@ function spotifyRow(state: SpotifyAuthState | null): HTMLLIElement {
     action = button('Sign in', () => void call('spotify.signIn', {}));
   } else if (!state.connected) {
     who.append(el('span', 'title', 'Spotify'), el('span', 'detail', 'Disconnected'));
-    action = button('Connect', () => void call('spotify.setConnected', { connected: true }).then(setSpotify));
+    action = button('Connect', () => {
+      if (window.confirm('Connect Spotify to nuvx? nuvx will use this browser’s Spotify session to read your profile, playlists and track details. Requests go directly from this browser to Spotify.')) void call('spotify.setConnected', { connected: true }).then(setSpotify);
+    });
   } else if (!state.signedIn) {
     const detail = el('span', 'detail', 'Couldn’t read your account');
     if (state.problem) detail.title = state.problem;

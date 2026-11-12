@@ -60,6 +60,57 @@ export async function fetchExplore(): Promise<Shelf[]> {
   return mapShelves((await yt.music.getExplore()).sections);
 }
 
+export async function fetchPodcasts(): Promise<Shelf[]> {
+  const yt = await getMusicClient();
+  const home = await yt.music.getHomeFeed();
+  const filter = home.header?.chips?.find((chip) => chip.text.toLowerCase() === 'podcasts');
+  if (!filter) throw new Error('YouTube Music did not provide a Podcasts feed');
+  return mapShelves((await home.applyFilter(filter)).sections);
+}
+
+interface RadioCountry { name: string; iso_3166_1: string; stationcount: number }
+interface RadioStation {
+  stationuuid: string; name: string; url_resolved: string; favicon: string;
+  country: string; countrycode: string; tags: string; codec: string; bitrate: number; hls: number;
+}
+const RADIO_HOSTS = ['all.api.radio-browser.info', 'de1.api.radio-browser.info', 'fi1.api.radio-browser.info'];
+
+async function radioRequest<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+  let failure: unknown;
+  for (const host of RADIO_HOSTS) {
+    try {
+      const url = new URL(`https://${host}/json/${path}`);
+      for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Radio Browser answered ${response.status}`);
+      return await response.json() as T;
+    } catch (error) { failure = error; }
+  }
+  throw failure ?? new Error('Radio Browser is unavailable');
+}
+
+export async function fetchRadioCountries(): Promise<RadioCountry[]> {
+  return (await radioRequest<RadioCountry[]>('countries', { order: 'stationcount', reverse: 'true', hidebroken: 'true' }))
+    .filter((country) => country.stationcount > 0 && /^[A-Z]{2}$/i.test(country.iso_3166_1));
+}
+
+export async function fetchRadioStations(country: string | null, query: string): Promise<Track[]> {
+  const rows = await radioRequest<RadioStation[]>(country ? `stations/bycountrycodeexact/${encodeURIComponent(country)}` : 'stations/search', {
+    hidebroken: 'true', order: 'clickcount', reverse: 'true', limit: '100', ...(country ? {} : { name: query }),
+  });
+  return rows.filter((station) => station.url_resolved.startsWith('https://') && !station.hls && (!station.codec || /^(mp3|aac)/i.test(station.codec)))
+    .filter((station, index, all) => all.findIndex((item) => item.url_resolved === station.url_resolved) === index)
+    .map((station) => ({
+      videoId: `radio:${station.stationuuid}`, streamUrl: station.url_resolved, title: station.name.trim() || 'Radio station',
+      artists: [{ name: [station.country || station.countrycode, station.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 2).join(' · '), [station.codec, station.bitrate > 0 ? `${station.bitrate} kbps` : ''].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || 'Live radio', id: null }], album: null, durationSec: null,
+      explicit: false, thumbnail: station.favicon.startsWith('https://') ? station.favicon : null, index: null, plays: null,
+    }));
+}
+
+export function countRadioClick(id: string): void {
+  void radioRequest<unknown>(`url/${encodeURIComponent(id)}`).catch(() => {});
+}
+
 export async function fetchCategories(): Promise<CategoryGroup[]> {
   const yt = await getInnertube();
   const response = await yt.actions.execute('/browse', { browseId: 'FEmusic_moods_and_genres', client: 'YTMUSIC' });
