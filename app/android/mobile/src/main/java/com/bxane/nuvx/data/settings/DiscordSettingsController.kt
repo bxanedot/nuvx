@@ -50,6 +50,7 @@ internal class DiscordSettingsController {
     }
 
     fun setToken(value: String) {
+        if (discordToken.value != value) setAccount("", "", null)
         discordToken.value = value
         authStore.discordToken = value.ifEmpty { null }
     }
