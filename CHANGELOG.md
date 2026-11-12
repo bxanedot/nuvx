@@ -16,6 +16,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ### Desktop
 
+- Publish Windows, Linux, and macOS desktop installers and portable builds with Android nightlies.
 - Reorganize playback and audio processing, backend search and catalog loading, downloads and transfers, lyrics and karaoke, Listen Together, settings, navigation, Now Playing, and shared widgets into focused modules. These are internal refactors with no intended user-facing behavior change.
 
 ### Web and browser extensions
