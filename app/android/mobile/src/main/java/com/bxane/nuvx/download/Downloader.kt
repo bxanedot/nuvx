@@ -265,10 +265,16 @@ object Downloader {
 
         return runCatching {
             open(url, 0, 1).use { response ->
-                response.header("Content-Range")
-                    ?.substringAfter('/', "")
-                    ?.toLongOrNull()
-                    ?.takeIf { it > 0 }
+                when (response.code) {
+                    206 -> response.header("Content-Range")
+                        ?.substringAfter('/', "")
+                        ?.toLongOrNull()
+                        ?.takeIf { it > 0 }
+                    200 -> response.header("Content-Length")
+                        ?.toLongOrNull()
+                        ?.takeIf { it > 0 }
+                    else -> null
+                }
             }
         }.onFailure { Log.w(TAG, "could not measure the track: ${it.message}") }.getOrNull()
     }
