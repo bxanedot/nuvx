@@ -2,6 +2,31 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
 
+## 0.8.0 (upcoming)
+
+### Android
+
+- Keep Now Playing open when an artist lookup fails, and initialize signed-in account state reliably.
+- Preserve the rest of an album queue when shuffle is enabled mid-album.
+- Use the same microphone glyph and size in Podcasts navigation and the Hide Podcasts tab setting.
+- Publish signed Android nightly builds with a stable update handoff.
+- Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade, audio cache, lyrics, Android Auto, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
+
+### Desktop
+
+- Reorganize playback and audio processing, backend search and catalog loading, downloads and transfers, lyrics and karaoke, Listen Together, settings, navigation, Now Playing, and shared widgets into focused modules. These are internal refactors with no intended user-facing behavior change.
+
+### Web and browser extensions
+
+- Add Podcasts and Radio to the web player and fix public podcast search filtering.
+- Add a reproducible Firefox source build and source archive for AMO submission, and update the browser extension separately to version 0.9.0.
+- Link the website releases section to the latest Android nightly and share the showcase playback control.
+
+### Privacy and maintenance
+
+- Publish the full-project privacy notice.
+- Remove comments from first-party source files and split shared lyrics, Listen Together, party synchronization, and Innertube parsing into dedicated modules.
+
 ## 0.7.0
 
 ### Desktop
