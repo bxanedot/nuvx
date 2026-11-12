@@ -15,7 +15,6 @@ import com.bxane.nuvx.data.model.LibraryPage
 import com.bxane.nuvx.data.model.LibraryState
 import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.data.model.MoodGenreSection
-import com.bxane.nuvx.data.model.playlistMoves
 import com.bxane.nuvx.data.model.PlaylistPrivacy
 import com.bxane.nuvx.data.model.SearchFilter
 import com.bxane.nuvx.data.model.SearchResult
@@ -595,22 +594,18 @@ object YtMusicRepository {
         title: String,
         privacy: PlaylistPrivacy,
         videoIds: List<String> = emptyList(),
-    ): Result<String> = call("playlist:create") {
-        Innertube.createPlaylist(title, privacy, videoIds = videoIds)
-    }
+    ): Result<String> = YtMusicPlaylistRepository.createPlaylist(title, privacy, videoIds)
 
     suspend fun addToPlaylist(
         playlistId: String,
         videoIds: List<String>,
     ): Result<Map<String, String>> =
-        call("playlist:add") { Innertube.addToPlaylist(playlistId, videoIds) }
+        YtMusicPlaylistRepository.addToPlaylist(playlistId, videoIds)
 
     suspend fun removeFromPlaylist(
         playlistId: String,
         entries: List<Pair<String, String>>,
-    ): Result<Unit> = call("playlist:remove") {
-        Innertube.removeFromPlaylist(playlistId, entries)
-    }
+    ): Result<Unit> = YtMusicPlaylistRepository.removeFromPlaylist(playlistId, entries)
 
     suspend fun playlistEntries(browseId: String): Result<List<Song>> = call("entries:$browseId") {
         val out = LinkedHashMap<String, Song>()
@@ -633,19 +628,13 @@ object YtMusicRepository {
         playlistId: String,
         current: List<String>,
         target: List<String>,
-    ): Result<Unit> = call("playlist:reorder") {
-        playlistMoves(current, target).chunked(MOVE_BATCH).forEach { batch ->
-            Innertube.movePlaylistItems(playlistId, batch)
-        }
-    }
-
-    private const val MOVE_BATCH = 50
+    ): Result<Unit> = YtMusicPlaylistRepository.reorderPlaylist(playlistId, current, target)
 
     suspend fun renamePlaylist(playlistId: String, title: String): Result<Unit> =
-        call("playlist:rename") { Innertube.renamePlaylist(playlistId, title) }
+        YtMusicPlaylistRepository.renamePlaylist(playlistId, title)
 
     suspend fun deletePlaylist(playlistId: String): Result<Unit> =
-        call("playlist:delete") { Innertube.deletePlaylist(playlistId) }
+        YtMusicPlaylistRepository.deletePlaylist(playlistId)
 
     suspend fun artistPage(browseId: String): Result<ArtistPage> = call("artist:$browseId") {
         val page = InnertubeParser.parseArtistPage(Innertube.browse(browseId))

@@ -25,7 +25,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 ### Privacy and maintenance
 
 - Publish the full-project privacy notice.
-- Remove comments from first-party source files and split shared lyrics, Listen Together, party synchronization, YT Music search orchestration, and Innertube account, playback, browse-header, and library-state parsing into dedicated modules.
+- Remove comments from first-party source files and split shared lyrics, Listen Together, party synchronization, YT Music search and playlist orchestration, and Innertube account, playback, browse-header, and library-state parsing into dedicated modules.
 
 ## 0.7.0
 
