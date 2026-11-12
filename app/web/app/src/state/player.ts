@@ -4,6 +4,7 @@ import type { Track } from '@/data/music/types';
 import { extensionQueryKey } from '@/extension/useExtension';
 import { artworkAtPixels } from '@/lib/artwork';
 import { queryClient } from '@/lib/queryClient';
+import { AUTOMIX_BARS } from '@/playback/automix/choices';
 import { extendStation } from '@/playback/queue/builder';
 import {
   applyJump,
@@ -100,7 +101,21 @@ const DEFAULT_SETTINGS: Settings = {
 
 function loadSettings(): Settings {
   try {
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Partial<Settings>) };
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Partial<Record<keyof Settings, unknown>>;
+    return {
+      shuffle: typeof saved.shuffle === 'boolean' ? saved.shuffle : DEFAULT_SETTINGS.shuffle,
+      repeat: saved.repeat === 'all' || saved.repeat === 'one' || saved.repeat === 'off' ? saved.repeat : DEFAULT_SETTINGS.repeat,
+      autoplay: typeof saved.autoplay === 'boolean' ? saved.autoplay : DEFAULT_SETTINGS.autoplay,
+      volume: typeof saved.volume === 'number' && Number.isFinite(saved.volume) && saved.volume >= 0 && saved.volume <= 1
+        ? saved.volume : DEFAULT_SETTINGS.volume,
+      muted: typeof saved.muted === 'boolean' ? saved.muted : DEFAULT_SETTINGS.muted,
+      crossfadeSec: CROSSFADE_CHOICES.includes(saved.crossfadeSec as (typeof CROSSFADE_CHOICES)[number])
+        ? saved.crossfadeSec as number : DEFAULT_SETTINGS.crossfadeSec,
+      automix: typeof saved.automix === 'boolean' ? saved.automix : DEFAULT_SETTINGS.automix,
+      automixBars: AUTOMIX_BARS.includes(saved.automixBars as (typeof AUTOMIX_BARS)[number])
+        ? saved.automixBars as number : DEFAULT_SETTINGS.automixBars,
+      showNerdStats: typeof saved.showNerdStats === 'boolean' ? saved.showNerdStats : DEFAULT_SETTINGS.showNerdStats,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
