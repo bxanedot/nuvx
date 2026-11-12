@@ -10,7 +10,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Preserve the rest of an album queue when shuffle is enabled mid-album.
 - Use the same microphone glyph and size in Podcasts navigation and the Hide Podcasts tab setting.
 - Publish signed Android nightly builds with a stable update handoff.
-- Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade, audio cache, lyrics, Android Auto, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
+- Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade and transition planning, audio cache, lyrics, Android Auto, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
 
 ### Desktop
 
