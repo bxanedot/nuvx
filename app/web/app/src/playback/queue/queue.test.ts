@@ -142,6 +142,20 @@ describe('QueueTimeline', () => {
     expect(jumped.index).toBe(1);
   });
 
+  it('targets the selected queue occurrence when video IDs are duplicated', () => {
+    const rows = [
+      asEntry(track('current'), 'context', null, 'current'),
+      asEntry(track('duplicate'), 'user', null, 'first-copy'),
+      asEntry(track('duplicate'), 'user', null, 'second-copy'),
+      asEntry(track('after'), 'context', null, 'after'),
+    ];
+
+    const jumped = applyJump(rows, 0, 2)!;
+
+    expect(jumped.timeline[jumped.index]?.entryId).toBe('second-copy');
+    expect(jumped.timeline.map((row) => row.entryId)).toEqual(['current', 'second-copy', 'after']);
+  });
+
   it('promotes a tapped AutoPlay track to the context, keeping the user queue', () => {
     const jumped = applyJump(timeline('ccuaaa'), 0, 4)!;
     expect(order(jumped.timeline)).toBe('c0 a4 u2 a5');
