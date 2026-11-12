@@ -83,7 +83,7 @@ export function trackFromWire(raw: unknown): Track | null {
     fromAutoplay: r.fromAutoplay === true,
   };
   if (typeof r.thumbnailUrl === "string" && r.thumbnailUrl) track.thumbnailUrl = r.thumbnailUrl.slice(0, 1000);
-  if (typeof r.durationMs === "number" && r.durationMs > 0) track.durationMs = Math.trunc(r.durationMs);
+  if (typeof r.durationMs === "number" && Number.isFinite(r.durationMs) && r.durationMs > 0) track.durationMs = Math.trunc(r.durationMs);
   return track;
 }
 
