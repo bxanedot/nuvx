@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUpRight, BookOpenText, ListMusic, Settings } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
@@ -137,13 +138,61 @@ export function Sidebar() {
   const signedIn = useSignedIn();
   const spotifySignedIn = useSpotifySignedIn();
   const close = () => setDrawerOpen(false);
+  const navigation = useRef<HTMLElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!drawerOpen) {
+      opener.current?.focus({ preventScroll: true });
+      opener.current = null;
+      return;
+    }
+    if (!window.matchMedia('(max-width: 639px)').matches) return;
+    opener.current = document.getElementById('mobile-navigation-trigger');
+    const focusable = () => [...(navigation.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), [tabindex]:not([tabindex="-1"])') ?? [])]
+      .filter((node) => node.getClientRects().length > 0);
+    focusable()[0]?.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !(event.target instanceof Element && event.target.closest('[role="menu"]'))) {
+        event.preventDefault();
+        setDrawerOpen(false);
+      } else if (event.key === 'Tab') {
+        const items = focusable();
+        const first = items[0];
+        const last = items.at(-1);
+        if (!first || !last) return;
+        if (event.shiftKey && (document.activeElement === first || !navigation.current?.contains(document.activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !navigation.current?.contains(document.activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    const containFocus = (event: FocusEvent) => {
+      const target = event.target;
+      if (navigation.current?.contains(target as Node) || target instanceof Element && target.closest('[role="menu"]')) return;
+      focusable()[0]?.focus({ preventScroll: true });
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('focusin', containFocus, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('focusin', containFocus, true);
+    };
+  }, [drawerOpen, setDrawerOpen]);
 
   return (
     <>
       <nav
+        ref={navigation}
+        id="mobile-navigation"
         className="absolute inset-y-0 left-0 z-(--z-web-chrome) flex w-(--web-navigation-width) flex-col glass-material max-sm:w-[min(300px,82vw)] max-sm:-translate-x-full max-sm:shadow-glass max-sm:transition-transform max-sm:duration-(--duration-panel) max-sm:ease-panel max-sm:data-[open=true]:translate-none"
         data-open={drawerOpen}
-        aria-label="Main"
+        role={drawerOpen ? 'dialog' : undefined}
+        aria-modal={drawerOpen || undefined}
+        aria-label="Main navigation"
       >
         <div className="mt-2 ml-2 flex h-18 items-center px-5">
           <PrefetchLink to="/home" className="inline-flex items-center gap-2 rounded-[6px]" aria-label="nuvx, Home" onClick={close}>
