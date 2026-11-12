@@ -8,7 +8,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 - Keep Now Playing open when an artist lookup fails, and initialize signed-in account state reliably.
 - Preserve the rest of an album queue when shuffle is enabled mid-album.
-- Move Enable YouTube Search into Content preferences, and use the same microphone glyph and size in Podcasts navigation and the Hide Podcasts tab setting.
+- Move Enable YouTube Search into Content preferences, and give Hide Podcasts tab the same GlyphStudio icon and size as Podcasts navigation.
 - Publish signed Android nightly builds with a stable update handoff.
 - Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade and transition planning, audio cache, lyrics, Android Auto, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
 
@@ -25,7 +25,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 ### Privacy and maintenance
 
 - Publish the full-project privacy notice.
-- Remove comments from first-party source files and split shared lyrics, Listen Together, party synchronization, YT Music search and playlist orchestration, and Innertube account, playback, browse-header, and library-state parsing into dedicated modules.
+- Remove comments from first-party source files and split shared lyrics, Listen Together, party synchronization, YT Music search, playlist, and history orchestration, and Innertube account, playback, browse-header, and library-state parsing into dedicated modules.
 
 ## 0.7.0
 
