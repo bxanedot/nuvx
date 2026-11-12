@@ -43,6 +43,10 @@ assert.equal(created.body.you.isHost, true);
 
 assert.equal((await post(`/api/parties/ZZZZZZ/join`, joinReq("x"))).status, 404, "unknown party");
 assert.equal((await post(`/api/parties/${code}/join`, { userId: "" })).status, 422, "validation");
+const oversized = await fetch(`${base}/api/parties`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ padding: "x".repeat(17 * 1024) }) });
+assert.equal(oversized.status, 413, "oversized JSON body");
+const malformedEscape = await fetch(`${base}/api/parties/%ZZ/preview`);
+assert.equal(malformedEscape.status, 404, "invalid percent escape");
 const joined = await post(`/api/parties/${code.toLowerCase()}/join`, joinReq("Guest"));
 assert.equal(joined.status, 200, "codes are normalised");
 const preview = await (await fetch(`${base}/api/parties/${code}/preview`)).json() as any;
