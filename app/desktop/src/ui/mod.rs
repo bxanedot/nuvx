@@ -1,5 +1,6 @@
 mod account;
 mod actions;
+mod appearance_settings;
 mod collections;
 mod dev;
 mod equalizer_settings;
