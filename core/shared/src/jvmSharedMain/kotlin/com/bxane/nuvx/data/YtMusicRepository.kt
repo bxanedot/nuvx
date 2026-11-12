@@ -252,49 +252,19 @@ object YtMusicRepository {
     )
 
     suspend fun searchPage(query: String, filter: SearchFilter, anonymous: Boolean = true): Result<SearchPage> =
-        if (filter == SearchFilter.YOUTUBE) {
-            call("search:youtube") { SearchPage(InnertubeParser.parseYoutubeSearch(Innertube.youtubeSearch(query)), null) }
-        } else call("search:${filter.name}") {
-            InnertubeParser.parseSearchPage(
-                Innertube.search(query, filter.params, anonymous),
-                includeVideos = filter == SearchFilter.VIDEOS,
-            ).let { page ->
-                SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
-            }
-        }
+        YtMusicSearchRepository.searchPage(query, filter, anonymous)
 
-    suspend fun searchContinuation(token: String, filter: SearchFilter): Result<SearchPage> = call("search:continuation") {
-        InnertubeParser.parseSearchPage(
-            Innertube.searchContinuation(token),
-            includeVideos = filter == SearchFilter.VIDEOS,
-        ).let { page ->
-            SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
-        }
-    }
+    suspend fun searchContinuation(token: String, filter: SearchFilter): Result<SearchPage> =
+        YtMusicSearchRepository.searchContinuation(token, filter)
 
     suspend fun search(query: String, filter: SearchFilter): Result<List<SearchResult>> =
-        searchPage(query, filter).map { it.rows }
-
-    private fun SearchResult.identityKey(): String = when (this) {
-        is SearchResult.TopTrack -> "v:${song.videoId}"
-        is SearchResult.Track -> "v:${song.videoId}"
-        is SearchResult.Browse -> "b:${item.browseId}"
-    }
+        YtMusicSearchRepository.search(query, filter)
 
     suspend fun searchSuggestions(input: String): Result<List<String>> =
-        call("suggest") {
-            InnertubeParser.parseSearchSuggestions(Innertube.searchSuggestions(input))
-        }
+        YtMusicSearchRepository.searchSuggestions(input)
 
     suspend fun searchTypeahead(input: String): Result<SearchPage> =
-        call("typeahead:$input") {
-            InnertubeParser.parseSearchPage(
-                Innertube.searchTypeahead(input),
-                includeVideos = false,
-            ).let { page ->
-                SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
-            }
-        }
+        YtMusicSearchRepository.searchTypeahead(input)
 
     suspend fun resolveAudio(song: Song): Song {
         if (!song.isVideo) return song
@@ -751,7 +721,7 @@ object YtMusicRepository {
 
     private const val HISTORY_MEMO_MS = 120_000L
 
-    private suspend fun <T> call(label: String, block: suspend () -> T): Result<T> =
+    internal suspend fun <T> call(label: String, block: suspend () -> T): Result<T> =
         withContext(Dispatchers.IO) {
             runCatching { block() }.recoverCatching { failure ->
                 val rejected = failure.message?.contains("401") == true ||
