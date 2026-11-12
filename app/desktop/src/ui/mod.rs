@@ -40,6 +40,7 @@ mod app_motion;
 mod app_init;
 mod app_appearance;
 mod app_notifications;
+mod app_playback_state;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -63,6 +64,7 @@ use dev::{dev_pace, dev_screenshot, dev_var};
 use dialogs::text_field;
 use persistence::{AccountCache, Session, SESSION_KEY};
 use app_motion::{MotionView, VideoState};
+use app_playback_state::{MixFrom, PlayingAs};
 pub use queue::Repeat;
 
 #[derive(Clone, PartialEq, Hash, Debug)]
@@ -425,14 +427,6 @@ pub struct App {
 
 pub(super) const CROSSFADE_MAX: u32 = 12;
 
-pub(super) struct MixFrom {
-    pub(super) track: Track,
-    pub(super) total: f32,
-    pub(super) mix: f32,
-    pub(super) started: bool,
-    pub(super) released: bool,
-}
-
 fn relaunch() {
     let Ok(exe) = std::env::current_exe() else { return };
     log::info!("restarting");
@@ -449,13 +443,6 @@ fn relaunch() {
         let _ = std::process::Command::new(exe).spawn();
     }
 }
-
-struct PlayingAs {
-    generation: u64,
-    listed: String,
-    song: Track,
-}
-
 
 fn fit_window_to_monitor(ctx: &egui::Context) {
     let done = egui::Id::unique("fit-window-checked");
