@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicLong
 import com.bxane.nuvx.wear.playback.Speaker
 import com.bxane.nuvx.wear.WearProtocol as P
 
@@ -58,6 +59,7 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
 
     private val _queue = MutableStateFlow<Queue?>(null)
     val queue: StateFlow<Queue?> = _queue.asStateFlow()
+    private val queueRevision = AtomicLong()
 
     private val _outputs = MutableStateFlow<List<PhoneOutput>?>(null)
     val outputs: StateFlow<List<PhoneOutput>?> = _outputs.asStateFlow()
@@ -324,6 +326,7 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
         val items = map.getDataMapArrayList(P.KEY_ITEMS).orEmpty()
         val current = map.getInt(P.KEY_CURRENT_INDEX)
         val mediaId = map.getString(P.KEY_QUEUE_MEDIA_ID).orEmpty()
+        val revision = queueRevision.incrementAndGet()
         val rows = items.map {
             QueueRow(
                 index = it.getInt(P.KEY_INDEX),
@@ -338,7 +341,7 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
                 async { item.getAsset(P.KEY_ART)?.let { decode(it) } }
             }.awaitAll()
             _queue.update { q ->
-                if (q == null || q.mediaId != mediaId) q
+                if (queueRevision.get() != revision || q == null || q.mediaId != mediaId) q
                 else q.copy(rows = q.rows.mapIndexed { i, row -> row.copy(art = art.getOrNull(i)) })
             }
         }
