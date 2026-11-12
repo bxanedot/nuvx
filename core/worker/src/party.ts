@@ -10,6 +10,7 @@ export const HEARTBEAT_MS = 5_000;
 export const MAX_BYTES = 16 * 1024;
 const CONTROL_RATE = 25;
 const FRAME_RATE = 30;
+const AVATAR_HOSTS = new Set(["cdn.discordapp.com", "i.scdn.co", "lh3.googleusercontent.com", "yt3.ggpht.com", "yt3.googleusercontent.com"]);
 
 export type Track = { videoId: string; title: string; artist: string; thumbnailUrl?: string; durationMs?: number; fromAutoplay: boolean };
 export type Playback = {
@@ -60,8 +61,12 @@ export function validateJoin(raw: unknown): JoinRequest | Fail {
   if (r.avatarUrl != null) {
     const avatar = str(r.avatarUrl);
     if (avatar.length > 1000) return bad("avatarUrl must not exceed 1000 characters");
-    if (avatar && !/^https?:\/\//.test(avatar)) return bad("avatarUrl must be an http(s) URL");
-    if (avatar) req.avatarUrl = avatar;
+    if (avatar) {
+      let url: URL;
+      try { url = new URL(avatar); } catch { return bad("avatarUrl must be a trusted HTTPS image URL"); }
+      if (url.protocol !== "https:" || !AVATAR_HOSTS.has(url.hostname) || (url.port && url.port !== "443") || url.username || url.password) return bad("avatarUrl must be a trusted HTTPS image URL");
+      req.avatarUrl = url.href;
+    }
   }
   if (r.maxMembers != null) {
     if (typeof r.maxMembers !== "number" || !Number.isInteger(r.maxMembers) || r.maxMembers < 2 || r.maxMembers > 10) return bad("maxMembers must be between 2 and 10");
