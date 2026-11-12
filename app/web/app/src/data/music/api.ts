@@ -113,7 +113,7 @@ interface RadioStation {
 }
 const RADIO_HOSTS = ['all.api.radio-browser.info', 'de1.api.radio-browser.info', 'fi1.api.radio-browser.info'];
 
-async function radioRequest<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+async function radioRequest<T>(path: string, params: Record<string, string> = {}, expectArray = false): Promise<T> {
   let failure: unknown;
   for (const host of RADIO_HOSTS) {
     try {
@@ -121,21 +121,23 @@ async function radioRequest<T>(path: string, params: Record<string, string> = {}
       for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
       const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) throw new Error(`Radio Browser answered ${response.status}`);
-      return await response.json() as T;
+      const body: unknown = await response.json();
+      if (expectArray && !Array.isArray(body)) throw new Error('Radio Browser returned malformed JSON');
+      return body as T;
     } catch (error) { failure = error; }
   }
   throw failure ?? new Error('Radio Browser is unavailable');
 }
 
 export async function fetchRadioCountries(): Promise<RadioCountry[]> {
-  return (await radioRequest<RadioCountry[]>('countries', { order: 'stationcount', reverse: 'true', hidebroken: 'true' }))
+  return (await radioRequest<RadioCountry[]>('countries', { order: 'stationcount', reverse: 'true', hidebroken: 'true' }, true))
     .filter((country) => country.stationcount > 0 && /^[A-Z]{2}$/i.test(country.iso_3166_1));
 }
 
 export async function fetchRadioStations(country: string | null, query: string): Promise<Track[]> {
   const rows = await radioRequest<RadioStation[]>(country ? `stations/bycountrycodeexact/${encodeURIComponent(country)}` : 'stations/search', {
     hidebroken: 'true', order: 'clickcount', reverse: 'true', limit: '100', ...(country ? {} : { name: query }),
-  });
+  }, true);
   return rows.filter((station) => station.url_resolved.startsWith('https://') && !station.hls && (!station.codec || /^(mp3|aac)/i.test(station.codec)))
     .filter((station, index, all) => all.findIndex((item) => item.url_resolved === station.url_resolved) === index)
     .map((station) => ({
