@@ -23,6 +23,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Add a reproducible Firefox source build and source archive for AMO submission, and update the browser extension separately to version 0.9.0.
 - Link the website releases section to the latest Android nightly and share the showcase playback control.
 
+### Listen Together worker
+
+- Bound JSON and multipart request bodies, retry conflicting canvas-index updates, revoke stale sockets on device rejoin, and reject non-finite track durations.
+
 ### Privacy and maintenance
 
 - Publish the full-project privacy notice.

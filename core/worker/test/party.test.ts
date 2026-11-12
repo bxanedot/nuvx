@@ -32,6 +32,12 @@ test("join request validation", () => {
   assert.deepEqual(P.validateJoin({ ...req("d"), displayName: "  Kai  ", avatarUrl: " ", autoplayEnabled: true }), { userId: "u-d", deviceId: "d", displayName: "Kai", autoplayEnabled: true });
 });
 
+test("track decoding rejects non-finite durations", () => {
+  const track = P.trackFromWire(JSON.parse('{"videoId":"abcdefghijk","durationMs":1e309}'));
+  assert.equal(track?.durationMs, undefined);
+  assert.equal(P.trackFromWire({ videoId: "abcdefghijk", durationMs: 123.9 })?.durationMs, 123);
+});
+
 test("join: first is host, rejoin rotates token, full party refused", () => {
   const { p, host, guest } = party();
   assert.ok(host.isHost && !guest.isHost);
