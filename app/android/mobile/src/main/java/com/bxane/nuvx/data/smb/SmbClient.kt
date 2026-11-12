@@ -112,6 +112,6 @@ object SmbClient {
             if (name == "." || name == "..") return@mapNotNull null
             val isDir = (info.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value) != 0L
             Entry(name, isDir, info.endOfFile)
-        }
+        }.distinctBy(Entry::path)
     }
 }
