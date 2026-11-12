@@ -1142,6 +1142,7 @@
     <string name="spotify_import_button">Import</string>
     <string name="spotify_import_local_fallback">Couldn\'t create it on YouTube Music, so \'%1$s\' was saved on this device instead.</string>
     <string name="spotify_import_done">Imported \'%1$s\'</string>
+    <string name="spotify_import_partial">Imported \'%1$s\', but %2$d songs could not be added.</string>
     <string name="spotify_import_unmatched">%1$d songs weren\'t found on YouTube Music</string>
     <string name="local_playlist_subtitle">%1$d songs · On this device</string>
     <!-- Local Music's own playlists and folders: the offline player. -->
