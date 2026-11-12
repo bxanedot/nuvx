@@ -9,23 +9,16 @@ import android.os.SystemClock
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.core.net.toUri
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.audio.AudioProcessor
-import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
-import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DataSpec
 import androidx.media3.exoplayer.upstream.BandwidthMeter
@@ -42,17 +35,13 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.guava.future
-import com.bxane.nuvx.playback.audio.DspChain
 import com.bxane.nuvx.playback.cast.CastController
 import com.bxane.nuvx.playback.cast.CastPlayback
 import com.bxane.nuvx.playback.cast.RemoteSpeaker
 import com.bxane.nuvx.playback.cast.Speakers
 import com.bxane.nuvx.playback.cast.CastStream
-import com.bxane.nuvx.playback.audio.PrecisionAudioSink
 import com.bxane.nuvx.playback.dsd.DsdExtractorsFactory
-import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectAudioSink
 import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput
-import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectRoutingSink
 import com.bxane.nuvx.playback.audio.bitperfect.DacVolume
 import com.bxane.nuvx.playback.audio.bitperfect.usb.UsbDirectDevices
 import com.bxane.nuvx.MainActivity
@@ -917,7 +906,17 @@ class PlaybackService : MediaLibraryService() {
         loudness: LoudnessProcessor,
         ownsSession: Boolean,
     ): ExoPlayer = ExoPlayer.Builder(this)
-        .setRenderersFactory(silenceSkippingRenderers(spatial, equalizer, filter, loudness))
+        .setRenderersFactory(
+            PlaybackRenderersFactory(
+                context = this,
+                outputRouter = outputRouter,
+                activeFilter = { activeFilter },
+                spatial = spatial,
+                equalizer = equalizer,
+                transition = filter,
+                loudness = loudness,
+            ),
+        )
         .setMediaSourceFactory(requireNotNull(mediaSourceFactory))
         .setLoadControl(farBufferingLoadControl())
         .setAudioAttributes(AUDIO_ATTRIBUTES, ownsSession)
@@ -1256,70 +1255,6 @@ class PlaybackService : MediaLibraryService() {
         .setTargetBufferBytes(FAR_BUFFER_BYTES)
         .setBackBuffer(BACK_BUFFER_MS, true)
         .build()
-
-    private fun silenceSkippingRenderers(
-        spatial: SpatialAudioProcessor,
-        equalizer: EqualizerProcessor,
-        transition: TransitionFilterProcessor,
-        loudness: LoudnessProcessor,
-    ) = object : FfmpegFallbackRenderersFactory(this) {
-        init {
-            setEnableAudioFloatOutput(outputRouter.configuredFloatOutput)
-            setMediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
-                val selector = if (mimeType == MimeTypes.AUDIO_FLAC) {
-                    MediaCodecSelector.PREFER_SOFTWARE
-                } else {
-                    MediaCodecSelector.DEFAULT
-                }
-                val candidates = selector.getDecoderInfos(
-                    mimeType,
-                    requiresSecureDecoder,
-                    requiresTunnelingDecoder,
-                )
-                if (mimeType == MimeTypes.AUDIO_FLAC) {
-                    candidates.filterNot { AudioOutputPolicy.isUnsafeFloatFlacDecoder(it.name) }
-                } else {
-                    candidates
-                }
-            }
-        }
-
-        override fun buildAudioSink(
-            context: Context,
-            enableFloatOutput: Boolean,
-            enableAudioTrackPlaybackParams: Boolean,
-        ): AudioSink {
-            val defaultSink = DefaultAudioSink.Builder(context)
-                .setEnableFloatOutput(enableFloatOutput)
-                .setEnableAudioTrackPlaybackParams(
-                    enableAudioTrackPlaybackParams || enableFloatOutput,
-                )
-                .setAudioProcessorChain(
-                    DefaultAudioSink.DefaultAudioProcessorChain(
-                        emptyArray<AudioProcessor>(),
-                        SilenceSkippingAudioProcessor(
-                            MIN_SILENCE_US,
-                            SilenceSkippingAudioProcessor.DEFAULT_SILENCE_RETENTION_RATIO,
-                            SilenceSkippingAudioProcessor.DEFAULT_MAX_SILENCE_TO_KEEP_DURATION_US,
-                            SilenceSkippingAudioProcessor.DEFAULT_MIN_VOLUME_TO_KEEP_PERCENTAGE,
-                            SilenceSkippingAudioProcessor.DEFAULT_SILENCE_THRESHOLD_LEVEL,
-                        ),
-                        SonicAudioProcessor(),
-                    ),
-                )
-                .build()
-
-            val dspChain = DspChain(spatial, equalizer, transition, loudness)
-            val precision = PrecisionAudioSink(
-                delegate = defaultSink,
-                dspChain = dspChain,
-                enableFloatOutput = enableFloatOutput,
-                preferredOutputEncodingProvider = { format -> outputRouter.resolvePreferredOutputEncoding(format) },
-                isAudible = { transition === activeFilter },
-            )
-            return BitPerfectRoutingSink(precision, BitPerfectAudioSink(BitPerfectOutput.forContext(context)))
-        }
-    }
 
     private fun applySettings(player: ExoPlayer) {
         player.skipSilenceEnabled = AppSettings.skipSilence.value
@@ -1740,8 +1675,6 @@ class PlaybackService : MediaLibraryService() {
         const val DISCORD_TEARDOWN_TIMEOUT_MS = 3_000L
 
         const val STREAM_CHUNK_BYTES = 1L * 1024 * 1024
-
-        const val MIN_SILENCE_US = 1_000_000L
 
         const val LOOP_MIX_LYRICS_TIMEOUT_MS = 10_000L
 
