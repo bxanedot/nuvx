@@ -134,6 +134,10 @@ fun RadioScreen(
     }
     val stations = key?.let { cache[it] }
 
+    LaunchedEffect(key) {
+        listState.scrollToItem(0)
+    }
+
     LazyColumn(state = listState, contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
         item(key = "title") {
             Row(

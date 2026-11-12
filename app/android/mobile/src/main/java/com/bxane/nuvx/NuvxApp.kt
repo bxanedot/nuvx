@@ -1827,7 +1827,11 @@ internal fun NuvxApp(
                                     onDelete = if (isDownloads) {
                                         { selected ->
                                             scope.launch {
-                                                selected.forEach { song -> Downloads.delete(context, song.videoId) }
+                                                var failed = false
+                                                selected.forEach { song ->
+                                                    if (!Downloads.delete(context, song.videoId)) failed = true
+                                                }
+                                                if (failed) Toast.makeText(context, R.string.delete_download_failed, Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     } else {

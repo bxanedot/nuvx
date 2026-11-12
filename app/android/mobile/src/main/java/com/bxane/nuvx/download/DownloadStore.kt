@@ -14,6 +14,7 @@ import com.bxane.nuvx.data.model.Song
 import java.io.File
 import java.io.OutputStream
 import java.util.Locale
+import java.util.UUID
 
 object DownloadStore {
 
@@ -26,14 +27,18 @@ object DownloadStore {
     fun needsLegacyPermission(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
 
     fun fileNameFor(song: Song, extension: String): String {
+        val id = sanitise(song.videoId).ifEmpty { "track" }
         val artist = sanitise(song.artist)
         val title = sanitise(song.title)
         val stem = when {
             artist.isEmpty() -> title
             title.isEmpty() -> artist
             else -> "$artist - $title"
-        }.ifEmpty { song.videoId }
-        return "${stem.take(MAX_STEM_CHARS).trimEnd()}.$extension"
+        }.ifEmpty { id }
+        val uniqueStem = if (id.length == YOUTUBE_VIDEO_ID_LENGTH && stem != id) {
+            "${stem.take((MAX_STEM_CHARS - id.length - 1).coerceAtLeast(0)).trimEnd()}-$id"
+        } else stem
+        return "$uniqueStem.$extension"
     }
 
     private fun sanitise(raw: String): String = raw
@@ -46,6 +51,7 @@ object DownloadStore {
     private val WHITESPACE = Regex("""\s+""")
 
     private const val MAX_STEM_CHARS = 120
+    private const val YOUTUBE_VIDEO_ID_LENGTH = 11
 
     class Storable(val extension: String, val mimeType: String)
 
@@ -70,9 +76,11 @@ object DownloadStore {
         context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.MediaColumns._ID),
-            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND " +
-                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
-            arrayOf(name, "%$FOLDER%"),
+            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND (" +
+                "${MediaStore.MediaColumns.RELATIVE_PATH} = ? OR " +
+                "${MediaStore.MediaColumns.RELATIVE_PATH} = ? OR " +
+                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?)",
+            arrayOf(name, relativePath, "$relativePath/", "$relativePath/%"),
             null,
         )?.use { cursor ->
             if (!cursor.moveToFirst()) return@use null
@@ -145,8 +153,7 @@ object DownloadStore {
             val target = privateFile(context, name)
             val folder = target.parentFile ?: error("No download folder")
             if (!folder.exists() && !folder.mkdirs()) error("Could not create ${folder.path}")
-            val part = File(folder, ".$name.part")
-            part.delete()
+            val part = newPartFile(folder, name)
             return Pending(context, Uri.fromFile(target), name, part = part, target = target)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -168,10 +175,14 @@ object DownloadStore {
         val target = legacyFile(name)
         val folder = target.parentFile ?: error("No Music folder on this device")
         if (!folder.exists() && !folder.mkdirs()) error("Could not create ${folder.path}")
-        val part = File(folder, "$name.part")
-        part.delete()
+        val part = newPartFile(folder, name)
         return Pending(context, Uri.fromFile(target), name, part = part, target = target)
     }
+
+    private fun newPartFile(folder: File, name: String): File =
+        File(folder, ".$name.${UUID.randomUUID()}.part").also {
+            if (!it.createNewFile()) error("Could not reserve a temporary file for $name")
+        }
 
     @Suppress("DEPRECATION")
     private fun legacyFile(name: String) = File(
