@@ -59,6 +59,10 @@ unicode-bidi = "0.3"
 # System-wide media shortcuts (hotkeys.rs).
 global-hotkey = "0.9"
 
+[patch.crates-io]
+# Backport the upstream GLib iterator UB fix while GTK3 still pins glib 0.18.
+glib = { path = "vendor/glib" }
+
 [target.'cfg(windows)'.dependencies]
 # Windows Credential Manager, for the Google and Spotify sign-ins.
 keyring = { version = "3.6.3", features = ["windows-native"] }
