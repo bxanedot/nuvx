@@ -109,10 +109,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
-import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.math.roundToInt
 import kotlin.random.Random
 import java.util.UUID
 import com.bxane.nuvx.data.model.isLiveRadio
@@ -173,9 +171,8 @@ class PlaybackService : MediaLibraryService() {
     private val transitionFilterA = TransitionFilterProcessor()
     private val transitionFilterB = TransitionFilterProcessor()
 
-    private val loudnessA = LoudnessProcessor().apply { gainFor = ::loudnessGainFor }
-    private val loudnessB = LoudnessProcessor().apply { gainFor = ::loudnessGainFor }
-    private var loudnessRetryJob: Job? = null
+    private val loudnessA = LoudnessProcessor().apply { gainFor = { loudnessController.gainFor(it) } }
+    private val loudnessB = LoudnessProcessor().apply { gainFor = { loudnessController.gainFor(it) } }
 
     private val audioEffectSession = PlaybackAudioEffectSessionController(this)
 
@@ -200,6 +197,8 @@ class PlaybackService : MediaLibraryService() {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    private val loudnessController = PlaybackLoudnessController(scope, { player }, ::activeLoudness)
+
     private val versionAlignment = PlaybackVersionAlignmentController(this, scope)
 
     private val versionSwapController = PlaybackVersionSwapController(
@@ -211,7 +210,7 @@ class PlaybackService : MediaLibraryService() {
         loudnessA = loudnessA,
         loudnessB = loudnessB,
         spareLoudness = ::spareLoudness,
-        nextMediaIdOf = ::nextMediaIdOf,
+        nextMediaIdOf = loudnessController::nextMediaIdOf,
         onSwapping = { swappingMediaId = it },
         adoptPlayerForVersionSwap = ::adoptPlayerForVersionSwap,
         onTrackBecameCurrent = ::onTrackBecameCurrent,
@@ -326,7 +325,7 @@ class PlaybackService : MediaLibraryService() {
             applyEqualizer()
             applySpatialAudioEnabled()
         },
-        setupLoudness = ::setupLoudness,
+        setupLoudness = loudnessController::setup,
         attachPlayer = { newActive ->
             newActive.addListener(playbackListener)
             newActive.addAnalyticsListener(formatListener)
@@ -440,7 +439,7 @@ class PlaybackService : MediaLibraryService() {
         refreshCustomLayouts = ::refreshCustomLayouts,
         boundedQueue = boundedQueue,
         activeLoudness = ::activeLoudness,
-        nextMediaIdOf = ::nextMediaIdOf,
+        nextMediaIdOf = loudnessController::nextMediaIdOf,
         musicOnlyController = musicOnlyController,
         saveQueueSnapshot = ::saveQueueSnapshot,
     )
@@ -746,7 +745,7 @@ class PlaybackService : MediaLibraryService() {
                 }
             },
             syncedLines = ::loopMixLyrics,
-            loudnessGain = ::loudnessGainFor,
+            loudnessGain = loudnessController::gainFor,
             onMixPositionJump = { wrapped -> (mediaSession?.player as? SessionPlayer)?.announceMixPosition(wrapped) },
         )
 
@@ -997,8 +996,8 @@ class PlaybackService : MediaLibraryService() {
         activeTrackIsDolbyAtmos = NerdStats.declaredFormat(mediaItem?.mediaId)?.isDolbyAtmos == true
         applySpatialAudioEnabled()
 
-        setupLoudness(mediaItem?.mediaId)
-        scheduleLoudnessRetry(mediaItem?.mediaId)
+        loudnessController.setup(mediaItem?.mediaId)
+        loudnessController.scheduleRetry(mediaItem?.mediaId)
 
         val expiredHistory = queueHistoryTrimCount(exoPlayer.currentMediaItemIndex)
         if (expiredHistory > 0) {
@@ -1444,7 +1443,7 @@ class PlaybackService : MediaLibraryService() {
         }
         scope.launch {
             AppSettings.loudnessNormalization.collect {
-                setupLoudness(player?.currentMediaItem?.mediaId)
+                loudnessController.setup(player?.currentMediaItem?.mediaId)
             }
         }
         scope.launch {
@@ -1454,7 +1453,7 @@ class PlaybackService : MediaLibraryService() {
             ) { off, onSpeaker -> off && onSpeaker }
                 .distinctUntilChanged()
                 .drop(1)
-                .collect { setupLoudness(player?.currentMediaItem?.mediaId) }
+                .collect { loudnessController.setup(player?.currentMediaItem?.mediaId) }
         }
         scope.launch {
             combine<Any, Unit>(
@@ -1488,52 +1487,6 @@ class PlaybackService : MediaLibraryService() {
         val enabled = AppSettings.spatialAudio.value && !activeTrackIsDolbyAtmos
         spatialAudioProcessorA.enabled = enabled
         spatialAudioProcessorB.enabled = enabled
-    }
-
-    private fun loudnessGainFor(mediaId: String): Float = loudnessGainMb(mediaId)
-        ?.let { 10.0.pow(it / 2000.0).toFloat() }
-        ?: 1f
-
-    private fun loudnessGainMb(mediaId: String?): Int? {
-        if (!AppSettings.loudnessNormalization.value) return null
-        if (AppSettings.loudnessOffOnSpeaker.value &&
-            AudioOutputStatus.current.value.routeKind == AudioRouting.Kind.PHONE
-        ) return null
-        val id = mediaId?.takeIf { it.isNotBlank() } ?: return null
-        val loudnessDb = StreamResolver.loudnessDbFor(id) ?: return null
-        return (-loudnessDb * 100.0).roundToInt().coerceIn(MIN_LOUDNESS_GAIN_MB, MAX_LOUDNESS_GAIN_MB)
-    }
-
-    private fun setupLoudness(mediaId: String?) {
-        val exoPlayer = player ?: return
-        activeLoudness().track(mediaId, nextMediaIdOf(exoPlayer))
-        publishLoudnessFor(mediaId)
-    }
-
-    private fun nextMediaIdOf(exoPlayer: ExoPlayer): String? {
-        val next = exoPlayer.nextMediaItemIndex
-        if (next == C.INDEX_UNSET || next !in 0 until exoPlayer.mediaItemCount) return null
-        return exoPlayer.getMediaItemAt(next).mediaId
-    }
-
-    private fun publishLoudnessFor(mediaId: String?) {
-        val gainMb = loudnessGainMb(mediaId)
-        val lufs = mediaId?.takeIf { it.isNotBlank() }?.let(StreamResolver::loudnessDbFor)
-        if (gainMb == null || lufs == null) {
-            AudioOutputStatus.publishLoudness(gainDb = null, lufs = null)
-        } else {
-            AudioOutputStatus.publishLoudness(gainDb = gainMb / 100f, lufs = lufs.toFloat())
-        }
-    }
-
-    private fun scheduleLoudnessRetry(mediaId: String?) {
-        loudnessRetryJob?.cancel()
-        val id = mediaId?.takeIf { it.isNotBlank() } ?: return
-        if (StreamResolver.loudnessDbFor(id) != null) return
-        loudnessRetryJob = scope.launch {
-            delay(LOUDNESS_RETRY_MS)
-            if (player?.currentMediaItem?.mediaId == id) publishLoudnessFor(id)
-        }
     }
 
     private fun observeDiscord() = discordPresence.observe()
@@ -1572,7 +1525,7 @@ class PlaybackService : MediaLibraryService() {
         lyricsController.release()
         cancelPrefetch()
         trackAnalyzer.release()
-        loudnessRetryJob?.cancel()
+        loudnessController.cancelRetry()
         PlaybackTracker.onPlaybackFinished(
             player?.currentPosition?.div(1000) ?: lastPositionSeconds,
         )
@@ -1783,11 +1736,6 @@ class PlaybackService : MediaLibraryService() {
         const val SESSION_ID = "NuvxPlayback"
 
         const val PROGRESS_SAMPLE_MS = 5_000L
-
-        const val MIN_LOUDNESS_GAIN_MB = -1500
-        const val MAX_LOUDNESS_GAIN_MB = 300
-
-        const val LOUDNESS_RETRY_MS = 6_000L
 
         const val DISCORD_TEARDOWN_TIMEOUT_MS = 3_000L
 
