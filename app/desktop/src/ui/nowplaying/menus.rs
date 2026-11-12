@@ -1,5 +1,74 @@
 use super::*;
 
+pub(super) fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate::model::Track, lyrics: bool, header: bool) {
+    let resp = ui.interact(rect, ui.scope_id().with("np-options"), Sense::click());
+    let resp = named(resp, "Options").on_hover_cursor(egui::CursorIcon::PointingHand);
+    let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
+    let h = theme::anim_bool(ui.ctx(), resp.id.with("h"), resp.hovered() || open, 0.12);
+    ui.painter().circle_filled(rect.center(), 17.0, theme::glass(0.09 + 0.07 * h));
+    for dx in [-6.0, 0.0, 6.0] {
+        ui.painter().circle_filled(rect.center() + vec2(dx, 0.0), 1.9, theme::with_alpha(Color32::WHITE, 0.75 + 0.25 * h));
+    }
+    egui::Popup::menu(&resp).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
+        ui.set_width(270.0);
+        ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+        ui.add_space(4.0);
+        let liked = app.liked.contains(&track.id);
+        if lyrics {
+            lyric_options(app, ui);
+            menu_divider(ui);
+        }
+        widgets::song_actions(ui, track, liked, None, &mut app.actions);
+        menu_divider(ui);
+        if widgets::menu_action(ui, Some(icon::LIST_PLUS), "Play next") {
+            app.actions.push(Action::PlayNext(track.clone()));
+        }
+        if widgets::menu_action(ui, Some(icon::LIST_MUSIC), "Add to queue") {
+            app.actions.push(Action::Enqueue(track.clone()));
+        }
+        let queue = app.np_tab == NpTab::UpNext;
+        if header && widgets::menu_glyph_action(ui, super::super::glyphs::QUEUE, if queue { "View lyrics" } else { "View queue" }) {
+            app.np_tab = if queue { NpTab::Lyrics } else { NpTab::UpNext };
+        }
+        if app.queue.upcoming().is_some() && widgets::menu_glyph_action(ui, super::super::glyphs::SHUFFLE, "Shuffle") {
+            app.shuffle_upcoming();
+        }
+        if let Some(listed) = app.current().map(|t| t.music_video)
+            && !app.jam.active()
+        {
+            let swapped = app.playing_as().is_some();
+            if listed != swapped {
+                if widgets::menu_glyph_action(ui, super::super::glyphs::MUSIC_NOTE, "Switch to song") {
+                    if swapped { app.play_listed_upload() } else { app.play_song_version() }
+                }
+            } else if widgets::menu_glyph_action(ui, super::super::glyphs::VIDEO, "Switch to video") {
+                if swapped { app.play_listed_upload() } else { app.play_video_version() }
+            }
+        }
+        let hires_playing = app.audio_info.as_ref().is_some_and(|(_, i)| i.lossless() || i.atmos);
+        if hires_playing || !app.hires_sources.is_empty() {
+            menu_divider(ui);
+            if hires_playing {
+                if widgets::menu_action(ui, Some(icon::MUSIC), "Revert audio quality") {
+                    app.actions.push(Action::RevertQuality);
+                }
+            } else if widgets::menu_action(ui, Some(icon::MUSIC), "Upgrade audio quality") {
+                app.actions.push(Action::UpgradeQuality);
+            }
+        }
+        if crate::motion::SUPPORTED && app.playing_track().is_some_and(|t| t.music_video) {
+            menu_divider(ui);
+            for h in [1080, 720, 480, 360] {
+                let picked = app.video_height == h;
+                if widgets::menu_choice(ui, picked, &format!("{h}p video")) && !picked {
+                    app.set_video_height(h);
+                }
+            }
+        }
+        ui.add_space(4.0);
+    });
+}
+
 pub(super) fn lyric_options(app: &mut App, ui: &mut Ui) {
     let Some((id, set)) = app.lyrics.as_ref() else { return };
     let id = id.clone();
