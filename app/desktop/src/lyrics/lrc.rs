@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use super::{Line, Part, dedup, is_credit_line, split_names, writers_on};
+use super::credits::{dedup, is_credit_line, split_names, writers_on};
+use super::{Line, Part};
 
 fn lrc_time(t: &str) -> i32 {
     let p: Vec<&str> = t.split(':').collect();
