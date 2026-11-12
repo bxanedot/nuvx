@@ -71,6 +71,18 @@ export function useScrubber() {
       const paused = head?.paused ?? audio.paused;
       const time = dragging !== null && Number.isFinite(duration) ? dragging * duration : (head?.sec ?? audio.currentTime);
       const base = Math.min(1, Math.max(0, duration > 0 ? time / duration : 0));
+      const slider = element.closest<HTMLElement>('[role="slider"], [role="progressbar"]');
+      if (slider) {
+        slider.setAttribute('aria-valuemax', String(Number.isFinite(duration) ? Math.floor(duration) : 0));
+        if (liveRadio) {
+          slider.removeAttribute('aria-valuenow');
+          slider.setAttribute('aria-valuetext', 'Live radio');
+        }
+        else {
+          slider.setAttribute('aria-valuenow', String(Math.floor(time)));
+          slider.setAttribute('aria-valuetext', `${clock(time)} of ${clock(duration)}`);
+        }
+      }
       const beat = dragging === null ? getMixBeat() : null;
       const mix = stepPulse(pulse.current, performance.now(), beat, paused);
       element.style.setProperty('--progress', String(base + (1 - base) * mix.cover));
@@ -113,6 +125,25 @@ export function useScrubber() {
       setDragging(null);
     },
     onPointerCancel: () => setDragging(null),
+    onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+      const audio = getAudio();
+      if (!audio || liveRadio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+      const current = getPlayhead()?.sec ?? audio.currentTime;
+      const page = Math.max(10, audio.duration * 0.1);
+      const next = {
+        ArrowLeft: current - 5,
+        ArrowDown: current - 5,
+        PageDown: current - page,
+        Home: 0,
+        ArrowRight: current + 5,
+        ArrowUp: current + 5,
+        PageUp: current + page,
+        End: audio.duration,
+      }[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      seek(Math.min(audio.duration, Math.max(0, next)));
+    },
   };
 
   return { bar, elapsed, remaining, mixLabel, dragging: dragging !== null, handlers };

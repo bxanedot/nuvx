@@ -166,11 +166,18 @@ const time =
 
 function Progress() {
   const { bar, elapsed, remaining, dragging, handlers } = useScrubber();
+  const liveRadio = usePlayer((s) => !!s.queue[s.index]?.track.streamUrl);
   return (
     <div
       className="group/scrub absolute inset-x-0 bottom-0 h-3.5 cursor-pointer touch-none"
       data-scrubber
       data-dragging={dragging || undefined}
+      role={liveRadio ? 'progressbar' : 'slider'}
+      aria-label={liveRadio ? 'Live radio progress' : 'Playback position'}
+      aria-valuemin={0}
+      aria-valuenow={liveRadio ? undefined : 0}
+      aria-valuetext={liveRadio ? 'Live radio' : '0:00'}
+      tabIndex={liveRadio ? undefined : 0}
       {...handlers}
     >
       <span ref={elapsed} className={`${time} left-0`} />
