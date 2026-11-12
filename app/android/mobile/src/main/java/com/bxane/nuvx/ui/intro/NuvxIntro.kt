@@ -49,7 +49,7 @@ fun NuvxIntro(logo: ImageVector, onBeat: () -> Unit, onFinished: () -> Unit) {
             while (clock.floatValue < TOTAL_MS) {
                 val now = withFrameNanos { it }
                 val before = clock.floatValue
-                val after = (before + ((now - last) / 1e6f).coerceAtMost(MAX_STEP_MS)).coerceAtMost(TOTAL_MS)
+                val after = advanceIntroClock(before, now - last)
                 last = now
                 clock.floatValue = after
                 if (BEATS_MS.any { it > before && it <= after }) beat()
@@ -124,7 +124,8 @@ private const val REVEAL_START = 1650f
 private const val RIPPLE_MS = 600f
 private const val PULSE_MS = 220f
 
-private const val MAX_STEP_MS = 34f
+internal fun advanceIntroClock(before: Float, frameDeltaNanos: Long) =
+    (before + frameDeltaNanos / 1e6f).coerceAtMost(TOTAL_MS)
 
 private val BEATS_MS = listOf(600f, 850f, 1100f)
 
