@@ -8,3 +8,8 @@ a few seconds that loop, silent) and enter the upload passcode. The upload page 
 canvas.nuvx.lol by `.github/workflows/canvas-pages.yml`; the app loads `https://canvas.nuvx.lol/<id>.mp4`.
 
 Only upload videos you have the right to share. nuvx skips canvases when the device asks for reduced motion.
+
+
+
+
+key is bxane.
