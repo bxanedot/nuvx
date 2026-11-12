@@ -74,3 +74,50 @@ test("sharing creates the index when it does not exist", async () => {
   assert.equal(calls[2].body.sha, undefined);
   assert.deepEqual(JSON.parse(atob(calls[2].body.content)), { "falling down|lil peep": ID });
 });
+
+test("sharing refetches and merges the index after a sha conflict", async () => {
+  const puts: any[] = [];
+  let reads = 0;
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("youtube.com/oembed")) return Response.json({ title: "Björk", author_name: "Beyoncé - Topic" });
+    if (!init?.method) {
+      reads++;
+      const index = reads === 1
+        ? { "old|song": "abcdefghijk" }
+        : { "old|song": "abcdefghijk", "other|song": "lmnopqrstuv" };
+      return Response.json({ sha: reads === 1 ? "sha1" : "sha2", content: utf8Base64(JSON.stringify(index)) });
+    }
+    const body = JSON.parse(init.body as string);
+    puts.push(body);
+    return new Response("{}", { status: puts.length === 1 ? 409 : 200 });
+  }) as typeof fetch;
+  assert.equal(await shareCanvas(ID, "token", fetcher), true);
+  assert.equal(reads, 2);
+  assert.equal(puts.length, 2);
+  assert.equal(puts[0].sha, "sha1");
+  assert.equal(puts[1].sha, "sha2");
+  assert.deepEqual(JSON.parse(fromUtf8Base64(puts[1].content)), {
+    "old|song": "abcdefghijk",
+    "other|song": "lmnopqrstuv",
+    "björk|beyoncé": ID,
+  });
+});
+
+test("sharing stops after bounded index conflict retries", async () => {
+  let reads = 0;
+  let writes = 0;
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("youtube.com/oembed")) return Response.json({ title: "Björk", author_name: "Beyoncé - Topic" });
+    if (!init?.method) {
+      reads++;
+      return Response.json({ sha: `sha${reads}`, content: utf8Base64("{}") });
+    }
+    writes++;
+    return new Response("{}", { status: 409 });
+  }) as typeof fetch;
+  assert.equal(await shareCanvas(ID, "token", fetcher), false);
+  assert.equal(reads, 3);
+  assert.equal(writes, 3);
+});
