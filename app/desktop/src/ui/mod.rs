@@ -2,6 +2,7 @@ mod account;
 mod actions;
 mod collections;
 mod dev;
+mod equalizer_settings;
 mod dialogs;
 mod glyphs;
 mod integrations;
