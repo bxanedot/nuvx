@@ -20,10 +20,12 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.net.URLDecoder
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class TvRemoteStatus(
@@ -41,8 +43,11 @@ object TvAuthServer {
     private const val DEFAULT_PORT = 8765
     private const val MAX_REQUEST_BODY_BYTES = 64 * 1024
     private const val PAIRING_WINDOW_MS = 10 * 60 * 1000L
+    private const val CLIENT_SOCKET_TIMEOUT_MS = 5_000
+    private const val MAX_CLIENT_CONNECTIONS = 4
 
     private var serverSocket: ServerSocket? = null
+    private val clientSlots = Semaphore(MAX_CLIENT_CONNECTIONS)
     private val isRunning = AtomicBoolean(false)
     @Volatile private var pairingToken: String? = null
     @Volatile private var pairingExpiresAtMs = 0L
@@ -139,8 +144,13 @@ object TvAuthServer {
     }
 
     private fun handleClient(client: Socket, onCookieReceived: ((String) -> Unit)?) {
+        if (!clientSlots.tryAcquire()) {
+            try { client.close() } catch (_: Exception) {}
+            return
+        }
         Thread {
             try {
+                client.soTimeout = CLIENT_SOCKET_TIMEOUT_MS
                 val input = BufferedInputStream(client.getInputStream())
                 val writer = PrintWriter(client.getOutputStream(), true)
 
@@ -295,10 +305,12 @@ object TvAuthServer {
                         sendHtmlResponse(writer, getAuthHtml(pageToken))
                     }
                 }
+            } catch (_: SocketTimeoutException) {
             } catch (e: Exception) {
                 Log.w(TAG, "Client error in TvAuthServer", e)
             } finally {
                 try { client.close() } catch (_: Exception) {}
+                clientSlots.release()
             }
         }.start()
     }

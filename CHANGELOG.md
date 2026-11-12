@@ -6,6 +6,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ### Android
 
+- Secure TV sign-in and remote routes, bound request bodies and client connections, and render remote search metadata as text.
 - Advance the launch animation using elapsed time so dropped frames do not keep the intro open.
 - Keep Now Playing open when an artist lookup fails, and initialize signed-in account state reliably.
 - Preserve the rest of an album queue when shuffle is enabled mid-album.
