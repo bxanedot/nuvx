@@ -4,13 +4,15 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
-use crate::model::{Link, Thumb, Track};
+use crate::model::Track;
+
+mod wire;
+use wire::*;
 
 const SERVER: &str = "https://nuvx-listen.bxane.workers.dev";
 
@@ -196,107 +198,6 @@ fn random_hex() -> String {
 
 fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WireTrack {
-    video_id: String,
-    #[serde(default)]
-    title: String,
-    #[serde(default)]
-    artist: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    thumbnail_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    duration_ms: Option<u64>,
-    #[serde(default)]
-    from_autoplay: bool,
-}
-
-fn to_wire(t: &Track) -> WireTrack {
-    WireTrack {
-        video_id: t.id.clone(),
-        title: t.title.clone(),
-        artist: t.artists.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(", "),
-        thumbnail_url: t.thumbs.iter().max_by_key(|th| th.width).map(|th| th.url.clone()),
-        duration_ms: t.duration.map(|d| d as u64 * 1000),
-        from_autoplay: false,
-    }
-}
-
-fn from_wire(w: &WireTrack) -> Track {
-    Track {
-        id: w.video_id.clone(),
-        title: w.title.clone(),
-        artists: if w.artist.is_empty() { vec![] } else { vec![Link { name: w.artist.clone(), id: None }] },
-        album: None,
-        duration: w.duration_ms.map(|d| (d / 1000) as u32),
-        thumbs: w.thumbnail_url.iter().map(|u| Thumb { url: u.clone(), width: 0, height: 0 }).collect(),
-        track_nr: None,
-        plays: None,
-        music_video: false,
-    }
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WireMember {
-    member_id: String,
-    display_name: String,
-    #[serde(default)]
-    is_host: bool,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WirePlayback {
-    seq: i64,
-    track: Option<WireTrack>,
-    queue_seq: i64,
-    queue_index: i64,
-    is_playing: bool,
-    position_ms: i64,
-    anchor_ms: i64,
-    updated_by: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct WireQueue {
-    seq: i64,
-    index: i64,
-    items: Vec<WireTrack>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WireParty {
-    code: String,
-    host_only_control: bool,
-    members: Vec<WireMember>,
-    playback: WirePlayback,
-    queue: WireQueue,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum In {
-    #[serde(rename_all = "camelCase")]
-    Welcome { you: WireMember, party: WireParty, server_ms: i64 },
-    #[serde(rename_all = "camelCase")]
-    Members { members: Vec<WireMember>, host_only_control: bool },
-    State { playback: WirePlayback },
-    Queue { queue: WireQueue },
-    #[serde(rename_all = "camelCase")]
-    Pong { client_ms: Option<i64>, server_ms: i64 },
-    Error { error: String, message: Option<String> },
-    Bye { reason: Option<String>, message: Option<String> },
-    Activity { by: String, detail: String },
-}
-
-fn members_of(m: &[WireMember]) -> (String, Vec<Member>) {
-    let host = m.iter().find(|m| m.is_host).map(|m| m.member_id.clone()).unwrap_or_default();
-    (host, m.iter().map(|m| Member { id: m.member_id.clone(), name: m.display_name.clone() }).collect())
 }
 
 #[derive(Clone, Debug, Default)]
