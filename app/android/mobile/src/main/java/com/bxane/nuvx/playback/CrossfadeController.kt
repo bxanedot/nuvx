@@ -84,9 +84,7 @@ class CrossfadeController(
 
     private var queuedItemCount = 0
 
-    private var heldAtEnd: ExoPlayer? = null
-
-    private var holdWanted = false
+    private val readAhead = CrossfadeReadAheadController(TAG)
 
     private var outgoingItemIndex = C.INDEX_UNSET
 
@@ -205,14 +203,14 @@ class CrossfadeController(
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             if (playWhenReady || reason != Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) return
-            val held = heldAtEnd ?: return
+            val held = readAhead.heldAtEnd ?: return
             if (held !== listeningTo) return
             val into = incoming
             if (phase == Phase.FADING && !handedOff && into != null) {
                 handOff(held, into)
                 return
             }
-            releaseHold()
+            readAhead.releaseHold()
             if (phase == Phase.ARMING) bail()
             held.play()
         }
@@ -266,7 +264,7 @@ class CrossfadeController(
         tickerJob = null
         loopMix.release()
         speedController.endEase(clickless = false)
-        releaseHold()
+        readAhead.releaseHold()
         listeningTo?.removeListener(listener)
         listeningTo = null
         active().volume = 1f
@@ -315,9 +313,9 @@ class CrossfadeController(
             refreshMarkerWhilePaused(player)
             return
         }
-        holdWanted = false
+        readAhead.clearHoldWanted()
         planAutoTransition(player)
-        if (!holdWanted && phase == Phase.IDLE) releaseHold()
+        if (!readAhead.holdWanted && phase == Phase.IDLE) readAhead.releaseHold()
     }
 
     private fun refreshMarkerWhilePaused(player: ExoPlayer) {
@@ -385,7 +383,7 @@ class CrossfadeController(
             sleepFade.begin(fade)
             return
         }
-        holdAhead(player, duration)
+        readAhead.holdAhead(player, duration)
         if (remaining > fade + ARM_LEAD_MS) return
 
         begin(fade, endMs = duration, smart = false)
@@ -456,7 +454,7 @@ class CrossfadeController(
             )
             if (markerOnly) return
             plannedTransition = currentItem.mediaId to loopStartMs
-            holdAhead(player, duration)
+            readAhead.holdAhead(player, duration)
             if (loopStartMs - player.currentPosition > LOOP_ARM_LEAD_MS) return
             loopMix.begin(player, loop, currentItem, nextItem, duration, nextDuration)
             return
@@ -514,7 +512,7 @@ class CrossfadeController(
             sleepFade.begin(fade)
             return
         }
-        holdAhead(player, duration)
+        readAhead.holdAhead(player, duration)
         val beatMs = (plan.beatSeconds * 1000).roundToLong()
         val rampMs = if (beatMs > 0L) speedController.rampStepsFor(plan.outgoingPlaybackRate) * beatMs else 0L
         if (remaining > ARM_LEAD_MS + rampMs) return
@@ -608,7 +606,7 @@ class CrossfadeController(
                 "sweep=${render.filterSweep}",
         )
 
-        holdAtEnd(out)
+        readAhead.holdAtEnd(out)
 
         into.skipSilenceEnabled = out.skipSilenceEnabled
         into.repeatMode = out.repeatMode
@@ -647,39 +645,6 @@ class CrossfadeController(
 
         phase = Phase.ARMING
         return true
-    }
-
-    private fun holdAtEnd(out: ExoPlayer) {
-        if (heldAtEnd === out) return
-        val duration = out.duration
-        if (duration == C.TIME_UNSET || duration <= 0L) return
-        val left = duration - out.currentPosition
-        if (left <= maxReadAheadMs(out)) {
-            Log.d(TAG, "end not held: ${left}ms left, may already be reading on (${maxReadAheadMs(out)}ms)")
-            return
-        }
-        releaseHold()
-        out.pauseAtEndOfMediaItems = true
-        heldAtEnd = out
-        Log.d(TAG, "end held at ${left}ms left")
-    }
-
-    private fun holdAhead(player: ExoPlayer, duration: Long) {
-        val left = duration - player.currentPosition
-        val limit = maxReadAheadMs(player)
-        if (left > limit + HOLD_AHEAD_MS) return
-        holdWanted = true
-        if (left > limit) holdAtEnd(player)
-    }
-
-    private fun releaseHold() {
-        heldAtEnd?.pauseAtEndOfMediaItems = false
-        heldAtEnd = null
-    }
-
-    private fun maxReadAheadMs(player: ExoPlayer): Long {
-        val speed = player.playbackParameters.speed.coerceAtLeast(1f)
-        return (MEDIA3_READ_AHEAD_LIMIT_MS * speed).roundToLong() + HOLD_SAFETY_MS
     }
 
     private fun ranOn(out: ExoPlayer): Boolean =
@@ -743,7 +708,7 @@ class CrossfadeController(
         handedOff = true
         onHandoff(out, into)
 
-        if (heldAtEnd === out && out.mediaItemCount > out.currentMediaItemIndex + 1) {
+        if (readAhead.heldAtEnd === out && out.mediaItemCount > out.currentMediaItemIndex + 1) {
             out.removeMediaItems(out.currentMediaItemIndex + 1, out.mediaItemCount)
         }
     }
@@ -917,7 +882,7 @@ class CrossfadeController(
         setOutgoingItemIndex = { outgoingItemIndex = it },
         setQueuedItemCount = { queuedItemCount = it },
         setArmDeadline = { armDeadline = it },
-        holdAtEnd = ::holdAtEnd,
+        holdAtEnd = readAhead::holdAtEnd,
         handOff = ::handOff,
         finish = ::finish,
         phaseLabel = { phase.toString() },
@@ -978,7 +943,7 @@ class CrossfadeController(
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
         mixWaves.clearMixView()
-        releaseHold()
+        readAhead.releaseHold()
         if (handedOff && render.echo) outgoing?.volume = 0f
         filters.open()
         filters.parkEchoes()
@@ -1063,12 +1028,6 @@ class CrossfadeController(
         const val BAIL_MS = 120L
 
         const val ARM_LEAD_MS = 4_000L
-
-        const val MEDIA3_READ_AHEAD_LIMIT_MS = 10_000L
-
-        const val HOLD_SAFETY_MS = 1_000L
-
-        const val HOLD_AHEAD_MS = 3_000L
 
         val MEASURED_ENOUGH_TO_ENTER_ON = setOf(
             TrackAnalysisState.ANALYSED,
