@@ -105,6 +105,7 @@ export function idleServer(): string {
 
 let token: string | null = null;
 let server: string | null = null;
+let membershipRequestId = 0;
 export const clock = new ServerClock();
 
 function deviceId(): string {
@@ -177,15 +178,22 @@ function adoptMembership(base: string, membership: PartyMembership): string {
 }
 
 export async function createParty(options: { maxMembers?: number; autoplayEnabled: boolean }): Promise<string> {
-  if (useParty.getState().code) await leaveParty();
+  const requestId = ++membershipRequestId;
+  if (useParty.getState().code) await clearMembership();
+  if (requestId !== membershipRequestId) return '';
   const base = idleServer();
   try {
     const membership = await request<PartyMembership>(`${base}/api/parties`, {
       method: 'POST',
       body: JSON.stringify({ ...(await identity()), maxMembers: options.maxMembers ?? 5, autoplayEnabled: options.autoplayEnabled }),
     });
+    if (requestId !== membershipRequestId) {
+      void releaseSlot(base, membership.code, membership.token);
+      return '';
+    }
     return adoptMembership(base, membership);
   } catch (error) {
+    if (requestId !== membershipRequestId) return '';
     useParty.setState({ error: messageOf(error) });
     throw error;
   }
@@ -196,6 +204,7 @@ export async function joinParty(rawCode: string, serverUrl?: string | null): Pro
   if (!code) throw new PartyError('bad_code', `A party code is ${CODE_LENGTH} letters or digits.`);
   refuseIfRecentlyKicked(code);
   const base = sanitizeServerUrl(serverUrl) ?? idleServer();
+  const requestId = ++membershipRequestId;
   const current = useParty.getState();
   if (current.code === code && server === base) return code;
   try {
@@ -203,11 +212,16 @@ export async function joinParty(rawCode: string, serverUrl?: string | null): Pro
       method: 'POST',
       body: JSON.stringify(await identity()),
     });
+    if (requestId !== membershipRequestId) {
+      void releaseSlot(base, membership.code, membership.token);
+      return '';
+    }
     const previous = current.code && token && server ? { code: current.code, token, server } : null;
     disconnect();
     if (previous) void releaseSlot(previous.server, previous.code, previous.token);
     return adoptMembership(base, membership);
   } catch (error) {
+    if (requestId !== membershipRequestId) return '';
     useParty.setState({ error: messageOf(error) });
     throw error;
   }
@@ -234,7 +248,7 @@ function releaseSlot(base: string, code: string, held: string): Promise<void> {
     .catch(() => undefined);
 }
 
-export async function leaveParty(): Promise<void> {
+async function clearMembership(): Promise<void> {
   const { code } = useParty.getState();
   const held = token;
   const base = server;
@@ -245,6 +259,11 @@ export async function leaveParty(): Promise<void> {
   clock.reset();
   useParty.setState({ ...IDLE, activity: useParty.getState().activity });
   if (code && held && base) await releaseSlot(base, code, held);
+}
+
+export async function leaveParty(): Promise<void> {
+  ++membershipRequestId;
+  await clearMembership();
 }
 
 export function resumeSession(): void {
@@ -395,12 +414,17 @@ function connect(): void {
 async function checkMembership(): Promise<void> {
   const { code } = useParty.getState();
   if (!code || !token || !server) return;
+  const checkedToken = token;
+  const checkedServer = server;
+  const requestId = membershipRequestId;
   try {
-    const response = await fetch(`${server}/api/parties/${code}`, { headers: { Authorization: `Bearer ${token}` } });
+    const response = await fetch(`${checkedServer}/api/parties/${code}`, { headers: { Authorization: `Bearer ${checkedToken}` } });
     if (response.status === 401 || response.status === 404) {
       const why = await errorOf(response);
-      await leaveParty();
+      if (requestId !== membershipRequestId || useParty.getState().code !== code || token !== checkedToken || server !== checkedServer) return;
+      const leaving = leaveParty();
       useParty.setState({ error: why.status === 404 ? 'That party has ended.' : why.message });
+      await leaving;
     }
   } catch {
   }
