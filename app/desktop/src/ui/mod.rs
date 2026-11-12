@@ -13,6 +13,7 @@ mod mini;
 mod notes;
 mod nowplaying;
 mod pages;
+mod collection_pages;
 mod feed_pages;
 mod search_pages;
 mod settings_pages;
