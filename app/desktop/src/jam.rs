@@ -12,6 +12,8 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use crate::model::Track;
 
 mod wire;
+mod control;
+use control::*;
 use wire::*;
 
 const SERVER: &str = "https://nuvx-listen.bxane.workers.dev";
@@ -198,105 +200,6 @@ fn random_hex() -> String {
 
 fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)
-}
-
-#[derive(Clone, Debug, Default)]
-struct Known {
-    queue: Vec<WireTrack>,
-    queue_seq: i64,
-    index: i64,
-    seq: i64,
-    vid: String,
-    playing: bool,
-    position_ms: i64,
-    anchor_ms: i64,
-    updated_by: Option<String>,
-}
-
-impl Known {
-    fn position_at(&self, server_now: i64) -> i64 {
-        if self.playing { self.position_ms + (server_now - self.anchor_ms).max(0) } else { self.position_ms }
-    }
-
-    fn set_playback(&mut self, p: &WirePlayback) {
-        self.seq = p.seq;
-        self.vid = p.track.as_ref().map(|t| t.video_id.clone()).unwrap_or_default();
-        self.playing = p.is_playing;
-        self.position_ms = p.position_ms;
-        self.anchor_ms = p.anchor_ms;
-        self.index = p.queue_index;
-        self.updated_by = p.updated_by.clone();
-    }
-
-    fn set_queue(&mut self, q: &WireQueue) {
-        self.queue = q.items.clone();
-        self.queue_seq = q.seq;
-        self.index = q.index;
-    }
-
-    fn room(&self) -> RoomState {
-        let index = usize::try_from(self.index).unwrap_or(0).min(self.queue.len().saturating_sub(1));
-        RoomState {
-            queue: self.queue.iter().map(from_wire).collect(),
-            index,
-            vid: self.vid.clone(),
-            pos: self.position_ms.max(0) as u64,
-            playing: self.playing,
-            ..Default::default()
-        }
-    }
-}
-
-fn host_controls(k: &Known, s: &RoomState, server_now: i64) -> Vec<Value> {
-    let mut out = Vec::new();
-    let keep = s.queue.len().min(s.index + 1 + MAX_UPCOMING);
-    let queue: Vec<WireTrack> = s.queue[..keep].iter().map(to_wire).collect();
-    if queue.iter().map(|t| &t.video_id).ne(k.queue.iter().map(|t| &t.video_id)) || (!queue.is_empty() && s.index as i64 != k.index) {
-        out.push(json!({ "type": "control", "action": "setQueue", "queue": queue, "queueIndex": if queue.is_empty() { -1 } else { s.index as i64 } }));
-    }
-    let lead = if s.playing { PLAY_LEAD_MS } else { 0 };
-    let pos = s.pos as i64 + lead;
-    if s.vid != k.vid {
-        if let Some(t) = s.queue.get(s.index).filter(|t| t.id == s.vid) {
-            out.push(json!({ "type": "control", "action": "setTrack", "track": to_wire(t), "positionMs": pos, "isPlaying": s.playing, "queueIndex": s.index }));
-        }
-    } else if !s.vid.is_empty() {
-        out.extend(tick_controls(k, &Tick { vid: s.vid.clone(), pos: s.pos, playing: s.playing }, server_now));
-    }
-    out
-}
-
-fn tick_controls(k: &Known, t: &Tick, server_now: i64) -> Vec<Value> {
-    if t.vid != k.vid || t.vid.is_empty() {
-        return vec![];
-    }
-    let lead = if t.playing { PLAY_LEAD_MS } else { 0 };
-    let pos = t.pos as i64 + lead;
-    if t.playing != k.playing {
-        let action = if t.playing { "play" } else { "pause" };
-        return vec![json!({ "type": "control", "action": action, "positionMs": pos })];
-    }
-    if (k.position_at(server_now) - t.pos as i64).abs() > MAX_HOST_DRIFT_MS {
-        return vec![json!({ "type": "control", "action": "seek", "positionMs": pos })];
-    }
-    vec![]
-}
-
-fn cmd_control(k: &Known, cmd: &Cmd, server_now: i64) -> Option<Value> {
-    Some(match cmd {
-        Cmd::Add { track } if !track.id.is_empty() => json!({ "type": "control", "action": "queueAdd", "track": to_wire(track) }),
-        Cmd::Next { track } if !track.id.is_empty() => json!({ "type": "control", "action": "queueAdd", "track": to_wire(track), "playNext": true }),
-        Cmd::Add { .. } | Cmd::Next { .. } => return None,
-        Cmd::Toggle if k.playing => json!({ "type": "control", "action": "pause", "positionMs": k.position_at(server_now) }),
-        Cmd::Toggle => json!({ "type": "control", "action": "play" }),
-        Cmd::Skip => json!({ "type": "control", "action": "next" }),
-        Cmd::Prev => json!({ "type": "control", "action": "previous" }),
-        Cmd::Seek { pos } => json!({ "type": "control", "action": "seek", "positionMs": pos }),
-        Cmd::Jump { index } => {
-            let t = k.queue.get(*index)?;
-            json!({ "type": "control", "action": "setTrack", "track": t, "positionMs": 0, "isPlaying": true, "queueIndex": index })
-        }
-    })
 }
 
 fn error_text(code: &str, msg: Option<String>) -> String {
