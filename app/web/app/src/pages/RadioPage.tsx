@@ -50,7 +50,7 @@ export default function RadioPage() {
         {stations.isError && <LoadError error={stations.error} onRetry={() => void stations.refetch()} />}
         {!stations.isError && stations.isPending && <div className="py-12 text-center type-body text-secondary">Loading stations…</div>}
         {stations.data?.length === 0 && <EmptyState title="No stations found" />}
-        <ul className="mt-3 flex flex-col gap-1">{stations.data?.map((station) => {
+        <ul aria-label="Radio stations" className="mt-3 flex max-h-[65vh] flex-col gap-1 overflow-y-auto overscroll-contain">{stations.data?.map((station) => {
           const onAir = current === station.videoId;
           return <li key={station.videoId}><button className={row} onClick={() => tune(station)} aria-label={`Play ${station.title}`}>
             <div className="relative size-12 shrink-0 overflow-hidden rounded-[8px] bg-quinary">

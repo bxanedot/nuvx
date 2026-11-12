@@ -21,7 +21,6 @@ import { config } from '@/config';
 import { LIBRARY_SECTIONS, type LibrarySection } from '@/data/music/library';
 import { useLibraryPlaylists, useSignedIn } from '@/data/music/queries';
 import { useSpotifyPlaylists } from '@/data/spotify/queries';
-import { useExtensionUpdate } from '@/extension/useExtensionUpdate';
 import { useSpotifySignedIn } from '@/extension/useSpotifyAuth';
 import { useUi } from '@/state/ui';
 import { AccountButton } from './AccountButton';
@@ -135,7 +134,6 @@ function SpotifyNav({ onNavigate }: { onNavigate: () => void }) {
 export function Sidebar() {
   const drawerOpen = useUi((s) => s.drawerOpen);
   const setDrawerOpen = useUi((s) => s.setDrawerOpen);
-  const update = useExtensionUpdate();
   const signedIn = useSignedIn();
   const spotifySignedIn = useSpotifySignedIn();
   const close = () => setDrawerOpen(false);
@@ -176,11 +174,6 @@ export function Sidebar() {
               <MdOutlineExtension size={18} />
             </span>
             <span className={navLabel}>nuvx Extension</span>
-            {update.state === 'available' && (
-              <span className="ml-auto rounded-[10px] bg-key-bg px-[7px] py-0.5 type-subhead-emphasized text-white" title={`Version ${update.latest.version} is available`}>
-                Update
-              </span>
-            )}
           </PrefetchNavLink>
           <AccountButton />
           <div className="flex items-center justify-between">

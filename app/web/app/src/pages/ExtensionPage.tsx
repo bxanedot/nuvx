@@ -1,11 +1,10 @@
 import { ChevronRight } from 'lucide-react';
-import { useState, type ComponentType } from 'react';
+import type { ComponentType } from 'react';
 import { SiDiscord, SiSpotify, SiYoutubemusic } from 'react-icons/si';
 import type { Capability } from '@nuvx/shared/bridge';
 import { PageHeader } from '@/components/PageHeader';
-import { currentBrowser, downloadsFor, type Browser } from '@/extension/downloads';
+import { currentBrowser, downloadsFor } from '@/extension/downloads';
 import { useExtension, type ExtensionStatus } from '@/extension/useExtension';
-import { useExtensionUpdate, usePublishedExtension } from '@/extension/useExtensionUpdate';
 import { useYtAuth, type YtAuthStatus } from '@/extension/useYtAuth';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { DiscordIntegration, SpotifyIntegration } from './IntegrationSettings';
@@ -41,14 +40,9 @@ function integrationStatus(status: ExtensionStatus, integration: Integration, au
 
 export default function ExtensionPage() {
   const status = useExtension();
-  const update = useExtensionUpdate();
-  const DOWNLOADS = downloadsFor(usePublishedExtension());
+  const downloads = downloadsFor();
   const auth = useYtAuth();
-  const [updating, setUpdating] = useState(false);
-  const downloads = [...DOWNLOADS].sort((a, b) => Number(b.browser === currentBrowser) - Number(a.browser === currentBrowser));
-  const installedBrowser: Browser | null =
-    status.state === 'present' ? (status.extension.info.browser === 'firefox' ? 'firefox' : 'chrome') : null;
-  const forUpdate = DOWNLOADS.find((d) => d.browser === (installedBrowser ?? currentBrowser))!;
+  const orderedDownloads = [...downloads].sort((a, b) => Number(b.browser === currentBrowser) - Number(a.browser === currentBrowser));
 
   return (
     <div className={settingsUi.centered}>
@@ -68,15 +62,6 @@ export default function ExtensionPage() {
               )}
             </span>
           </div>
-          {update.state !== 'unknown' && (
-            <div className={settingsUi.row}>
-              <span>Latest</span>
-              <span className={settingsUi.value}>
-                v{update.latest.version}
-                {update.state === 'current' && ' · Up to date'}
-              </span>
-            </div>
-          )}
           {status.state === 'present' && (
             <div className={settingsUi.row}>
               <span>Connection</span>
@@ -87,58 +72,38 @@ export default function ExtensionPage() {
             </div>
           )}
         </section>
-        {update.state === 'available' && (
-          <>
-            <a
-              className={`${settingsUi.group} ${settingsUi.download} mt-3`}
-              href={forUpdate.href}
-              download
-              onClick={() => setUpdating(true)}
-            >
-              <span className={settingsUi.updateDot} aria-hidden="true" />
-              <span className={settingsUi.downloadText}>
-                <span className={settingsUi.downloadTitle}>Update to v{update.latest.version}</span>
-                <span className={settingsUi.downloadDetail}>
-                  You have v{update.installed}. Download the new {forUpdate.browser === 'firefox' ? 'Firefox' : 'Chrome'}{' '}
-                  build, then reload the extension.
-                </span>
-              </span>
-              <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
-            </a>
-            {updating && (
-              <ol className={settingsUi.steps}>
-                {forUpdate.updateSteps.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
-            )}
-          </>
-        )}
         <p className={settingsUi.footer}>
-          The extension does the networking and sign-in work a web page isn’t allowed to do. Addons and most lyric
-          providers work without it.
+          The version above is the extension installed in your browser. The web player can receive features independently.
+          Chrome and Firefox install extension updates automatically after store approval.
         </p>
+
 
         <h2 className={settingsUi.sectionHeader}>Get the extension</h2>
         <section className={settingsUi.group}>
-          {downloads.map(({ browser, title, detail, href, Icon }) => (
-            <a
-              key={browser}
-              className={settingsUi.download}
-              href={href}
-              download
-            >
-              <Icon size={28} className="text-primary" />
-              <span className={settingsUi.downloadText}>
-                <span className={settingsUi.downloadTitle}>{title}</span>
-                <span className={settingsUi.downloadDetail}>
-                  {detail}
-                  {browser === currentBrowser && ' · This browser'}
+          {orderedDownloads.map(({ browser, title, detail, href, Icon }) => {
+            const content = (
+              <>
+                <Icon size={28} className="text-primary" />
+                <span className={settingsUi.downloadText}>
+                  <span className={settingsUi.downloadTitle}>{title}</span>
+                  <span className={settingsUi.downloadDetail}>
+                    {detail}
+                    {browser === currentBrowser && ' · This browser'}
+                  </span>
                 </span>
-              </span>
-              <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
-            </a>
-          ))}
+                {href && <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />}
+              </>
+            );
+            return href ? (
+              <a key={browser} className={settingsUi.download} href={href} target="_blank" rel="noreferrer">
+                {content}
+              </a>
+            ) : (
+              <div key={browser} className={settingsUi.download} aria-disabled="true">
+                {content}
+              </div>
+            );
+          })}
         </section>
         <p className={settingsUi.footer}>
           New to this?{' '}
