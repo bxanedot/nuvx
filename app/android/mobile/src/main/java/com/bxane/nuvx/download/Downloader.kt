@@ -68,13 +68,35 @@ object Downloader {
             }
 
             response.use {
-                if (it.code !in 200..299) error("Download failed (HTTP ${it.code})")
+                val requestedEnd = position + length - 1
+                val chunkBytes = when (it.code) {
+                    206 -> {
+                        val range = CONTENT_RANGE.matchEntire(it.header("Content-Range").orEmpty())
+                            ?: error("Download returned an invalid byte range")
+                        val start = range.groupValues[1].toLong()
+                        val end = range.groupValues[2].toLong()
+                        val receivedTotal = range.groupValues[3].toLongOrNull()
+                            ?: error("Download returned an unknown total size")
+                        if (start != position || end != requestedEnd || receivedTotal != total) {
+                            error("Download returned an unexpected byte range")
+                        }
+                        length
+                    }
+                    200 -> {
+                        if (position != 0L) error("The server ignored the download range at ${position}B")
+                        if (it.header("Content-Length")?.toLongOrNull()?.let { size -> size != total } == true) {
+                            error("Download returned an unexpected file size")
+                        }
+                        total
+                    }
+                    else -> error("Download failed (HTTP ${it.code})")
+                }
                 val body = it.body ?: error("Download failed: empty response")
                 val source = body.byteStream()
                 var readForChunk = 0L
-                while (readForChunk < length) {
+                while (readForChunk < chunkBytes) {
                     coroutineContext.ensureActive()
-                    val wanted = minOf(buffer.size.toLong(), length - readForChunk).toInt()
+                    val wanted = minOf(buffer.size.toLong(), chunkBytes - readForChunk).toInt()
                     val read = source.read(buffer, 0, wanted)
                     if (read == -1) break
                     sink.write(buffer, 0, read)
@@ -82,7 +104,8 @@ object Downloader {
                     position += read
                     onProgress(position, total)
                 }
-                if (readForChunk == 0L) error("Download stalled at ${position}B")
+                if (readForChunk != chunkBytes) error("Download stopped at ${position}B of $total")
+                if (source.read() != -1) error("Download returned more bytes than requested")
             }
         }
 
@@ -219,6 +242,8 @@ object Downloader {
     }
 
     private const val PROBE_BYTES = 512
+
+    private val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(\\d+)", RegexOption.IGNORE_CASE)
 
     private fun open(url: String, position: Long, length: Long) = Http.client
         .newCall(

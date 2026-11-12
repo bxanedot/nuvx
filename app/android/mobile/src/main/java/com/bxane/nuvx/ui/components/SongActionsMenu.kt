@@ -1,5 +1,6 @@
 package com.bxane.nuvx.ui.components
 
+import android.widget.Toast
 import com.bxane.nuvx.ui.icons.BrokenHeart
 import com.bxane.nuvx.ui.icons.SfIcons
 import com.bxane.nuvx.ui.components.trackArtSize
@@ -372,7 +373,13 @@ private fun DownloadRow(song: Song, palette: ArtworkPalette, isOffline: Boolean,
                 value = stringResource(R.string.delete),
                 tint = palette.accent,
                 accent = palette.accent,
-            ) { scope.launch { Downloads.delete(context, song.videoId) } }
+            ) {
+                scope.launch {
+                    if (!Downloads.delete(context, song.videoId)) {
+                        Toast.makeText(context, R.string.delete_download_failed, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         } else if (!isOffline) {
             ActionRow(
                 icon = SfIcons.Download,
