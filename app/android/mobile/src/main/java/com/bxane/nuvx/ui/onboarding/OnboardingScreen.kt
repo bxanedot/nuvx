@@ -1,5 +1,7 @@
 package com.bxane.nuvx.ui.onboarding
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -60,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -103,6 +106,7 @@ fun OnboardingScreen(
     var page by rememberSaveable { mutableIntStateOf(PAGE_NAME) }
     var name by rememberSaveable { mutableStateOf(initialName) }
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     BackHandler(enabled = page == PAGE_CONNECT) { page = PAGE_NAME }
     LaunchedEffect(signedIn, page) {
@@ -157,6 +161,10 @@ fun OnboardingScreen(
                     PAGE_NAME -> NamePage(
                         name = name,
                         onNameChange = { name = it.take(NAME_LIMIT) },
+                        onJoinDiscord = {
+                            AppSettings.setDiscordInviteJoined()
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.DISCORD_INVITE_URL)))
+                        },
                         onNext = next@{
                             val chosen = name.trim()
                             if (chosen.isEmpty()) return@next
@@ -196,6 +204,7 @@ private fun OnboardingPage(content: @Composable ColumnScope.() -> Unit) {
 private fun ColumnScope.NamePage(
     name: String,
     onNameChange: (String) -> Unit,
+    onJoinDiscord: () -> Unit,
     onNext: () -> Unit,
 ) {
     val keyboardUp = WindowInsets.isImeVisible
@@ -234,7 +243,25 @@ private fun ColumnScope.NamePage(
         color = Color.White.copy(alpha = 0.55f),
         modifier = Modifier.padding(horizontal = 4.dp),
     )
-    Spacer(Modifier.height(28.dp))
+    AnimatedVisibility(visible = !keyboardUp) {
+        Column {
+            Spacer(Modifier.height(16.dp))
+            PillButton(
+                label = stringResource(R.string.discord_invite_title),
+                onClick = onJoinDiscord,
+                primary = false,
+                leading = {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_discord),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
+            )
+        }
+    }
+    Spacer(Modifier.height(12.dp))
     PillButton(
         label = stringResource(R.string.onboarding_next),
         onClick = onNext,

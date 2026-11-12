@@ -1246,6 +1246,10 @@
     <string name="support_star_title">Like nuvx?</string>
     <string name="support_star_body">A star on GitHub helps more people find it.</string>
     <string name="support_star_action">Star on GitHub</string>
+    <string name="discord_invite_title">Join Discord Server</string>
+    <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
+    <string name="discord_invite_join">Join Server</string>
+    <string name="discord_invite_not_now">Not Now</string>
     <string name="not_now">Not now</string>
     <string name="dont_show_again">Don\'t show again</string>
     <string name="recognize_song">Recognize song</string>

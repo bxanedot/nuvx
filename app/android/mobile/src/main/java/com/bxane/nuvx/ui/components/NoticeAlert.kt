@@ -17,6 +17,7 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -97,11 +98,18 @@ internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean
     var radioIntroStep by rememberSaveable { mutableIntStateOf(0) }
     var supportPrompt by rememberSaveable { mutableIntStateOf(AppSettings.nextSupportPrompt()) }
     var podcastsIntroStep by rememberSaveable { mutableIntStateOf(0) }
+    val discordInviteJoined by AppSettings.discordInviteJoined.collectAsStateWithLifecycle()
+    var discordInvitePrompt by remember { mutableStateOf(false) }
+    var discordPromptDismissed by remember { mutableStateOf(false) }
     LaunchedEffect(radioOpen) {
         if (radioOpen && !AppSettings.radioIntroShown.value) radioIntroStep = 1
     }
     LaunchedEffect(podcastsOpen) {
         if (podcastsOpen && !AppSettings.podcastsIntroShown.value) podcastsIntroStep = 1
+    }
+    LaunchedEffect(held, radioIntroStep, podcastsIntroStep, supportPrompt, discordInviteJoined, discordPromptDismissed) {
+        if (discordInviteJoined) discordInvitePrompt = false
+        else if (!discordPromptDismissed && !held && radioIntroStep == 0 && podcastsIntroStep == 0 && supportPrompt == 0) discordInvitePrompt = true
     }
     if (radioIntroStep == 1) {
         NoticeAlert(
@@ -174,6 +182,24 @@ internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean
             ),
             hazeState = hazeState,
             onDismiss = { supportPrompt = 0 },
+        )
+    }
+
+    if (discordInvitePrompt && !discordInviteJoined && !held && radioIntroStep == 0 && podcastsIntroStep == 0 && supportPrompt == 0) {
+        val dismiss = { discordInvitePrompt = false; discordPromptDismissed = true }
+        NoticeAlert(
+            title = stringResource(R.string.discord_invite_title),
+            body = stringResource(R.string.discord_invite_body),
+            actions = listOf(
+                NoticeAction(stringResource(R.string.discord_invite_join), emphasised = true) {
+                    AppSettings.setDiscordInviteJoined()
+                    dismiss()
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.DISCORD_INVITE_URL)))
+                },
+                NoticeAction(stringResource(R.string.discord_invite_not_now), onClick = dismiss),
+            ),
+            hazeState = hazeState,
+            onDismiss = dismiss,
         )
     }
 }

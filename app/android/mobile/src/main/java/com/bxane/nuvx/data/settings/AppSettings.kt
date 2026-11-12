@@ -79,6 +79,7 @@ enum class SongSort {
 }
 
 object AppSettings {
+    const val DISCORD_INVITE_URL = "https://discord.gg/h4Wsu824Uf"
 
     private lateinit var prefs: SharedPreferences
 
@@ -198,6 +199,8 @@ object AppSettings {
     val podcastsIntroShown = MutableStateFlow(false)
 
     val supportPromptsOff = MutableStateFlow(false)
+
+    val discordInviteJoined = MutableStateFlow(false)
 
     val diwaliGreetingShown = MutableStateFlow(false)
 
@@ -445,6 +448,7 @@ object AppSettings {
         hidePodcastsTab.value = prefs.getBoolean(KEY_HIDE_PODCASTS_TAB, false)
         podcastsIntroShown.value = prefs.getBoolean(KEY_PODCASTS_INTRO_SHOWN, false)
         supportPromptsOff.value = prefs.getBoolean(KEY_SUPPORT_PROMPTS_OFF, false)
+        discordInviteJoined.value = prefs.getBoolean(KEY_DISCORD_INVITE_JOINED, false)
         appearanceSettings.readPerformanceMode()
         stopOnTaskRemoved.value = prefs.getBoolean(KEY_STOP_ON_TASK_REMOVED, false)
         hideVolumeBar.value = prefs.getBoolean(KEY_HIDE_VOLUME_BAR, false)
@@ -598,6 +602,11 @@ object AppSettings {
     fun setSupportPromptsOff() {
         supportPromptsOff.value = true
         prefs.edit().putBoolean(KEY_SUPPORT_PROMPTS_OFF, true).apply()
+    }
+
+    fun setDiscordInviteJoined() {
+        discordInviteJoined.value = true
+        prefs.edit().putBoolean(KEY_DISCORD_INVITE_JOINED, true).apply()
     }
 
     fun nextSupportPrompt(): Int {
@@ -929,6 +938,7 @@ object AppSettings {
     private const val KEY_HIDE_PODCASTS_TAB = "hide_podcasts_tab"
     private const val KEY_PODCASTS_INTRO_SHOWN = "podcasts_intro_shown"
     private const val KEY_SUPPORT_PROMPTS_OFF = "support_prompts_off"
+    private const val KEY_DISCORD_INVITE_JOINED = "discord_invite_joined"
     private const val KEY_LAUNCHES = "launch_count"
     private const val KEY_STOP_ON_TASK_REMOVED = "stop_on_task_removed"
     private const val KEY_HIDE_VOLUME_BAR = "hide_volume_bar"
