@@ -249,14 +249,10 @@ object SourceResolver {
     ): SourceStream? = SourceDownloadResolver.forDownload(target, request, keep, budgetMs)
 
     internal fun beatsYouTubeAac(candidate: StreamFormat): Boolean =
-        (candidate.kbps ?: 0) > YOUTUBE_BEST_AAC_KBPS
+        StreamQualityPolicy.beatsYouTubeAac(candidate)
 
-    internal fun worthSwapping(candidate: StreamFormat, playing: StreamFormat?): Boolean {
-        if (playing?.isDolbyAtmos == true && !candidate.isDolbyAtmos) return false
-        if (candidate.isLossless == true || candidate.isDolbyAtmos) return true
-        val gain = (candidate.kbps ?: return false) - (playing?.kbps ?: return false)
-        return gain >= UPGRADE_MIN_GAIN_KBPS
-    }
+    internal fun worthSwapping(candidate: StreamFormat, playing: StreamFormat?): Boolean =
+        StreamQualityPolicy.worthSwapping(candidate, playing)
 
     fun sameRecordingAs(candidateSec: Int?, playingSec: Int?, slackSec: Int = UPGRADE_DRIFT_SEC): Boolean {
         if (candidateSec == null || playingSec == null) return false
@@ -418,24 +414,7 @@ object SourceResolver {
         target: TrackMatcher.Target,
         wantsLossless: Boolean,
         sameLengthSec: Int = SAME_RECORDING_SEC,
-    ): List<Song> {
-        val sameLength = matches.filter { TrackMatcher.withinSeconds(it, target, sameLengthSec) }
-        val eligible = sameLength.ifEmpty { matches }
-        if (atmosWanted()) {
-            val immersiveFirst = eligible.sortedByDescending { it.sourceQuality == ModuleSource.DOLBY }
-            if (immersiveFirst.firstOrNull()?.sourceQuality == ModuleSource.DOLBY) return immersiveFirst
-        }
-        if (!wantsLossless) return eligible
-        return eligible.sortedByDescending {
-            when {
-                it.sourceQuality != ModuleSource.LOSSLESS -> 0
-                it.sourceHiRes -> 2
-                else -> 1
-            }
-        }
-    }
-
-    private fun atmosWanted(): Boolean = DeviceCodecs.atmosWanted
+    ): List<Song> = StreamQualityPolicy.preferred(matches, target, wantsLossless, sameLengthSec)
 
     private suspend fun streamBest(
         source: MusicSource,
@@ -503,21 +482,11 @@ object SourceResolver {
         return true
     }
 
-    internal fun isBetter(candidate: StreamFormat, current: StreamFormat?): Boolean {
-        if (current == null) return true
-        if (candidate.isDolbyAtmos != current.isDolbyAtmos) return candidate.isDolbyAtmos
-        if (candidate.isLossless != current.isLossless) return candidate.isLossless == true
-        if (candidate.isLossless == true) {
-            val depth = (candidate.bitDepth ?: 0).compareTo(current.bitDepth ?: 0)
-            if (depth != 0) return depth > 0
-            val rate = (candidate.sampleRateHz ?: 0).compareTo(current.sampleRateHz ?: 0)
-            if (rate != 0) return rate > 0
-        }
-        return (candidate.kbps ?: 0) > (current.kbps ?: 0)
-    }
+    internal fun isBetter(candidate: StreamFormat, current: StreamFormat?): Boolean =
+        StreamQualityPolicy.isBetter(candidate, current)
 
     private fun betterOf(current: SourceStream?, candidate: SourceStream): SourceStream =
-        if (current == null || isBetter(candidate.format, current.format)) candidate else current
+        StreamQualityPolicy.betterOf(current, candidate)
 
     private val StreamFormat.statesNothingLossy: Boolean
         get() = isLossless == null && kbps == null
@@ -542,7 +511,4 @@ object SourceResolver {
 
     private const val SAME_RECORDING_SEC = 3
 
-    private const val YOUTUBE_BEST_AAC_KBPS = 256
-
-    private const val UPGRADE_MIN_GAIN_KBPS = 96
 }
