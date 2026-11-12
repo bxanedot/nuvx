@@ -46,6 +46,7 @@ import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.spotify.SpotifyLibrary
 import com.bxane.nuvx.data.spotify.SpotifyPlaylist
 import com.bxane.nuvx.data.spotify.SpotifyTrack
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun SpotifyLibraryScreen(
@@ -59,18 +60,25 @@ fun SpotifyLibraryScreen(
     var playlists by remember { mutableStateOf<List<SpotifyPlaylist>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var retry by remember { mutableStateOf(0) }
 
-    LaunchedEffect(cookie) {
+    LaunchedEffect(cookie, retry) {
         if (cookie.isBlank()) {
             playlists = emptyList()
+            loading = false
             error = null
             return@LaunchedEffect
         }
+        playlists = emptyList()
         loading = true
         error = null
-        runCatching { SpotifyLibrary.playlists() }
-            .onSuccess { playlists = it }
-            .onFailure { error = it.message }
+        try {
+            playlists = SpotifyLibrary.playlists()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error = e.message
+        }
         loading = false
     }
 
@@ -125,11 +133,15 @@ fun SpotifyLibraryScreen(
             }
             error?.let { message ->
                 item {
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(text = message, color = MaterialTheme.colorScheme.error)
+                        TextButton(onClick = { retry++ }) {
+                            Text(stringResource(R.string.retry))
+                        }
+                    }
                 }
             }
             items(playlists, key = { it.id }) { item ->
