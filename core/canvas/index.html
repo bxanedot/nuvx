@@ -59,6 +59,7 @@
     <input id="passcode" name="passcode" type="password" autocomplete="current-password" required>
 
     <button id="send" type="submit" disabled>Upload canvas</button>
+    <button id="retryIndex" type="button" hidden>Retry sharing</button>
     <div id="status" role="status" aria-live="polite"></div>
   </form>
 
@@ -68,8 +69,9 @@
   const UPLOAD = "https://nuvx-listen.bxane.workers.dev/canvas";
   const MAX = 10 * 1024 * 1024;
   const $ = (id) => document.getElementById(id);
-  const form = $("form"), link = $("link"), video = $("video"), drop = $("drop"), pass = $("passcode"), send = $("send"), status = $("status");
+  const form = $("form"), link = $("link"), video = $("video"), drop = $("drop"), pass = $("passcode"), send = $("send"), retryIndex = $("retryIndex"), status = $("status");
   let file = null;
+  let pendingIndexId = null;
 
   function idFrom(text) {
     text = text.trim();
@@ -109,19 +111,43 @@
     ev.preventDefault();
     const id = idFrom(link.value);
     if (!id || !file) return;
+    pendingIndexId = null; retryIndex.hidden = true;
     send.disabled = true; status.className = ""; status.textContent = "Uploading…";
     const body = new FormData();
     body.append("link", id); body.append("passcode", pass.value); body.append("video", file, `${id}.mp4`);
     try {
       const res = await fetch(UPLOAD, { method: "POST", body });
       const out = await res.json().catch(() => ({}));
+      if (out.uploaded && !out.shared) {
+        try { localStorage.setItem("nuvxCanvasPasscode", pass.value); } catch {}
+        pendingIndexId = id; retryIndex.hidden = false;
+        status.className = "bad";
+        status.textContent = `The canvas for ${id} was uploaded, but sharing failed. Retry sharing without uploading again.`;
+        return;
+      }
       if (!res.ok) throw new Error(out.error || `Upload failed (${res.status}).`);
       try { localStorage.setItem("nuvxCanvasPasscode", pass.value); } catch {}
       status.className = "good";
-      status.textContent = `${out.replaced ? "Replaced" : "Added"} the canvas for ${id}.${out.shared ? " It also plays on other copies of the song." : " It shows in nuvx within a few minutes."}`;
+      status.textContent = `${out.replaced ? "Replaced" : "Added"} the canvas for ${id}. It also plays on other copies of the song.`;
     } catch (e) {
       status.className = "bad"; status.textContent = e.message;
     } finally { refresh(); }
+  });
+
+  retryIndex.addEventListener("click", async () => {
+    if (!pendingIndexId) return;
+    retryIndex.disabled = true; status.className = ""; status.textContent = "Retrying sharing…";
+    const body = new FormData();
+    body.append("action", "share"); body.append("link", pendingIndexId); body.append("passcode", pass.value);
+    try {
+      const res = await fetch(UPLOAD, { method: "POST", body });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || `Sharing failed (${res.status}).`);
+      pendingIndexId = null; retryIndex.hidden = true;
+      status.className = "good"; status.textContent = `Canvas shared for ${body.get("link")}. It also plays on other copies of the song.`;
+    } catch (e) {
+      status.className = "bad"; status.textContent = e.message;
+    } finally { retryIndex.disabled = false; }
   });
 </script>
 </body>

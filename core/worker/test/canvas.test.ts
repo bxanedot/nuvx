@@ -5,6 +5,24 @@ import { canvasKey, commitCanvas, isMp4, samePasscode, shareCanvas, videoIdFromL
 const ID = "9qnqYL0eNNI";
 const utf8Base64 = (value: string) => btoa(String.fromCharCode(...new TextEncoder().encode(value)));
 const fromUtf8Base64 = (value: string) => new TextDecoder().decode(Uint8Array.from(atob(value), char => char.charCodeAt(0)));
+const box = (type: string, payload = new Uint8Array()) => {
+  const bytes = new Uint8Array(payload.length + 8);
+  new DataView(bytes.buffer).setUint32(0, bytes.length);
+  bytes.set(new TextEncoder().encode(type), 4);
+  bytes.set(payload, 8);
+  return bytes;
+};
+const join = (...parts: Uint8Array[]) => {
+  const bytes = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { bytes.set(part, offset); offset += part.length; }
+  return bytes;
+};
+const mp4 = join(
+  box("ftyp", join(new TextEncoder().encode("isom"), new Uint8Array(4))),
+  box("moov", box("trak", box("mdia", box("hdlr", join(new Uint8Array(8), new TextEncoder().encode("vide")))))),
+  box("mdat", new Uint8Array([0])),
+);
 
 test("song links and bare ids give the video id; anything else is rejected", () => {
   assert.equal(videoIdFromLink(`https://music.youtube.com/watch?v=${ID}&si=abc`), ID);
@@ -17,7 +35,6 @@ test("song links and bare ids give the video id; anything else is rejected", () 
 });
 
 test("only real MP4 data passes", () => {
-  const mp4 = new Uint8Array([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0]);
   assert.equal(isMp4(mp4), true);
   assert.equal(isMp4(new TextEncoder().encode("<html>not a video</html>")), false);
 });

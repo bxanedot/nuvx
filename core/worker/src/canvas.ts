@@ -15,7 +15,35 @@ export function videoIdFromLink(link: string): string | null {
 }
 
 export function isMp4(bytes: Uint8Array): boolean {
-  return bytes.length > 12 && String.fromCharCode(...bytes.subarray(4, 8)) === "ftyp";
+  const boxes = (start: number, end: number): { type: string; start: number; payload: number; end: number }[] | null => {
+    const result = [];
+    for (let offset = start; offset < end;) {
+      if (end - offset < 8) return null;
+      const view = new DataView(bytes.buffer, bytes.byteOffset + offset, end - offset);
+      let size = view.getUint32(0), header = 8;
+      if (size === 1) {
+        if (end - offset < 16) return null;
+        const extended = view.getBigUint64(8);
+        if (extended > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+        size = Number(extended); header = 16;
+      } else if (size === 0) size = end - offset;
+      const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+      if (type === "uuid") header += 16;
+      if (size < header || size > end - offset) return null;
+      result.push({ type, start: offset, payload: offset + header, end: offset + size });
+      offset += size;
+    }
+    return result;
+  };
+
+  const top = boxes(0, bytes.length);
+  if (!top || top[0]?.type !== "ftyp") return false;
+  const ftyp = top[0];
+  if (ftyp.end - ftyp.start < 16 || (ftyp.end - ftyp.start - 16) % 4 !== 0) return false;
+  if (!top.some(box => box.type === "mdat" && box.end > box.payload)) return false;
+  return top.some(box => box.type === "moov" && boxes(box.payload, box.end)?.some(trak => trak.type === "trak" && boxes(trak.payload, trak.end)?.some(mdia => mdia.type === "mdia" && boxes(mdia.payload, mdia.end)?.some(hdlr =>
+    hdlr.type === "hdlr" && hdlr.end - hdlr.start >= 20 && String.fromCharCode(...bytes.subarray(hdlr.start + 16, hdlr.start + 20)) === "vide"
+  )))));
 }
 
 export function samePasscode(given: string, expected: string): boolean {
@@ -67,12 +95,21 @@ export async function shareCanvas(id: string, token: string, fetchFn: typeof fet
         const bytes = Uint8Array.from(atob((file.content ?? "").replace(/\s/g, "")), char => char.charCodeAt(0));
         index = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, string>;
       } else if (existing.status !== 404) return false;
-      index[canvasKey(title, author_name)] = id;
+      const key = canvasKey(title, author_name);
+      if (index[key] === id) return true;
+      index[key] = id;
       const content = base64(new TextEncoder().encode(JSON.stringify(index, null, 2) + "\n"));
       const put = await fetchFn(path, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ message: `Share canvas ${id}`, content, branch: "main", ...(sha ? { sha } : {}) }) });
       if (put.ok) return true;
-      if (put.status !== 409) return false;
+      if (put.status !== 409 || attempt === 2) return false;
     }
     return false;
+  } catch { return false; }
+}
+
+export async function canvasExists(id: string, token: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const response = await fetchFn(`${REPO_FILE}${id}.mp4`, { headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "nuvx-canvas-upload" } });
+    return response.ok;
   } catch { return false; }
 }
