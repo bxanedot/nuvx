@@ -21,6 +21,8 @@ const SOCKET_PROTOCOL = "nuvx.v1";
 const SOCKET_TOKEN_PREFIX = "nuvx.token.";
 const PRESENCE_INTERVAL_SEC = 300;
 const PRESENCE_WINDOW_MS = (PRESENCE_INTERVAL_SEC + 90) * 1000;
+// Live counts are approximate; cap duplicate install IDs from a single network source.
+const MAX_PRESENCE_PER_SOURCE = 5;
 const LISTENER_WINDOW_MS = 60_000;
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
@@ -148,8 +150,14 @@ async function presence(req: Request, env: Env, ip: string, origin: string | nul
   if ((b.platform === "browser") !== (origin !== null) || (origin !== null && !ALLOWED_ORIGINS.has(origin))) {
     return send(403, { error: "origin_not_allowed", message: "Presence is only accepted from the apps and the web player." });
   }
-  await env.PRESENCE.get(env.PRESENCE.idFromName("global")).ping(b.id.toLowerCase(), b.platform, b.open);
+  const sourceHash = await hashPresenceSource(ip);
+  await env.PRESENCE.get(env.PRESENCE.idFromName("global")).ping(b.id.toLowerCase(), b.platform, b.open, sourceHash);
   return send(200, { intervalSec: PRESENCE_INTERVAL_SEC });
+}
+
+async function hashPresenceSource(ip: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip)));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function badge(online: number): string {
@@ -374,12 +382,22 @@ export class Presence extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS installs (id TEXT PRIMARY KEY, platform TEXT NOT NULL, last_ms INTEGER NOT NULL)");
+    if (![...ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(installs)")].some((column) => column.name === "source_hash")) {
+      ctx.storage.sql.exec("ALTER TABLE installs ADD COLUMN source_hash TEXT");
+    }
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS playing_parties (code TEXT PRIMARY KEY, listeners INTEGER NOT NULL, expires_ms INTEGER NOT NULL)");
   }
 
-  async ping(id: string, platform: string, open: boolean) {
-    if (open) this.ctx.storage.sql.exec("INSERT INTO installs (id, platform, last_ms) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET platform = excluded.platform, last_ms = excluded.last_ms", id, platform, Date.now());
-    else this.ctx.storage.sql.exec("DELETE FROM installs WHERE id = ?", id);
+  async ping(id: string, platform: string, open: boolean, sourceHash: string) {
+    const sql = this.ctx.storage.sql;
+    const now = Date.now();
+    if (open) {
+      sql.exec("DELETE FROM installs WHERE last_ms < ?", now - PRESENCE_WINDOW_MS);
+      const existing = sql.exec<{ n: number }>("SELECT COUNT(*) AS n FROM installs WHERE id = ?", id).one().n;
+      const fromSource = sql.exec<{ n: number }>("SELECT COUNT(*) AS n FROM installs WHERE source_hash = ?", sourceHash).one().n;
+      if (!existing && fromSource >= MAX_PRESENCE_PER_SOURCE) return;
+      sql.exec("INSERT INTO installs (id, platform, last_ms, source_hash) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET platform = excluded.platform, last_ms = excluded.last_ms, source_hash = excluded.source_hash", id, platform, now, sourceHash);
+    } else sql.exec("DELETE FROM installs WHERE id = ?", id);
   }
 
   async setPartyListeners(code: string, count: number, expiresAt: number) {
