@@ -393,6 +393,7 @@ export async function buildPresence(token: string, track: DiscordNowPlaying, opt
 }
 
 let gateway: Gateway | null = null;
+let accountGeneration = 0;
 let gatewayStatus: DiscordState['gateway'] = 'off';
 let gatewayProblem: string | null = null;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -445,8 +446,9 @@ function ensureGateway(token: string): Gateway {
 
 export async function setPresence(track: DiscordNowPlaying | null, options: DiscordPresenceOptions): Promise<void> {
   if (!AVAILABLE) return;
+  const generation = accountGeneration;
   const held = await account();
-  if (!held || !(await enabled())) return;
+  if (!held || !(await enabled()) || generation !== accountGeneration) return;
   clearTimeout(idleTimer);
   if (!track) {
     gateway?.clearActivity();
@@ -454,6 +456,7 @@ export async function setPresence(track: DiscordNowPlaying | null, options: Disc
     return;
   }
   const presence = await buildPresence(held.token, track, options);
+  if (generation !== accountGeneration || (await account())?.token !== held.token) return;
   await ensureGateway(held.token).sendActivity(presence);
 }
 
@@ -470,6 +473,7 @@ export async function setEnabled(on: boolean): Promise<DiscordState> {
 }
 
 export async function disconnect(): Promise<DiscordState> {
+  accountGeneration++;
   closeGateway();
   gatewayStatus = 'off';
   gatewayProblem = null;
@@ -515,7 +519,14 @@ export async function connectFromTab(onProgress: (message: string) => void): Pro
       const token = typeof result?.result === 'string' ? result.result : '';
       if (token) {
         const user = await userInfo(token);
+        const previous = await account();
         await browser.storage.local.set({ [ACCOUNT_KEY]: { token, user } satisfies Account, [ENABLED_KEY]: true });
+        if (previous?.token !== token) {
+          accountGeneration++;
+          closeGateway();
+          gatewayStatus = 'off';
+          gatewayProblem = null;
+        }
         gatewayProblem = null;
         if (opened) await browser.tabs.remove(tab.id!).catch(() => undefined);
         await announce();

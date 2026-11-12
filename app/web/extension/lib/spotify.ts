@@ -140,19 +140,29 @@ let access: AccessToken | null = null;
 let client: { token: string; expiresAt: number } | null = null;
 let retryAfter = 0;
 const RETRY_MS = 60_000;
+let sessionGeneration = 0;
 
 function invalidateTokens() {
   access = null;
   client = null;
 }
 
-let minting: Promise<AccessToken> | null = null;
+let minting: { generation: number; promise: Promise<AccessToken> } | null = null;
 async function accessToken(): Promise<AccessToken> {
+  if (!(await prefs()).connected) throw new SpotifyAuthError('Spotify is disconnected');
+  let generation = sessionGeneration;
   const cookie = await browser.cookies.get({ url: `${WEB_PLAYER}/`, name: 'sp_dc' }).catch(() => null);
+  if (generation !== sessionGeneration) throw new SpotifyAuthError('Spotify session changed; retry the request');
   if (access && access.cookie !== cookie?.value) invalidateSession();
+  generation = sessionGeneration;
+  if (!cookie?.value) throw new SpotifyAuthError('Not signed in to Spotify in this browser');
   if (access && Date.now() < access.expiresAt - 30_000) return access;
-  minting ??= mint().finally(() => (minting = null));
-  return minting;
+  if (minting?.generation === generation) return minting.promise;
+  const promise = mint(generation, cookie.value).finally(() => {
+    if (minting?.promise === promise) minting = null;
+  });
+  minting = { generation, promise };
+  return promise;
 }
 
 async function withSessionCookie<T>(value: string, run: () => Promise<T>): Promise<T> {
@@ -175,10 +185,9 @@ async function withSessionCookie<T>(value: string, run: () => Promise<T>): Promi
 }
 const TOKEN_COOKIE_RULE_ID = 303;
 
-async function mint(): Promise<AccessToken> {
+async function mint(generation: number, cookieValue: string): Promise<AccessToken> {
+  if (generation !== sessionGeneration) throw new SpotifyAuthError('Spotify session changed; retry the request');
   if (!(await prefs()).connected) throw new SpotifyAuthError('Spotify is disconnected');
-  const cookie = await browser.cookies.get({ url: `${WEB_PLAYER}/`, name: 'sp_dc' }).catch(() => null);
-  if (!cookie?.value) throw new SpotifyAuthError('Not signed in to Spotify in this browser');
   if (Date.now() < retryAfter) throw new SpotifyAuthError('Spotify would not mint a token; trying again shortly');
   spotifyRules ??= installSpotifyFetchRule();
   await spotifyRules;
@@ -192,7 +201,7 @@ async function mint(): Promise<AccessToken> {
       totpServer: code,
       totpVer: String(player.secret.version),
     });
-    const { status, body } = await withSessionCookie(cookie.value, async () => {
+    const { status, body } = await withSessionCookie(cookieValue, async () => {
       const response = await fetch(`${WEB_PLAYER}/api/token?${query}`, { credentials: 'omit' });
       return {
         status: response.status,
@@ -205,6 +214,12 @@ async function mint(): Promise<AccessToken> {
         },
       };
     });
+    if (generation !== sessionGeneration || !(await prefs()).connected) throw new SpotifyAuthError('Spotify session changed; retry the request');
+    const currentCookie = await browser.cookies.get({ url: `${WEB_PLAYER}/`, name: 'sp_dc' }).catch(() => null);
+    if (currentCookie?.value !== cookieValue) {
+      invalidateSession();
+      throw new SpotifyAuthError('Spotify session changed; retry the request');
+    }
     if (body.totpVerExpired && !force) continue;
     if (status === 401) throw new SpotifyAuthError('Your Spotify session has expired. Sign in again at open.spotify.com.');
     if (body.isAnonymous) throw new SpotifyAuthError('Not signed in to Spotify in this browser');
@@ -213,7 +228,7 @@ async function mint(): Promise<AccessToken> {
         token: body.accessToken,
         expiresAt: body.accessTokenExpirationTimestampMs ?? Date.now() + 3_600_000,
         clientId: body.clientId ?? null,
-        cookie: cookie.value,
+        cookie: cookieValue,
       };
       return access;
     }
@@ -499,6 +514,8 @@ export function isSessionCookie(cookie: Browser.cookies.Cookie): boolean {
 }
 
 export function invalidateSession(): void {
+  sessionGeneration++;
+  minting = null;
   invalidateTokens();
   retryAfter = 0;
   profileCache = null;

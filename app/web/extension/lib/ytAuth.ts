@@ -177,8 +177,6 @@ function parseChannels(root: unknown, authUser: string): StoredChannel[] {
   return channels;
 }
 
-let problem: string | null = null;
-
 function describeEmpty(endpoint: string, body: unknown): string {
   const services =
     (body as { responseContext?: { serviceTrackingParams?: { params?: Json[] }[] } })?.responseContext
@@ -227,8 +225,7 @@ async function webSessionIndex(): Promise<string | null> {
   }
 }
 
-async function readAccounts(): Promise<{ list: StoredAccount[]; webIndex: string | null }> {
-  problem = null;
+async function readAccounts(): Promise<{ list: StoredAccount[]; webIndex: string | null; problem: string | null }> {
   const [results, webIndex] = await Promise.all([
     Promise.all(Array.from({ length: MAX_LOGINS }, (_, i) => readLogin(String(i)))),
     webSessionIndex(),
@@ -242,34 +239,45 @@ async function readAccounts(): Promise<{ list: StoredAccount[]; webIndex: string
     seen.add(key);
     list.push(account);
   }
+  let problem: string | null = null;
   if (!list.length) {
     problem = results[Number(webIndex ?? 0)]?.why ?? results[0]?.why ?? 'no signed-in Google account found';
     console.warn(`nuvx: no YouTube account found: ${problem}`);
   }
-  return { list, webIndex };
+  return { list, webIndex, problem };
 }
 
 interface Accounts {
   list: StoredAccount[];
   webIndex: string | null;
+  problem: string | null;
 }
 
 let cache: (Accounts & { at: number }) | null = null;
-let reading: Promise<Accounts> | null = null;
+let generation = 0;
+let reading: { generation: number; promise: Promise<Accounts> } | null = null;
 
 async function accounts(refresh: boolean): Promise<Accounts> {
   if (!refresh && cache && Date.now() - cache.at < ACCOUNTS_TTL_MS) return cache;
-  reading ??= readAccounts()
-    .then((read) => {
+  if (reading?.generation === generation) return reading.promise;
+  const readGeneration = generation;
+  const promise: Promise<Accounts> = readAccounts()
+    .then(async (read) => {
+      if (readGeneration !== generation) return accounts(true);
       cache = { ...read, at: Date.now() };
       return read;
     })
-    .finally(() => (reading = null));
-  return reading;
+    .finally(() => {
+      if (reading?.promise === promise) reading = null;
+    });
+  reading = { generation: readGeneration, promise };
+  return promise;
 }
 
 export function invalidateAccounts(): void {
+  generation++;
   cache = null;
+  reading = null;
 }
 
 export function isSessionCookie(cookie: { name: string; domain: string }): boolean {
@@ -304,7 +312,7 @@ export async function authState(refresh = false): Promise<YtAuthState> {
     browserSignedIn,
     connected: true,
     signedIn: active !== null,
-    problem: active ? null : problem,
+    problem: active ? null : read.problem,
     accounts: list.map((a) => ({ ...a, channels: a.channels.map(publicChannel) })),
     active: active && { ...publicChannel(active), authUser: active.authUser },
   };
