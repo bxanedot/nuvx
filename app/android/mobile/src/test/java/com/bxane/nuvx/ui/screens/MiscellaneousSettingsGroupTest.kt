@@ -1,6 +1,6 @@
 package com.bxane.nuvx.ui.screens
 
-import com.bxane.nuvx.PodcastsSymbol
+import com.bxane.nuvx.ui.components.PodcastsSymbol
 import com.bxane.nuvx.ui.components.TAB_SYMBOL_SIZE
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame

@@ -33,10 +33,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bxane.nuvx.AppIcon
-import com.bxane.nuvx.PodcastsSymbol
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.ui.components.IosSwitch
+import com.bxane.nuvx.ui.components.PodcastsSymbol
 import com.bxane.nuvx.ui.components.TabSymbolIcon
 import com.bxane.nuvx.ui.components.TAB_SYMBOL_SIZE
 import com.bxane.nuvx.ui.icons.SfIcons
