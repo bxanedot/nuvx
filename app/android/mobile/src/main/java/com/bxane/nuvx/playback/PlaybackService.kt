@@ -36,7 +36,6 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DataSpec
 import androidx.media3.exoplayer.upstream.BandwidthMeter
-import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
@@ -376,6 +375,19 @@ class PlaybackService : MediaLibraryService() {
     private val upgradeQualityCommand = SessionCommand(ACTION_UPGRADE_QUALITY, Bundle.EMPTY)
     private val swapVersionCommand = SessionCommand(ACTION_SWAP_VERSION, Bundle.EMPTY)
     private val queueDragCommand = SessionCommand(ACTION_QUEUE_DRAG, Bundle.EMPTY)
+
+    private val customLayouts = PlaybackCustomLayoutController(
+        context = this,
+        player = { player },
+        mediaSession = { mediaSession },
+        isLiked = ::isLiked,
+        canLike = ::canLike,
+        canStartStation = { it.canStartStation() },
+        favoriteCommand = favoriteCommand,
+        shuffleCommand = shuffleCommand,
+        startStationCommand = startStationCommand,
+        revertToOriginalCommand = revertToOriginalCommand,
+    )
 
     private var favoriteActionJob: Job? = null
     private var stationActionJob: Job? = null
@@ -864,64 +876,7 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    private fun notificationButtons(): List<CommandButton> {
-        val liked = isLiked(player?.currentMediaItem)
-        val favorite = if (!canLike(player?.currentMediaItem)) null else CommandButton.Builder(
-            if (liked) CommandButton.ICON_STAR_FILLED else CommandButton.ICON_STAR_UNFILLED,
-        )
-            .setCustomIconResId(if (liked) R.drawable.ic_notification_star_filled else R.drawable.ic_notification_star)
-            .setSessionCommand(favoriteCommand)
-            .setDisplayName("Favorite")
-            .build()
-        val shuffleEnabled = QueueShuffle.enabled.value
-        val shuffle = CommandButton.Builder(
-            if (shuffleEnabled) {
-                CommandButton.ICON_SHUFFLE_ON
-            } else {
-                CommandButton.ICON_SHUFFLE_OFF
-            },
-        )
-            .setSessionCommand(shuffleCommand)
-            .setDisplayName(if (shuffleEnabled) "Shuffle off" else "Shuffle on")
-            .build()
-        return listOfNotNull(favorite, shuffle)
-    }
-
-    private fun carButtons(): List<CommandButton> {
-        val current = player?.currentMediaItem?.toSong()
-        val station = current
-            ?.takeIf { it.canStartStation() }
-            ?.let {
-                CommandButton.Builder(CommandButton.ICON_RADIO)
-                    .setSessionCommand(startStationCommand)
-                    .setDisplayName(getString(R.string.start_radio))
-                    .build()
-            }
-        val revert = current
-            ?.takeIf {
-                it.hasYouTubeOriginal() &&
-                    it.localUri == null &&
-                    !OriginalVersion.isPinned(it.videoId)
-            }
-            ?.let {
-                CommandButton.Builder(CommandButton.ICON_SYNC)
-                    .setSessionCommand(revertToOriginalCommand)
-                    .setDisplayName(getString(R.string.revert_to_original))
-                    .build()
-            }
-        return notificationButtons() + listOfNotNull(station, revert)
-    }
-
-    private val carControllers = mutableSetOf<MediaSession.ControllerInfo>()
-
-    private fun refreshCustomLayouts() {
-        val session = mediaSession ?: return
-        val car = carButtons()
-        session.setCustomLayout(car)
-        session.getMediaNotificationControllerInfo()?.let {
-            session.setCustomLayout(it, if (carControllers.isEmpty()) notificationButtons() else car)
-        }
-    }
+    private fun refreshCustomLayouts() = customLayouts.refreshCustomLayouts()
 
     private fun startStationFromSession() {
         val originalPlayer = player ?: return
@@ -1791,13 +1746,13 @@ class PlaybackService : MediaLibraryService() {
 
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             if (session.isAutoCompanionController(controller) || session.isAutomotiveController(controller)) {
-                carControllers += controller
+                customLayouts.addCarController(controller)
                 refreshCustomLayouts()
             }
         }
 
         override fun onDisconnected(session: MediaSession, controller: MediaSession.ControllerInfo) {
-            if (carControllers.remove(controller)) refreshCustomLayouts()
+            if (customLayouts.removeCarController(controller)) refreshCustomLayouts()
         }
 
         override fun onCustomCommand(
