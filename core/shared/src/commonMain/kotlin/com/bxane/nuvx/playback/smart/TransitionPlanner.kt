@@ -22,12 +22,6 @@ private const val MIN_SMART_DURATION_SECONDS = 45.0
 
 private const val MIN_INCOMING_CLEARANCE_SECONDS = 5.0
 
-private val KEY_INDEX = mapOf(
-    "C" to 0, "C♯" to 1, "D♭" to 1, "D" to 2, "D♯" to 3, "E♭" to 3,
-    "E" to 4, "F" to 5, "F♯" to 6, "G♭" to 6, "G" to 7, "G♯" to 8,
-    "A♭" to 8, "A" to 9, "A♯" to 10, "B♭" to 10, "B" to 11,
-)
-
 private val SPOKEN_TEXT = Regex(
     """\b(podcast|episode|audiobook|concert)\b""",
     RegexOption.IGNORE_CASE,
@@ -65,19 +59,6 @@ private fun itemText(track: TransitionTrackInfo?): String =
         .filter { it.isNotBlank() }
         .joinToString(" ")
 
-private fun isUnmixablePair(analysis: TrackAnalysis, nextAnalysis: TrackAnalysis): Boolean {
-    val currentBpm = analysis.bpm.orZero()
-    val nextBpm = nextAnalysis.bpm.orZero()
-    if (currentBpm <= 0 || nextBpm <= 0) return false
-    if (stretchReachable(currentBpm, nextBpm)) return false
-    val left = trustedKey(analysis)
-    val right = trustedKey(nextAnalysis)
-    val keyClash = left.isNotEmpty() && right.isNotEmpty() && !harmonicallyCompatible(left, right)
-    val vocalConflict = analysis.vocalProbability >= VOCAL_CONFLICT_PROBABILITY &&
-        nextAnalysis.vocalProbability >= VOCAL_CONFLICT_PROBABILITY
-    return keyClash || vocalConflict
-}
-
 private const val KICK_PRESENT = 0.5
 
 private fun fallbackVariantFor(
@@ -108,39 +89,6 @@ private fun sameAlbum(left: TransitionTrackInfo?, right: TransitionTrackInfo?): 
     if (left.albumId.isNotBlank() && left.albumId == right.albumId) return true
     return left.album.isNotBlank() && left.album == right.album && left.artist == right.artist
 }
-
-private fun normalizedTempoRatio(currentBpm: Double, nextBpm: Double): Double {
-    if (currentBpm <= 0 || nextBpm <= 0) return 1.0
-    var ratio = nextBpm / currentBpm
-    while (ratio > 1.5) ratio /= 2
-    while (ratio < 0.67) ratio *= 2
-    return ratio
-}
-
-private fun splitKey(key: String): Pair<Int?, String?> {
-    val parts = key.trim().split(' ')
-    return KEY_INDEX[parts.firstOrNull()] to parts.getOrNull(1)
-}
-
-private fun keyDistance(left: String, right: String): Int? {
-    val (leftIndex, leftMode) = splitKey(left)
-    val (rightIndex, rightMode) = splitKey(right)
-    if (leftIndex == null || rightIndex == null) return null
-    val pitchDistance = min((leftIndex - rightIndex + 12) % 12, (rightIndex - leftIndex + 12) % 12)
-    return pitchDistance + if (leftMode != null && rightMode != null && leftMode != rightMode) 1 else 0
-}
-
-private fun harmonicallyCompatible(left: String, right: String): Boolean {
-    val (leftIndex, leftMode) = splitKey(left)
-    val (rightIndex, rightMode) = splitKey(right)
-    if (leftIndex == null || rightIndex == null) return false
-    val distance = min((leftIndex - rightIndex + 12) % 12, (rightIndex - leftIndex + 12) % 12)
-    if (leftMode != null && rightMode != null && leftMode != rightMode) return distance <= 1
-    return distance <= 2 || distance == 5
-}
-
-private fun trustedKey(analysis: TrackAnalysis): String =
-    if (analysis.key.isBlank() || analysis.keyConfidence < 0.25) "" else analysis.key
 
 const val MAX_INCOMING_SKIP_FRACTION = 0.25
 
@@ -206,7 +154,11 @@ private fun phraseBarPlan(
     val alignedIncomingBpm = alignTempoOctave(outgoingBpm, nextBpm)
     val tempoFar = nextBpm > 0 && !stretchReachable(outgoingBpm, nextBpm)
     val mediaRatio =
-        if (nextBpm > 0 && !tempoFar) roundRate(1.0 / normalizedTempoRatio(outgoingBpm, nextBpm)) else 1.0
+        if (nextBpm > 0 && !tempoFar) {
+            roundRate(1.0 / TransitionPairCompatibility.normalizedTempoRatio(outgoingBpm, nextBpm))
+        } else {
+            1.0
+        }
     val incomingPlaybackRate = incomingRateFor(mediaRatio, advanced)
     val outgoingPlaybackRate = outgoingRateFor(mediaRatio, advanced)
     val incomingBeatSeconds = if (alignedIncomingBpm > 0) 60.0 / alignedIncomingBpm else beatSeconds
@@ -495,7 +447,11 @@ private fun phraseSwitch(
     nextLength: Double,
     advanced: Boolean,
 ): TransitionPlan? {
-    if (!harmonicallyCompatible(trustedKey(analysis), trustedKey(nextAnalysis))) return null
+    if (!TransitionPairCompatibility.harmonicallyCompatible(
+            TransitionPairCompatibility.trustedKey(analysis),
+            TransitionPairCompatibility.trustedKey(nextAnalysis),
+        )
+    ) return null
 
     val planned = planWsolaTransition(
         analysis = analysis,
@@ -557,8 +513,6 @@ private fun outgoingRateFor(mediaRatio: Double, advanced: Boolean): Double =
 
 private fun roundRate(rate: Double): Double = (rate * 10000).roundToInt() / 10000.0
 
-private const val VOCAL_CONFLICT_PROBABILITY = 0.62
-
 private const val MAX_ADVANCED_BEATS = 32
 private const val CALM_MAX_SECONDS = 16.0
 
@@ -575,44 +529,10 @@ private const val VOCAL_MASK_MISSING_PROTECTION = 0.55
 private const val VOCAL_REROUTE_GAIN = 0.5
 private const val MAX_REROUTE_CANDIDATES = 3
 
-private class PairTraits(analysis: TrackAnalysis, nextAnalysis: TrackAnalysis) {
-    private val currentBpm = analysis.bpm.orZero()
-    private val nextBpm = nextAnalysis.bpm.orZero()
-
-    val tempoFar = currentBpm > 0 && nextBpm > 0 && !stretchReachable(currentBpm, nextBpm)
-    val keyClash: Boolean = run {
-        val left = trustedKey(analysis)
-        val right = trustedKey(nextAnalysis)
-        left.isNotEmpty() && right.isNotEmpty() && !harmonicallyCompatible(left, right)
-    }
-    val vocalConflict = analysis.vocalProbability >= VOCAL_CONFLICT_PROBABILITY &&
-        nextAnalysis.vocalProbability >= VOCAL_CONFLICT_PROBABILITY
-
-    val phaseLockable = currentBpm > 0 && nextBpm > 0 && !tempoFar &&
-        analysis.beatConfidence.orZero() >= MIN_BEATMATCH_CONFIDENCE &&
-        nextAnalysis.beatConfidence.orZero() >= MIN_BEATMATCH_CONFIDENCE
-
-    val outgoingGrid = currentBpm > 0 && analysis.beatConfidence.orZero() >= MIN_DJ_CONFIDENCE
-    val outgoingMeanEnergy = meanEnergy(analysis.energyCurve)
-    val incomingMeanEnergy = meanEnergy(nextAnalysis.energyCurve)
-}
-
-private fun meanEnergy(curve: List<EnergySample>): Double {
-    var sum = 0.0
-    var count = 0
-    for (point in curve) {
-        if (point.energy.isFinite() && point.energy >= 0) {
-            sum += point.energy
-            count++
-        }
-    }
-    return if (count > 0) sum / count else 0.0
-}
-
 private fun energyScale(
     analysis: TrackAnalysis,
     nextAnalysis: TrackAnalysis,
-    traits: PairTraits,
+    traits: TransitionPairCompatibility.PairTraits,
     exitAt: Double,
     beatSeconds: Double,
 ): Double {
@@ -640,7 +560,7 @@ private fun onDownbeatBefore(analysis: TrackAnalysis, time: Double, tolerance: D
 private fun adaptiveOverlap(
     analysis: TrackAnalysis,
     nextAnalysis: TrackAnalysis,
-    traits: PairTraits? = null,
+    traits: TransitionPairCompatibility.PairTraits? = null,
     energy: Double = 1.0,
     filterVariant: FilterTransitionVariant = FilterTransitionVariant.SWEEP,
 ): Overlap {
@@ -650,11 +570,14 @@ private fun adaptiveOverlap(
         return Overlap(AUTO_FALLBACK_SECONDS, 0, 1.0)
     }
 
-    val ratio = normalizedTempoRatio(currentBpm, nextBpm)
+    val ratio = TransitionPairCompatibility.normalizedTempoRatio(currentBpm, nextBpm)
     val transitionBeats = if (traits == null) {
-        val distance = keyDistance(trustedKey(analysis), trustedKey(nextAnalysis))
-        val vocalConflict = analysis.vocalProbability >= VOCAL_CONFLICT_PROBABILITY &&
-            nextAnalysis.vocalProbability >= VOCAL_CONFLICT_PROBABILITY
+        val distance = TransitionPairCompatibility.keyDistance(
+            TransitionPairCompatibility.trustedKey(analysis),
+            TransitionPairCompatibility.trustedKey(nextAnalysis),
+        )
+        val vocalConflict = analysis.vocalProbability >= TransitionPairCompatibility.VOCAL_CONFLICT_PROBABILITY &&
+            nextAnalysis.vocalProbability >= TransitionPairCompatibility.VOCAL_CONFLICT_PROBABILITY
         if (!vocalConflict && (abs(1 - ratio) > 0.07 || (distance != null && distance > 4))) 16 else 8
     } else {
         val base = if (traits.tempoFar) {
@@ -873,7 +796,7 @@ private fun planTransitionInner(
 
     val nextLength = max(nextAnalysis.duration.orZero(), trackDurationSeconds(nextTrack))
 
-    if (isUnmixablePair(analysis, nextAnalysis)) {
+    if (TransitionPairCompatibility.isUnmixablePair(analysis, nextAnalysis)) {
         val transitionStart = max(0.0, finalMixAnchor - standardFade)
         val incomingCueTime = IncomingCuePlanner.incomingStartPoint(nextAnalysis)
         val started = playbackTime >= transitionStart
@@ -939,7 +862,7 @@ private fun planTransitionInner(
             )
         }
 
-    val traits = if (advanced) PairTraits(analysis, nextAnalysis) else null
+    val traits = if (advanced) TransitionPairCompatibility.PairTraits(analysis, nextAnalysis) else null
     val primary = mixPlan(analysis, nextAnalysis, mixAnchor, mixOutAnchor.type, nextLength, traits)
     val plan = if (traits != null &&
         primary.vocalOverlap > VOCAL_REROUTE_OVERLAP &&
@@ -974,7 +897,7 @@ private fun mixPlan(
     mixAnchor: Double,
     mixOutType: String,
     nextLength: Double,
-    traits: PairTraits?,
+    traits: TransitionPairCompatibility.PairTraits?,
 ): TransitionPlan {
     val currentBpm = analysis.bpm.orZero()
     val nextBpm = nextAnalysis.bpm.orZero()
@@ -995,7 +918,7 @@ private fun mixPlan(
     val handoffBpm = if (currentBpm > 0) currentBpm else nextBpm
     val sameBeatBlend = (traits == null || incomingPlaybackRate >= 1.0) && (
         currentBpm > 0 && nextBpm > 0 &&
-            abs(1 - normalizedTempoRatio(currentBpm, nextBpm)) <= 0.05 &&
+            abs(1 - TransitionPairCompatibility.normalizedTempoRatio(currentBpm, nextBpm)) <= 0.05 &&
             (analysis.beatConfidence.orZero() >= 0.2 || nextAnalysis.beatConfidence.orZero() >= 0.2) ||
             traits?.phaseLockable == true
         )
