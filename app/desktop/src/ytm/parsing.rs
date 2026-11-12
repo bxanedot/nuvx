@@ -1,4 +1,13 @@
 use super::*;
+
+pub(super) fn find_key<'a>(v: &'a Value, key: &str) -> Option<&'a Value> {
+    match v {
+        Value::Object(m) => m.get(key).or_else(|| m.values().find_map(|x| find_key(x, key))),
+        Value::Array(a) => a.iter().find_map(|x| find_key(x, key)),
+        _ => None,
+    }
+}
+
 pub(super) fn continuation(sec: &Value) -> Option<String> {
     sec["continuations"][0]["nextContinuationData"]["continuation"].as_str().map(str::to_owned)
 }
