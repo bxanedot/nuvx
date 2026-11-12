@@ -1,17 +1,12 @@
 import type { HttpRequest, HttpResponse } from '@nuvx/shared/bridge';
 
 import { LYRIC_ORIGINS, patternOf } from './lyricHosts';
+import { serialiseResponse } from './httpResponse';
 
 export { LYRIC_ORIGINS, patternOf };
 
 export class LyricsPermissionError extends Error {
   readonly code = 'permission';
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
 }
 
 const RULES = [
@@ -79,15 +74,5 @@ export async function lyricsFetch(request: HttpRequest): Promise<HttpResponse> {
     credentials: 'omit',
     signal: AbortSignal.timeout(15_000),
   });
-  const headers: Record<string, string> = {};
-  response.headers.forEach((value, key) => (headers[key] = value));
-  const type = response.headers.get('content-type') ?? '';
-  const textual = /json|text|javascript|xml|html/.test(type) || !type;
-  return {
-    status: response.status,
-    headers,
-    url: response.url,
-    bodyEncoding: textual ? 'text' : 'base64',
-    body: textual ? await response.text() : toBase64(new Uint8Array(await response.arrayBuffer())),
-  };
+  return serialiseResponse(response, true);
 }
