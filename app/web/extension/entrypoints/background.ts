@@ -191,6 +191,8 @@ function acceptPort(port: Browser.runtime.Port): void {
     port.disconnect();
     return;
   }
+  clearTimeout(lastPortTimer);
+  lastPortTimer = undefined;
   ports.add(port);
   port.onDisconnect.addListener(() => {
     ports.delete(port);
