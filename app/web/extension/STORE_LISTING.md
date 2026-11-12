@@ -9,7 +9,7 @@
 - Support: https://github.com/bxanedot/nuvx/issues
 - Privacy policy: https://www.nuvx.lol/privacy
 - License: GNU GPL-3.0-only
-- Version: 0.7.1
+- Version: 0.8.0
 - Paid features: none
 - Discord integration: excluded from store builds
 
@@ -24,6 +24,8 @@ Use YouTube Music and Spotify with the nuvx web player.
 After installing, click the nuvx toolbar icon and choose **Open nuvx web player**. The companion web player at https://web.nuvx.lol is required.
 
 Connect your existing browser sessions to browse music libraries and playlists from the nuvx web player. Search and play music with your existing service accounts. Optional lyrics providers can be granted one at a time from the player.
+
+The web player also includes podcast discovery and internet radio, alongside your music library.
 
 **How account access works**
 
