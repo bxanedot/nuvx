@@ -121,6 +121,7 @@ object JioSaavnService {
         }
     }
 
+    // JioSaavn's encrypted_media_url wire format requires DES/ECB; this is interoperability, not protection for Nuvx data.
     private fun decryptUrl(encryptedUrl: String): String {
         if (encryptedUrl.isBlank()) return ""
         return try {
