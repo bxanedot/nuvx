@@ -1,4 +1,5 @@
 mod account;
+mod account_settings;
 mod actions;
 mod appearance_settings;
 mod collections;
