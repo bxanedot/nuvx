@@ -9,51 +9,20 @@ mod control;
 mod effects;
 mod fading;
 mod output;
+mod seek;
 mod status;
 pub use control::{AudioCmd, AudioEvent, AudioHandle};
 use effects::{Eq, Meter, Spatial};
 use fading::{Fading, HANDOFF_WAIT, QUICK_FADE_MS};
 use output::{Output, DEVICE_CHECK};
+use seek::{SeekJob, build_seek};
 pub use output::{output_devices, OutputDevice};
 pub use status::AudioStatus;
 #[cfg(test)]
 use effects::{AUTOMIX_FADE, FX_MAX_FRAMES, MixFx, Ramp, Tempo};
-use crate::stream::{self, Shared};
+use crate::stream::Shared;
 
 pub use crate::stream::TrackDecoder;
-
-struct SeekJob {
-    shared: Arc<Shared>,
-    pos: Duration,
-    live: Option<(Duration, std::time::Instant)>,
-    generation: u64,
-    seek: u64,
-}
-
-fn build_seek(j: SeekJob, tx: &Sender<AudioCmd>, events: &Sender<AudioEvent>) {
-    let SeekJob { shared, pos, live, generation, seek } = j;
-    let seekable = !pos.is_zero();
-    let res = stream::decoder(shared.clone(), seekable).map_err(|e| e.to_string()).and_then(|mut d| {
-        let pos = live.map_or(pos, |(p, at)| p + at.elapsed());
-        if seekable {
-            rodio::Source::try_seek(&mut d, pos).map_err(|e| e.to_string())?;
-        }
-        Ok((d, pos))
-    });
-    match res {
-        Ok((decoder, pos)) => {
-            let _ = tx.send(AudioCmd::Replace { generation, seek, decoder, at: pos, seekable });
-        }
-        Err(e) => match shared.error() {
-            Some(reason) => {
-                let _ = events.send(AudioEvent::Interrupted { generation, at: pos, reason });
-            }
-            None => {
-                let _ = events.send(AudioEvent::Error(format!("Seek failed: {e}")));
-            }
-        },
-    }
-}
 
 const AUTOMIX_BARS: f32 = 8.0;
 const AUTOMIX_BARS_LONG: f32 = 16.0;
