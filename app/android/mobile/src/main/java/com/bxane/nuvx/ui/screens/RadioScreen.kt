@@ -66,6 +66,7 @@ import com.composables.sfsymbols.SfSymbolEffect
 import com.composables.sfsymbols.SfSymbolIcon
 import com.composables.sfsymbols.SfWeight
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 
 val RadioSymbol: SfSymbol by lazy {
@@ -112,7 +113,10 @@ fun RadioScreen(
                 RadioDirectory.countries.value = list.sortedByDescending { it.code.equals(home, true) }
                 if (selected == null) selected = (list.firstOrNull { it.code.equals(home, true) } ?: list.firstOrNull())?.code
             }
-            .onFailure { error = it.message }
+            .onFailure {
+                if (it is CancellationException) throw it
+                error = it.message
+            }
     }
     val key = if (submitted.isNotBlank()) "search:$submitted" else selected
     LaunchedEffect(key, retry) {
@@ -123,7 +127,10 @@ fun RadioScreen(
             if (submitted.isNotBlank()) RadioBrowser.search(submitted) else RadioBrowser.topStations(key)
         }
             .onSuccess { RadioDirectory.stations.value += key to it }
-            .onFailure { error = it.message }
+            .onFailure {
+                if (it is CancellationException) throw it
+                error = it.message
+            }
     }
     val stations = key?.let { cache[it] }
 

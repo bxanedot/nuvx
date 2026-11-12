@@ -31,6 +31,7 @@ internal class MainExploreController(
 
     private val _moodGenreShelves = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
     val moodGenreShelves: StateFlow<UiState<List<HomeShelf>>> = _moodGenreShelves.asStateFlow()
+    private var moodGenreRequestId = 0
 
     private val _podcasts = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
     val podcasts: StateFlow<UiState<List<HomeShelf>>> = _podcasts.asStateFlow()
@@ -91,16 +92,18 @@ internal class MainExploreController(
     }
 
     fun openMoodGenre(item: MoodGenre) {
+        val requestId = ++moodGenreRequestId
         _selectedMoodGenre.value = item
         _moodGenreShelves.value = UiState.Loading
         scope.launch {
-            _moodGenreShelves.value = YtMusicRepository.moodGenreShelves(item.browseId, item.params).fold(
+            val result = YtMusicRepository.moodGenreShelves(item.browseId, item.params).fold(
                 onSuccess = { shelves ->
                     if (shelves.isEmpty()) UiState.Error(text(R.string.nothing_to_explore))
                     else UiState.Success(shelves)
                 },
                 onFailure = { UiState.Error(friendly(it)) },
             )
+            if (requestId == moodGenreRequestId) _moodGenreShelves.value = result
         }
     }
 
@@ -120,6 +123,7 @@ internal class MainExploreController(
 
     fun closeMoodGenre(): Boolean {
         if (_selectedMoodGenre.value == null) return false
+        ++moodGenreRequestId
         _selectedMoodGenre.value = null
         return true
     }
