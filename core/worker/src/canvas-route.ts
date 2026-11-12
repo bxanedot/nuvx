@@ -1,4 +1,4 @@
-import { MAX_CANVAS_BYTES, commitCanvas, isMp4, samePasscode, shareCanvas, videoIdFromLink } from "./canvas.ts";
+import { MAX_CANVAS_BYTES, canvasExists, commitCanvas, isMp4, samePasscode, shareCanvas, videoIdFromLink } from "./canvas.ts";
 import { readRequestBytes } from "./request-body.ts";
 
 export interface CanvasUploadEnv {
@@ -23,6 +23,11 @@ export async function handleCanvasUpload(req: Request, env: CanvasUploadEnv, fet
   if (!samePasscode(String(form.get("passcode") ?? ""), env.CANVAS_PASSCODE)) return json({ error: "Wrong passcode." }, 403);
   const id = videoIdFromLink(String(form.get("link") ?? ""));
   if (!id) return json({ error: "That isn't a YouTube Music song link." }, 400);
+  if (form.get("action") === "share") {
+    if (!(await canvasExists(id, env.CANVAS_GITHUB_TOKEN, fetcher))) return json({ error: "The uploaded canvas could not be found." }, 404);
+    const shared = await shareCanvas(id, env.CANVAS_GITHUB_TOKEN, fetcher);
+    return shared ? json({ ok: true, shared: true }) : json({ error: "The canvas is uploaded, but sharing failed. Try again." }, 502);
+  }
   const video = form.get("video");
   if (!(video instanceof File)) return json({ error: "Choose a video." }, 400);
   if (video.size > MAX_CANVAS_BYTES) return json({ error: "The video is over 10 MB." }, 413);
@@ -31,5 +36,7 @@ export async function handleCanvasUpload(req: Request, env: CanvasUploadEnv, fet
   const { status, message } = await commitCanvas(id, bytes, env.CANVAS_GITHUB_TOKEN, fetcher);
   if (status !== 200 && status !== 201) return json({ error: `GitHub refused the upload (${status}${message ? `: ${message}` : ""}).` }, 502);
   const shared = await shareCanvas(id, env.CANVAS_GITHUB_TOKEN, fetcher);
-  return json({ ok: true, id, replaced: status === 200, shared });
+  return shared
+    ? json({ ok: true, id, replaced: status === 200, shared: true })
+    : json({ ok: false, uploaded: true, id, replaced: status === 200, shared: false }, 202);
 }

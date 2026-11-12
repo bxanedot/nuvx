@@ -94,3 +94,8 @@ jobs:
             --title "nuvx $STABLE_VERSION-$NIGHTLY_SUFFIX" \
             --notes "Signed Android nightly for phones, Android TV and Wear OS. Install the APK for your device. A newer stable release can update it in place."
           gh release edit "$NIGHTLY_SUFFIX" --draft=false --prerelease --latest=false
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.prerelease and (.tag_name | startswith("nightly."))) | .tag_name' |
+            while IFS= read -r tag; do
+              [[ -z "$tag" || "$tag" == "$NIGHTLY_SUFFIX" ]] || gh release delete "$tag" --yes --cleanup-tag
+            done
