@@ -13,6 +13,39 @@ export interface TrackAudio {
 const CHUNK_BYTES = 1024 * 1024;
 const MAX_BYTES = 40 * 1024 * 1024;
 
+export async function readAudioResponse(response: Response, maxBytes: number): Promise<Uint8Array> {
+  const contentLength = Number(response.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error('audio response exceeds byte limit');
+  }
+  const reader = response.body?.getReader();
+  if (!reader) return new Uint8Array(0);
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value.byteLength > maxBytes - size) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error('audio response exceeds byte limit');
+      }
+      parts.push(value);
+      size += value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.byteLength;
+  }
+  return bytes;
+}
+
 export async function fetchTrackAudio(videoId: string, signal?: AbortSignal): Promise<TrackAudio> {
   let source = await resolveAudioUrl(videoId);
   const parts: Uint8Array[] = [];
@@ -29,10 +62,10 @@ export async function fetchTrackAudio(videoId: string, signal?: AbortSignal): Pr
       continue;
     }
     if (!response.ok) throw new Error(`audio fetch HTTP ${response.status} at byte ${at}`);
-    const part = new Uint8Array(await response.arrayBuffer());
+    const part = await readAudioResponse(response, MAX_BYTES - at);
     parts.push(part);
     at += part.byteLength;
-    if (part.byteLength === 0 || (total ? at >= total : part.byteLength < CHUNK_BYTES) || at > MAX_BYTES) break;
+    if (part.byteLength === 0 || (total ? at >= total : part.byteLength < CHUNK_BYTES)) break;
   }
 
   const out = new Uint8Array(at);
