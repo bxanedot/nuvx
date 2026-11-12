@@ -5,6 +5,7 @@ use edge_fade::fade_edges;
 mod glow_raster;
 mod glow;
 mod transform;
+mod transition;
 mod instrumental;
 mod motion;
 mod model;
@@ -29,6 +30,7 @@ use instrumental::gap_times;
 use instrumental::paint_instrumental;
 use glow::Glow;
 use transform::{Xf, paint_galley};
+use transition::{LineState, ScrollAnim, Shift};
 
 use egui::epaint::text::FontsView;
 use egui::layers::ShapeIdx;
@@ -129,61 +131,6 @@ fn hash<T: std::hash::Hash>(v: T) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     v.hash(&mut h);
     h.finish()
-}
-
-#[derive(Clone, Copy)]
-struct ScrollAnim {
-    start: f64,
-    delta: f32,
-    active: usize,
-}
-
-#[derive(Clone, Copy)]
-struct Shift {
-    start: f64,
-    delta: f32,
-}
-
-#[derive(Clone, Copy, Default)]
-struct Trans {
-    from: f32,
-    to: f32,
-    start: f64,
-    dur: f64,
-    delay: f64,
-    init: bool,
-}
-
-impl Trans {
-    fn value(&self, now: f64) -> f32 {
-        if !self.init {
-            return self.to;
-        }
-        let p = ((now - self.start - self.delay) / self.dur.max(1e-3)).clamp(0.0, 1.0) as f32;
-        lerp(self.from, self.to, EASE.at(p))
-    }
-
-    fn set(&mut self, to: f32, now: f64, dur: f64, delay: f64) {
-        if !self.init {
-            *self = Trans { from: to, to, start: now, dur, delay, init: true };
-        } else if (to - self.to).abs() > 1e-4 {
-            let from = self.value(now);
-            *self = Trans { from, to, start: now, dur, delay, init: true };
-        }
-    }
-
-    fn moving(&self, now: f64) -> bool {
-        self.init && (self.from - self.to).abs() > 1e-4 && now < self.start + self.delay + self.dur
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-struct LineState {
-    opacity: Trans,
-    blur: Trans,
-    selected: bool,
-    exit: Option<f64>,
-    exit_t: f64,
 }
 
 #[derive(Default)]
