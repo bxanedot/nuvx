@@ -26,6 +26,7 @@ export function useSpotifyPlaylistInfo(playlistId: string) {
 }
 
 const MATCH_PARALLELISM = 6;
+const PLAYLIST_FRESH_MS = 5 * 60_000;
 
 export interface SpotifyRows {
   status: 'loading' | 'ready' | 'error';
@@ -40,6 +41,7 @@ class PlaylistJob {
   private source: SpotifyTrack[] = [];
   private readonly listeners = new Set<() => void>();
   private fetching = false;
+  private completedAt = 0;
   private readonly inFlight = new Set<number>();
 
   constructor(private readonly playlistId: string) {}
@@ -63,16 +65,23 @@ class PlaylistJob {
   }
 
   private start() {
-    if (this.state.status === 'loading' && !this.fetching && !this.source.length) {
+    if (this.fetching) return;
+    if (this.state.status === 'ready' && Date.now() - this.completedAt < PLAYLIST_FRESH_MS) return;
+    if (this.state.status === 'ready') this.emit({ status: 'loading', error: null });
+    if (this.state.status === 'loading' || this.state.status === 'error') {
       this.fetching = true;
+      const oldRows = new Map(this.source.map((track, i) => [track.id, this.state.rows[i]]));
       fetchSpotifyTracks(this.playlistId, (soFar, total) => {
         this.source = soFar;
-        const rows = soFar.map((t, i) => this.state.rows[i] ?? pendingTrack(t));
+        const rows = soFar.map((track) => oldRows.get(track.id) ?? pendingTrack(track));
         this.emit({ rows, total });
         this.pump();
       })
-        .then(() => this.emit({ status: 'ready' }))
-        .catch((error: unknown) => this.emit({ status: this.source.length ? 'ready' : 'error', error }))
+        .then(() => {
+          this.completedAt = Date.now();
+          this.emit({ status: 'ready', error: null });
+        })
+        .catch((error: unknown) => this.emit({ status: 'error', error }))
         .finally(() => (this.fetching = false));
       return;
     }
@@ -88,6 +97,7 @@ class PlaylistJob {
       void matchToYouTube(track)
         .catch(() => null)
         .then((found) => {
+          if (this.source[index]?.id !== track.id) return;
           const rows = [...this.state.rows];
           rows[index] = found ?? pendingTrack(track, 'missing');
           this.emit({ rows });
