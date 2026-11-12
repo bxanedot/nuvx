@@ -88,8 +88,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.bxane.nuvx.auth.DiscordLoginScreen
-import com.bxane.nuvx.auth.SpotifyLoginScreen
 import com.bxane.nuvx.auth.WebSessionMode
 import com.bxane.nuvx.auth.YtMusicLoginScreen
 import com.bxane.nuvx.data.AppUpdateChecker
@@ -149,7 +147,6 @@ import com.bxane.nuvx.ui.screens.SignatureApiEditor
 import com.bxane.nuvx.ui.screens.SettingsScreen
 import com.bxane.nuvx.ui.screens.SourceEditorAlert
 import com.bxane.nuvx.ui.screens.SourcesScreen
-import com.bxane.nuvx.ui.screens.SpotifyCanvasAuthScreen
 import com.bxane.nuvx.ui.screens.SpotifyLibraryScreen
 import com.bxane.nuvx.data.spotify.SPOTIFY_PAGE_PREFIX
 import com.bxane.nuvx.playback.AudioCache
@@ -241,6 +238,7 @@ import com.bxane.nuvx.ui.components.TranslationLanguageDialog
 import com.bxane.nuvx.ui.components.LyricsSourcesDialog
 import com.bxane.nuvx.ui.components.UpdateAvailableDialog
 import com.bxane.nuvx.ui.components.RemoteStorageSettingsDialogs
+import com.bxane.nuvx.ui.components.ProviderLoginScreens
 import androidx.media3.common.Player
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.TopPicks
@@ -3872,81 +3870,22 @@ internal fun NuvxApp(
             onSmbEditorDismiss = { showSmbEditor = false },
         )
 
-        if (showDiscordLogin) {
-            BackHandler { showDiscordLogin = false }
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Column(Modifier.fillMaxSize()) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(onClick = { showDiscordLogin = false }) {
-                            Icon(
-                                SfIcons.Close,
-                                contentDescription = stringResource(R.string.close),
-                                tint = MaterialTheme.colorScheme.onBackground,
-                            )
-                        }
-                        Text(
-                            "Sign in to Discord",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                    }
-                    DiscordLoginScreen(
-                        onTokenCaptured = { token ->
-                            AppSettings.setDiscordToken(token)
-                            showDiscordLogin = false
-                        },
-                    )
-                }
-            }
-        }
-
-        if (showSpotifyLogin) {
-            BackHandler { showSpotifyLogin = false }
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Column(Modifier.fillMaxSize()) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(onClick = { showSpotifyLogin = false }) {
-                            Icon(
-                                SfIcons.Close,
-                                contentDescription = stringResource(R.string.close),
-                                tint = MaterialTheme.colorScheme.onBackground,
-                            )
-                        }
-                        Text(
-                            stringResource(R.string.spotify_sign_in),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                    }
-                    SpotifyLoginScreen(
-                        modifier = Modifier.navigationBarsPadding(),
-                        onConnected = { token ->
-                            AppSettings.setSpotifySpdcToken(token)
-                            showSpotifyLogin = false
-                        },
-                    )
-                }
-            }
-        }
-
-        if (showSpotifyCanvasAuth) {
-            BackHandler { showSpotifyCanvasAuth = false }
-            SpotifyCanvasAuthScreen(
-                onNavigateUp = { showSpotifyCanvasAuth = false }
-            )
-        }
+        ProviderLoginScreens(
+            showDiscordLogin = showDiscordLogin,
+            onDiscordLoginDismiss = { showDiscordLogin = false },
+            onDiscordTokenCaptured = { token ->
+                AppSettings.setDiscordToken(token)
+                showDiscordLogin = false
+            },
+            showSpotifyLogin = showSpotifyLogin,
+            onSpotifyLoginDismiss = { showSpotifyLogin = false },
+            onSpotifyConnected = { token ->
+                AppSettings.setSpotifySpdcToken(token)
+                showSpotifyLogin = false
+            },
+            showSpotifyCanvasAuth = showSpotifyCanvasAuth,
+            onSpotifyCanvasAuthDismiss = { showSpotifyCanvasAuth = false },
+        )
 
         discordDialog?.let { which ->
             DiscordDialogHost(
