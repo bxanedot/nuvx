@@ -35,6 +35,7 @@ mod titlebar;
 pub use titlebar::{custom as custom_titlebar, set_hwnd as set_titlebar_hwnd};
 mod transfer;
 mod widgets;
+mod persistence;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -56,6 +57,7 @@ use lists::{LIKED_MUSIC, Lists};
 use queue::Queue;
 use dev::{dev_pace, dev_screenshot, dev_var};
 use dialogs::text_field;
+use persistence::{AccountCache, Session, SESSION_KEY};
 pub use queue::Repeat;
 
 #[derive(Clone, PartialEq, Hash, Debug)]
@@ -935,8 +937,6 @@ impl App {
 
 
 
-const SESSION_KEY: &str = "session";
-
 fn relaunch() {
     let Ok(exe) = std::env::current_exe() else { return };
     log::info!("restarting");
@@ -952,25 +952,6 @@ fn relaunch() {
     {
         let _ = std::process::Command::new(exe).spawn();
     }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct AccountCache {
-    name: Option<String>,
-    avatar: Option<String>,
-    playlists: Vec<Card>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct Session {
-    queue: Vec<Track>,
-    index: usize,
-    position_ms: u64,
-    duration_ms: u64,
-    #[serde(default)]
-    listened_at: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    playing_as: Option<Track>,
 }
 
 struct PlayingAs {
@@ -1071,21 +1052,4 @@ fn updatable() -> bool {
 
 pub fn fmt_time(secs: u32) -> String {
     format!("{}:{:02}", secs / 60, secs % 60)
-}
-
-#[cfg(test)]
-mod session_tests {
-    use super::*;
-
-    #[test]
-    fn sessions_saved_before_song_versions_still_load() {
-        let old = r#"{"queue":[{"id":"a","title":"A","artists":[],"album":null,"duration":null,"thumbs":[],"track_nr":null,"plays":null}],"index":0,"position_ms":5000,"duration_ms":0}"#;
-        let s: Session = serde_json::from_str(old).unwrap();
-        assert!(!s.queue[0].music_video && s.playing_as.is_none());
-        let saved = serde_json::to_string(&s).unwrap();
-        assert!(!saved.contains("music_video") && !saved.contains("playing_as"), "{saved}");
-        let video = Track { music_video: true, ..s.queue[0].clone() };
-        let back: Track = serde_json::from_str(&serde_json::to_string(&video).unwrap()).unwrap();
-        assert!(back.music_video);
-    }
 }
