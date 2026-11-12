@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use super::credits::dedup;
-use super::{Line, Part, insert_instrumentals};
+use super::timeline::insert_instrumentals;
+use super::{Line, Part};
 
 pub struct Ttml {
     pub lines: Vec<Line>,
