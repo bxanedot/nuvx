@@ -7,15 +7,17 @@ use rodio::Player;
 
 mod control;
 mod effects;
+mod fading;
 mod output;
 mod status;
 pub use control::{AudioCmd, AudioEvent, AudioHandle};
-use effects::{AUTOMIX_FADE, Eq, Meter, Spatial};
+use effects::{Eq, Meter, Spatial};
+use fading::{Fading, HANDOFF_WAIT, QUICK_FADE_MS};
 use output::{Output, DEVICE_CHECK};
 pub use output::{output_devices, OutputDevice};
 pub use status::AudioStatus;
 #[cfg(test)]
-use effects::{FX_MAX_FRAMES, MixFx, Ramp, Tempo};
+use effects::{AUTOMIX_FADE, FX_MAX_FRAMES, MixFx, Ramp, Tempo};
 use crate::stream::{self, Shared};
 
 pub use crate::stream::TrackDecoder;
@@ -52,36 +54,6 @@ fn build_seek(j: SeekJob, tx: &Sender<AudioCmd>, events: &Sender<AudioEvent>) {
         },
     }
 }
-
-struct Fading {
-    player: Player,
-    offset: Duration,
-    shared: Option<Arc<Shared>>,
-    out: Arc<AtomicU32>,
-    waiting: Option<(Instant, Option<Duration>)>,
-    natural: bool,
-}
-
-impl Fading {
-    fn start(&mut self, crossfade: u32, automix: bool) -> u32 {
-        let left = self.waiting.take().and_then(|(at, left)| Some(left?.saturating_sub(at.elapsed())));
-        let len = crossfade.min(left.map_or(u32::MAX, |l| l.as_millis() as u32)).max(QUICK_FADE_MS);
-        self.out.store(len | if automix { AUTOMIX_FADE } else { 0 }, Ordering::Relaxed);
-        len
-    }
-}
-
-impl Drop for Fading {
-    fn drop(&mut self) {
-        if let Some(s) = &self.shared {
-            s.cancel();
-        }
-    }
-}
-
-const QUICK_FADE_MS: u32 = 40;
-
-const HANDOFF_WAIT: Duration = Duration::from_secs(3);
 
 const AUTOMIX_BARS: f32 = 8.0;
 const AUTOMIX_BARS_LONG: f32 = 16.0;
