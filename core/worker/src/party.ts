@@ -95,10 +95,9 @@ export function newParty(code: string, now: number, maxMembers = 5): Party {
 }
 
 export function positionAt(p: Playback, now: number): number {
-  if (!p.isPlaying) return p.positionMs;
-  const pos = p.positionMs + Math.max(0, now - p.anchorMs);
   const dur = p.track?.durationMs;
-  return dur && pos > dur ? dur : pos;
+  const pos = p.isPlaying ? p.positionMs + Math.max(0, now - p.anchorMs) : p.positionMs;
+  return Math.min(Math.max(0, pos), dur && dur > 0 ? dur : Number.POSITIVE_INFINITY);
 }
 
 const touch = (p: Playback, by: string, now: number) => { p.seq++; p.updatedBy = by; p.updatedAtMs = now; };
@@ -119,7 +118,7 @@ export function nearestIndexOf(queue: Track[], videoId: string, around: number):
 
 function setTrack(p: Playback, by: string, track: Track | null, positionMs: number, isPlaying: boolean, queueIndex: number | null, name: string, now: number) {
   p.track = track;
-  p.positionMs = Math.max(0, positionMs);
+  p.positionMs = Math.min(Math.max(0, positionMs), track?.durationMs && track.durationMs > 0 ? track.durationMs : Number.POSITIVE_INFINITY);
   p.isPlaying = isPlaying && track !== null;
   p.anchorMs = now + (p.isPlaying ? PLAY_LEAD_MS : 0);
   if (queueIndex !== null && queueIndex >= 0 && queueIndex < p.queue.length && track && p.queue[queueIndex].videoId === track.videoId) p.queueIndex = queueIndex;
@@ -282,14 +281,14 @@ export function applyControl(party: Party, member: Member, frame: Frame, now: nu
   const p = party.playback, by = member.memberId, pos = num(frame.positionMs);
   switch (action) {
     case "play": {
-      p.positionMs = Math.max(0, pos ?? positionAt(p, now)); p.isPlaying = true; p.anchorMs = now + PLAY_LEAD_MS; touch(p, by, now); break;
+      p.positionMs = Math.min(Math.max(0, pos ?? positionAt(p, now)), p.track?.durationMs && p.track.durationMs > 0 ? p.track.durationMs : Number.POSITIVE_INFINITY); p.isPlaying = true; p.anchorMs = now + PLAY_LEAD_MS; touch(p, by, now); break;
     }
     case "pause": {
-      p.positionMs = Math.max(0, pos ?? positionAt(p, now)); p.isPlaying = false; p.anchorMs = now; touch(p, by, now); break;
+      p.positionMs = Math.min(Math.max(0, pos ?? positionAt(p, now)), p.track?.durationMs && p.track.durationMs > 0 ? p.track.durationMs : Number.POSITIVE_INFINITY); p.isPlaying = false; p.anchorMs = now; touch(p, by, now); break;
     }
     case "seek":
       if (pos === null) return no("missing_position", "seek requires positionMs");
-      p.positionMs = Math.max(0, pos); p.anchorMs = now + (p.isPlaying ? PLAY_LEAD_MS : 0); touch(p, by, now); break;
+      p.positionMs = Math.min(Math.max(0, pos), p.track?.durationMs && p.track.durationMs > 0 ? p.track.durationMs : Number.POSITIVE_INFINITY); p.anchorMs = now + (p.isPlaying ? PLAY_LEAD_MS : 0); touch(p, by, now); break;
     case "setTrack": {
       const t = trackFromWire(frame.track);
       if (!t) return no("invalid_track", "Track must include videoId");

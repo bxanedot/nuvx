@@ -339,12 +339,19 @@ function maybeTopUpAutoplay(): void {
   const needed = MAX_QUEUED_AUTOPLAY - waiting.filter((t) => t.fromAutoplay).length;
   if (needed <= 0 || autoplaySeed === playing.videoId || topping) return;
   autoplaySeed = playing.videoId;
+  const partyCode = state.code;
   topping = (async () => {
     try {
       const [{ fetchRadio }, { extendStation }] = await Promise.all([import('@/data/music/api'), import('@/playback/queue/builder')]);
       const { candidates, seedIsVideo } = await fetchRadio(playing.videoId);
       const latest = useParty.getState();
-      if (latest.playback.track?.videoId !== playing.videoId) return;
+      if (
+        latest.code !== partyCode ||
+        !latest.playback.autoplayEnabled ||
+        autoplaySupplierId(latest.members, latest.hostOnlyControl) !== latest.you?.memberId ||
+        latest.playback.track?.videoId !== playing.videoId ||
+        partyQueueIndexOf(latest.queue, latest.playback, playing.videoId) < 0
+      ) return;
       const existing = [...usePlayer.getState().queue.map((e) => e.track), ...latest.queue.items.map(fromPartyTrack)];
       const extra = extendStation(existing, candidates, needed, seedIsVideo);
       const waitingIds = new Set(partyUpcomingAfter(latest.queue, latest.playback, playing.videoId).map((t) => t.videoId));
