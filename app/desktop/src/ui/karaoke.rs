@@ -7,6 +7,7 @@ mod glow;
 mod transform;
 mod instrumental;
 mod motion;
+mod model;
 mod word_look;
 mod word_mesh;
 mod word_painter;
@@ -21,6 +22,7 @@ use config::{Cfg, GLOW_INVISIBLE};
 use flow::{Flow, text_size};
 use word_mesh::{lit_gradient, push_quad};
 use word_look::{LitState, WordLook, word_look};
+use model::{Block, Deco, DecoBody, Group, Layout, Word};
 use motion::{glow_radius, letter_float, letter_waves, lerp, scroll_duration, transform_origin, wobble};
 #[cfg(test)]
 use instrumental::gap_times;
@@ -116,67 +118,6 @@ const LINE_SYNC_DELAY: f64 = 0.05;
 const LONG_GROUP_CHARS: usize = 20;
 const USER_SCROLL_RESUME: f64 = 25.0;
 const DECO_ENTRY: f64 = 0.35;
-
-#[derive(Clone)]
-struct Word {
-    text: String,
-    font: FontId,
-    start: f64,
-    dur: f64,
-    line_synced: bool,
-    bg: bool,
-    long: bool,
-    pos: Pos2,
-    w: f32,
-    h: f32,
-    group: usize,
-    letters: bool,
-    rtl: bool,
-}
-
-#[derive(Clone)]
-struct Group {
-    first: usize,
-    words: std::ops::Range<usize>,
-    wobbles: bool,
-}
-
-#[derive(Clone)]
-enum DecoBody {
-    Timed { words: Vec<Word>, groups: Vec<Group> },
-    Text(String, FontId),
-}
-
-#[derive(Clone)]
-struct Deco {
-    body: DecoBody,
-    rect: Rect,
-    pill: bool,
-}
-
-#[derive(Clone)]
-struct Block {
-    line: Option<usize>,
-    start: f64,
-    dur: f64,
-    instrumental: bool,
-    align: Align,
-    top: f32,
-    height: f32,
-    words: Vec<Word>,
-    groups: Vec<Group>,
-    decos: Vec<Deco>,
-    credits: Option<(String, FontId)>,
-}
-
-struct Layout {
-    key: u64,
-    width: f32,
-    blocks: Vec<Block>,
-    pad_top: f32,
-    content_h: f32,
-    richsync: bool,
-}
 
 pub enum Roman<'a> {
     Timed(&'a [Part], &'a str),
