@@ -35,8 +35,8 @@ function prepared(tracks: Track[], { fallbackArtwork, fallbackArtists }: ListCon
   });
 }
 
-export function playList(tracks: Track[], startIndex: number, context: ListContext) {
-  usePlayer.getState().playTracks(prepared(tracks, context), startIndex, context.source);
+export function playList(tracks: Track[], startIndex: number, context: ListContext, sourceIndices?: number[]) {
+  usePlayer.getState().playTracks(prepared(tracks, context), startIndex, context.source, sourceIndices);
 }
 
 export function shuffleList(tracks: Track[], context: ListContext) {
