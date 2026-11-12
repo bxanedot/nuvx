@@ -865,57 +865,18 @@ object InnertubeParser {
     private val LIBRARY_ICONS = setOf("LIBRARY_ADD", "LIBRARY_REMOVE", "LIBRARY_SAVED")
 
     fun parseLibraryState(root: JsonElement): LibraryState? {
-        val buttons = collectRenderers(root, "musicResponsiveHeaderRenderer")
-            .firstOrNull()
-            .a("buttons")
-            .orEmpty()
-        val save = buttons.firstNotNullOfOrNull { it.o("toggleButtonRenderer")?.takeIf { b -> b.isSaveToggle } }
-            ?: return null
-        if (save.s("isDisabled") == "true") return null
-        val play = buttons.firstNotNullOfOrNull { it.o("musicPlayButtonRenderer").o("playNavigationEndpoint") }
-        return LibraryState(
-            playlistId = play.o("watchPlaylistEndpoint").s("playlistId")
-                ?: play.o("watchEndpoint").s("playlistId")
-                ?: return null,
-            saved = save.s("isToggled") == "true",
-        )
+        return InnertubeLibraryStateParser.parseLibraryState(root)
     }
-
-    private val JsonElement?.isSaveToggle: Boolean
-        get() = o("defaultIcon").s("iconType") == "BOOKMARK_BORDER" ||
-            o("toggledIcon").s("iconType") == "BOOKMARK"
 
     fun parsePlaylistOwned(root: JsonElement): Boolean? {
-        if (collectRenderers(root, "musicEditablePlaylistDetailHeaderRenderer").isNotEmpty()) {
-            return true
-        }
-        val header = collectRenderers(root, "musicResponsiveHeaderRenderer").firstOrNull()
-            ?: return null
-        if (collectRenderers(header, "menuNavigationItemRenderer")
-                .any { it.o("icon").s("iconType") in OWNER_ICONS }
-        ) {
-            return true
-        }
-        return header.a("buttons").orEmpty().none { it.o("toggleButtonRenderer").isSaveToggle }
+        return InnertubeLibraryStateParser.parsePlaylistOwned(root)
     }
 
-    private val OWNER_ICONS = setOf("DELETE", "EDIT")
-
     fun parseUserPlaylists(root: JsonElement): List<UserPlaylist> =
-        parseUserPlaylists(parseLibraryItems(root))
+        InnertubeLibraryStateParser.parseUserPlaylists(root)
 
     fun parseUserPlaylists(items: List<ShelfItem>): List<UserPlaylist> =
-        items.mapNotNull { item ->
-            val browseId = item.browseId ?: return@mapNotNull null
-            if (!browseId.startsWith("VL")) return@mapNotNull null
-            if (NOT_EDITABLE.any { browseId.startsWith("VL$it") }) return@mapNotNull null
-            UserPlaylist(
-                playlistId = browseId.removePrefix("VL"),
-                title = item.title,
-                subtitle = item.subtitle,
-                thumbnailUrl = item.thumbnailUrl,
-            )
-        }
+        InnertubeLibraryStateParser.parseUserPlaylists(items)
 
     private fun parseTwoRowItem(renderer: JsonObject?): ShelfItem? {
         if (renderer == null) return null
@@ -958,8 +919,6 @@ object InnertubeParser {
             it.lowercase() !in TYPE_WORDS && !it.matches(TALLY) && !it.matches(DURATION)
         } ?: subtitle
     }
-
-    private val NOT_EDITABLE = listOf("LM", "SE", "RD", "OLAK", "MPRE")
 
     private fun JsonElement?.hasExplicitBadge(): Boolean? =
         true.takeIf {
