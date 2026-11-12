@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { DetailHeader, detailButton } from '@/components/music/DetailHeader';
 import { playList, shuffleList } from '@/components/music/play';
-import { EmptyState, LoadError, NeedsExtension } from '@/components/music/States';
+import { EmptyState, LoadError, LoadMoreError, NeedsExtension } from '@/components/music/States';
 import { TrackList } from '@/components/music/TrackList';
 import { createPlaylist } from '@/data/music/api';
 import { useSignedIn } from '@/data/music/queries';
@@ -27,6 +27,7 @@ export default function SpotifyPlaylistPage() {
 
   if (extension.state === 'missing') return <NeedsExtension what="your Spotify playlists" />;
   if (!signedIn) return <EmptyState title="Sign in to Spotify" detail="Open Spotify in the sidebar to connect your account." />;
+  if (info.isError && !info.data) return <LoadError error={info.error} onRetry={() => void info.refetch()} />;
   if (rows.status === 'error' && !rows.rows.length) return <LoadError error={rows.error} onRetry={rows.retry} />;
   if (!info.data || (rows.status === 'loading' && !rows.rows.length)) return <PlaylistSkeleton />;
 
@@ -62,6 +63,7 @@ export default function SpotifyPlaylistPage() {
         extra={<ImportButton title={info.data.name} videoIds={playable.map((t) => t.videoId)} ready={rows.matching === 0} />}
       />
       <TrackList tracks={rows.rows} variant="playlist" source={context.source} />
+      {rows.status === 'error' && rows.rows.length > 0 && <LoadMoreError onRetry={rows.retry} />}
       <footer className={detailFooter}>
         <p>From Spotify. Songs are matched to YouTube Music by title, artist and length.</p>
       </footer>
