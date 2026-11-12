@@ -12,7 +12,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.Timeline
 import androidx.core.net.toUri
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.audio.AudioProcessor
@@ -402,8 +401,6 @@ class PlaybackService : MediaLibraryService() {
         canLike = ::canLike,
     )
 
-    private var lastRepeatMode = Player.REPEAT_MODE_OFF
-
     private val lyricsController = PlaybackLyricsController(
         context = { this@PlaybackService },
         scope = scope,
@@ -411,144 +408,42 @@ class PlaybackService : MediaLibraryService() {
         crossfade = { crossfade },
         loopMixLyricsTimeoutMs = LOOP_MIX_LYRICS_TIMEOUT_MS,
     )
-    private val playbackListener = object : Player.Listener {
-        override fun onEvents(player: Player, events: Player.Events) {
-            val activePlayer = this@PlaybackService.player ?: return
-            if (player === activePlayer) audioEffectSession.update(activePlayer)
-        }
-
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            val exoPlayer = player ?: return
-            if (isPlaying) {
-                trackSelectedAt?.let {
-                    TrackLog.d(
-                        "nuvx",
-                        "TIMING first audio: ${SystemClock.elapsedRealtime() - it}ms since track selected",
-                        about = exoPlayer.currentMediaItem?.mediaId,
-                    )
-                    trackSelectedAt = null
-                }
-                errorRecovery.onAudible(exoPlayer.currentMediaItem?.mediaId)
-            }
-            if (isPlaying) registerCurrentPlay()
-            if (isPlaying) prefetchAround(exoPlayer) else cancelPrefetch()
-            if (isPlaying) streamResolution.lookForBetterCopy(exoPlayer)
-            savePlaybackState(exoPlayer)
-            publishWidgetState()
-
-            val song = exoPlayer.currentMediaItem?.toSong()
-            val durationMs = exoPlayer.duration.takeIf { it > 0 }
-            scrobbling.onPlayerStateChanged(isPlaying, song, durationMs)
-
-            if (!isPlaying) ListeningRecorder.onStopped()
-
-            if (isPlaying && song != null) {
-                listenBrainz.onIsPlayingChanged(song, exoPlayer.currentPosition, durationMs)
-            }
-
-            if (isPlaying) {
-                pushDiscordPresence(exoPlayer)
-                startLyricsTicker()
-            } else {
-                clearDiscordPresence()
-                stopLyricsTicker()
-            }
-        }
-
-        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            if (playWhenReady) player?.let(speakers::onLocalStartedPlaying)
-            publishWidgetState(playing = playWhenReady)
-            partySync?.onPlayWhenReadyChanged(playWhenReady, reason)
-        }
-
-        override fun onPositionDiscontinuity(
-            oldPosition: Player.PositionInfo,
-            newPosition: Player.PositionInfo,
-            reason: Int,
-        ) {
-            val exoPlayer = player ?: return
-            if (reason == Player.DISCONTINUITY_REASON_SEEK) {
-                directSourceWindow.onSeek()
-                if (exoPlayer.isPlaying) pushDiscordPresence(exoPlayer)
-                updateLyricSubtitle()
-                WearBridge.republish(this@PlaybackService, exoPlayer)
-            }
-        }
-
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            val exoPlayer = player ?: return
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED &&
-                mediaItem?.mediaId != null &&
-                mediaItem.mediaId == swappingMediaId
-            ) {
-                swappingMediaId = null
-                return
-            }
-
-            speakers.onLocalTransition(mediaItem, reason)
-
-            onTrackBecameCurrent(
-                mediaItem,
-                previousEnded = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT,
-                reason = reason,
-            )
-            QueueCoordinator.consumePlayedUserQueue(exoPlayer)
-
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                partySync?.onLocalIntent()
-            }
-            autoplay.resetAndLoadForCurrentTrack()
-            loadLyricsForCurrentTrack()
-            if (exoPlayer.isPlaying) startLyricsTicker()
-            refreshCustomLayouts()
-        }
-
-        override fun onPlayerError(error: PlaybackException) {
-            val exoPlayer = player ?: return
-            errorRecovery.recoverFrom(error, exoPlayer)
-        }
-
-        override fun onPlaybackStateChanged(state: Int) {
-            val exoPlayer = player ?: return
-            if (state == Player.STATE_ENDED) {
-                SleepTimer.cancel()
-                PlaybackTracker.onPlaybackFinished(lastPositionSeconds)
-                lastPositionSeconds = 0
-                listenBrainz.onPlaybackEnded(exoPlayer)
-                autoplay.refreshIfQueueEmpty()
-            }
-        }
-
-        override fun onRepeatModeChanged(repeatMode: Int) {
-            val previous = lastRepeatMode
-            lastRepeatMode = repeatMode
-            speakers.onLocalRepeatChanged(repeatMode)
-            player?.let { WearBridge.republish(this@PlaybackService, it) }
-            player?.let { activeLoudness().nextMediaId = nextMediaIdOf(it) }
-            when {
-                repeatMode == Player.REPEAT_MODE_ALL -> {
-                    autoplay.stashAutoplayTracks()
-                    if (boundedQueue.active) boundedQueue.scheduleTopUp()
-                }
-                previous == Player.REPEAT_MODE_ALL -> autoplay.restoreAutoplayTracks()
-            }
-            autoplay.loadForCurrentTrack()
-        }
-
-        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-            val exoPlayer = player ?: return
-            musicOnlyController.convertVideosAround(exoPlayer)
-            if (exoPlayer.isPlaying) prefetchAround(exoPlayer)
-            activeLoudness().nextMediaId = nextMediaIdOf(exoPlayer)
-            if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
-                speakers.onLocalQueueChanged()
-                saveQueueSnapshot(exoPlayer)
-                refreshCustomLayouts()
-                autoplay.refreshIfQueueEmpty()
-            }
-        }
-    }
+    private val playbackListener = PlaybackPlayerListener(
+        context = this,
+        player = { player },
+        audioEffectSession = audioEffectSession,
+        trackSelectedAt = { trackSelectedAt },
+        clearTrackSelectedAt = { trackSelectedAt = null },
+        lastPositionSeconds = { lastPositionSeconds },
+        clearLastPositionSeconds = { lastPositionSeconds = 0 },
+        errorRecovery = errorRecovery,
+        registerCurrentPlay = ::registerCurrentPlay,
+        prefetchAround = ::prefetchAround,
+        cancelPrefetch = ::cancelPrefetch,
+        lookForBetterCopy = streamResolution::lookForBetterCopy,
+        savePlaybackState = ::savePlaybackState,
+        publishWidgetState = ::publishWidgetState,
+        scrobbling = scrobbling,
+        listenBrainz = listenBrainz,
+        discordPresence = discordPresence,
+        partySync = { partySync },
+        speakers = { speakers },
+        directSourceWindow = directSourceWindow,
+        swappingMediaId = { swappingMediaId },
+        clearSwappingMediaId = { swappingMediaId = null },
+        onTrackBecameCurrent = ::onTrackBecameCurrent,
+        autoplay = autoplay,
+        loadLyricsForCurrentTrack = ::loadLyricsForCurrentTrack,
+        startLyricsTicker = ::startLyricsTicker,
+        stopLyricsTicker = ::stopLyricsTicker,
+        updateLyricSubtitle = ::updateLyricSubtitle,
+        refreshCustomLayouts = ::refreshCustomLayouts,
+        boundedQueue = boundedQueue,
+        activeLoudness = ::activeLoudness,
+        nextMediaIdOf = ::nextMediaIdOf,
+        musicOnlyController = musicOnlyController,
+        saveQueueSnapshot = ::saveQueueSnapshot,
+    )
 
     private val formatListener = PlaybackAudioAnalyticsListener(
         onDolbyAtmosChanged = { activeTrackIsDolbyAtmos = it },
@@ -701,7 +596,7 @@ class PlaybackService : MediaLibraryService() {
         } else {
             widgetPublisher.clear()
         }
-        lastRepeatMode = exoPlayer.repeatMode
+        playbackListener.setLastRepeatMode(exoPlayer.repeatMode)
         exoPlayer.addListener(playbackListener)
         partySync = PartySync(scope) { player }.also { it.start() }
         scope.launch {
