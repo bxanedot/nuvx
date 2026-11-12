@@ -2,11 +2,13 @@ use std::collections::HashSet;
 
 use egui::{Color32, Rect, RichText, Sense, Ui, Vec2, pos2, vec2};
 
-use super::pages::{card_row, mood_tiles, page_title, placeholder, Rows, CARD};
+use super::feed_pages::mood_tiles;
+use super::pages::{card_row, page_title, placeholder, Rows, CARD};
 use super::widgets::{self, named, paint_cover, track_row, RowOpts};
 use super::{Action, App, Page};
 use crate::model::{Card, Target};
 use crate::theme;
+
 fn youtube_results(app: &mut App, ui: &mut Ui, q: &str, pick: bool, now: f64) {
     let q = q.trim();
     let have = app.youtube_results.as_ref().filter(|(k, _)| k == q);
