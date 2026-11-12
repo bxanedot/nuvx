@@ -31,8 +31,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -60,7 +58,7 @@ object YtMusicRepository {
         HomeFeed(InnertubeParser.parseHome(home), InnertubeParser.continuationToken(home))
     }
 
-    suspend fun homeRecentlyPlayed(): Result<HomeShelf?> = call("home:recent") { recentlyPlayed() }
+    suspend fun homeRecentlyPlayed(): Result<HomeShelf?> = YtMusicHistoryRepository.homeRecentlyPlayed()
 
     suspend fun homeSupplement(browseId: String): Result<List<HomeShelf>> = call("home:$browseId") {
         shelvesOf(browseId)
@@ -79,58 +77,13 @@ object YtMusicRepository {
         )
     }
 
-    private suspend fun recentlyPlayed(): HomeShelf? {
-        val ytSongs = if (Innertube.cookie != null) {
-            runCatching { fetchHistory() }.getOrDefault(emptyList())
-        } else {
-            emptyList()
-        }
+    suspend fun history(): Result<List<Song>> = YtMusicHistoryRepository.history()
 
-        val allSongs = ytSongs.distinctBy { it.videoId }.take(RECENT_LIMIT)
-        if (allSongs.isEmpty()) return null
-        return HomeShelf(
-            title = RECENT_TITLE,
-            items = allSongs.map {
-                ShelfItem(
-                    title = it.title,
-                    subtitle = it.artist,
-                    thumbnailUrl = it.thumbnailUrl,
-                    videoId = it.videoId,
-                    browseId = null,
-                )
-            },
-        )
-    }
+    suspend fun recents(): Result<List<Song>> = YtMusicHistoryRepository.recents()
 
-    private suspend fun fetchHistory(): List<Song> = historyLock.withLock {
-        val cookie = Innertube.cookie
-        historyMemo?.takeIf { it.cookie == cookie && System.currentTimeMillis() - it.at < HISTORY_SHARE_MS }
-            ?.let { return@withLock it.songs }
-        InnertubeParser.collectSongsDeep(Innertube.browse(HISTORY)).distinctBy { it.videoId }
-            .also { historyMemo = HistoryMemo(cookie, System.currentTimeMillis(), it) }
-    }
+    suspend fun removeFromHistory(token: String): Result<Unit> = YtMusicHistoryRepository.removeFromHistory(token)
 
-    private val historyLock = Mutex()
-
-    private const val HISTORY_SHARE_MS = 5_000L
-
-    suspend fun history(): Result<List<Song>> = call("history") { fetchHistory() }
-
-    suspend fun recents(): Result<List<Song>> = call("recents") {
-        if (Innertube.cookie != null) {
-            val history = runCatching { fetchHistory() }.getOrDefault(emptyList())
-            if (history.isNotEmpty()) return@call history
-        }
-        emptyList()
-    }
-
-    suspend fun removeFromHistory(token: String): Result<Unit> = call("removeFromHistory") {
-        Innertube.sendFeedback(token)
-    }
-
-    fun invalidateHistoryCache() {
-        historyMemo = null
-    }
+    fun invalidateHistoryCache() = YtMusicHistoryRepository.invalidateHistoryCache()
 
     suspend fun quickPicks(excludeSongIds: Set<String> = emptySet()): Result<List<Song>> = call("quickPicks") {
         val homeRaw = runCatching { Innertube.browse("FEmusic_home") }.getOrNull()
@@ -212,10 +165,7 @@ object YtMusicRepository {
         allHomeTrackSongs.ifEmpty { exploreSongs }
     }
 
-    private const val HISTORY = "FEmusic_history"
     const val RECENT_TITLE = "Recents"
-
-    private const val RECENT_LIMIT = 20
 
     private suspend fun shelvesOf(browseId: String): List<HomeShelf> =
         InnertubeParser.parseHome(Innertube.browse(browseId))
@@ -691,24 +641,7 @@ object YtMusicRepository {
         InnertubeParser.parseTwoRowItemsDeep(Innertube.browse("FEmusic_mixed_for_you"))
     }
 
-    suspend fun recentHistory(): Result<List<Song>> = call("history:recent") {
-        if (Innertube.cookie == null) return@call emptyList()
-        val memo = historyMemo
-        if (memo != null && memo.cookie == Innertube.cookie &&
-            System.currentTimeMillis() - memo.at < HISTORY_MEMO_MS
-        ) {
-            memo.songs
-        } else {
-            fetchHistory()
-        }
-    }
-
-    private class HistoryMemo(val cookie: String?, val at: Long, val songs: List<Song>)
-
-    @Volatile
-    private var historyMemo: HistoryMemo? = null
-
-    private const val HISTORY_MEMO_MS = 120_000L
+    suspend fun recentHistory(): Result<List<Song>> = YtMusicHistoryRepository.recentHistory()
 
     internal suspend fun <T> call(label: String, block: suspend () -> T): Result<T> =
         withContext(Dispatchers.IO) {
