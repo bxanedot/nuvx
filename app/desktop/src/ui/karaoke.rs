@@ -4,6 +4,7 @@ mod edge_fade;
 use edge_fade::fade_edges;
 mod glow_raster;
 mod glow;
+mod transform;
 mod instrumental;
 mod motion;
 mod word_look;
@@ -23,6 +24,7 @@ use motion::{glow_radius, letter_float, letter_waves, lerp, scroll_duration, tra
 use instrumental::gap_times;
 use instrumental::paint_instrumental;
 use glow::Glow;
+use transform::{Xf, paint_galley};
 
 use egui::epaint::text::FontsView;
 use egui::layers::ShapeIdx;
@@ -849,43 +851,6 @@ fn same_lines(l: &Layout, blocks: &[Block]) -> bool {
 
 fn nearest_agent(l: &Lyrics, i: usize) -> Option<String> {
     l.lines[i + 1..].iter().chain(l.lines[..i].iter().rev()).find(|x| !x.instrumental && x.agent.is_some()).and_then(|x| x.agent.clone())
-}
-
-#[derive(Clone, Copy)]
-struct Xf {
-    origin: Pos2,
-    scale: f32,
-    content: Pos2,
-}
-
-impl Xf {
-    fn point(&self, p: Pos2) -> Pos2 {
-        let s = self.content + p.to_vec2();
-        self.origin + (s - self.origin) * self.scale
-    }
-    fn rect(&self, r: Rect) -> Rect {
-        Rect::from_min_max(self.point(r.min), self.point(r.max))
-    }
-}
-
-fn paint_galley(painter: &egui::Painter, g: &Galley, at: Pos2, xf: &Xf, color: Color32, atlas: [usize; 2]) {
-    let mut mesh = Mesh::with_texture(TextureId::default());
-    let none: [f32; 0] = [];
-    for row in &g.rows {
-        for gl in &row.row.glyphs {
-            let uv = gl.uv_rect;
-            if uv.is_nothing() {
-                continue;
-            }
-            let r = Rect::from_min_size(at + row.pos.to_vec2() + gl.pos.to_vec2() + uv.offset, uv.size);
-            let uvr = Rect::from_min_max(
-                pos2(uv.min[0] as f32 / atlas[0] as f32, uv.min[1] as f32 / atlas[1] as f32),
-                pos2(uv.max[0] as f32 / atlas[0] as f32, uv.max[1] as f32 / atlas[1] as f32),
-            );
-            push_quad(&mut mesh, xf.rect(r), uvr, color, &|_| 1.0, &none);
-        }
-    }
-    painter.add(Shape::mesh(mesh));
 }
 
 pub struct GlowJob {
