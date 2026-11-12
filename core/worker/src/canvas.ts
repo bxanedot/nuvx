@@ -57,18 +57,22 @@ export async function shareCanvas(id: string, token: string, fetchFn: typeof fet
     if (!title || !author_name) return false;
     const headers = { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "nuvx-canvas-upload" };
     const path = `${REPO_FILE}index.json`;
-    const existing = await fetchFn(path, { headers });
-    let sha: string | undefined;
-    let index: Record<string, string> = {};
-    if (existing.ok) {
-      const file = await existing.json() as { sha?: string; content?: string };
-      sha = file.sha;
-      const bytes = Uint8Array.from(atob((file.content ?? "").replace(/\s/g, "")), char => char.charCodeAt(0));
-      index = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, string>;
-    } else if (existing.status !== 404) return false;
-    index[canvasKey(title, author_name)] = id;
-    const content = base64(new TextEncoder().encode(JSON.stringify(index, null, 2) + "\n"));
-    const put = await fetchFn(path, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ message: `Share canvas ${id}`, content, branch: "main", ...(sha ? { sha } : {}) }) });
-    return put.ok;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await fetchFn(path, { headers });
+      let sha: string | undefined;
+      let index: Record<string, string> = {};
+      if (existing.ok) {
+        const file = await existing.json() as { sha?: string; content?: string };
+        sha = file.sha;
+        const bytes = Uint8Array.from(atob((file.content ?? "").replace(/\s/g, "")), char => char.charCodeAt(0));
+        index = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, string>;
+      } else if (existing.status !== 404) return false;
+      index[canvasKey(title, author_name)] = id;
+      const content = base64(new TextEncoder().encode(JSON.stringify(index, null, 2) + "\n"));
+      const put = await fetchFn(path, { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ message: `Share canvas ${id}`, content, branch: "main", ...(sha ? { sha } : {}) }) });
+      if (put.ok) return true;
+      if (put.status !== 409) return false;
+    }
+    return false;
   } catch { return false; }
 }
