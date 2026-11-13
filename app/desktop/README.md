@@ -15,7 +15,3 @@ cargo build --release
 
 Each system has its own folder: `windows/` (the Inno Setup installer, `windows/nuvx.iss`), `linux/` and `macos/`. Last.fm needs `LASTFM_API_KEY` and
 `LASTFM_SECRET` set at build time; without them that sign-in is off.
-
-## Credits
-
-Based on ytm-rs by Kushagra Singh (GPL-3.0). nuvx for desktop is GPL-3.0 too; see `LICENSE`.
