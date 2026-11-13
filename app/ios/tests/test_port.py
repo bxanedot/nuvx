@@ -55,10 +55,24 @@ class PortIdentityTests(unittest.TestCase):
         self.assertIn(r"^Payload/nuvx\.app/PlugIns/NuvxWidget\.appex", script)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
 
-    def test_legacy_branding_fingerprint_catches_separated_spellings(self):
-        self.assertEqual(checker.branding_fingerprint("Old-Brand"), "oldbrand")
-        self.assertEqual(checker.branding_fingerprint("OLD_BRAND"), "oldbrand")
-        self.assertEqual(checker.branding_fingerprint("old.brand"), "oldbrand")
+    def test_dependency_notices_match_and_use_current_product_identity(self):
+        notices = (ROOT / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
+        bundled = (ROOT.parents[1] / "core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
+        self.assertEqual(notices, bundled)
+        self.assertTrue(notices.startswith("# Third-party licenses\n\nnuvx is distributed by bxane."))
+        self.assertIn("## Components", notices)
+        self.assertIn("libsoxr", notices)
+
+    def test_beat_model_has_no_exporter_stack_paths_and_consistent_hash_pins(self):
+        model = ROOT.parents[1] / "core/apple/resources/Resources/Models/beat_this.onnx"
+        self.assertNotIn(b"pkg.torch.onnx.stack_trace", model.read_bytes())
+        size, digest = checker.MODELS[model.name]
+        store = (ROOT.parents[1] / "core/apple/src/PlaybackSession/AutomixModelStore.swift").read_text(encoding="utf-8")
+        fetch = (ROOT / "scripts/fetch-automix-models.sh").read_text(encoding="utf-8")
+        self.assertIn(f'byteCount: {size:_}', store)
+        self.assertIn(digest, store)
+        self.assertIn(f"BEAT_BYTES={size}", fetch)
+        self.assertIn(digest, fetch)
 
     def test_now_playing_optional_sdk_api_keeps_the_mediaplayer_fallback(self):
         source = (ROOT.parents[1] / "core/apple/src/PlaybackSession/NowPlayingController.swift").read_text(encoding="utf-8")

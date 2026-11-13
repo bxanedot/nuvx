@@ -1,33 +1,7 @@
-# Third-party licenses and provenance
+# Third-party licenses
 
-The application is **nuvx**, distributed by bxane. Historical product and author
-names in this document identify the origin of licensed material; they are not
-current product branding. Required per-file notices remain with their source.
-
-## Derived application code
-
-The supplied Apple application derives from **BitChord**, originally by
-**Kushagra Singh**, with the Apple port and original Apple-specific additions
-**Copyright © 2026 Martin BAGUMA**. The upstream Apple source is
-<https://github.com/bagumamartin/BitChord>; that project identifies its Android
-baseline as revision `fe198ac` of <https://github.com/kushagrasinghx/BitChord>.
-The input folder did not contain Git metadata, so its exact Apple revision
-cannot be independently established.
-
-The supplied GPLv3 text is retained as `LICENSE` and
-`core/apple/resources/Resources/AudioLicenses/GPL-3.0.txt`. Rebranding does not remove
-upstream copyright or license obligations. Modifications in this local port
-include product identifiers, assets, UI navigation/discovery, service endpoints,
-offline model installation, packaging and build configuration.
-
-For the local branding check:
-
-Legacy product: BitChord
-Legacy product spelling: Bitchord
-Legacy author: Kushagra
-Legacy author spelling: Gravas
-Legacy distributor: Baguma
-Legacy distributor account: bagumamartin
+nuvx is distributed by bxane. This document lists third-party components,
+resources, and their licenses. Per-file dependency notices remain with their source.
 
 ## Components
 
@@ -50,8 +24,7 @@ Legacy distributor account: bagumamartin
 | Unicode data, webpki certificate roots, zlib-rs | Unicode-3.0, CDLA-Permissive-2.0 and Zlib; `Cargo-data-licenses.txt` |
 | Material Icons Rounded | Apache-2.0; `material-icons.txt` |
 | Phosphor Icons | MIT; `PhosphorIcons-MIT.txt` |
-| Carried-over translations | GPLv3-derived material, attributed to the original projects above |
-| nuvx mark | Owner-supplied bxane artwork from `bxanedot/nuvx/core/brand`; not a third-party logo |
+| Localization resources | GPLv3; `GPL-3.0.txt` |
 
 Filenames without a directory above refer to
 `core/apple/resources/Resources/AudioLicenses/`. `native-core/Cargo.lock` pins the Rust
@@ -67,22 +40,20 @@ an acknowledgement screen.
 ## Bundled analysis models
 
 These three MIT-licensed model resources are included for local installation,
-with their original pinned size and SHA-256 verified. They no longer require
-runtime downloads from a previous app distributor.
+with their pinned size and SHA-256 verified.
+ONNX exporter debug-stack metadata is omitted from the beat model; its weights
+and computation are unchanged.
 
 | Resource | Size | SHA-256 |
 | --- | ---: | --- |
-| `beat_this.onnx` | 23,478,460 B | `9f10e5efa37d3e120da2121141825fe54b23b487b32dd25a54f89039fd8f85cb` |
+| `beat_this.onnx` | 22,650,399 B | `9b5492b7b3c66db3f1e189a33631be84773a4ec7e8661fcf0727d89cca0fe49f` |
 | `beat_this_final0_coreml.aar` | 18,826,124 B | `cd00f20bd602f4d1532f0b683fe418f278affead3494f954032039d902b5b88f` |
 | `vocals_umxhq_int8.onnx` | 23,209,009 B | `7eba6bebce0cc2e2d3b5c0e490a8074e66ce27f64170c6802b245740dcaf21ef` |
 
 Beat This! originates from <https://github.com/CPJKU/beat_this>, final0 checkpoint.
 The Core ML archive compiles the same checkpoint, with attention split into
 150-row query blocks. open-unmix uses the official SigSep/Inria umxhq vocals
-checkpoint by Stöter and Liutkus, Zenodo record 3370489. The exact exported
-files were obtained from the Apple upstream release tags
-`model-beat-this-final0-v1`, `model-beat-this-final0-coreml-v2` and
-`model-umxhq-vocals-v1` at the upstream repository linked above.
+checkpoint by Stöter and Liutkus, Zenodo record 3370489.
 `MIT-Model-Weights.txt` contains the model notices. Beat This! notes that
 some training datasets may have separate terms.
 

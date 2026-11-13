@@ -79,8 +79,8 @@ final class AutomixModelStore {
             fileName: "beat_this.onnx",
             displayName: "Beat + downbeat detection",
             detail: "Beat This! reads the beat grid and downbeats, so transitions land on the music rather than near it.",
-            byteCount: 23_478_460,
-            sha256: "9f10e5efa37d3e120da2121141825fe54b23b487b32dd25a54f89039fd8f85cb",
+            byteCount: 22_650_399,
+            sha256: "9b5492b7b3c66db3f1e189a33631be84773a4ec7e8661fcf0727d89cca0fe49f",
             url: bundled("beat_this.onnx")
         )
 
