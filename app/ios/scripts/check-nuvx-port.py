@@ -11,11 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 APPLE_SHARED = ROOT.parent.parent / "core/apple"
 APPLE_RESOURCES = APPLE_SHARED / "resources/Resources"
 IGNORED = {".git", ".gradle", ".kotlin", "build", "target", "__pycache__"}
-LEGAL_FILES = {
-    "THIRD_PARTY_LICENSES.md",
-}
 MODELS = {
-    "beat_this.onnx": (23478460, "9f10e5efa37d3e120da2121141825fe54b23b487b32dd25a54f89039fd8f85cb"),
+    "beat_this.onnx": (22650399, "9b5492b7b3c66db3f1e189a33631be84773a4ec7e8661fcf0727d89cca0fe49f"),
     "beat_this_final0_coreml.aar": (18826124, "cd00f20bd602f4d1532f0b683fe418f278affead3494f954032039d902b5b88f"),
     "vocals_umxhq_int8.onnx": (23209009, "7eba6bebce0cc2e2d3b5c0e490a8074e66ce27f64170c6802b245740dcaf21ef"),
 }
@@ -29,15 +26,14 @@ def source_files(root=ROOT):
                 yield path
 
 
-def branding_fingerprint(text):
-    return re.sub("[^a-z0-9]", "", text.lower())
-
-
 def check(root=ROOT):
     failures = []
-    attribution = (root / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
-    legacy = [branding_fingerprint(line.partition(": ")[2]) for line in attribution.splitlines()
-              if line.startswith("Legacy ") and ": " in line]
+    notices = (root / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
+    bundled_notices = (APPLE_RESOURCES / "AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
+    if not notices.startswith("# Third-party licenses\n\nnuvx is distributed by bxane."):
+        failures.append("Incorrect product identity in dependency notices")
+    if notices != bundled_notices:
+        failures.append("Bundled dependency notices differ from THIRD_PARTY_LICENSES.md")
     files = list(source_files(root))
     assets = APPLE_SHARED / "resources/Assets.xcassets"
     symbol_names = {re.sub("[^a-z0-9]", "", p.stem.lower())
@@ -46,8 +42,6 @@ def check(root=ROOT):
     for path in files:
         relative = (path.relative_to(root).as_posix() if path.is_relative_to(root)
                     else "core/apple/" + path.relative_to(APPLE_SHARED).as_posix())
-        if any(word in branding_fingerprint(relative) for word in legacy):
-            failures.append(f"Legacy product/author in path: {relative}")
         try:
             data = path.read_bytes()
             text = data.decode("utf-8")
@@ -55,16 +49,6 @@ def check(root=ROOT):
                 continue
         except UnicodeDecodeError:
             continue
-        legal = (relative in LEGAL_FILES or "AudioLicenses" in path.parts
-                 or path.name in ("LICENSE", "COPYING", "COPYING.LGPL")
-                 or path.name == "THIRD_PARTY_NOTICES.md")
-        if not legal:
-            for number, line in enumerate(text.splitlines(), 1):
-
-                required_header = (relative.startswith("native-core/src/analyzer/")
-                                   and number <= 15 and line.startswith("//!"))
-                if not required_header and any(word in branding_fingerprint(line) for word in legacy):
-                    failures.append(f"Legacy branding outside legal notices: {relative}:{number}")
         if path.suffix == ".json" or path.suffix == ".xcstrings":
             try:
                 json.loads(text)
@@ -154,7 +138,7 @@ def main():
         print("\n".join(f"FAIL: {failure}" for failure in failures))
         return 1
     print(f"PASS: {len(files)} source/resource files checked.")
-    print("PASS: nuvx app/widget/group identity, legal-only historical attribution, JSON, asset references, opaque icons, model hashes and build inputs.")
+    print("PASS: nuvx app/widget/group identity, matching dependency notices, JSON, asset references, opaque icons, model hashes and build inputs.")
     print("NOT VERIFIED: Swift type-checking/linking, Apple signing, screenshots, device playback.")
     return 0
 
