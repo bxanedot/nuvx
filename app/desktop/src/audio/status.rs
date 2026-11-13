@@ -11,6 +11,8 @@ fn now_ms() -> u64 {
 #[derive(Default)]
 pub struct AudioStatus {
     pub position_ms: AtomicU64,
+    held_position_ms: AtomicU64,
+    position_held: AtomicBool,
     pub(super) sampled_at: AtomicU64,
     pub duration_ms: AtomicU64,
     pub playing: AtomicBool,
@@ -35,16 +37,33 @@ pub struct AudioStatus {
 
 impl AudioStatus {
     pub fn position(&self) -> Duration {
-        Duration::from_millis(self.position_ms.load(Ordering::Relaxed))
+        let pos = if self.position_held.load(Ordering::Acquire) {
+            self.held_position_ms.load(Ordering::Relaxed)
+        } else {
+            self.position_ms.load(Ordering::Relaxed)
+        };
+        Duration::from_millis(pos)
     }
 
     pub fn position_smooth(&self) -> Duration {
+        if self.position_held.load(Ordering::Acquire) {
+            return Duration::from_millis(self.held_position_ms.load(Ordering::Relaxed));
+        }
         let pos = self.position_ms.load(Ordering::Relaxed);
         if !self.playing.load(Ordering::Relaxed) {
             return Duration::from_millis(pos);
         }
         let age = now_ms().saturating_sub(self.sampled_at.load(Ordering::Relaxed)).min(250);
         Duration::from_millis(pos + age)
+    }
+
+    pub(crate) fn hold_position(&self, at: Duration) {
+        self.held_position_ms.store(at.as_millis() as u64, Ordering::Relaxed);
+        self.position_held.store(true, Ordering::Release);
+    }
+
+    pub(super) fn release_position(&self) {
+        self.position_held.store(false, Ordering::Release);
     }
 
     pub fn outgoing_position(&self) -> Duration {
