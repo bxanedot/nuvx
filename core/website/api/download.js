@@ -78,7 +78,11 @@ module.exports = async (req, res) => {
       if (latest.status === 302 && tag.origin === 'https://github.com' && version) {
         const candidates = platform === 'android'
           ? [`nuvx-v${version}_${androidAbi(params, req)}.apk`, files.android.replace('{v}', version)]
-          : [files[platform].replace('{v}', version)];
+          : platform === 'mac-arm' || platform === 'mac-intel'
+            ? [`nuvx-setup-${version}-macos-universal.dmg`, files[platform].replace('{v}', version)]
+            : platform === 'linux'
+              ? [`nuvx-setup-${version}-linux-universal.tar.gz`, files[platform].replace('{v}', version)]
+              : [files[platform].replace('{v}', version)];
         for (const candidate of candidates) {
           const asset = releases + '/download/v' + version + '/' + candidate;
           const response = await fetch(asset, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });

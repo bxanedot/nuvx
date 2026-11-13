@@ -56,10 +56,10 @@
 | **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `nuvx-v*.apk` |
 | **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `NuvxTV-v*.apk` |
 | **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | Open **Settings → Wear OS** in the phone app. [Wear OS guide](app/android/wearos/README.md) |
-| **Windows** | Windows 10+, x64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · setup `.exe` or portable `.zip` |
+| **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
 | **iPhone or iPad** | iOS/iPadOS 18+; unverified source port | [iOS install and sideload guide](app/ios/README.md#install-on-iphone-or-ipad); IPA availability depends on the release |
-| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `.dmg` or portable `.zip`; ad-hoc signed, not notarized |
-| **Linux** | x86-64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · install or portable `.tar.gz` |
+| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.dmg`; ad-hoc signed, not notarized |
+| **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal installer `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
 For Android, download the APK for your device and allow your browser or file manager to install it when prompted. The release notes list desktop packages by architecture and include signing details.

@@ -76,3 +76,14 @@ test('macOS download names match Rust Apple silicon and Intel release packages',
     assert.equal(result.headers.Location, `https://github.com/bxanedot/nuvx/releases/download/v0.8.0/${name}`);
   }
 });
+
+test('desktop downloads prefer universal packages while retaining older release fallbacks', async () => {
+  for (const [platform, name] of [
+    ['mac-arm', 'nuvx-setup-0.8.0-macos-universal.dmg'],
+    ['mac-intel', 'nuvx-setup-0.8.0-macos-universal.dmg'],
+    ['linux', 'nuvx-setup-0.8.0-linux-universal.tar.gz'],
+  ]) {
+    const result = await request('', new Set([name]), '', platform);
+    assert.equal(result.headers.Location, `https://github.com/bxanedot/nuvx/releases/download/v0.8.0/${name}`);
+  }
+});

@@ -100,7 +100,7 @@ from Windows.
 
 ## GitHub Actions builds
 
-The **Apple builds** workflow builds the iOS port and the Rust macOS app on
+The **Apple builds** workflow builds the iOS port and the universal Rust macOS app on
 GitHub-hosted Macs for Apple-related pull requests, pushes to `main`, and
 manual runs. You do not need to own a Mac to trigger it.
 
