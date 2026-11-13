@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-nightly-release
-  cancel-in-progress: false
+  group: android-nightly-release-${{ github.ref }}
+  cancel-in-progress: true
 
 defaults:
   run:
@@ -50,6 +50,15 @@ jobs:
           STABLE_VERSION: ${{ steps.metadata.outputs.stable_version }}
           SOURCE_REF: ${{ steps.metadata.outputs.source_ref }}
         run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.draft == true and (.tag_name | startswith("nightly."))) | .tag_name' |
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              gh release delete "$tag" --yes
+              if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+                gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag"
+              fi
+            done
           gh release create "$NIGHTLY_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $STABLE_VERSION-$NIGHTLY_TAG" \
