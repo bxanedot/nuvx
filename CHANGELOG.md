@@ -15,6 +15,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Move Enable YouTube Search into Content preferences, and give Hide Podcasts tab the same GlyphStudio icon and size as Podcasts navigation.
 - Publish signed Android nightly builds with a stable update handoff.
 - Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade and transition planning, audio cache, lyrics, Android Auto, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
+- Split TV profile selection, PIN protection, and account settings dialogs into a focused internal module with no UI changes.
 
 ### Desktop
 
