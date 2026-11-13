@@ -302,7 +302,6 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import java.util.Locale
 import com.bxane.nuvx.data.radio.RadioBrowser
 import com.bxane.nuvx.ui.screens.RadioScreen
 import com.bxane.nuvx.ui.screens.RadioSymbol
@@ -1089,6 +1088,10 @@ internal fun NuvxApp(
     val downloadController = MainDownloadController(
         context = context,
         scope = scope,
+        viewModel = viewModel,
+        showQueueNotice = showQueueNotice,
+        currentSong = { player.song },
+        currentDurationMs = { player.durationMs },
         pending = { downloadPending },
         setPending = { downloadPending = it },
         requestNotifications = { notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS) },
@@ -1134,58 +1137,14 @@ internal fun NuvxApp(
             )
         }
     }
-    val startDownloads: (List<Pair<List<Song>, DownloadTarget?>>) -> Unit = downloadController::startDownloads
-    val startDownload: (List<Song>, DownloadTarget?) -> Unit = { requested, from ->
-        startDownloads(listOf(requested to from))
-    }
-    val downloadCatalog: (DetailPage) -> Unit = { page ->
-        viewModel.collectCatalog(page) { releases ->
-            if (releases.isEmpty()) {
-                Toast.makeText(context, context.getString(R.string.couldnt_load_tracks), Toast.LENGTH_SHORT).show()
-            } else {
-                val all = releases.flatMap { it.second }
-                Downloads.markRequested(page.browseId, all.map { it.videoId })
-                val albums = releases.map { (release, songs) ->
-                    songs to DownloadTarget(
-                        id = release.browseId!!,
-                        title = release.title,
-                        subtitle = release.subtitle,
-                        thumbnailUrl = release.thumbnailUrl,
-                    )
-                }
-                val artist = DownloadTarget(
-                    id = page.browseId,
-                    title = page.title,
-                    subtitle = page.subtitle,
-                    thumbnailUrl = page.thumbnailUrl,
-                    artist = true,
-                )
-                startDownloads(albums + (all to artist))
-            }
-        }
-    }
-    val downloadFromCache: (List<Song>) -> Unit = { songs ->
-        val cleaned = songs.map { it.copy(downloadFormat = null, localDateAddedSeconds = null) }
-        Downloads.preferCachedCopy(cleaned.map { it.videoId })
-        startDownload(cleaned, null)
-    }
+    val startDownload: (List<Song>, DownloadTarget?) -> Unit = downloadController::startDownload
+    val downloadCatalog: (DetailPage) -> Unit = downloadController::downloadCatalog
+    val downloadFromCache: (List<Song>) -> Unit = downloadController::downloadFromCache
     val removedFromCacheMessage = stringResource(R.string.removed_from_cache)
     val removeFromCache: (List<Song>) -> Unit = { songs ->
-        scope.launch {
-            val removed = songs.sumOf { AudioCache.remove(it.videoId) }
-            if (removed > 0) showQueueNotice(removedFromCacheMessage)
-        }
+        downloadController.removeFromCache(songs, removedFromCacheMessage)
     }
-    val downloadSong: (Song) -> Unit = { song ->
-        val withDuration = if (song.durationMillis() <= 0L &&
-            player.song?.videoId == song.videoId && player.durationMs > 0L
-        ) {
-            song.copy(durationText = formatDurationText(player.durationMs))
-        } else {
-            song
-        }
-        startDownload(listOf(withDuration), null)
-    }
+    val downloadSong: (Song) -> Unit = downloadController::downloadSong
 
     val listPadding = PaddingValues(
         top = topBarContentPadding(),
@@ -3807,13 +3766,6 @@ private fun playingYouTubesOwn(videoId: String, controller: MediaController?): B
         uri?.let(QualityUpgrade::cacheTag),
         uri?.let(AudioCache::originOf),
     )
-}
-
-private fun formatDurationText(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(Locale.ROOT, minutes, seconds)
 }
 
 private const val SEEK_END_GUARD_MS = 1_000L
