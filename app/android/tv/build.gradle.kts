@@ -249,7 +249,9 @@ dependencies {
 
     implementation("com.hierynomus:smbj:0.15.0")
 
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
+    val customOnnxRuntime = rootProject.file("onnxruntime/onnxruntime-android-1.31.1-custom.aar")
+    if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
+    else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
     implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
     implementation("androidx.mediarouter:mediarouter:1.8.1")

@@ -1,0 +1,113 @@
+name: Android ONNX Runtime size experiment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/android
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: android-actions/setup-android@v4.0.4
+      - name: Install Android SDK and emulator image
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;30.0.16248370" "cmake;3.22.1" "system-images;android-36;google_apis;x86_64"
+      - name: Fetch pinned ONNX Runtime build tools
+        env:
+          ORT_DIR: ${{ runner.temp }}/onnxruntime
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/microsoft/onnxruntime.git "$ORT_DIR"
+          git -C "$ORT_DIR" sparse-checkout init --cone
+          git -C "$ORT_DIR" sparse-checkout set tools/android_custom_build tools/python
+          git -C "$ORT_DIR" checkout v1.31.1
+          python -m pip install onnx==1.23.2
+      - name: Verify required operators from both shipped models
+        env:
+          ORT_DIR: ${{ runner.temp }}/onnxruntime
+          MODEL_DIR: ${{ github.workspace }}/app/web/app/public/models
+          CONFIG: ${{ runner.temp }}/required_operators.config
+        run: |
+          python "$ORT_DIR/tools/python/create_reduced_build_config.py" "$MODEL_DIR" "$CONFIG"
+          diff -u \
+            <(sed '/^#/d;/^$/d' onnxruntime/required_operators.config) \
+            <(sed '/^#/d;/^$/d' "$CONFIG")
+      - name: Build baseline APKs with the full runtime
+        run: |
+          ./gradlew :app:assembleProdDebug :tv:assembleProdDebug
+          mkdir -p "$RUNNER_TEMP/baseline/mobile" "$RUNNER_TEMP/baseline/tv"
+          cp mobile/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/baseline/mobile/"
+          cp tv/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/baseline/tv/"
+      - name: Build the reduced runtime AAR for all supported ABIs
+        env:
+          ORT_DIR: ${{ runner.temp }}/onnxruntime
+          CONFIG: ${{ runner.temp }}/required_operators.config
+          BUILD_DIR: ${{ runner.temp }}/onnxruntime-build
+        run: |
+          python "$ORT_DIR/tools/android_custom_build/build_custom_android_package.py" \
+            --onnxruntime_branch_or_tag v1.31.1 \
+            --include_ops_by_config "$CONFIG" \
+            --build_settings onnxruntime/build_settings.json \
+            "$BUILD_DIR"
+          aar="$BUILD_DIR/output/aar_out/Release/com/microsoft/onnxruntime/onnxruntime-android/1.31.1/onnxruntime-android-1.31.1.aar"
+          test -s "$aar"
+          mkdir -p onnxruntime
+          cp "$aar" onnxruntime/onnxruntime-android-1.31.1-custom.aar
+          unzip -l onnxruntime/onnxruntime-android-1.31.1-custom.aar | tee "$RUNNER_TEMP/aar-contents.txt"
+          for abi in armeabi-v7a arm64-v8a x86_64; do grep -F "jni/$abi/libonnxruntime.so" "$RUNNER_TEMP/aar-contents.txt"; done
+      - name: Start Android x86_64 emulator
+        run: |
+          printf 'no\n' | avdmanager create avd --name nuvx-ort --package 'system-images;android-36;google_apis;x86_64' --device pixel_2 --force
+          emulator -avd nuvx-ort -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          adb wait-for-device
+          timeout 180s bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == 1 ]]; do sleep 2; done'
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+      - name: Run model inference and build custom-runtime APKs
+        run: |
+          ./gradlew :app:connectedProdDebugAndroidTest :tv:assembleProdDebug
+          mkdir -p "$RUNNER_TEMP/custom/mobile" "$RUNNER_TEMP/custom/tv"
+          cp mobile/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/custom/mobile/"
+          cp tv/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/custom/tv/"
+      - name: Compare APK sizes
+        run: |
+          python - <<'PY' | tee "$RUNNER_TEMP/size-report.md" >> "$GITHUB_STEP_SUMMARY"
+          from pathlib import Path
+
+          root = Path(__import__("os").environ["RUNNER_TEMP"])
+          print("| App | APK | Full runtime | Reduced runtime | Saved |")
+          print("| --- | --- | ---: | ---: | ---: |")
+          for app in ("mobile", "tv"):
+              before = {p.name: p.stat().st_size for p in (root / "baseline" / app).glob("*.apk")}
+              after = {p.name: p.stat().st_size for p in (root / "custom" / app).glob("*.apk")}
+              assert before.keys() == after.keys(), f"APK set differs for {app}"
+              for name in sorted(before):
+                  saved = before[name] - after[name]
+                  percent = saved * 100 / before[name]
+                  print(f"| {app} | {name} | {before[name]:,} | {after[name]:,} | {saved:+,} ({percent:+.2f}%) |")
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: android-ort-size-experiment
+          path: |
+            ${{ runner.temp }}/baseline
+            ${{ runner.temp }}/custom
+            ${{ runner.temp }}/onnxruntime-build/output/aar_out/Release/com/microsoft/onnxruntime/onnxruntime-android/1.31.1/onnxruntime-android-1.31.1.aar
+            ${{ runner.temp }}/aar-contents.txt
+            ${{ runner.temp }}/size-report.md
+          if-no-files-found: error
