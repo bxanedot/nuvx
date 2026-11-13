@@ -111,7 +111,6 @@ impl App {
             play_songs: get("play_songs").is_none_or(|v| v == "1"),
             playing_as: None,
             version_alternate: None,
-            version_positions: Default::default(),
             output_device: get("output_device").filter(|d| !d.is_empty()).map(|id| (id, get("output_device_name").unwrap_or_default())),
             output_devices: Vec::new(),
             updater: None,

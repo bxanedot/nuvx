@@ -466,7 +466,6 @@ impl App {
                         }
                         None => {
                             self.version_alternate = None;
-                            self.version_positions.clear();
                             self.playing_as = None;
                             track
                         }
