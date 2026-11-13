@@ -1,9 +1,8 @@
 name: Android nightly
 
 on:
-  pull_request_target:
+  push:
     branches: [main]
-    types: [closed]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +18,7 @@ defaults:
 
 jobs:
   release:
-    if: github.event.pull_request.merged == true || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     outputs:
       nightly_suffix: ${{ steps.build.outputs.nightly_suffix }}
@@ -32,7 +31,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           # Build only the commit that landed on main.
-          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:
