@@ -187,7 +187,7 @@ impl Backend {
                     let failed = results.iter().filter(|r| r.is_err()).count();
                     Resp::DownloadedAll { name, done: results.len() - failed, failed }
                 }
-                Req::Play { video_id, generation, at, report, song_of, song, track } => match self.start_playback(&video_id, song_of.as_ref(), song, track.as_ref(), generation, at, report).await {
+                Req::Play { video_id, generation, at, report, start_paused, song_of, song, track } => match self.start_playback(&video_id, song_of.as_ref(), song, track.as_ref(), generation, at, report, start_paused).await {
                     Ok(()) => return Ok(None),
                     Err(e) => Resp::PlayError { generation, msg: format!("{e:#}") },
                 },

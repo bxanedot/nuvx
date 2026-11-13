@@ -126,7 +126,7 @@ fn sync(app: &mut App) {
             app.jam.reported = Some(tick.vid.clone());
             app.jam.loaded = Some(tick.vid.clone());
             app.jam.load_started = Some(Instant::now());
-            app.play_current_at(target + ahead, report);
+            app.play_current_at(target + ahead, report, false, false);
         } else if app.jam.loaded.as_deref() != Some(tick.vid.as_str()) || app.resume_at != Some(target) {
             app.audio.send(AudioCmd::Stop);
             app.jam.loaded = None;

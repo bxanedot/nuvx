@@ -128,7 +128,7 @@ impl App {
     }
 
     pub(super) fn video_sprite(&mut self, ctx: &egui::Context) -> Option<widgets::MotionSprite> {
-        let Some(id) = self.playing_track().filter(|t| t.music_video && crate::motion::SUPPORTED).map(|t| t.id.clone()) else {
+        let Some(id) = self.current().filter(|t| t.music_video).or_else(|| self.playing_track().filter(|t| t.music_video)).filter(|_| crate::motion::SUPPORTED).map(|t| t.id.clone()) else {
             self.video = None;
             return None;
         };
@@ -147,7 +147,7 @@ impl App {
     }
 
     pub(super) fn version_loading(&self) -> bool {
-        let picture = crate::motion::SUPPORTED && self.playing_track().is_some_and(|t| t.music_video) && self.video.as_ref().is_none_or(|(_, s)| s.is_none());
+        let picture = crate::motion::SUPPORTED && (self.current().is_some_and(|t| t.music_video) || self.playing_track().is_some_and(|t| t.music_video)) && self.video.as_ref().is_none_or(|(_, s)| s.is_none());
         self.buffering || self.video_wanted || picture
     }
 

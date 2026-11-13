@@ -32,7 +32,7 @@ pub(super) fn run(
     loop {
         let timeout = if (current != 0 || !fading.is_empty()) && !player.is_paused() { Duration::from_millis(100) } else { Duration::from_secs(3600) };
         match rx.recv_timeout(timeout) {
-            Ok(AudioCmd::Start { generation, decoder, shared: s, at }) => {
+            Ok(AudioCmd::Start { generation, decoder, shared: s, at, start_paused }) => {
                 if generation != status.wanted_gen.load(Ordering::Relaxed) {
                     log::debug!("audio: dropping stale generation {generation}");
                     continue;
@@ -60,7 +60,9 @@ pub(super) fn run(
                 status.mix_active.store(mix, Ordering::Relaxed);
                 status.mix_generation.store(generation, Ordering::Release);
                 player.append(Meter::new(Eq::new(Spatial::new(decoder, status.clone()), status.clone()), status.clone(), fade_in, fade_out.clone(), mix, s.tempo.clone()));
-                player.play();
+                if !start_paused {
+                    player.play();
+                }
                 if s.duration_ms > 0 {
                     status.duration_ms.store(s.duration_ms, Ordering::Relaxed);
                 }
@@ -74,7 +76,7 @@ pub(super) fn run(
                 offset = at;
                 seekable = !at.is_zero();
                 ending_sent = false;
-                status.playing.store(true, Ordering::Relaxed);
+                status.playing.store(!start_paused, Ordering::Relaxed);
             }
             Ok(AudioCmd::Replace { generation, seek, decoder, at, seekable: s }) => {
                 if generation != current || seek != seek_seq {
