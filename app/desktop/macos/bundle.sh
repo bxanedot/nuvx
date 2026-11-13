@@ -4,7 +4,6 @@ set -e
 bin=$1
 version=$2
 out=$3
-kind=$4
 [ -n "$bin" ] && [ -n "$version" ] && [ -n "$out" ] || { echo "usage: $0 <binary> <version> <out dir>"; exit 1; }
 here=$(cd "$(dirname "$0")" && pwd)
 icon="$here/../assets/icon/icon.png"
@@ -24,8 +23,6 @@ for spec in 16:16x16 32:16x16@2x 32:32x32 64:32x32@2x 128:128x128 256:128x128@2x
     sips -z "${spec%%:*}" "${spec%%:*}" "$icon" --out "$set/icon_${spec#*:}.png" >/dev/null
 done
 iconutil -c icns "$set" -o "$app/Contents/Resources/nuvx.icns"
-
-[ "$kind" = portable ] && cp "$here/portable.txt" "$app/Contents/Resources/portable.txt"
 
 codesign --force --sign - "$app"
 echo "Made $app"

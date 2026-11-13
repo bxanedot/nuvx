@@ -24,7 +24,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ### Desktop
 
-- Publish Windows, Linux, and macOS desktop installers and portable builds with Android nightlies.
+- Publish one universal Windows, Linux, and macOS desktop installer with Android nightlies, plus universal GMS and FOSS APKs for mobile and TV and a separate Wear OS APK.
 - Reorganize playback and audio processing, backend search and catalog loading, downloads and transfers, lyrics and karaoke, Listen Together, settings, navigation, Now Playing, and shared widgets into focused modules. These are internal refactors with no intended user-facing behavior change.
 - Move desktop decoder selection and audio source adapters into a dedicated stream submodule while preserving the existing stream API.
 
