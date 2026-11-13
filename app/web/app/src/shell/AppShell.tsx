@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, type MouseEvent } from 'react';
 import bxaneSignature from '@/assets/bxane-signature.svg';
+import chromeWebStoreBadge from '@/assets/chrome-web-store-badge.png';
 import { resumeSession } from '@/party/listenTogether';
 import { startPartySync } from '@/party/partySync';
 import { useDiscordPresence } from '@/playback/discordPresence';
@@ -77,9 +78,20 @@ export function AppShell() {
         detail="Playback, YouTube Music sign-in, Spotify and Discord need the extension. Addons and lyrics work without it."
         action={
           browserDownload?.href && BrowserDownloadIcon ? (
-            <a className={bannerButtonClass} href={browserDownload.href} target="_blank" rel="noreferrer">
-              <BrowserDownloadIcon size={15} aria-hidden="true" />
-              Add to {currentBrowser === 'chrome' ? 'Chrome' : 'Firefox'}
+            <a
+              className={currentBrowser === 'chrome' ? 'inline-flex rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white' : bannerButtonClass}
+              href={browserDownload.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {currentBrowser === 'chrome' ? (
+                <img src={chromeWebStoreBadge} alt="Available in the Chrome Web Store" width={206} height={58} />
+              ) : (
+                <>
+                  <BrowserDownloadIcon size={15} aria-hidden="true" />
+                  Add to Firefox
+                </>
+              )}
             </a>
           ) : (
             <PrefetchLink className={bannerButtonClass} to="/extension">
