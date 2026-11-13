@@ -339,7 +339,15 @@ impl App {
         self.audio.send(if self.handoff && at.is_zero() { AudioCmd::Handoff } else { AudioCmd::Stop });
         self.buffering = true;
         self.seek_drag = None;
-        let song_of = if carried.is_none() && (at.is_zero() || lookup_song) { self.song_of(&track) } else { None };
+        let song_of = if carried.is_none()
+            && (at.is_zero() || lookup_song || (crate::motion::SUPPORTED && self.video_mode && track.music_video))
+        {
+            self.song_of(&track).or_else(|| {
+                (crate::motion::SUPPORTED && self.video_mode && track.music_video).then(|| track.clone())
+            })
+        } else {
+            None
+        };
         self.playing_as = carried.clone().map(|song| PlayingAs { generation: self.generation, listed: track.id.clone(), song });
         self.video_wanted = false;
         self.backend.request(Req::Play { video_id: track.id.clone(), generation: self.generation, at, report, start_paused, song_of, song: carried.clone(), track: Some(track.clone()) });
