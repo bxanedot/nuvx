@@ -1,0 +1,193 @@
+import SwiftUI
+import NuvxShared
+
+
+
+
+
+
+
+struct TopResultSection: View {
+    @Environment(PlaybackController.self) private var controller
+    @Environment(AppModel.self) private var appModel
+
+    let hit: SearchHitDTO
+    let scope: SearchView.Scope
+
+
+
+    let onGoToAlbum: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Top result")
+                .font(.headline)
+                .padding(.horizontal, 24)
+
+            card
+                .padding(.horizontal, 24)
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 20)
+    }
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                artwork
+                details
+                Menu {
+                    menu
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .scaledFont(size: 16, weight: .semibold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 36)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .help("More")
+                .accessibilityLabel("More")
+            }
+            actionsRow
+        }
+        .padding(14)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: play)
+        .liftPreview {
+            menu
+        } preview: {
+            ContextMenuPreview(
+                artworkUrl: hit.thumbnailUrl, title: hit.title, subtitle: hit.subtitle,
+                roundArtwork: hit.browseType?.uppercased() == "ARTIST"
+            )
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(hit.title), \(hit.subtitle ?? "")")
+        .accessibilityHint("Plays the top result")
+    }
+
+    @ViewBuilder
+    private var artwork: some View {
+        let isArtist = hit.browseType?.uppercased() == "ARTIST"
+        if let url = hit.thumbnailUrl, !url.isEmpty {
+            AsyncImage(url: URL(string: url)) { phase in
+                if let image = phase.image {
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } else {
+                    artworkPlaceholder
+                }
+            }
+            .frame(width: 72, height: 72)
+            .modifier(ArtworkClipModifier(isArtist: isArtist))
+        } else {
+            artworkPlaceholder
+                .frame(width: 72, height: 72)
+        }
+    }
+
+    private struct ArtworkClipModifier: ViewModifier {
+        let isArtist: Bool
+        func body(content: Content) -> some View {
+            if isArtist {
+                content.clipShape(Circle())
+            } else {
+                content.clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
+    }
+
+    private var artworkPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(.quaternary)
+            .overlay(
+                Image(systemName: "music.note")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+            )
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(hit.title)
+                .font(.headline.weight(.semibold))
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            if let subtitle = hit.subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            if let album = hit.albumName, !album.isEmpty, let artist = hit.subtitle {
+                Button(album) { onGoToAlbum("\(artist) \(album)") }
+                    .buttonStyle(.plain)
+                    .font(.subheadline)
+                    .foregroundStyle(.tint)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+
+    private var actionsRow: some View {
+        HStack(spacing: 10) {
+            Button(action: play) {
+                Label("Play", systemImage: "play.fill")
+                    .font(.callout.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            Button {
+                if let videoId = hit.videoId {
+                    RecentSearchStore.record(RecentSearchEntity(
+                        id: videoId, title: hit.title,
+                        subtitle: hit.subtitle ?? "",
+                        artworkUrl: hit.thumbnailUrl,
+                        entityType: "TRACK"
+                    ))
+                    appModel.playlistPicker = PlaylistPickerRequest(
+                        videoId: videoId, title: hit.title
+                    )
+                }
+            } label: {
+                Label("Add to Playlist", systemImage: "text.badge.plus")
+                    .font(.callout.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .disabled(hit.videoId == nil)
+        }
+    }
+
+    @ViewBuilder
+    private var menu: some View {
+
+
+        let entry = hit.asEntry()
+        Button("Play") { play() }
+        Button("Play Next") { controller.playNext(entry) }
+        Button("Add to Queue") { controller.addToQueue(entry) }
+    }
+
+
+
+
+
+
+    private func play() {
+        if let videoId = hit.videoId {
+            RecentSearchStore.record(RecentSearchEntity(
+                id: videoId, title: hit.title,
+                subtitle: hit.subtitle ?? "",
+                artworkUrl: hit.thumbnailUrl,
+                entityType: "TRACK"
+            ))
+        }
+        controller.playRadio(hit.asEntry())
+    }
+}
