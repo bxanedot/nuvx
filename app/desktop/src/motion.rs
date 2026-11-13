@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, Weak};
@@ -92,7 +93,10 @@ fn fetch(master: &str, max_width: u32) -> Option<PathBuf> {
         };
         let dir = crate::data_dir().join("motion");
         std::fs::create_dir_all(&dir).ok()?;
-        let name = format!("{:x}", Sha1::digest(file.as_bytes()));
+        let mut name = String::with_capacity(40);
+        for byte in Sha1::digest(file.as_bytes()) {
+            write!(&mut name, "{byte:02x}").unwrap();
+        }
         let path = dir.join(format!("{}.mp4", &name[..32]));
         if std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) > 1024 {
             return Some(path);

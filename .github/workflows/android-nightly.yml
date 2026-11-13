@@ -394,7 +394,7 @@ jobs:
         run: |
           mkdir -p universal dmg
           lipo -create universal/x86_64/nuvx universal/aarch64/nuvx -output universal/nuvx
-          lipo -verify_arch x86_64 arm64 universal/nuvx
+          lipo universal/nuvx -verify_arch x86_64 arm64
           sh macos/bundle.sh universal/nuvx "$DESKTOP_VERSION" dmg
           ln -s /Applications dmg/Applications
           hdiutil create -volname nuvx -srcfolder dmg -format UDZO "nuvx-setup-$NIGHTLY_TAG-macos-universal.dmg"
