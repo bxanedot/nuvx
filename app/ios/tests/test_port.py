@@ -59,7 +59,7 @@ class PortIdentityTests(unittest.TestCase):
         workflow = (ROOT.parents[1] / ".github/workflows/apple-builds.yml").read_text(encoding="utf-8")
         self.assertIn("bash scripts/package-ios-ipa.sh", workflow)
         self.assertIn('cargo test --locked --target "$ARCH-apple-darwin"', workflow)
-        self.assertIn('sh macos/bundle.sh "$binary"', workflow)
+        self.assertIn('sh macos/bundle.sh universal/nuvx "$version"', workflow)
         self.assertIn("macos-15-intel", workflow)
         self.assertIn('git rev-parse "$RELEASE_TAG^{commit}"', workflow)
         self.assertNotIn("secrets.", workflow)

@@ -108,7 +108,7 @@ jobs:
           bash scripts/package-ios-ipa.sh "$version"
           cd build/release
           shasum -a 256 ./*.ipa > SHA256-ios.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ios-unsigned
           path: app/ios/build/release/*
@@ -147,37 +147,70 @@ jobs:
         run: |
           cargo test --locked --target "$ARCH-apple-darwin"
           cargo build --release --locked --target "$ARCH-apple-darwin"
-      - name: Package ad-hoc signed DMG and portable ZIP
+      - name: Stage architecture for the universal app
         run: |
           version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
           if [[ -n "$RELEASE_TAG" ]]; then test "$RELEASE_TAG" = "v$version"; fi
-          binary="target/$ARCH-apple-darwin/release/nuvx"
-          mkdir -p dist
-          sh macos/bundle.sh "$binary" "$version" target/dmg
-          ln -s /Applications target/dmg/Applications
-          hdiutil create -volname nuvx -srcfolder target/dmg -format UDZO "dist/nuvx-setup-$version-macos-$ARCH.dmg"
-          sh macos/bundle.sh "$binary" "$version" target/portable portable
-          ditto -c -k --keepParent target/portable/nuvx.app "dist/nuvx-portable-$version-macos-$ARCH.zip"
-          (cd dist && shasum -a 256 ./*.dmg ./*.zip > "SHA256-macos-$ARCH.txt")
-      - uses: actions/upload-artifact@v4
+          mkdir -p universal
+          cp "target/$ARCH-apple-darwin/release/nuvx" "universal/nuvx"
+      - uses: actions/upload-artifact@v6
         with:
-          name: macos-${{ matrix.arch }}
+          name: macos-binary-${{ matrix.arch }}
+          path: app/desktop/universal/nuvx
+          if-no-files-found: error
+          retention-days: 1
+
+  macos-package:
+    needs: macos
+    runs-on: macos-15
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v6
+        with:
+          name: macos-binary-aarch64
+          path: app/desktop/universal/aarch64
+      - uses: actions/download-artifact@v6
+        with:
+          name: macos-binary-x86_64
+          path: app/desktop/universal/x86_64
+      - name: Package ad-hoc signed universal DMG
+        run: |
+          version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
+          mkdir -p dist
+          lipo -create universal/aarch64/nuvx universal/x86_64/nuvx -output universal/nuvx
+          lipo -verify_arch x86_64 arm64 universal/nuvx
+          sh macos/bundle.sh universal/nuvx "$version" target/dmg
+          ln -s /Applications target/dmg/Applications
+          hdiutil create -volname nuvx -srcfolder target/dmg -format UDZO "dist/nuvx-setup-$version-macos-universal.dmg"
+          (cd dist && shasum -a 256 ./*.dmg > SHA256-macos.txt)
+      - uses: actions/upload-artifact@v6
+        with:
+          name: macos-universal
           path: app/desktop/dist/*
           if-no-files-found: error
           retention-days: 14
 
   upload-release:
     if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
-    needs: [ios, macos]
+    needs: [ios, macos-package]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
+          name: ios-unsigned
           path: packages
-          merge-multiple: true
+      - uses: actions/download-artifact@v6
+        with:
+          name: macos-universal
+          path: packages
       - name: Upload to an existing release
         env:
           GH_TOKEN: ${{ github.token }}
