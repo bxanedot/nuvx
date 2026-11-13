@@ -12,10 +12,10 @@ const BIN: &str = "yt-dlp";
 const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
 #[cfg(all(windows, target_arch = "aarch64"))]
 const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe";
+#[cfg(target_os = "linux")]
+const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
 #[cfg(target_os = "macos")]
 const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos";
-#[cfg(all(unix, not(target_os = "macos")))]
-const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
 
 const MAX_AGE: Duration = Duration::from_secs(7 * 24 * 3600);
 

@@ -48,6 +48,28 @@ module.exports = async (req, res) => {
   }
   const platform = params.get('platform');
   let target = releases + '/latest';
+  if (platform === 'ios') {
+    try {
+      const response = await fetch('https://api.github.com/repos/bxanedot/nuvx/releases/latest', {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (response.ok) {
+        const release = await response.json();
+        const version = /^v(\d+\.\d+\.\d+)$/.exec(release.tag_name)?.[1];
+        if (version) {
+          const pattern = new RegExp(`^Nuvx-${version.replaceAll('.', '\\.')}-build(\\d+)-ios-unsigned\\.ipa$`);
+          const candidates = (release.assets ?? [])
+            .flatMap(({ name }) => {
+              const match = typeof name === 'string' && pattern.exec(name);
+              return match ? [{ name, build: Number(match[1]) }] : [];
+            })
+            .sort((a, b) => b.build - a.build);
+          if (candidates[0]) target = `${releases}/download/v${version}/${candidates[0].name}`;
+        }
+      }
+    } catch {
+    }
+  }
   if (Object.hasOwn(files, platform)) {
     try {
       const latest = await fetch(target, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });

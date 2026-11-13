@@ -449,29 +449,136 @@ fn update_alert(app: &mut App, ctx: &egui::Context, version: &str) {
 
 pub fn tab_intro(app: &mut App, ctx: &egui::Context) {
     let podcasts = matches!(&app.page, super::Page::Mood { browse_id, .. } if browse_id == crate::ytm::PODCASTS);
-    let i = match (&app.page, podcasts) {
-        (super::Page::Radio, _) => 0,
-        (_, true) => 1,
-        _ => return,
+    let requested_intro = match (&app.page, podcasts) {
+        (super::Page::Radio, _) => Some(0),
+        (_, true) => Some(1),
+        _ => None,
     };
-    if app.tab_intros_shown[i] {
+    let i = app
+        .tab_intro_step
+        .iter()
+        .position(|step| *step != 0)
+        .or_else(|| requested_intro.filter(|i| !app.tab_intros_shown[*i]));
+    if let Some(i) = i {
+        if app.tab_intros_shown[i] {
+            app.tab_intro_step[i] = 0;
+        } else {
+            if app.tab_intro_step[i] == 0 {
+                app.tab_intro_step[i] = 1;
+            }
+            let (title, intro, later, keep, hide) = if i == 0 {
+                (
+                    "Live Radio",
+                    "Live stations from around the world. Not your thing? You can hide this tab.",
+                    "You can hide the Radio tab anytime in Settings > Appearance.",
+                    "Keep Radio",
+                    "Hide Radio tab",
+                )
+            } else {
+                (
+                    "Podcasts",
+                    "Shows and episodes from YouTube Music. Not your thing? You can hide this tab.",
+                    "You can hide the Podcasts tab anytime in Settings > Appearance.",
+                    "Keep Podcasts",
+                    "Hide Podcasts tab",
+                )
+            };
+            if app.tab_intro_step[i] == 1 {
+                let actions = [(keep, true), (hide, false)];
+                let (picked, dismissed) =
+                    alert(ctx, "tab-intro", title, intro, app.accent_color(), |_| {}, &actions);
+                if picked == Some(1) {
+                    app.tab_intros_shown[i] = true;
+                    app.tab_intro_step[i] = 0;
+                    if i == 0 {
+                        app.hide_radio = true;
+                    } else {
+                        app.hide_podcasts = true;
+                    }
+                } else if picked == Some(0) || dismissed {
+                    app.tab_intro_step[i] = 2;
+                }
+            } else {
+                let actions = [("OK", true)];
+                let (picked, dismissed) =
+                    alert(ctx, "tab-intro", title, later, app.accent_color(), |_| {}, &actions);
+                if picked.is_some() || dismissed {
+                    app.tab_intros_shown[i] = true;
+                    app.tab_intro_step[i] = 0;
+                }
+            }
+        }
         return;
     }
-    let (title, body, actions) = if i == 0 {
-        ("Live Radio", "Live stations from around the world. Not your thing? You can hide this tab, and bring it back anytime in Settings › Appearance.", [("Keep Radio", true), ("Hide Radio tab", false)])
-    } else {
-        ("Podcasts", "Shows and episodes from YouTube Music. Not your thing? You can hide this tab, and bring it back anytime in Settings › Appearance.", [("Keep Podcasts", true), ("Hide Podcasts tab", false)])
-    };
-    let (picked, dismissed) = alert(ctx, "tab-intro", title, body, app.accent_color(), |_| {}, &actions);
-    if picked.is_some() || dismissed {
-        app.tab_intros_shown[i] = true;
+
+    if app.notes_dialog.is_some() || app.dialog.is_some() {
+        return;
     }
-    if picked == Some(1) {
-        if i == 0 {
-            app.hide_radio = true;
-        } else {
-            app.hide_podcasts = true;
+    support_prompt(app, ctx);
+}
+
+fn support_prompt(app: &mut App, ctx: &egui::Context) {
+    match app.support_prompt {
+        1 => {
+            let actions = [("Tip on Ko-fi", true), ("Not now", false), ("Don’t show again", false)];
+            let (picked, dismissed) = alert(
+                ctx,
+                "support-prompt",
+                "Enjoying nuvx?",
+                "nuvx is free and made by one person. A small tip keeps it going.",
+                app.accent_color(),
+                |_| {},
+                &actions,
+            );
+            if picked.is_some() || dismissed {
+                app.support_prompt = 0;
+                match picked {
+                    Some(0) => crate::lastfm::open_browser("https://ko-fi.com/bxane"),
+                    Some(2) => app.support_prompts_off = true,
+                    _ => {}
+                }
+            }
         }
+        2 => {
+            let actions = [("Star on GitHub", true), ("Not now", false), ("Don’t show again", false)];
+            let (picked, dismissed) = alert(
+                ctx,
+                "support-prompt",
+                "Like nuvx?",
+                "A star on GitHub helps more people find it.",
+                app.accent_color(),
+                |_| {},
+                &actions,
+            );
+            if picked.is_some() || dismissed {
+                app.support_prompt = 0;
+                match picked {
+                    Some(0) => crate::lastfm::open_browser("https://github.com/bxanedot/nuvx"),
+                    Some(2) => app.support_prompts_off = true,
+                    _ => {}
+                }
+            }
+        }
+        _ if !app.discord_invite_joined && !app.discord_prompt_dismissed => {
+            let actions = [("Join Server", true), ("Not Now", false)];
+            let (picked, dismissed) = alert(
+                ctx,
+                "discord-invite",
+                "Join Discord Server",
+                "Meet other Nuvx listeners, share feedback, and get app updates.",
+                app.accent_color(),
+                |_| {},
+                &actions,
+            );
+            if picked.is_some() || dismissed {
+                app.discord_prompt_dismissed = true;
+                if picked == Some(0) {
+                    app.discord_invite_joined = true;
+                    crate::lastfm::open_browser("https://discord.gg/h4Wsu824Uf");
+                }
+            }
+        }
+        _ => {}
     }
 }
 
