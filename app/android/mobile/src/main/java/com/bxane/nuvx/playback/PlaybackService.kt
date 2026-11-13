@@ -6,8 +6,6 @@ import android.content.Intent
 import android.widget.Toast
 import android.os.Bundle
 import android.os.SystemClock
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -17,7 +15,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DataSpec
@@ -327,6 +324,13 @@ class PlaybackService : MediaLibraryService() {
         },
     )
 
+    private val playerFactory = PlaybackPlayerFactory(
+        context = this,
+        outputRouter = outputRouter,
+        activeFilter = { activeFilter },
+        mediaSourceFactory = { requireNotNull(mediaSourceFactory) },
+    )
+
     private var streamResolver: ResolvingDataSource.Resolver? = null
 
     private val castPlayback = CastPlayback(
@@ -548,14 +552,14 @@ class PlaybackService : MediaLibraryService() {
         WearBridge.attachStreams(AudioCache.playbackFactory(defaultDataSourceFactory))
 
         outputRouter.configureInitialOutput()
-        val exoPlayer = buildPlayer(
+        val exoPlayer = playerFactory.build(
             spatialAudioProcessorA,
             equalizerProcessorA,
             transitionFilterA,
             loudnessA,
             ownsSession = true,
         )
-        val sparePlayer = buildPlayer(
+        val sparePlayer = playerFactory.build(
             spatialAudioProcessorB,
             equalizerProcessorB,
             transitionFilterB,
@@ -825,8 +829,8 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun adoptPlayerForVersionSwap(outgoing: ExoPlayer, incoming: ExoPlayer) {
-        setSessionOwner(outgoing, owns = false)
-        setSessionOwner(incoming, owns = true)
+        playerFactory.setSessionOwner(outgoing, owns = false)
+        playerFactory.setSessionOwner(incoming, owns = true)
 
         outgoing.removeListener(playbackListener)
         outgoing.removeAnalyticsListener(formatListener)
@@ -908,35 +912,9 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    private fun buildPlayer(
-        spatial: SpatialAudioProcessor,
-        equalizer: EqualizerProcessor,
-        filter: TransitionFilterProcessor,
-        loudness: LoudnessProcessor,
-        ownsSession: Boolean,
-    ): ExoPlayer = ExoPlayer.Builder(this)
-        .setRenderersFactory(
-            PlaybackRenderersFactory(
-                context = this,
-                outputRouter = outputRouter,
-                activeFilter = { activeFilter },
-                spatial = spatial,
-                equalizer = equalizer,
-                transition = filter,
-                loudness = loudness,
-            ),
-        )
-        .setMediaSourceFactory(requireNotNull(mediaSourceFactory))
-        .setLoadControl(farBufferingLoadControl())
-        .setAudioAttributes(AUDIO_ATTRIBUTES, ownsSession)
-        .setHandleAudioBecomingNoisy(ownsSession)
-        .setWakeMode(C.WAKE_MODE_LOCAL)
-        .setMaxSeekToPreviousPositionMs(BACK_RESTARTS_AFTER_MS)
-        .build()
-
     private fun adoptPlayer(outgoing: ExoPlayer, incoming: ExoPlayer) {
-        setSessionOwner(outgoing, owns = false)
-        setSessionOwner(incoming, owns = true)
+        playerFactory.setSessionOwner(outgoing, owns = false)
+        playerFactory.setSessionOwner(incoming, owns = true)
 
         outgoing.removeListener(playbackListener)
         outgoing.removeAnalyticsListener(formatListener)
@@ -959,11 +937,6 @@ class PlaybackService : MediaLibraryService() {
         )
 
         autoplay.resetAndLoadForCurrentTrack()
-    }
-
-    private fun setSessionOwner(target: ExoPlayer, owns: Boolean) {
-        target.setAudioAttributes(AUDIO_ATTRIBUTES, owns)
-        target.setHandleAudioBecomingNoisy(owns)
     }
 
     private fun sessionActivity(): PendingIntent = PendingIntent.getActivity(
@@ -1077,26 +1050,7 @@ class PlaybackService : MediaLibraryService() {
 
     private var swappingMediaId: String? = null
 
-    private fun buildAuditionPlayer(meter: BandwidthMeter): ExoPlayer = ExoPlayer.Builder(this)
-        .setRenderersFactory(FfmpegFallbackRenderersFactory(this))
-        .setMediaSourceFactory(requireNotNull(mediaSourceFactory))
-        .setBandwidthMeter(meter)
-        .setLoadControl(
-            DefaultLoadControl.Builder()
-                .setBufferDurationsMs(
-                    AUDITION_BUFFER_MS,
-                    AUDITION_BUFFER_MS,
-                    START_PLAYBACK_MS,
-                    START_PLAYBACK_MS,
-                )
-                .setTargetBufferBytes(AUDITION_BUFFER_BYTES)
-                .build(),
-        )
-        .build()
-        .apply {
-            playWhenReady = false
-            volume = 0f
-        }
+    private fun buildAuditionPlayer(meter: BandwidthMeter): ExoPlayer = playerFactory.buildAuditionPlayer(meter)
 
     private fun publishNerdStats() = telemetry.publish()
 
@@ -1169,17 +1123,6 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    private fun farBufferingLoadControl() = DefaultLoadControl.Builder()
-        .setBufferDurationsMs(
-            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
-            FAR_BUFFER_MS,
-            START_PLAYBACK_MS,
-            RESUME_PLAYBACK_MS,
-        )
-        .setTargetBufferBytes(FAR_BUFFER_BYTES)
-        .setBackBuffer(BACK_BUFFER_MS, true)
-        .build()
-
     private fun applySettings(player: ExoPlayer) {
         player.skipSilenceEnabled = AppSettings.skipSilence.value
         player.setPlaybackSpeed(AppSettings.playbackSpeed.value)
@@ -1190,14 +1133,14 @@ class PlaybackService : MediaLibraryService() {
     private fun buildAndSetOutputPlayers(): Pair<ExoPlayer, ExoPlayer> {
         activeFilter = transitionFilterA
         spareFilter = transitionFilterB
-        val newActive = buildPlayer(
+        val newActive = playerFactory.build(
             spatialAudioProcessorA,
             equalizerProcessorA,
             transitionFilterA,
             loudnessA,
             ownsSession = true,
         )
-        val newSpare = buildPlayer(
+        val newSpare = playerFactory.build(
             spatialAudioProcessorB,
             equalizerProcessorB,
             transitionFilterB,
@@ -1583,11 +1526,6 @@ class PlaybackService : MediaLibraryService() {
             MEDIA_MORE_ID,
         )
 
-        val AUDIO_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .build()
-
         const val CHANNEL_ID = "nuvx_playback"
         const val SESSION_ID = "NuvxPlayback"
 
@@ -1598,20 +1536,6 @@ class PlaybackService : MediaLibraryService() {
         const val STREAM_CHUNK_BYTES = 1L * 1024 * 1024
 
         const val LOOP_MIX_LYRICS_TIMEOUT_MS = 10_000L
-
-        const val FAR_BUFFER_MS = 15 * 60 * 1000
-
-        const val FAR_BUFFER_BYTES = 8 * 1024 * 1024
-
-        const val BACK_BUFFER_MS = 30 * 1000
-
-        const val START_PLAYBACK_MS = 500
-
-        const val RESUME_PLAYBACK_MS = 2_000
-
-        const val AUDITION_BUFFER_MS = 40_000
-
-        const val AUDITION_BUFFER_BYTES = 24 * 1024 * 1024
 
     }
 }
