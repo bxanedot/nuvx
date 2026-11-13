@@ -80,7 +80,7 @@ export default function ExtensionPage() {
 
         <h2 className={settingsUi.sectionHeader}>Get the extension</h2>
         <section className={settingsUi.group}>
-          {orderedDownloads.map(({ browser, title, detail, href, Icon }) => {
+          {orderedDownloads.map(({ browser, source, title, detail, href, Icon }) => {
             const content = (
               <>
                 <Icon size={28} className="text-primary" />
@@ -95,16 +95,19 @@ export default function ExtensionPage() {
               </>
             );
             return href ? (
-              <a key={browser} className={settingsUi.download} href={href} target="_blank" rel="noreferrer">
+              <a key={`${browser}-${source}`} className={settingsUi.download} href={href} target="_blank" rel="noreferrer">
                 {content}
               </a>
             ) : (
-              <div key={browser} className={settingsUi.download} aria-disabled="true">
+              <div key={`${browser}-${source}`} className={settingsUi.download} aria-disabled="true">
                 {content}
               </div>
             );
           })}
         </section>
+        <p className={settingsUi.footer}>
+          GitHub ZIP downloads need manual installation and updates. Firefox Stable only accepts Mozilla-approved extensions.
+        </p>
         <p className={settingsUi.footer}>
           New to this?{' '}
           <PrefetchLink to="/guide" className={settingsUi.inlineLink}>

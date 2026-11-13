@@ -50,7 +50,7 @@ export function AppShell() {
   useEffect(() => startHistoryReporting(), []);
   useEffect(() => startLivePresence(), []);
   const extension = useExtension();
-  const browserDownload = downloadsFor().find(({ browser }) => browser === currentBrowser);
+  const browserDownload = downloadsFor().find(({ browser, source }) => browser === currentBrowser && source === 'store');
   const BrowserDownloadIcon = browserDownload?.Icon;
   const bannerDismissed = useUi((s) => s.installBannerDismissed);
   const dismissBanner = useUi((s) => s.dismissInstallBanner);
