@@ -24,6 +24,7 @@ struct NuvxNavigationBar: View {
     var onSelect: (AppModel.Tab) -> Void
     var hideRadio = false
     var hidePodcasts = false
+    @Environment(PlaybackController.self) private var controller
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selectedPill
 
@@ -42,14 +43,19 @@ struct NuvxNavigationBar: View {
         }
     }
 
+    private var hasSong: Bool { controller.current != nil }
+
     private var glassSpring: Animation? {
         reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.72)
     }
 
     var body: some View {
         if let last = visibleDestinations.last {
-            HStack(spacing: 6) {
-                labeledTabs
+            HStack(spacing: 8) {
+                tabsRow
+                if hasSong {
+                    PlaybackPill(inline: true, barHeight: 62)
+                }
                 NavStandaloneTab(
                     tab: last.tab,
                     title: last.title,
@@ -58,17 +64,19 @@ struct NuvxNavigationBar: View {
                     onSelect: onSelect
                 )
             }
+            .animation(glassSpring, value: hasSong)
         }
     }
 
-    private var labeledTabs: some View {
-        HStack(spacing: 6) {
+    private var tabsRow: some View {
+        HStack(spacing: 0) {
             ForEach(Array(visibleDestinations.dropLast()), id: \.tab) { destination in
                 NavTabButton(
                     tab: destination.tab,
                     title: destination.title,
                     symbol: destination.symbol,
                     selected: selection == destination.tab.rawValue,
+                    inline: hasSong,
                     namespace: selectedPill,
                     onSelect: onSelect
                 )
@@ -91,6 +99,7 @@ private struct NavTabButton: View {
     let title: String
     let symbol: String
     let selected: Bool
+    var inline = false
     let namespace: Namespace.ID
     let onSelect: (AppModel.Tab) -> Void
 
@@ -106,15 +115,22 @@ private struct NavTabButton: View {
             }
             onSelect(tab)
         } label: {
-            VStack(spacing: 1) {
-                tabIcon
-                tabLabel
+            Group {
+                if inline {
+                    tabIcon
+                        .frame(width: 36)
+                } else {
+                    VStack(spacing: 1) {
+                        tabIcon
+                        tabLabel
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
             .foregroundStyle(Color.primary.opacity(selected ? 1.0 : 0.65))
             .padding(.vertical, 6.5)
-            .frame(maxWidth: .infinity)
             .background {
-                if selected {
+                if selected && !inline {
                     Capsule()
                         .fill(Color.primary.opacity(0.14))
                         .matchedGeometryEffect(id: "selection", in: namespace)
