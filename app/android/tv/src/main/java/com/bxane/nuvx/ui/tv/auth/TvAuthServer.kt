@@ -206,7 +206,7 @@ object TvAuthServer {
                     while (read < contentLength) {
                         val remaining = deadline - SystemClock.elapsedRealtime()
                         if (remaining <= 0) throw SocketTimeoutException("HTTP request read deadline exceeded")
-                        client.soTimeout = remaining.toInt()
+                        client.soTimeout = minOf(remaining, CLIENT_SOCKET_TIMEOUT_MS.toLong()).toInt()
                         val count = input.read(bodyBytes, read, contentLength - read)
                         if (count <= 0) break
                         read += count
@@ -334,7 +334,7 @@ object TvAuthServer {
         while (true) {
             val remaining = deadline - SystemClock.elapsedRealtime()
             if (remaining <= 0) throw SocketTimeoutException("HTTP request read deadline exceeded")
-            client.soTimeout = remaining.toInt()
+            client.soTimeout = minOf(remaining, CLIENT_SOCKET_TIMEOUT_MS.toLong()).toInt()
             val next = input.read()
             if (next < 0) return if (bytes.size() == 0) null else String(bytes.toByteArray(), StandardCharsets.ISO_8859_1)
             if (next == '\n'.code) break
