@@ -41,7 +41,7 @@ internal fun rememberLyricPlayhead(position: PlaybackPosition): LyricPlayhead {
 }
 
 @Composable
-internal fun rememberLivePlaybackPosition(position: PlaybackPosition, isPlaying: Boolean, durationMs: Long): Long {
+internal fun rememberLivePlaybackPosition(position: PlaybackPosition, isPlaying: Boolean, durationMs: Long): State<Long> {
     val live = remember(position) { mutableLongStateOf(position.positionMs) }
     val foreground = rememberIsForeground()
     LaunchedEffect(position, isPlaying, position.advancing, durationMs, foreground) {
@@ -52,7 +52,7 @@ internal fun rememberLivePlaybackPosition(position: PlaybackPosition, isPlaying:
             snapshotFlow { position.positionMs }.collect { live.longValue = it }
         }
     }
-    return live.longValue
+    return live
 }
 
 private fun nanosToMs(nanos: Long): Double = nanos / 1_000_000.0
