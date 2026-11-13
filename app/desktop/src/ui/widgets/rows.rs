@@ -45,10 +45,6 @@ pub fn play_triangle(ui: &Ui, center: Pos2, r: f32, color: Color32) {
 pub fn equalizer(ui: &Ui, rect: Rect, time: f64, playing: bool, color: Color32) {
     let ctx = ui.ctx();
     let on = theme::anim_bool(ctx, ui.scope_id().with("eq"), playing, 0.35);
-    if on > 0.0 {
-        let frame = ctx.cumulative_frame_nr();
-        ctx.data_mut(|d| d.insert_temp(equalizer_id(), frame));
-    }
     let px = ctx.pixels_per_point();
     let snap = |v: f32| (v * px).round() / px;
     let bar_w = snap((rect.width() * 0.22).max(2.0));
@@ -66,15 +62,6 @@ pub fn equalizer(ui: &Ui, rect: Rect, time: f64, playing: bool, color: Color32) 
         let bar = Rect::from_min_max(pos2(x, snap(rect.bottom()) - h), pos2(x + bar_w, snap(rect.bottom())));
         ui.painter().add(egui::epaint::RectShape::filled(bar, bar_w / 2.0, color).with_round_to_pixels(false));
     }
-}
-
-pub fn equalizer_id() -> egui::Id {
-    egui::Id::unique("equalizer_frame")
-}
-
-pub fn equalizer_shown(ctx: &egui::Context) -> bool {
-    let now = ctx.cumulative_frame_nr();
-    ctx.data(|d| d.get_temp::<u64>(equalizer_id())).is_some_and(|f| f + 1 >= now)
 }
 
 pub struct RowOpts {

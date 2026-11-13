@@ -95,9 +95,7 @@ impl eframe::App for App {
             } else {
                 ctx.request_repaint_after(Duration::from_secs(2));
             }
-        } else if self.np_open && playing && !self.mini.busy() {
-            ctx.request_repaint_after(Duration::from_millis(8));
-        } else if playing && widgets::equalizer_shown(ctx) {
+        } else if playing && !self.mini.busy() {
             ctx.request_repaint_after(Duration::from_millis(8));
         } else if playing && self.anim_bg && shell::pages_bg_moves(self.look()) {
             ctx.request_repaint_after(Duration::from_millis(66));
