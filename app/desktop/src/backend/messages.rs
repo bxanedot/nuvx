@@ -44,7 +44,7 @@ pub enum Req {
     ArtistSignature { key: String, endpoint: String, name: String },
     Radio { seed: String, song_of: Option<Track> },
     PlayCollection { target: Target },
-    Play { video_id: String, generation: u64, at: std::time::Duration, report: bool, song_of: Option<Track>, song: Option<Track>, track: Option<Track> },
+    Play { video_id: String, generation: u64, at: std::time::Duration, report: bool, start_paused: bool, song_of: Option<Track>, song: Option<Track>, track: Option<Track> },
     Prefetch { video_id: String, song_of: Option<Track>, track: Option<Track> },
     Like { video_id: String, like: bool },
     LikeMany { video_ids: Vec<String>, like: bool },

@@ -1,7 +1,7 @@
 use super::*;
 
 impl Backend {
-    pub(super) async fn start_playback(&self, listed: &str, song_of: Option<&Track>, carried: Option<Track>, track: Option<&Track>, generation: u64, at: std::time::Duration, report: bool) -> anyhow::Result<()> {
+    pub(super) async fn start_playback(&self, listed: &str, song_of: Option<&Track>, carried: Option<Track>, track: Option<&Track>, generation: u64, at: std::time::Duration, report: bool, start_paused: bool) -> anyhow::Result<()> {
         if let Some(url) = listed.strip_prefix(crate::radio::PREFIX) {
             return self.play_station(url, generation).await;
         }
@@ -93,7 +93,7 @@ impl Backend {
                     let _ = tx.send(Resp::AudioInfo { generation, info });
                     wake();
                 }
-                audio.send(AudioCmd::Start { generation, decoder, shared: shared2, at });
+                audio.send(AudioCmd::Start { generation, decoder, shared: shared2, at, start_paused });
                 if let Some((this, id)) = report.filter(|_| audio.status.wanted_gen.load(Ordering::Relaxed) == generation) {
                     let rt = this.rt.clone();
                     rt.spawn(async move {
@@ -111,7 +111,7 @@ impl Backend {
                 Some((this, listed, report)) => {
                     log::warn!("{listed}'s song won't start ({e}); playing the music video");
                     let _ = tx.send(Resp::PlayingAs { generation, listed: listed.clone(), song: None });
-                    this.request(Req::Play { video_id: listed, generation, at, report, song_of: None, song: None, track: None });
+                    this.request(Req::Play { video_id: listed, generation, at, report, start_paused, song_of: None, song: None, track: None });
                     wake();
                 }
                 None => {
@@ -245,7 +245,7 @@ impl Backend {
         let audio = self.audio.clone();
         tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
             let decoder = rodio::Decoder::builder().with_data(reader).with_seekable(false).with_hint(hint).build()?;
-            audio.send(AudioCmd::Start { generation, decoder: crate::audio::TrackDecoder::Live(decoder), shared, at: std::time::Duration::ZERO });
+            audio.send(AudioCmd::Start { generation, decoder: crate::audio::TrackDecoder::Live(decoder), shared, at: std::time::Duration::ZERO, start_paused: false });
             Ok(())
         })
         .await?
