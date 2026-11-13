@@ -7,29 +7,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * Genius: a plain-text web scraper, and the only source here with no API.
- *
- * ## The User-Agent, which is the whole ballgame
- *
- * This deliberately does not claim to be a browser. It used to, on the usual
- * reasoning that a site serves a scraper better if it looks like a person — and
- * that reasoning is inverted. Genius sits behind Cloudflare, and Cloudflare now
- * challenges a browser-claiming agent whose TLS fingerprint and `sec-ch-ua`
- * headers do not back the claim. A plain agent is answered; a lying one is
- * challenged.
- *
- * The cost of getting that wrong is invisible, which is why it is stated so
- * loudly: [lyricsGet] reads any non-2xx as null, and null travels all the way up
- * as "no lyrics for this track" — indistinguishable from a song Genius genuinely
- * does not have. A whole provider can be dead and look like an empty catalogue.
- *
- * ## What it is worth
- *
- * Nothing synchronised, ever — it is plain text. Its value is coverage: it is a
- * community database with a long tail no licensed source carries, and it is the
- * last source in the default order for that reason.
- */
 object Genius {
 
 

@@ -65,7 +65,6 @@ final class LocalArtwork: @unchecked Sendable {
         }
     }
 
-    /// Decode at cover size before encoding: a large embedded original must
 
     private static func thumbnail(_ data: Data, pixels: Int) -> Data? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),

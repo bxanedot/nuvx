@@ -273,12 +273,6 @@ data class PlayerClient(
 
         fun lengthFromUrl(url: String): Long? = url.queryParamAsLong("clen")
 
-        /**
-         * A numeric query parameter of a googlevideo URL.
-         *
-         * No percent-decoding: these are bare digits, and the client and version
-         * tokens are the ones that need it.
-         */
         private fun String.queryParamAsLong(key: String): Long? {
             val query = substringAfter('?', "").takeIf { it.isNotEmpty() } ?: return null
             return query.split('&').firstNotNullOfOrNull { part ->
