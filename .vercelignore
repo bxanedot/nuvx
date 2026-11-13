@@ -1,0 +1,14 @@
+/.github
+/.gradle
+/.kotlin
+/build
+/core
+/docs
+/gradle
+/app/android
+/app/desktop
+/app/web/app/dist
+/app/web/node_modules
+/app/web/app/node_modules
+/app/web/extension/node_modules
+/app/web/shared/node_modules
