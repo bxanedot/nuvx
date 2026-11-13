@@ -9,6 +9,7 @@ import { Outlet } from 'react-router';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { config } from '@/config';
 import { useExtension } from '@/extension/useExtension';
+import { currentBrowser, downloadsFor } from '@/extension/downloads';
 import { isMobileBrowser } from '@/lib/platform';
 import { useUi } from '@/state/ui';
 import { usePlayer } from '@/state/player';
@@ -48,6 +49,8 @@ export function AppShell() {
   useEffect(() => startHistoryReporting(), []);
   useEffect(() => startLivePresence(), []);
   const extension = useExtension();
+  const browserDownload = downloadsFor().find(({ browser }) => browser === currentBrowser);
+  const BrowserDownloadIcon = browserDownload?.Icon;
   const bannerDismissed = useUi((s) => s.installBannerDismissed);
   const dismissBanner = useUi((s) => s.dismissInstallBanner);
   const fullScreen = useUi((s) => s.fullScreen);
@@ -73,9 +76,16 @@ export function AppShell() {
         title="Play YouTube Music with the nuvx extension."
         detail="Playback, YouTube Music sign-in, Spotify and Discord need the extension. Addons and lyrics work without it."
         action={
-          <PrefetchLink className={bannerButtonClass} to="/extension">
-            Get the Extension
-          </PrefetchLink>
+          browserDownload?.href && BrowserDownloadIcon ? (
+            <a className={bannerButtonClass} href={browserDownload.href} target="_blank" rel="noreferrer">
+              <BrowserDownloadIcon size={15} aria-hidden="true" />
+              Add to {currentBrowser === 'chrome' ? 'Chrome' : 'Firefox'}
+            </a>
+          ) : (
+            <PrefetchLink className={bannerButtonClass} to="/extension">
+              Get the Extension
+            </PrefetchLink>
+          )
         }
         onDismiss={dismissBanner}
       />
