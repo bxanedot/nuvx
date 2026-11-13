@@ -52,7 +52,6 @@ import com.bxane.nuvx.data.OfflinePlaylists
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.lyrics.LyricLine
 import com.bxane.nuvx.data.model.QueueTier
-import com.bxane.nuvx.data.sources.SourceRegistry
 import com.bxane.nuvx.download.Downloads
 import java.util.concurrent.ConcurrentHashMap
 import com.bxane.nuvx.data.Http
@@ -68,13 +67,11 @@ import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.model.isUnresolvedSpotify
 import com.bxane.nuvx.data.settings.AppSettings
-import com.bxane.nuvx.data.settings.AudioQuality
 import com.bxane.nuvx.data.settings.BitPerfectMode
 import com.bxane.nuvx.data.settings.permits
 import com.bxane.nuvx.data.settings.EqualizerMode
 import com.bxane.nuvx.data.sources.SourceKind
 import com.bxane.nuvx.data.sources.SourceResolver
-import com.bxane.nuvx.data.sources.SourceStream
 import com.bxane.nuvx.data.sources.TrackMatcher
 import com.bxane.nuvx.playback.smart.AutomixAnalysisSource
 import com.bxane.nuvx.playback.smart.VersionAudioAligner
@@ -379,6 +376,13 @@ class PlaybackService : MediaLibraryService() {
     private val queuePrefetchController = PlaybackQueuePrefetchController {
         directSourceWindow.drive()
     }
+    private val cacheMaintenance = PlaybackCacheMaintenanceController(
+        scope = scope,
+        player = { player },
+        spare = { spare },
+        streamUpgrade = streamUpgrade,
+        queuePrefetch = queuePrefetchController,
+    )
     private var persistedQueueStart = 0
 
     private val queuePersistence: PlaybackQueuePersistenceController = PlaybackQueuePersistenceController(
@@ -517,7 +521,7 @@ class PlaybackService : MediaLibraryService() {
                 .collect { ceiling ->
                     val lost = SourceKind.entries.filter { previous.permits(it) && !ceiling.permits(it) }
                     previous = ceiling
-                    if (lost.isNotEmpty()) onCeilingLowered(ceiling, lost)
+                    if (lost.isNotEmpty()) cacheMaintenance.onCeilingLowered(ceiling, lost)
                 }
         }
 
@@ -992,7 +996,7 @@ class PlaybackService : MediaLibraryService() {
         telemetry.onTrackTransition()
         AudioOutputStatus.onTrackTransition()
         mediaItem?.let { AudioCache.notePlayed(it.toSong(), it.localConfiguration?.uri) }
-        scheduleForeignCachePurge()
+        cacheMaintenance.scheduleForeignCachePurge()
         mediaItem?.mediaId?.takeUnless(::isLiveRadio)?.let { id ->
             telemetry.resolveLocalBitrate(id, mediaItem)
         }
@@ -1126,56 +1130,6 @@ class PlaybackService : MediaLibraryService() {
 
     private fun publishWidgetState(playing: Boolean? = null) {
         widgetPublisher.publish(playing)
-    }
-
-    private var foreignCachePurgeJob: Job? = null
-
-    private fun scheduleForeignCachePurge() {
-        foreignCachePurgeJob?.cancel()
-        foreignCachePurgeJob = scope.launch {
-            delay(FOREIGN_CACHE_PURGE_DELAY_MS)
-            val exoPlayer = player ?: return@launch
-            val keep = buildSet {
-                exoPlayer.currentMediaItem?.mediaId?.let(::add)
-                val current = exoPlayer.currentMediaItemIndex
-                if (current != C.INDEX_UNSET) {
-                    val window = (current - 1)..(current + FOREIGN_CACHE_KEEP_AHEAD)
-                    for (index in window) {
-                        if (index in 0 until exoPlayer.mediaItemCount) add(exoPlayer.getMediaItemAt(index).mediaId)
-                    }
-                }
-                spare?.currentMediaItem?.mediaId?.let(::add)
-            }
-            AudioCache.dropForeignEntries(keep)
-        }
-    }
-
-    private fun onCeilingLowered(ceiling: AudioQuality, lost: List<SourceKind>) {
-        val exoPlayer = player ?: return
-        val keep = buildSet {
-            exoPlayer.currentMediaItem?.mediaId?.let(::add)
-            spare?.currentMediaItem?.mediaId?.let(::add)
-            val duration = exoPlayer.duration
-            val next = exoPlayer.nextMediaItemIndex
-            if (duration != C.TIME_UNSET && next != C.INDEX_UNSET &&
-                exoPlayer.totalBufferedDuration >= duration - exoPlayer.currentPosition
-            ) {
-                add(exoPlayer.getMediaItemAt(next).mediaId)
-            }
-        }
-        TrackLog.d(
-            "nuvx",
-            "quality ceiling now ${ceiling.name}; letting go of ${lost.joinToString { it.label }} " +
-                "except for ${keep.joinToString()}",
-        )
-        val permitted = { stream: SourceStream -> SourceRegistry.permitsForPlayback(stream.sourceConfigId) }
-        streamUpgrade.cancelStaleUpgradeJob()
-        cancelPrefetch()
-        StreamChoice.forgetWhere(keep) { !permitted(it) }
-        QualityUpgrade.onCeilingLowered(keep, permitted)
-        AudioCache.dropForeignEntries(keep, keepAnalysis = true)
-        prefetchAround(exoPlayer)
-        streamUpgrade.lookForBetterCopy(exoPlayer)
     }
 
     private fun prefetchAround(player: ExoPlayer) = queuePrefetchController.prefetchAround(player)
@@ -1621,9 +1575,6 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private companion object {
-        const val FOREIGN_CACHE_PURGE_DELAY_MS = 30_000L
-        const val FOREIGN_CACHE_KEEP_AHEAD = 3
-
         val ROOT_CHILDREN: List<String> = listOf(
             MEDIA_QUICK_PICKS_ID,
             MEDIA_RECENTS_ID,
