@@ -81,7 +81,6 @@ private class ResumeGate {
 
     var holdingStill = false
 }
-
 private class Teardown {
     var disposed = false
 
@@ -151,7 +150,6 @@ internal fun AndroidCanvasArtworkPlayer(
                 repeatMode = Player.REPEAT_MODE_ONE
                 trackSelectionParameters = trackSelectionParameters.buildUpon()
                     .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
-                    .apply { CanvasPlaybackLimits.maxFrameRate?.let(::setMaxVideoFrameRate) }
                     .build()
             }
     }
@@ -676,9 +674,4 @@ internal fun AndroidCanvasVideo(spec: CanvasVideoSpec, modifier: Modifier) {
         onStillCaptured = spec.onStillCaptured,
         onResumed = spec.onResumed,
     )
-}
-
-object CanvasPlaybackLimits {
-    @Volatile
-    var maxFrameRate: Int? = null
 }
