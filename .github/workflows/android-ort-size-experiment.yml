@@ -57,6 +57,9 @@ jobs:
           CONFIG: ${{ runner.temp }}/required_operators.config
           BUILD_DIR: ${{ runner.temp }}/onnxruntime-build
         run: |
+          # ORT 1.31.1's build helper uses Python 3.9+ annotations; Ubuntu 22.04 supplies Python 3.10.
+          sed -i 's/^FROM ubuntu:20\.04$/FROM ubuntu:22.04/' "$ORT_DIR/tools/android_custom_build/Dockerfile"
+          grep -q '^FROM ubuntu:22\.04$' "$ORT_DIR/tools/android_custom_build/Dockerfile"
           python "$ORT_DIR/tools/android_custom_build/build_custom_android_package.py" \
             --onnxruntime_branch_or_tag v1.31.1 \
             --include_ops_by_config "$CONFIG" \
