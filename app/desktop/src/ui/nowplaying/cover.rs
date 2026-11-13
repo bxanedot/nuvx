@@ -59,7 +59,7 @@ pub(super) fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate:
             ui.painter().rect_filled(art, cr, theme::shade(1.0 - cs.brightness));
         }
     }
-    let w = side;
+    let w = art.width();
     let x0 = art.left();
     let info_y = art.bottom() + 22.0;
     let text_w = w - 76.0;
