@@ -14,6 +14,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.PrintWriter
 import java.net.Inet4Address
@@ -42,6 +43,9 @@ object TvAuthServer {
     private const val TAG = "TvAuthServer"
     private const val DEFAULT_PORT = 8765
     private const val MAX_REQUEST_BODY_BYTES = 64 * 1024
+    private const val MAX_HTTP_LINE_BYTES = 8 * 1024
+    private const val MAX_HTTP_HEADERS_BYTES = 16 * 1024
+    private const val REQUEST_READ_DEADLINE_MS = 10_000L
     private const val PAIRING_WINDOW_MS = 10 * 60 * 1000L
     private const val CLIENT_SOCKET_TIMEOUT_MS = 5_000
     private const val MAX_CLIENT_CONNECTIONS = 4
@@ -153,8 +157,10 @@ object TvAuthServer {
                 client.soTimeout = CLIENT_SOCKET_TIMEOUT_MS
                 val input = BufferedInputStream(client.getInputStream())
                 val writer = PrintWriter(client.getOutputStream(), true)
+                val deadline = SystemClock.elapsedRealtime() + REQUEST_READ_DEADLINE_MS
 
-                val requestLine = readHttpLine(input) ?: return@Thread
+                val requestLine = readHttpLine(client, input, deadline) ?: return@Thread
+                var headerBytes = requestLine.length + 2
                 val parts = requestLine.split(" ")
                 val method = parts.getOrNull(0) ?: "GET"
                 val rawPath = parts.getOrNull(1) ?: "/"
@@ -165,7 +171,12 @@ object TvAuthServer {
                 var bodyCharset: Charset = StandardCharsets.UTF_8
                 var pairingHeader: String? = null
                 while (true) {
-                    val line = readHttpLine(input) ?: break
+                    val line = readHttpLine(client, input, deadline) ?: break
+                    headerBytes += line.length + 2
+                    if (headerBytes > MAX_HTTP_HEADERS_BYTES) {
+                        sendJsonResponse(writer, """{"error":"request headers too large"}""", 400)
+                        return@Thread
+                    }
                     if (line.isBlank()) break
                     if (line.startsWith("Content-Length:", ignoreCase = true)) {
                         val length = line.substringAfter(":").trim().toIntOrNull()
@@ -193,6 +204,9 @@ object TvAuthServer {
                     val bodyBytes = ByteArray(contentLength)
                     var read = 0
                     while (read < contentLength) {
+                        val remaining = deadline - SystemClock.elapsedRealtime()
+                        if (remaining <= 0) throw SocketTimeoutException("HTTP request read deadline exceeded")
+                        client.soTimeout = remaining.toInt()
                         val count = input.read(bodyBytes, read, contentLength - read)
                         if (count <= 0) break
                         read += count
@@ -315,13 +329,19 @@ object TvAuthServer {
         }.start()
     }
 
-    private fun readHttpLine(input: InputStream): String? {
+    private fun readHttpLine(client: Socket, input: InputStream, deadline: Long): String? {
         val bytes = ByteArrayOutputStream()
         while (true) {
+            val remaining = deadline - SystemClock.elapsedRealtime()
+            if (remaining <= 0) throw SocketTimeoutException("HTTP request read deadline exceeded")
+            client.soTimeout = remaining.toInt()
             val next = input.read()
             if (next < 0) return if (bytes.size() == 0) null else String(bytes.toByteArray(), StandardCharsets.ISO_8859_1)
             if (next == '\n'.code) break
-            if (next != '\r'.code) bytes.write(next)
+            if (next != '\r'.code) {
+                if (bytes.size() >= MAX_HTTP_LINE_BYTES) throw IOException("HTTP line too long")
+                bytes.write(next)
+            }
         }
         return String(bytes.toByteArray(), StandardCharsets.ISO_8859_1)
     }
