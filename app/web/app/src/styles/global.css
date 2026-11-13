@@ -359,11 +359,6 @@
     background-color: rgba(var(--keyColor-rgb), 0.3);
   }
 
-  :focus,
-  :focus-visible {
-    outline: none;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
