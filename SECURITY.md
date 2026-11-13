@@ -8,7 +8,9 @@ Security fixes are prioritized for the latest published stable release of each c
 
 ## Reporting a vulnerability
 
-Please report suspected vulnerabilities privately by emailing [bxanee@gmail.com](mailto:bxanee@gmail.com). Avoid public issues, pull requests, or Discord posts that include exploitable details.
+Use GitHub's **Report a vulnerability** option on the repository's Security page to send vulnerability details privately. Do not post exploitable details in public issues, pull requests, or Discord.
+
+If private reporting is unavailable, email [bxanee@gmail.com](mailto:bxanee@gmail.com) instead.
 
 Include the affected component and version, platform, steps to reproduce, and potential impact. Redact passwords, tokens, cookies, private listening data, and other personal information from logs or screenshots.
 
