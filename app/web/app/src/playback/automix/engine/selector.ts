@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+
 import type { TrackAnalysis } from '../analysis/types';
 import { camelotScore } from '../analysis/camelot';
 import { MIN_GRID_CONFIDENCE } from './transition-scheduler';

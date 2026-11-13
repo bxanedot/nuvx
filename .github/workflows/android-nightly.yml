@@ -319,7 +319,8 @@ jobs:
           mkdir -p dist/nuvx
           cp universal/x86_64/nuvx dist/nuvx/nuvx-x86_64
           cp universal/aarch64/nuvx dist/nuvx/nuvx-aarch64
-          cp linux/install.sh linux/nuvx.desktop README.md LICENSE dist/nuvx/
+          cp linux/install.sh linux/nuvx.desktop README.md dist/nuvx/
+          cp -R ../../THIRD_PARTY_LICENSES dist/nuvx/
           cp assets/icon/icon.png dist/nuvx/nuvx.png
           chmod 755 dist/nuvx/nuvx-x86_64 dist/nuvx/nuvx-aarch64 dist/nuvx/install.sh
           sh linux/test-installer.sh dist/nuvx

@@ -1,7 +1,7 @@
-/* SoX Resampler Library      Copyright (c) 2007-18 robs@users.sourceforge.net
- * Licence for this file: LGPL v2.1                  See LICENCE for details.
- *
- * Constant-rate resampling engine-specific code. */
+
+
+
+
 
 #include <math.h>
 #include <assert.h>

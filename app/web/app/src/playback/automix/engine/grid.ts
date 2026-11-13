@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+
 import type { TrackAnalysis } from '../analysis/types';
 
 export const BEATS_PER_BAR = 4;

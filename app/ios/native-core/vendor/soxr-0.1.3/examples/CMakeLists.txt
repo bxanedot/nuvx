@@ -1,5 +1,5 @@
-# SoX Resampler Library       Copyright (c) 2007-16 robs@users.sourceforge.net
-# Licence for this file: LGPL v2.1                  See LICENCE for details.
+
+
 
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_C_FLAGS}")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PROJECT_CXX_FLAGS}")

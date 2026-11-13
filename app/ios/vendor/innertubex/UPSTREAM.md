@@ -3,9 +3,10 @@
 Source: https://github.com/MetrolistGroup/innertubex
 Pinned revision: 64c7df4d88d27e6964157b3b341f7ec70f88ea6e (v0.11.6)
 
-`src/` is upstream's tree at that revision, unmodified: `commonMain`,
+`src/` is upstream's tree at that revision: `commonMain`,
 `nativeMain`, `commonTest` and `nativeTest`. Upstream's Android, JVM and
-Windows source sets are not copied. `LICENSE`, `README.md`, `SECURITY.md` and
+Windows source sets are not copied. Source notices and standalone terms have
+been relocated to root `THIRD_PARTY_LICENSES/`. `README.md`, `SECURITY.md` and
 `CHANGELOG.md` are upstream's.
 
 The local `build.gradle.kts` is the only adapter. It adds macOS arm64 alongside

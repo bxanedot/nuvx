@@ -18,6 +18,23 @@ checker = load_script("port_checker", "check-nuvx-port.py")
 
 
 class PortIdentityTests(unittest.TestCase):
+    def test_repository_license_layout(self):
+        path = ROOT.parents[1] / "scripts/check-license-layout.py"
+        spec = importlib.util.spec_from_file_location("license_layout", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.check(), [])
+
+    def test_desktop_packages_copy_the_central_notice_directory(self):
+        repo = ROOT.parents[1]
+        mac = (repo / "app/desktop/macos/bundle.sh").read_text(encoding="utf-8")
+        windows = (repo / "app/desktop/windows/nuvx.iss").read_text(encoding="utf-8")
+        self.assertIn('cp -R "$here/../../../THIRD_PARTY_LICENSES"', mac)
+        self.assertIn(r'..\..\..\THIRD_PARTY_LICENSES\*', windows)
+        for name in ("desktop-release.yml", "android-nightly.yml"):
+            workflow = (repo / ".github/workflows" / name).read_text(encoding="utf-8")
+            self.assertIn("cp -R ../../THIRD_PARTY_LICENSES dist/nuvx/", workflow)
+
     def test_all_offline_source_checks(self):
         _, failures = checker.check()
         self.assertEqual(failures, [])
@@ -55,10 +72,12 @@ class PortIdentityTests(unittest.TestCase):
         self.assertIn(r"^Payload/nuvx\.app/PlugIns/NuvxWidget\.appex", script)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
 
-    def test_dependency_notices_match_and_use_current_product_identity(self):
-        notices = (ROOT / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
-        bundled = (ROOT.parents[1] / "core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
-        self.assertEqual(notices, bundled)
+    def test_dependency_notices_are_centralized_and_use_current_product_identity(self):
+        notices = (ROOT.parents[1] / "THIRD_PARTY_LICENSES/apple/README.md").read_text(encoding="utf-8")
+        project = (ROOT / "mobile/project.yml").read_text(encoding="utf-8")
+        self.assertIn("path: ../../../THIRD_PARTY_LICENSES", project)
+        self.assertFalse((ROOT / "THIRD_PARTY_LICENSES.md").exists())
+        self.assertFalse((ROOT.parents[1] / "core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt").exists())
         self.assertTrue(notices.startswith("# Third-party licenses\n\nnuvx is distributed by bxane."))
         self.assertIn("## Components", notices)
         self.assertIn("libsoxr", notices)

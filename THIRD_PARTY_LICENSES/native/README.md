@@ -2,8 +2,8 @@
 
 | Folder | Upstream | Version | License |
 |---|---|---|---|
-| `signalsmith-stretch/` | https://github.com/Signalsmith-Audio/signalsmith-stretch | 1.3.2 (`88061fd4`) | MIT (`LICENSE.txt`) |
-| `signalsmith-linear/` | https://github.com/Signalsmith-Audio/linear | 0.6.6 | MIT (`LICENSE.txt`) |
+| `core/native/third_party/signalsmith-stretch/` | https://github.com/Signalsmith-Audio/signalsmith-stretch | 1.3.2 (`88061fd4`) | [MIT](../signalsmith-stretch/LICENSE.txt) |
+| `core/native/third_party/signalsmith-linear/` | https://github.com/Signalsmith-Audio/linear | 0.6.6 | [MIT](../signalsmith-linear/LICENSE.txt) |
 
 Copied verbatim; the Automix loop mix (`native/loopmix/`) is the only user.
 Signalsmith Stretch includes `signalsmith-linear/stft.h`, which resolves
@@ -21,7 +21,7 @@ against this folder.
 The bit-perfect output (`app/src/main/cpp/bitperfect/`,
 `app/src/main/java/com/bxane/nuvx/playback/audio/bitperfect/`) adapts
 parts of [Mornye](https://github.com/mornyeapp/Mornye), Copyright 2026 zarzet,
-licensed LGPL-3.0-only. Each adapted file carries an `LGPL-3.0-only` SPDX
-line; its original header is in `THIRD_PARTY_NOTICES.md`. The direct USB driver's realtime arithmetic has
+licensed LGPL-3.0-only. Source-header notices are retained in
+[`SOURCE_NOTICES.md`](../SOURCE_NOTICES.md). The direct USB driver's realtime arithmetic has
 host tests in `app/src/main/cpp/bitperfect/tests/` (see the build line at the
 top of the file); its descriptor and volume logic is tested from JUnit.

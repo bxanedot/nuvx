@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 package com.bxane.nuvx.data.radio
 
 import com.bxane.nuvx.data.Http

@@ -50,8 +50,9 @@ DESCRIPTION = (
 
 
 def set_metadata(model: "ct.models.MLModel", variant: str) -> None:
-    model.author = "nuvx"
-    model.license = "MIT"
+    model.author = "bxane"
+    notice_path = Path(__file__).resolve().parents[4] / "THIRD_PARTY_LICENSES/apple/model-metadata.json"
+    model.license = json.loads(notice_path.read_text())["beat_this_final0_coreml"]["license"]
     model.short_description = DESCRIPTION
     model.version = "1.0"
     metadata = model.user_defined_metadata

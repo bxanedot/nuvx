@@ -8,8 +8,8 @@
 
 
 
-//! `native/analyzer` — Copyright (C) 2026 SFG545, Copyright (C) 2026 Kushagra
-//! Singh. AGPLv3-or-later, kept as part of the same GPL-3 combined work.
+
+
 
 use super::{fft, Complex, PI};
 

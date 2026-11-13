@@ -27,7 +27,7 @@ Never commit secrets, keystores, `local.properties` or `keystore.properties`.
 
 ## License
 
-nuvx is under [GPL-3.0](LICENSE). Contributions are licensed the same way.
+See the centralized [license texts and notices](THIRD_PARTY_LICENSES/) for the project and component terms.
 
 ## Security
 

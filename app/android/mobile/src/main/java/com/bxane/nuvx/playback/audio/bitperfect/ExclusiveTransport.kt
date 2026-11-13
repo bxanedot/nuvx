@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-3.0-only
+
 package com.bxane.nuvx.playback.audio.bitperfect
 
 import android.media.AudioDeviceCallback

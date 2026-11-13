@@ -1,10 +1,10 @@
-/*  Copyright(C) 1996 Takuya OOURA
 
-You may use, copy, modify this code for any purpose and
-without fee.
 
-Package home:  http://www.kurims.kyoto-u.ac.jp/~ooura/bessel.html
-*/
+
+
+
+
+
 
 #include "filter.h"
 #define dbesi0 lsx_bessel_I_0

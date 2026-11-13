@@ -62,7 +62,7 @@ targets:
         optional: true
       - path: ../../../core/apple/resources/Resources/Localization
         buildPhase: resources
-      - path: ../../../core/apple/resources/Resources/AudioLicenses
+      - path: ../../../THIRD_PARTY_LICENSES
         type: folder
         buildPhase: resources
       - path: ../../../core/apple/resources/Resources/YouTubeSolver

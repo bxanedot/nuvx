@@ -65,7 +65,7 @@ clone and two runs on the same machine: same `.aar` SHA-256). Pin the `.aar` byt
 
 **Contract (fixed):** input `spectrogram` Float32 `[1,1500,128]`; outputs
 `beat`, `downbeat` Float32 `[1,1500]` logits, same meaning as the ONNX heads.
-Metadata: author `Nuvx`, license `MIT`, short description, and
+Metadata: author `bxane`, terms from root `THIRD_PARTY_LICENSES/apple/model-metadata.json`, short description, and
 `source_commit` / `checkpoint_sha256` / `provenance` user keys.
 
 ## Parity
