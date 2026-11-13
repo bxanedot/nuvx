@@ -1,0 +1,75 @@
+name: Browser extension downloads
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/web/**"
+      - ".github/workflows/browser-extensions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: browser-extension-downloads
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: browser-extensions-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/web/pnpm-lock.yaml
+      - run: corepack enable
+      - run: corepack pnpm --dir app/web install --frozen-lockfile
+      - name: Build Chrome and Firefox packages
+        env:
+          NUVX_SITE_ORIGINS: https://web.nuvx.lol,https://nuvx.pages.dev
+        run: corepack pnpm --dir app/web/extension package
+      - name: Prepare stable GitHub asset names
+        run: |
+          mkdir -p "$RUNNER_TEMP/nuvx-extension-assets"
+          node --input-type=module <<'JS'
+          import { copyFileSync, readFileSync } from 'node:fs';
+          import { join } from 'node:path';
+
+          const downloads = 'app/web/app/public/downloads';
+          const manifest = JSON.parse(readFileSync(join(downloads, 'extension.json'), 'utf8'));
+          for (const browser of ['chrome', 'firefox']) {
+            copyFileSync(join(downloads, manifest.files[browser]), join(process.env.RUNNER_TEMP, 'nuvx-extension-assets', `nuvx-extension-${browser}.zip`));
+          }
+          copyFileSync(join(downloads, 'extension.json'), join(process.env.RUNNER_TEMP, 'nuvx-extension-assets', 'extension.json'));
+          console.log(`Prepared Chrome and Firefox extension v${manifest.version}`);
+          JS
+      - name: Publish current packages to GitHub
+        run: |
+          version=$(node -p "require('./app/web/extension/package.json').version")
+          git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$RELEASE_TAG" --force
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --title "Nuvx browser extensions v$version" \
+              --notes "Current Chrome and Firefox extension ZIP downloads for nuvx v$version. These ZIPs are direct builds from the repository; store installs remain the easiest way to receive automatic updates. Firefox Stable requires a Mozilla-approved signed listing."
+          else
+            gh release create "$RELEASE_TAG" \
+              --title "Nuvx browser extensions v$version" \
+              --notes "Current Chrome and Firefox extension ZIP downloads for nuvx v$version. These ZIPs are direct builds from the repository; store installs remain the easiest way to receive automatic updates. Firefox Stable requires a Mozilla-approved signed listing." \
+              --latest=false
+          fi
+          gh release upload "$RELEASE_TAG" \
+            "$RUNNER_TEMP/nuvx-extension-assets/nuvx-extension-chrome.zip" \
+            "$RUNNER_TEMP/nuvx-extension-assets/nuvx-extension-firefox.zip" \
+            "$RUNNER_TEMP/nuvx-extension-assets/extension.json" \
+            --clobber

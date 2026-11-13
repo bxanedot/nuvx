@@ -75,6 +75,8 @@ Live at **https://web.nuvx.lol**. The `nuvx-web` Vercel project deploys every pu
 
 `build:site` packages the extension first, so each deploy publishes the zips and `downloads/extension.json` with the version from `app/web/extension/package.json`. The Extension page polls that file and offers the update when it's newer than the installed one. Bump that version to make an update show.
 
+The `Browser extension downloads` workflow also publishes the Chrome and Firefox ZIPs as stable-named assets on the `browser-extensions-latest` GitHub release. The Extension and Guide pages let users choose the browser store or a direct GitHub ZIP; ZIP installs require manual updates.
+
 ## Checks
 
 ```bash
