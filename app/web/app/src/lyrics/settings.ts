@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { LYRICS_SOURCES, orderedSources, type LyricsSourceId } from './sources';
+import { readStorage, writeStorage } from '@/lib/storage';
 
 interface LyricsSettings {
   order: LyricsSourceId[];
@@ -25,7 +26,7 @@ const DEFAULTS: Saved = {
 
 function load(): Saved {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Saved>;
+    const saved = JSON.parse(readStorage('localStorage', KEY) ?? '{}') as Partial<Saved>;
     return { ...DEFAULTS, ...saved, order: orderedSources(saved.order ?? DEFAULTS.order) };
   } catch {
     return DEFAULTS;
@@ -36,7 +37,7 @@ export const useLyricsSettings = create<LyricsSettings>()((set, get) => {
   const save = (change: Partial<Saved>) => {
     set(change);
     const { order, disabled, preferSyllables, paxsenixKey } = get();
-    localStorage.setItem(KEY, JSON.stringify({ order, disabled, preferSyllables, paxsenixKey }));
+    writeStorage('localStorage', KEY, JSON.stringify({ order, disabled, preferSyllables, paxsenixKey }));
   };
   return {
     ...load(),

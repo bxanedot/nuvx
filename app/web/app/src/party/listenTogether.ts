@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { config } from '@/config';
 import { ytAuthSnapshot } from '@/extension/useYtAuth';
+import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import { ServerClock } from './clock';
 import { cleanCode, CODE_LENGTH, sanitizeServerUrl } from './invite';
 import {
@@ -89,14 +90,14 @@ interface Settings {
 
 export function partySettings(): Settings {
   try {
-    return { customServer: '', nickname: '', ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Partial<Settings>) };
+    return { customServer: '', nickname: '', ...(JSON.parse(readStorage('localStorage', SETTINGS_KEY) ?? '{}') as Partial<Settings>) };
   } catch {
     return { customServer: '', nickname: '' };
   }
 }
 
 export function savePartySettings(change: Partial<Settings>): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...partySettings(), ...change }));
+  writeStorage('localStorage', SETTINGS_KEY, JSON.stringify({ ...partySettings(), ...change }));
 }
 
 export function idleServer(): string {
@@ -109,10 +110,10 @@ let membershipRequestId = 0;
 export const clock = new ServerClock();
 
 function deviceId(): string {
-  let id = localStorage.getItem('nuvx:deviceId');
+  let id = readStorage('localStorage', 'nuvx:deviceId');
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem('nuvx:deviceId', id);
+    writeStorage('localStorage', 'nuvx:deviceId', id);
   }
   return id;
 }
@@ -158,7 +159,7 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 function adoptMembership(base: string, membership: PartyMembership): string {
   token = membership.token;
   server = base;
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: membership.code, token, server }));
+  writeStorage('sessionStorage', SESSION_KEY, JSON.stringify({ code: membership.code, token, server }));
   clock.reset();
   const party = snapshotOf(membership.party);
   useParty.setState({
@@ -255,7 +256,7 @@ async function clearMembership(): Promise<void> {
   disconnect();
   token = null;
   server = null;
-  sessionStorage.removeItem(SESSION_KEY);
+  removeStorage('sessionStorage', SESSION_KEY);
   clock.reset();
   useParty.setState({ ...IDLE, activity: useParty.getState().activity });
   if (code && held && base) await releaseSlot(base, code, held);
@@ -269,14 +270,14 @@ export async function leaveParty(): Promise<void> {
 export function resumeSession(): void {
   if (useParty.getState().code) return;
   try {
-    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null') as { code: string; token: string; server: string } | null;
+    const saved = JSON.parse(readStorage('sessionStorage', SESSION_KEY) ?? 'null') as { code: string; token: string; server: string } | null;
     if (!saved?.code || !saved.token || !saved.server) return;
     token = saved.token;
     server = saved.server;
     useParty.setState({ ...IDLE, code: saved.code, connection: 'connecting' });
     connect();
   } catch {
-    sessionStorage.removeItem(SESSION_KEY);
+    removeStorage('sessionStorage', SESSION_KEY);
   }
 }
 
@@ -288,7 +289,7 @@ const KICKS_KEY = 'nuvx:party-kicked';
 
 function recentKicks(): Record<string, number> {
   try {
-    const all = JSON.parse(localStorage.getItem(KICKS_KEY) ?? '{}') as Record<string, number>;
+    const all = JSON.parse(readStorage('localStorage', KICKS_KEY) ?? '{}') as Record<string, number>;
     return Object.fromEntries(Object.entries(all).filter(([, until]) => until > Date.now()));
   } catch {
     return {};
@@ -296,7 +297,7 @@ function recentKicks(): Record<string, number> {
 }
 
 function recordKick(code: string): void {
-  localStorage.setItem(KICKS_KEY, JSON.stringify({ ...recentKicks(), [code]: Date.now() + KICK_BLOCK_MS }));
+  writeStorage('localStorage', KICKS_KEY, JSON.stringify({ ...recentKicks(), [code]: Date.now() + KICK_BLOCK_MS }));
 }
 
 function refuseIfRecentlyKicked(code: string): void {

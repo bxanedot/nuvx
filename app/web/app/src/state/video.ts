@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 
 export type VideoQuality = 'auto' | number;
 
@@ -14,7 +15,7 @@ interface VideoState {
 const QUALITY_KEY = 'nuvx:video-quality';
 
 function storedQuality(): VideoQuality {
-  const stored = localStorage.getItem(QUALITY_KEY);
+  const stored = readStorage('localStorage', QUALITY_KEY);
   const height = Number(stored);
   return stored && Number.isFinite(height) && height > 0 ? height : 'auto';
 }
@@ -29,8 +30,8 @@ export const useVideo = create<VideoState>()(() => ({
 }));
 
 export function setVideoQuality(quality: VideoQuality): void {
-  if (quality === 'auto') localStorage.removeItem(QUALITY_KEY);
-  else localStorage.setItem(QUALITY_KEY, String(quality));
+  if (quality === 'auto') removeStorage('localStorage', QUALITY_KEY);
+  else writeStorage('localStorage', QUALITY_KEY, String(quality));
   useVideo.setState({ quality });
 }
 
