@@ -192,6 +192,7 @@ import com.bxane.nuvx.ui.MainViewModel
 import com.bxane.nuvx.ui.MainMusicLinkHandler
 import com.bxane.nuvx.ui.MainBrowseOpener
 import com.bxane.nuvx.ui.MainPlaybackStarter
+import com.bxane.nuvx.ui.MainPlaybackSourceNavigator
 import com.bxane.nuvx.ui.SearchSource
 import com.bxane.nuvx.ui.components.BottomFadeScrim
 import com.bxane.nuvx.ui.components.TopFadeBlur
@@ -1304,6 +1305,19 @@ internal fun NuvxApp(
         }
     }
 
+    val playbackSourceNavigator = MainPlaybackSourceNavigator(
+        context = context,
+        viewModel = viewModel,
+        navigator = navigator,
+        queueLabel = queueLabel,
+        dismissPlayer = dismissPlayer,
+        selectTab = { selectedTab = it },
+        setReplayLandingPage = { replayLandingPage = it },
+        homeTab = TAB_HOME,
+        searchTab = TAB_SEARCH,
+        exploreTab = TAB_EXPLORE,
+    )
+
     val nowPlaying: @Composable (Song) -> Unit = { song ->
         val effectiveSong = optimisticVersionSong?.takeIf {
             it.videoId == convertedAudioId || it.videoId == convertedVideoId || it.videoId == keepVideoId ||
@@ -1458,51 +1472,7 @@ internal fun NuvxApp(
                     }
                 }
             },
-            onOpenPlaybackSource = openSource@{
-                val sourceType = displayedSong.playbackSourceType ?: PlaybackSourceType.QUEUE
-                val sourceTitle = displayedSong.playbackSource
-                    ?: displayedSong.albumName
-                    ?: queueLabel
-                val sourceId = displayedSong.playbackSourceId
-
-                dismissPlayer()
-                navigator.clear()
-
-                when (sourceType) {
-                    PlaybackSourceType.BROWSE -> {
-                        val id = sourceId ?: return@openSource
-                        viewModel.closeMoodGenre()
-                        viewModel.openDetail(id, sourceTitle)
-                    }
-                    PlaybackSourceType.HOME -> {
-                        viewModel.closeMoodGenre()
-                        selectedTab = TAB_HOME
-                    }
-                    PlaybackSourceType.SEARCH -> {
-                        viewModel.closeMoodGenre()
-                        selectedTab = TAB_SEARCH
-                    }
-                    PlaybackSourceType.HISTORY -> {
-                        navigator.push(AppRoute.History)
-                        viewModel.loadHistory()
-                    }
-                    PlaybackSourceType.REPLAY -> {
-                        replayLandingPage = ReplayStoryPage.INTRO
-                        navigator.push(AppRoute.Replay)
-                    }
-                    PlaybackSourceType.EXPLORE -> selectedTab = TAB_EXPLORE
-                    PlaybackSourceType.SHARED_LINK -> {
-                        val id = sourceId ?: return@openSource
-                        context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://music.youtube.com/watch?v=$id"),
-                            ),
-                        )
-                    }
-                    PlaybackSourceType.QUEUE -> Unit
-                }
-            },
+            onOpenPlaybackSource = { playbackSourceNavigator.open(displayedSong) },
             lyrics = lyrics,
             lyricsSource = lyricsSource,
             lyricsProviderStates = lyricsProviderStates,
