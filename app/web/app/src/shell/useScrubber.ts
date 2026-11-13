@@ -125,7 +125,15 @@ export function useScrubber() {
       setDragging(null);
     },
     onPointerCancel: () => setDragging(null),
+    onLostPointerCapture: () => setDragging(null),
     onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+      if (event.key === 'Escape') {
+        if (dragging !== null) {
+          event.preventDefault();
+          setDragging(null);
+        }
+        return;
+      }
       const audio = getAudio();
       if (!audio || liveRadio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
       const current = getPlayhead()?.sec ?? audio.currentTime;

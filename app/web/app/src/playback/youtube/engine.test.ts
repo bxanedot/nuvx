@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { resolvePlayer, pending } = vi.hoisted(() => ({
   resolvePlayer: vi.fn(),
@@ -44,6 +44,7 @@ function deferred<T>() {
 }
 
 describe('YouTubeEngine load supersession', () => {
+  beforeEach(() => { pending.clear(); resolvePlayer.mockReset(); });
   afterEach(() => {
     pending.clear();
     vi.clearAllMocks();
@@ -68,5 +69,23 @@ describe('YouTubeEngine load supersession', () => {
     pending.get('old-track')!.resolve({ videoId: 'old-track' });
     await expect(oldLoad).rejects.toBeInstanceOf(SupersededError);
     expect(startStream).not.toHaveBeenCalled();
+  });
+
+  it('tries another resolved source when the first stream is exhausted', async () => {
+    resolvePlayer
+      .mockResolvedValueOnce({ videoId: 'track', client: 'VISIONOS', info: {}, yt: {}, signed: false })
+      .mockResolvedValueOnce({ videoId: 'track', client: 'YTMUSIC', info: {}, yt: {}, signed: false });
+    const engine = new YouTubeEngine({} as HTMLAudioElement);
+    const startStream = vi.spyOn(engine as unknown as { startStream: (...args: unknown[]) => Promise<unknown> }, 'startStream')
+      .mockRejectedValueOnce(new Error('audio source exhausted'))
+      .mockResolvedValueOnce({
+        videoId: 'track', title: 'Track', author: 'Artist', durationSec: 180, thumbnails: [], client: 'YTMUSIC',
+        format: 'Opus direct', stream: { codec: 'opus', itag: '251', bitrateKbps: 128, sampleRateHz: 48000, channels: 2, mode: 'direct' }, loudnessDb: null,
+      });
+
+    await expect(engine.load('track')).resolves.toMatchObject({ videoId: 'track', client: 'YTMUSIC' });
+    expect(resolvePlayer).toHaveBeenCalledTimes(2);
+    expect(resolvePlayer.mock.calls[1]?.[2]).toEqual(new Set(['VISIONOS']));
+    expect(startStream).toHaveBeenCalledTimes(2);
   });
 });

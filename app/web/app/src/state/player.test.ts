@@ -27,6 +27,7 @@ vi.mock('@/data/music/api', () => ({ fetchRadio }));
 vi.mock('@/playback/youtube/videoDeck', () => ({ followVideo: vi.fn() }));
 
 class FakeAudio extends EventTarget {
+  static instances: FakeAudio[] = [];
   currentTime = 0;
   duration = 180;
   volume = 1;
@@ -35,6 +36,7 @@ class FakeAudio extends EventTarget {
   src = '';
   preload = '';
   crossOrigin = '';
+  constructor() { super(); FakeAudio.instances.push(this); }
   load() {}
   removeAttribute(name: string) { if (name === 'src') this.src = ''; }
   async play() { this.paused = false; this.ended = false; this.dispatchEvent(new Event('playing')); }
@@ -45,16 +47,24 @@ const track = (id: string, streamUrl = `https://radio.example/${id}.mp3`) => ({
   videoId: id, title: id, artists: [{ name: 'Radio', id: null }], album: null, durationSec: null,
   explicit: false, thumbnail: null, index: null, plays: null, streamUrl,
 });
+const loaded = (videoId: string) => ({
+  videoId, title: videoId, author: '', durationSec: 180, thumbnails: [], client: 'WEB', format: 'Opus',
+  stream: { codec: 'opus', itag: '251', bitrateKbps: 128, sampleRateHz: 48000, channels: 2, mode: 'direct' as const }, loudnessDb: null,
+});
 
 describe('player behavior at queue and media boundaries', () => {
   beforeEach(() => {
     vi.stubGlobal('Audio', FakeAudio);
+    FakeAudio.instances = [];
     localStorage.clear();
-    engineLoad.mockClear();
+    engineLoad.mockReset();
+    engineLoad.mockImplementation(async (videoId) => loaded(videoId));
     fetchRadio.mockReset();
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(navigator, 'mediaSession');
     vi.unstubAllGlobals();
     vi.resetModules();
   });
@@ -120,6 +130,117 @@ describe('player behavior at queue and media boundaries', () => {
     expect((player.getAudio() as FakeAudio).currentTime).toBe(0);
   });
 
+  it('restores radio playback after a stream error is retried', async () => {
+    const player = await radioPlayer();
+    const audio = player.getAudio() as FakeAudio;
+    audio.dispatchEvent(new Event('error'));
+    expect(player.usePlayer.getState()).toMatchObject({ status: 'error', error: expect.stringContaining('radio stream failed') });
+
+    player.usePlayer.getState().togglePlay();
+
+    await vi.waitFor(() => expect(player.usePlayer.getState()).toMatchObject({ status: 'playing', error: null }));
+    expect(audio.src).toBe('https://radio.example/first.mp3');
+  });
+
+  it('keeps settings changes active when storage writes fail', async () => {
+    const player = await radioPlayer();
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota exceeded'); });
+
+    expect(() => player.usePlayer.getState().setVolume(0.7)).not.toThrow();
+    expect(player.usePlayer.getState()).toMatchObject({ volume: 0.7, settingsSaveError: expect.stringContaining('could not be saved') });
+    write.mockRestore();
+    player.usePlayer.getState().setVolume(0.8);
+    expect(player.usePlayer.getState().settingsSaveError).toBeNull();
+  });
+
+  it('bounds volume and applies mute changes to both audio decks', async () => {
+    const player = await radioPlayer();
+    player.usePlayer.getState().setVolume(-4);
+    expect(player.usePlayer.getState().volume).toBe(0);
+    player.usePlayer.getState().setVolume(4);
+    expect(player.usePlayer.getState().volume).toBe(1);
+
+    player.usePlayer.getState().setVolume(0.6);
+    const deckAudio = FakeAudio.instances.slice(-2);
+    expect(deckAudio.map((audio) => audio.volume)).toEqual([0.6, 0.6]);
+    player.usePlayer.getState().toggleMute();
+    expect(deckAudio.map((audio) => audio.volume)).toEqual([0, 0]);
+  });
+
+  it('rejects persisted out-of-range volume and clamps rapid updates', async () => {
+    localStorage.setItem('nuvx:player', JSON.stringify({ volume: 2 }));
+    const player = await import('./player');
+    expect(player.usePlayer.getState().volume).toBe(1);
+
+    for (const value of [-1, 0.2, 1.5, 0.42]) player.usePlayer.getState().setVolume(value);
+    expect(player.usePlayer.getState().volume).toBe(0.42);
+  });
+
+  it('replaces stale media metadata and keeps actions safe with an empty queue', async () => {
+    const handlers = new Map<string, (details?: { seekTime?: number }) => void>();
+    const session = {
+      metadata: null as unknown,
+      playbackState: 'none',
+      setActionHandler: vi.fn((action: string, handler: ((details?: { seekTime?: number }) => void) | null) => {
+        if (handler) handlers.set(action, handler);
+      }),
+    };
+    Object.defineProperty(navigator, 'mediaSession', { configurable: true, value: session });
+    vi.stubGlobal('MediaMetadata', class { constructor(readonly init: Record<string, unknown>) { Object.assign(this, init); } });
+    const player = await radioPlayer();
+    player.usePlayer.getState().playTrack({ ...track('artwork'), thumbnail: 'https://img.example/cover.jpg' }, { title: 'Radio', type: 'radio' });
+    await vi.waitFor(() => expect(player.usePlayer.getState().nowPlaying?.videoId).toBe('artwork'));
+    expect((session.metadata as { artwork: unknown[] }).artwork).toHaveLength(3);
+
+    player.usePlayer.getState().playTrack({ ...track('plain'), thumbnail: null }, { title: 'Radio', type: 'radio' });
+    await vi.waitFor(() => expect(player.usePlayer.getState().nowPlaying?.videoId).toBe('plain'));
+    expect((session.metadata as { title: string; artwork: unknown[] }).title).toBe('plain');
+    expect((session.metadata as { artwork: unknown[] }).artwork).toEqual([]);
+
+    player.usePlayer.setState({ queue: [], index: -1, nowPlaying: null, status: 'idle' });
+    expect(() => handlers.get('previoustrack')?.()).not.toThrow();
+    expect(() => handlers.get('nexttrack')?.()).not.toThrow();
+    expect(() => handlers.get('seekto')?.({ seekTime: 20 })).not.toThrow();
+  });
+
+  it('cancels a pending crossfade when playback is paused', async () => {
+    const player = await youtubePlayer();
+    const current = player.usePlayer.getState().queue[0]!;
+    player.usePlayer.setState({ queue: [current, { ...current, entryId: 'next', track: track('next', '') }], index: 0, crossfadeSec: 6, status: 'playing' });
+    let resolveIncoming!: (value: Awaited<ReturnType<typeof engineLoad>>) => void;
+    engineLoad.mockReturnValueOnce(new Promise((resolve) => { resolveIncoming = resolve; }));
+    const audio = player.getAudio() as FakeAudio;
+    audio.paused = false;
+    audio.currentTime = 175;
+    audio.dispatchEvent(new Event('timeupdate'));
+    await vi.waitFor(() => expect(engineLoad).toHaveBeenCalledTimes(2));
+
+    player.usePlayer.getState().togglePlay();
+    resolveIncoming(loaded('next'));
+    await Promise.resolve();
+
+    expect(player.usePlayer.getState()).toMatchObject({ index: 0, status: 'paused', nowPlaying: { videoId: 'one' } });
+  });
+
+  it('discards stale track loads after rapid track changes', async () => {
+    const player = await import('./player');
+    fetchRadio.mockResolvedValue({ candidates: [], seedIsVideo: false });
+    const pending = new Map<string, (value: ReturnType<typeof loaded>) => void>();
+    engineLoad.mockImplementation((videoId) => new Promise((resolve) => { pending.set(videoId, resolve); }));
+    player.usePlayer.getState().playTrack(track('old', ''), { title: 'Queue', type: 'search' });
+    await vi.waitFor(() => expect(pending.has('old')).toBe(true));
+    player.usePlayer.getState().playTrack(track('new', ''), { title: 'Queue', type: 'search' });
+    await vi.waitFor(() => expect(pending.has('new')).toBe(true));
+
+    pending.get('new')!(loaded('new'));
+    await vi.waitFor(() => expect(player.usePlayer.getState().nowPlaying?.streamInfo).toBe('Opus via WEB'));
+    player.usePlayer.setState({ status: 'playing' });
+    pending.get('old')!(loaded('old'));
+    await Promise.resolve();
+
+    expect(player.usePlayer.getState()).toMatchObject({ status: 'playing', nowPlaying: { videoId: 'new' } });
+  });
+
   it('wraps a repeat-all queue and restarts the current item on repeat-one ended', async () => {
     const player = await radioPlayer();
     const first = player.usePlayer.getState().queue[0]!;
@@ -158,6 +279,24 @@ describe('player behavior at queue and media boundaries', () => {
     player.usePlayer.getState().removeAt(3);
     expect(player.usePlayer.getState().queue.some((row) => row.entryId === 'row-2')).toBe(false);
     expect(player.usePlayer.getState().queue.some((row) => row.entryId === 'row-0')).toBe(true);
+  });
+
+  it('preserves played queue history when shuffle is edited and restored', async () => {
+    const player = await import('./player');
+    const entry = (id: string, tier: 'context' | 'user' | 'autoplay') => ({
+      entryId: id, tier, track: track(id, ''), source: null,
+    });
+    const queue = [entry('played', 'user'), entry('current', 'context'), entry('context-a', 'context'), entry('user-a', 'user'), entry('context-b', 'context'), entry('autoplay-a', 'autoplay')];
+    player.usePlayer.setState({ queue, index: 1, shuffle: false });
+
+    player.usePlayer.getState().toggleShuffle();
+    player.usePlayer.getState().move(2, player.usePlayer.getState().queue.length - 1);
+    player.usePlayer.getState().toggleShuffle();
+
+    const restored = player.usePlayer.getState();
+    expect(restored.queue.slice(0, 2).map((row) => row.entryId)).toEqual(['played', 'current']);
+    expect(restored.queue[restored.index]?.entryId).toBe('current');
+    expect(new Set(restored.queue.map((row) => row.entryId)).size).toBe(queue.length);
   });
 
   it('keeps the upcoming track playable when the incoming crossfade deck fails', async () => {
@@ -216,6 +355,21 @@ describe('player behavior at queue and media boundaries', () => {
 
     await vi.waitFor(() => expect(player.usePlayer.getState().queue.filter((row) => row.tier === 'autoplay')).toHaveLength(1));
     expect(player.usePlayer.getState().queue.filter((row) => row.track.videoId === 'suggestion')).toHaveLength(1);
+  });
+
+  it('does not append an in-flight autoplay result after autoplay is disabled', async () => {
+    const player = await import('./player');
+    let resolveRadio!: (result: { candidates: { track: ReturnType<typeof track>; isVideo: boolean }[]; seedIsVideo: boolean }) => void;
+    fetchRadio.mockReturnValue(new Promise((resolve) => { resolveRadio = resolve; }));
+    player.usePlayer.getState().playTrack(track('seed', ''), { title: 'Queue', type: 'search' });
+    await vi.waitFor(() => expect(fetchRadio).toHaveBeenCalledOnce());
+    player.usePlayer.getState().setAutoplay(false);
+    player.usePlayer.getState().clearUpNext();
+    resolveRadio({ candidates: [{ track: track('late-suggestion', ''), isVideo: false }], seedIsVideo: false });
+
+    await vi.waitFor(() => expect(player.usePlayer.getState().autoplay).toBe(false));
+    await Promise.resolve();
+    expect(player.usePlayer.getState().queue.some((row) => row.track.videoId === 'late-suggestion')).toBe(false);
   });
 
   async function youtubePlayer() {
