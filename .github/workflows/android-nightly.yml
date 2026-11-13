@@ -130,7 +130,7 @@ jobs:
                   out.write(f"{name}={escaped}\n")
           PY
           unset NUVX_KEYSTORE_BASE64 NUVX_KEYSTORE_PASSWORD NUVX_KEY_ALIAS NUVX_KEY_PASSWORD
-          bash gradlew :app:testProdGmsReleaseUnitTest :app:testProdFossReleaseUnitTest \
+          bash gradlew :app:testProdGmsDebugUnitTest :app:testProdFossDebugUnitTest \
             :app:assembleProdGmsRelease :app:assembleProdFossRelease \
             :tv:assembleProdGmsRelease :tv:assembleProdFossRelease :wearos:assembleProdRelease \
             -Pnuvx.nightlyBaseCode="$code" -Pnuvx.nightlyBaseName="$version" -Pnuvx.nightlySuffix="$suffix"
