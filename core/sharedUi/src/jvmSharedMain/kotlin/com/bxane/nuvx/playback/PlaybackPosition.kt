@@ -23,4 +23,11 @@ class PlaybackPosition {
         this.positionMs = positionMs
         this.sampledAtNanos = sampledAtNanos
     }
+
+    fun livePosition(isPlaying: Boolean, nowNanos: Long, durationMs: Long): Long {
+        val read = positionMs
+        if (!isPlaying || !advancing || sampledAtNanos == 0L || nowNanos == 0L) return read
+        val carried = ((nowNanos - sampledAtNanos) / 1_000_000L).coerceIn(0L, 1_500L)
+        return (read + carried).coerceAtMost(durationMs.coerceAtLeast(read))
+    }
 }

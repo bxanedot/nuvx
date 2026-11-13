@@ -455,7 +455,7 @@ private fun TvScrubber(
                 .focusable(interactionSource = interaction)
                 .drawBehind {
                     val now = frame.longValue
-                    val shown = scrubTarget ?: livePosition(position, isPlaying, now, durationMs)
+                    val shown = scrubTarget ?: position.livePosition(isPlaying, now, durationMs)
                     val fraction = if (durationMs > 0) (shown.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
                     val h = thickness.toPx()
                     val top = (size.height - h) / 2f
@@ -485,13 +485,6 @@ private fun TvScrubber(
             isLoading = isLoading,
         )
     }
-}
-
-private fun livePosition(position: PlaybackPosition, isPlaying: Boolean, frameNanos: Long, durationMs: Long): Long {
-    val read = position.positionMs
-    if (!isPlaying || !position.advancing || position.sampledAtNanos == 0L || frameNanos == 0L) return read
-    val carried = (frameNanos - position.sampledAtNanos) / 1_000_000L
-    return (read + carried.coerceIn(0L, 1_500L)).coerceAtMost(durationMs.coerceAtLeast(read))
 }
 
 @Composable

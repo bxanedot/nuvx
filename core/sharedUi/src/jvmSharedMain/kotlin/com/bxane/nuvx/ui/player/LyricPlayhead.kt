@@ -40,6 +40,21 @@ internal fun rememberLyricPlayhead(position: PlaybackPosition): LyricPlayhead {
     return remember(position, offset) { LyricPlayhead(position, offset) }
 }
 
+@Composable
+internal fun rememberLivePlaybackPosition(position: PlaybackPosition, isPlaying: Boolean, durationMs: Long): Long {
+    val live = remember(position) { mutableLongStateOf(position.positionMs) }
+    val foreground = rememberIsForeground()
+    LaunchedEffect(position, isPlaying, position.advancing, durationMs, foreground) {
+        if (!foreground) return@LaunchedEffect
+        if (isPlaying && position.advancing) {
+            while (true) withFrameNanos { now -> live.longValue = position.livePosition(true, now, durationMs) }
+        } else {
+            snapshotFlow { position.positionMs }.collect { live.longValue = it }
+        }
+    }
+    return live.longValue
+}
+
 private fun nanosToMs(nanos: Long): Double = nanos / 1_000_000.0
 
 @Composable
