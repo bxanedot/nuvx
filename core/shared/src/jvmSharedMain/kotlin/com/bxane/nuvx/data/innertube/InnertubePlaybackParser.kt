@@ -1,6 +1,8 @@
 package com.bxane.nuvx.data.innertube
 
+import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.data.model.Song
+import com.bxane.nuvx.data.model.SongMenu
 import com.bxane.nuvx.data.model.VersionPair
 import com.bxane.nuvx.data.model.VersionTimeMap
 import kotlinx.serialization.json.JsonElement
@@ -78,6 +80,44 @@ internal object InnertubePlaybackParser {
         }
         return null
     }
+
+    fun parseSongMenu(root: JsonElement, videoId: String): SongMenu? {
+        val row = InnertubeParser.collectRenderers(root, "playlistPanelVideoRenderer")
+            .firstOrNull { it.s("videoId") == videoId }
+            ?: return null
+
+        val likeStatus = when (
+            InnertubeParser.collectRenderers(row, "likeButtonRenderer").firstOrNull().s("likeStatus")
+        ) {
+            "LIKE" -> LikeStatus.LIKE
+            "DISLIKE" -> LikeStatus.DISLIKE
+            "INDIFFERENT" -> LikeStatus.INDIFFERENT
+            else -> null
+        }
+
+        val toggle = InnertubeParser.collectRenderers(row, "toggleMenuServiceItemRenderer")
+            .firstOrNull { it.feedbackToken("defaultServiceEndpoint") != null && it.isLibraryToggle }
+        val defaultAdds = toggle.o("defaultIcon").s("iconType") == "LIBRARY_ADD"
+        val defaultToken = toggle.feedbackToken("defaultServiceEndpoint")
+        val toggledToken = toggle.feedbackToken("toggledServiceEndpoint")
+
+        return SongMenu(
+            likeStatus = likeStatus,
+            inLibrary = toggle != null && !defaultAdds,
+            addToLibraryToken = if (defaultAdds) defaultToken else toggledToken,
+            removeFromLibraryToken = if (defaultAdds) toggledToken else defaultToken,
+        )
+    }
+
+    private fun JsonElement?.feedbackToken(endpoint: String): String? =
+        this.o(endpoint).o("feedbackEndpoint").s("feedbackToken")
+
+    private val JsonElement?.isLibraryToggle: Boolean
+        get() = LIBRARY_ICONS.any {
+            o("defaultIcon").s("iconType") == it || o("toggledIcon").s("iconType") == it
+        }
+
+    private val LIBRARY_ICONS = setOf("LIBRARY_ADD", "LIBRARY_REMOVE", "LIBRARY_SAVED")
 
     private fun timeMapOf(counterpart: JsonObject): VersionTimeMap? {
         val segments = counterpart.o("segmentMap").a("segment").orEmpty().mapNotNull { segment ->

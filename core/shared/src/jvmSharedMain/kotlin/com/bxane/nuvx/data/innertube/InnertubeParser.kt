@@ -10,7 +10,6 @@ import com.bxane.nuvx.data.model.BrowseItem
 import com.bxane.nuvx.data.model.BrowseType
 import com.bxane.nuvx.data.model.HomeShelf
 import com.bxane.nuvx.data.model.LibraryState
-import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.data.model.MoodGenreSection
 import com.bxane.nuvx.data.model.SearchResult
 import com.bxane.nuvx.data.model.ShelfItem
@@ -594,43 +593,8 @@ object InnertubeParser {
                 service.o("serviceEndpoint")?.o("feedbackEndpoint")?.s("feedbackToken")
             }
 
-    fun parseSongMenu(root: JsonElement, videoId: String): SongMenu? {
-        val row = collectRenderers(root, "playlistPanelVideoRenderer")
-            .firstOrNull { it.s("videoId") == videoId }
-            ?: return null
-
-        val likeStatus = when (
-            collectRenderers(row, "likeButtonRenderer").firstOrNull().s("likeStatus")
-        ) {
-            "LIKE" -> LikeStatus.LIKE
-            "DISLIKE" -> LikeStatus.DISLIKE
-            "INDIFFERENT" -> LikeStatus.INDIFFERENT
-            else -> null
-        }
-
-        val toggle = collectRenderers(row, "toggleMenuServiceItemRenderer")
-            .firstOrNull { it.feedbackToken("defaultServiceEndpoint") != null && it.isLibraryToggle }
-        val defaultAdds = toggle.o("defaultIcon").s("iconType") == "LIBRARY_ADD"
-        val defaultToken = toggle.feedbackToken("defaultServiceEndpoint")
-        val toggledToken = toggle.feedbackToken("toggledServiceEndpoint")
-
-        return SongMenu(
-            likeStatus = likeStatus,
-            inLibrary = toggle != null && !defaultAdds,
-            addToLibraryToken = if (defaultAdds) defaultToken else toggledToken,
-            removeFromLibraryToken = if (defaultAdds) toggledToken else defaultToken,
-        )
-    }
-
-    private fun JsonElement?.feedbackToken(endpoint: String): String? =
-        this.o(endpoint).o("feedbackEndpoint").s("feedbackToken")
-
-    private val JsonElement?.isLibraryToggle: Boolean
-        get() = LIBRARY_ICONS.any {
-            o("defaultIcon").s("iconType") == it || o("toggledIcon").s("iconType") == it
-        }
-
-    private val LIBRARY_ICONS = setOf("LIBRARY_ADD", "LIBRARY_REMOVE", "LIBRARY_SAVED")
+    fun parseSongMenu(root: JsonElement, videoId: String): SongMenu? =
+        InnertubePlaybackParser.parseSongMenu(root, videoId)
 
     fun parseLibraryState(root: JsonElement): LibraryState? {
         return InnertubeLibraryStateParser.parseLibraryState(root)
