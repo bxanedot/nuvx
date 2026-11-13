@@ -366,6 +366,7 @@ impl App {
                         self.play_video_version();
                     } else if let Some(v) = video {
                         self.backend.request(Req::Prefetch { video_id: v.id.clone(), song_of: None, track: Some(v.clone()) });
+                        self.video = Some((v.id.clone(), None));
                         self.backend.request(Req::Video { id: v.id, height: self.video_height });
                     }
                 }
