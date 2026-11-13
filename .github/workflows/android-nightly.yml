@@ -251,6 +251,7 @@ jobs:
           gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-macos-${{ matrix.arch }}.dmg" "nuvx-portable-$NIGHTLY_TAG-macos-${{ matrix.arch }}.zip" --clobber
 
   publish:
+    if: always() && needs.prepare.result == 'success'
     needs: [prepare, android, windows, linux, macos]
     runs-on: ubuntu-24.04
     env:
@@ -261,6 +262,11 @@ jobs:
     steps:
       - name: Publish nightly and prune older builds
         run: |
+          if [[ "${{ needs.android.result }}" != success || "${{ needs.windows.result }}" != success || "${{ needs.linux.result }}" != success || "${{ needs.macos.result }}" != success ]]; then
+            echo "A platform build failed; removing incomplete nightly $NIGHTLY_TAG"
+            gh release delete "$NIGHTLY_TAG" --yes --cleanup-tag || true
+            exit 0
+          fi
           current=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
           if [[ "$current" != "$SOURCE_REF" ]]; then
             echo "Discarding stale nightly for $SOURCE_REF; main is $current"
