@@ -55,15 +55,51 @@ class PortIdentityTests(unittest.TestCase):
         self.assertIn(r"^Payload/nuvx\.app/PlugIns/NuvxWidget\.appex", script)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
 
+    def test_legacy_branding_fingerprint_catches_separated_spellings(self):
+        self.assertEqual(checker.branding_fingerprint("Old-Brand"), "oldbrand")
+        self.assertEqual(checker.branding_fingerprint("OLD_BRAND"), "oldbrand")
+        self.assertEqual(checker.branding_fingerprint("old.brand"), "oldbrand")
+
+    def test_now_playing_optional_sdk_api_keeps_the_mediaplayer_fallback(self):
+        source = (ROOT.parents[1] / "core/apple/src/PlaybackSession/NowPlayingController.swift").read_text(encoding="utf-8")
+        guards = []
+        for line in source.splitlines():
+            directive = line.strip()
+            if directive.startswith("#if "):
+                guards.append(directive)
+            elif directive.startswith("#elseif ") or directive == "#else":
+                guards[-1] = directive
+            elif directive == "#endif":
+                guards.pop()
+            elif directive == "import NowPlaying" or "ModernNowPlaying" in line:
+                self.assertTrue(any("canImport(NowPlaying)" in guard for guard in guards), line)
+        self.assertEqual(guards, [])
+        self.assertIn("import MediaPlayer", source)
+        self.assertIn("MPRemoteCommandCenter.shared()", source)
+
     def test_apple_workflow_builds_rust_macos_and_unsigned_ios_without_signing_secrets(self):
         workflow = (ROOT.parents[1] / ".github/workflows/apple-builds.yml").read_text(encoding="utf-8")
         self.assertIn("bash scripts/package-ios-ipa.sh", workflow)
         self.assertIn('cargo test --locked --target "$ARCH-apple-darwin"', workflow)
         self.assertIn('sh macos/bundle.sh universal/nuvx "$version"', workflow)
+        self.assertIn("lipo universal/nuvx -verify_arch x86_64 arm64", workflow)
         self.assertIn("macos-15-intel", workflow)
         self.assertIn('git rev-parse "$RELEASE_TAG^{commit}"', workflow)
         self.assertNotIn("secrets.", workflow)
         self.assertNotIn("pull_request_target", workflow)
+
+    def test_apple_workflow_checks_swift_early_and_caches_frameworks_before_archiving(self):
+        workflow = (ROOT.parents[1] / ".github/workflows/apple-builds.yml").read_text(encoding="utf-8")
+        syntax = workflow.index("- name: Check iOS Swift syntax")
+        frameworks = workflow.index("- name: Build native and KMP frameworks")
+        cache = workflow.index("- name: Save frameworks before Swift archive")
+        archive = workflow.index("- name: Build and package unsigned device IPA")
+        self.assertLess(syntax, frameworks)
+        self.assertLess(frameworks, cache)
+        self.assertLess(cache, archive)
+        self.assertIn("swiftc -frontend -parse -target arm64-apple-ios18.0", workflow)
+        self.assertIn("actions/cache/restore@v5", workflow)
+        self.assertIn("actions/cache/save@v5", workflow)
 
     @staticmethod
     def plist(**overrides):

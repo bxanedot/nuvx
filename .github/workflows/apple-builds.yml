@@ -87,17 +87,48 @@ jobs:
         with:
           workspaces: app/ios/native-core
           key: ios
+          cache-on-failure: true
       - name: Install build tools
         run: |
           test "$(uname -m)" = arm64
           command -v cmake >/dev/null || brew install cmake
           command -v xcodegen >/dev/null || brew install xcodegen
           xcodebuild -version
+      - name: Identify the Apple SDK for framework caching
+        id: apple-sdk
+        run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Check iOS Swift syntax before expensive framework builds
+        run: |
+          sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+          find core/apple/src app/ios/mobile/Sources -name '*.swift' -print0 |
+            xargs -0 xcrun swiftc -frontend -parse -target arm64-apple-ios18.0 -sdk "$sdk"
+      - uses: actions/cache/restore@v5
+        id: apple-frameworks
+        with:
+          path: |
+            core/apple/build/Frameworks
+            core/apple/src/Generated
+          key: apple-frameworks-${{ runner.os }}-${{ runner.arch }}-${{ steps.apple-sdk.outputs.version }}-${{ hashFiles('app/ios/native-core/**', 'app/ios/shared/**', 'app/ios/vendor/**', 'app/ios/*.kts', 'app/ios/gradle.properties', 'app/ios/gradle/**', 'app/ios/gradlew', 'app/ios/scripts/build-native-core.sh', 'app/ios/scripts/build-shared-framework.sh', 'core/native/**') }}
       - name: Build native and KMP frameworks and generate Xcode project
         working-directory: app/ios
         env:
           CONFIG: release
-        run: bash scripts/bootstrap-apple.sh
+          FRAMEWORKS_CACHED: ${{ steps.apple-frameworks.outputs.cache-hit }}
+        run: |
+          if [[ "$FRAMEWORKS_CACHED" == true ]]; then
+            python3 scripts/check-nuvx-port.py
+            (cd mobile && xcodegen generate --spec project.yml)
+          else
+            bash scripts/bootstrap-apple.sh
+          fi
+      - name: Save frameworks before Swift archive validation
+        if: steps.apple-frameworks.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            core/apple/build/Frameworks
+            core/apple/src/Generated
+          key: ${{ steps.apple-frameworks.outputs.cache-primary-key }}
       - name: Build and package unsigned device IPA
         working-directory: app/ios
         env:
@@ -143,6 +174,7 @@ jobs:
         with:
           workspaces: app/desktop
           key: ${{ matrix.arch }}
+          cache-on-failure: true
       - name: Test and build the Rust desktop
         run: |
           cargo test --locked --target "$ARCH-apple-darwin"
@@ -183,7 +215,7 @@ jobs:
           version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
           mkdir -p dist
           lipo -create universal/aarch64/nuvx universal/x86_64/nuvx -output universal/nuvx
-          lipo -verify_arch x86_64 arm64 universal/nuvx
+          lipo universal/nuvx -verify_arch x86_64 arm64
           sh macos/bundle.sh universal/nuvx "$version" target/dmg
           ln -s /Applications target/dmg/Applications
           hdiutil create -volname nuvx -srcfolder target/dmg -format UDZO "dist/nuvx-setup-$version-macos-universal.dmg"

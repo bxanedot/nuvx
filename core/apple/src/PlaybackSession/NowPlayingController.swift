@@ -8,7 +8,9 @@ import UIKit
 import MediaPlayer
 import NuvxShared
 #if os(iOS)
+#if canImport(NowPlaying)
 import NowPlaying
+#endif
 import AVFoundation
 #if DEBUG
 import Synchronization
@@ -25,13 +27,14 @@ final class NowPlayingController {
     private var artworkURL: String?
     private var lastRequestedURL: String?
     private var handlers: [Any] = []
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
     private var modern: AnyObject?
 #endif
 
     init() {
 #if os(iOS)
         NowPlayingActivityController.endLegacyActivities()
+#if canImport(NowPlaying)
         if #available(iOS 27, *) {
             resetModernModel()
 
@@ -42,6 +45,7 @@ final class NowPlayingController {
 
             return
         }
+#endif
         DispatchQueue.main.async {
             UIApplication.shared.beginReceivingRemoteControlEvents()
         }
@@ -93,16 +97,20 @@ final class NowPlayingController {
     var onPrevious: (() -> Void)?
     var onSeek: ((Double) -> Void)?
 
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
     @available(iOS 27, *)
     private func resetModernModel() {
         let model = ModernNowPlaying()
         model.delegate = self
         modern = model
     }
+#endif
+#if os(iOS)
 #if DEBUG
     func verifyModernObservation() -> [String: Bool] {
+#if canImport(NowPlaying)
         if #available(iOS 27, *) { return ModernNowPlaying.verifyObservation() }
+#endif
         return [:]
     }
 #endif
@@ -113,7 +121,7 @@ final class NowPlayingController {
     func prepareForPlayback(id: String, title: String, artist: String, duration: Double,
                             artworkData: Data?, thumbnailUrl: String?, position: Double,
                             canNext: Bool, canPrevious: Bool, canSeek: Bool) {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.prepare(id: id, title: title, artist: artist, duration: duration,
                           artworkData: artworkData, thumbnailUrl: thumbnailUrl, position: position,
@@ -127,7 +135,7 @@ final class NowPlayingController {
                 position: Double? = nil) {
 
 
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.update(id: id, title: title, artist: artist, duration: duration,
                          artworkData: artworkData, thumbnailUrl: thumbnailUrl,
@@ -176,7 +184,7 @@ final class NowPlayingController {
     }
 
     func updateCommands(canNext: Bool, canPrevious: Bool, canSeek: Bool) {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.canNext = canNext
             model.canPrevious = canPrevious
@@ -191,7 +199,7 @@ final class NowPlayingController {
     }
 
     func update(position: Double) {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.updatePosition(position)
             return
@@ -204,7 +212,7 @@ final class NowPlayingController {
     }
 
     func updateRate(_ rate: Double, position: Double? = nil) {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.updateRate(rate, position: position)
             return
@@ -224,7 +232,7 @@ final class NowPlayingController {
 
 
     func playbackDidStart() {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.playbackDidStart()
         }
@@ -233,7 +241,7 @@ final class NowPlayingController {
     }
 
     func requestPrimaryIfPossible(reason: String = "foreground") {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.requestPrimaryIfPossible(reason: reason)
         }
@@ -241,7 +249,7 @@ final class NowPlayingController {
     }
 
     func audioSessionUnavailable() {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.suspendClaims()
         }
@@ -249,7 +257,7 @@ final class NowPlayingController {
     }
 
     func stop() {
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
         if #available(iOS 27, *), let model = modern as? ModernNowPlaying {
             model.stop()
 
@@ -312,7 +320,7 @@ final class NowPlayingController {
     }
 }
 
-#if os(iOS)
+#if os(iOS) && canImport(NowPlaying)
 
 
 
