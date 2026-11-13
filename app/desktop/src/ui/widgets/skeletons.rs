@@ -15,7 +15,7 @@ pub fn skeleton_rows(ui: &mut Ui, time: f64, rows: usize) {
             ui.painter().rect_filled(b, radius, theme::glass(0.06));
             shimmer_band(ui, b, radius, time);
         }
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(66));
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(8));
     }
 }
 
@@ -40,6 +40,6 @@ pub fn skeleton(ui: &mut Ui, time: f64, rows: usize, card: f32) {
         });
     }
     if ui.is_rect_visible(Rect::from_x_y_ranges(ui.max_rect().x_range(), top..=ui.cursor().top())) {
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(66));
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(8));
     }
 }
