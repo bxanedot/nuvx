@@ -15,7 +15,6 @@ struct ArtworkView: View {
     var side: CGFloat?
 
 
-    /// region rather than a thumbnail.
     var fill = false
     var fallbackInitials: String? = nil
 

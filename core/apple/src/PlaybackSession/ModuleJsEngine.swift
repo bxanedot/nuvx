@@ -473,10 +473,6 @@ final class ModuleJsEngine: NSObject, ModuleEngineImpl {
         var atob = __nuvx_atob;
         var clearTimeout = function() {};
 
-        // A web-compatible surface over the native binding. `ok` and `status`
-        // come from the real response: reporting `ok: true` unconditionally —
-        // which the previous host did — makes a module parse a 403 error page as
-        // a search result instead of refusing it.
         var fetch = async function(url, options) {
             var method = 'GET', headers = '{}', body = null;
             if (options) {
@@ -508,10 +504,6 @@ final class ModuleJsEngine: NSObject, ModuleEngineImpl {
                 clone: function() { return response; },
                 headers: { get: function() { return null; } }
             };
-            // `json()` and `text()` answer values, not promises: a module written
-            // against this protocol awaits the response and then reads the body,
-            // and a promise here reads as `[object Promise]` — a silent empty
-            // result rather than a failure anyone would notice.
             return response;
         };
 
