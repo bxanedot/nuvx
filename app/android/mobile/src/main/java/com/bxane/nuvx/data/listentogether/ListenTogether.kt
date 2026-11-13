@@ -9,22 +9,11 @@ import com.bxane.nuvx.BuildConfig
 import com.bxane.nuvx.data.DebugLog as Log
 import com.bxane.nuvx.data.settings.AppSettings
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.timeout
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.CancellationException
@@ -105,6 +94,7 @@ object ListenTogether {
         install(WebSockets)
         expectSuccess = false
     }
+    private val partyHttpApi = PartyHttpApi(http, json)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val clock = ServerClock(SystemClock::elapsedRealtime)
@@ -291,12 +281,7 @@ object ListenTogether {
         if (raw.isBlank()) return ProbeResult(isOnline = false, latencyMs = 0L)
         val start = clock.nowMs()
         val isOnline = runCatching {
-            val response = http.get("$raw/healthz") {
-                timeout { requestTimeoutMillis = timeoutMs }
-            }
-            if (!response.status.isSuccess()) return@runCatching false
-            val body = runCatching { response.bodyAsText() }.getOrDefault("")
-            body.contains("\"ok\":true")
+            partyHttpApi.probeHealth(raw, timeoutMs)
         }.getOrElse {
             Log.w(TAG, "health check failed for ${redact(raw)}: ${redact(it.message)}")
             false
@@ -424,9 +409,7 @@ object ListenTogether {
         if (serverBase.isBlank() || code.isBlank() || held.isBlank()) return
         scope.launch {
             runCatching {
-                http.post("$serverBase/api/parties/$code/leave") {
-                    header("Authorization", "Bearer $held")
-                }
+                partyHttpApi.releaseStaleSlot(serverBase, code, held)
             }.onFailure { failure ->
                 Log.i(TAG, "stale party slot left to the server's grace: ${redact(failure.message)}")
             }
@@ -831,40 +814,13 @@ object ListenTogether {
             refuseIfRecentlyKicked(cleaned)
             val base = resolveHttpBase(server ?: effectiveIdleServerBase())
             if (base.isBlank()) throw PartyException("no_server", "Set the party server address first.")
-            val response = http.get("$base/api/parties/$cleaned/preview")
-            if (!response.status.isSuccess()) {
-                val problem = response.toPartyException()
-                if (problem.statusCode == 404 && problem.code == "http_404") {
-                    return@runCatching PartyPreview(code = cleaned)
-                }
-                throw problem
-            }
-            response.body<PartyPreview>()
+            partyHttpApi.preview(base, cleaned)
         }.onFailure {
             Log.w(TAG, "could not look up a party: ${redact(it.message)}")
         }
     }
 
-    private suspend fun post(url: String, body: JoinRequest): PartyMembership {
-        val response = http.post(url) {
-            contentType(ContentType.Application.Json)
-            setBody(body)
-        }
-        if (!response.status.isSuccess()) throw response.toPartyException()
-        return response.body()
-    }
-
-    private suspend fun HttpResponse.toPartyException(): PartyException {
-        val body = runCatching { bodyAsText() }.getOrDefault("")
-        val parsed = runCatching { json.decodeFromString(ApiError.serializer(), body) }.getOrNull()
-        return PartyException(
-            code = parsed?.code.orEmpty().ifBlank { "http_${status.value}" },
-            message = parsed?.message?.takeIf { it.isNotBlank() }
-                ?: if (status.value == 422) "This account can't be used to jam."
-                else "The party server said ${status.value}.",
-            statusCode = status.value,
-        )
-    }
+    private suspend fun post(url: String, body: JoinRequest): PartyMembership = partyHttpApi.post(url, body)
 
     fun normalizeServerBase(value: String): String =
         value.trim().trimEnd('/')
