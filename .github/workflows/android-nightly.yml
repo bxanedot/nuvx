@@ -17,21 +17,55 @@ defaults:
     shell: bash
 
 jobs:
-  release:
+  prepare:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     outputs:
-      nightly_suffix: ${{ steps.build.outputs.nightly_suffix }}
-      stable_version: ${{ steps.build.outputs.stable_version }}
-      source_ref: ${{ steps.build.outputs.source_ref }}
-      desktop_version: ${{ steps.build.outputs.desktop_version }}
+      nightly_suffix: ${{ steps.metadata.outputs.nightly_suffix }}
+      stable_version: ${{ steps.metadata.outputs.stable_version }}
+      source_ref: ${{ steps.metadata.outputs.source_ref }}
+      desktop_version: ${{ steps.metadata.outputs.desktop_version }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with:
-          # Build only the commit that landed on main.
           ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Read nightly metadata
+        id: metadata
+        run: |
+          version=$(sed -nE 's/^extra\["nuvxVersionName"\].*getOrElse\("([^"]+)"\)$/\1/p' build.gradle.kts)
+          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          suffix="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
+          desktop_version=$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' app/desktop/Cargo.toml | head -1)
+          [[ $desktop_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "nightly_suffix=$suffix" >> "$GITHUB_OUTPUT"
+          echo "stable_version=$version" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "desktop_version=$desktop_version" >> "$GITHUB_OUTPUT"
+      - name: Create nightly draft
+        env:
+          NIGHTLY_TAG: ${{ steps.metadata.outputs.nightly_suffix }}
+          STABLE_VERSION: ${{ steps.metadata.outputs.stable_version }}
+          SOURCE_REF: ${{ steps.metadata.outputs.source_ref }}
+        run: |
+          gh release create "$NIGHTLY_TAG" \
+            --target "$SOURCE_REF" --draft --prerelease --latest=false \
+            --title "nuvx $STABLE_VERSION-$NIGHTLY_TAG" \
+            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. Android APKs are split by CPU architecture; most phones and tablets use arm64-v8a. In-app updates choose the matching APK automatically. A newer stable release can update Android installs in place."
+
+  android:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      STABLE_VERSION: ${{ needs.prepare.outputs.stable_version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
           persist-credentials: false
       - uses: actions/setup-java@v6
         with:
@@ -42,18 +76,17 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;30.0.16248370" "cmake;3.22.1"
       - name: Build and verify signed APKs
-        id: build
         env:
           NUVX_KEYSTORE_BASE64: ${{ secrets.NUVX_KEYSTORE_BASE64 }}
           NUVX_KEYSTORE_PASSWORD: ${{ secrets.NUVX_KEYSTORE_PASSWORD }}
           NUVX_KEY_ALIAS: ${{ secrets.NUVX_KEY_ALIAS }}
           NUVX_KEY_PASSWORD: ${{ secrets.NUVX_KEY_PASSWORD }}
         run: |
-          version=$(sed -nE 's/^extra\["nuvxVersionName"\].*getOrElse\("([^"]+)"\)$/\1/p' build.gradle.kts)
+          version="$STABLE_VERSION"
           code=$(sed -nE 's/^extra\["nuvxVersionCode"\].*getOrElse\(([0-9]+)\)$/\1/p' build.gradle.kts)
           [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ $code =~ ^[1-9][0-9]*$ ]]
-          suffix="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
+          suffix="$NIGHTLY_TAG"
           umask 077
           trap 'rm -f keystore.properties "$RUNNER_TEMP/nuvx-nightly.jks"' EXIT
           python3 - <<'PY'
@@ -103,29 +136,16 @@ jobs:
           stage_abis app/android/tv/build/outputs/apk/prod/release tv NuvxTV com.bxane.nuvx.tv
           stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
-          echo "NIGHTLY_SUFFIX=$suffix" >> "$GITHUB_ENV"
-          echo "STABLE_VERSION=$version" >> "$GITHUB_ENV"
-          desktop_version=$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' app/desktop/Cargo.toml | head -1)
-          [[ $desktop_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          echo "nightly_suffix=$suffix" >> "$GITHUB_OUTPUT"
-          echo "stable_version=$version" >> "$GITHUB_OUTPUT"
-          echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "desktop_version=$desktop_version" >> "$GITHUB_OUTPUT"
-      - name: Create nightly draft
-        run: |
-          gh release create "$NIGHTLY_SUFFIX" nightly/*.apk nightly/SHA256SUMS \
-            --target "$(git rev-parse HEAD)" --draft --prerelease --latest=false \
-            --title "nuvx $STABLE_VERSION-$NIGHTLY_SUFFIX" \
-            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. Android APKs are split by CPU architecture; most phones and tablets use arm64-v8a. In-app updates choose the matching APK automatically. A newer stable release can update Android installs in place."
+          gh release upload "$NIGHTLY_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
 
   windows:
-    needs: release
+    needs: prepare
     runs-on: windows-2022
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
-      DESKTOP_VERSION: ${{ needs.release.outputs.desktop_version }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
     defaults:
@@ -135,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release.outputs.source_ref }}
+          ref: ${{ needs.prepare.outputs.source_ref }}
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -151,12 +171,12 @@ jobs:
           gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG.exe" "nuvx-portable-$NIGHTLY_TAG.zip" --clobber
 
   linux:
-    needs: release
+    needs: prepare
     runs-on: ubuntu-22.04
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
     defaults:
@@ -166,7 +186,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release.outputs.source_ref }}
+          ref: ${{ needs.prepare.outputs.source_ref }}
           persist-credentials: false
       - run: |
           sudo apt-get update
@@ -187,7 +207,7 @@ jobs:
           gh release upload "$NIGHTLY_TAG" "nuvx-$NIGHTLY_TAG-linux-x86_64.tar.gz" "nuvx-portable-$NIGHTLY_TAG-linux-x86_64.tar.gz" --clobber
 
   macos:
-    needs: release
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -202,8 +222,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
-      DESKTOP_VERSION: ${{ needs.release.outputs.desktop_version }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
     defaults:
@@ -213,7 +233,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release.outputs.source_ref }}
+          ref: ${{ needs.prepare.outputs.source_ref }}
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: "${{ matrix.target }}" }
@@ -231,13 +251,13 @@ jobs:
           gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-macos-${{ matrix.arch }}.dmg" "nuvx-portable-$NIGHTLY_TAG-macos-${{ matrix.arch }}.zip" --clobber
 
   publish:
-    needs: [release, windows, linux, macos]
+    needs: [prepare, android, windows, linux, macos]
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.release.outputs.nightly_suffix }}
-      SOURCE_REF: ${{ needs.release.outputs.source_ref }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
     steps:
       - name: Publish nightly and prune older builds
         run: |
