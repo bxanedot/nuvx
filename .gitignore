@@ -65,3 +65,11 @@ keystore.properties
 
 # Desktop app (Rust)
 /app/desktop/target/
+
+# Generated Apple build outputs
+/core/apple/build/
+/core/apple/src/Generated/
+/app/ios/native-core/bindings/
+/app/ios/native-core/build-xcframework/
+*.xcarchive/
+*.xcresult/

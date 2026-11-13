@@ -125,10 +125,11 @@
   const platform = navigator.userAgentData?.platform || navigator.platform || '';
   const device = /wear os|watch/.test(ua) ? 'Wear OS' : /android/.test(ua) && /tv|aft|bravia|shield/.test(ua) ? 'Android TV' : /android/.test(ua) ? 'Android' : /iphone|ipad|ipod/.test(ua) || (/ios/.test(platform.toLowerCase()) || /mac/.test(platform.toLowerCase()) && navigator.maxTouchPoints > 1) ? 'iOS' : /mac/.test(platform.toLowerCase()) ? 'macOS' : /win/.test(platform.toLowerCase()) ? 'Windows' : /linux/.test(platform.toLowerCase()) ? 'Linux' : '';
   const downloadLabel = document.querySelector('#download-label');
-  if (downloadLabel && device) downloadLabel.textContent = device === 'iOS' ? 'Latest release' : `Download for ${device}`;
+  if (downloadLabel && device) downloadLabel.textContent = device === 'iOS' ? 'iOS install guide' : `Download for ${device}`;
   const hero = document.querySelector('#device-download');
   const downloads = { Windows: 'windows', Linux: 'linux', macOS: 'mac-arm', Android: 'android', 'Android TV': 'tv', 'Wear OS': 'wear' };
   if (hero && downloads[device]) hero.href = '/api/download?platform=' + downloads[device];
+  if (hero && device === 'iOS') hero.href = '/docs#ios';
   if (hero && device === 'macOS' && navigator.userAgentData?.getHighEntropyValues) {
     navigator.userAgentData.getHighEntropyValues(['architecture'])
       .then(({ architecture }) => {
@@ -137,7 +138,7 @@
   }
   const showNote = (version) => {
     if (downloads[device]) note.textContent = `Download nuvx ${version} for ${device} from the latest GitHub release.`;
-    else if (device === 'iOS') note.textContent = 'No iOS app yet. The latest release lists all available downloads.';
+    else if (device === 'iOS') note.textContent = 'iOS 18+ source port. An unsigned IPA, when available, needs signing and sideloading. Device testing is not yet verified.';
   };
   showNote(document.querySelector('[data-version]')?.textContent.trim() ?? '');
   fetch('https://api.github.com/repos/bxanedot/nuvx/releases/latest')

@@ -4,6 +4,15 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## 0.8.0 (upcoming)
 
+### iOS and Apple builds
+
+- Add the native SwiftUI iOS source port and its existing native/KMP playback backend, resources, and tests.
+- Align Radio/Podcasts introductions, alternating Ko-fi/GitHub prompts, and the Discord invite with Android persistence and cadence.
+- Keep macOS on the shared Rust/egui desktop app with Metal rendering and Keychain credential storage.
+- Build unsigned iOS IPAs and ad-hoc-signed Apple silicon/Intel macOS packages on GitHub Actions, with artifact checksums and optional uploads to an existing release.
+- Document Windows sideloading, seven-day refreshes, signing limitations, and CI artifacts; keep the website's platform status and download routing in sync.
+- Apple device playback and sideloading remain unverified; CI does not use personal Apple signing credentials.
+
 ### Android
 
 - Reconnect Listen Together sockets after server closes and stop session workers cleanly.

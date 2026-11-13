@@ -57,11 +57,18 @@
 | **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `NuvxTV-v*.apk` |
 | **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | Open **Settings → Wear OS** in the phone app. [Wear OS guide](app/android/wearos/README.md) |
 | **Windows** | Windows 10+, x64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · setup `.exe` or portable `.zip` |
-| **macOS** | macOS 11+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `.dmg` or portable `.zip` |
+| **iPhone or iPad** | iOS/iPadOS 18+; unverified source port | [iOS install and sideload guide](app/ios/README.md#install-on-iphone-or-ipad); IPA availability depends on the release |
+| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `.dmg` or portable `.zip`; ad-hoc signed, not notarized |
 | **Linux** | x86-64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · install or portable `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
 For Android, download the APK for your device and allow your browser or file manager to install it when prompted. The release notes list desktop packages by architecture and include signing details.
+
+For iOS, read the [sideload guide](app/ios/README.md#install-on-iphone-or-ipad)
+before downloading an unsigned IPA. If no IPA is published, use a successful
+[Apple builds workflow](https://github.com/bxanedot/nuvx/actions/workflows/apple-builds.yml)
+run's artifacts or build on a Mac. Free Apple Account signing normally needs
+refreshing every seven days; an IPA build passing CI does not verify device playback.
 
 ## How the counters work
 
@@ -86,9 +93,10 @@ On Windows, use `gradlew.bat`. For signing release builds, see [keystore.propert
 | Project | Source and setup |
 | --- | --- |
 | Android apps | [Phone](app/android/mobile) · [TV](app/android/tv/README.md) · [Wear OS](app/android/wearos/README.md) |
-| Desktop player | [Rust and egui](app/desktop/README.md) |
+| Desktop player | [Windows/Linux/macOS: Rust and egui](app/desktop/README.md) |
+| iOS app | [SwiftUI](app/ios/README.md) |
 | Web player and extension | [React, TypeScript and WXT](app/web/README.md) |
-| Shared code | [Kotlin](core/shared) · [Compose UI](core/sharedUi) · [Native audio](core/native) |
+| Shared code | [Kotlin and Compose UI](core/shared) · [Apple app and UI](core/apple/src) · [Native audio](core/native) |
 | Listen Together server | [Cloudflare Worker](core/worker/README.md) |
 | Project assets | [Canvases](core/canvas/README.md) · [Website](core/website) · [Brand](core/brand/README.md) · [Third-party libraries](core/third_party/README.md) |
 
