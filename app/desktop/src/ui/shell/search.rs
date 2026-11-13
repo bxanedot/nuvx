@@ -45,6 +45,13 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
         edit.request_focus();
     }
     app.search_focused = edit.has_focus();
+    if edit.has_focus() && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        app.suggestions = Default::default();
+        app.suggest_sel = None;
+        app.suggest_due = None;
+        app.search_focused = false;
+        edit.surrender_focus();
+    }
     let mut cleared = false;
     if clearable {
         let x = Rect::from_center_size(pos2(rect.right() - 25.0, rect.center().y), Vec2::splat(30.0));
@@ -95,7 +102,8 @@ pub fn search_field(app: &mut App, ui: &mut Ui, width: f32) {
 
 pub fn suggestions(app: &mut App, ctx: &egui::Context) {
     let Some(rect) = app.search_rect else { return };
-    let show = (app.search_focused || app.forget_held) && !app.suggestions.1.is_empty() && !app.np_open;
+    let fresh = app.suggestions.0 == app.search_text.trim();
+    let show = fresh && (app.search_focused || app.forget_held) && !app.suggestions.1.is_empty() && !app.np_open;
     let t = theme::anim_bool(ctx, "suggest-open", show, 0.15);
     if t <= 0.0 {
         return;

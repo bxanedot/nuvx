@@ -17,6 +17,8 @@ struct PlaybackPill: View {
 
     var inline = false
 
+    var barHeight: CGFloat? = nil
+
     @Environment(PlaybackController.self) private var controller
     @Environment(AppModel.self) private var appModel
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -88,6 +90,7 @@ struct PlaybackPill: View {
         }
         .padding(.horizontal, inline ? 8 : 12)
         .padding(.vertical, inline ? 4 : 8)
+        .modifier(PillBarHeight(height: barHeight))
         .modifier(MiniPlayerChrome(fill: chromeFill, reduceTransparency: reduceTransparency || reduceBlur))
         .overlay(alignment: .bottom) { progressHairline.clipShape(Capsule()) }
         .contentShape(.rect)
@@ -503,6 +506,18 @@ struct PlaybackPill: View {
 
 
 
+
+    private struct PillBarHeight: ViewModifier {
+        var height: CGFloat?
+
+        func body(content: Content) -> some View {
+            if let height {
+                content.frame(height: height)
+            } else {
+                content
+            }
+        }
+    }
 
     private struct MiniPlayerChrome: ViewModifier {
         var fill: AnyShapeStyle

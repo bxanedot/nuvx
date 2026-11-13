@@ -177,6 +177,10 @@ jobs:
       ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v7
+      - name: Check native Apple video policies
+        run: |
+          bash ../ios/scripts/check-video-sync.sh
+          bash ../ios/scripts/check-video-gating.sh
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.arch }}-apple-darwin

@@ -688,7 +688,7 @@ struct SearchView: View {
             return
         }
         Task { @MainActor in
-            func current() -> Bool { generation == pillGeneration }
+            @MainActor func current() -> Bool { generation == pillGeneration }
             if wanted {
                 withAnimation(.smooth(duration: 0.3)) { appModel.iPadSearchExpanded = true }
                 try? await Task.sleep(for: .milliseconds(300))

@@ -75,6 +75,9 @@ fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
 fn parse(svg: &str) -> Option<Shape> {
     let root = &svg[..svg.find('>')?];
     let view: Vec<f32> = attr(root, "viewBox")?.split_whitespace().map(|x| x.parse().ok()).collect::<Option<_>>()?;
+    if view.len() != 4 || view.iter().any(|v| !v.is_finite()) || view[2] <= 0.0 || view[3] <= 0.0 {
+        return None;
+    }
     let mut layers = Vec::new();
     for tag in svg.split("<path").skip(1) {
         let tag = &tag[..tag.find('>')?];
@@ -244,16 +247,16 @@ pub fn draw_in(ui: &Ui, rect: Rect, glyph: Glyph, tint: Color32) {
 }
 
 pub fn draw_pulsing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32, id: Id, active: bool) {
-    let t = active.then(|| {
+    let t = animation_phase(active && crate::theme::speed() > 0.0, ui.input(|i| i.time), None);
+    if t.is_some() {
         ui.ctx().request_repaint();
-        ui.input(|i| i.time) as f32
-    });
+    }
     paint(ui, Rect::from_center_size(center, vec2(size, size)), glyph, tint, None, t.map(|t| (id, t)));
 }
 
 pub fn draw_bouncing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color32, id: Id) {
     let start = ui.ctx().data(|d| d.get_temp::<f64>(id.with("nuvx-glyph-bounce")));
-    let t = start.map(|s| (ui.input(|i| i.time) - s) as f32).filter(|t| (0.0..BOUNCE_SECS).contains(t));
+    let t = start.and_then(|s| animation_phase(crate::theme::speed() > 0.0, ui.input(|i| i.time) - s, Some(BOUNCE_SECS)));
     if t.is_some() {
         ui.ctx().request_repaint();
     }
@@ -261,8 +264,16 @@ pub fn draw_bouncing(ui: &Ui, center: Pos2, size: f32, glyph: Glyph, tint: Color
 }
 
 pub fn bounce(ctx: &egui::Context, id: Id) {
+    if crate::theme::speed() == 0.0 {
+        return;
+    }
     let now = ctx.input(|i| i.time);
     ctx.data_mut(|d| d.insert_temp(id.with("nuvx-glyph-bounce"), now));
+}
+
+fn animation_phase(enabled: bool, elapsed: f64, duration: Option<f32>) -> Option<f32> {
+    let time = elapsed as f32;
+    (enabled && time.is_finite() && time >= 0.0 && duration.is_none_or(|d| time < d)).then_some(time)
 }
 
 const BOUNCE_UP: f32 = 0.21667;
@@ -333,6 +344,25 @@ pub fn volume_step(volume: f32) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reduced_motion_disables_glyph_animation() {
+        assert_eq!(animation_phase(false, 0.2, None), None);
+        assert_eq!(animation_phase(false, 0.2, Some(BOUNCE_SECS)), None);
+        assert_eq!(animation_phase(true, 0.2, None), Some(0.2));
+        assert_eq!(animation_phase(true, 0.2, Some(BOUNCE_SECS)), Some(0.2));
+        assert_eq!(animation_phase(true, BOUNCE_SECS as f64, Some(BOUNCE_SECS)), None);
+        for time in [f64::NAN, f64::INFINITY, -1.0] {
+            assert_eq!(animation_phase(true, time, None), None);
+        }
+    }
+
+    #[test]
+    fn invalid_viewboxes_are_rejected() {
+        for view in ["0 0 0 24", "0 0 24 -1", "0 0 NaN 24", "0 0 inf 24", "0 0 24", "0 0 24 24 24"] {
+            assert!(parse(&format!(r#"<svg viewBox="{view}"><path d="M0 0 L1 1 Z"/></svg>"#)).is_none(), "{view}");
+        }
+    }
 
     #[test]
     fn every_glyph_parses_and_draws() {

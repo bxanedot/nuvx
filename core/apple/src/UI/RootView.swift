@@ -713,21 +713,16 @@ struct RootView: View {
         }
         .background(Theme.Colors.background)
         .safeAreaInset(edge: .bottom, spacing: 8) {
-            VStack(spacing: 8) {
-                if controller.current != nil {
-                    PlaybackPill()
-                }
-                NuvxNavigationBar(
-                    selection: $selection,
-                    onSelect: { tab in
-                        Self.noteSearchRetap(tab, current: AppModel.Tab(rawValue: selection) ?? .home, appModel: appModel)
-                        visitedPhoneTabs.insert(tab)
-                        selection = tab.rawValue
-                    },
-                    hideRadio: hideRadioTab,
-                    hidePodcasts: hidePodcastsTab
-                )
-            }
+            NuvxNavigationBar(
+                selection: $selection,
+                onSelect: { tab in
+                    Self.noteSearchRetap(tab, current: AppModel.Tab(rawValue: selection) ?? .home, appModel: appModel)
+                    visitedPhoneTabs.insert(tab)
+                    selection = tab.rawValue
+                },
+                hideRadio: hideRadioTab,
+                hidePodcasts: hidePodcastsTab
+            )
             .padding(.horizontal, 19)
             .padding(.bottom, 6)
         }

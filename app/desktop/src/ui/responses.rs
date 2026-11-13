@@ -11,6 +11,10 @@ use crate::model::{ShelfKind, Track};
 
 use super::{Action, App, Dialog, HomeState, LibTab, MixFrom, Page, PlayingAs, Repeat, dev_var, shuffle};
 
+fn accepts_search_result(page: &Page, query: &str) -> bool {
+    matches!(page, Page::Search(current) if current.trim() == query.trim())
+}
+
 impl App {
     pub(super) fn pump(&mut self, now: f64) {
         let cover = self.media_cover.lock().unwrap().take();
@@ -185,7 +189,11 @@ impl App {
                 self.explore = Some(e);
                 self.loading = false;
             }
-            Resp::YoutubeSearch { query, tracks } => self.youtube_results = Some((query, tracks)),
+            Resp::YoutubeSearch { query, tracks } => {
+                if accepts_search_result(&self.page, &query) {
+                    self.youtube_results = Some((query, tracks));
+                }
+            }
             Resp::Search(r) => {
                 if self.smoke.as_ref() == Some(&r.query) {
                     self.smoke = None;
@@ -193,6 +201,9 @@ impl App {
                         log::info!("smoke: playing {}", r.tracks[0].title);
                         self.play_list(r.tracks.clone(), 0);
                     }
+                }
+                if !accepts_search_result(&self.page, &r.query) {
+                    return;
                 }
                 self.expect_search_click(&r.query);
                 self.search = Some(r);
@@ -511,4 +522,29 @@ impl App {
     }
 
 
+}
+
+#[cfg(test)]
+mod search_response_tests {
+    use super::*;
+
+    #[test]
+    fn previous_queries_cannot_replace_the_current_search() {
+        let page = Page::Search("new query".to_owned());
+        assert!(accepts_search_result(&page, "new query"));
+        assert!(!accepts_search_result(&page, "old query"));
+    }
+
+    #[test]
+    fn search_replies_do_not_finish_another_pages_loading_state() {
+        assert!(!accepts_search_result(&Page::Home, "query"));
+        assert!(!accepts_search_result(&Page::Album("album".to_owned()), "query"));
+    }
+
+    #[test]
+    fn query_matching_ignores_outer_whitespace_but_preserves_case() {
+        let page = Page::Search("  query  ".to_owned());
+        assert!(accepts_search_result(&page, "query"));
+        assert!(!accepts_search_result(&page, "Query"));
+    }
 }

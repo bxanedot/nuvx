@@ -52,6 +52,8 @@ final class VideoSideController {
     @ObservationIgnored private var loader: ChunkedVideoLoader?
     @ObservationIgnored private var isSeeking = false
     @ObservationIgnored private var lastSeekAt: CFTimeInterval = 0
+    @ObservationIgnored private var seekGeneration: UInt64 = 0
+    @ObservationIgnored private var pausedSyncTask: Task<Void, Never>?
 
 
     @ObservationIgnored private var seekLead: Double = 0.4
@@ -75,6 +77,7 @@ final class VideoSideController {
 
     deinit {
         timer?.invalidate()
+        pausedSyncTask?.cancel()
         if let failedObserver {
             NotificationCenter.default.removeObserver(failedObserver)
         }
@@ -198,6 +201,8 @@ final class VideoSideController {
 
 
     func tick() {
+        pausedSyncTask?.cancel()
+        pausedSyncTask = nil
         updateTimer()
         if state != .idle, CACurrentMediaTime() - lastStatusLog >= 2,
            state != .ready || isSeeking || player.currentItem?.status != .readyToPlay {
@@ -238,7 +243,9 @@ final class VideoSideController {
         )
         switch decision {
         case .none:
-            break
+            if !clock.isPlaying(), abs(engine - video) > VideoSyncPolicy.seekDriftSeconds {
+                retryPausedSync(after: max(0.01, VideoSyncPolicy.seekCooldownSeconds - (now - lastSeekAt)))
+            }
         case .pause:
             player.pause()
         case .play(let rate):
@@ -248,11 +255,14 @@ final class VideoSideController {
         case .seek(let seconds):
             isSeeking = true
             lastSeekAt = now
+            seekGeneration &+= 1
+            let generation = seekGeneration
             let time = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
             let tolerance = CMTime(seconds: 0.05, preferredTimescale: 600)
             player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance) { [weak self] finished in
                 Task { @MainActor [weak self] in
-                    guard let self else { return }
+                    guard let self, self.player.currentItem === item,
+                          self.seekGeneration == generation else { return }
                     self.isSeeking = false
                     if finished {
                         let took = CACurrentMediaTime() - now
@@ -261,6 +271,16 @@ final class VideoSideController {
                     self.tick()
                 }
             }
+        }
+    }
+
+    private func retryPausedSync(after delay: Double) {
+        pausedSyncTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) }
+            catch { return }
+            guard let self, !Task.isCancelled, !self.clock.isPlaying() else { return }
+            self.pausedSyncTask = nil
+            self.tick()
         }
     }
 
@@ -300,6 +320,10 @@ final class VideoSideController {
     }
 
     private func tearDownItem() {
+        seekGeneration &+= 1
+        pausedSyncTask?.cancel()
+        pausedSyncTask = nil
+        player.currentItem?.cancelPendingSeeks()
         statusObservation = nil
         if let failedObserver {
             NotificationCenter.default.removeObserver(failedObserver)
@@ -311,6 +335,7 @@ final class VideoSideController {
         loader = nil
         isSeeking = false
         lastSeekAt = 0
+        seekLead = 0.4
     }
 }
 
