@@ -157,7 +157,7 @@ fn loading(ui: &mut Ui, now: f64, rows: usize, height: f32) {
         let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
         widgets::shimmer_band(ui, rect.shrink2(vec2(0.0, 4.0)), 10.0, now);
     }
-    ui.ctx().request_repaint_after(std::time::Duration::from_millis(66));
+    ui.ctx().request_repaint_after(std::time::Duration::from_millis(8));
 }
 
 fn station_row(ui: &mut Ui, s: &Station, on_air: bool, playing: bool) -> egui::Response {

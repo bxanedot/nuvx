@@ -67,7 +67,7 @@ pub fn background(app: &mut App, ui: &mut Ui, screen: Rect, now: f64, only: Opti
     if let Some(bg) = app.bg.as_ref().filter(|_| art) {
         let blend = theme::ease_in_out(((now - app.art_changed) / 1.4) as f32);
         if blend < 1.0 {
-            ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(8));
         }
         let level = if app.reactive_bg && app.playing() { app.audio.status.level() * b.reactive } else { 0.0 };
         let still = mode == BgMode::CoverStatic;
