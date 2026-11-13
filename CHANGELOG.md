@@ -2,7 +2,7 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
 
-## 0.8.0 (upcoming)
+## 0.8.0
 
 ### Android
 
@@ -16,7 +16,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Move Enable YouTube Search into Content preferences, and give Hide Podcasts tab the same GlyphStudio icon and size as Podcasts navigation.
 - Move player creation, audio-session ownership, and buffer configuration out of PlaybackService without changing playback settings.
 - Move cast stream URL resolution out of PlaybackService while retaining the same direct and downloaded-source fallbacks.
-- Publish signed Android nightly builds with a stable update handoff.
+- Publish signed Android nightly and stable builds with a stable update handoff.
 - Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade and transition planning, audio cache, lyrics, Android Auto, Listen Together HTTP, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
 - Move Now Playing album, artist, and playback-source navigation out of the app shell into a focused controller, preserving route and tab behavior.
 - Move download preparation and permission routing out of the app shell, preserving queue, cache, and prompt behavior.
@@ -24,7 +24,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ### Desktop
 
-- Publish one universal Windows, Linux, and macOS desktop installer with Android nightlies, plus universal GMS and FOSS APKs for mobile and TV and a separate Wear OS APK.
+- Publish a universal Windows installer and Linux package, Intel and Apple silicon macOS installers, universal GMS and FOSS APKs for Android phones and TV, and a separate Wear OS APK at version code 8.
 - Reorganize playback and audio processing, backend search and catalog loading, downloads and transfers, lyrics and karaoke, Listen Together, settings, navigation, Now Playing, and shared widgets into focused modules. These are internal refactors with no intended user-facing behavior change.
 - Move desktop decoder selection and audio source adapters into a dedicated stream submodule while preserving the existing stream API.
 
@@ -35,7 +35,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Move browser radio autoplay refill and retry state into a dedicated player controller.
 - Move browser media-session metadata, actions, and position updates into a dedicated controller.
 - Enforce the 40 MB automix audio limit while streaming responses.
-- Add a reproducible Firefox source build and source archive for AMO submission, and update the browser extension separately to version 0.9.0.
+- Add a reproducible Firefox source build and source archive for AMO submission, and release the Chrome and Firefox extensions as version 0.8.0.
 - Link the website releases section to the latest Android nightly and share the showcase playback control.
 
 ### Listen Together worker

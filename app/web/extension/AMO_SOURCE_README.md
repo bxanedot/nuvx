@@ -1,6 +1,6 @@
 # Firefox Add-on source and reproducible build
 
-This package describes the source for the nuvx Firefox add-on (version 0.9.0). Its TypeScript, HTML, CSS, manifest configuration, and the required `@nuvx/shared` workspace code are supplied as readable source. WXT/Vite generate the installable Firefox files during the build; generated bundles are not substituted for the source in this archive.
+This package describes the source for the nuvx Firefox add-on (version 0.8.0). Its TypeScript, HTML, CSS, manifest configuration, and the required `@nuvx/shared` workspace code are supplied as readable source. WXT/Vite generate the installable Firefox files during the build; generated bundles are not substituted for the source in this archive.
 
 ## Build environment
 
@@ -48,7 +48,7 @@ Run this after committing the source changes you are submitting. From `app/web/e
 node scripts/amo-source.mjs source
 ```
 
-This creates `nuvx-firefox-source-0.9.0.zip` in the repository root. It contains the extension source, this README, build script, shared workspace source, and the exact pnpm workspace manifests and lockfile. It excludes generated build output and installed dependencies. The script stops if the archive exceeds Mozilla's 200 MB upload limit. Upload this ZIP in the AMO **Source code** field for the matching submitted version.
+This creates `nuvx-firefox-source-0.8.0.zip` in the repository root. It contains the extension source, this README, build script, shared workspace source, and the exact pnpm workspace manifests and lockfile. It excludes generated build output and installed dependencies. The script stops if the archive exceeds Mozilla's 200 MB upload limit. Upload this ZIP in the AMO **Source code** field for the matching submitted version.
 
 Dependencies are installed from the lockfile during reproduction; third-party packages are not copied into the source archive. No private signing key is needed or included.
 
