@@ -91,8 +91,19 @@ jobs:
               grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
             cp "$source" "nightly/$prefix-v$version-$suffix.apk"
           }
-          stage app/android/mobile/build/outputs/apk/prod/release/app-prod-universal-release.apk nuvx com.bxane.nuvx
-          stage app/android/tv/build/outputs/apk/prod/release/tv-prod-universal-release.apk NuvxTV com.bxane.nuvx.tv
+          stage_abis() {
+            local dir=$1 app=$2 prefix=$3 package=$4 abi source metadata
+            for abi in armeabi-v7a arm64-v8a x86_64; do
+              source="$dir/$app-prod-$abi-release.apk"
+              metadata=$("$tools/aapt2" dump badging "$source")
+              [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version-$suffix'"* ]]
+              "$tools/apksigner" verify --print-certs "$source" |
+                grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+              cp "$source" "nightly/${prefix}-v${version}-${suffix}_${abi}.apk"
+            done
+          }
+          stage_abis app/android/mobile/build/outputs/apk/prod/release app nuvx com.bxane.nuvx
+          stage_abis app/android/tv/build/outputs/apk/prod/release tv NuvxTV com.bxane.nuvx.tv
           stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           echo "NIGHTLY_SUFFIX=$suffix" >> "$GITHUB_ENV"
@@ -108,7 +119,7 @@ jobs:
           gh release create "$NIGHTLY_SUFFIX" nightly/*.apk nightly/SHA256SUMS \
             --target "$(git rev-parse HEAD)" --draft --prerelease --latest=false \
             --title "nuvx $STABLE_VERSION-$NIGHTLY_SUFFIX" \
-            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. A newer stable release can update Android installs in place."
+            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. Android APKs are split by CPU architecture; most phones and tablets use arm64-v8a. In-app updates choose the matching APK automatically. A newer stable release can update Android installs in place."
 
   windows:
     needs: release
