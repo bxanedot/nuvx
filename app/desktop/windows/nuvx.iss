@@ -3,15 +3,6 @@
 #define AppVersion "0.8.0"
 #endif
 #define AppExe "nuvx.exe"
-#ifdef Arm64
-  #define Arch "arm64"
-  #define Suffix "-arm64"
-  #define BinDir "..\target\aarch64-pc-windows-msvc\release"
-#else
-  #define Arch "x64compatible"
-  #define Suffix ""
-  #define BinDir "..\target\release"
-#endif
 
 [Setup]
 AppId={{469DB82D-3113-47EA-812C-36393395493F}
@@ -25,10 +16,10 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-ArchitecturesAllowed={#Arch}
-ArchitecturesInstallIn64BitMode={#Arch}
+ArchitecturesAllowed=x64compatible arm64
+ArchitecturesInstallIn64BitMode=x64compatible arm64
 MinVersion=10.0
-OutputBaseFilename=nuvx-setup-{#AppVersion}{#Suffix}
+OutputBaseFilename=nuvx-setup-{#AppVersion}
 Compression=lzma2/ultra
 SolidCompression=yes
 WizardStyle=modern
@@ -40,7 +31,8 @@ CloseApplications=yes
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "{#BinDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\target\x86_64-pc-windows-msvc\release\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion; Check: not IsArm64
+Source: "..\target\aarch64-pc-windows-msvc\release\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion; Check: IsArm64
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -57,6 +49,9 @@ Root: HKA; Subkey: "Software\Classes\nuvx\shell\open\command"; ValueType: string
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{userappdata}\nuvx\data\updates"
+
+[InstallDelete]
+Type: files; Name: "{app}\portable.txt"
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
