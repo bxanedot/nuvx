@@ -28,6 +28,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 ### Web and browser extensions
 
 - Add Podcasts and Radio to the web player and fix public podcast search filtering.
+- Split web player settings persistence out of playback state management without changing the `nuvx:player` saved format.
 - Enforce the 40 MB automix audio limit while streaming responses.
 - Add a reproducible Firefox source build and source archive for AMO submission, and update the browser extension separately to version 0.9.0.
 - Link the website releases section to the latest Android nightly and share the showcase playback control.
