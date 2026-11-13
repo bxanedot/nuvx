@@ -94,6 +94,12 @@ export function AppShell() {
 
   return (
     <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]" onClickCapture={bounceGlyph}>
+      <a
+        href="#scrollable-page"
+        className="sr-only focus:not-sr-only fixed top-2 left-2 z-[calc(var(--z-web-chrome)+1)] rounded-pill bg-key-bg px-4 py-3 text-white focus-visible:ring-2 focus-visible:ring-white"
+      >
+        Skip to main content
+      </a>
       <div className="relative min-h-0 overflow-hidden">
         <Sidebar />
         <MobileTopBar />
@@ -105,6 +111,7 @@ export function AppShell() {
         />
         <main
           id="scrollable-page"
+          tabIndex={-1}
           className="absolute inset-0 isolate overflow-x-hidden overflow-y-auto pl-(--web-navigation-width) [scrollbar-gutter:stable] data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-in max-sm:pt-(--mobile-top-bar-height) max-sm:pl-0"
         >
           <div className="nuvx-ambient" data-motion-paused={backgroundMotion ? undefined : ''} aria-hidden="true" />
