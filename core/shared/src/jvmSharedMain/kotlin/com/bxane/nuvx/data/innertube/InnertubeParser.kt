@@ -97,72 +97,8 @@ object InnertubeParser {
 
     fun parseHomeContinuation(root: JsonElement): List<HomeShelf> = InnertubeHomeParser.parseHomeContinuation(root)
 
-    fun parseArtistPage(response: JsonObject): ArtistPage {
-        val sections = response.o("contents")
-            .o("singleColumnBrowseResultsRenderer").a("tabs")?.firstOrNull()
-            .o("tabRenderer").o("content").o("sectionListRenderer").a("contents")
-            .orEmpty()
-
-        val songs = mutableListOf<Song>()
-        var moreSongs: String? = null
-        val shelves = mutableListOf<HomeShelf>()
-        val header = response["header"]
-        val credit = Credits(artistName = InnertubeArtistHeaderParser.artistName(header))
-
-        sections.forEach { section ->
-            section.o("musicShelfRenderer")?.let { shelf ->
-                shelf.a("contents").orEmpty().forEach { row ->
-                    parseResponsiveListItem(row.o("musicResponsiveListItemRenderer"), credit)
-                        ?.let(songs::add)
-                }
-                if (moreSongs == null) {
-                    moreSongs = shelf.o("title").a("runs")?.firstOrNull()
-                        .o("navigationEndpoint").o("browseEndpoint").s("browseId")
-                }
-            }
-            section.o("musicCarouselShelfRenderer")?.let { carousel ->
-                val header = carousel.o("header").o("musicCarouselShelfBasicHeaderRenderer")
-                val title = header.o("title").runs()
-                val items = carousel.a("contents").orEmpty().mapNotNull {
-                    parseTwoRowItem(it.o("musicTwoRowItemRenderer"))
-                }.filter { it.browseId != null || it.isVideo }
-                val moreEndpoint = header.o("title").a("runs")?.firstNotNullOfOrNull {
-                    it.o("navigationEndpoint").o("browseEndpoint")
-                }
-                    ?: header.o("moreContentButton").o("buttonRenderer")
-                        .o("navigationEndpoint").o("browseEndpoint")
-                    ?: header.o("moreContentButton").o("musicMoreContentButtonRenderer")
-                        .o("navigationEndpoint").o("browseEndpoint")
-                    ?: header.a("endIcons")?.firstNotNullOfOrNull {
-                        it.o("musicNavigationButtonRenderer").o("clickCommand").o("browseEndpoint")
-                            ?: it.o("musicNavigationButtonRenderer").o("navigationEndpoint").o("browseEndpoint")
-                    }
-                    ?: header.o("navigationEndpoint").o("browseEndpoint")
-                val moreBrowseId = moreEndpoint.s("browseId")
-                val moreParams = moreEndpoint.s("params")
-                if (title.isNotBlank() && items.isNotEmpty()) {
-                    shelves += HomeShelf(
-                        title = title,
-                        items = items,
-                        moreBrowseId = moreBrowseId,
-                        moreParams = moreParams,
-                        layout = shelfLayoutFor(title, items, fromList = false),
-                    )
-                }
-            }
-        }
-        return ArtistPage(
-            songs, moreSongs, shelves,
-            thumbnailUrl = InnertubeArtistHeaderParser.artistThumbnail(header),
-            name = credit.artistName,
-            description = parseDescription(response),
-            subscriberCountText = InnertubeArtistHeaderParser.subscriberCount(header),
-            monthlyListenerCount = InnertubeArtistHeaderParser.monthlyListeners(header),
-            subscription = InnertubeArtistHeaderParser.subscription(header),
-            radio = InnertubeArtistHeaderParser.headerWatchTarget(header, "startRadioButton"),
-            shuffle = InnertubeArtistHeaderParser.headerWatchTarget(header, "playButton"),
-        )
-    }
+    fun parseArtistPage(response: JsonObject): ArtistPage =
+        InnertubeArtistHeaderParser.parseArtistPage(response)
 
     fun parseTwoRowItemsDeep(root: JsonElement): List<ShelfItem> = InnertubeHomeParser.parseTwoRowItemsDeep(root)
 
