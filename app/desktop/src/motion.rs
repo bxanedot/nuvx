@@ -168,7 +168,10 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
         let row = w * 4;
         let start = Instant::now();
         let mut base: Option<i64> = None;
-        let mut seeked: Option<i64> = None;
+        let mut seeked = clock.map(song_at);
+        if let Some(at) = seeked {
+            seek(&reader, at)?;
+        }
         let mut last = 0i64;
         loop {
             if motion.stop.load(Ordering::Relaxed) {
