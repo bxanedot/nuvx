@@ -170,7 +170,7 @@ impl App {
             video_of: None,
             video_wanted: false,
             video_height: get("video_height").and_then(|v| v.parse().ok()).unwrap_or(480),
-            load_both: get("load_both").is_some_and(|v| v == "1"),
+            load_both: get("load_both").is_none_or(|v| v == "1"),
             apple_missed: Default::default(),
             apple_motion: Default::default(),
             apple_waiting: Default::default(),

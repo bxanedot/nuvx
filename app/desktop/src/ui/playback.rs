@@ -154,7 +154,7 @@ impl App {
         }
     }
 
-    fn load_other_version(&mut self, track: &Track) {
+    pub(super) fn load_other_version(&mut self, track: &Track) {
         if !self.load_both || self.jam.active() {
             return;
         }
