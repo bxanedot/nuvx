@@ -170,7 +170,8 @@ impl App {
             video_of: None,
             video_wanted: false,
             video_height: get("video_height").and_then(|v| v.parse().ok()).unwrap_or(480),
-            load_both: get("load_both").is_none_or(|v| v == "1"),
+            // The old key stored the former default, so it cannot distinguish an opt-out from an untouched setting.
+            load_both: get("load_both_v2").is_none_or(|v| v == "1"),
             apple_missed: Default::default(),
             apple_motion: Default::default(),
             apple_waiting: Default::default(),
