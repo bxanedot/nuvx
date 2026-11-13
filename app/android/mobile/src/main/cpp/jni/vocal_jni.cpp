@@ -1,10 +1,10 @@
-
-
-
-
-
-
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// JNI bridge to the vocal-separation front end.
+//
+// Unlike the mel front end this one is stereo and linear-frequency, because
+// that is what open-unmix was trained on. The layout it produces is bin-major
+// rather than frame-major specifically so it matches the model's tensor shape
+// [1, 2, bins, frames] with no transpose on the Kotlin side.
 
 #include <jni.h>
 

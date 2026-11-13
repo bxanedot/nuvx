@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { TrackAnalysis } from '../analysis/types';
 import { analyzer } from '../analysis/analyzer';
 import type { Deck } from './deck';

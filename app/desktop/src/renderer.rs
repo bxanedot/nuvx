@@ -20,22 +20,14 @@ pub fn init(data_dir: &Path) -> Renderer {
 }
 
 pub fn active() -> Renderer {
-    *ACTIVE.get_or_init(default_renderer)
+    *ACTIVE.get_or_init(|| Renderer::OpenGl)
 }
 
 pub fn load(data_dir: &Path) -> Renderer {
     match std::fs::read_to_string(data_dir.join("renderer")).unwrap_or_default().trim() {
         "wgpu" => Renderer::Wgpu,
-        "opengl" => Renderer::OpenGl,
-        _ => default_renderer(),
+        _ => Renderer::OpenGl,
     }
-}
-
-fn default_renderer() -> Renderer {
-    #[cfg(target_os = "macos")]
-    return Renderer::Wgpu;
-    #[cfg(not(target_os = "macos"))]
-    Renderer::OpenGl
 }
 
 pub fn save(data_dir: &Path, r: Renderer) -> std::io::Result<()> {
@@ -43,17 +35,11 @@ pub fn save(data_dir: &Path, r: Renderer) -> std::io::Result<()> {
 }
 
 pub fn api_name() -> &'static str {
-    #[cfg(target_os = "macos")]
-    return "Metal";
-    #[cfg(not(target_os = "macos"))]
-    "Vulkan"
+    if cfg!(target_os = "macos") { "Metal" } else { "Vulkan" }
 }
 
 pub fn backends() -> wgpu::Backends {
-    #[cfg(target_os = "macos")]
-    return wgpu::Backends::METAL;
-    #[cfg(not(target_os = "macos"))]
-    wgpu::Backends::VULKAN
+    if cfg!(target_os = "macos") { wgpu::Backends::METAL } else { wgpu::Backends::VULKAN }
 }
 
 pub fn wgpu_options() -> eframe::egui_wgpu::WgpuConfiguration {

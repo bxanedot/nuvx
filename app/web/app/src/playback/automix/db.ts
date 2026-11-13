@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-only
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { TrackAnalysis } from './analysis/types';
 

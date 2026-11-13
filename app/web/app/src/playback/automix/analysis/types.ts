@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-only
 export interface CamelotKey {
   num: number;
   letter: 'A' | 'B';

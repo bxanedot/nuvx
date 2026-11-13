@@ -1,15 +1,5 @@
 use super::*;
 
-fn support_prompt_for_launch(launch_count: u32, disabled: bool) -> u8 {
-    if disabled || launch_count % 12 != 8 {
-        0
-    } else if (launch_count / 12) % 2 == 0 {
-        1
-    } else {
-        2
-    }
-}
-
 impl App {
     pub fn new(
         backend: Backend,
@@ -25,12 +15,6 @@ impl App {
         theme::set_reduce_motion(get("reduce_motion").is_some_and(|v| v == "1"));
         theme::set_font_choice(&dev_var("NUVX_FONT").map(str::to_owned).or_else(|| get("font")).unwrap_or_default());
         let discord_enabled = get("discord_enabled").is_none_or(|v| v == "1");
-        let support_prompts_off = get("support_prompts_off").is_some_and(|v| v == "1");
-        let launch_count = get("launch_count")
-            .and_then(|value| value.parse::<u32>().ok())
-            .unwrap_or_default()
-            .wrapping_add(1);
-        let support_prompt = support_prompt_for_launch(launch_count, support_prompts_off);
         let app_icon = crate::appicon::load(backend.data_dir());
         let wgpu_renderer = crate::renderer::load(backend.data_dir()) == crate::renderer::Renderer::Wgpu;
         crate::appicon::sync_shortcuts(app_icon, backend.data_dir());
@@ -139,7 +123,6 @@ impl App {
             hide_radio: get("hide_radio_tab").is_some_and(|v| v == "1"),
             hide_podcasts: get("hide_podcasts_tab").is_some_and(|v| v == "1"),
             tab_intros_shown: [get("radio_intro_shown").is_some_and(|v| v == "1"), get("podcasts_intro_shown").is_some_and(|v| v == "1")],
-            tab_intro_step: [0; 2],
             moods: None,
             moods_asked: false,
             mood: None,
@@ -160,11 +143,6 @@ impl App {
             update_checked: None,
             update_announced: false,
             notes_dialog: None,
-            launch_count,
-            support_prompt,
-            support_prompts_off,
-            discord_invite_joined: get("discord_invite_joined").is_some_and(|v| v == "1"),
-            discord_prompt_dismissed: false,
             whats_new: {
                 let current = crate::update::current_version();
                 let last = get("last_version");
@@ -193,7 +171,7 @@ impl App {
             video_wanted: false,
             video_mode: false,
             video_height: get("video_height").and_then(|v| v.parse().ok()).unwrap_or(480),
-
+            // The old key stored the former default, so it cannot distinguish an opt-out from an untouched setting.
             load_both: get("load_both_v2").is_none_or(|v| v == "1"),
             apple_missed: Default::default(),
             apple_motion: Default::default(),
@@ -330,19 +308,5 @@ impl App {
         app.audio.set_eq(app.eq.tuning());
         app.set_crossfade();
         app
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::support_prompt_for_launch;
-
-    #[test]
-    fn support_prompts_follow_the_twelve_launch_cycle() {
-        assert_eq!(support_prompt_for_launch(7, false), 0);
-        assert_eq!(support_prompt_for_launch(8, false), 1);
-        assert_eq!(support_prompt_for_launch(20, false), 2);
-        assert_eq!(support_prompt_for_launch(32, false), 1);
-        assert_eq!(support_prompt_for_launch(8, true), 0);
     }
 }

@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: MIT
 package com.bxane.nuvx.ui.components.floatingtabbar
 
 import android.os.Build

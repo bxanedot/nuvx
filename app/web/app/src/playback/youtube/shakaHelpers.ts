@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: MIT
 
 import shaka from 'shaka-player/dist/shaka-player.compiled';
 

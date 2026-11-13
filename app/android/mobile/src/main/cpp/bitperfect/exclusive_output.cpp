@@ -1,9 +1,9 @@
-
-
-
-
-
-
+// SPDX-License-Identifier: LGPL-3.0-only
+// Exact-rate PCM through an AAudio exclusive stream (Oboe), for players with
+// a built-in DAC. Exclusive is only a request: Android may grant a shared
+// stream instead, and a shared stream is mixed. The stream is accepted only
+// when the API, sharing mode, rate, channel count and format all came back
+// exactly as asked; otherwise it is closed and the caller uses normal output.
 
 #include <jni.h>
 #include <oboe/Oboe.h>
