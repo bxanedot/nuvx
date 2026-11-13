@@ -430,7 +430,7 @@ private fun TvScrubber(
     val focused by interaction.collectIsFocusedAsState()
     val frame = remember { mutableLongStateOf(0L) }
     LaunchedEffect(isPlaying) {
-        if (isPlaying) while (true) withFrameNanos { frame.longValue = it }
+        if (isPlaying) while (true) withFrameNanos { frame.longValue = System.nanoTime() }
     }
     val thickness by animateDpAsState(if (focused) 6.dp else 4.dp, tween(160), label = "scrubThickness")
 

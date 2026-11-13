@@ -47,7 +47,7 @@ internal fun rememberLivePlaybackPosition(position: PlaybackPosition, isPlaying:
     LaunchedEffect(position, isPlaying, position.advancing, durationMs, foreground) {
         if (!foreground) return@LaunchedEffect
         if (isPlaying && position.advancing) {
-            while (true) withFrameNanos { now -> live.longValue = position.livePosition(true, now, durationMs) }
+            while (true) withFrameNanos { live.longValue = position.livePosition(true, System.nanoTime(), durationMs) }
         } else {
             snapshotFlow { position.positionMs }.collect { live.longValue = it }
         }
