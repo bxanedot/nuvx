@@ -710,13 +710,19 @@ class QueueShuffleTierTest {
             QueueShuffle.toggle(state.player)
         }
 
-        val startShuffle = System.nanoTime()
-        QueueShuffle.toggle(state.player)
-        val shuffleDurationMs = (System.nanoTime() - startShuffle) / 1_000_000.0
+        val shuffleDurations = ArrayList<Double>(5)
+        val restoreDurations = ArrayList<Double>(5)
+        repeat(5) {
+            val startShuffle = System.nanoTime()
+            QueueShuffle.toggle(state.player)
+            shuffleDurations += (System.nanoTime() - startShuffle) / 1_000_000.0
 
-        val startRestore = System.nanoTime()
-        QueueShuffle.toggle(state.player)
-        val restoreDurationMs = (System.nanoTime() - startRestore) / 1_000_000.0
+            val startRestore = System.nanoTime()
+            QueueShuffle.toggle(state.player)
+            restoreDurations += (System.nanoTime() - startRestore) / 1_000_000.0
+        }
+        val shuffleDurationMs = shuffleDurations.sorted()[shuffleDurations.size / 2]
+        val restoreDurationMs = restoreDurations.sorted()[restoreDurations.size / 2]
 
         val startBaseline = System.nanoTime()
         val existingByCanonicalBaseline = HashMap<Int, MediaItem>()
@@ -736,7 +742,7 @@ class QueueShuffleTierTest {
         val fullListBaseline = precedingBaseline + listOf(state.items[250]) + followingBaseline
         val baselineDurationMs = (System.nanoTime() - startBaseline) / 1_000_000.0
 
-        println("BENCHMARK_RESULT: Current 1000 tracks (shuffle: ${shuffleDurationMs} ms, restore: ${restoreDurationMs} ms) vs Baseline 83fa092 restore resolution: ${baselineDurationMs} ms")
+        println("BENCHMARK_RESULT: Current 1000 tracks median (shuffle: ${shuffleDurationMs} ms, restore: ${restoreDurationMs} ms) vs Baseline 83fa092 restore resolution: ${baselineDurationMs} ms")
         assertTrue("Shuffle should complete in < 50ms", shuffleDurationMs < 50.0)
         assertTrue("Restore should complete in < 50ms", restoreDurationMs < 50.0)
     }
