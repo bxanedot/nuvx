@@ -71,15 +71,6 @@ android {
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"nuvx-\"")
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = false
-        }
-    }
-
     sourceSets {
         getByName("main") {
             java.srcDir("../wearos/protocol")
@@ -94,7 +85,7 @@ android {
         }
     }
 
-    flavorDimensions += "env"
+    flavorDimensions += listOf("env", "distribution")
     productFlavors {
         create("dev") {
             dimension = "env"
@@ -103,6 +94,14 @@ android {
         }
         create("prod") {
             dimension = "env"
+        }
+        create("gms") {
+            dimension = "distribution"
+            buildConfigField("String", "NUVX_DISTRIBUTION", "\"gms\"")
+        }
+        create("foss") {
+            dimension = "distribution"
+            buildConfigField("String", "NUVX_DISTRIBUTION", "\"foss\"")
         }
     }
 
@@ -256,17 +255,17 @@ dependencies {
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
     else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
-    implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
-    implementation("androidx.mediarouter:mediarouter:1.8.1")
+    gmsImplementation("com.google.android.gms:play-services-cast-framework:23.0.0")
+    gmsImplementation("androidx.mediarouter:mediarouter:1.8.1")
 
-    implementation("com.google.android.gms:play-services-wearable:20.0.1")
-    implementation("androidx.wear:wear-remote-interactions:1.2.0")
+    gmsImplementation("com.google.android.gms:play-services-wearable:20.0.1")
+    gmsImplementation("androidx.wear:wear-remote-interactions:1.2.0")
 
-    implementation("com.github.MuntashirAkon:libadb-android:3.1.1") {
+    gmsImplementation("com.github.MuntashirAkon:libadb-android:3.1.1") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("org.conscrypt:conscrypt-android:2.9.0")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    gmsImplementation("org.conscrypt:conscrypt-android:2.9.0")
+    gmsImplementation("org.bouncycastle:bcpkix-jdk18on:1.86")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")

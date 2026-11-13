@@ -74,7 +74,7 @@ jobs:
           gh release create "$NIGHTLY_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $STABLE_VERSION-$NIGHTLY_TAG" \
-            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. Android APKs are split by CPU architecture; most phones and tablets use arm64-v8a. In-app updates choose the matching APK automatically. A newer stable release can update Android installs in place."
+            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. Mobile and TV each have universal GMS and FOSS APKs covering arm32, arm64 and x86_64. In-app updates choose the installed distribution automatically."
 
   android:
     needs: prepare
@@ -130,8 +130,18 @@ jobs:
                   out.write(f"{name}={escaped}\n")
           PY
           unset NUVX_KEYSTORE_BASE64 NUVX_KEYSTORE_PASSWORD NUVX_KEY_ALIAS NUVX_KEY_PASSWORD
-          bash gradlew :app:assembleProdRelease :tv:assembleProdRelease :wearos:assembleProdRelease \
+          bash gradlew :app:testProdGmsReleaseUnitTest :app:testProdFossReleaseUnitTest \
+            :app:assembleProdGmsRelease :app:assembleProdFossRelease \
+            :tv:assembleProdGmsRelease :tv:assembleProdFossRelease :wearos:assembleProdRelease \
             -Pnuvx.nightlyBaseCode="$code" -Pnuvx.nightlyBaseName="$version" -Pnuvx.nightlySuffix="$suffix"
+          for module in app tv; do
+            bash gradlew ":$module:dependencies" --configuration prodFossReleaseRuntimeClasspath \
+              > "$RUNNER_TEMP/$module-foss-dependencies.txt"
+            if grep -E 'com\.google\.android\.gms|play-services-' "$RUNNER_TEMP/$module-foss-dependencies.txt"; then
+              echo "$module FOSS runtime contains a Google Play Services dependency" >&2
+              exit 1
+            fi
+          done
           mkdir nightly
           tools="$ANDROID_HOME/build-tools/37.0.0"
           stage() {
@@ -142,20 +152,30 @@ jobs:
               grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
             cp "$source" "nightly/$prefix-v$version-$suffix.apk"
           }
-          stage_abis() {
-            local dir=$1 app=$2 prefix=$3 package=$4 abi source metadata
+          stage_universal() {
+            local dir=$1 app=$2 prefix=$3 package=$4 distribution=$5 source metadata
+            source=$(find "$dir" -type f -name "*$app-prod-$distribution-release.apk" -print -quit)
+            [[ -n "$source" && -s "$source" ]]
+            metadata=$("$tools/aapt2" dump badging "$source")
+            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version-$suffix'"* ]]
+            if [[ $distribution == foss ]] && "$tools/aapt2" dump xmltree "$source" --file AndroidManifest.xml |
+              grep -E 'com\.google\.android\.gms|CastOptionsProvider|WearCommandService'; then
+              echo "$source FOSS manifest contains a GMS-only entry" >&2
+              exit 1
+            fi
+            "$tools/apksigner" verify --print-certs "$source" |
+              grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
             for abi in armeabi-v7a arm64-v8a x86_64; do
-              source="$dir/$app-prod-$abi-release.apk"
-              metadata=$("$tools/aapt2" dump badging "$source")
-              [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version-$suffix'"* ]]
-              "$tools/apksigner" verify --print-certs "$source" |
-                grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
-              cp "$source" "nightly/${prefix}-v${version}-${suffix}_${abi}.apk"
+              unzip -l "$source" | grep -F "lib/$abi/libonnxruntime.so"
             done
+            cp "$source" "nightly/${prefix}-v${version}-${suffix}-${distribution}.apk"
           }
-          stage_abis app/android/mobile/build/outputs/apk/prod/release app nuvx com.bxane.nuvx
-          stage_abis app/android/tv/build/outputs/apk/prod/release tv NuvxTV com.bxane.nuvx.tv
+          for distribution in gms foss; do
+            stage_universal app/android/mobile/build/outputs/apk app nuvx com.bxane.nuvx "$distribution"
+            stage_universal app/android/tv/build/outputs/apk tv NuvxTV com.bxane.nuvx.tv "$distribution"
+          done
           stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
+          [[ $(find nightly -maxdepth 1 -name '*.apk' | wc -l) -eq 5 ]]
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           gh release upload "$NIGHTLY_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
 

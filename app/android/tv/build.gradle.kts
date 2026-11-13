@@ -60,15 +60,6 @@ android {
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"NuvxTV-\"")
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = false
-        }
-    }
-
     sourceSets {
         getByName("main") {
             java.srcDir("../mobile/src/main/java")
@@ -77,7 +68,19 @@ android {
             jniLibs.srcDir("../mobile/src/main/jniLibs")
         }
         getByName("debug") { java.srcDir("../mobile/src/debug/java") }
-        configureEach { if (name == "dev") manifest.srcFile("src/dev/AndroidManifest.xml") }
+        configureEach {
+            when (name) {
+                "gms" -> {
+                    java.srcDir("../mobile/src/gms/java")
+                    java.exclude("com/bxane/nuvx/wear/**")
+                }
+                "foss" -> {
+                    java.srcDir("../mobile/src/foss/java")
+                    java.exclude("com/bxane/nuvx/wear/**")
+                }
+                "dev" -> manifest.srcFile("src/dev/AndroidManifest.xml")
+            }
+        }
     }
 
     externalNativeBuild {
@@ -87,7 +90,7 @@ android {
         }
     }
 
-    flavorDimensions += "env"
+    flavorDimensions += listOf("env", "distribution")
     productFlavors {
         create("dev") {
             dimension = "env"
@@ -97,6 +100,14 @@ android {
         create("prod") {
             dimension = "env"
             resValue("string", "app_name", "nuvx TV")
+        }
+        create("gms") {
+            dimension = "distribution"
+            buildConfigField("String", "NUVX_DISTRIBUTION", "\"gms\"")
+        }
+        create("foss") {
+            dimension = "distribution"
+            buildConfigField("String", "NUVX_DISTRIBUTION", "\"foss\"")
         }
     }
 
@@ -253,7 +264,7 @@ dependencies {
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
     else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
-    implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
+    gmsImplementation("com.google.android.gms:play-services-cast-framework:23.0.0")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
 
     testImplementation("junit:junit:4.13.2")
