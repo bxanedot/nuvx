@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: LGPL-3.0-only
 #pragma once
 
 // The realtime arithmetic of the direct USB stream, free of libusb so a host

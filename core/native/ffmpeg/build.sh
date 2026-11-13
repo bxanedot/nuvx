@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-
-
-
-
-
-
-
-
+# Builds app/src/main/jniLibs/<abi>/libffmpegJNI.so: Media3's FFmpeg audio
+# decoder JNI (ffmpeg_jni.cc, beside this script) statically linked against
+# libavcodec + libavutil from librempeg.
+# Licence: built with --enable-gpl --enable-version3 and without --enable-agpl
+# (in librempeg only avfilter's frame threading and the ffmpeg CLI are AGPL,
+# and neither is built), so the result is GPLv3, like the app. libavfilter is
+# built — librempeg's libavcodec will not configure without it — but with
+# --disable-everything it carries no filters.
 set -euo pipefail
 
 LIBREMPEG_URL=https://github.com/librempeg/librempeg

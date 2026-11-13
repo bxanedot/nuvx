@@ -1,6 +1,0 @@
-Component notices are centralized in the repository's root THIRD_PARTY_LICENSES/.
-
-They are used here to test libsoxr's optional libsamplerate-like
-wrapper.  The only modifications made are to the file `snr_bw_test.c' to
-remove reliance on certain frequency response troughs that are specific
-to libsamplerate.

@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-only
 
 export function energyCurve(samples: Float32Array, sampleRate: number, windowSec: number): number[] {
   const windowSamples = Math.max(1, Math.round(windowSec * sampleRate));

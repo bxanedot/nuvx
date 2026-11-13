@@ -1,17 +1,17 @@
-
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * Direct Stream Transfer (DST) decoder
  */
 
-
-
-
-
-
-
-
-
-
+/**
+ * @file decoder.c
+ * @brief DST decoder - single-frame public API and core decoding algorithm
+ *
+ * ISO/IEC 14496-3 Part 3 Subpart 10: Technical description of lossless
+ * coding of oversampled audio
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
 #include "decoder.h"
 #include "compat.h"

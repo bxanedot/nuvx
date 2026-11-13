@@ -1,14 +1,14 @@
-
-
-
-
-
-
-
-
-
-
-
+// SPDX-License-Identifier: GPL-3.0-or-later
+// nuvx: the Automix loop mix's renderer. Two decks, each a decoded region
+// of one song played through Signalsmith Stretch, looped on whole bars and
+// following a tempo ramp beat by beat, mixed into one stereo stream.
+//
+// Everything is on one clock: mix frame 0 is the moment the outgoing song's
+// loop starts (t0). Each deck follows "knots" -- (time since t0, track
+// position) for every beat of the mix -- so its tempo changes on the beat and
+// its loop seams land on the exact sample. The renderer runs inside the
+// outgoing player's audio sink, so the start of the mix is sample-exact
+// against the song it takes over from, and the two decks can't drift apart.
 #pragma once
 
 #include <atomic>

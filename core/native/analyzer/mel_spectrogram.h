@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /*
  * Ported from Orchard (https://github.com/SFG5453/Orchard), whose native mel
  * front end this file is adapted from almost unchanged: every constant here

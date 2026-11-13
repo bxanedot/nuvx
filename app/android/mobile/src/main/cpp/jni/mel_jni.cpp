@@ -1,10 +1,10 @@
-
-
-
-
-
-
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// JNI bridge to the mel front end.
+//
+// Kept as thin as a bridge can be: it copies the sample array in, calls
+// ComputeBeatSpectrogram, and hands back a flat float[]. No policy, no
+// buffering, no threading -- all of that belongs on the Kotlin side where it
+// can be cancelled and tested.
 
 #include <jni.h>
 

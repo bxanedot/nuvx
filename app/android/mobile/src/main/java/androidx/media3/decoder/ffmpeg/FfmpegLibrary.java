@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: Apache-2.0
 /*
  * Vendored by nuvx from androidx/media 1.11.0
  * (libraries/decoder_ffmpeg); there is no published artifact of the FFmpeg

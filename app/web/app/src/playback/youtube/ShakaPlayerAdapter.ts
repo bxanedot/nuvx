@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: MIT
 
 import shaka from 'shaka-player/dist/shaka-player.compiled';
 
@@ -467,7 +467,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
 
     if (this.player) {
       const networkingEngine = this.player.getNetworkingEngine();
-
+     
       if (networkingEngine && this.requestFilter && this.responseFilter) {
         networkingEngine.unregisterRequestFilter(this.requestFilter);
         networkingEngine.unregisterResponseFilter(this.responseFilter);

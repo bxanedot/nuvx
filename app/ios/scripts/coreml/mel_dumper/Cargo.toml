@@ -1,7 +1,0 @@
-[package]
-name = "mel_dumper"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-native-core = { path = "../../../native-core" }
