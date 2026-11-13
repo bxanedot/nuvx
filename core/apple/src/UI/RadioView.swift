@@ -47,18 +47,28 @@ private struct RadioStation: Decodable, Identifiable {
 }
 
 
+@MainActor
+private enum RadioDirectory {
+    static var countries: [RadioCountry]?
+    static var selected: String?
+    static var stations: [String: [RadioStation]] = [:]
+}
+
+
+@MainActor
 struct RadioView: View {
     @Environment(PlaybackController.self) private var controller
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var countries: [RadioCountry] = []
     @State private var stations: [RadioStation] = []
-    @State private var country = Locale.current.region?.identifier ?? "US"
+    @State private var country = RadioDirectory.selected ?? (Locale.current.region?.identifier ?? "US")
     @State private var query = ""
     @State private var submitted = ""
     @State private var problem: String?
     @State private var loading = true
     @State private var retry = 0
-    private var requestKey: String { "\(country)|\(submitted)|\(retry)" }
+    private var stationKey: String { submitted.isEmpty ? country : "search:\(submitted)" }
+    private var requestKey: String { "\(stationKey)|\(retry)" }
     private let hosts = ["all.api.radio-browser.info", "de1.api.radio-browser.info", "fi1.api.radio-browser.info"]
 
     var body: some View {
@@ -180,7 +190,10 @@ struct RadioView: View {
     }
 
     private func loadCountries() async {
-        guard countries.isEmpty else { return }
+        if let cached = RadioDirectory.countries {
+            countries = cached
+            return
+        }
         do {
             var result: [RadioCountry] = try await fetch("countries", query: [
                 URLQueryItem(name: "order", value: "stationcount"),
@@ -192,6 +205,7 @@ struct RadioView: View {
                 result.swapAt(0, home)
             }
             if !result.contains(where: { $0.id == country }), let first = result.first { country = first.id }
+            RadioDirectory.countries = result
             countries = result
         } catch {
 
@@ -199,8 +213,14 @@ struct RadioView: View {
     }
 
     private func loadStations() async {
-        let key = requestKey
+        let key = stationKey
+        RadioDirectory.selected = country
         loading = true; problem = nil
+        if let cached = RadioDirectory.stations[key] {
+            stations = cached
+            loading = false
+            return
+        }
         var parameters = [URLQueryItem(name: "hidebroken", value: "true"),
                            URLQueryItem(name: "order", value: "clickcount"),
                            URLQueryItem(name: "reverse", value: "true")]
@@ -217,15 +237,17 @@ struct RadioView: View {
         }
         do {
             let result: [RadioStation] = try await fetch(path, query: parameters)
-            guard !Task.isCancelled, key == requestKey else { return }
+            guard !Task.isCancelled, key == stationKey else { return }
             var seen = Set<String>()
-            stations = result.filter {
+            let unique = result.filter {
                 guard let url = $0.playableURL else { return false }
                 return seen.insert(url.absoluteString).inserted
             }
+            RadioDirectory.stations[key] = unique
+            stations = unique
             loading = false
         } catch {
-            guard !Task.isCancelled, key == requestKey else { return }
+            guard !Task.isCancelled, key == stationKey else { return }
             loading = false; problem = error.localizedDescription
         }
     }
