@@ -117,9 +117,7 @@ impl App {
         if self.playing_as().is_none() {
             return;
         }
-        let at = self.remember_version_position();
-        let target = self.current_id().map(str::to_owned);
-        let at = target.as_deref().map_or(at, |id| version_position(&self.version_positions, id, at));
+        let at = self.audio.status.position_smooth();
         self.playing_as = None;
         let keep = std::mem::replace(&mut self.play_songs, false);
         self.play_current_at(at, false, false, true);
@@ -127,10 +125,9 @@ impl App {
     }
 
     pub(super) fn play_song_version(&mut self) {
-        let at = self.remember_version_position();
+        let at = self.audio.status.position_smooth();
         let alternate = self.version_alternate.as_ref().filter(|(listed, _)| self.current_id() == Some(listed.as_str())).map(|(_, song)| song.clone());
         if let Some(song) = alternate {
-            let at = version_position(&self.version_positions, &song.id, at);
             self.next_as = Some(song);
             self.play_current_at(at, false, false, true);
             return;
@@ -142,10 +139,9 @@ impl App {
 
     pub(super) fn play_video_version(&mut self) {
         let Some(track) = self.current().cloned() else { return };
-        let at = self.remember_version_position();
+        let at = self.audio.status.position_smooth();
         match self.video_of.as_ref().filter(|(listed, _)| *listed == track.id) {
             Some((_, Some(video))) => {
-                let at = version_position(&self.version_positions, &video.id, at);
                 self.version_alternate = Some((track.id.clone(), video.clone()));
                 self.next_as = Some(video.clone());
                 self.play_current_at(at, false, false, true);
@@ -156,14 +152,6 @@ impl App {
                 self.backend.request(Req::VideoOf { generation: self.generation, track });
             }
         }
-    }
-
-    fn remember_version_position(&mut self) -> Duration {
-        let at = self.audio.status.position_smooth();
-        if let Some(id) = self.playing_id().map(str::to_owned) {
-            self.version_positions.insert(id, at);
-        }
-        at
     }
 
     fn load_other_version(&mut self, track: &Track) {
@@ -296,7 +284,6 @@ impl App {
         let Some(track) = self.current().cloned() else { return };
         if self.version_alternate.as_ref().is_some_and(|(listed, _)| listed != &track.id) {
             self.version_alternate = None;
-            self.version_positions.clear();
         }
         let start_paused = preserve_play_state && !self.playing() && !self.buffering;
         let mixing = self.pending_mix.is_some();
@@ -478,22 +465,4 @@ impl App {
 
 fn unix_now() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
-}
-
-fn version_position(positions: &std::collections::HashMap<String, Duration>, id: &str, fallback: Duration) -> Duration {
-    positions.get(id).copied().unwrap_or(fallback)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::version_position;
-    use std::{collections::HashMap, time::Duration};
-
-    #[test]
-    fn version_switch_restores_saved_position_or_keeps_current_position() {
-        let saved = HashMap::from([("song".to_owned(), Duration::from_secs(42))]);
-
-        assert_eq!(version_position(&saved, "song", Duration::from_secs(12)), Duration::from_secs(42));
-        assert_eq!(version_position(&saved, "video", Duration::from_secs(12)), Duration::from_secs(12));
-    }
 }
