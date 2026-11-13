@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 pub enum AudioCmd {
-    Start { generation: u64, decoder: TrackDecoder, shared: Arc<Shared>, at: Duration },
+    Start { generation: u64, decoder: TrackDecoder, shared: Arc<Shared>, at: Duration, start_paused: bool },
     Replace { generation: u64, seek: u64, decoder: TrackDecoder, at: Duration, seekable: bool },
     Pause,
     Resume,

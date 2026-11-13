@@ -1628,6 +1628,8 @@ fun NowPlayingScreen(
                             -(statusBarTop.roundToPx() + topStrip.roundToPx() + ART_BOX_TOP_PAD.roundToPx())
                         }
                         val boxWidthPx = constraints.maxWidth
+                        val videoBleedPx = if (videoMode && !squareVideo) with(density) { PLAYER_GUTTER.roundToPx() } else 0
+                        val videoWidthPx = boxWidthPx + videoBleedPx * 2
                         val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
                         fun fromStart(start: Float, width: Float): Float =
                             if (rtl) boxWidthPx - start - width else start
@@ -1645,10 +1647,10 @@ fun NowPlayingScreen(
                                 size = Size(side, side),
                             )
                             if (!videoMode || squareVideo) return@with square
-                            val height = boxWidthPx / videoAspectState.value.coerceIn(1f, 2.4f)
+                            val height = videoWidthPx / videoAspectState.value.coerceIn(1f, 2.4f)
                             val video = Rect(
-                                offset = Offset(0f, square.center.y - height / 2f),
-                                size = Size(boxWidthPx.toFloat(), height),
+                                offset = Offset(-videoBleedPx.toFloat(), square.center.y - height / 2f),
+                                size = Size(videoWidthPx.toFloat(), height),
                             )
                             val thumbW = thumbWidth.roundToPx().toFloat()
                             val thumbH = THUMB_SIZE.roundToPx().toFloat()
@@ -1944,15 +1946,15 @@ fun NowPlayingScreen(
                                                     artTop().roundToPx(),
                                                 )
                                             }
-                                            val height = (boxWidthPx / aspect).roundToInt()
+                                            val height = (videoWidthPx / aspect).roundToInt()
                                             val centre = (artTop() + artSize() / 2).roundToPx()
-                                            IntOffset(0, centre - height / 2)
+                                            IntOffset(-videoBleedPx, centre - height / 2)
                                         }
                                         .layout { measurable, _ ->
-                                            val width = if (squareVideo) artSize().roundToPx() else boxWidthPx
-                                            val height = if (squareVideo) width else (boxWidthPx / aspect).roundToInt()
+                                            val width = if (squareVideo) artSize().roundToPx() else videoWidthPx
+                                            val height = if (squareVideo) width else (videoWidthPx / aspect).roundToInt()
                                             val placeable = measurable.measure(Constraints.fixed(width, height))
-                                            layout(width, height) { placeable.placeRelative(0, 0) }
+                                            layout(if (squareVideo) width else boxWidthPx, height) { placeable.placeRelative(0, 0) }
                                         }
                                         .graphicsLayer {
                                             alpha = (1f - p() * 2f).coerceIn(0f, 1f)

@@ -117,27 +117,29 @@ impl App {
         if self.playing_as().is_none() {
             return;
         }
-        let at = self.audio.status.position();
+        let at = self.audio.status.position_smooth();
         self.playing_as = None;
         if self.playing() || self.buffering {
-            self.play_current_at(at, false);
+            self.play_current_at(at, false, false, true);
         } else {
             self.resume_at = Some(at);
         }
     }
 
     pub(super) fn play_song_version(&mut self) {
+        let at = self.audio.status.position_smooth();
         let keep = std::mem::replace(&mut self.play_songs, true);
-        self.play_current_at(Duration::ZERO, false);
+        self.play_current_at(at, false, true, true);
         self.play_songs = keep;
     }
 
     pub(super) fn play_video_version(&mut self) {
         let Some(track) = self.current().cloned() else { return };
+        let at = self.audio.status.position_smooth();
         match self.video_of.as_ref().filter(|(listed, _)| *listed == track.id) {
             Some((_, Some(video))) => {
                 self.next_as = Some(video.clone());
-                self.play_current_at(Duration::ZERO, false);
+                self.play_current_at(at, false, false, true);
             }
             Some((_, None)) => self.toast("No music video found for this song.".to_owned()),
             None => {
@@ -257,7 +259,7 @@ impl App {
         if self.recoveries < MAX_RECOVERIES {
             self.recoveries += 1;
             log::warn!("playback interrupted at {at:?} ({reason}); reopening (try {})", self.recoveries);
-            self.play_current_at(at, false);
+            self.play_current_at(at, false, false, false);
             return;
         }
         log::warn!("playback interrupted at {at:?} ({reason}); giving up");
@@ -270,11 +272,12 @@ impl App {
 
     pub(super) fn play_current(&mut self) {
         self.recoveries = 0;
-        self.play_current_at(Duration::ZERO, true);
+        self.play_current_at(Duration::ZERO, true, false, false);
     }
 
-    pub(super) fn play_current_at(&mut self, at: Duration, report: bool) {
+    pub(super) fn play_current_at(&mut self, at: Duration, report: bool, lookup_song: bool, preserve_play_state: bool) {
         let Some(track) = self.current().cloned() else { return };
+        let start_paused = preserve_play_state && !self.playing() && !self.buffering;
         let mixing = self.pending_mix.is_some();
         if !mixing {
             self.mix_from = None;
@@ -291,10 +294,10 @@ impl App {
         self.audio.send(if self.handoff && at.is_zero() { AudioCmd::Handoff } else { AudioCmd::Stop });
         self.buffering = true;
         self.seek_drag = None;
-        let song_of = if carried.is_none() && at.is_zero() { self.song_of(&track) } else { None };
+        let song_of = if carried.is_none() && (at.is_zero() || lookup_song) { self.song_of(&track) } else { None };
         self.playing_as = carried.clone().map(|song| PlayingAs { generation: self.generation, listed: track.id.clone(), song });
         self.video_wanted = false;
-        self.backend.request(Req::Play { video_id: track.id.clone(), generation: self.generation, at, report, song_of, song: carried.clone(), track: Some(track.clone()) });
+        self.backend.request(Req::Play { video_id: track.id.clone(), generation: self.generation, at, report, start_paused, song_of, song: carried.clone(), track: Some(track.clone()) });
         if carried.is_none() {
             self.load_other_version(&track);
         }
@@ -433,7 +436,7 @@ impl App {
         }
         if let Some(at) = self.resume_at {
             let report = std::mem::take(&mut self.resume_counts);
-            self.play_current_at(at, report);
+            self.play_current_at(at, report, false, false);
             return;
         }
         let playing = self.playing();

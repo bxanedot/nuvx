@@ -200,7 +200,7 @@ impl App {
                 if let Some(listed) = listed.filter(|l| l != &id) {
                     self.backend.revert_quality(&listed);
                 }
-                self.play_current_at(at, false);
+                self.play_current_at(at, false, false, false);
             }
             Action::UpgradeQuality => {
                 let listed = self.current_id().map(str::to_owned);
@@ -211,7 +211,7 @@ impl App {
                 if let Some(listed) = listed.filter(|l| l != &id) {
                     self.backend.upgrade_quality(&listed);
                 }
-                self.play_current_at(at, false);
+                self.play_current_at(at, false, false, false);
             }
         }
     }
