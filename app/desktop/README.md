@@ -26,4 +26,4 @@ them that sign-in is off.
 
 ## Credits
 
-Based on ytm-rs by Kushagra Singh (GPL-3.0). nuvx for desktop is GPL-3.0 too; see `LICENSE`.
+See the centralized [license texts and notices](../../THIRD_PARTY_LICENSES/).

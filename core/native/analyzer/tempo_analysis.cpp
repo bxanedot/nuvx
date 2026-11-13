@@ -1,15 +1,15 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
-// Offline tempo and beat-grid estimation, entirely DSP (autocorrelation plus a
-// phase-locked tracking loop) -- no ML model. All spectra, envelopes, scores,
-// and event vectors are call-owned allocations; this file has no
-// synchronization or real-time guarantees and must run on a worker thread.
-//
-// This is the confidence a transition policy without a trained beat-tracking
-// model has to work with. It is deliberately treated as less trustworthy than
-// a model's grid would be -- see MIN_BEATMATCH_CONFIDENCE in
-// TransitionPolicy.kt -- but is real evidence, not a guess: BuildStructure and
-// the mix-in/out scoring in audio_analysis.cpp both read the resulting
-// downbeats to place transitions on the bar.
+
+
+
+
+
+
+
+
+
+
+
+
 
 #include "audio_analysis.h"
 

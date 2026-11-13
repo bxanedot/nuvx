@@ -1,4 +1,4 @@
-//! Lastwave Reference acoustic contour, derived from ec11a43 (GPL-3.0).
+
 
 use std::collections::VecDeque;
 use std::f64::consts::PI;

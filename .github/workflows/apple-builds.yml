@@ -8,6 +8,8 @@ on:
       - 'core/native/**'
       - 'app/desktop/**'
       - '.github/workflows/apple-builds.yml'
+      - 'THIRD_PARTY_LICENSES/**'
+      - 'scripts/check-license-layout.py'
   push:
     branches: [main]
     paths:
@@ -16,6 +18,8 @@ on:
       - 'core/native/**'
       - 'app/desktop/**'
       - '.github/workflows/apple-builds.yml'
+      - 'THIRD_PARTY_LICENSES/**'
+      - 'scripts/check-license-layout.py'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -58,6 +62,7 @@ jobs:
       - name: Check Apple source, assets, packaging and workflow contracts
         run: |
           python3 app/ios/scripts/check-nuvx-port.py
+          python3 scripts/check-license-layout.py
           python3 -m unittest discover -s app/ios/tests -v
           bash -n app/ios/scripts/package-ios-ipa.sh
           bash -n app/ios/scripts/build-native-core.sh

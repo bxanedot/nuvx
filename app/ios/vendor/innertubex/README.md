@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MetrolistGroup/innertubex/actions/workflows/ci.yml/badge.svg)](https://github.com/MetrolistGroup/innertubex/actions/workflows/ci.yml)
 [![JitPack](https://jitpack.io/v/MetrolistGroup/innertubex.svg)](https://jitpack.io/#MetrolistGroup/innertubex)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](../../../../THIRD_PARTY_LICENSES/GPL-3.0.txt)
 
 InnerTubeX is an extended Android, JVM, and iOS Kotlin Multiplatform client for
 YouTube's InnerTube APIs. It retains standard browse, search, account,
@@ -177,4 +177,4 @@ with applicable terms of service and law.
 
 ## License
 
-[GNU General Public License v3.0](LICENSE)
+[GNU General Public License v3.0](../../../../THIRD_PARTY_LICENSES/GPL-3.0.txt)

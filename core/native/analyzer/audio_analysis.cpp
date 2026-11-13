@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #include "audio_analysis.h"
 
 #include <algorithm>

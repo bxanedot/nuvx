@@ -10,6 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 APPLE_SHARED = ROOT.parent.parent / "core/apple"
 APPLE_RESOURCES = APPLE_SHARED / "resources/Resources"
+NOTICES = ROOT.parents[1] / "THIRD_PARTY_LICENSES"
 IGNORED = {".git", ".gradle", ".kotlin", "build", "target", "__pycache__"}
 MODELS = {
     "beat_this.onnx": (22650399, "9b5492b7b3c66db3f1e189a33631be84773a4ec7e8661fcf0727d89cca0fe49f"),
@@ -28,12 +29,9 @@ def source_files(root=ROOT):
 
 def check(root=ROOT):
     failures = []
-    notices = (root / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
-    bundled_notices = (APPLE_RESOURCES / "AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
+    notices = (NOTICES / "apple/README.md").read_text(encoding="utf-8")
     if not notices.startswith("# Third-party licenses\n\nnuvx is distributed by bxane."):
         failures.append("Incorrect product identity in dependency notices")
-    if notices != bundled_notices:
-        failures.append("Bundled dependency notices differ from THIRD_PARTY_LICENSES.md")
     files = list(source_files(root))
     assets = APPLE_SHARED / "resources/Assets.xcassets"
     symbol_names = {re.sub("[^a-z0-9]", "", p.stem.lower())
@@ -94,7 +92,7 @@ def check(root=ROOT):
         "group.com.bxane.nuvx", "CFBundleDisplayName: nuvx\n",
         "CFBundleURLSchemes: [nuvx]", "SUEnableAutomaticChecks: false",
         'NUVX_UPDATE_FEED_URL: ""', 'NUVX_UPDATE_PUBLIC_KEY: ""',
-        "Frameworks/NuvxShared.xcframework", "Resources/Models",
+        "Frameworks/NuvxShared.xcframework", "Resources/Models", "path: ../../../THIRD_PARTY_LICENSES",
         "ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIconMonochrome",
         "AppIconMonochrome.icon",
     ]:
@@ -121,8 +119,9 @@ def check(root=ROOT):
     if "wgpu::Backends::METAL" not in desktop_renderer:
         failures.append("Rust desktop renderer is missing the macOS Metal backend")
     for path in ["build.gradle.kts", "settings.gradle.kts", "gradlew", "gradlew.bat",
-                 "gradle/wrapper/gradle-wrapper.jar", "LICENSE",
-                  "../../core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt"]:
+                 "gradle/wrapper/gradle-wrapper.jar", "../../THIRD_PARTY_LICENSES/GPL-3.0.txt",
+                 "../../THIRD_PARTY_LICENSES/apple/README.md",
+                 "../../THIRD_PARTY_LICENSES/SOURCE_NOTICES.md"]:
         if not (root / path).is_file():
             failures.append(f"Missing build/license input: {path}")
     for manifest in (root / "shared/build.gradle.kts",):
@@ -138,7 +137,7 @@ def main():
         print("\n".join(f"FAIL: {failure}" for failure in failures))
         return 1
     print(f"PASS: {len(files)} source/resource files checked.")
-    print("PASS: nuvx app/widget/group identity, matching dependency notices, JSON, asset references, opaque icons, model hashes and build inputs.")
+    print("PASS: nuvx app/widget/group identity, centralized dependency notices, JSON, asset references, opaque icons, model hashes and build inputs.")
     print("NOT VERIFIED: Swift type-checking/linking, Apple signing, screenshots, device playback.")
     return 0
 

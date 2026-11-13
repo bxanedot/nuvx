@@ -1,4 +1,4 @@
-// Take a look at the license at the top of the repository in the LICENSE file.
+
 
 #[test]
 fn check_gir_file() {

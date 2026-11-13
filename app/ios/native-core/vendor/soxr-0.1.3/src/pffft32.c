@@ -1,5 +1,5 @@
-/* SoX Resampler Library      Copyright (c) 2007-13 robs@users.sourceforge.net
- * Licence for this file: LGPL v2.1                  See LICENCE for details. */
+
+
 
 #define SIMD_ALIGNED_FREE free
 #define SIMD_ALIGNED_MALLOC malloc

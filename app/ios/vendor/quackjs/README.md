@@ -56,4 +56,4 @@ Apple execution/final linking are unverified.
 See [verification](docs/verification.md), [measured benchmarks](docs/benchmark.md),
 [architecture](DESIGN.md) and [fixture provenance](fixtures/manifest.json).
 
-Licensed under [GPL-3.0-only](LICENSE); retain [third-party notices](THIRD_PARTY_NOTICES.md).
+Licensed under [GPL-3.0-only](../../../../THIRD_PARTY_LICENSES/quackjs/LICENSE); retain [third-party notices](../../../../THIRD_PARTY_LICENSES/quackjs/THIRD_PARTY_NOTICES.md).

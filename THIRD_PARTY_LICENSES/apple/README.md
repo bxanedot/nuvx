@@ -1,33 +1,33 @@
 # Third-party licenses
 
 nuvx is distributed by bxane. This document lists third-party components,
-resources, and their licenses. Per-file dependency notices remain with their source.
+resources, and their licenses. Source-header notices are in [SOURCE_NOTICES.md](../SOURCE_NOTICES.md).
 
 ## Components
 
 | Component | License / retained text |
 | --- | --- |
-| InnerTubeX, revision `64c7df4d88d27e6964157b3b341f7ec70f88ea6e` | GPLv3; `vendor/innertubex/LICENSE` |
-| QuackJS, revision `d867d98f9f2562009399cdfecd67e626a086f878` | GPL-3.0-only; `vendor/quackjs/LICENSE`; its fixture notices remain in `vendor/quackjs/THIRD_PARTY_NOTICES.md` |
-| Orchard-derived analyzer by SFG545 and Kushagra Singh | AGPL-3.0-or-later; source headers in `native-core/src/analyzer/`; `AGPL-3.0.txt` |
-| LastWave-native clarity specifications, revision `ec11a430fcf6e7f06bbae450e768d48f1d97d161` | GPLv3; header in `native-core/src/sound.rs`; `Lastwave-license.txt` |
+| InnerTubeX, revision `64c7df4d88d27e6964157b3b341f7ec70f88ea6e` | [GPLv3](../GPL-3.0.txt) |
+| QuackJS, revision `d867d98f9f2562009399cdfecd67e626a086f878` | [GPL-3.0-only](../quackjs/LICENSE); [fixture notices](../quackjs/THIRD_PARTY_NOTICES.md) |
+| Orchard-derived analyzer by SFG545 and Kushagra Singh | [AGPL-3.0-or-later](AGPL-3.0.txt); [source notices](../SOURCE_NOTICES.md) |
+| LastWave-native clarity specifications, revision `ec11a430fcf6e7f06bbae450e768d48f1d97d161` | [GPLv3](Lastwave-license.txt); [source notices](../SOURCE_NOTICES.md) |
 | CPAL audio I/O | Apache-2.0; `Apache-2.0-CPAL.txt` |
 | objc2 Apple bindings | MIT selected option; `MIT-objc2.txt`; upstream notes that Apple SDK terms may also apply |
 | Symphonia and UniFFI | MPL-2.0; `MPL-2.0.txt` |
 | Symphonia Opus adapter | MIT selected option; `MIT-Symphonia-Opus-Adapter.txt` |
 | libopus | BSD-3-Clause; `BSD-3-Clause-Opus.txt` |
-| libsoxr 0.1.3 by Rob Sykes | LGPL-2.1-or-later; `libsoxr-LGPL-2.1.txt`, `libsoxr-notice.txt`; full vendored source |
+| libsoxr 0.1.3 by Rob Sykes | [LGPL-2.1-or-later](../libsoxr/COPYING.LGPL); [notice](../libsoxr/LICENCE); full vendored source |
 | ebur128 0.1.10 | MIT; `ebur128-MIT.txt` |
-| Kotlin, Ktor, kotlinx and KMP-NativeCoroutines | Apache-2.0; `Apache-2.0.txt`; versions in Gradle manifests |
+| Kotlin, Ktor, kotlinx and KMP-NativeCoroutines | [Apache-2.0](Apache-2.0-CPAL.txt); versions in Gradle manifests |
 | Sparkle 2.10.0, macOS only | MIT and bundled external notices; `Sparkle-LICENSE.txt` |
-| yt-dlp/ejs 0.8.0 solver | Unlicense; bundled meriyah ISC and astring MIT notices in `yt-ejs-dependencies.txt` and original JS headers |
+| yt-dlp/ejs 0.8.0 solver | Unlicense; bundled meriyah ISC and astring MIT notices in `yt-ejs-dependencies.txt` and [source notices](../SOURCE_NOTICES.md) |
 | Unicode data, webpki certificate roots, zlib-rs | Unicode-3.0, CDLA-Permissive-2.0 and Zlib; `Cargo-data-licenses.txt` |
 | Material Icons Rounded | Apache-2.0; `material-icons.txt` |
 | Phosphor Icons | MIT; `PhosphorIcons-MIT.txt` |
-| Localization resources | GPLv3; `GPL-3.0.txt` |
+| Localization resources | [GPLv3](../GPL-3.0.txt) |
 
 Filenames without a directory above refer to
-`core/apple/resources/Resources/AudioLicenses/`. `native-core/Cargo.lock` pins the Rust
+this directory. `app/ios/native-core/Cargo.lock` pins the Rust
 dependency graph; transitive dependencies keep their own upstream license terms
 and notices. No claim is made that every dependency has the same license.
 

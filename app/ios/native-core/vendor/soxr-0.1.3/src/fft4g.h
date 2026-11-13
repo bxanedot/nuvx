@@ -1,5 +1,5 @@
-/* SoX Resampler Library      Copyright (c) 2007-13 robs@users.sourceforge.net
- * Licence for this file: LGPL v2.1                  See LICENCE for details. */
+
+
 
 void lsx_cdft(int, int, double *, int *, double *);
 void lsx_rdft(int, int, double *, int *, double *);

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+
 /*
  * Modified for nuvx (2026): the media3 1.11.0 file, built against
  * librempeg rather than FFmpeg. librempeg has no libswresample, so the sample
