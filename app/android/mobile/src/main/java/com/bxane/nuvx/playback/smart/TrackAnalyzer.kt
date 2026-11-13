@@ -11,20 +11,10 @@ import android.os.Process
 import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.util.UnstableApi
-import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.listentogether.ListenTogether
-import com.bxane.nuvx.data.model.SearchFilter
-import com.bxane.nuvx.data.model.SearchResult
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.AutomixPerformanceMode
-import com.bxane.nuvx.data.sources.SourceResolver
-import com.bxane.nuvx.data.sources.TrackMatcher
 import com.bxane.nuvx.playback.AudioCache
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -90,10 +80,7 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
 
     private val results = ConcurrentHashMap<String, TrackAnalysis>()
     private val running = ConcurrentHashMap.newKeySet<String>()
-    private val sourceAnalysisUris = ConcurrentHashMap<String, Uri>()
-    private val sourceResolutions = ConcurrentHashMap.newKeySet<String>()
-    private val sourceResolutionAttempted = ConcurrentHashMap.newKeySet<String>()
-    private val sourceResolutionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val sourceResolver = TrackAnalysisSourceResolver()
 
     private val provisional = ConcurrentHashMap.newKeySet<String>()
 
@@ -146,7 +133,7 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
             restoreOnce(trackId)
             return
         }
-        val analysisUri = analysisUriFor(trackId, uri) ?: return
+        val analysisUri = sourceResolver.analysisUriFor(trackId, uri) ?: return
 
         restoreOnce(trackId)
 
@@ -428,45 +415,6 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
         return Copy(key = rendition.key, rendition = rendition) { cache.renditionDataSource(uri, rendition) }
     }
 
-    private fun analysisUriFor(trackId: String, playbackUri: Uri): Uri? {
-        if (playbackUri.getQueryParameter("v") != null || playbackUri.authority != "source") return playbackUri
-        if (SourceResolver.isPickedAddonRow(playbackUri)) return null
-        sourceAnalysisUris[trackId]?.let { return it }
-        if (trackId in sourceResolutionAttempted) return null
-        if (!sourceResolutions.add(trackId)) return null
-        val target = SourceResolver.targetIn(playbackUri)
-        sourceResolutionScope.launch {
-            try {
-                val match = findYouTubeMatch(target)
-                if (match != null) {
-                    sourceAnalysisUris[trackId] = Uri.parse(AutomixAnalysisSource.opusUri(match.videoId))
-                    Log.d(TAG, "Automix analysis for $trackId will use YouTube Opus ${match.videoId}")
-                } else {
-                    Log.d(TAG, "No YouTube match for Automix analysis of $trackId")
-                }
-            } catch (error: Throwable) {
-                Log.d(TAG, "YouTube match failed for Automix analysis of $trackId: ${error.message}")
-            } finally {
-                sourceResolutionAttempted.add(trackId)
-                sourceResolutions.remove(trackId)
-            }
-        }
-        return null
-    }
-
-    private suspend fun findYouTubeMatch(target: TrackMatcher.Target): com.bxane.nuvx.data.model.Song? {
-        if (target.title.isBlank()) return null
-        for (query in TrackMatcher.queries(target)) {
-            val candidates = YtMusicRepository.search(query, SearchFilter.SONGS)
-                .getOrNull()
-                ?.filterIsInstance<SearchResult.Track>()
-                ?.map { it.song }
-                .orEmpty()
-            TrackMatcher.best(candidates, target)?.let { return it }
-        }
-        return null
-    }
-
     private class WholeTrack(val analysis: TrackAnalysis?, val decodedShort: Boolean = false)
 
     private class Structural(
@@ -655,7 +603,7 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
         val analysisUri = if (uri.getQueryParameter("v") != null || uri.authority != "source") {
             uri
         } else {
-            sourceAnalysisUris[trackId] ?: return null
+            sourceResolver.resolvedUri(trackId) ?: return null
         }
         val began = SystemClock.elapsedRealtime()
         val copy = runCatching { copyToRead(trackId, analysisUri, durationSeconds) }.getOrNull() ?: return null
@@ -674,10 +622,7 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
 
     fun release() {
         executor.shutdownNow()
-        sourceResolutionScope.cancel()
-        sourceAnalysisUris.clear()
-        sourceResolutions.clear()
-        sourceResolutionAttempted.clear()
+        sourceResolver.release()
         headAttempts.clear()
         headSkipLogged.clear()
         provisional.clear()
