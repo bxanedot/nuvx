@@ -12,7 +12,7 @@ use menus::{card_menu_contents, more_button};
 pub use menus::{menu_action, menu_choice, menu_glyph_action, song_actions, song_menu};
 const ROW_H: f32 = 56.0;
 mod rows;
-pub use rows::{active_state, equalizer_shown, play_pause_glyph, play_triangle, track_row, visible_rows, NowPlaying, RowOpts};
+pub use rows::{active_state, play_pause_glyph, play_triangle, track_row, visible_rows, NowPlaying, RowOpts};
 mod text;
 pub use text::{galley, galley_wrapped, linked_text, text_at};
 mod controls;
