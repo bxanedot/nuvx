@@ -3,6 +3,18 @@ name: Android nightly
 on:
   push:
     branches: [main]
+    paths:
+      - "app/android/**"
+      - "app/desktop/**"
+      - "app/web/app/public/models/**"
+      - "core/**"
+      - "!core/worker/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
   workflow_dispatch:
 
 permissions:
