@@ -16,6 +16,7 @@
     "--use_nnapi",
     "--use_xnnpack",
     "--use_webgpu",
+    "--compile_no_warning_as_error",
     "--skip_tests"
   ]
 }
