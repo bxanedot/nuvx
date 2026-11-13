@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
@@ -466,8 +467,7 @@ private fun rememberProgress(np: NowPlaying): State<Float> {
         if (!np.advancing || ambient) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
-                progress.floatValue = np.progressAt(System.currentTimeMillis())
-                delay(PROGRESS_TICK_MS)
+                withFrameNanos { progress.floatValue = np.progressAt(System.currentTimeMillis()) }
             }
         }
     }
@@ -586,7 +586,6 @@ private fun BoxScope.VolumeReadout(volume: Volume?, nudge: Int, edgeInset: Dp) {
 }
 
 private const val ROTARY_STEP_PX = 48f
-private const val PROGRESS_TICK_MS = 500L
 private const val VOLUME_SHOWN_MS = 1_400L
 private const val VOLUME_ARC = 64f
 private const val SCRUB_STEP_MS = 5_000L
