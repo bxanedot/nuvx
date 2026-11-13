@@ -29,7 +29,7 @@ use accounts::parse_channels;
 use library::{grid_continuation, grid_next};
 pub use home::{home, home_more, mood_art, mood_page, moods, podcasts, HomePage, PODCASTS};
 #[cfg(test)]
-use home::parse_moods;
+use home::{parse_moods, podcast_search_shelf};
 pub use playlist::{playlist, playlist_more, playlist_start};
 #[cfg(test)]
 use playlist::parse_playlist;

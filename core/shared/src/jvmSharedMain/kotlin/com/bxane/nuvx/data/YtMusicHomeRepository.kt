@@ -3,6 +3,7 @@
 package com.bxane.nuvx.data
 
 import com.bxane.nuvx.data.innertube.Innertube
+import com.bxane.nuvx.data.innertube.InnertubeHomeParser
 import com.bxane.nuvx.data.innertube.InnertubeParser
 import com.bxane.nuvx.data.model.HomeFeed
 import com.bxane.nuvx.data.model.HomeShelf
@@ -124,9 +125,14 @@ internal object YtMusicHomeRepository {
     }
 
     suspend fun podcasts(): Result<List<HomeShelf>> = YtMusicRepository.call("podcasts") {
-        val params = InnertubeParser.podcastsChipParams(Innertube.browse("FEmusic_home"))
-            ?: error("YouTube Music offered no Podcasts")
-        InnertubeParser.parseHome(Innertube.browse("FEmusic_home", params))
+        val home = Innertube.browse("FEmusic_home")
+        val params = InnertubeParser.podcastsChipParams(home)
+        val shelves = params?.let { InnertubeParser.parseHome(Innertube.browse("FEmusic_home", it)) }.orEmpty()
+        shelves.ifEmpty {
+            InnertubeHomeParser.podcastSearchShelf(
+                InnertubeParser.parseYoutubeSearch(Innertube.youtubeSearch("podcast full episodes")),
+            )?.let(::listOf).orEmpty()
+        }
     }
 
     suspend fun moodGenreArtwork(browseId: String, params: String?): Result<String?> =

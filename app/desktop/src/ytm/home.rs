@@ -90,9 +90,18 @@ pub async fn mood_art(api: &Api, sections: &mut [MoodSection], auth: bool) {
 
 pub async fn podcasts(api: &Api, auth: bool) -> anyhow::Result<MoodPage> {
     let params = home(api, None, auth).await?.chips.into_iter().find(|c| c.title.eq_ignore_ascii_case("podcasts")).and_then(|c| c.params);
-    let params = params.ok_or_else(|| anyhow::anyhow!("YouTube Music offered no Podcasts"))?;
-    let page = home(api, Some(&params), auth).await?;
-    Ok(MoodPage { browse_id: PODCASTS.into(), params: None, title: Some("Podcasts".into()), shelves: page.shelves })
+    let shelves = if let Some(params) = params {
+        let shelves = home(api, Some(&params), auth).await?.shelves;
+        if !shelves.is_empty() { shelves } else { podcast_search_shelf(youtube_search(api, "podcast full episodes").await?) }
+    } else {
+        podcast_search_shelf(youtube_search(api, "podcast full episodes").await?)
+    };
+    Ok(MoodPage { browse_id: PODCASTS.into(), params: None, title: Some("Podcasts".into()), shelves })
+}
+
+pub(super) fn podcast_search_shelf(tracks: Vec<Track>) -> Vec<Shelf> {
+    if tracks.is_empty() { return vec![]; }
+    vec![Shelf { title: "Podcasts on YouTube".into(), strapline: Some("Long-form episodes".into()), strap_thumb: None, kind: ShelfKind::Songs { rows: 1, tracks } }]
 }
 
 pub const PODCASTS: &str = "podcasts";
