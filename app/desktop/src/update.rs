@@ -46,13 +46,17 @@ fn bundle_of(exe: &Path) -> Option<&Path> {
 }
 
 fn asset_name(version: &str) -> String {
-    asset_name_for(std::env::consts::OS, version)
+    asset_name_for(std::env::consts::OS, std::env::consts::ARCH, version)
 }
 
-fn asset_name_for(os: &str, version: &str) -> String {
+fn asset_name_for(os: &str, arch: &str, version: &str) -> String {
     match os {
         "linux" => format!("nuvx-setup-{version}-linux-universal.tar.gz"),
-        "macos" => format!("nuvx-setup-{version}-macos-universal.dmg"),
+        "macos" => match arch {
+            "aarch64" => format!("nuvx-setup-{version}-macos-apple-silicon.dmg"),
+            "x86_64" => format!("nuvx-setup-{version}-macos-intel.dmg"),
+            _ => format!("nuvx-setup-{version}-macos-{arch}.dmg"),
+        },
         _ => format!("nuvx-setup-{version}.exe"),
     }
 }
@@ -393,18 +397,22 @@ mod tests {
     use super::{asset_name_for, newer};
 
     #[test]
-    fn universal_installer_names_match_each_platform() {
+    fn installer_names_match_each_platform_variant() {
         assert_eq!(
-            asset_name_for("windows", "0.8.0"),
+            asset_name_for("windows", "x86_64", "0.8.0"),
             "nuvx-setup-0.8.0.exe"
         );
         assert_eq!(
-            asset_name_for("macos", "0.8.0"),
-            "nuvx-setup-0.8.0-macos-universal.dmg"
+            asset_name_for("macos", "aarch64", "0.8.0"),
+            "nuvx-setup-0.8.0-macos-apple-silicon.dmg"
         );
         assert_eq!(
-            asset_name_for("linux", "0.8.0"),
+            asset_name_for("linux", "x86_64", "0.8.0"),
             "nuvx-setup-0.8.0-linux-universal.tar.gz"
+        );
+        assert_eq!(
+            asset_name_for("macos", "x86_64", "0.8.0"),
+            "nuvx-setup-0.8.0-macos-intel.dmg"
         );
     }
 

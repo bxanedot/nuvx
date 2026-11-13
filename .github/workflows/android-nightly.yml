@@ -1,8 +1,9 @@
-name: Android nightly
+name: Nuvx releases
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
     paths:
       - "app/android/**"
       - "app/desktop/**"
@@ -21,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-nightly-release-${{ github.ref }}
+  group: nuvx-release-build-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -33,7 +34,9 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     outputs:
-      nightly_suffix: ${{ steps.metadata.outputs.nightly_suffix }}
+      release_tag: ${{ steps.metadata.outputs.release_tag }}
+      version_suffix: ${{ steps.metadata.outputs.version_suffix }}
+      is_stable: ${{ steps.metadata.outputs.is_stable }}
       stable_version: ${{ steps.metadata.outputs.stable_version }}
       source_ref: ${{ steps.metadata.outputs.source_ref }}
       desktop_version: ${{ steps.metadata.outputs.desktop_version }}
@@ -44,21 +47,37 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Read nightly metadata
+      - name: Read release metadata
         id: metadata
         run: |
           version=$(sed -nE 's/^extra\["nuvxVersionName"\].*getOrElse\("([^"]+)"\)$/\1/p' build.gradle.kts)
-          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          suffix="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
+          code=$(sed -nE 's/^extra\["nuvxVersionCode"\].*getOrElse\(([0-9]+)\)$/\1/p' build.gradle.kts)
           desktop_version=$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' app/desktop/Cargo.toml | head -1)
-          [[ $desktop_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          echo "nightly_suffix=$suffix" >> "$GITHUB_OUTPUT"
+          extension_version=$(node -p "require('./app/web/extension/package.json').version")
+          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ $code =~ ^[1-9][0-9]*$ ]]
+          [[ $desktop_version == "$version" && $extension_version == "$version" ]]
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            release_tag="$GITHUB_REF_NAME"
+            suffix=""
+            is_stable=true
+            [[ $release_tag == "v$version" ]]
+            [[ $version != 0.8.0 || $code == 8 ]]
+          else
+            release_tag="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
+            suffix="$release_tag"
+            is_stable=false
+          fi
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "version_suffix=$suffix" >> "$GITHUB_OUTPUT"
+          echo "is_stable=$is_stable" >> "$GITHUB_OUTPUT"
           echo "stable_version=$version" >> "$GITHUB_OUTPUT"
           echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "desktop_version=$desktop_version" >> "$GITHUB_OUTPUT"
       - name: Create nightly draft
+        if: steps.metadata.outputs.is_stable == 'false'
         env:
-          NIGHTLY_TAG: ${{ steps.metadata.outputs.nightly_suffix }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
           STABLE_VERSION: ${{ steps.metadata.outputs.stable_version }}
           SOURCE_REF: ${{ steps.metadata.outputs.source_ref }}
         run: |
@@ -71,17 +90,34 @@ jobs:
                 gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag"
               fi
             done
-          gh release create "$NIGHTLY_TAG" \
+          gh release create "$RELEASE_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
-            --title "nuvx $STABLE_VERSION-$NIGHTLY_TAG" \
+            --title "nuvx $STABLE_VERSION-$RELEASE_TAG" \
             --notes "Signed universal desktop installers for Windows, Linux and macOS, plus GMS and FOSS APKs for Android phones and TV and a separate Wear OS APK. Desktop installers include x64 and ARM64 builds; phone and TV APKs include armeabi-v7a, arm64-v8a and x86_64."
+      - name: Create stable release draft
+        if: steps.metadata.outputs.is_stable == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+          STABLE_VERSION: ${{ steps.metadata.outputs.stable_version }}
+          SOURCE_REF: ${{ steps.metadata.outputs.source_ref }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
+            [[ "$draft" == true ]]
+          else
+            notes=$(awk -v heading="## $STABLE_VERSION" '$0 == heading { found=1; next } found && /^## / { exit } found { print }' CHANGELOG.md)
+            [[ -n "$notes" ]]
+            gh release create "$RELEASE_TAG" \
+              --target "$SOURCE_REF" --draft --title "nuvx $STABLE_VERSION" --notes "$notes"
+          fi
 
   android:
     needs: prepare
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      VERSION_SUFFIX: ${{ needs.prepare.outputs.version_suffix }}
       STABLE_VERSION: ${{ needs.prepare.outputs.stable_version }}
     steps:
       - uses: actions/checkout@v7
@@ -107,7 +143,9 @@ jobs:
           code=$(sed -nE 's/^extra\["nuvxVersionCode"\].*getOrElse\(([0-9]+)\)$/\1/p' build.gradle.kts)
           [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ $code =~ ^[1-9][0-9]*$ ]]
-          suffix="$NIGHTLY_TAG"
+          suffix="$VERSION_SUFFIX"
+          version_name="$version"
+          [[ -z "$suffix" ]] || version_name="$version-$suffix"
           umask 077
           trap 'rm -f keystore.properties "$RUNNER_TEMP/nuvx-nightly.jks"' EXIT
           python3 - <<'PY'
@@ -147,17 +185,17 @@ jobs:
           stage() {
             local source=$1 prefix=$2 package=$3 metadata
             metadata=$("$tools/aapt2" dump badging "$source")
-            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version-$suffix'"* ]]
+            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             "$tools/apksigner" verify --print-certs "$source" |
               grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
-            cp "$source" "nightly/$prefix-v$version-$suffix.apk"
+            cp "$source" "nightly/$prefix-v$version${suffix:+-$suffix}.apk"
           }
           stage_universal() {
             local dir=$1 app=$2 prefix=$3 package=$4 distribution=$5 source metadata
             source=$(find "$dir" -type f -name "*$app-prod-$distribution-release.apk" -print -quit)
             [[ -n "$source" && -s "$source" ]]
             metadata=$("$tools/aapt2" dump badging "$source")
-            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version-$suffix'"* ]]
+            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             if [[ $distribution == foss ]] && "$tools/aapt2" dump xmltree "$source" --file AndroidManifest.xml |
               grep -E 'com\.google\.android\.gms|CastOptionsProvider|WearCommandService'; then
               echo "$source FOSS manifest contains a GMS-only entry" >&2
@@ -168,7 +206,7 @@ jobs:
             for abi in armeabi-v7a arm64-v8a x86_64; do
               unzip -l "$source" | grep -F "lib/$abi/libonnxruntime.so"
             done
-            cp "$source" "nightly/${prefix}-v${version}-${suffix}-${distribution}.apk"
+            cp "$source" "nightly/${prefix}-v${version}${suffix:+-$suffix}-${distribution}.apk"
           }
           for distribution in gms foss; do
             stage_universal app/android/mobile/build/outputs/apk app nuvx com.bxane.nuvx "$distribution"
@@ -177,7 +215,7 @@ jobs:
           stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
           [[ $(find nightly -maxdepth 1 -name '*.apk' | wc -l) -eq 5 ]]
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
-          gh release upload "$NIGHTLY_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
+          gh release upload "$RELEASE_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
 
   windows-build:
     needs: prepare
@@ -223,7 +261,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      IS_STABLE: ${{ needs.prepare.outputs.is_stable }}
       DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
     defaults:
       run:
@@ -246,8 +285,13 @@ jobs:
         run: |
           choco install innosetup --no-progress -y
           MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$DESKTOP_VERSION" windows/nuvx.iss
-          mv "windows/Output/nuvx-setup-$DESKTOP_VERSION.exe" "nuvx-setup-$NIGHTLY_TAG.exe"
-          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG.exe" --clobber
+          if [[ "$IS_STABLE" == true ]]; then
+            installer="nuvx-setup-$DESKTOP_VERSION.exe"
+          else
+            installer="nuvx-setup-$RELEASE_TAG.exe"
+          fi
+          mv "windows/Output/nuvx-setup-$DESKTOP_VERSION.exe" "$installer"
+          gh release upload "$RELEASE_TAG" "$installer" --clobber
 
   linux-build:
     needs: prepare
@@ -296,7 +340,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      IS_STABLE: ${{ needs.prepare.outputs.is_stable }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
     defaults:
       run:
         shell: bash
@@ -323,8 +369,13 @@ jobs:
           cp assets/icon/icon.png dist/nuvx/nuvx.png
           chmod 755 dist/nuvx/nuvx-x86_64 dist/nuvx/nuvx-aarch64 dist/nuvx/install.sh
           sh linux/test-installer.sh dist/nuvx
-          tar -C dist -cf - nuvx | gzip -9 > "nuvx-setup-$NIGHTLY_TAG-linux-universal.tar.gz"
-          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-linux-universal.tar.gz" --clobber
+          if [[ "$IS_STABLE" == true ]]; then
+            installer="nuvx-setup-$DESKTOP_VERSION-linux-universal.tar.gz"
+          else
+            installer="nuvx-setup-$RELEASE_TAG-linux-universal.tar.gz"
+          fi
+          tar -C dist -cf - nuvx | gzip -9 > "$installer"
+          gh release upload "$RELEASE_TAG" "$installer" --clobber
 
   macos-build:
     needs: prepare
@@ -371,7 +422,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      IS_STABLE: ${{ needs.prepare.outputs.is_stable }}
       DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
     defaults:
       run:
@@ -390,45 +442,115 @@ jobs:
         with:
           name: nuvx-macos-aarch64
           path: app/desktop/universal/aarch64
-      - name: Package and upload universal installer
+      - name: Package and upload macOS installers
         run: |
           mkdir -p universal dmg
-          lipo -create universal/x86_64/nuvx universal/aarch64/nuvx -output universal/nuvx
-          lipo universal/nuvx -verify_arch x86_64 arm64
-          sh macos/bundle.sh universal/nuvx "$DESKTOP_VERSION" dmg
-          ln -s /Applications dmg/Applications
-          hdiutil create -volname nuvx -srcfolder dmg -format UDZO "nuvx-setup-$NIGHTLY_TAG-macos-universal.dmg"
-          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-macos-universal.dmg" --clobber
+          if [[ "$IS_STABLE" == true ]]; then
+            for arch in x86_64 aarch64; do
+              variant=intel
+              [[ "$arch" == aarch64 ]] && variant=apple-silicon
+              folder="dmg-$variant"
+              sh macos/bundle.sh "universal/$arch/nuvx" "$DESKTOP_VERSION" "$folder"
+              ln -s /Applications "$folder/Applications"
+              installer="nuvx-setup-$DESKTOP_VERSION-macos-$variant.dmg"
+              hdiutil create -volname "nuvx $variant" -srcfolder "$folder" -format UDZO "$installer"
+              gh release upload "$RELEASE_TAG" "$installer" --clobber
+            done
+          else
+            lipo -create universal/x86_64/nuvx universal/aarch64/nuvx -output universal/nuvx
+            lipo universal/nuvx -verify_arch x86_64 arm64
+            sh macos/bundle.sh universal/nuvx "$DESKTOP_VERSION" dmg
+            ln -s /Applications dmg/Applications
+            installer="nuvx-setup-$RELEASE_TAG-macos-universal.dmg"
+            hdiutil create -volname nuvx -srcfolder dmg -format UDZO "$installer"
+            gh release upload "$RELEASE_TAG" "$installer" --clobber
+          fi
+
+  extensions:
+    needs: prepare
+    if: needs.prepare.outputs.is_stable == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      STABLE_VERSION: ${{ needs.prepare.outputs.stable_version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/web/pnpm-lock.yaml
+      - run: pnpm --dir app/web install --frozen-lockfile
+      - name: Build Chrome and Firefox packages
+        env:
+          NUVX_SITE_ORIGINS: https://web.nuvx.lol,https://nuvx.pages.dev
+        run: pnpm --dir app/web/extension package
+      - name: Upload browser extensions
+        run: |
+          node --input-type=module <<'JS'
+          import { copyFileSync, readFileSync } from 'node:fs';
+          import { join } from 'node:path';
+
+          const downloads = 'app/web/app/public/downloads';
+          const output = process.env.RUNNER_TEMP;
+          const manifest = JSON.parse(readFileSync(join(downloads, 'extension.json'), 'utf8'));
+          if (manifest.version !== process.env.STABLE_VERSION) throw new Error(`Unexpected extension version ${manifest.version}`);
+          for (const browser of ['chrome', 'firefox']) {
+            const name = `nuvx-extension-${browser}-${manifest.version}.zip`;
+            copyFileSync(join(downloads, manifest.files[browser]), join(output, name));
+          }
+          copyFileSync(join(downloads, 'extension.json'), join(output, 'extension.json'));
+          JS
+          gh release upload "$RELEASE_TAG" \
+            "$RUNNER_TEMP/nuvx-extension-chrome-$STABLE_VERSION.zip" \
+            "$RUNNER_TEMP/nuvx-extension-firefox-$STABLE_VERSION.zip" \
+            "$RUNNER_TEMP/extension.json" --clobber
 
   publish:
     if: always() && needs.prepare.result == 'success'
-    needs: [prepare, android, windows, linux, macos]
+    needs: [prepare, android, windows, linux, macos, extensions]
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      IS_STABLE: ${{ needs.prepare.outputs.is_stable }}
       SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
     steps:
       - name: Publish nightly and prune older builds
         run: |
-          if [[ "${{ needs.android.result }}" != success || "${{ needs.windows.result }}" != success || "${{ needs.linux.result }}" != success || "${{ needs.macos.result }}" != success ]]; then
-            echo "A platform build failed; removing incomplete nightly $NIGHTLY_TAG"
-            gh release delete "$NIGHTLY_TAG" --yes --cleanup-tag || true
+          if [[ "${{ needs.android.result }}" != success || "${{ needs.windows.result }}" != success || "${{ needs.linux.result }}" != success || "${{ needs.macos.result }}" != success || ("$IS_STABLE" == true && "${{ needs.extensions.result }}" != success) ]]; then
+            if [[ "$IS_STABLE" == true ]]; then
+              gh release delete "$RELEASE_TAG" --yes || true
+              exit 1
+            fi
+            echo "A platform build failed; removing incomplete nightly $RELEASE_TAG"
+            gh release delete "$RELEASE_TAG" --yes --cleanup-tag || true
+            exit 0
+          fi
+          if [[ "$IS_STABLE" == true ]]; then
+            gh release edit "$RELEASE_TAG" --draft=false --latest
             exit 0
           fi
           current=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
           if [[ "$current" != "$SOURCE_REF" ]]; then
             echo "Discarding stale nightly for $SOURCE_REF; main is $current"
-            gh release delete "$NIGHTLY_TAG" --yes
-            if gh api "repos/$GH_REPO/git/ref/tags/$NIGHTLY_TAG" >/dev/null 2>&1; then
-              gh api --method DELETE "repos/$GH_REPO/git/refs/tags/$NIGHTLY_TAG"
+            gh release delete "$RELEASE_TAG" --yes
+            if gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+              gh api --method DELETE "repos/$GH_REPO/git/refs/tags/$RELEASE_TAG"
             fi
             exit 0
           fi
-          gh release edit "$NIGHTLY_TAG" --draft=false --prerelease --latest=false
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
             --jq '.[] | select(.prerelease == true and .draft == false and (.tag_name | startswith("nightly."))) | .tag_name' |
             while IFS= read -r tag; do
-              [[ -z "$tag" || "$tag" == "$NIGHTLY_TAG" ]] || gh release delete "$tag" --yes --cleanup-tag
+              [[ -z "$tag" || "$tag" == "$RELEASE_TAG" ]] || gh release delete "$tag" --yes --cleanup-tag
             done
