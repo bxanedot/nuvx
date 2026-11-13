@@ -1,6 +1,0 @@
-This is the portable nuvx. While this file sits next to the nuvx binary, the app
-keeps its settings and caches in the "data" folder here, and updates itself in this
-folder. Sign-ins are kept in your keyring (or, without one, in the data folder).
-
-Delete this file to use the normal location (~/.local/share/nuvx) instead, or run
-./install.sh from the regular download to install nuvx for your user.
