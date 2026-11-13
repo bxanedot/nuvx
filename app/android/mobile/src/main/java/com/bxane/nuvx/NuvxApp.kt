@@ -166,8 +166,6 @@ import com.bxane.nuvx.playback.toggleAutoplay
 import com.bxane.nuvx.playback.toggleShuffle
 import com.bxane.nuvx.playback.upgradeQuality
 import com.bxane.nuvx.playback.revertToOriginal
-import com.bxane.nuvx.download.DownloadStore
-import com.bxane.nuvx.download.MediaTagger
 import com.bxane.nuvx.download.DownloadTarget
 import com.bxane.nuvx.download.Downloads
 import com.bxane.nuvx.ui.components.BrowseActionsMenu
@@ -193,6 +191,7 @@ import com.bxane.nuvx.ui.MainMusicLinkHandler
 import com.bxane.nuvx.ui.MainBrowseOpener
 import com.bxane.nuvx.ui.MainPlaybackStarter
 import com.bxane.nuvx.ui.MainNowPlayingNavigator
+import com.bxane.nuvx.ui.MainDownloadController
 import com.bxane.nuvx.ui.SearchSource
 import com.bxane.nuvx.ui.components.BottomFadeScrim
 import com.bxane.nuvx.ui.components.TopFadeBlur
@@ -1087,6 +1086,15 @@ internal fun NuvxApp(
                 .show()
         }
     }
+    val downloadController = MainDownloadController(
+        context = context,
+        scope = scope,
+        pending = { downloadPending },
+        setPending = { downloadPending = it },
+        requestNotifications = { notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS) },
+        requestStorage = { storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE) },
+        showAddonExclusion = { addonLeftOutOfDownload = it },
+    )
     val mediaPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -1126,85 +1134,7 @@ internal fun NuvxApp(
             )
         }
     }
-    val startDownloads: (List<Pair<List<Song>, DownloadTarget?>>) -> Unit = { batches ->
-        val saved = Downloads.saved.value
-        val todo = batches.map { (requested, from) ->
-            requested
-                .filter { it.videoId !in saved }
-                .map { song ->
-                    val cover = from?.thumbnailUrl
-                    if (song.thumbnailUrl.isNullOrBlank() && !cover.isNullOrBlank()) {
-                        song.copy(thumbnailUrl = cover)
-                    } else {
-                        song
-                    }
-                } to from
-        }
-        val songs = todo.flatMap { it.first }.distinctBy { it.videoId }
-        val blocked = songs.isNotEmpty() && !AppSettings.downloadsAllowedNow &&
-            songs.none { Downloads.servableFromCache(it.videoId) }
-        if (songs.isNotEmpty() && !blocked) {
-            val needsStorage = AppSettings.exportDownloads.value && DownloadStore.needsLegacyPermission() &&
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                ) != PackageManager.PERMISSION_GRANTED
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS,
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-
-            if (needsStorage) {
-                val ask = downloadPending.isEmpty()
-                downloadPending = downloadPending + todo.filter { it.first.isNotEmpty() }
-                if (ask) storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            } else {
-                todo.forEach { (batch, from) ->
-                    batch.forEach { Downloads.enqueue(context, it, from?.title) }
-                    if (from != null) Downloads.markRequested(from.id, batch.map { it.videoId })
-                }
-            }
-            if (!songs.all { Downloads.servableFromCache(it.videoId) }) {
-                SourceRegistry.addonsLeftOutOfDownloads()
-                    .firstOrNull { (config, why) -> explainedDownloadExclusions.add("${config.id}:$why") }
-                    ?.let { (config, why) -> addonLeftOutOfDownload = config.displayName to why }
-            }
-        }
-        if (!blocked) batches.forEach { (requested, from) ->
-            if (from == null) return@forEach
-            Downloads.rememberCollection(from, requested)
-            if (!from.thumbnailUrl.isNullOrBlank()) {
-                scope.launch(Dispatchers.IO) {
-                    MediaTagger.cacheArtwork(context.applicationContext, from.thumbnailUrl)
-                        ?.let { Downloads.rememberCollectionArtwork(from.id, it) }
-                }
-            }
-        }
-        when {
-            blocked -> Toast.makeText(
-                context,
-                context.getString(R.string.wifi_only_download_refusal),
-                Toast.LENGTH_LONG,
-            ).show()
-            batches.sumOf { it.first.size } > 1 -> {
-                val message = if (songs.isEmpty()) {
-                    context.getString(R.string.already_downloaded)
-                } else {
-                    context.resources.getQuantityString(
-                        R.plurals.downloading_song_count,
-                        songs.size,
-                        songs.size,
-                    )
-                }
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
+    val startDownloads: (List<Pair<List<Song>, DownloadTarget?>>) -> Unit = downloadController::startDownloads
     val startDownload: (List<Song>, DownloadTarget?) -> Unit = { requested, from ->
         startDownloads(listOf(requested to from))
     }
@@ -3858,8 +3788,6 @@ internal fun NuvxApp(
 
     }
 }
-
-private val explainedDownloadExclusions = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
 private val OnboardingDismissEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 

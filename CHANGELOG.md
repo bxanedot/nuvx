@@ -17,6 +17,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Publish signed Android nightly builds with a stable update handoff.
 - Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade and transition planning, audio cache, lyrics, Android Auto, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
 - Move Now Playing album, artist, and playback-source navigation out of the app shell into a focused controller, preserving route and tab behavior.
+- Move download preparation and permission routing out of the app shell, preserving queue, cache, and prompt behavior.
 - Split TV profile selection, PIN protection, and account settings dialogs into a focused internal module with no UI changes.
 
 ### Desktop
