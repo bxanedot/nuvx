@@ -2,7 +2,6 @@ import type { DetectedExtension } from '@nuvx/shared/bridge';
 import { create } from 'zustand';
 import type { Track } from '@/data/music/types';
 import { extensionQueryKey } from '@/extension/useExtension';
-import { artworkAtPixels } from '@/lib/artwork';
 import { queryClient } from '@/lib/queryClient';
 import {
   applyJump,
@@ -23,6 +22,7 @@ import { trackLog } from '@/playback/trackLog';
 import type { LoadedTrack, StreamStats, YouTubeEngine } from '@/playback/youtube/engine';
 import type { AutomixGraph, AutoDJSnapshot } from '@/playback/automix';
 import { PlayerAutoplayController } from '@/playback/autoplayController';
+import { PlayerMediaSessionController } from '@/playback/mediaSessionController';
 import { CROSSFADE_CHOICES, loadPlayerSettings, savePlayerSettings } from './playerSettings';
 import type { PlayerSettings, RepeatMode } from './playerSettings';
 
@@ -448,7 +448,7 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
     if (!audio) return;
     cancelCrossfade();
     audio.currentTime = Math.max(0, Math.min(seconds, audio.duration || seconds));
-    updatePositionState();
+    playerMediaSession.updatePosition();
     intent();
   },
 
@@ -532,6 +532,11 @@ const playerAutoplay = new PlayerAutoplayController(
   (queue) => usePlayer.setState({ queue }),
   () => partyHooks?.inParty() ?? false,
 );
+const playerMediaSession = new PlayerMediaSessionController(
+  () => usePlayer.getState(),
+  getAudio,
+  () => graph?.dj.loopMixing || getAudio()?.paused === false,
+);
 
 if (import.meta.env.DEV) {
   Object.assign(window, {
@@ -575,7 +580,7 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
   }
 
   usePlayer.setState({ index: at, nowPlaying: hintOf(entry.track), status: 'loading', error: null });
-  updateMediaSession(usePlayer.getState().nowPlaying);
+  playerMediaSession.update(usePlayer.getState().nowPlaying);
   try {
     const all = await getDecks();
     const deck = all[active]!;
@@ -597,7 +602,7 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
       if (token !== loadToken) return;
       const nowPlaying = { ...hintOf(entry.track), artist: artistNames(entry.track) || 'Live radio', durationSec: 0, streamInfo: 'Live radio' };
       usePlayer.setState({ nowPlaying, status: 'playing', error: null, automixState: null });
-      updateMediaSession(nowPlaying);
+      playerMediaSession.update(nowPlaying);
       graph?.dj.stop();
       afterTrackStarted();
       return;
@@ -771,7 +776,7 @@ function applyTrack(track: LoadedTrack, from?: Track) {
     stream: { ...track.stream, client: track.client },
   };
   usePlayer.setState({ nowPlaying, error: null });
-  updateMediaSession(nowPlaying);
+  playerMediaSession.update(nowPlaying);
   followVideo();
 }
 
@@ -820,66 +825,15 @@ function bindElement(deck: Deck, n: number) {
   });
   for (const event of ['durationchange', 'ratechange', 'seeked'] as const) {
     element.addEventListener(event, () => {
-      if (inFront()) updatePositionState();
+      if (inFront()) playerMediaSession.updatePosition();
     });
   }
   element.addEventListener('play', () => {
-    if (inFront() && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    if (inFront()) playerMediaSession.setPlaybackState('playing');
   });
   element.addEventListener('pause', () => {
-    if (inFront() && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    if (inFront()) playerMediaSession.setPlaybackState('paused');
   });
-}
-
-let handlersBound = false;
-
-function updateMediaSession(track: NowPlaying | null) {
-  if (!('mediaSession' in navigator)) return;
-  const session = navigator.mediaSession;
-  if (!track) {
-    session.metadata = null;
-    return;
-  }
-  session.metadata = new MediaMetadata({
-    title: track.title,
-    artist: track.artist,
-    artwork: track.artworkUrl
-      ? [96, 256, 512].map((px) => ({ src: artworkAtPixels(track.artworkUrl!, px), sizes: `${px}x${px}` }))
-      : [],
-  });
-
-  if (handlersBound) return;
-  handlersBound = true;
-  const handle = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
-    try {
-      session.setActionHandler(action, handler);
-    } catch {
-    }
-  };
-  const player = () => usePlayer.getState();
-  const sounding = () => graph?.dj.loopMixing || getAudio()?.paused === false;
-  handle('play', () => !sounding() && player().togglePlay());
-  handle('pause', () => sounding() && player().togglePlay());
-  handle('seekto', (details) => {
-    if (details.seekTime !== undefined) player().seek(details.seekTime);
-  });
-  handle('seekbackward', (details) => player().seek((getAudio()?.currentTime ?? 0) - (details.seekOffset ?? 10)));
-  handle('seekforward', (details) => player().seek((getAudio()?.currentTime ?? 0) + (details.seekOffset ?? 10)));
-  handle('previoustrack', () => player().previous());
-  handle('nexttrack', () => player().next());
-}
-
-function updatePositionState() {
-  const audio = getAudio();
-  if (!audio || !('mediaSession' in navigator) || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
-  try {
-    navigator.mediaSession.setPositionState({
-      duration: audio.duration,
-      playbackRate: audio.playbackRate,
-      position: Math.min(audio.currentTime, audio.duration),
-    });
-  } catch {
-  }
 }
 
 const PARTY_SOURCE: QueueSource = { title: 'Listen Together', type: 'queue' };
@@ -906,7 +860,7 @@ export const partyPlayer = {
     if (!audio) return;
     cancelCrossfade();
     audio.currentTime = Math.max(0, seconds);
-    updatePositionState();
+    playerMediaSession.updatePosition();
   },
   setUpcoming(tracks: Track[], tiers: ('user' | 'autoplay')[]): void {
     const { queue, index } = usePlayer.getState();
