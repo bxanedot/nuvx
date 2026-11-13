@@ -11,7 +11,6 @@ import com.bxane.nuvx.data.model.BrowseType
 import com.bxane.nuvx.data.model.HomeShelf
 import com.bxane.nuvx.data.model.LibraryState
 import com.bxane.nuvx.data.model.LikeStatus
-import com.bxane.nuvx.data.model.MoodGenre
 import com.bxane.nuvx.data.model.MoodGenreSection
 import com.bxane.nuvx.data.model.SearchResult
 import com.bxane.nuvx.data.model.ShelfItem
@@ -86,121 +85,18 @@ object InnertubeParser {
         )
     }
 
-    fun parseHome(response: JsonObject): List<HomeShelf> {
-        val sections = response.o("contents")
-            .o("singleColumnBrowseResultsRenderer").a("tabs")?.firstOrNull()
-            .o("tabRenderer").o("content").o("sectionListRenderer").a("contents")
-            .orEmpty()
-
-        return sections.mapNotNull { section ->
-            section.o("musicCarouselShelfRenderer")?.let(::carouselShelf)
-                ?: section.o("musicShelfRenderer")?.let(::plainShelf)
-        }
-    }
+    fun parseHome(response: JsonObject): List<HomeShelf> = InnertubeHomeParser.parseHome(response)
 
     fun parseYoutubeSearch(root: JsonObject): List<SearchResult> = InnertubeSearchParser.parseYoutubeSearch(root)
 
     fun parseSearchSuggestions(response: JsonObject): List<String> = InnertubeSearchParser.parseSearchSuggestions(response)
 
-    fun podcastsChipParams(home: JsonObject): String? {
-        val chips = home.o("contents")
-            .o("singleColumnBrowseResultsRenderer").a("tabs")?.firstOrNull()
-            .o("tabRenderer").o("content").o("sectionListRenderer").o("header")
-            .o("chipCloudRenderer").a("chips").orEmpty()
-        return chips.firstNotNullOfOrNull { element ->
-            val chip = element.o("chipCloudChipRenderer") ?: return@firstNotNullOfOrNull null
-            val params = chip.o("navigationEndpoint").o("browseEndpoint").s("params") ?: return@firstNotNullOfOrNull null
-            val title = chip.o("text").runs()
-            params.takeIf { title.equals("Podcasts", ignoreCase = true) || PODCASTS_CHIP in params }
-        }
-    }
+    fun podcastsChipParams(home: JsonObject): String? = InnertubeHomeParser.podcastsChipParams(home)
 
-    private const val PODCASTS_CHIP = "SgQIDBAD"
+    fun parseMoodAndGenres(response: JsonObject): List<MoodGenreSection> =
+        InnertubeHomeParser.parseMoodAndGenres(response)
 
-    fun parseMoodAndGenres(response: JsonObject): List<MoodGenreSection> {
-        val sections = response.o("contents")
-            .o("singleColumnBrowseResultsRenderer").a("tabs")?.firstOrNull()
-            .o("tabRenderer").o("content").o("sectionListRenderer").a("contents")
-            .orEmpty()
-        val parsed = sections.mapNotNull { section ->
-            val grid = section.o("gridRenderer") ?: return@mapNotNull null
-            val title = grid.o("header").o("gridHeaderRenderer").o("title").runs()
-            val items = grid.a("items").orEmpty().mapNotNull { item ->
-                val button = item.o("musicNavigationButtonRenderer") ?: return@mapNotNull null
-                val endpoint = button.o("clickCommand").o("browseEndpoint")
-                    ?: button.o("navigationEndpoint").o("browseEndpoint")
-                    ?: return@mapNotNull null
-                val browseId = endpoint.s("browseId") ?: return@mapNotNull null
-                val label = button.o("buttonText").runs().takeIf { it.isNotBlank() }
-                    ?: return@mapNotNull null
-                MoodGenre(
-                    title = label,
-                    browseId = browseId,
-                    params = endpoint.s("params"),
-                    stripeColor = button.o("solid").s("leftStripeColor")?.toLongOrNull(),
-                )
-            }
-            if (title.isBlank() || items.isEmpty()) null else MoodGenreSection(title, items)
-        }
-        return parsed.filterIndexed { index, section ->
-            val later = parsed.drop(index + 1)
-                .flatMapTo(HashSet()) { it.items.map { item -> item.browseId to item.params } }
-            val shortcuts = section.items.any { (it.browseId to it.params) in later }
-            !shortcuts && !section.title.equals("For you", ignoreCase = true)
-        }
-    }
-
-    fun parseHomeContinuation(root: JsonElement): List<HomeShelf> {
-        val out = mutableListOf<HomeShelf>()
-        fun walk(node: JsonElement) {
-            when (node) {
-                is JsonObject -> {
-                    (node["musicCarouselShelfRenderer"] as? JsonObject)
-                        ?.let(::carouselShelf)?.let(out::add)
-                    (node["musicShelfRenderer"] as? JsonObject)
-                        ?.let(::plainShelf)?.let(out::add)
-                    node.values.forEach(::walk)
-                }
-                is JsonArray -> node.forEach(::walk)
-                else -> Unit
-            }
-        }
-        walk(root)
-        return out
-    }
-
-    private fun carouselShelf(carousel: JsonObject): HomeShelf? {
-        val header = carousel.o("header").o("musicCarouselShelfBasicHeaderRenderer")
-        val title = header.o("title").runs()
-        val strapline = header.o("strapline").runs()
-        val contents = carousel.a("contents").orEmpty()
-        val parsed = contents.mapNotNull { item ->
-            parseTwoRowItem(item.o("musicTwoRowItemRenderer"))
-                ?: parseResponsiveListItem(item.o("musicResponsiveListItemRenderer"))
-                    ?.let { song ->
-                        ShelfItem(song.title, song.artist, song.thumbnailUrl, song.videoId, null, isVideo = song.isVideo)
-                    }
-                ?: parseArtistRow(item.o("musicResponsiveListItemRenderer"))
-                ?: parseMultiRowListItem(item.o("musicMultiRowListItemRenderer"), null)
-                    ?.let { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null) }
-        }
-        val items = if (VIDEO_WORD.containsMatchIn(title)) parsed.filter { it.videoId != null } else parsed
-        if (items.isEmpty()) return null
-        val shelfTitle = title.ifBlank { "For you" }
-        val first = contents.firstOrNull()
-        val fromList = first.o("musicResponsiveListItemRenderer") != null || first.o("musicMultiRowListItemRenderer") != null
-        return HomeShelf(shelfTitle, items, strapline, layout = shelfLayoutFor(shelfTitle, items, fromList))
-    }
-
-    private fun plainShelf(shelf: JsonObject): HomeShelf? {
-        val title = shelf.o("title").runs()
-        val items = shelf.a("contents").orEmpty().mapNotNull {
-            parseResponsiveListItem(it.o("musicResponsiveListItemRenderer"))
-        }.map { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null, isVideo = it.isVideo) }
-        if (items.isEmpty()) return null
-        val shelfTitle = title.ifBlank { "For you" }
-        return HomeShelf(shelfTitle, items, layout = shelfLayoutFor(shelfTitle, items, fromList = true))
-    }
+    fun parseHomeContinuation(root: JsonElement): List<HomeShelf> = InnertubeHomeParser.parseHomeContinuation(root)
 
     fun parseArtistPage(response: JsonObject): ArtistPage {
         val sections = response.o("contents")
@@ -269,8 +165,7 @@ object InnertubeParser {
         )
     }
 
-    fun parseTwoRowItemsDeep(root: JsonElement): List<ShelfItem> =
-        collectRenderers(root, "musicTwoRowItemRenderer").mapNotNull(::parseTwoRowItem)
+    fun parseTwoRowItemsDeep(root: JsonElement): List<ShelfItem> = InnertubeHomeParser.parseTwoRowItemsDeep(root)
 
     fun collectSongsDeep(root: JsonElement, show: String? = null): List<Song> {
         val out = LinkedHashMap<String, Song>()
@@ -427,7 +322,7 @@ object InnertubeParser {
         )
     }
 
-    private fun parseMultiRowListItem(renderer: JsonObject?, show: String?): Song? {
+    internal fun parseMultiRowListItem(renderer: JsonObject?, show: String?): Song? {
         if (renderer == null) return null
         val videoId = renderer.o("onTap").o("watchEndpoint").s("videoId")
             ?: renderer.o("overlay")
@@ -551,32 +446,6 @@ object InnertubeParser {
                 "PLAYLIST" in pageType -> BrowseType.PLAYLIST
                 else -> BrowseType.OTHER
             },
-        )
-    }
-
-    private fun parseArtistRow(renderer: JsonObject?): ShelfItem? {
-        if (renderer == null) return null
-        val endpoint = renderer.o("navigationEndpoint").o("browseEndpoint")
-        val pageType = endpoint.o("browseEndpointContextSupportedConfigs")
-            .o("browseEndpointContextMusicConfig").s("pageType").orEmpty()
-        if ("ARTIST" !in pageType) return null
-        val browseId = endpoint.s("browseId") ?: return null
-
-        val columns = renderer.a("flexColumns").orEmpty()
-        val title = columns.getOrNull(0)
-            .o("musicResponsiveListItemFlexColumnRenderer").o("text").runs()
-        if (title.isBlank()) return null
-        val subtitle = columns.getOrNull(1)
-            .o("musicResponsiveListItemFlexColumnRenderer").o("text").runs()
-
-        val thumbnails = renderer.o("thumbnail").o("musicThumbnailRenderer")
-            .o("thumbnail").a("thumbnails")
-        return ShelfItem(
-            title = title,
-            subtitle = subtitle,
-            thumbnailUrl = thumbnails.best(),
-            videoId = null,
-            browseId = browseId,
         )
     }
 
@@ -777,7 +646,7 @@ object InnertubeParser {
     fun parseUserPlaylists(items: List<ShelfItem>): List<UserPlaylist> =
         InnertubeLibraryStateParser.parseUserPlaylists(items)
 
-    private fun parseTwoRowItem(renderer: JsonObject?): ShelfItem? {
+    internal fun parseTwoRowItem(renderer: JsonObject?): ShelfItem? {
         if (renderer == null) return null
         val title = renderer.o("title").runs()
         if (title.isBlank()) return null
@@ -847,7 +716,7 @@ object InnertubeParser {
         "song", "video", "album", "single", "ep", "artist",
         "playlist", "podcast", "episode",
     )
-    private val VIDEO_WORD = Regex("""\bvideos?\b""", RegexOption.IGNORE_CASE)
+    internal val VIDEO_WORD = Regex("""\bvideos?\b""", RegexOption.IGNORE_CASE)
 }
 
 internal fun JsonElement?.o(key: String): JsonObject? =
