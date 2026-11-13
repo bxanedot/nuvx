@@ -71,12 +71,10 @@ android {
         configureEach {
             when (name) {
                 "gms" -> {
-                    java.srcDir("../mobile/src/gms/java")
-                    java.exclude("com/bxane/nuvx/wear/**")
+                    java.srcDir("../mobile/src/gms/java/com/bxane/nuvx/playback")
                 }
                 "foss" -> {
-                    java.srcDir("../mobile/src/foss/java")
-                    java.exclude("com/bxane/nuvx/wear/**")
+                    java.srcDir("../mobile/src/foss/java/com/bxane/nuvx/playback")
                 }
                 "dev" -> manifest.srcFile("src/dev/AndroidManifest.xml")
             }
