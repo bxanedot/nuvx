@@ -96,6 +96,8 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow, source }: R
       className={`${row} ${rowVariant[variant]}`}
       data-variant={variant}
       data-current={current || undefined}
+      role="listitem"
+      aria-current={current ? 'true' : undefined}
       data-unavailable={unavailable}
       title={unavailable === 'matching' ? 'Looking for this on YouTube Music…' : unavailable === 'missing' ? 'Not found on YouTube Music' : undefined}
       onDoubleClick={onPlay}
@@ -108,7 +110,7 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow, source }: R
               {current && (
                 <span
                   className="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-white group-hover/row:invisible"
-                  aria-label="Now playing"
+                  aria-hidden="true"
                 >
                   <PlayIcon size={18} />
                 </span>
@@ -117,7 +119,7 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow, source }: R
           ) : (
             <span className="type-body text-secondary group-hover/row:invisible">
               {current ? (
-                <span className="grid place-items-center text-primary group-hover/row:invisible" aria-label="Now playing">
+                <span className="grid place-items-center text-primary group-hover/row:invisible" aria-hidden="true">
                   <PlayIcon size={14} />
                 </span>
               ) : (
@@ -232,14 +234,15 @@ export function TrackList({ tracks, variant, fallbackArtwork, fallbackArtists, o
   }, [last?.index, tracks.length, virtual, onNearEnd]);
 
   return (
-    <div className="mx-(--body-gutter) type-callout text-secondary" data-variant={variant} role="table" aria-label="Songs">
+    <div className="mx-(--body-gutter) type-callout text-secondary" data-variant={variant} role="list" aria-label="Songs">
       {variant === 'playlist' && <Header />}
-      <div ref={container}>
+      <div ref={container} role="presentation">
         {virtual ? (
-          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }} role="presentation">
             {items.map((item) => (
               <div
                 key={item.key}
+                role="presentation"
                 style={{
                   position: 'absolute',
                   top: 0,
