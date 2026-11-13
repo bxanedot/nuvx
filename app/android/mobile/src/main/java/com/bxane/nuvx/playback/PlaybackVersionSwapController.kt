@@ -2,6 +2,7 @@ package com.bxane.nuvx.playback
 
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.Choreographer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -18,6 +19,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -242,7 +245,7 @@ internal class PlaybackVersionSwapController(
                         loudnessB.setBlendTrim(swapTrim)
 
                         if (progress >= 1f) break
-                        delay(16)
+                        awaitNextFrame()
                     }
 
                     adoptPlayerForVersionSwap(activePlayer, standbyPlayer)
@@ -310,5 +313,16 @@ internal class PlaybackVersionSwapController(
         activePlayer.seekTo(index, position)
         if (wasPlaying) activePlayer.play()
         refreshCustomLayouts()
+    }
+}
+
+private suspend fun awaitNextFrame() {
+    suspendCancellableCoroutine<Unit> { continuation ->
+        val choreographer = Choreographer.getInstance()
+        val callback = Choreographer.FrameCallback {
+            if (continuation.isActive) continuation.resume(Unit)
+        }
+        choreographer.postFrameCallback(callback)
+        continuation.invokeOnCancellation { choreographer.removeFrameCallback(callback) }
     }
 }
