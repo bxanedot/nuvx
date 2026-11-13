@@ -460,10 +460,13 @@ impl App {
                     let shown = match song {
                         Some(song) => {
                             let song = Track { album: song.album.or(track.album.clone()), thumbs: if song.thumbs.is_empty() { track.thumbs.clone() } else { song.thumbs }, ..song };
+                            self.version_alternate = Some((track.id.clone(), song.clone()));
                             self.playing_as = Some(PlayingAs { generation, listed: track.id.clone(), song: song.clone() });
                             song
                         }
                         None => {
+                            self.version_alternate = None;
+                            self.version_positions.clear();
                             self.playing_as = None;
                             track
                         }
