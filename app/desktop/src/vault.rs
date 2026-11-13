@@ -75,7 +75,7 @@ mod store {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 mod file {
     use std::path::{Path, PathBuf};
 
@@ -107,7 +107,7 @@ mod file {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 mod either {
     use std::path::Path;
 
@@ -139,10 +139,10 @@ mod either {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 use either as backend;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 mod backend {
     use std::path::Path;
 
@@ -217,7 +217,7 @@ mod stress {
     }
 }
 
-#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
+#[cfg(all(test, target_os = "linux"))]
 mod unix_tests {
     #[test]
     fn round_trip_in_keyring_or_file() {

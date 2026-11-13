@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+compile_error!("nuvx desktop supports Windows, Linux, and macOS");
+
 mod appicon;
 mod apple;
 mod artist_signature;
