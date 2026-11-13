@@ -125,19 +125,54 @@ impl App {
     }
 
     pub(super) fn play_song_version(&mut self) {
+        if crate::motion::SUPPORTED {
+            self.video_mode = false;
+            if self.playing_track().is_some_and(|t| !t.music_video) {
+                return;
+            }
+        }
         let at = self.audio.status.position_smooth();
         let alternate = self.version_alternate.as_ref().filter(|(listed, _)| self.current_id() == Some(listed.as_str())).map(|(_, song)| song.clone());
         if let Some(song) = alternate {
             self.next_as = Some(song);
             self.play_current_at(at, false, false, true);
+            if crate::motion::SUPPORTED {
+                self.video_mode = false;
+            }
             return;
         }
         let keep = std::mem::replace(&mut self.play_songs, true);
         self.play_current_at(at, false, true, true);
         self.play_songs = keep;
+        if crate::motion::SUPPORTED {
+            self.video_mode = false;
+        }
     }
 
     pub(super) fn play_video_version(&mut self) {
+        if crate::motion::SUPPORTED {
+            self.video_mode = true;
+            let Some(track) = self.current().cloned() else { return };
+            if track.music_video {
+                if self.playing_track().is_some_and(|t| t.music_video) {
+                    self.play_song_version();
+                    self.video_mode = true;
+                }
+                return;
+            }
+            match self.video_of.as_ref().filter(|(listed, _)| *listed == track.id) {
+                Some((_, Some(_))) => return,
+                Some((_, None)) => {
+                    self.video_mode = false;
+                    self.toast("No music video found for this song.".to_owned());
+                }
+                None => {
+                    self.video_wanted = true;
+                    self.backend.request(Req::VideoOf { generation: self.generation, track });
+                }
+            }
+            return;
+        }
         let Some(track) = self.current().cloned() else { return };
         let at = self.audio.status.position_smooth();
         match self.video_of.as_ref().filter(|(listed, _)| *listed == track.id) {
@@ -282,6 +317,7 @@ impl App {
 
     pub(super) fn play_current_at(&mut self, at: Duration, report: bool, lookup_song: bool, preserve_play_state: bool) {
         let Some(track) = self.current().cloned() else { return };
+        self.video_mode = crate::motion::SUPPORTED && track.music_video;
         if self.version_alternate.as_ref().is_some_and(|(listed, _)| listed != &track.id) {
             self.version_alternate = None;
         }

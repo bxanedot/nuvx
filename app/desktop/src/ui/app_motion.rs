@@ -128,6 +128,9 @@ impl App {
     }
 
     pub(super) fn video_sprite(&mut self, ctx: &egui::Context) -> Option<widgets::MotionSprite> {
+        if !self.video_mode {
+            return None;
+        }
         let id = self
             .current()
             .filter(|t| t.music_video)
@@ -161,7 +164,12 @@ impl App {
     }
 
     pub(super) fn version_loading(&self) -> bool {
-        let picture = crate::motion::SUPPORTED && (self.current().is_some_and(|t| t.music_video) || self.playing_track().is_some_and(|t| t.music_video)) && self.video.as_ref().is_none_or(|(_, s)| s.is_none());
+        let picture = self.video_mode
+            && crate::motion::SUPPORTED
+            && (self.current().is_some_and(|t| t.music_video)
+                || self.playing_track().is_some_and(|t| t.music_video)
+                || self.video_of.as_ref().is_some_and(|(listed, video)| self.current_id() == Some(listed.as_str()) && video.is_some()))
+            && self.video.as_ref().is_none_or(|(_, s)| s.is_none());
         self.buffering || self.video_wanted || picture
     }
 

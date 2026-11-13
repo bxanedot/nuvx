@@ -169,6 +169,7 @@ impl App {
             next_as: None,
             video_of: None,
             video_wanted: false,
+            video_mode: false,
             video_height: get("video_height").and_then(|v| v.parse().ok()).unwrap_or(480),
             // The old key stored the former default, so it cannot distinguish an opt-out from an untouched setting.
             load_both: get("load_both_v2").is_none_or(|v| v == "1"),

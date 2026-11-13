@@ -33,16 +33,24 @@ pub(super) fn options_menu(app: &mut App, ui: &mut Ui, rect: Rect, track: &crate
         if app.queue.upcoming().is_some() && widgets::menu_glyph_action(ui, super::super::glyphs::SHUFFLE, "Shuffle") {
             app.shuffle_upcoming();
         }
-        if let Some(listed) = app.current().map(|t| t.music_video)
-            && !app.jam.active()
-        {
-            let swapped = app.playing_as().is_some();
-            if listed != swapped {
-                if widgets::menu_glyph_action(ui, super::super::glyphs::MUSIC_NOTE, "Switch to song") {
-                    if swapped { app.play_listed_upload() } else { app.play_song_version() }
+        if app.current().is_some() && !app.jam.active() {
+            if crate::motion::SUPPORTED {
+                if app.video_mode {
+                    if widgets::menu_glyph_action(ui, super::super::glyphs::MUSIC_NOTE, "Switch to song") {
+                        app.play_song_version();
+                    }
+                } else if widgets::menu_glyph_action(ui, super::super::glyphs::VIDEO, "Switch to video") {
+                    app.play_video_version();
                 }
-            } else if widgets::menu_glyph_action(ui, super::super::glyphs::VIDEO, "Switch to video") {
-                if swapped { app.play_listed_upload() } else { app.play_video_version() }
+            } else if let Some(listed) = app.current().map(|t| t.music_video) {
+                let swapped = app.playing_as().is_some();
+                if listed != swapped {
+                    if widgets::menu_glyph_action(ui, super::super::glyphs::MUSIC_NOTE, "Switch to song") {
+                        if swapped { app.play_listed_upload() } else { app.play_song_version() }
+                    }
+                } else if widgets::menu_glyph_action(ui, super::super::glyphs::VIDEO, "Switch to video") {
+                    if swapped { app.play_listed_upload() } else { app.play_video_version() }
+                }
             }
         }
         let hires_playing = app.audio_info.as_ref().is_some_and(|(_, i)| i.lossless() || i.atmos);
