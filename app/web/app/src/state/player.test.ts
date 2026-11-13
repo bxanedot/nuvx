@@ -176,6 +176,27 @@ describe('player behavior at queue and media boundaries', () => {
     expect(player.usePlayer.getState().volume).toBe(0.42);
   });
 
+  it('round trips the existing player settings record without changing its shape', async () => {
+    const saved = {
+      shuffle: true,
+      repeat: 'one',
+      autoplay: false,
+      volume: 0.4,
+      muted: true,
+      crossfadeSec: 6,
+      automix: true,
+      automixBars: 32,
+      showNerdStats: true,
+    };
+    localStorage.setItem('nuvx:player', JSON.stringify(saved));
+    const player = await import('./player');
+
+    expect(player.usePlayer.getState()).toMatchObject(saved);
+    player.usePlayer.getState().setShowNerdStats(false);
+
+    expect(JSON.parse(localStorage.getItem('nuvx:player')!)).toEqual({ ...saved, showNerdStats: false });
+  });
+
   it('replaces stale media metadata and keeps actions safe with an empty queue', async () => {
     const handlers = new Map<string, (details?: { seekTime?: number }) => void>();
     const session = {

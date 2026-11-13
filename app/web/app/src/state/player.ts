@@ -4,7 +4,6 @@ import type { Track } from '@/data/music/types';
 import { extensionQueryKey } from '@/extension/useExtension';
 import { artworkAtPixels } from '@/lib/artwork';
 import { queryClient } from '@/lib/queryClient';
-import { AUTOMIX_BARS } from '@/playback/automix/choices';
 import { extendStation } from '@/playback/queue/builder';
 import {
   applyJump,
@@ -24,6 +23,11 @@ import {
 import { trackLog } from '@/playback/trackLog';
 import type { LoadedTrack, StreamStats, YouTubeEngine } from '@/playback/youtube/engine';
 import type { AutomixGraph, AutoDJSnapshot } from '@/playback/automix';
+import { CROSSFADE_CHOICES, loadPlayerSettings, savePlayerSettings } from './playerSettings';
+import type { PlayerSettings, RepeatMode } from './playerSettings';
+
+export { CROSSFADE_CHOICES } from './playerSettings';
+export type { RepeatMode } from './playerSettings';
 
 export interface NowPlaying {
   videoId: string;
@@ -36,23 +40,7 @@ export interface NowPlaying {
 }
 
 export type PlayerStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'error';
-export type RepeatMode = 'off' | 'all' | 'one';
-
-export const CROSSFADE_CHOICES = [0, 3, 6, 9, 12] as const;
-
-interface Settings {
-  shuffle: boolean;
-  repeat: RepeatMode;
-  autoplay: boolean;
-  volume: number;
-  muted: boolean;
-  crossfadeSec: number;
-  automix: boolean;
-  automixBars: number;
-  showNerdStats: boolean;
-}
-
-interface PlayerState extends Settings {
+interface PlayerState extends PlayerSettings {
   settingsSaveError: string | null;
   queue: QueueEntry[];
   index: number;
@@ -87,53 +75,8 @@ interface PlayerState extends Settings {
   setShowNerdStats: (on: boolean) => void;
 }
 
-const SETTINGS_KEY = 'nuvx:player';
-const DEFAULT_SETTINGS: Settings = {
-  shuffle: false,
-  repeat: 'off',
-  autoplay: true,
-  volume: 1,
-  muted: false,
-  crossfadeSec: 0,
-  automix: false,
-  automixBars: 16,
-  showNerdStats: false,
-};
-
-function loadSettings(): Settings {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Partial<Record<keyof Settings, unknown>>;
-    return {
-      shuffle: typeof saved.shuffle === 'boolean' ? saved.shuffle : DEFAULT_SETTINGS.shuffle,
-      repeat: saved.repeat === 'all' || saved.repeat === 'one' || saved.repeat === 'off' ? saved.repeat : DEFAULT_SETTINGS.repeat,
-      autoplay: typeof saved.autoplay === 'boolean' ? saved.autoplay : DEFAULT_SETTINGS.autoplay,
-      volume: typeof saved.volume === 'number' && Number.isFinite(saved.volume) && saved.volume >= 0 && saved.volume <= 1
-        ? saved.volume : DEFAULT_SETTINGS.volume,
-      muted: typeof saved.muted === 'boolean' ? saved.muted : DEFAULT_SETTINGS.muted,
-      crossfadeSec: CROSSFADE_CHOICES.includes(saved.crossfadeSec as (typeof CROSSFADE_CHOICES)[number])
-        ? saved.crossfadeSec as number : DEFAULT_SETTINGS.crossfadeSec,
-      automix: typeof saved.automix === 'boolean' ? saved.automix : DEFAULT_SETTINGS.automix,
-      automixBars: AUTOMIX_BARS.includes(saved.automixBars as (typeof AUTOMIX_BARS)[number])
-        ? saved.automixBars as number : DEFAULT_SETTINGS.automixBars,
-      showNerdStats: typeof saved.showNerdStats === 'boolean' ? saved.showNerdStats : DEFAULT_SETTINGS.showNerdStats,
-    };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
-function saveSettings(state: Settings) {
-  const { shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats } = state;
-  try {
-    localStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats }),
-    );
-    usePlayer.setState({ settingsSaveError: null });
-  } catch (error) {
-    usePlayer.setState({ settingsSaveError: 'Player settings could not be saved. They are still active until you close this tab.' });
-    trackLog.w(`player settings could not be saved: ${String(error)}`);
-  }
+function saveSettings(state: PlayerSettings) {
+  savePlayerSettings(state, (settingsSaveError) => usePlayer.setState({ settingsSaveError }));
 }
 
 interface Deck {
@@ -370,7 +313,7 @@ let loadToken = 0;
 let canonical: Map<string, number> | null = null;
 
 export const usePlayer = create<PlayerState>()((set, get) => ({
-  ...loadSettings(),
+  ...loadPlayerSettings(),
   settingsSaveError: null,
   queue: [],
   index: -1,
