@@ -46,18 +46,15 @@ fn bundle_of(exe: &Path) -> Option<&Path> {
 }
 
 fn asset_name(version: &str) -> String {
-    let portable = portable_dir().is_some();
-    let arch = std::env::consts::ARCH;
-    if cfg!(target_os = "linux") {
-        let kind = if portable { "portable-" } else { "" };
-        return format!("nuvx-{kind}{version}-linux-{arch}.tar.gz");
+    asset_name_for(std::env::consts::OS, version)
+}
+
+fn asset_name_for(os: &str, version: &str) -> String {
+    match os {
+        "linux" => format!("nuvx-setup-{version}-linux-universal.tar.gz"),
+        "macos" => format!("nuvx-setup-{version}-macos-universal.dmg"),
+        _ => format!("nuvx-setup-{version}.exe"),
     }
-    let (suffix, setup) = if cfg!(target_os = "macos") {
-        (format!("-macos-{arch}"), "dmg")
-    } else {
-        (if cfg!(target_arch = "aarch64") { "-arm64" } else { "" }.to_owned(), "exe")
-    };
-    if portable { format!("nuvx-portable-{version}{suffix}.zip") } else { format!("nuvx-setup-{version}{suffix}.{setup}") }
 }
 
 pub fn portable_dir() -> Option<PathBuf> {
@@ -175,7 +172,6 @@ impl Updater {
             return Ok(State::UpToDate);
         }
         let version = tag.trim_start_matches('v').to_owned();
-        let portable = portable_dir().is_some();
         let want = asset_name(&version);
         let Some(asset) = release["assets"].as_array().and_then(|a| a.iter().find(|x| x["name"] == want.as_str())) else {
             log::info!("update: release {tag} has no {want} yet");
@@ -218,9 +214,9 @@ impl Updater {
             }
         }
         let unpacked = self.dir.join(format!("nuvx-{version}"));
-        let ready = if cfg!(target_os = "macos") && !portable {
+        let ready = if cfg!(target_os = "macos") {
             open_dmg(&path, &unpacked)?
-        } else if portable || cfg!(unix) {
+        } else if cfg!(unix) {
             unzip_exe(&path, &unpacked)?
         } else {
             path
@@ -244,14 +240,21 @@ impl Updater {
 
     #[cfg(windows)]
     fn run_installer(&self, installer: &Path, exe: &Path, relaunch: bool) {
-        if portable_dir().is_some() {
-            return swap_exe(installer, exe, relaunch);
-        }
+        let previous_portable_dir = portable_dir();
         let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
-        let scope = if program_files.is_some_and(|p| exe.starts_with(p)) { "/ALLUSERS" } else { "/CURRENTUSER" };
+        let scope = if previous_portable_dir.is_some() {
+            "/CURRENTUSER"
+        } else if program_files.is_some_and(|p| exe.starts_with(p)) {
+            "/ALLUSERS"
+        } else {
+            "/CURRENTUSER"
+        };
+        let install_dir = previous_portable_dir
+            .map(|dir| format!(" /DIR=\"{}\"", dir.display()))
+            .unwrap_or_default();
         let mut script = format!(
-            "ping -n 3 127.0.0.1 >NUL & \"{}\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART {scope}",
-            installer.display()
+            "ping -n 3 127.0.0.1 >NUL & \"{}\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART {scope}{install_dir}",
+            installer.display(),
         );
         if relaunch {
             script += &format!(" & start \"\" \"{}\" {}", exe.display(), crate::deeplink::RELAUNCH_FLAG);
@@ -262,28 +265,6 @@ impl Updater {
         }
         log::info!("update: installing {}", installer.display());
         run_detached(&script);
-    }
-}
-
-#[cfg(windows)]
-fn swap_exe(new: &Path, exe: &Path, relaunch: bool) {
-    let old = exe.with_extension("exe.old");
-    if std::env::var_os("NUVX_UPDATE_DRYRUN").is_some() {
-        log::info!("update (dry run): {} aside to {}, {} in its place", exe.display(), old.display(), new.display());
-        return;
-    }
-    let _ = std::fs::remove_file(&old);
-    if let Err(e) = std::fs::rename(exe, &old) {
-        return log::warn!("update: couldn't move {} aside: {e}", exe.display());
-    }
-    if let Err(e) = std::fs::copy(new, exe) {
-        log::warn!("update: couldn't copy the new version: {e}");
-        let _ = std::fs::rename(&old, exe);
-        return;
-    }
-    log::info!("update: replaced {}", exe.display());
-    if relaunch {
-        run_detached(&format!("ping -n 3 127.0.0.1 >NUL & start \"\" \"{}\" {}", exe.display(), crate::deeplink::RELAUNCH_FLAG));
     }
 }
 
@@ -377,11 +358,9 @@ fn unzip_exe(zip: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     #[cfg(target_os = "macos")]
     let exe = dir.join("nuvx.app/Contents/MacOS/nuvx");
     #[cfg(target_os = "linux")]
-    let exe = std::fs::read_dir(dir)?
-        .flatten()
-        .map(|e| e.path().join("nuvx"))
-        .find(|p| p.is_file())
-        .unwrap_or_else(|| dir.join("nuvx"));
+    let exe = dir
+        .join("nuvx")
+        .join(format!("nuvx-{}", std::env::consts::ARCH));
     anyhow::ensure!(status.success() && exe.exists(), "couldn't unpack {}", zip.display());
     Ok(exe)
 }
@@ -411,7 +390,23 @@ fn client() -> anyhow::Result<reqwest::Client> {
 
 #[cfg(test)]
 mod tests {
-    use super::newer;
+    use super::{asset_name_for, newer};
+
+    #[test]
+    fn universal_installer_names_match_each_platform() {
+        assert_eq!(
+            asset_name_for("windows", "0.8.0"),
+            "nuvx-setup-0.8.0.exe"
+        );
+        assert_eq!(
+            asset_name_for("macos", "0.8.0"),
+            "nuvx-setup-0.8.0-macos-universal.dmg"
+        );
+        assert_eq!(
+            asset_name_for("linux", "0.8.0"),
+            "nuvx-setup-0.8.0-linux-universal.tar.gz"
+        );
+    }
 
     #[test]
     fn version_order() {
