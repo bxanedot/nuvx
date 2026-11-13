@@ -1,4 +1,4 @@
-// Take a look at the license at the top of the repository in the LICENSE file.
+
 
 // rustdoc-stripper-ignore-next
 //! This module contains basic instance and class structs to be used for

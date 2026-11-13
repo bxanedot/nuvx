@@ -69,10 +69,10 @@ pub fn open_folder() {
     let _ = std::fs::create_dir_all(&dir);
     #[cfg(windows)]
     let _ = std::process::Command::new("explorer").arg(dir).spawn();
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
     #[cfg(target_os = "macos")]
     let _ = std::process::Command::new("open").arg(dir).spawn();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
 }
 
 pub fn show_file(path: &Path) {
@@ -81,9 +81,7 @@ pub fn show_file(path: &Path) {
         use std::os::windows::process::CommandExt;
         let _ = std::process::Command::new("explorer").raw_arg(format!("/select,\"{}\"", path.display())).spawn();
     }
-    #[cfg(target_os = "macos")]
-    let _ = std::process::Command::new("open").arg("-R").arg(path).spawn();
-    #[cfg(all(unix, not(target_os = "macos")))]
+    #[cfg(target_os = "linux")]
     {
         let uri = url::Url::from_file_path(path).map(|u| u.to_string()).unwrap_or_default();
         let shown = std::process::Command::new("dbus-send")
@@ -94,6 +92,13 @@ pub fn show_file(path: &Path) {
             .is_ok_and(|o| o.status.success());
         if !shown && let Some(dir) = path.parent() {
             let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let shown = std::process::Command::new("open").arg("-R").arg(path).status().is_ok_and(|s| s.success());
+        if !shown && let Some(dir) = path.parent() {
+            let _ = std::process::Command::new("open").arg(dir).spawn();
         }
     }
 }

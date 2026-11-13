@@ -1,4 +1,4 @@
-// Take a look at the license at the top of the repository in the LICENSE file.
+
 
 // rustdoc-stripper-ignore-next
 //! Translation between GLib/GLib-based FFI types and their Rust counterparts.
