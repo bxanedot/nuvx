@@ -18,7 +18,6 @@ import {
   type NavIconProps,
 } from '@/components/icons/NavIcons';
 import { hrefFor } from '@/components/music/links';
-import { config } from '@/config';
 import { LIBRARY_SECTIONS, type LibrarySection } from '@/data/music/library';
 import { useLibraryPlaylists, useSignedIn } from '@/data/music/queries';
 import { useSpotifyPlaylists } from '@/data/spotify/queries';
@@ -226,10 +225,10 @@ export function Sidebar() {
           </PrefetchNavLink>
           <AccountButton />
           <div className="flex items-center justify-between">
-            <a className="inline-flex items-center gap-1 ps-1 type-callout text-primary hover:underline" href={config.appDownloadUrl} target="_blank" rel="noreferrer">
-              <span>Get the app</span>
+            <PrefetchNavLink className="inline-flex items-center gap-1 ps-1 type-callout text-primary hover:underline" to="/downloads" onClick={close}>
+              <span>Downloads</span>
               <ArrowUpRight size={14} strokeWidth={2} />
-            </a>
+            </PrefetchNavLink>
             <PrefetchNavLink to="/settings" className="grid size-7 place-items-center rounded-nav text-secondary hover:bg-quinary hover:text-primary aria-[current=page]:bg-quinary aria-[current=page]:text-primary" aria-label="Settings" title="Settings" onClick={close}>
               <Settings size={17} strokeWidth={1.9} />
             </PrefetchNavLink>

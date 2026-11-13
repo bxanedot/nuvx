@@ -8,7 +8,6 @@ import { startHistoryReporting } from '@/playback/historyReporting';
 import { startLivePresence } from '@/playback/livePresence';
 import { Outlet } from 'react-router';
 import { PrefetchLink } from '@/components/PrefetchLink';
-import { config } from '@/config';
 import { useExtension } from '@/extension/useExtension';
 import { currentBrowser, downloadsFor } from '@/extension/downloads';
 import { isMobileBrowser } from '@/lib/platform';
@@ -64,11 +63,7 @@ export function AppShell() {
       <Banner
         title="nuvx is better in the app."
         detail="Download nuvx for Android, Windows, macOS, or Linux."
-        action={
-          <a className={bannerButtonClass} href={config.appDownloadUrl} target="_blank" rel="noreferrer">
-            Get the app
-          </a>
-        }
+        action={<PrefetchLink className={bannerButtonClass} to="/downloads">Choose a download</PrefetchLink>}
       />
     );
   } else if (extension.state === 'missing' && !bannerDismissed) {
