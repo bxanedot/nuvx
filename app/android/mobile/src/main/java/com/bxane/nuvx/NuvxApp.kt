@@ -192,7 +192,7 @@ import com.bxane.nuvx.ui.MainViewModel
 import com.bxane.nuvx.ui.MainMusicLinkHandler
 import com.bxane.nuvx.ui.MainBrowseOpener
 import com.bxane.nuvx.ui.MainPlaybackStarter
-import com.bxane.nuvx.ui.MainPlaybackSourceNavigator
+import com.bxane.nuvx.ui.MainNowPlayingNavigator
 import com.bxane.nuvx.ui.SearchSource
 import com.bxane.nuvx.ui.components.BottomFadeScrim
 import com.bxane.nuvx.ui.components.TopFadeBlur
@@ -1305,8 +1305,9 @@ internal fun NuvxApp(
         }
     }
 
-    val playbackSourceNavigator = MainPlaybackSourceNavigator(
+    val nowPlayingNavigator = MainNowPlayingNavigator(
         context = context,
+        scope = scope,
         viewModel = viewModel,
         navigator = navigator,
         queueLabel = queueLabel,
@@ -1430,49 +1431,9 @@ internal fun NuvxApp(
                 songActions = song
                 if (!AppSettings.reduceDynamicBlur.value && !playerLiveCanvas) playerBackdrop.capture()
             },
-            onOpenAlbum = { id ->
-                dismissPlayer()
-                viewModel.openDetail(
-                    id,
-                    song.albumName ?: song.title,
-                    song.artist,
-                    song.thumbnailUrl,
-                    BrowseType.ALBUM,
-                )
-            },
-            onOpenArtist = { id, name ->
-                if (id != null) {
-                    dismissPlayer()
-                    viewModel.openDetail(
-                        id,
-                        name,
-                        context.getString(R.string.artist),
-                        null,
-                        BrowseType.ARTIST,
-                    )
-                } else {
-                    scope.launch {
-                        val found = YtMusicRepository.findArtistPageId(name).getOrNull()
-                        if (found != null) {
-                            dismissPlayer()
-                            viewModel.openDetail(
-                                found,
-                                name,
-                                context.getString(R.string.artist),
-                                null,
-                                BrowseType.ARTIST,
-                            )
-                        } else {
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.couldnt_find, name),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    }
-                }
-            },
-            onOpenPlaybackSource = { playbackSourceNavigator.open(displayedSong) },
+            onOpenAlbum = { id -> nowPlayingNavigator.openAlbum(song, id) },
+            onOpenArtist = nowPlayingNavigator::openArtist,
+            onOpenPlaybackSource = { nowPlayingNavigator.openSource(displayedSong) },
             lyrics = lyrics,
             lyricsSource = lyricsSource,
             lyricsProviderStates = lyricsProviderStates,
