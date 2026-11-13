@@ -156,5 +156,36 @@ checkAction("a non-finite position is ignored",
                           engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
             .none)
 
+checkAction("overflowing clock drift is ignored",
+            policy.decide(engineSeconds: .greatestFiniteMagnitude,
+                          videoSeconds: -.greatestFiniteMagnitude, enginePlaying: true,
+                          engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
+            .none)
+checkAction("a non-finite seek estimate cannot poison the target",
+            policy.decide(engineSeconds: 100.5, videoSeconds: 100, enginePlaying: true,
+                          engineRate: 1, videoRate: 1, secondsSinceSeek: 1, seekLead: .infinity),
+            .seek(seconds: 100.5))
+checkAction("seek estimates are bounded to two seconds",
+            policy.decide(engineSeconds: 100.5, videoSeconds: 100, enginePlaying: true,
+                          engineRate: 1.5, videoRate: 1, secondsSinceSeek: 1, seekLead: 100),
+            .seek(seconds: 103.5))
+checkRate("a non-finite video rate is restored",
+          policy.decide(engineSeconds: 100, videoSeconds: 100, enginePlaying: true,
+                        engineRate: 1, videoRate: .nan, secondsSinceSeek: 1),
+          1)
+checkRate("a non-finite engine rate falls back to normal speed",
+          policy.decide(engineSeconds: 100, videoSeconds: 100, enginePlaying: true,
+                        engineRate: .infinity, videoRate: 0, secondsSinceSeek: 1),
+          1)
+checkAction("seek prediction respects the same rate ceiling as playback",
+            policy.decide(engineSeconds: 100.5, videoSeconds: 100, enginePlaying: true,
+                          engineRate: .greatestFiniteMagnitude, videoRate: 1,
+                          secondsSinceSeek: 1, seekLead: 0.4),
+            .seek(seconds: 101.3))
+checkAction("paused scrubbing waits for the cooldown without starting playback",
+            policy.decide(engineSeconds: 100.5, videoSeconds: 100, enginePlaying: false,
+                          engineRate: 1, videoRate: 0, secondsSinceSeek: 0.1),
+            .none)
+
 print(failures == 0 ? "\nall \(checks) checks passed" : "\n\(failures) of \(checks) checks FAILED")
 exit(failures == 0 ? 0 : 1)

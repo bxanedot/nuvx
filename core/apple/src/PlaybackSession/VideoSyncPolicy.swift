@@ -48,6 +48,8 @@ enum VideoSyncPolicy {
     ) -> Action {
         guard engineSeconds.isFinite, videoSeconds.isFinite else { return .none }
         let drift = engineSeconds - videoSeconds
+        guard drift.isFinite else { return .none }
+        let rate = engineRate.isFinite && engineRate > 0 ? min(max(engineRate, 0.1), 2) : 1
         let canSeek = secondsSinceSeek >= seekCooldownSeconds
 
         if !enginePlaying {
@@ -67,15 +69,17 @@ enum VideoSyncPolicy {
 
 
 
-            let rate = engineRate.isFinite && engineRate > 0 ? engineRate : 1
-            return .seek(seconds: max(0, engineSeconds + max(0, seekLead) * rate))
+            let lead = seekLead.isFinite ? min(max(0, seekLead), 2) : 0
+            let target = engineSeconds + lead * rate
+            guard target.isFinite else { return .none }
+            return .seek(seconds: max(0, target))
         }
 
-        let base = engineRate.isFinite && engineRate > 0 ? Float(engineRate) : 1
+        let base = Float(rate)
         let rawNudge = abs(drift) <= ignoreDriftSeconds ? 0 : Float(drift * nudgeGain)
         let nudge = min(max(rawNudge, -maxRateNudge), maxRateNudge)
         let target = min(max(base + nudge, 0.1), 2.0)
-        if videoRate == 0 || abs(videoRate - target) > 0.01 {
+        if !videoRate.isFinite || videoRate == 0 || abs(videoRate - target) > 0.01 {
             return .play(rate: target)
         }
         return .none
