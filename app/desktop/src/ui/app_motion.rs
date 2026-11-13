@@ -128,7 +128,21 @@ impl App {
     }
 
     pub(super) fn video_sprite(&mut self, ctx: &egui::Context) -> Option<widgets::MotionSprite> {
-        let Some(id) = self.current().filter(|t| t.music_video).or_else(|| self.playing_track().filter(|t| t.music_video)).filter(|_| crate::motion::SUPPORTED).map(|t| t.id.clone()) else {
+        let id = self
+            .current()
+            .filter(|t| t.music_video)
+            .or_else(|| self.playing_track().filter(|t| t.music_video))
+            .map(|t| t.id.clone())
+            .or_else(|| {
+                let current = self.current()?;
+                self.video_of
+                    .as_ref()
+                    .filter(|(listed, _)| listed == &current.id)
+                    .and_then(|(_, video)| video.as_ref())
+                    .map(|video| video.id.clone())
+            })
+            .filter(|_| crate::motion::SUPPORTED);
+        let Some(id) = id else {
             self.video = None;
             return None;
         };
