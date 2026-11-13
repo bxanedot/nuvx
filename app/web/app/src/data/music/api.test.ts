@@ -170,6 +170,17 @@ describe('Radio Browser failover', () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
+  it('only exposes HTTPS radio streams for the browser audio player', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json([
+      { stationuuid: 'secure', name: 'Secure FM', url_resolved: 'https://radio.example/live', favicon: '', country: 'US', countrycode: 'US', tags: 'jazz', codec: 'MP3', bitrate: 128, hls: 0 },
+      { stationuuid: 'insecure', name: 'Insecure FM', url_resolved: 'http://radio.example/live', favicon: '', country: 'US', countrycode: 'US', tags: 'jazz', codec: 'MP3', bitrate: 128, hls: 0 },
+    ])));
+
+    await expect(fetchRadioStations(null, 'jazz')).resolves.toMatchObject([
+      { videoId: 'radio:secure', streamUrl: 'https://radio.example/live' },
+    ]);
+  });
+
   it('rejects after all hosts fail', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));
     vi.stubGlobal('fetch', fetcher);

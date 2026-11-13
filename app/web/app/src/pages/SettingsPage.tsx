@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const automix = usePlayer((s) => s.automix);
   const automixBars = usePlayer((s) => s.automixBars);
   const showNerdStats = usePlayer((s) => s.showNerdStats);
+  const settingsSaveError = usePlayer((s) => s.settingsSaveError);
   const shareHistory = useHistorySettings((s) => s.share);
   const setShareHistory = useHistorySettings((s) => s.setShare);
   const backgroundMotion = useUi((s) => s.backgroundMotion);
@@ -78,6 +79,11 @@ export default function SettingsPage() {
     <div className={settingsUi.centered}>
       <PageHeader title="Settings" />
       <div className={settingsUi.body}>
+        {settingsSaveError && (
+          <p role="status" className="mb-3 rounded-[10px] bg-quinary px-4 py-3 type-body text-secondary">
+            {settingsSaveError}
+          </p>
+        )}
         <h2 className={settingsUi.sectionHeader}>Account & Integrations</h2>
         <section className={settingsUi.group}>
           <div className={settingsUi.integration}>

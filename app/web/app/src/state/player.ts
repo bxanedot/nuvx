@@ -53,6 +53,7 @@ interface Settings {
 }
 
 interface PlayerState extends Settings {
+  settingsSaveError: string | null;
   queue: QueueEntry[];
   index: number;
   nowPlaying: NowPlaying | null;
@@ -123,10 +124,16 @@ function loadSettings(): Settings {
 
 function saveSettings(state: Settings) {
   const { shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats } = state;
-  localStorage.setItem(
-    SETTINGS_KEY,
-    JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats }),
-  );
+  try {
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats }),
+    );
+    usePlayer.setState({ settingsSaveError: null });
+  } catch (error) {
+    usePlayer.setState({ settingsSaveError: 'Player settings could not be saved. They are still active until you close this tab.' });
+    trackLog.w(`player settings could not be saved: ${String(error)}`);
+  }
 }
 
 interface Deck {
@@ -364,6 +371,7 @@ let canonical: Map<string, number> | null = null;
 
 export const usePlayer = create<PlayerState>()((set, get) => ({
   ...loadSettings(),
+  settingsSaveError: null,
   queue: [],
   index: -1,
   nowPlaying: null,
@@ -914,6 +922,10 @@ function bindElement(deck: Deck, n: number) {
     if (!element.ended) set('paused');
   });
   element.addEventListener('waiting', () => set('buffering'));
+  element.addEventListener('error', () => {
+    if (!inFront() || holding || !deck.radio) return;
+    usePlayer.setState({ status: 'error', error: 'The radio stream failed. Try playing it again.' });
+  });
   element.addEventListener('ended', () => {
     if (!inFront() || holding) return;
     endedListeners.forEach((listener) => listener());

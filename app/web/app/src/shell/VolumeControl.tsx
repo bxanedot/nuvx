@@ -29,6 +29,10 @@ function useVolumeWheel(onStep: () => void) {
     const el = ref.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
+      if (
+        e.defaultPrevented ||
+        (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"], [role="slider"]'))
+      ) return;
       const { volume, setVolume } = usePlayer.getState();
       const next = nextVolumeFromWheel(volume, e.deltaY);
       if (next === volume) return;
