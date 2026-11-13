@@ -376,8 +376,9 @@ class PlaybackService : MediaLibraryService() {
 
     private var favoriteActionJob: Job? = null
     private var stationActionJob: Job? = null
-    private var preferredPrefetchRequest: List<String>? = null
-
+    private val queuePrefetchController = PlaybackQueuePrefetchController {
+        directSourceWindow.drive()
+    }
     private var persistedQueueStart = 0
 
     private val queuePersistence: PlaybackQueuePersistenceController = PlaybackQueuePersistenceController(
@@ -1177,44 +1178,9 @@ class PlaybackService : MediaLibraryService() {
         streamUpgrade.lookForBetterCopy(exoPlayer)
     }
 
-    private fun prefetchAround(player: ExoPlayer) {
-        if (DirectSourceGate.isActive()) {
-            directSourceWindow.drive()
-            if (preferredPrefetchRequest != null) cancelPrefetch()
-            return
-        }
-        val nextIndex = player.nextMediaItemIndex
-        val upcomingSongs = if (nextIndex != C.INDEX_UNSET) {
-            val end = (nextIndex + AudioCache.QUEUE_DEPTH - 1).coerceAtMost(player.mediaItemCount - 1)
-            (nextIndex..end).map(player::getMediaItemAt)
-                .filterNot(MusicOnlyPlayback::wants)
-                .map { it.toSong() }
-        } else {
-            emptyList()
-        }
-        AudioCache.noteSongs(upcomingSongs)
-        val request = upcomingSongs.map { it.videoId }
-        if (request == preferredPrefetchRequest) return
-        preferredPrefetchRequest = request
+    private fun prefetchAround(player: ExoPlayer) = queuePrefetchController.prefetchAround(player)
 
-        fun warm(songs: List<Song>) {
-            AudioCache.prefetchQueue(
-                songs.map { song ->
-                    AudioCache.Upcoming(
-                        mediaId = song.videoId,
-                        target = TrackMatcher.targetOf(song),
-                    )
-                },
-            )
-        }
-
-        warm(upcomingSongs)
-    }
-
-    private fun cancelPrefetch() {
-        preferredPrefetchRequest = null
-        AudioCache.cancel()
-    }
+    private fun cancelPrefetch() = queuePrefetchController.cancelPrefetch()
 
     private fun reportProgress() {
         scope.launch {
