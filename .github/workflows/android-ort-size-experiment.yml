@@ -13,7 +13,6 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: app/android
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
@@ -44,14 +43,14 @@ jobs:
         run: |
           python "$ORT_DIR/tools/python/create_reduced_build_config.py" "$MODEL_DIR" "$CONFIG"
           diff -u \
-            <(sed '/^#/d;/^$/d' onnxruntime/required_operators.config) \
+            <(sed '/^#/d;/^$/d' app/android/onnxruntime/required_operators.config) \
             <(sed '/^#/d;/^$/d' "$CONFIG")
       - name: Build baseline APKs with the full runtime
         run: |
           ./gradlew :app:assembleProdDebug :tv:assembleProdDebug
           mkdir -p "$RUNNER_TEMP/baseline/mobile" "$RUNNER_TEMP/baseline/tv"
-          cp mobile/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/baseline/mobile/"
-          cp tv/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/baseline/tv/"
+          cp app/android/mobile/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/baseline/mobile/"
+          cp app/android/tv/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/baseline/tv/"
       - name: Build the reduced runtime AAR for all supported ABIs
         env:
           ORT_DIR: ${{ runner.temp }}/onnxruntime
@@ -61,13 +60,13 @@ jobs:
           python "$ORT_DIR/tools/android_custom_build/build_custom_android_package.py" \
             --onnxruntime_branch_or_tag v1.31.1 \
             --include_ops_by_config "$CONFIG" \
-            --build_settings onnxruntime/build_settings.json \
+            --build_settings app/android/onnxruntime/build_settings.json \
             "$BUILD_DIR"
           aar="$BUILD_DIR/output/aar_out/Release/com/microsoft/onnxruntime/onnxruntime-android/1.31.1/onnxruntime-android-1.31.1.aar"
           test -s "$aar"
-          mkdir -p onnxruntime
-          cp "$aar" onnxruntime/onnxruntime-android-1.31.1-custom.aar
-          unzip -l onnxruntime/onnxruntime-android-1.31.1-custom.aar | tee "$RUNNER_TEMP/aar-contents.txt"
+          mkdir -p app/android/onnxruntime
+          cp "$aar" app/android/onnxruntime/onnxruntime-android-1.31.1-custom.aar
+          unzip -l app/android/onnxruntime/onnxruntime-android-1.31.1-custom.aar | tee "$RUNNER_TEMP/aar-contents.txt"
           for abi in armeabi-v7a arm64-v8a x86_64; do grep -F "jni/$abi/libonnxruntime.so" "$RUNNER_TEMP/aar-contents.txt"; done
       - name: Start Android x86_64 emulator
         run: |
@@ -82,8 +81,8 @@ jobs:
         run: |
           ./gradlew :app:connectedProdDebugAndroidTest :tv:assembleProdDebug
           mkdir -p "$RUNNER_TEMP/custom/mobile" "$RUNNER_TEMP/custom/tv"
-          cp mobile/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/custom/mobile/"
-          cp tv/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/custom/tv/"
+          cp app/android/mobile/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/custom/mobile/"
+          cp app/android/tv/build/outputs/apk/prod/debug/*.apk "$RUNNER_TEMP/custom/tv/"
       - name: Compare APK sizes
         run: |
           python - <<'PY' | tee "$RUNNER_TEMP/size-report.md" >> "$GITHUB_STEP_SUMMARY"
