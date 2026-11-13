@@ -46,6 +46,26 @@ class TvAuthServerSocketTest {
     }
 
     @Test
+    fun stalledRequestBodyTimesOut() {
+        ServerSocket(0).use { server ->
+            val client = Socket("127.0.0.1", server.localPort).apply { soTimeout = 7000 }
+            val accepted = server.accept()
+            val method = TvAuthServer.javaClass.getDeclaredMethod("handleClient", Socket::class.java, Function1::class.java)
+            method.isAccessible = true
+            try {
+                method.invoke(TvAuthServer, accepted, null)
+                client.getOutputStream().write("POST /submit HTTP/1.1\r\nContent-Length: 4\r\n\r\n".toByteArray())
+                client.getOutputStream().flush()
+
+                assertEquals(-1, client.getInputStream().read())
+            } finally {
+                client.close()
+                accepted.close()
+            }
+        }
+    }
+
+    @Test
     fun overlongRequestLineIsClosed() {
         ServerSocket(0).use { server ->
             val client = Socket("127.0.0.1", server.localPort).apply { soTimeout = 1500 }
