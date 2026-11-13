@@ -238,7 +238,7 @@ pub(super) fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate:
         let a = now as f32 * 6.0;
         let pts: Vec<egui::Pos2> = (0..16).map(|i| c + vec2((a + i as f32 * 0.24).cos(), (a + i as f32 * 0.24).sin()) * 11.0).collect();
         ui.painter().add(egui::Shape::Path(egui::epaint::PathShape::line(pts, egui::epaint::PathStroke::new(2.4, mark))));
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(8));
     } else {
         if morph < 1.0 {
             super::super::glyphs::draw(ui, c, size, super::super::glyphs::PLAY, theme::with_alpha(mark, 1.0 - morph));

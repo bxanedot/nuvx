@@ -55,7 +55,7 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64) {
         let a = now as f32 * 6.0;
         let pts: Vec<Pos2> = (0..16).map(|i| c + vec2((a + i as f32 * 0.24).cos(), (a + i as f32 * 0.24).sin()) * 7.0).collect();
         ui.painter().add(egui::Shape::Path(egui::epaint::PathShape::line(pts, egui::epaint::PathStroke::new(2.0, ink(0.6)))));
-        ctx.request_repaint_after(std::time::Duration::from_millis(33));
+        ctx.request_repaint_after(std::time::Duration::from_millis(8));
     } else {
         let fg = ink(0.55 + 0.45 * h);
         if morph < 1.0 {
