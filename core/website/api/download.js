@@ -1,11 +1,13 @@
 const releases = 'https://github.com/bxanedot/nuvx/releases';
 const files = {
   windows: 'nuvx-setup-{v}.exe',
-  linux: 'nuvx-{v}-linux-x86_64.tar.gz',
-  'mac-arm': 'nuvx-setup-{v}-macos-aarch64.dmg',
-  'mac-intel': 'nuvx-setup-{v}-macos-x86_64.dmg',
-  android: 'nuvx-v{v}.apk',
-  tv: 'NuvxTV-v{v}.apk',
+  linux: 'nuvx-setup-{v}-linux-universal.tar.gz',
+  'mac-arm': 'nuvx-setup-{v}-macos-apple-silicon.dmg',
+  'mac-intel': 'nuvx-setup-{v}-macos-intel.dmg',
+  android: 'nuvx-v{v}-gms.apk',
+  'android-foss': 'nuvx-v{v}-foss.apk',
+  tv: 'NuvxTV-v{v}-gms.apk',
+  'tv-foss': 'NuvxTV-v{v}-foss.apk',
   wear: 'NuvxWear-v{v}.apk',
   chrome: 'nuvx-extension-chrome-{v}.zip',
   firefox: 'nuvx-extension-firefox-{v}.zip',
@@ -19,6 +21,16 @@ function androidAbi(params, req) {
   if (/\b(?:x86_64|amd64)\b/i.test(agent)) return 'x86_64';
   if (/\b(?:armeabi-v7a|armv7l|armv8l)\b/i.test(agent)) return 'armeabi-v7a';
   return 'arm64-v8a';
+}
+
+function candidatesFor(platform, version, params, req) {
+  const primary = files[platform].replace('{v}', version);
+  if (platform === 'android') return [primary, `nuvx-v${version}_${androidAbi(params, req)}.apk`, `nuvx-v${version}.apk`];
+  if (platform === 'tv') return [primary, `NuvxTV-v${version}.apk`];
+  if (platform === 'linux') return [primary, `nuvx-${version}-linux-x86_64.tar.gz`];
+  if (platform === 'mac-arm') return [primary, `nuvx-setup-${version}-macos-aarch64.dmg`];
+  if (platform === 'mac-intel') return [primary, `nuvx-setup-${version}-macos-x86_64.dmg`];
+  return [primary];
 }
 
 module.exports = async (req, res) => {
@@ -54,10 +66,7 @@ module.exports = async (req, res) => {
       const tag = new URL(latest.headers.get('location'), target);
       const version = /^\/bxanedot\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
       if (latest.status === 302 && tag.origin === 'https://github.com' && version) {
-        const candidates = platform === 'android'
-          ? [`nuvx-v${version}_${androidAbi(params, req)}.apk`, files.android.replace('{v}', version)]
-          : [files[platform].replace('{v}', version)];
-        for (const candidate of candidates) {
+        for (const candidate of candidatesFor(platform, version, params, req)) {
           const asset = releases + '/download/v' + version + '/' + candidate;
           const response = await fetch(asset, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
           if (response.ok || response.status === 302) {
