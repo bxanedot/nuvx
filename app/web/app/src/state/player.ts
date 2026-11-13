@@ -4,7 +4,6 @@ import type { Track } from '@/data/music/types';
 import { extensionQueryKey } from '@/extension/useExtension';
 import { artworkAtPixels } from '@/lib/artwork';
 import { queryClient } from '@/lib/queryClient';
-import { extendStation } from '@/playback/queue/builder';
 import {
   applyJump,
   asEntry,
@@ -23,6 +22,7 @@ import {
 import { trackLog } from '@/playback/trackLog';
 import type { LoadedTrack, StreamStats, YouTubeEngine } from '@/playback/youtube/engine';
 import type { AutomixGraph, AutoDJSnapshot } from '@/playback/automix';
+import { PlayerAutoplayController } from '@/playback/autoplayController';
 import { CROSSFADE_CHOICES, loadPlayerSettings, savePlayerSettings } from './playerSettings';
 import type { PlayerSettings, RepeatMode } from './playerSettings';
 
@@ -389,7 +389,7 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
     const { queue, index } = get();
     if (at === index || at < 0 || at >= queue.length) return;
     set({ queue: queue.filter((_, i) => i !== at), index: at < index ? index - 1 : index });
-    void refillAutoplay();
+    void playerAutoplay.refill();
     intent();
   },
 
@@ -477,13 +477,13 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
     const repeat: RepeatMode = { off: 'all', all: 'one', one: 'off' }[get().repeat] as RepeatMode;
     set({ repeat });
     saveSettings(get());
-    if (repeat === 'off') void refillAutoplay(true);
+    if (repeat === 'off') void playerAutoplay.refill(true);
   },
 
   setAutoplay(autoplay) {
     set({ autoplay });
     saveSettings(get());
-    if (autoplay) void refillAutoplay(true);
+    if (autoplay) void playerAutoplay.refill(true);
     else {
       const { queue, index } = get();
       set({ queue: queue.filter((e, i) => i <= index || e.tier !== 'autoplay') });
@@ -526,6 +526,12 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
     saveSettings(get());
   },
 }));
+
+const playerAutoplay = new PlayerAutoplayController(
+  () => usePlayer.getState(),
+  (queue) => usePlayer.setState({ queue }),
+  () => partyHooks?.inParty() ?? false,
+);
 
 if (import.meta.env.DEV) {
   Object.assign(window, {
@@ -643,7 +649,7 @@ function planNext(auto: boolean): NextPlan | null {
 async function advance(auto: boolean): Promise<void> {
   let plan = planNext(auto);
   if (!plan && usePlayer.getState().autoplay) {
-    await refillAutoplay(true);
+    await playerAutoplay.refill(true);
     plan = planNext(auto);
   }
   if (!plan) {
@@ -671,76 +677,7 @@ function afterTrackStarted() {
       index: index - [...played].filter((i) => i < index).length,
     });
   }
-  if (!queue[index]?.track.streamUrl) void refillAutoplay();
-}
-
-const MAX_QUEUED_AUTOPLAY = 10;
-let refilling: Promise<void> | null = null;
-let autoplaySeed: string | null = null;
-const exhaustedSeeds = new Set<string>();
-
-function refillAutoplay(force = false, anySeed = false): Promise<void> {
-  const { autoplay, repeat, queue, index } = usePlayer.getState();
-  if (!autoplay || repeat !== 'off' || index < 0) return Promise.resolve();
-  if (partyHooks?.inParty()) return Promise.resolve();
-  const needed = MAX_QUEUED_AUTOPLAY - queue.slice(index + 1).filter((e) => e.tier === 'autoplay').length;
-  if (needed <= 0) return Promise.resolve();
-  const playing = queue[index]?.track;
-  if (playing?.streamUrl) return Promise.resolve();
-  let seed = playing;
-  if (seed && exhaustedSeeds.has(seed.videoId) && anySeed) {
-    seed = queue
-      .slice(0, index)
-      .reverse()
-      .find((e) => !exhaustedSeeds.has(e.track.videoId))?.track;
-  }
-  if (!playing || !seed || exhaustedSeeds.has(seed.videoId)) return Promise.resolve();
-  if (!force && autoplaySeed === seed.videoId) return Promise.resolve();
-  autoplaySeed = seed.videoId;
-  refilling ??= (async () => {
-    try {
-      const { fetchRadio } = await import('@/data/music/api');
-      const { candidates, seedIsVideo } = await fetchRadio(seed.videoId);
-      const current = usePlayer.getState();
-      const extra = extendStation(
-        current.queue.map((e) => e.track),
-        candidates,
-        needed,
-        seedIsVideo,
-      );
-      if (!extra.length) {
-        exhaustedSeeds.add(seed.videoId);
-        return;
-      }
-      const source: QueueSource = { title: `${seed.title} Radio`, type: 'radio', id: `RDAMVM${seed.videoId}` };
-      if (current.queue[current.index]?.track.videoId !== playing.videoId || !current.autoplay) {
-        autoplaySeed = null;
-        return;
-      }
-      usePlayer.setState({ queue: [...current.queue, ...extra.map((t) => asEntry(t, 'autoplay', source))] });
-      trackLog.i(`AutoPlay added ${extra.length} tracks from ${seed.title}'s radio`, seed.videoId);
-    } catch (error) {
-      trackLog.w(`AutoPlay couldn't load the radio: ${String(error)}`, seed.videoId);
-      autoplaySeed = null;
-    } finally {
-      refilling = null;
-    }
-  })();
-  return refilling;
-}
-
-const EMPTY_RETRY_MS = 15_000;
-let lastEmptyRetry = 0;
-
-function ensureAutoplay() {
-  const { autoplay, repeat, queue, index, status } = usePlayer.getState();
-  if (!autoplay || repeat !== 'off' || index < 0 || status !== 'playing' || partyHooks?.inParty()) return;
-  if (index + 1 < queue.length || refilling) return;
-  const now = Date.now();
-  if (now - lastEmptyRetry < EMPTY_RETRY_MS) return;
-  lastEmptyRetry = now;
-  trackLog.i('AutoPlay is on but nothing is queued; asking for the radio again', queue[index]?.track.videoId ?? null);
-  void refillAutoplay(true, true);
+  if (!queue[index]?.track.streamUrl) void playerAutoplay.refill();
 }
 
 const FADE_STEP_MS = 40;
@@ -879,7 +816,7 @@ function bindElement(deck: Deck, n: number) {
   element.addEventListener('timeupdate', () => {
     if (!inFront()) return;
     maybeCrossfade();
-    ensureAutoplay();
+    playerAutoplay.ensure();
   });
   for (const event of ['durationchange', 'ratechange', 'seeked'] as const) {
     element.addEventListener(event, () => {
