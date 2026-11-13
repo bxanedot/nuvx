@@ -264,9 +264,7 @@ dependencies {
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
     else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
-    listOf("devGmsImplementation", "prodGmsImplementation").forEach { configuration ->
-        add(configuration, "com.google.android.gms:play-services-cast-framework:23.0.0")
-    }
+    add("gmsImplementation", "com.google.android.gms:play-services-cast-framework:23.0.0")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
 
     testImplementation("junit:junit:4.13.2")
