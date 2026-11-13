@@ -5,6 +5,8 @@ package com.bxane.nuvx.data.innertube
 import com.bxane.nuvx.data.model.HomeShelf
 import com.bxane.nuvx.data.model.MoodGenre
 import com.bxane.nuvx.data.model.MoodGenreSection
+import com.bxane.nuvx.data.model.SearchResult
+import com.bxane.nuvx.data.model.ShelfLayout
 import com.bxane.nuvx.data.model.ShelfItem
 import com.bxane.nuvx.data.model.shelfLayoutFor
 import kotlinx.serialization.json.JsonArray
@@ -12,6 +14,17 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 internal object InnertubeHomeParser {
+    fun podcastSearchShelf(results: List<SearchResult>): HomeShelf? {
+        val items = results.mapNotNull { result ->
+            (result as? SearchResult.Track)?.song?.let { song ->
+                ShelfItem(song.title, song.artist, song.thumbnailUrl, song.videoId, null, isVideo = true)
+            }
+        }
+        return items.takeIf { it.isNotEmpty() }?.let {
+            HomeShelf("Podcasts on YouTube", it, "Long-form episodes", layout = ShelfLayout.VIDEO)
+        }
+    }
+
     fun parseHome(response: JsonObject): List<HomeShelf> {
         val sections = response.o("contents")
             .o("singleColumnBrowseResultsRenderer").a("tabs")?.firstOrNull()

@@ -3,6 +3,7 @@ package com.bxane.nuvx.data.innertube
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import com.bxane.nuvx.data.model.ShelfLayout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -211,5 +212,26 @@ class PodcastTest {
         val rows = InnertubeParser.parseYoutubeSearch(page)
         val song = (rows.single() as com.bxane.nuvx.data.model.SearchResult.Track).song
         assertEquals(listOf("abc", "A talk", "Chan", "1:02:03"), listOf(song.videoId, song.title, song.artist, song.durationText))
+    }
+
+    @Test
+    fun publicYoutubeResultsBecomePodcastVideoShelf() {
+        val results = InnertubeParser.parseYoutubeSearch(
+            json(
+                """{"contents":{"twoColumnSearchResultsRenderer":{"primaryContents":{"sectionListRenderer":{"contents":[
+                  {"itemSectionRenderer":{"contents":[
+                    {"videoRenderer":{"videoId":"abcdefghijk","title":{"runs":[{"text":"Full episode"}]},"lengthText":{"simpleText":"1:02:03"},"ownerText":{"runs":[{"text":"Creator"}]}}}
+                  ]}}
+                ]}}}}}""",
+            ),
+        )
+
+        val shelf = InnertubeHomeParser.podcastSearchShelf(results)!!
+
+        assertEquals("Podcasts on YouTube", shelf.title)
+        assertEquals("Long-form episodes", shelf.subtitle)
+        assertEquals("abcdefghijk", shelf.items.single().videoId)
+        assertEquals(ShelfLayout.VIDEO, shelf.layout)
+        assertNull(InnertubeHomeParser.podcastSearchShelf(emptyList()))
     }
 }

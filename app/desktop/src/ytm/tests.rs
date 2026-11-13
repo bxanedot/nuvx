@@ -429,6 +429,18 @@ fn titles_match_but_for_case_and_punctuation() {
     assert!(!same_title("", ""));
 }
 
+#[test]
+fn public_youtube_search_becomes_a_podcast_shelf() {
+    let track = Track {
+        id: "abcdefghijk".into(), title: "Full episode".into(), artists: vec![], album: None,
+        duration: Some(3600), thumbs: vec![], track_nr: None, plays: None, music_video: false,
+    };
+    let shelves = podcast_search_shelf(vec![track]);
+    assert_eq!(shelves[0].title, "Podcasts on YouTube");
+    assert!(matches!(&shelves[0].kind, ShelfKind::Songs { tracks, .. } if tracks[0].id == "abcdefghijk"));
+    assert!(podcast_search_shelf(vec![]).is_empty());
+}
+
 #[tokio::test]
 #[ignore]
 async fn podcasts_live() {
