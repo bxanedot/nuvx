@@ -1,4 +1,5 @@
 import type { ApiResponse, Innertube, YT } from 'youtubei.js/web';
+import { readStorage } from '@/lib/storage';
 import { trackLog } from '../trackLog';
 import { botguard } from './botguard';
 
@@ -81,7 +82,7 @@ export function excludeClient(videoId: string, client: PlayerClientName, why: st
 export const DEBUG_CLIENTS_KEY = 'nuvx:debug:clients';
 
 function clientOrder(): readonly PlayerClientName[] {
-  const forced = localStorage.getItem(DEBUG_CLIENTS_KEY)
+  const forced = readStorage('localStorage', DEBUG_CLIENTS_KEY)
     ?.split(',')
     .map((c) => c.trim())
     .filter((c): c is PlayerClientName => (CLIENT_ORDER as readonly string[]).includes(c));

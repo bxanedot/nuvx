@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { readStorage, writeStorage } from '@/lib/storage';
 
 export type SidePanel = 'up-next' | 'lyrics' | null;
 
@@ -27,14 +28,14 @@ export const useUi = create<UiState>()((set) => ({
   setFullScreen: (fullScreen) => set({ fullScreen }),
   drawerOpen: false,
   setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
-  backgroundMotion: sessionStorage.getItem(BACKGROUND_MOTION_KEY) !== 'off',
+  backgroundMotion: readStorage('sessionStorage', BACKGROUND_MOTION_KEY) !== 'off',
   setBackgroundMotion: (backgroundMotion) => {
-    sessionStorage.setItem(BACKGROUND_MOTION_KEY, backgroundMotion ? 'on' : 'off');
+    writeStorage('sessionStorage', BACKGROUND_MOTION_KEY, backgroundMotion ? 'on' : 'off');
     set({ backgroundMotion });
   },
-  installBannerDismissed: sessionStorage.getItem(BANNER_KEY) === '1',
+  installBannerDismissed: readStorage('sessionStorage', BANNER_KEY) === '1',
   dismissInstallBanner: () => {
-    sessionStorage.setItem(BANNER_KEY, '1');
+    writeStorage('sessionStorage', BANNER_KEY, '1');
     set({ installBannerDismissed: true });
   },
 }));
