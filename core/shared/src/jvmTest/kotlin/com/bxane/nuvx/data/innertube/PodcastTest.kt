@@ -165,6 +165,39 @@ class PodcastTest {
     }
 
     @Test
+    fun homeContinuation_parsesNestedPodcastEpisodes() {
+        val response = json(
+            """{"continuation":{"musicCarouselShelfRenderer":{"header":{"musicCarouselShelfBasicHeaderRenderer":{"title":{"runs":[{"text":"Episodes"}]}}},"contents":[${episode("episode8", "Episode 8", "42 min")}]}}}""",
+        )
+
+        val item = InnertubeParser.parseHomeContinuation(response).single().items.single()
+
+        assertEquals(listOf("Episode 8", "episode8"), listOf(item.title, item.videoId))
+    }
+
+    @Test
+    fun moodAndGenreParserDropsForYouAndShortcutSections() {
+        val response = json(
+            """
+            {"contents":{"singleColumnBrowseResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{"contents":[
+              {"gridRenderer":{"header":{"gridHeaderRenderer":{"title":{"runs":[{"text":"For you"}]}}},"items":[{"musicNavigationButtonRenderer":{"buttonText":{"runs":[{"text":"Personalized"}]},"clickCommand":{"browseEndpoint":{"browseId":"personalized","params":"p0"}}}}]}},
+              {"gridRenderer":{"header":{"gridHeaderRenderer":{"title":{"runs":[{"text":"Genres"}]}}},"items":[{"musicNavigationButtonRenderer":{"buttonText":{"runs":[{"text":"Focus"}]},"clickCommand":{"browseEndpoint":{"browseId":"FEmoods","params":"p1"}}}}]}},
+              {"gridRenderer":{"header":{"gridHeaderRenderer":{"title":{"runs":[{"text":"Moods"}]}}},"items":[
+                {"musicNavigationButtonRenderer":{"buttonText":{"runs":[{"text":"Focus"}]},"clickCommand":{"browseEndpoint":{"browseId":"FEmoods","params":"p1"}},"solid":{"leftStripeColor":"255"}}},
+                {"musicNavigationButtonRenderer":{"buttonText":{"runs":[{"text":"Energy"}]},"navigationEndpoint":{"browseEndpoint":{"browseId":"FEmoods","params":"p2"}}}}
+              ]}}
+            ]}}}}]}}}
+            """.trimIndent(),
+        )
+
+        val sections = InnertubeParser.parseMoodAndGenres(response)
+
+        assertEquals(listOf("Moods"), sections.map { it.title })
+        assertEquals(listOf("Focus", "Energy"), sections.single().items.map { it.title })
+        assertEquals(listOf("p1", "p2"), sections.single().items.map { it.params })
+    }
+
+    @Test
     fun youtubeSearch_keepsVideosWithALength() {
         val page = json(
             """{"contents":{"twoColumnSearchResultsRenderer":{"primaryContents":{"sectionListRenderer":{"contents":[
