@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: Apache-2.0
 package com.bxane.nuvx.playback.audio.bitperfect
 
 import android.content.Context

@@ -1,4 +1,4 @@
-
+// Take a look at the license at the top of the repository in the LICENSE file.
 
 #[cfg(unix)]
 use std::os::unix::io::AsRawFd;

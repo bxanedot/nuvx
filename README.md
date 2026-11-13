@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/bxanedot/nuvx/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/bxanedot/nuvx?style=for-the-badge&amp;labelColor=0d1117&amp;color=355f8a"></a>
-  <a href="THIRD_PARTY_LICENSES/"><img alt="Third-party licenses" src="https://img.shields.io/badge/third--party-licenses-4b5563?style=for-the-badge&amp;labelColor=0d1117"></a>
+  <a href="LICENSE"><img alt="GPL-3.0 license" src="https://img.shields.io/badge/license-GPL--3.0-4b5563?style=for-the-badge&amp;labelColor=0d1117"></a>
   <a href="https://github.com/bxanedot/nuvx/releases"><img alt="GitHub downloads" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Fdownloads&amp;query=%24.downloads&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=GitHub%20downloads&amp;color=6b4f99"></a>
   <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Online clients" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.online&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=Online%20clients&amp;color=397458"></a>
   <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Listening Together" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.listening&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=Listening%20Together&amp;color=87563c"></a>
@@ -56,19 +56,12 @@
 | **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `nuvx-v*.apk` |
 | **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `NuvxTV-v*.apk` |
 | **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | Open **Settings → Wear OS** in the phone app. [Wear OS guide](app/android/wearos/README.md) |
-| **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
-| **iPhone or iPad** | iOS/iPadOS 18+; unverified source port | [iOS install and sideload guide](app/ios/README.md#install-on-iphone-or-ipad); IPA availability depends on the release |
-| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.dmg`; ad-hoc signed, not notarized |
-| **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal installer `.tar.gz` |
+| **Windows** | Windows 10+, x64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · setup `.exe` or portable `.zip` |
+| **macOS** | macOS 11+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · `.dmg` or portable `.zip` |
+| **Linux** | x86-64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · install or portable `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
 For Android, download the APK for your device and allow your browser or file manager to install it when prompted. The release notes list desktop packages by architecture and include signing details.
-
-For iOS, read the [sideload guide](app/ios/README.md#install-on-iphone-or-ipad)
-before downloading an unsigned IPA. If no IPA is published, use a successful
-[Apple builds workflow](https://github.com/bxanedot/nuvx/actions/workflows/apple-builds.yml)
-run's artifacts or build on a Mac. Free Apple Account signing normally needs
-refreshing every seven days; an IPA build passing CI does not verify device playback.
 
 ## How the counters work
 
@@ -93,10 +86,9 @@ On Windows, use `gradlew.bat`. For signing release builds, see [keystore.propert
 | Project | Source and setup |
 | --- | --- |
 | Android apps | [Phone](app/android/mobile) · [TV](app/android/tv/README.md) · [Wear OS](app/android/wearos/README.md) |
-| Desktop player | [Windows/Linux/macOS: Rust and egui](app/desktop/README.md) |
-| iOS app | [SwiftUI](app/ios/README.md) |
+| Desktop player | [Rust and egui](app/desktop/README.md) |
 | Web player and extension | [React, TypeScript and WXT](app/web/README.md) |
-| Shared code | [Kotlin and Compose UI](core/shared) · [Apple app and UI](core/apple/src) · [Native audio](core/native) |
+| Shared code | [Kotlin](core/shared) · [Compose UI](core/sharedUi) · [Native audio](core/native) |
 | Listen Together server | [Cloudflare Worker](core/worker/README.md) |
 | Project assets | [Canvases](core/canvas/README.md) · [Website](core/website) · [Brand](core/brand/README.md) · [Third-party libraries](core/third_party/README.md) |
 
@@ -106,4 +98,4 @@ Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/is
 
 ## License
 
-License texts and component attributions are centralized in [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES/).
+nuvx is licensed under [GPL-3.0](LICENSE). Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1.

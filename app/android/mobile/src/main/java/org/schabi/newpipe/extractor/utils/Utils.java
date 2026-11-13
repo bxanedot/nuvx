@@ -1,19 +1,19 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*
+ * Vendored verbatim from NewPipeExtractor v0.26.3 (GPL-3.0-or-later), the version
+ * pinned in app/build.gradle.kts, and then changed in exactly two places:
+ * [encodeUrlUtf8] and [decodeUrlUtf8]. Nothing else in this file differs from
+ * upstream, deliberately — see the note on those two methods for why the copy
+ * exists at all, and keep any future edits confined to them so the file stays
+ * diffable against the tag it came from.
+ *
+ * This copy does not merely sit alongside the jar's: app/build.gradle.kts strips
+ * Utils.class out of the NewPipeExtractor artifact, because two definitions of one
+ * class cannot both reach dex merging in a release build. Removing that strip task
+ * breaks prodRelease, not just this file.
+ *
+ * Upstream:
+ * https://github.com/TeamNewPipe/NewPipeExtractor/blob/v0.26.3/extractor/src/main/java/org/schabi/newpipe/extractor/utils/Utils.java
+ */
 package org.schabi.newpipe.extractor.utils;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
