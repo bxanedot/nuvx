@@ -14,6 +14,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Keep Now Playing open when an artist lookup fails, and initialize signed-in account state reliably.
 - Preserve the rest of an album queue when shuffle is enabled mid-album.
 - Move Enable YouTube Search into Content preferences, and give Hide Podcasts tab the same GlyphStudio icon and size as Podcasts navigation.
+- Move player creation, audio-session ownership, and buffer configuration out of PlaybackService without changing playback settings.
 - Publish signed Android nightly builds with a stable update handoff.
 - Reorganize playback, queue persistence, source resolution, recovery, audio routing, crossfade and transition planning, audio cache, lyrics, Android Auto, Listen Together HTTP, downloads, account, library, details, settings, and app dialogs into focused controllers and components. These changes preserve the existing UI and behavior.
 - Move Now Playing album, artist, and playback-source navigation out of the app shell into a focused controller, preserving route and tab behavior.
