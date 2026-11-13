@@ -85,10 +85,9 @@ object AppUpdateChecker {
                 if (ours) name.removeSuffix(".apk").removeSuffix(".APK") to url else null
             }
             .orEmpty()
-        apks.firstOrNull { (name, _) -> '_' !in name }?.second
-            ?: Build.SUPPORTED_ABIS.firstNotNullOfOrNull { abi ->
-                apks.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
-            }
+        Build.SUPPORTED_ABIS.firstNotNullOfOrNull { abi ->
+            apks.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
+        } ?: apks.firstOrNull { (name, _) -> '_' !in name }?.second
     }.getOrNull()
 
     suspend fun downloadApk(context: Context): Unit = withContext(Dispatchers.IO) {
