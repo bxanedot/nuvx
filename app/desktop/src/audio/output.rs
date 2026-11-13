@@ -38,7 +38,7 @@ impl Output {
         let id = device.id().map(|i| i.to_string()).ok();
         let lost = self.lost.clone();
         lost.store(false, Ordering::Relaxed);
-        let on_error = move |e: rodio::cpal::StreamError| {
+        let on_error = move |e: rodio::CpalError| {
             log::warn!("audio: output device error: {e}");
             if !lost.swap(true, Ordering::Relaxed) {
                 let _ = tx.send(AudioCmd::DeviceLost);
@@ -107,7 +107,7 @@ pub fn output_devices() -> Vec<OutputDevice> {
         .filter_map(|d| {
             let id = d.id().ok()?.to_string();
             let desc = d.description().ok()?;
-            let name = desc.extended().first().cloned().unwrap_or_else(|| desc.name().to_owned());
+            let name = desc.extended().next().map(str::to_owned).unwrap_or_else(|| desc.name().to_owned());
             Some(OutputDevice { id, name })
         })
         .collect();
