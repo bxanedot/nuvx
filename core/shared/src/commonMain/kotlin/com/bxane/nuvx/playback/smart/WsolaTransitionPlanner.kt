@@ -180,3 +180,61 @@ fun planWsolaTransition(
         incomingResumeTime = incomingResumeTime,
     )
 }
+
+internal fun phraseSwitch(
+    analysis: TrackAnalysis,
+    nextAnalysis: TrackAnalysis,
+    length: Double,
+    nextLength: Double,
+    advanced: Boolean,
+): TransitionPlan? {
+    if (!TransitionPairCompatibility.harmonicallyCompatible(
+            TransitionPairCompatibility.trustedKey(analysis),
+            TransitionPairCompatibility.trustedKey(nextAnalysis),
+        )
+    ) return null
+
+    val planned = planWsolaTransition(
+        analysis = analysis,
+        nextAnalysis = nextAnalysis,
+        duration = length,
+        nextDuration = nextLength,
+        advanced = advanced,
+    ) as? WsolaPlanResult.Planned ?: return null
+    if (planned.stretchRatio !in MIN_INCOMING_RATE..MAX_INCOMING_RATE) return null
+
+    val overlap = planned.transitionEnd - planned.transitionStart
+    val renderedIncomingRate = incomingRateFor(planned.stretchRatio, advanced)
+    return TransitionPlan(
+        markerVisible = true,
+        transitionStart = planned.transitionStart,
+        transitionEnd = planned.transitionEnd,
+        fadeSeconds = overlap,
+        handoffStartSeconds = 0.0,
+        handoffDuration = overlap,
+        incomingCueTime = planned.incomingCueTime,
+        incomingHandoffTime = planned.incomingHandoffTime,
+        incomingPlaybackRate = renderedIncomingRate,
+        outgoingPlaybackRate = outgoingRateFor(planned.stretchRatio, advanced),
+        pickupSeconds = IncomingCuePlanner.incomingAudibleStart(nextAnalysis),
+        transitionBeats = planned.beats,
+        bassSwap = true,
+        handoffFraction = planned.handoffFraction,
+        bedPosition = planned.bedPosition,
+        bassSwapFraction = planned.bassSwapFraction,
+        filterSweep = 0.0,
+        vocalOverlap = plannedVocalOverlap(
+            analysis = analysis,
+            nextAnalysis = nextAnalysis,
+            transitionStart = planned.transitionStart,
+            transitionEnd = planned.transitionEnd,
+            incomingCueTime = planned.incomingCueTime,
+            incomingPlaybackRate = renderedIncomingRate,
+        ),
+        outgoingBpm = planned.outgoingBpm,
+        incomingBpm = planned.incomingBpm,
+        beatSeconds = 60 / planned.outgoingBpm,
+        phaseLock = false,
+        transitionStyle = TransitionStyle.DJ_BLEND,
+    )
+}

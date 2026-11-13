@@ -242,7 +242,7 @@ const val FILTER_SWEEP = 1.0
 
 internal const val MIN_CLEARANCE_SECONDS = 5.0
 
-private fun plannedVocalOverlap(
+internal fun plannedVocalOverlap(
     analysis: TrackAnalysis,
     nextAnalysis: TrackAnalysis,
     transitionStart: Double,
@@ -264,64 +264,6 @@ private fun plannedVocalOverlap(
 }
 
 
-private fun phraseSwitch(
-    analysis: TrackAnalysis,
-    nextAnalysis: TrackAnalysis,
-    length: Double,
-    nextLength: Double,
-    advanced: Boolean,
-): TransitionPlan? {
-    if (!TransitionPairCompatibility.harmonicallyCompatible(
-            TransitionPairCompatibility.trustedKey(analysis),
-            TransitionPairCompatibility.trustedKey(nextAnalysis),
-        )
-    ) return null
-
-    val planned = planWsolaTransition(
-        analysis = analysis,
-        nextAnalysis = nextAnalysis,
-        duration = length,
-        nextDuration = nextLength,
-        advanced = advanced,
-    ) as? WsolaPlanResult.Planned ?: return null
-    if (planned.stretchRatio !in MIN_INCOMING_RATE..MAX_INCOMING_RATE) return null
-
-    val overlap = planned.transitionEnd - planned.transitionStart
-    val renderedIncomingRate = incomingRateFor(planned.stretchRatio, advanced)
-    return TransitionPlan(
-        markerVisible = true,
-        transitionStart = planned.transitionStart,
-        transitionEnd = planned.transitionEnd,
-        fadeSeconds = overlap,
-        handoffStartSeconds = 0.0,
-        handoffDuration = overlap,
-        incomingCueTime = planned.incomingCueTime,
-        incomingHandoffTime = planned.incomingHandoffTime,
-        incomingPlaybackRate = renderedIncomingRate,
-        outgoingPlaybackRate = outgoingRateFor(planned.stretchRatio, advanced),
-        pickupSeconds = IncomingCuePlanner.incomingAudibleStart(nextAnalysis),
-        transitionBeats = planned.beats,
-        bassSwap = true,
-        handoffFraction = planned.handoffFraction,
-        bedPosition = planned.bedPosition,
-        bassSwapFraction = planned.bassSwapFraction,
-        filterSweep = 0.0,
-        vocalOverlap = plannedVocalOverlap(
-            analysis = analysis,
-            nextAnalysis = nextAnalysis,
-            transitionStart = planned.transitionStart,
-            transitionEnd = planned.transitionEnd,
-            incomingCueTime = planned.incomingCueTime,
-            incomingPlaybackRate = renderedIncomingRate,
-        ),
-        outgoingBpm = planned.outgoingBpm,
-        incomingBpm = planned.incomingBpm,
-        beatSeconds = 60 / planned.outgoingBpm,
-        phaseLock = false,
-        transitionStyle = TransitionStyle.DJ_BLEND,
-    )
-}
-
 private data class Overlap(
     val overlap: Double,
     val transitionBeats: Int,
@@ -329,10 +271,10 @@ private data class Overlap(
 )
 
 @Suppress("UNUSED_PARAMETER")
-private fun incomingRateFor(mediaRatio: Double, advanced: Boolean): Double =
+internal fun incomingRateFor(mediaRatio: Double, advanced: Boolean): Double =
     roundRate(clamp(mediaRatio, MIN_INCOMING_RATE, MAX_INCOMING_RATE))
 
-private fun outgoingRateFor(mediaRatio: Double, advanced: Boolean): Double =
+internal fun outgoingRateFor(mediaRatio: Double, advanced: Boolean): Double =
     1.0
 
 private fun roundRate(rate: Double): Double = (rate * 10000).roundToInt() / 10000.0
