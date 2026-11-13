@@ -81,7 +81,10 @@ jobs:
         run: |
           printf 'no\n' | avdmanager create avd --name nuvx-ort --package 'system-images;android-36;google_apis;x86_64' --device pixel_2 --force
           emulator -avd nuvx-ort -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
-          adb wait-for-device
+          if ! timeout 120s adb wait-for-device; then
+            cat "$RUNNER_TEMP/emulator.log"
+            exit 1
+          fi
           timeout 180s bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == 1 ]]; do sleep 2; done'
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
