@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-only
 import { makeTestLoop } from './testtones';
 import type { AnalyzeResponse } from './analysis.worker';
 

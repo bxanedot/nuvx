@@ -1,16 +1,16 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// JNI bridge to the whole-track DSP analyzer and its resampler.
+//
+// AnalysisResult carries about twenty fields including strings, which is more
+// than is worth marshalling field by field through JNI. It is serialized to
+// JSON instead: analysis runs once per track, so the cost is irrelevant
+// beside the decode around it, and a string is far easier to log and to test
+// against than a hand-packed buffer.
+//
+// Only the subset the transition policy actually reads is emitted. Chroma,
+// the mid and high energy curves, loudness, peak and dynamic range are
+// computed by the analyzer but nothing downstream consumes them, and emitting
+// them would mean three more float arrays per track for no reader.
 
 #include <jni.h>
 

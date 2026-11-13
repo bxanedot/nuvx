@@ -1,5 +1,5 @@
-
-
+// SPDX-License-Identifier: GPL-3.0-or-later
+// nuvx: the Automix loop mix's renderer. See loop_mix_renderer.h.
 #include "loopmix/loop_mix_renderer.h"
 
 #include <algorithm>

@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: Apache-2.0
 package com.bxane.nuvx.ui.components.backdrop.internal
 
 import androidx.compose.ui.graphics.Canvas

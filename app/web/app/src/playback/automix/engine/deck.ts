@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-only
 import { ThreeBandEQ } from './eq';
 import { Timeline } from './timeline';
 

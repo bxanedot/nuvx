@@ -1,4 +1,4 @@
-
+// Take a look at the license at the top of the repository in the LICENSE file.
 
 use std::{
     any::Any, cell::Cell, marker::PhantomData, mem, num::NonZeroU32, panic, pin::Pin, ptr, thread,

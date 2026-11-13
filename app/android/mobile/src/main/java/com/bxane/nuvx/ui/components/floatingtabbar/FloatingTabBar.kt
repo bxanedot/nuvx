@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: Apache-2.0
 @file:OptIn(ExperimentalSharedTransitionApi::class)
 
 package com.bxane.nuvx.ui.components.floatingtabbar
@@ -948,7 +948,7 @@ private class FloatingTabBarScopeImpl : FloatingTabBarScope {
             )
         )
     }
-
+    
     override fun standaloneTab(
         key: Any,
         icon: @Composable () -> Unit,

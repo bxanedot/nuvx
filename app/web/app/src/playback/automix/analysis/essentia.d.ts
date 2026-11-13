@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-only
 declare module 'essentia.js/dist/essentia-wasm.es.js' {
   export const EssentiaWASM: {
     calledRun?: boolean;

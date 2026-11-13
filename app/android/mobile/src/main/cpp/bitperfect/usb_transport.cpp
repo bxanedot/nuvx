@@ -1,18 +1,18 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// SPDX-License-Identifier: LGPL-3.0-only
+// A mixer-free USB Audio Class output: Android grants permission and opens
+// the device; one worker thread here owns libusb, the claimed interfaces,
+// four isochronous OUT transfers and the explicit feedback transfer. No
+// resampling or gain happens anywhere below the queue.
+//
+// Every raw libusb pointer belongs to the worker. Transfer buffers keep
+// stable addresses until libusb acknowledges completion or cancellation,
+// including on detach and error paths, before any memory is freed. Class
+// control requests (the DAC's volume) are queued to the same worker rather
+// than issued from another thread.
+//
+// Descriptor parsing and the choice of alternate setting happen in Kotlin
+// (UsbDescriptors.kt); this side is handed the candidates in preference order
+// and opens the first one the device accepts.
 
 #include <jni.h>
 #include <libusb.h>

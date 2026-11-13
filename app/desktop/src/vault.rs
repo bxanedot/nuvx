@@ -75,7 +75,7 @@ mod store {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(windows))]
 mod file {
     use std::path::{Path, PathBuf};
 
@@ -107,12 +107,12 @@ mod file {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(windows))]
 mod either {
     use std::path::Path;
 
     pub fn get(key: &str, dir: &Path) -> anyhow::Result<Option<Vec<u8>>> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         match super::store::get(key) {
             Ok(Some(s)) => return Ok(Some(s)),
             Ok(None) => {}
@@ -122,7 +122,7 @@ mod either {
     }
 
     pub fn set(key: &str, dir: &Path, secret: &[u8]) -> anyhow::Result<()> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         match super::store::set(key, secret) {
             Ok(()) => return super::file::delete(key, dir),
             Err(e) => log::info!("no credential store, keeping {key:?} in a file: {e:#}"),
@@ -131,7 +131,7 @@ mod either {
     }
 
     pub fn delete(key: &str, dir: &Path) -> anyhow::Result<()> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         if let Err(e) = super::store::delete(key) {
             log::debug!("credential store unavailable: {e:#}");
         }
@@ -139,25 +139,10 @@ mod either {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(windows))]
 use either as backend;
 
 #[cfg(windows)]
-mod backend {
-    use std::path::Path;
-
-    pub fn get(key: &str, _dir: &Path) -> anyhow::Result<Option<Vec<u8>>> {
-        super::store::get(key)
-    }
-    pub fn set(key: &str, _dir: &Path, secret: &[u8]) -> anyhow::Result<()> {
-        super::store::set(key, secret)
-    }
-    pub fn delete(key: &str, _dir: &Path) -> anyhow::Result<()> {
-        super::store::delete(key)
-    }
-}
-
-#[cfg(target_os = "macos")]
 mod backend {
     use std::path::Path;
 
@@ -232,7 +217,7 @@ mod stress {
     }
 }
 
-#[cfg(all(test, target_os = "linux"))]
+#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
 mod unix_tests {
     #[test]
     fn round_trip_in_keyring_or_file() {
