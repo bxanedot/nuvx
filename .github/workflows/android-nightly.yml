@@ -270,7 +270,10 @@ jobs:
           current=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
           if [[ "$current" != "$SOURCE_REF" ]]; then
             echo "Discarding stale nightly for $SOURCE_REF; main is $current"
-            gh release delete "$NIGHTLY_TAG" --yes --cleanup-tag
+            gh release delete "$NIGHTLY_TAG" --yes
+            if gh api "repos/$GH_REPO/git/ref/tags/$NIGHTLY_TAG" >/dev/null 2>&1; then
+              gh api --method DELETE "repos/$GH_REPO/git/refs/tags/$NIGHTLY_TAG"
+            fi
             exit 0
           fi
           gh release edit "$NIGHTLY_TAG" --draft=false --prerelease --latest=false
