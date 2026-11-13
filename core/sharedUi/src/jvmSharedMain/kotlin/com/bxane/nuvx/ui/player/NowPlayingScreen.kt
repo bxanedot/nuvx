@@ -356,7 +356,8 @@ fun NowPlayingScreen(
     val meshRefreshMs = MESH_REFRESH_MS.takeIf { tintsOffClip }
 
     val scrub = rememberPlayerScrub(song.videoId, position, durationMs)
-    val shown: () -> Float = { scrub.shown(position.positionMs, durationMs) }
+    val livePositionMs = rememberLivePlaybackPosition(position, isPlaying, durationMs)
+    val shown: () -> Float = { scrub.shown(livePositionMs, durationMs) }
     val pastRestartPoint by remember(position) {
         derivedStateOf { position.positionMs > BACK_RESTARTS_AFTER_MS }
     }
