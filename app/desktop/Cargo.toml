@@ -54,9 +54,6 @@ filmcraft-ac3 = "0.9"
 symphonia = { version = "0.5.5", default-features = false, features = ["mkv", "wav", "pcm"] }
 rusty-opus = "1.0.2"
 unicode-bidi = "0.3"
-# System-wide media shortcuts (hotkeys.rs).
-global-hotkey = "0.9"
-
 [patch.crates-io]
 # Backport the upstream GLib iterator UB fix while GTK3 still pins glib 0.18.
 glib = { path = "vendor/glib" }
@@ -93,9 +90,6 @@ panic = "unwind"
 # Keep debug builds usable: optimize dependencies (decoders, egui) even in dev.
 [profile.dev.package."*"]
 opt-level = 2
-
-[dev-dependencies]
-egui_system_font_provider = "0.37.0"
 
 [build-dependencies]
 winresource = "0.1.31"
