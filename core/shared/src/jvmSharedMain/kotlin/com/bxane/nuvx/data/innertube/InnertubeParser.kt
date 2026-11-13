@@ -7,7 +7,6 @@ import com.bxane.nuvx.data.model.ArtistPage
 import com.bxane.nuvx.data.model.ArtistRef
 import com.bxane.nuvx.data.model.completeArtistCredits
 import com.bxane.nuvx.data.model.BrowseItem
-import com.bxane.nuvx.data.model.BrowseType
 import com.bxane.nuvx.data.model.HomeShelf
 import com.bxane.nuvx.data.model.LibraryState
 import com.bxane.nuvx.data.model.MoodGenreSection
@@ -55,33 +54,7 @@ object InnertubeParser {
     }
 
     internal fun parseBrowseItem(renderer: JsonObject): BrowseItem? {
-        val endpoint = renderer.o("navigationEndpoint").o("browseEndpoint") ?: return null
-        val browseId = endpoint.s("browseId") ?: return null
-        val pageType = endpoint.o("browseEndpointContextSupportedConfigs")
-            .o("browseEndpointContextMusicConfig").s("pageType").orEmpty()
-
-        val columns = renderer.a("flexColumns").orEmpty()
-        val title = columns.getOrNull(0)
-            .o("musicResponsiveListItemFlexColumnRenderer").o("text").runs()
-        if (title.isBlank()) return null
-
-        val subtitle = columns.getOrNull(1)
-            .o("musicResponsiveListItemFlexColumnRenderer").o("text").runs()
-        if (VIDEO_WORD.containsMatchIn(title) || VIDEO_WORD.containsMatchIn(subtitle)) return null
-
-        return BrowseItem(
-            browseId = browseId,
-            title = title,
-            subtitle = subtitle,
-            thumbnailUrl = renderer.o("thumbnail").o("musicThumbnailRenderer")
-                .o("thumbnail").a("thumbnails").best(),
-            type = when {
-                "ALBUM" in pageType -> BrowseType.ALBUM
-                "ARTIST" in pageType -> BrowseType.ARTIST
-                "PLAYLIST" in pageType -> BrowseType.PLAYLIST
-                else -> BrowseType.OTHER
-            },
-        )
+        return InnertubeBrowseItemParser.parseBrowseItem(renderer)
     }
 
     fun parseHome(response: JsonObject): List<HomeShelf> = InnertubeHomeParser.parseHome(response)
@@ -359,29 +332,7 @@ object InnertubeParser {
     }
 
     internal fun parseCardShelfBrowse(renderer: JsonObject): BrowseItem? {
-        val endpoint = renderer.o("onTap").o("browseEndpoint") ?: return null
-        val browseId = endpoint.s("browseId") ?: return null
-        val pageType = endpoint.o("browseEndpointContextSupportedConfigs")
-            .o("browseEndpointContextMusicConfig").s("pageType").orEmpty()
-        if ("NON_MUSIC_AUDIO_TRACK" in pageType) return null
-        val title = renderer.o("title").runs()
-        if (title.isBlank()) return null
-        val subtitle = renderer.o("subtitle").runs()
-        if (VIDEO_WORD.containsMatchIn(title) || VIDEO_WORD.containsMatchIn(subtitle)) return null
-
-        return BrowseItem(
-            browseId = browseId,
-            title = title,
-            subtitle = subtitle,
-            thumbnailUrl = renderer.o("thumbnail").o("musicThumbnailRenderer")
-                .o("thumbnail").a("thumbnails").best(),
-            type = when {
-                "ALBUM" in pageType -> BrowseType.ALBUM
-                "ARTIST" in pageType -> BrowseType.ARTIST
-                "PLAYLIST" in pageType -> BrowseType.PLAYLIST
-                else -> BrowseType.OTHER
-            },
-        )
+        return InnertubeBrowseItemParser.parseCardShelfBrowse(renderer)
     }
 
     internal data class Credits(
