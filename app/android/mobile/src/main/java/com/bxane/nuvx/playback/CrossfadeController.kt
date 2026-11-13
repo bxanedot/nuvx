@@ -4,7 +4,6 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -79,7 +78,6 @@ class CrossfadeController(
 
     private var outgoingItemIndex = C.INDEX_UNSET
 
-    private var listeningTo: ExoPlayer? = null
     private var tickerJob: Job? = null
 
     private var fadeMs = 0L
@@ -173,39 +171,16 @@ class CrossfadeController(
     fun msSinceTransition(): Long? =
         settledAt.takeIf { it != 0L }?.let { SystemClock.elapsedRealtime() - it }
 
-    private val listener = object : Player.Listener {
-        override fun onPositionDiscontinuity(
-            oldPosition: Player.PositionInfo,
-            newPosition: Player.PositionInfo,
-            reason: Int,
-        ) {
-            if (reason == Player.DISCONTINUITY_REASON_SEEK) bail()
-        }
-
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            when (reason) {
-                Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> bail()
-                Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> bail()
-                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> ranOutBeforeHandoff()
-            }
-        }
-
-        override fun onPlayerError(error: PlaybackException) = bail()
-
-        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            if (playWhenReady || reason != Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) return
-            val held = readAhead.heldAtEnd ?: return
-            if (held !== listeningTo) return
-            val into = incoming
-            if (phase == Phase.FADING && !handedOff && into != null) {
-                handOff(held, into)
-                return
-            }
-            readAhead.releaseHold()
-            if (phase == Phase.ARMING) bail()
-            held.play()
-        }
-    }
+    private val listener = CrossfadePlayerListener(
+        readAhead = readAhead,
+        isArming = { phase == Phase.ARMING },
+        isFading = { phase == Phase.FADING },
+        handedOff = { handedOff },
+        incoming = { incoming },
+        bail = ::bail,
+        ranOutBeforeHandoff = ::ranOutBeforeHandoff,
+        handOff = ::handOff,
+    )
 
     private fun ranOutBeforeHandoff() {
         if (handedOff) return
@@ -222,15 +197,8 @@ class CrossfadeController(
         }
     }
 
-    private fun listenTo(target: ExoPlayer) {
-        if (listeningTo === target) return
-        listeningTo?.removeListener(listener)
-        target.addListener(listener)
-        listeningTo = target
-    }
-
     fun start() {
-        listenTo(active())
+        listener.listenTo(active())
         tickerJob?.cancel()
         tickerJob = scope.launch {
             while (isActive) {
@@ -256,8 +224,7 @@ class CrossfadeController(
         loopMix.release()
         speedController.endEase(clickless = false)
         readAhead.releaseHold()
-        listeningTo?.removeListener(listener)
-        listeningTo = null
+        listener.release()
         active().volume = 1f
         AppSettings.smartMixInProgress.value = false
         AppSettings.smartMixBlend.value = null
@@ -465,7 +432,7 @@ class CrossfadeController(
 
         Log.d(TAG, "handoff at in=${into.currentPosition}ms out=${out.currentPosition}ms")
 
-        listenTo(into)
+        listener.listenTo(into)
         handedOff = true
         onHandoff(out, into)
 
