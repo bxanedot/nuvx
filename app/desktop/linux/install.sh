@@ -22,10 +22,15 @@ if [ "$1" = "--uninstall" ]; then
 fi
 
 here=$(cd "$(dirname "$0")" && pwd)
-[ -f "$here/nuvx" ] || { echo "Run install.sh from the extracted download."; exit 1; }
+case $(uname -m) in
+    x86_64) app=nuvx-x86_64 ;;
+    aarch64|arm64) app=nuvx-aarch64 ;;
+    *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;;
+esac
+[ -f "$here/$app" ] || { echo "Run install.sh from the extracted download."; exit 1; }
 
 mkdir -p "$lib" "$bin" "$data/applications" "$(dirname "$icon")"
-cp "$here/nuvx" "$lib/nuvx.new"
+cp "$here/$app" "$lib/nuvx.new"
 chmod 755 "$lib/nuvx.new"
 mv -f "$lib/nuvx.new" "$lib/nuvx"
 cp "$here/install.sh" "$lib/install.sh"

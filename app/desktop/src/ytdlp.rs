@@ -9,13 +9,37 @@ const BIN: &str = "yt-dlp.exe";
 #[cfg(not(windows))]
 const BIN: &str = "yt-dlp";
 #[cfg(all(windows, not(target_arch = "aarch64")))]
-const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
+fn download_url() -> &'static str {
+    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+}
 #[cfg(all(windows, target_arch = "aarch64"))]
-const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe";
-#[cfg(target_os = "linux")]
-const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
+fn download_url() -> &'static str {
+    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe"
+}
 #[cfg(target_os = "macos")]
-const URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos";
+fn download_url() -> &'static str {
+    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+}
+#[cfg(all(unix, not(target_os = "macos")))]
+fn download_url() -> &'static str {
+    linux_url_for_arch(std::env::consts::ARCH)
+}
+
+#[cfg(any(all(unix, not(target_os = "macos")), test))]
+const LINUX_X64_URL: &str =
+    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
+#[cfg(any(all(unix, not(target_os = "macos")), test))]
+const LINUX_ARM64_URL: &str =
+    "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64";
+
+#[cfg(any(all(unix, not(target_os = "macos")), test))]
+fn linux_url_for_arch(arch: &str) -> &'static str {
+    if arch == "aarch64" {
+        LINUX_ARM64_URL
+    } else {
+        LINUX_X64_URL
+    }
+}
 
 const MAX_AGE: Duration = Duration::from_secs(7 * 24 * 3600);
 
@@ -36,7 +60,14 @@ async fn ensure(http: &reqwest::Client, data_dir: &Path) -> anyhow::Result<PathB
         return Ok(bin);
     }
     log::info!("downloading yt-dlp");
-    let bytes = http.get(URL).timeout(Duration::from_secs(120)).send().await?.error_for_status()?.bytes().await?;
+    let bytes = http
+        .get(download_url())
+        .timeout(Duration::from_secs(120))
+        .send()
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
     anyhow::ensure!(bytes.len() > 1_000_000, "yt-dlp download looks truncated ({} bytes)", bytes.len());
     let tmp = bin.with_extension("part");
     std::fs::write(&tmp, &bytes)?;
@@ -146,4 +177,15 @@ fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Res
         duration_ms: v["duration"].as_f64().map_or(0, |d| (d * 1000.0) as u64),
         user_agent: v["http_headers"]["User-Agent"].as_str().unwrap_or_default().to_owned(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LINUX_ARM64_URL, LINUX_X64_URL, linux_url_for_arch};
+
+    #[test]
+    fn aarch64_uses_native_binary() {
+        assert_eq!(linux_url_for_arch("aarch64"), LINUX_ARM64_URL);
+        assert_eq!(linux_url_for_arch("x86_64"), LINUX_X64_URL);
+    }
 }
