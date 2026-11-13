@@ -32,12 +32,11 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: app/web/pnpm-lock.yaml
-      - run: corepack enable
-      - run: corepack pnpm --dir app/web install --frozen-lockfile
+      - run: pnpm --dir app/web install --frozen-lockfile
       - name: Build Chrome and Firefox packages
         env:
           NUVX_SITE_ORIGINS: https://web.nuvx.lol,https://nuvx.pages.dev
-        run: corepack pnpm --dir app/web/extension package
+        run: pnpm --dir app/web/extension package
       - name: Prepare stable GitHub asset names
         run: |
           mkdir -p "$RUNNER_TEMP/nuvx-extension-assets"
