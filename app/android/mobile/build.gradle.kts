@@ -255,17 +255,17 @@ dependencies {
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
     else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
-    gmsImplementation("com.google.android.gms:play-services-cast-framework:23.0.0")
-    gmsImplementation("androidx.mediarouter:mediarouter:1.8.1")
-
-    gmsImplementation("com.google.android.gms:play-services-wearable:20.0.1")
-    gmsImplementation("androidx.wear:wear-remote-interactions:1.2.0")
-
-    gmsImplementation("com.github.MuntashirAkon:libadb-android:3.1.1") {
-        exclude(group = "org.bouncycastle")
+    listOf("devGmsImplementation", "prodGmsImplementation").forEach { configuration ->
+        add(configuration, "com.google.android.gms:play-services-cast-framework:23.0.0")
+        add(configuration, "androidx.mediarouter:mediarouter:1.8.1")
+        add(configuration, "com.google.android.gms:play-services-wearable:20.0.1")
+        add(configuration, "androidx.wear:wear-remote-interactions:1.2.0")
+        add(configuration, "com.github.MuntashirAkon:libadb-android:3.1.1") {
+            exclude(group = "org.bouncycastle")
+        }
+        add(configuration, "org.conscrypt:conscrypt-android:2.9.0")
+        add(configuration, "org.bouncycastle:bcpkix-jdk18on:1.86")
     }
-    gmsImplementation("org.conscrypt:conscrypt-android:2.9.0")
-    gmsImplementation("org.bouncycastle:bcpkix-jdk18on:1.86")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
