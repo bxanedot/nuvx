@@ -76,7 +76,9 @@ pub(super) fn run(
                 offset = at;
                 seekable = !at.is_zero();
                 ending_sent = false;
+                status.set_position(at.as_millis() as u64);
                 status.playing.store(!start_paused, Ordering::Relaxed);
+                status.release_position();
             }
             Ok(AudioCmd::Replace { generation, seek, decoder, at, seekable: s }) => {
                 if generation != current || seek != seek_seq {
