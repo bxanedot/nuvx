@@ -49,11 +49,9 @@ jobs:
           NUVX_KEY_ALIAS: ${{ secrets.NUVX_KEY_ALIAS }}
           NUVX_KEY_PASSWORD: ${{ secrets.NUVX_KEY_PASSWORD }}
         run: |
-          stable=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
-          [[ $stable =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          git fetch --no-tags origin "refs/tags/$stable"
-          version=${stable#v}
-          code=$(git show FETCH_HEAD:build.gradle.kts | sed -nE 's/^extra\["nuvxVersionCode"\] = ([0-9]+)$/\1/p; s/^extra\["nuvxVersionCode"\].*getOrElse\(([0-9]+)\)$/\1/p')
+          version=$(sed -nE 's/^extra\["nuvxVersionName"\].*getOrElse\("([^"]+)"\)$/\1/p' build.gradle.kts)
+          code=$(sed -nE 's/^extra\["nuvxVersionCode"\].*getOrElse\(([0-9]+)\)$/\1/p' build.gradle.kts)
+          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ $code =~ ^[1-9][0-9]*$ ]]
           suffix="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
           umask 077
