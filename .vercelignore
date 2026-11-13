@@ -2,7 +2,14 @@
 /.gradle
 /.kotlin
 /build
-/core
+/core/brand
+/core/canvas
+/core/docs
+/core/native
+/core/shared
+/core/sharedUi
+/core/third_party
+/core/worker
 /docs
 /gradle
 /app/android

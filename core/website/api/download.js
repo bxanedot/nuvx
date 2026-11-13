@@ -10,6 +10,16 @@ const files = {
   chrome: 'nuvx-extension-chrome-{v}.zip',
   firefox: 'nuvx-extension-firefox-{v}.zip',
 };
+const androidAbis = new Set(['arm64-v8a', 'armeabi-v7a', 'x86_64']);
+
+function androidAbi(params, req) {
+  const requested = params.get('abi');
+  if (androidAbis.has(requested)) return requested;
+  const agent = req.headers?.['user-agent'] ?? '';
+  if (/\b(?:x86_64|amd64)\b/i.test(agent)) return 'x86_64';
+  if (/\b(?:armeabi-v7a|armv7l|armv8l)\b/i.test(agent)) return 'armeabi-v7a';
+  return 'arm64-v8a';
+}
 
 module.exports = async (req, res) => {
   const params = new URL(req.url, 'https://www.nuvx.lol').searchParams;
@@ -44,9 +54,17 @@ module.exports = async (req, res) => {
       const tag = new URL(latest.headers.get('location'), target);
       const version = /^\/bxanedot\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
       if (latest.status === 302 && tag.origin === 'https://github.com' && version) {
-        const asset = releases + '/download/v' + version + '/' + files[platform].replace('{v}', version);
-        const response = await fetch(asset, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
-        if (response.ok || response.status === 302) target = asset;
+        const candidates = platform === 'android'
+          ? [`nuvx-v${version}_${androidAbi(params, req)}.apk`, files.android.replace('{v}', version)]
+          : [files[platform].replace('{v}', version)];
+        for (const candidate of candidates) {
+          const asset = releases + '/download/v' + version + '/' + candidate;
+          const response = await fetch(asset, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
+          if (response.ok || response.status === 302) {
+            target = asset;
+            break;
+          }
+        }
       }
     } catch {
     }
