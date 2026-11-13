@@ -19,7 +19,7 @@ internal class PlaybackDirectSourceWindowController(
     private val player: () -> ExoPlayer?,
     private val spare: () -> ExoPlayer?,
     private val crossfade: () -> CrossfadeController?,
-    private val streamResolution: StreamResolutionController,
+    private val streamUpgrade: StreamUpgradeController,
     private val errorRecovery: PlaybackErrorRecovery,
 ) {
     private var lengthCheckedUri: String? = null
@@ -88,7 +88,7 @@ internal class PlaybackDirectSourceWindowController(
         val substituted = StreamChoice.isSubstitute(videoId)
         val unattributed = StreamChoice.of(videoId) == null && SourceResolver.canSubstituteForYouTube()
         val wrong = when {
-            substituted -> abs(decodedMs - expectedMs) > streamResolution.upgradeLengthSlackMs + 1_000L
+            substituted -> abs(decodedMs - expectedMs) > streamUpgrade.upgradeLengthSlackMs + 1_000L
             unattributed -> decodedMs < expectedMs / 2
             else -> false
         }

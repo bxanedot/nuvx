@@ -255,7 +255,7 @@ class PlaybackService : MediaLibraryService() {
         autoplayEligible = { exoPlayer -> boundedQueue.autoplayEligible(exoPlayer) },
     )
 
-    private val streamResolution: StreamResolutionController = StreamResolutionController(
+    private val streamUpgrade: StreamUpgradeController = StreamUpgradeController(
         context = this,
         scope = scope,
         player = { player },
@@ -264,6 +264,10 @@ class PlaybackService : MediaLibraryService() {
         buildAuditionPlayer = ::buildAuditionPlayer,
         onSwapping = { swappingMediaId = it },
         onSwapCut = { formatListener.markSwapCut() },
+    )
+
+    private val streamResolution: StreamResolutionController = StreamResolutionController(
+        scope = scope,
     )
 
     private val musicOnlyController = PlaybackMusicOnlyController(
@@ -293,7 +297,7 @@ class PlaybackService : MediaLibraryService() {
         player = { player },
         spare = { spare },
         crossfade = { crossfade },
-        streamResolution = streamResolution,
+        streamUpgrade = streamUpgrade,
         errorRecovery = errorRecovery,
     )
 
@@ -408,7 +412,7 @@ class PlaybackService : MediaLibraryService() {
         registerCurrentPlay = ::registerCurrentPlay,
         prefetchAround = ::prefetchAround,
         cancelPrefetch = ::cancelPrefetch,
-        lookForBetterCopy = streamResolution::lookForBetterCopy,
+        lookForBetterCopy = streamUpgrade::lookForBetterCopy,
         savePlaybackState = ::savePlaybackState,
         publishWidgetState = ::publishWidgetState,
         scrobbling = scrobbling,
@@ -1059,8 +1063,8 @@ class PlaybackService : MediaLibraryService() {
         savePlaybackState(exoPlayer)
         musicOnlyController.convertVideosAround(exoPlayer)
         prefetchAround(exoPlayer)
-        streamResolution.cancelStaleUpgradeJob()
-        streamResolution.lookForBetterCopy(exoPlayer)
+        streamUpgrade.cancelStaleUpgradeJob()
+        streamUpgrade.lookForBetterCopy(exoPlayer)
         publishWidgetState()
         loadLyricsForCurrentTrack()
         if (exoPlayer.isPlaying) startLyricsTicker()
@@ -1164,13 +1168,13 @@ class PlaybackService : MediaLibraryService() {
                 "except for ${keep.joinToString()}",
         )
         val permitted = { stream: SourceStream -> SourceRegistry.permitsForPlayback(stream.sourceConfigId) }
-        streamResolution.cancelStaleUpgradeJob()
+        streamUpgrade.cancelStaleUpgradeJob()
         cancelPrefetch()
         StreamChoice.forgetWhere(keep) { !permitted(it) }
         QualityUpgrade.onCeilingLowered(keep, permitted)
         AudioCache.dropForeignEntries(keep, keepAnalysis = true)
         prefetchAround(exoPlayer)
-        streamResolution.lookForBetterCopy(exoPlayer)
+        streamUpgrade.lookForBetterCopy(exoPlayer)
     }
 
     private fun prefetchAround(player: ExoPlayer) {
@@ -1226,7 +1230,7 @@ class PlaybackService : MediaLibraryService() {
                     }
                     savePlaybackState(player)
                     publishNerdStats()
-                    streamResolution.lookForBetterCopy(player)
+                    streamUpgrade.lookForBetterCopy(player)
                 }
                 delay(PROGRESS_SAMPLE_MS)
             }
@@ -1548,7 +1552,7 @@ class PlaybackService : MediaLibraryService() {
                 ACTION_SWAP_TO_VERSION -> swapCurrentToVersion(args)
                 ACTION_BEGIN_RADIO_QUEUE -> beginRadioQueue()
                 ACTION_COMMIT_RADIO_QUEUE -> player?.let(::saveQueueSnapshotImmediately)
-                ACTION_UPGRADE_QUALITY -> streamResolution.upgradeQualityNow()
+                ACTION_UPGRADE_QUALITY -> streamUpgrade.upgradeQualityNow()
                 ACTION_SWAP_VERSION -> {
                     val bundle = args.getBundle(EXTRA_SWAP_MEDIA_ITEM)
                     if (bundle != null) {
