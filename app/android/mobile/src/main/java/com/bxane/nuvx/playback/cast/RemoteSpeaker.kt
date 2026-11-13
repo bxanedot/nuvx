@@ -4,6 +4,14 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 
+interface CastSink {
+    fun onRemotePlaybackChanged()
+
+    fun onRemoteRouteChanged()
+
+    fun onRemoteVolumeChanged()
+}
+
 interface RemoteSpeaker {
     var sink: CastSink?
 

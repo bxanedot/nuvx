@@ -128,11 +128,6 @@
                 android:value="true" />
         </service>
 
-        <!-- Android Auto support -->
-        <meta-data
-            android:name="com.google.android.gms.car.application"
-            android:resource="@xml/automotive_app_desc" />
-
         <!--
           No android:screenOrientation here, deliberately: the app follows the
           system's own auto-rotate setting on every device, phones included.
@@ -404,10 +399,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Where the Cast framework asks how this app wants to cast. -->
-        <meta-data
-            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="com.bxane.nuvx.playback.cast.CastOptionsProvider" />
     </application>
 
 </manifest>

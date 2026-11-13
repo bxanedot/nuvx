@@ -113,11 +113,6 @@
                 android:value="true" />
         </service>
 
-        <!-- Android Auto support -->
-        <meta-data
-            android:name="com.google.android.gms.car.application"
-            android:resource="@xml/automotive_app_desc" />
-
         <!--
           No android:screenOrientation here, deliberately: the app follows the
           system's own auto-rotate setting on every device, phones included.
@@ -345,31 +340,6 @@
             </intent-filter>
         </service>
 
-        <!--
-          Commands from the nuvx watch app (wearos/). Exported because Play
-          services binds it; only messages from the same package and signing key
-          on a paired watch are ever delivered, and only under this path.
-        -->
-        <service
-            android:name=".wear.WearCommandService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-                <data
-                    android:host="*"
-                    android:pathPrefix="/nuvx/command"
-                    android:scheme="wear" />
-            </intent-filter>
-            <!-- The watch's player reading a track through the phone. -->
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
-                <data
-                    android:host="*"
-                    android:pathPrefix="/nuvx/stream"
-                    android:scheme="wear" />
-            </intent-filter>
-        </service>
-
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">
@@ -484,10 +454,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Where the Cast framework asks how this app wants to cast. -->
-        <meta-data
-            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="com.bxane.nuvx.playback.cast.CastOptionsProvider" />
     </application>
 
 </manifest>

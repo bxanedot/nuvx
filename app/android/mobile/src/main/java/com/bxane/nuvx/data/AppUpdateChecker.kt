@@ -85,9 +85,7 @@ object AppUpdateChecker {
                 if (ours) name.removeSuffix(".apk").removeSuffix(".APK") to url else null
             }
             .orEmpty()
-        Build.SUPPORTED_ABIS.firstNotNullOfOrNull { abi ->
-            apks.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
-        } ?: apks.firstOrNull { (name, _) -> '_' !in name }?.second
+        selectApkAssetUrl(apks, BuildConfig.NUVX_DISTRIBUTION, Build.SUPPORTED_ABIS.toList())
     }.getOrNull()
 
     suspend fun downloadApk(context: Context): Unit = withContext(Dispatchers.IO) {
@@ -191,3 +189,16 @@ object AppUpdateChecker {
         return c.isPreRelease && !l.isPreRelease
     }
 }
+
+internal fun selectApkAssetUrl(
+    assets: List<Pair<String, String>>,
+    distribution: String,
+    supportedAbis: List<String>,
+): String? = assets.firstOrNull { (name, _) -> name.endsWith("-$distribution") }?.second
+    ?: if (distribution == "gms") {
+        supportedAbis.firstNotNullOfOrNull { abi ->
+            assets.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
+        } ?: assets.firstOrNull { (name, _) -> '_' !in name }?.second
+    } else {
+        null
+    }
