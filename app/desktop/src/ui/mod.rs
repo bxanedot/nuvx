@@ -276,6 +276,7 @@ pub struct App {
     next_as: Option<Track>,
     video_of: Option<(String, Option<Track>)>,
     video_wanted: bool,
+    video_mode: bool,
     pub video_height: u32,
     pub load_both: bool,
     apple_missed: std::collections::HashMap<String, std::time::Instant>,
