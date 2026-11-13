@@ -74,7 +74,7 @@ jobs:
           gh release create "$NIGHTLY_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $STABLE_VERSION-$NIGHTLY_TAG" \
-            --notes "Signed Android and desktop nightlies for phones, Android TV, Wear OS, Windows, Linux and macOS. Mobile and TV each have universal GMS and FOSS APKs covering arm32, arm64 and x86_64. In-app updates choose the installed distribution automatically."
+            --notes "Signed universal desktop installers for Windows, Linux and macOS, plus GMS and FOSS APKs for Android phones and TV and a separate Wear OS APK. Desktop installers include x64 and ARM64 builds; phone and TV APKs include armeabi-v7a, arm64-v8a and x86_64."
 
   android:
     needs: prepare
@@ -179,92 +179,19 @@ jobs:
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           gh release upload "$NIGHTLY_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
 
-  windows:
-    needs: prepare
-    runs-on: windows-2022
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
-      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
-      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
-      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
-    defaults:
-      run:
-        shell: bash
-        working-directory: app/desktop
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.prepare.outputs.source_ref }}
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with: { workspaces: app/desktop }
-      - run: cargo build --release --locked
-      - name: Package and upload
-        run: |
-          choco install innosetup --no-progress -y
-          MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$DESKTOP_VERSION" windows/nuvx.iss
-          mv "windows/Output/nuvx-setup-$DESKTOP_VERSION.exe" "nuvx-setup-$NIGHTLY_TAG.exe"
-          mkdir portable && cp target/release/nuvx.exe windows/portable.txt README.md LICENSE portable/
-          (cd portable && 7z a "../nuvx-portable-$NIGHTLY_TAG.zip" nuvx.exe portable.txt README.md LICENSE)
-          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG.exe" "nuvx-portable-$NIGHTLY_TAG.zip" --clobber
-
-  linux:
-    needs: prepare
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
-      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
-      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
-    defaults:
-      run:
-        shell: bash
-        working-directory: app/desktop
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.prepare.outputs.source_ref }}
-          persist-credentials: false
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev libasound2-dev libxdo-dev libssl-dev libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with: { workspaces: app/desktop }
-      - run: cargo build --release --locked
-      - name: Package and upload
-        run: |
-          mkdir -p dist/nuvx
-          cp target/release/nuvx linux/install.sh linux/nuvx.desktop README.md LICENSE dist/nuvx/
-          cp assets/icon/icon.png dist/nuvx/nuvx.png
-          chmod 755 dist/nuvx/nuvx dist/nuvx/install.sh
-          tar -C dist -czf "nuvx-$NIGHTLY_TAG-linux-x86_64.tar.gz" nuvx
-          cp linux/portable.txt dist/nuvx/
-          tar -C dist -czf "nuvx-portable-$NIGHTLY_TAG-linux-x86_64.tar.gz" nuvx
-          gh release upload "$NIGHTLY_TAG" "nuvx-$NIGHTLY_TAG-linux-x86_64.tar.gz" "nuvx-portable-$NIGHTLY_TAG-linux-x86_64.tar.gz" --clobber
-
-  macos:
+  windows-build:
     needs: prepare
     strategy:
-      fail-fast: false
       matrix:
         include:
-          - arch: aarch64
-            target: aarch64-apple-darwin
-            runner: macos-15
           - arch: x86_64
-            target: x86_64-apple-darwin
-            runner: macos-15-intel
+            target: x86_64-pc-windows-msvc
+            runner: windows-2022
+          - arch: aarch64
+            target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
-      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
     defaults:
@@ -280,16 +207,198 @@ jobs:
         with: { targets: "${{ matrix.target }}" }
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
-      - run: cargo build --release --locked --target "${{ matrix.target }}"
-      - name: Package and upload
+      - run: |
+          cargo build --release --locked --target "${{ matrix.target }}"
+          mkdir -p "universal/${{ matrix.arch }}"
+          cp "target/${{ matrix.target }}/release/nuvx.exe" "universal/${{ matrix.arch }}/nuvx.exe"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nuvx-windows-${{ matrix.arch }}
+          path: app/desktop/universal/${{ matrix.arch }}
+          if-no-files-found: error
+
+  windows:
+    needs: [prepare, windows-build]
+    runs-on: windows-2022
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-windows-x86_64
+          path: app/desktop/target/x86_64-pc-windows-msvc/release
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-windows-aarch64
+          path: app/desktop/target/aarch64-pc-windows-msvc/release
+      - name: Build and upload installer
         run: |
-          bin="target/${{ matrix.target }}/release/nuvx"
-          sh macos/bundle.sh "$bin" "$DESKTOP_VERSION" dmg
+          choco install innosetup --no-progress -y
+          MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$DESKTOP_VERSION" windows/nuvx.iss
+          mv "windows/Output/nuvx-setup-$DESKTOP_VERSION.exe" "nuvx-setup-$NIGHTLY_TAG.exe"
+          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG.exe" --clobber
+
+  linux-build:
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04
+          - arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    env:
+      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev libasound2-dev libxdo-dev libssl-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
+      - run: |
+          cargo build --release --locked --target "${{ matrix.target }}"
+          mkdir -p "universal/${{ matrix.arch }}"
+          cp "target/${{ matrix.target }}/release/nuvx" "universal/${{ matrix.arch }}/nuvx"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nuvx-linux-${{ matrix.arch }}
+          path: app/desktop/universal/${{ matrix.arch }}
+          if-no-files-found: error
+
+  linux:
+    needs: [prepare, linux-build]
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-linux-x86_64
+          path: app/desktop/universal/x86_64
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-linux-aarch64
+          path: app/desktop/universal/aarch64
+      - name: Package and upload installer
+        run: |
+          mkdir -p dist/nuvx
+          cp universal/x86_64/nuvx dist/nuvx/nuvx-x86_64
+          cp universal/aarch64/nuvx dist/nuvx/nuvx-aarch64
+          cp linux/install.sh linux/nuvx.desktop README.md LICENSE dist/nuvx/
+          cp assets/icon/icon.png dist/nuvx/nuvx.png
+          chmod 755 dist/nuvx/nuvx-x86_64 dist/nuvx/nuvx-aarch64 dist/nuvx/install.sh
+          sh linux/test-installer.sh dist/nuvx
+          tar -C dist -cf - nuvx | gzip -9 > "nuvx-setup-$NIGHTLY_TAG-linux-universal.tar.gz"
+          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-linux-universal.tar.gz" --clobber
+
+  macos-build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64
+            target: aarch64-apple-darwin
+            runner: macos-15
+          - arch: x86_64
+            target: x86_64-apple-darwin
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    env:
+      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
+      - run: |
+          cargo build --release --locked --target "${{ matrix.target }}"
+          mkdir -p "universal/${{ matrix.arch }}"
+          cp "target/${{ matrix.target }}/release/nuvx" "universal/${{ matrix.arch }}/nuvx"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nuvx-macos-${{ matrix.arch }}
+          path: app/desktop/universal/${{ matrix.arch }}
+          if-no-files-found: error
+
+  macos:
+    needs: [prepare, macos-build]
+    runs-on: macos-15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NIGHTLY_TAG: ${{ needs.prepare.outputs.nightly_suffix }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-macos-x86_64
+          path: app/desktop/universal/x86_64
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-macos-aarch64
+          path: app/desktop/universal/aarch64
+      - name: Package and upload universal installer
+        run: |
+          mkdir -p universal dmg
+          lipo -create universal/x86_64/nuvx universal/aarch64/nuvx -output universal/nuvx
+          lipo -verify_arch x86_64 arm64 universal/nuvx
+          sh macos/bundle.sh universal/nuvx "$DESKTOP_VERSION" dmg
           ln -s /Applications dmg/Applications
-          hdiutil create -volname nuvx -srcfolder dmg -format UDZO "nuvx-setup-$NIGHTLY_TAG-macos-${{ matrix.arch }}.dmg"
-          sh macos/bundle.sh "$bin" "$DESKTOP_VERSION" portable portable
-          (cd portable && ditto -c -k --keepParent nuvx.app "../nuvx-portable-$NIGHTLY_TAG-macos-${{ matrix.arch }}.zip")
-          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-macos-${{ matrix.arch }}.dmg" "nuvx-portable-$NIGHTLY_TAG-macos-${{ matrix.arch }}.zip" --clobber
+          hdiutil create -volname nuvx -srcfolder dmg -format UDZO "nuvx-setup-$NIGHTLY_TAG-macos-universal.dmg"
+          gh release upload "$NIGHTLY_TAG" "nuvx-setup-$NIGHTLY_TAG-macos-universal.dmg" --clobber
 
   publish:
     if: always() && needs.prepare.result == 'success'
