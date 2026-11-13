@@ -35,7 +35,11 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
         });
         divider(ui);
         setting_row(ui, "Load songs and videos together", Some("As a song starts, its music video loads too (and a video's song), so switching between them is instant. Uses the data of both."), |ui| {
-            toggle(ui, &mut app.load_both, "Load songs and videos together");
+            if toggle(ui, &mut app.load_both, "Load songs and videos together").changed() && app.load_both
+                && let Some(track) = app.current().cloned()
+            {
+                app.load_other_version(&track);
+            }
         });
         if crate::motion::SUPPORTED {
             divider(ui);
