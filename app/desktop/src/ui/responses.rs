@@ -542,7 +542,7 @@ mod search_response_tests {
     }
 
     #[test]
-    fn_query_matching_ignores_outer_whitespace_but_preserves_case() {
+    fn query_matching_ignores_outer_whitespace_but_preserves_case() {
         let page = Page::Search("  query  ".to_owned());
         assert!(accepts_search_result(&page, "query"));
         assert!(!accepts_search_result(&page, "Query"));
