@@ -106,31 +106,8 @@ object InnertubeParser {
 
     data class PlaylistShelfPage(val songs: List<Song>, val suggested: List<Song>, val continuation: String?)
 
-    fun parsePlaylistShelf(root: JsonElement): PlaylistShelfPage? {
-        val scope: JsonElement = root.o("continuationContents")
-            ?: root.o("contents").o("twoColumnBrowseResultsRenderer").o("secondaryContents")
-            ?: return null
-        val playlistScope = scope.o("musicPlaylistShelfContinuation")
-            ?: collectRenderers(scope, "musicPlaylistShelfRenderer").firstOrNull()
-        val suggestionShelves = collectRenderers(scope, "musicShelfRenderer")
-            .filter { it.o("title").runs() == "Suggestions" }
-        if (playlistScope == null && suggestionShelves.isEmpty()) return null
-
-        val pageCredit = pageCredit(root)
-        val songs = playlistScope?.let { playlist ->
-            collectRenderers(playlist, "musicResponsiveListItemRenderer")
-                .mapNotNull { parseResponsiveListItem(it, pageCredit) }
-                .distinctBy { it.videoId }
-        }.orEmpty()
-        val knownSongs = songs.mapTo(HashSet()) { it.videoId }
-        val suggested = suggestionShelves
-            .flatMap { collectRenderers(it, "musicResponsiveListItemRenderer") }
-            .mapNotNull { parseResponsiveListItem(it, pageCredit) }
-            .filterNot { it.videoId in knownSongs }
-            .distinctBy { it.videoId }
-        val token = playlistScope?.let { continuationToken(it) }
-        return PlaylistShelfPage(songs, suggested, token)
-    }
+    fun parsePlaylistShelf(root: JsonElement): PlaylistShelfPage? =
+        InnertubePlaylistShelfParser.parsePlaylistShelf(root)
 
     data class LibraryItemPage(val items: List<ShelfItem>, val continuation: String?)
 
@@ -391,7 +368,7 @@ object InnertubeParser {
         }.distinct().joinToString(", ").ifBlank { null }
     }
 
-    private fun pageCredit(root: JsonElement): Credits {
+    internal fun pageCredit(root: JsonElement): Credits {
         val header = HEADER_RENDERERS.firstNotNullOfOrNull {
             collectRenderers(root, it).firstOrNull()
         } ?: return Credits()
