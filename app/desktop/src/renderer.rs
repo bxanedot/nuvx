@@ -20,14 +20,22 @@ pub fn init(data_dir: &Path) -> Renderer {
 }
 
 pub fn active() -> Renderer {
-    *ACTIVE.get_or_init(|| Renderer::OpenGl)
+    *ACTIVE.get_or_init(default_renderer)
 }
 
 pub fn load(data_dir: &Path) -> Renderer {
     match std::fs::read_to_string(data_dir.join("renderer")).unwrap_or_default().trim() {
         "wgpu" => Renderer::Wgpu,
-        _ => Renderer::OpenGl,
+        "opengl" => Renderer::OpenGl,
+        _ => default_renderer(),
     }
+}
+
+fn default_renderer() -> Renderer {
+    #[cfg(target_os = "macos")]
+    return Renderer::Wgpu;
+    #[cfg(not(target_os = "macos"))]
+    Renderer::OpenGl
 }
 
 pub fn save(data_dir: &Path, r: Renderer) -> std::io::Result<()> {
