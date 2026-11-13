@@ -252,7 +252,7 @@ dependencies {
 
     implementation("com.hierynomus:smbj:0.15.0")
 
-    val customOnnxRuntime = rootProject.file("onnxruntime/onnxruntime-android-1.31.1-custom.aar")
+    val customOnnxRuntime = rootProject.file("app/android/onnxruntime/onnxruntime-android-1.31.1-custom.aar")
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
     else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
