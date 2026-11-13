@@ -250,7 +250,7 @@ impl Mini {
             self.place = Some(clamp_size(p));
         }
         let Some(sw) = &mut self.switch else { return };
-        ctx.request_repaint_after(Duration::from_millis(16));
+        ctx.request_repaint_after(Duration::from_millis(8));
         let waited = now - sw.since;
         let to_mini = sw.to_mini;
         let next = match sw.step {
