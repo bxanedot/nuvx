@@ -45,7 +45,7 @@ class NativeDecoderFormatTest {
 
     @Test
     fun `unknown codec claims remain probeable`() {
-        assertFalse(StreamFormat(codec = "application/x-bit-chord-audio").isKnownUnsupportedByNativeDecoder)
+        assertFalse(StreamFormat(codec = "application/x-nuvx-audio").isKnownUnsupportedByNativeDecoder)
         assertFalse(StreamFormat().isKnownUnsupportedByNativeDecoder)
     }
 

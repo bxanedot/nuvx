@@ -29,10 +29,14 @@ def source_files(root=ROOT):
                 yield path
 
 
+def branding_fingerprint(text):
+    return re.sub("[^a-z0-9]", "", text.lower())
+
+
 def check(root=ROOT):
     failures = []
     attribution = (root / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
-    legacy = [line.partition(": ")[2].lower() for line in attribution.splitlines()
+    legacy = [branding_fingerprint(line.partition(": ")[2]) for line in attribution.splitlines()
               if line.startswith("Legacy ") and ": " in line]
     files = list(source_files(root))
     assets = APPLE_SHARED / "resources/Assets.xcassets"
@@ -42,7 +46,7 @@ def check(root=ROOT):
     for path in files:
         relative = (path.relative_to(root).as_posix() if path.is_relative_to(root)
                     else "core/apple/" + path.relative_to(APPLE_SHARED).as_posix())
-        if any(word in relative.lower() for word in legacy):
+        if any(word in branding_fingerprint(relative) for word in legacy):
             failures.append(f"Legacy product/author in path: {relative}")
         try:
             data = path.read_bytes()
@@ -59,7 +63,7 @@ def check(root=ROOT):
 
                 required_header = (relative.startswith("native-core/src/analyzer/")
                                    and number <= 15 and line.startswith("//!"))
-                if not required_header and any(word in line.lower() for word in legacy):
+                if not required_header and any(word in branding_fingerprint(line) for word in legacy):
                     failures.append(f"Legacy branding outside legal notices: {relative}:{number}")
         if path.suffix == ".json" or path.suffix == ".xcstrings":
             try:
