@@ -261,6 +261,8 @@ pub struct App {
     high_quality: bool,
     play_songs: bool,
     playing_as: Option<PlayingAs>,
+    version_alternate: Option<(String, Track)>,
+    version_positions: std::collections::HashMap<String, std::time::Duration>,
     output_device: Option<(String, String)>,
     output_devices: Vec<crate::audio::OutputDevice>,
     radio_pending: bool,
