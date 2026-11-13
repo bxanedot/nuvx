@@ -9,7 +9,6 @@ import android.os.SystemClock
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.core.net.toUri
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
@@ -17,7 +16,6 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.datasource.DataSpec
 import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
@@ -36,7 +34,6 @@ import com.bxane.nuvx.playback.cast.CastController
 import com.bxane.nuvx.playback.cast.CastPlayback
 import com.bxane.nuvx.playback.cast.RemoteSpeaker
 import com.bxane.nuvx.playback.cast.Speakers
-import com.bxane.nuvx.playback.cast.CastStream
 import com.bxane.nuvx.playback.dsd.DsdExtractorsFactory
 import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput
 import com.bxane.nuvx.playback.audio.bitperfect.DacVolume
@@ -49,7 +46,6 @@ import com.bxane.nuvx.data.OfflinePlaylists
 import com.bxane.nuvx.data.YtMusicRepository
 import com.bxane.nuvx.data.lyrics.LyricLine
 import com.bxane.nuvx.data.model.QueueTier
-import com.bxane.nuvx.download.Downloads
 import java.util.concurrent.ConcurrentHashMap
 import com.bxane.nuvx.data.Http
 import com.bxane.nuvx.auth.SignedIn
@@ -87,7 +83,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.PI
 import kotlin.math.abs
@@ -333,10 +328,12 @@ class PlaybackService : MediaLibraryService() {
 
     private var streamResolver: ResolvingDataSource.Resolver? = null
 
+    private val castStreamResolver = PlaybackCastStreamResolver { streamResolver }
+
     private val castPlayback = CastPlayback(
         scope = scope,
         localPlayer = { player },
-        resolve = ::resolveForCast,
+        resolve = castStreamResolver::resolve,
         say = { message -> Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show() },
     )
 
@@ -654,29 +651,6 @@ class PlaybackService : MediaLibraryService() {
         lockedTransport = { playing -> partySync?.onLockedTransport(playing) == true },
         cast = speakers,
     ) { lyricsController.subtitle }
-
-    private suspend fun resolveForCast(item: MediaItem): CastStream? = withContext(Dispatchers.IO) {
-        val uri = item.localConfiguration?.uri ?: return@withContext null
-        val resolver = streamResolver ?: return@withContext null
-        val resolved = DirectSourceGate.ungated { resolver.resolveDataSpec(DataSpec(uri)) }.uri
-        if (resolved.scheme == "http" || resolved.scheme == "https") {
-            CastStream(resolved.toString(), CastPlayback.mimeTypeOf(resolved))
-        } else {
-            val fallback = if (uri.scheme == "content" || uri.scheme == "file") {
-                item.mediaId.takeIf { it.isNotBlank() }?.let { vid ->
-                    if (Downloads.saved.value.containsKey(vid)) "nuvx://watch?v=$vid" else null
-                }
-            } else null
-            if (fallback != null) {
-                runCatching {
-                    DirectSourceGate.ungated { resolver.resolveDataSpec(DataSpec(fallback.toUri())) }.uri
-                        .takeIf { it.scheme == "http" || it.scheme == "https" }
-                }.getOrNull()?.let { url ->
-                    CastStream(url.toString(), CastPlayback.mimeTypeOf(url))
-                }
-            } else null
-        }
-    }
 
     private fun createCrossfadeController() = CrossfadeController(
             scope,
