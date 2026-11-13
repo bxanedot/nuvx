@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-// JNI bridge for the Automix loop mix renderer (native/loopmix/). Every call
-// but render() is made while the mix is being set up; render() runs on the
-// player's playback thread, inside its audio sink.
+
+
+
+
 #include <jni.h>
 
 #include <algorithm>

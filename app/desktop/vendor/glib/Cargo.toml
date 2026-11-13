@@ -26,7 +26,7 @@ keywords = [
     "gnome",
     "GUI",
 ]
-license = "MIT"
+license-file = "../../../../THIRD_PARTY_LICENSES/glib/LICENSE"
 repository = "https://github.com/gtk-rs/gtk-rs-core"
 
 [package.metadata.docs.rs]

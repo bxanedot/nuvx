@@ -12,6 +12,7 @@ app="$out/nuvx.app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin" "$app/Contents/MacOS/nuvx"
+cp -R "$here/../../../THIRD_PARTY_LICENSES" "$app/Contents/Resources/THIRD_PARTY_LICENSES"
 chmod 755 "$app/Contents/MacOS/nuvx"
 sed "s/@VERSION@/$version/g" "$here/Info.plist" > "$app/Contents/Info.plist"
 

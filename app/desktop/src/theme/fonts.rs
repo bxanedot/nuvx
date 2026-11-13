@@ -179,12 +179,15 @@ fn font_dirs() -> Vec<std::path::PathBuf> {
             dirs.push(std::path::PathBuf::from(local).join("Microsoft\\Windows\\Fonts"));
         }
     }
+    #[cfg(target_os = "linux")]
+    dirs.extend(["/usr/share/fonts", "/usr/local/share/fonts"].map(Into::into));
     #[cfg(target_os = "macos")]
     dirs.extend(["/System/Library/Fonts", "/Library/Fonts"].map(Into::into));
-    #[cfg(all(unix, not(target_os = "macos")))]
-    dirs.extend(["/usr/share/fonts", "/usr/local/share/fonts"].map(Into::into));
     if let Some(home) = std::env::var_os("HOME") {
-        dirs.push(std::path::PathBuf::from(home).join(".local/share/fonts"));
+        let home = std::path::PathBuf::from(home);
+        dirs.push(home.join(".local/share/fonts"));
+        #[cfg(target_os = "macos")]
+        dirs.push(home.join("Library/Fonts"));
     }
     dirs
 }
@@ -292,15 +295,7 @@ const HEAVIER: &[(&str, [(&str, u32); 2])] = &[
 #[cfg(not(windows))]
 const HEAVIER: &[(&str, [(&str, u32); 2])] = &[];
 
-#[cfg(target_os = "macos")]
-const CANDIDATES: &[(&str, u32)] = &[
-    ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 0),
-    ("/System/Library/Fonts/Hiragino Sans GB.ttc", 0),
-    ("/System/Library/Fonts/AppleSDGothicNeo.ttc", 0),
-    ("/System/Library/Fonts/Apple Symbols.ttf", 0),
-];
-
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(target_os = "linux")]
 const CANDIDATES: &[(&str, u32)] = &[
     ("/usr/share/fonts/noto/NotoSans-Regular.ttf", 0),
     ("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", 0),
@@ -309,6 +304,17 @@ const CANDIDATES: &[(&str, u32)] = &[
     ("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc", 0),
     ("/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf", 0),
     ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 0),
+];
+
+#[cfg(target_os = "macos")]
+const CANDIDATES: &[(&str, u32)] = &[
+    ("/System/Library/Fonts/Supplemental/Arial.ttf", 0),
+    ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 0),
+    ("/System/Library/Fonts/Apple Symbols.ttf", 0),
+    ("/System/Library/Fonts/Apple Color Emoji.ttc", 0),
+    ("/System/Library/Fonts/PingFang.ttc", 0),
+    ("/System/Library/Fonts/Hiragino Sans GB.ttc", 0),
+    ("/System/Library/Fonts/AppleSDGothicNeo.ttc", 0),
 ];
 
 fn em_metrics(bytes: &[u8], index: u32) -> Option<(f32, f32)> {

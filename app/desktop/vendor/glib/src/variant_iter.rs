@@ -1,4 +1,4 @@
-// Take a look at the license at the top of the repository in the LICENSE file.
+
 
 // This is similar to the GVariantIter provided by glib, but that would
 // introduce a heap allocation and doesn't provide a way to determine how

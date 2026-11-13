@@ -306,6 +306,9 @@ impl eframe::App for App {
         storage.set_string("hide_podcasts_tab", b(self.hide_podcasts));
         storage.set_string("radio_intro_shown", b(self.tab_intros_shown[0]));
         storage.set_string("podcasts_intro_shown", b(self.tab_intros_shown[1]));
+        storage.set_string("launch_count", self.launch_count.to_string());
+        storage.set_string("support_prompts_off", b(self.support_prompts_off));
+        storage.set_string("discord_invite_joined", b(self.discord_invite_joined));
         storage.set_string("sidebar_collapsed", b(self.sidebar_collapsed));
         storage.set_string("window_buttons", if titlebar::mac() { "mac" } else { "windows" }.to_owned());
         if let Some(l) = &self.library {
@@ -374,4 +377,3 @@ impl eframe::App for App {
         }
     }
 }
-

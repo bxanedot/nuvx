@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+
 import type { TrackAnalysis } from '../analysis/types';
 import type { Deck } from './deck';
 import { gridOf, phraseAtOrBefore, phraseAtOrAfter, downbeatAtOrAfter, BEATS_PER_BAR } from './grid';

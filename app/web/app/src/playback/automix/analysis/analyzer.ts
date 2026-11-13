@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+
 import { trackLog } from '@/playback/trackLog';
 import { getAnalysis, putAnalysis } from '../db';
 import { fetchTrackAudio, type TrackAudio } from '../fetchAudio';

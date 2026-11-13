@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+
 package com.my.kizzy.rpc
 
 sealed class RpcImage {
