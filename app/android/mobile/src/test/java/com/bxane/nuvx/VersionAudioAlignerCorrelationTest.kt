@@ -57,6 +57,32 @@ class VersionAudioAlignerCorrelationTest {
     }
 
     @Test
+    fun `repeated audio with equally good offsets is marked ambiguous`() {
+        val random = Random(13)
+        val pattern = FloatArray(200) { random.nextFloat() }
+        val source = FloatArray(1_200) { pattern[it % pattern.size] }
+        val target = FloatArray(1_555) { index ->
+            when {
+                index < 65 -> Random(index).nextFloat()
+                index < 265 -> pattern[index - 65]
+                index < 1_465 -> source[index - 265]
+                else -> Random(index).nextFloat()
+            }
+        }
+
+        val result = VersionAudioAligner.crossCorrelate(source, target)
+
+        assertTrue("repeated audio produced an ambiguous offset at ${result.lagFrames}", result.ambiguous)
+    }
+
+    @Test
+    fun `envelopes shorter than the minimum overlap return no match`() {
+        val result = VersionAudioAligner.crossCorrelate(FloatArray(100), FloatArray(100))
+
+        assertTrue(result.confidence < 0.40)
+    }
+
+    @Test
     fun `empty envelopes yield no measurable correlation`() {
         val result = VersionAudioAligner.crossCorrelate(FloatArray(0), FloatArray(500))
         assertEquals(0, result.lagFrames)
