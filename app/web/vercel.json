@@ -4,5 +4,8 @@
   "installCommand": "npm i -g --allow-scripts=pnpm pnpm@12.11.2 && PATH=\"$(npm prefix -g)/bin:$PATH\" pnpm install --frozen-lockfile",
   "buildCommand": "export PATH=\"$(npm prefix -g)/bin:$PATH\" && pnpm -v && pnpm build:site",
   "outputDirectory": "app/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/download", "destination": "https://www.nuvx.lol/api/download" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

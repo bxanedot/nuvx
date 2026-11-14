@@ -14,7 +14,7 @@ export interface Download {
 }
 
 const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/ekepdbikjojbkiigoomngmkeohlkgdjp';
-const GITHUB_ASSETS = 'https://github.com/bxanedot/nuvx/releases/download/browser-extensions-latest';
+const GITHUB_ASSETS = `https://github.com/bxanedot/nuvx/releases/download/v${EXTENSION_VERSION}`;
 
 export function downloadsFor(): Download[] {
   return [
@@ -31,7 +31,7 @@ export function downloadsFor(): Download[] {
       source: 'github',
       title: 'Download Chrome extension ZIP from GitHub',
       detail: 'Manual install · extract the ZIP and load its folder at chrome://extensions',
-      href: `${GITHUB_ASSETS}/nuvx-extension-chrome.zip`,
+      href: `${GITHUB_ASSETS}/nuvx-extension-chrome-${EXTENSION_VERSION}.zip`,
       Icon: FaChrome,
     },
     {
@@ -47,7 +47,7 @@ export function downloadsFor(): Download[] {
       source: 'github',
       title: 'Download Firefox extension ZIP from GitHub',
       detail: 'Temporary install · Load this ZIP in Firefox Developer Edition or Nightly',
-      href: `${GITHUB_ASSETS}/nuvx-extension-firefox.zip`,
+      href: `${GITHUB_ASSETS}/nuvx-extension-firefox-${EXTENSION_VERSION}.zip`,
       Icon: FaFirefoxBrowser,
     },
   ];
