@@ -8,6 +8,13 @@ for license in "$here/../assets/fonts"/LICENSE-*.txt; do
     name=$(basename "$license")
     [ -s "$package/licenses/$name" ] || { echo "Missing bundled license: $name" >&2; exit 1; }
 done
+for license in "$here/../assets/licenses"/*.txt; do
+    name=$(basename "$license")
+    [ -s "$package/licenses/$name" ] || { echo "Missing bundled license: $name" >&2; exit 1; }
+done
+for license in LICENSE COPYRIGHT; do
+    [ -s "$package/licenses/glib-$license.txt" ] || { echo "Missing vendored GLib notice: $license" >&2; exit 1; }
+done
 root=$(mktemp -d)
 trap 'rm -rf "$root"' EXIT
 mkdir -p "$root/stubs"
@@ -39,5 +46,12 @@ EOF
     for license in "$here/../assets/fonts"/LICENSE-*.txt; do
         name=$(basename "$license")
         cmp "$license" "$bin/home/.local/lib/nuvx/licenses/$name"
+    done
+    for license in "$here/../assets/licenses"/*.txt; do
+        name=$(basename "$license")
+        cmp "$license" "$bin/home/.local/lib/nuvx/licenses/$name"
+    done
+    for license in LICENSE COPYRIGHT; do
+        cmp "$here/../vendor/glib/$license" "$bin/home/.local/lib/nuvx/licenses/glib-$license.txt"
     done
 done
