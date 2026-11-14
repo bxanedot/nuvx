@@ -23,6 +23,20 @@ defaults:
     working-directory: app/desktop
 
 jobs:
+  license-notices:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          python3 ../../scripts/test_cargo_notices.py
+          python3 ../../scripts/cargo_notices.py --output assets/licenses/cargo-notices.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses/cargo-notices.txt
+          if-no-files-found: error
+
   windows-build:
     strategy:
       matrix:
@@ -52,7 +66,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    needs: windows-build
+    needs: [windows-build, license-notices]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
@@ -64,11 +78,21 @@ jobs:
         with:
           name: nuvx-windows-aarch64
           path: app/desktop/target/aarch64-pc-windows-msvc/release
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses
       - run: |
+          test -s assets/licenses/cargo-notices.txt
           v=${TAG#v}
           choco install innosetup --no-progress -y
           MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$v" windows/nuvx.iss
-          mv "windows/Output/nuvx-setup-$v.exe" "nuvx-setup-$v.exe"
+          installer="windows/Output/nuvx-setup-$v.exe"
+          install_dir="$RUNNER_TEMP/nuvx-notice-test"
+          "$installer" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER "/DIR=$install_dir"
+          test -s "$install_dir/licenses/cargo-notices.txt"
+          cmp assets/licenses/cargo-notices.txt "$install_dir/licenses/cargo-notices.txt"
+          mv "$installer" "nuvx-setup-$v.exe"
           gh release upload "$TAG" "nuvx-setup-$v.exe" --clobber
 
   linux-build:
@@ -103,7 +127,7 @@ jobs:
           if-no-files-found: error
 
   linux:
-    needs: linux-build
+    needs: [linux-build, license-notices]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -115,7 +139,12 @@ jobs:
         with:
           name: nuvx-linux-aarch64
           path: app/desktop/universal/aarch64
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses
       - run: |
+          test -s assets/licenses/cargo-notices.txt
           v=${TAG#v}
           mkdir -p dist/nuvx
           cp universal/x86_64/nuvx dist/nuvx/nuvx-x86_64
@@ -162,7 +191,7 @@ jobs:
           if-no-files-found: error
 
   macos:
-    needs: macos-build
+    needs: [macos-build, license-notices]
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
@@ -174,7 +203,12 @@ jobs:
         with:
           name: nuvx-macos-aarch64
           path: app/desktop/universal/aarch64
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses
       - run: |
+          test -s assets/licenses/cargo-notices.txt
           v=${TAG#v}
           for arch in x86_64 aarch64; do
             variant=intel

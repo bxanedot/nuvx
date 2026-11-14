@@ -4,6 +4,8 @@ set -eu
 package=$1
 here=$(cd "$(dirname "$0")" && pwd)
 [ -s "$package/LICENSE" ] || { echo "Missing bundled GPL license" >&2; exit 1; }
+[ -s "$package/licenses/cargo-notices.txt" ] || { echo "Missing bundled Cargo dependency notices" >&2; exit 1; }
+cmp "$here/../assets/licenses/cargo-notices.txt" "$package/licenses/cargo-notices.txt"
 for license in "$here/../assets/fonts"/LICENSE-*.txt; do
     name=$(basename "$license")
     [ -s "$package/licenses/$name" ] || { echo "Missing bundled license: $name" >&2; exit 1; }
@@ -43,6 +45,7 @@ EOF
     PATH="$bin:$root/stubs:$PATH" HOME="$bin/home" XDG_DATA_HOME="$bin/home/share" sh "$package/install.sh"
     file -b "$bin/home/.local/lib/nuvx/nuvx" | grep -F "$machine" >/dev/null
     cmp "$package/LICENSE" "$bin/home/.local/lib/nuvx/LICENSE"
+    cmp "$package/licenses/cargo-notices.txt" "$bin/home/.local/lib/nuvx/licenses/cargo-notices.txt"
     for license in "$here/../assets/fonts"/LICENSE-*.txt; do
         name=$(basename "$license")
         cmp "$license" "$bin/home/.local/lib/nuvx/licenses/$name"
