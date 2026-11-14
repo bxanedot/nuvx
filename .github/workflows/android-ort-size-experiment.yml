@@ -47,16 +47,13 @@ jobs:
             <(sed '/^#/d;/^$/d' "$CONFIG")
       - name: Build baseline APKs with the full runtime
         run: |
-          bash gradlew :app:assembleProdGmsDebug :app:assembleProdFossDebug \
-            :tv:assembleProdGmsDebug :tv:assembleProdFossDebug
+          bash gradlew :app:assembleProdDebug :tv:assembleProdDebug
           mkdir -p "$RUNNER_TEMP/baseline/mobile" "$RUNNER_TEMP/baseline/tv"
-          for distribution in gms foss; do
-            mobile=$(find app/android/mobile/build/outputs/apk -type f -name "app-prod-$distribution-debug.apk" -print -quit)
-            tv=$(find app/android/tv/build/outputs/apk -type f -name "tv-prod-$distribution-debug.apk" -print -quit)
-            [[ -n "$mobile" && -s "$mobile" && -n "$tv" && -s "$tv" ]]
-            cp "$mobile" "$RUNNER_TEMP/baseline/mobile/nuvx-$distribution.apk"
-            cp "$tv" "$RUNNER_TEMP/baseline/tv/nuvx-tv-$distribution.apk"
-          done
+          mobile=$(find app/android/mobile/build/outputs/apk -type f -name "app-prod-debug.apk" -print -quit)
+          tv=$(find app/android/tv/build/outputs/apk -type f -name "tv-prod-debug.apk" -print -quit)
+          [[ -n "$mobile" && -s "$mobile" && -n "$tv" && -s "$tv" ]]
+          cp "$mobile" "$RUNNER_TEMP/baseline/mobile/nuvx-universal.apk"
+          cp "$tv" "$RUNNER_TEMP/baseline/tv/nuvx-tv-universal.apk"
       - name: Build the reduced runtime AAR for all supported ABIs
         env:
           ORT_DIR: ${{ runner.temp }}/onnxruntime
@@ -91,16 +88,13 @@ jobs:
           adb shell settings put global animator_duration_scale 0
       - name: Run model inference and build custom-runtime APKs
         run: |
-          bash gradlew :app:connectedProdGmsDebugAndroidTest :app:connectedProdFossDebugAndroidTest \
-            :tv:assembleProdGmsDebug :tv:assembleProdFossDebug
+          bash gradlew :app:connectedProdDebugAndroidTest :tv:assembleProdDebug
           mkdir -p "$RUNNER_TEMP/custom/mobile" "$RUNNER_TEMP/custom/tv"
-          for distribution in gms foss; do
-            mobile=$(find app/android/mobile/build/outputs/apk -type f -name "app-prod-$distribution-debug.apk" -print -quit)
-            tv=$(find app/android/tv/build/outputs/apk -type f -name "tv-prod-$distribution-debug.apk" -print -quit)
-            [[ -n "$mobile" && -s "$mobile" && -n "$tv" && -s "$tv" ]]
-            cp "$mobile" "$RUNNER_TEMP/custom/mobile/nuvx-$distribution.apk"
-            cp "$tv" "$RUNNER_TEMP/custom/tv/nuvx-tv-$distribution.apk"
-          done
+          mobile=$(find app/android/mobile/build/outputs/apk -type f -name "app-prod-debug.apk" -print -quit)
+          tv=$(find app/android/tv/build/outputs/apk -type f -name "tv-prod-debug.apk" -print -quit)
+          [[ -n "$mobile" && -s "$mobile" && -n "$tv" && -s "$tv" ]]
+          cp "$mobile" "$RUNNER_TEMP/custom/mobile/nuvx-universal.apk"
+          cp "$tv" "$RUNNER_TEMP/custom/tv/nuvx-tv-universal.apk"
       - name: Compare APK sizes
         run: |
           python - <<'PY' | tee "$RUNNER_TEMP/size-report.md" >> "$GITHUB_STEP_SUMMARY"

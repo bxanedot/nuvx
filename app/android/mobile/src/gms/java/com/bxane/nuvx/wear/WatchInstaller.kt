@@ -6,6 +6,8 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.util.Log
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.ChannelClient
@@ -62,7 +64,9 @@ object WatchInstaller {
     private val _pairing = MutableStateFlow<WatchPairingState>(WatchPairingState.Idle)
     val pairing: StateFlow<WatchPairingState> = _pairing.asStateFlow()
 
-    fun available(context: Context): Boolean = bundledHash(context) != null
+    fun available(context: Context): Boolean = bundledHash(context) != null && runCatching {
+        GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+    }.getOrDefault(false)
 
     private var cachedHash: String? = null
 

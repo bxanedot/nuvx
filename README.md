@@ -53,15 +53,17 @@
 
 | Device | Requirements | Where to start |
 | --- | --- | --- |
-| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal GMS `nuvx-v*-gms.apk` or FOSS `nuvx-v*-foss.apk` |
-| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal GMS `NuvxTV-v*-gms.apk` or FOSS `NuvxTV-v*-foss.apk` |
-| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | Install `NuvxWear-v*.apk` from the [latest release](https://github.com/bxanedot/nuvx/releases/latest), or open **Settings → Wear OS** in the phone app. [Wear OS guide](app/android/wearos/README.md) |
+| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `nuvx-v*-gms.apk` or FOSS `nuvx-v*-foss.apk` (multi-ABI) |
+| **Android Auto / car** | Compatible head unit + phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · install the phone app; Android Auto media support is built in |
+| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `NuvxTV-v*-gms.apk` or FOSS `NuvxTV-v*-foss.apk` (multi-ABI) |
+| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate `NuvxWear-v*.apk` companion |
+| **iPhone** | iOS/iPadOS 18+; signing required | Unsigned IPA if attached to a release · [build and sideload notes](app/ios/README.md) |
 | **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
 | **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
-The Android phone and TV APKs support arm32, arm64 and x86-64; choose either the GMS or FOSS variant. Allow your browser or file manager to install the APK when prompted. The macOS DMGs are architecture-specific; the Windows installer and Linux archive include x64 and ARM64 builds.
+The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs, each containing armeabi-v7a, arm64-v8a and x86_64 builds. New Android builds use one shared universal APK per phone and TV app; Cast and Wear features require Google Play Services. Nightlies keep byte-identical `-gms` and `-foss` aliases so existing 0.9 updaters can install the shared APK. Version 1.0.0 remains without a stable release or tag. Android Auto support is part of the phone app; there is no standalone car APK. Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched.
 
 ## How the counters work
 
