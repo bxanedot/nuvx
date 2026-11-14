@@ -55,6 +55,7 @@ basic sideloading. You need an iPhone or iPad to install and test the app.
 
 ### Signing limits, updates, and troubleshooting
 
+- nuvx checks the latest stable GitHub release on launch. Open **Settings → Version & Updates** to check again, read release notes, and download the IPA. Install the signed IPA through the same sideloading tool and Apple Account; iOS does not install this unsigned package from inside nuvx.
 - Free Apple Account signatures normally expire after **7 days**. Refresh
   before expiry or the app will stop opening. Free accounts normally allow
   **3 active sideloaded apps**; the signing tool itself may use one slot, and

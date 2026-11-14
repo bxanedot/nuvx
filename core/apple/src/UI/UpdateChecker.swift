@@ -5,6 +5,7 @@ import Observation
 @MainActor @Observable final class UpdateChecker {
     static let shared = UpdateChecker()
     static let latestReleaseURL = URL(string: "https://github.com/bxanedot/nuvx/releases/latest")!
+    static let iosInstallGuideURL = URL(string: "https://github.com/bxanedot/nuvx/blob/main/app/ios/README.md")!
     private(set) var available: AppReleaseUpdate?
     private(set) var latest: AppReleaseUpdate?
     private(set) var checking = false
@@ -180,7 +181,8 @@ struct ReleaseInstallationView: View {
                 Button("Open Mac Updater") { MacUpdateManager.shared.checkNow() }.buttonStyle(.borderedProminent)
                 Text("For a first installation or manual recovery, download the DMG, open it and move nuvx into Applications, replacing the existing app.").font(.footnote).foregroundStyle(.secondary)
                 #else
-                Text("Download the IPA, then sign and install it with the same signing app and identity used for your current Nuvx. Keeping the same app identity preserves its local data.")
+                Text("Download the IPA, then sign and install it with the same sideloading tool and Apple Account used for your current Nuvx. Install over the existing app without uninstalling to keep local data. Free Apple Account provisioning expires after 7 days, so refresh the signature before it expires.")
+                Link("iPhone install and update instructions", destination: UpdateChecker.iosInstallGuideURL)
                 #endif
                 if let download = release.download, let url = download.url {
                     Link(destination: url) { Text(download.name.lowercased().hasSuffix(".ipa") ? "Download iOS IPA" : "Download Mac DMG") }
