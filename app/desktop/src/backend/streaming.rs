@@ -35,9 +35,9 @@ impl Backend {
         })
     }
 
-    pub(super) async fn video_offset(&self, source_id: &str, target_id: &str) -> i64 {
+    pub(super) async fn video_offset(&self, source_id: &str, target_id: &str) -> Option<i64> {
         if let Some(offset) = crate::video_alignment::cached_offset(source_id, target_id) {
-            return offset;
+            return Some(offset);
         }
         let (source, target) = tokio::join!(
             self.resolve_from(Source::VisionOs, source_id, stream::Format::Aac, None),
@@ -45,12 +45,12 @@ impl Backend {
         );
         let (Ok(source), Ok(target)) = (source, target) else {
             log::info!("video alignment unavailable for {source_id} -> {target_id}");
-            return 0;
+            return None;
         };
         let (source, target) = tokio::join!(self.alignment_audio(source_id, source), self.alignment_audio(target_id, target));
         let (Some(source), Some(target)) = (source, target) else {
             log::info!("video alignment audio unavailable for {source_id} -> {target_id}");
-            return 0;
+            return None;
         };
         let aligned = tokio::task::spawn_blocking(move || {
             let source = crate::video_alignment::decode_envelope(source.0, source.1, source.2).ok()?;
@@ -63,10 +63,10 @@ impl Backend {
         if let Some(offset) = aligned {
             crate::video_alignment::remember_offset(source_id, target_id, offset);
             log::info!("video alignment for {source_id} -> {target_id}: {offset} ms");
-            offset
+            Some(offset)
         } else {
             log::info!("video alignment not confident for {source_id} -> {target_id}");
-            0
+            None
         }
     }
 

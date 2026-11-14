@@ -136,8 +136,11 @@ impl Backend {
                         self.video_file(&id, height),
                         self.video_offset(&audio_id, &id),
                     );
-                    let path = path.inspect_err(|e| log::warn!("video {id}: {e:#}")).ok();
-                    Resp::Video { id, audio_id, path, offset_ms }
+                    let video = path
+                        .inspect_err(|e| log::warn!("video {id}: {e:#}"))
+                        .ok()
+                        .zip(offset_ms);
+                    Resp::Video { id, audio_id, video }
                 }
                 Req::VideoOf { generation, track } => {
                     let video = ytm::video_of(&self.api, &track).await?;
