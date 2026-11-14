@@ -35,6 +35,7 @@ Source: "..\target\x86_64-pc-windows-msvc\release\{#AppExe}"; DestDir: "{app}"; 
 Source: "..\target\aarch64-pc-windows-msvc\release\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion; Check: IsArm64
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\assets\fonts\LICENSE-*.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"

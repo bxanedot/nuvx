@@ -29,11 +29,13 @@ case $(uname -m) in
 esac
 [ -f "$here/$app" ] || { echo "Run install.sh from the extracted download."; exit 1; }
 
-mkdir -p "$lib" "$bin" "$data/applications" "$(dirname "$icon")"
+mkdir -p "$lib/licenses" "$bin" "$data/applications" "$(dirname "$icon")"
 cp "$here/$app" "$lib/nuvx.new"
 chmod 755 "$lib/nuvx.new"
 mv -f "$lib/nuvx.new" "$lib/nuvx"
 cp "$here/install.sh" "$lib/install.sh"
+cp "$here/LICENSE" "$lib/LICENSE"
+cp "$here/licenses/"*.txt "$lib/licenses/"
 chmod 755 "$lib/install.sh"
 echo "Installed by install.sh. This file lets nuvx update itself." > "$lib/install.txt"
 ln -sf "$lib/nuvx" "$bin/nuvx"
