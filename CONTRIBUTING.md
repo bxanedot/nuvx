@@ -23,7 +23,7 @@ Never commit secrets, keystores, `local.properties` or `keystore.properties`.
 
 ## License
 
-nuvx is under [GPL-3.0](LICENSE). Contributions are licensed the same way.
+Contributions follow the SPDX license declared by the file or component being changed. New files without another file- or component-level license use [GPL-3.0](LICENSE). Preserve existing SPDX identifiers and third-party notices.
 
 ## Security
 

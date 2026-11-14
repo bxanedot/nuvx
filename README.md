@@ -98,4 +98,4 @@ Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/is
 
 ## License
 
-nuvx is licensed under [GPL-3.0](LICENSE). Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later.
+nuvx uses [GPL-3.0](LICENSE) by default. Files with a different SPDX identifier keep that file-level license; the AGPL-marked components and their scopes are listed in [LICENSES.md](LICENSES.md), with the full [AGPL-3.0 text](LICENSE-AGPL-3.0.txt). Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later.
