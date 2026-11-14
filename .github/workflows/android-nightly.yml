@@ -11,6 +11,9 @@ on:
       - "app/web/app/public/models/**"
       - "core/**"
       - "!core/worker/**"
+      - "scripts/cargo_notices.py"
+      - "scripts/test_cargo_notices.py"
+      - "scripts/spdx/**"
       - "gradle/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
@@ -222,6 +225,31 @@ jobs:
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           gh release upload "$RELEASE_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
 
+  cargo-notices:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Generate locked Cargo dependency notices
+        run: |
+          python3 ../../scripts/test_cargo_notices.py
+          python3 ../../scripts/cargo_notices.py --output assets/licenses/cargo-notices.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses/cargo-notices.txt
+          if-no-files-found: error
+
   windows-build:
     needs: prepare
     strategy:
@@ -268,7 +296,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    needs: [prepare, windows-build]
+    needs: [prepare, windows-build, cargo-notices]
     runs-on: windows-2022
     env:
       GH_TOKEN: ${{ github.token }}
@@ -293,10 +321,20 @@ jobs:
         with:
           name: nuvx-windows-aarch64
           path: app/desktop/target/aarch64-pc-windows-msvc/release
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses
       - name: Build and upload installer
         run: |
+          test -s assets/licenses/cargo-notices.txt
           choco install innosetup --no-progress -y
           MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$DESKTOP_VERSION" windows/nuvx.iss
+          installer="windows/Output/nuvx-setup-$DESKTOP_VERSION.exe"
+          install_dir="$RUNNER_TEMP/nuvx-notice-test"
+          "$installer" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER "/DIR=$install_dir"
+          test -s "$install_dir/licenses/cargo-notices.txt"
+          cmp assets/licenses/cargo-notices.txt "$install_dir/licenses/cargo-notices.txt"
           if [[ "$IS_STABLE" == true ]]; then
             installer="nuvx-setup-$DESKTOP_VERSION.exe"
           else
@@ -354,7 +392,7 @@ jobs:
           if-no-files-found: error
 
   linux:
-    needs: [prepare, linux-build]
+    needs: [prepare, linux-build, cargo-notices]
     runs-on: ubuntu-22.04
     env:
       GH_TOKEN: ${{ github.token }}
@@ -379,8 +417,13 @@ jobs:
         with:
           name: nuvx-linux-aarch64
           path: app/desktop/universal/aarch64
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses
       - name: Package and upload installer
         run: |
+          test -s assets/licenses/cargo-notices.txt
           mkdir -p dist/nuvx
           cp universal/x86_64/nuvx dist/nuvx/nuvx-x86_64
           cp universal/aarch64/nuvx dist/nuvx/nuvx-aarch64
@@ -448,7 +491,7 @@ jobs:
           if-no-files-found: error
 
   macos:
-    needs: [prepare, macos-build]
+    needs: [prepare, macos-build, cargo-notices]
     runs-on: macos-15
     env:
       GH_TOKEN: ${{ github.token }}
@@ -473,8 +516,13 @@ jobs:
         with:
           name: nuvx-macos-aarch64
           path: app/desktop/universal/aarch64
+      - uses: actions/download-artifact@v6
+        with:
+          name: nuvx-cargo-notices
+          path: app/desktop/assets/licenses
       - name: Package and upload macOS installers
         run: |
+          test -s assets/licenses/cargo-notices.txt
           mkdir -p universal
           asset_version="$DESKTOP_VERSION"
           [[ "$IS_STABLE" == true ]] || asset_version="$RELEASE_TAG"
@@ -541,7 +589,7 @@ jobs:
 
   publish:
     if: always() && needs.prepare.result == 'success'
-    needs: [prepare, android, windows, linux, macos, extensions]
+    needs: [prepare, cargo-notices, android, windows, linux, macos, extensions]
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
@@ -552,7 +600,7 @@ jobs:
     steps:
       - name: Publish nightly and prune older builds
         run: |
-          if [[ "${{ needs.android.result }}" != success || "${{ needs.windows.result }}" != success || "${{ needs.linux.result }}" != success || "${{ needs.macos.result }}" != success || "${{ needs.extensions.result }}" != success ]]; then
+          if [[ "${{ needs.cargo-notices.result }}" != success || "${{ needs.android.result }}" != success || "${{ needs.windows.result }}" != success || "${{ needs.linux.result }}" != success || "${{ needs.macos.result }}" != success || "${{ needs.extensions.result }}" != success ]]; then
             if [[ "$IS_STABLE" == true ]]; then
               gh release delete "$RELEASE_TAG" --yes || true
               exit 1

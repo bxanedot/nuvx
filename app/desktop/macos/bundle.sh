@@ -18,6 +18,7 @@ cp "$here/../LICENSE" "$app/Contents/Resources/LICENSE"
 mkdir -p "$app/Contents/Resources/licenses"
 cp "$here/../assets/fonts"/LICENSE-*.txt "$app/Contents/Resources/licenses/"
 cp "$here/../assets/licenses"/*.txt "$app/Contents/Resources/licenses/"
+cmp "$here/../assets/licenses/cargo-notices.txt" "$app/Contents/Resources/licenses/cargo-notices.txt"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
