@@ -96,8 +96,8 @@ checkRate("a stopped picture starts even inside the ignore band",
 
 
 checkAction("already at the nudged rate does nothing",
-            policy.decide(engineSeconds: 100.1, videoSeconds: 100, enginePlaying: true,
-                          engineRate: 1, videoRate: 1.08, secondsSinceSeek: 1),
+            policy.decide(engineSeconds: 100.04, videoSeconds: 100, enginePlaying: true,
+                          engineRate: 1, videoRate: 1.032, secondsSinceSeek: 1),
             .none)
 
 
