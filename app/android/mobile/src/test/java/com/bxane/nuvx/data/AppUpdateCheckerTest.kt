@@ -8,6 +8,20 @@ import org.junit.Test
 
 class AppUpdateCheckerTest {
     @Test
+    fun `shared builds select the universal APK over legacy distribution aliases`() {
+        val assets = listOf(
+            "nuvx-v1.0.0-gms" to "https://example.test/gms.apk",
+            "nuvx-v1.0.0-foss" to "https://example.test/foss.apk",
+            "nuvx-v1.0.0-universal" to "https://example.test/universal.apk",
+        )
+
+        assertEquals(
+            "https://example.test/universal.apk",
+            selectApkAssetUrl(assets, "universal", listOf("arm64-v8a")),
+        )
+    }
+
+    @Test
     fun `selects the installed distribution before legacy ABI assets`() {
         val assets = listOf(
             "nuvx-v1.0.0-arm64-v8a" to "https://example.test/arm64.apk",
@@ -59,22 +73,29 @@ class AppUpdateCheckerTest {
     }
 
     @Test
-    fun `stable builds can update to a newer nightly`() {
-        assertTrue(
-            isNewerRelease("0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T11:00:00Z"),
+    fun `stable builds do not update to a nightly`() {
+        assertFalse(
+            isNewerRelease("1.0.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T11:00:00Z"),
         )
     }
 
     @Test
     fun `nightly builds can update to a newer stable release`() {
         assertTrue(
-            isNewerRelease("0.9.0", "v0.9.0", "2026-11-13T13:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z"),
+            isNewerRelease("1.0.0", "v1.0.0", "2026-11-13T13:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z"),
         )
     }
 
     @Test
-    fun `nightly builds can return to an already published stable release`() {
+    fun `nightly builds can update to the stable release of the same version`() {
         assertTrue(
+            isNewerRelease("1.0.0", "v1.0.0", "2026-11-15T13:00:00Z", "1.0.0-nightly.1.1", "nightly.1.1", "2026-11-15T12:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `nightly builds do not return to the stable release they came from`() {
+        assertFalse(
             isNewerRelease("0.9.0", "v0.9.0", "2026-11-13T11:00:00Z", "0.9.0-nightly.43.1", "nightly.43.1", "2026-11-13T13:00:00Z"),
         )
     }
@@ -87,9 +108,23 @@ class AppUpdateCheckerTest {
     }
 
     @Test
+    fun `the next major nightly advances from an installed nightly`() {
+        assertTrue(
+            isNewerRelease("1.0.0-nightly.1.1", "nightly.1.1", "2026-11-14T13:00:00Z", "0.9.0-nightly.167.1", "nightly.167.1", "2026-11-14T12:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `the previous stable release cannot replace a next major nightly`() {
+        assertFalse(
+            isNewerRelease("0.9.0", "v0.9.0", "2026-11-14T13:00:00Z", "1.0.0-nightly.1.1", "nightly.1.1", "2026-11-14T12:00:00Z"),
+        )
+    }
+
+    @Test
     fun `older releases and the installed release are not offered`() {
         assertFalse(
-            isNewerRelease("0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T13:00:00Z"),
+            isNewerRelease("0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T13:00:00Z", "0.9.0-nightly.43.1", "nightly.43.1", "2026-11-13T12:00:00Z"),
         )
         assertFalse(
             isNewerRelease("0.9.0", "v0.9.0", "2026-11-13T13:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T12:00:00Z"),
@@ -99,7 +134,7 @@ class AppUpdateCheckerTest {
     @Test
     fun `higher version wins even when its publication time is older`() {
         assertTrue(
-            isNewerRelease("0.10.0-nightly.1.1", "nightly.1.1", "2026-11-13T11:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T12:00:00Z"),
+            isNewerRelease("0.10.0", "v0.10.0", "2026-11-13T11:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T12:00:00Z"),
         )
     }
 }
