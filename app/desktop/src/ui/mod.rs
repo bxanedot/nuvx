@@ -272,7 +272,7 @@ pub struct App {
     apple_artists: std::collections::HashMap<String, Option<crate::apple::Artwork>>,
     apple_covers: std::collections::HashMap<String, Option<String>>,
     song_covers: std::collections::HashMap<String, Option<Track>>,
-    video: Option<(String, Option<VideoState>)>,
+    video: Option<(String, String, Option<VideoState>)>,
     next_as: Option<Track>,
     video_of: Option<(String, Option<Track>)>,
     video_wanted: bool,

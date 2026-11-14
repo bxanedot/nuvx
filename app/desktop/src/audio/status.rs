@@ -107,6 +107,11 @@ impl AudioStatus {
         Duration::from_millis(self.latency_ms.load(Ordering::Relaxed) as u64)
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_latency_ms(&self, ms: u32) {
+        self.latency_ms.store(ms, Ordering::Relaxed);
+    }
+
     pub fn level(&self) -> f32 {
         f32::from_bits(self.level.load(Ordering::Relaxed))
     }

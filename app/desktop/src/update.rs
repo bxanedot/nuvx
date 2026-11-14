@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-const LATEST: &str = "https://api.github.com/repos/bxanedot/nuvx/releases/latest";
-const BY_TAG: &str = "https://api.github.com/repos/bxanedot/nuvx/releases/tags/v";
+const RELEASE_LIST: &str = "https://api.github.com/repos/bxanedot/nuvx/releases?per_page=100";
+const BY_TAG: &str = "https://api.github.com/repos/bxanedot/nuvx/releases/tags/";
 pub const RELEASES: &str = "https://github.com/bxanedot/nuvx/releases";
 
 type Notes = Arc<Mutex<std::collections::HashMap<String, Option<String>>>>;
@@ -26,7 +26,15 @@ pub struct Updater {
 }
 
 pub fn current_version() -> String {
-    std::env::var("NUVX_UPDATE_AS").unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned())
+    std::env::var("NUVX_UPDATE_AS").unwrap_or_else(|_| option_env!("NUVX_UPDATE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")).to_owned())
+}
+
+fn current_release_tag() -> String {
+    std::env::var("NUVX_RELEASE_TAG").unwrap_or_else(|_| option_env!("NUVX_RELEASE_TAG").map_or_else(|| format!("v{}", env!("CARGO_PKG_VERSION")), str::to_owned))
+}
+
+fn current_build_time() -> String {
+    std::env::var("NUVX_BUILD_TIME").unwrap_or_else(|_| option_env!("NUVX_BUILD_TIME").unwrap_or_default().to_owned())
 }
 
 pub fn installed() -> bool {
@@ -96,6 +104,26 @@ pub fn newer(a: &str, b: &str) -> bool {
     false
 }
 
+fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time: &str, current_version: &str, current_tag: &str, current_time: &str) -> bool {
+    let (candidate, current) = (version_core(candidate_version), version_core(current_version));
+    if newer(candidate, current) {
+        return true;
+    }
+    if newer(current, candidate) || candidate_tag == current_tag {
+        return false;
+    }
+    if current_tag.starts_with("nightly.") && candidate_tag.starts_with('v') {
+        return true;
+    }
+    let published = candidate_time.get(..19).unwrap_or(candidate_time);
+    let built = current_time.get(..19).unwrap_or(current_time);
+    built.is_empty() || published > built
+}
+
+fn version_core(version: &str) -> &str {
+    version.trim_start_matches('v').split(['-', '+']).next().unwrap_or_default()
+}
+
 impl Updater {
     pub fn new(data_dir: &Path, wake: impl Fn() + Send + Sync + 'static) -> Self {
         Self { state: Arc::new(Mutex::new(State::Idle)), dir: data_dir.join("updates"), wake: Arc::new(wake), notes: Default::default() }
@@ -120,10 +148,11 @@ impl Updater {
             notes.insert(version.clone(), None);
         }
         let this = self.clone();
+        let tag = version.split_once("-nightly.").map_or_else(|| format!("v{version}"), |(_, suffix)| format!("nightly.{suffix}"));
         std::thread::spawn(move || {
             let fetch = async {
                 let http = client()?;
-                let release: serde_json::Value = http.get(format!("{BY_TAG}{version}")).send().await?.error_for_status()?.json().await?;
+                let release: serde_json::Value = http.get(format!("{BY_TAG}{tag}")).send().await?.error_for_status()?.json().await?;
                 anyhow::Ok(release["body"].as_str().map(str::to_owned))
             };
             let body = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
@@ -164,29 +193,44 @@ impl Updater {
 
     async fn run(&self) -> anyhow::Result<State> {
         let http = client()?;
-        let feed = std::env::var("NUVX_UPDATE_FEED").unwrap_or_else(|_| LATEST.to_owned());
-        let release: serde_json::Value = http.get(feed).send().await?.error_for_status()?.json().await?;
-        let tag = release["tag_name"].as_str().unwrap_or_default();
-        if let Some(body) = release["body"].as_str() {
-            self.notes.lock().unwrap().insert(tag.trim_start_matches('v').to_owned(), Some(body.to_owned()));
-        }
+        let feed = std::env::var("NUVX_UPDATE_FEED").unwrap_or_else(|_| RELEASE_LIST.to_owned());
+        let response: serde_json::Value = http.get(feed).send().await?.error_for_status()?.json().await?;
+        let releases = response.as_array().cloned().unwrap_or_else(|| vec![response]);
         let current = current_version();
-        if !newer(tag, &current) {
-            log::info!("update: {current} is current (latest {tag})");
-            return Ok(State::UpToDate);
-        }
-        let version = tag.trim_start_matches('v').to_owned();
-        let want = asset_name(&version);
-        let Some(asset) = release["assets"].as_array().and_then(|a| a.iter().find(|x| x["name"] == want.as_str())) else {
-            log::info!("update: release {tag} has no {want} yet");
+        let current_tag = current_release_tag();
+        let current_time = current_build_time();
+        let candidate = releases
+            .iter()
+            .filter_map(|release| {
+                if release["draft"].as_bool() != Some(false) {
+                    return None;
+                }
+                let tag = release["tag_name"].as_str()?;
+                let version = release["name"].as_str().and_then(|name| name.strip_prefix("nuvx ")).unwrap_or_else(|| tag.trim_start_matches('v'));
+                let published_at = release["published_at"].as_str()?;
+                if !release_is_newer(version, tag, published_at, &current, &current_tag, &current_time) {
+                    return None;
+                }
+                let want = asset_name(tag.trim_start_matches('v'));
+                let asset = release["assets"].as_array()?.iter().find(|asset| asset["name"] == want)?;
+                Some((published_at, tag, version, want, release, asset))
+            })
+            .max_by(|a, b| a.0.cmp(b.0));
+        let Some((_, tag, version, want, release, asset)) = candidate else {
+            log::info!("update: {current} is current");
             return Ok(State::UpToDate);
         };
+        if let Some(body) = release["body"].as_str() {
+            self.notes.lock().unwrap().insert(version.to_owned(), Some(body.to_owned()));
+        }
+        let version = version.to_owned();
+        let want = want.to_owned();
         let url = asset["browser_download_url"].as_str().ok_or_else(|| anyhow::anyhow!("asset has no URL"))?;
         let size = asset["size"].as_u64().unwrap_or(0);
         std::fs::create_dir_all(&self.dir)?;
         let path = self.dir.join(&want);
         if std::fs::metadata(&path).map(|m| m.len()).ok() != Some(size) || size == 0 {
-            log::info!("update: downloading {version} ({size} bytes)");
+            log::info!("update: downloading {version} from {tag} ({size} bytes)");
             self.set(State::Downloading { version: version.clone(), percent: 0 });
             let mut resp = http.get(url).send().await?.error_for_status()?;
             let part = path.with_extension("part");
@@ -394,25 +438,37 @@ fn client() -> anyhow::Result<reqwest::Client> {
 
 #[cfg(test)]
 mod tests {
-    use super::{asset_name_for, newer};
+    use super::{asset_name_for, newer, release_is_newer};
 
     #[test]
     fn installer_names_match_each_platform_variant() {
         assert_eq!(
-            asset_name_for("windows", "x86_64", "0.8.0"),
-            "nuvx-setup-0.8.0.exe"
+            asset_name_for("windows", "x86_64", "0.9.0"),
+            "nuvx-setup-0.9.0.exe"
         );
         assert_eq!(
-            asset_name_for("macos", "aarch64", "0.8.0"),
-            "nuvx-setup-0.8.0-macos-apple-silicon.dmg"
+            asset_name_for("macos", "aarch64", "0.9.0"),
+            "nuvx-setup-0.9.0-macos-apple-silicon.dmg"
         );
         assert_eq!(
-            asset_name_for("linux", "x86_64", "0.8.0"),
-            "nuvx-setup-0.8.0-linux-universal.tar.gz"
+            asset_name_for("linux", "x86_64", "0.9.0"),
+            "nuvx-setup-0.9.0-linux-universal.tar.gz"
         );
         assert_eq!(
-            asset_name_for("macos", "x86_64", "0.8.0"),
-            "nuvx-setup-0.8.0-macos-intel.dmg"
+            asset_name_for("macos", "x86_64", "0.9.0"),
+            "nuvx-setup-0.9.0-macos-intel.dmg"
+        );
+        assert_eq!(
+            asset_name_for("windows", "x86_64", "nightly.45.1"),
+            "nuvx-setup-nightly.45.1.exe"
+        );
+        assert_eq!(
+            asset_name_for("linux", "aarch64", "nightly.45.1"),
+            "nuvx-setup-nightly.45.1-linux-universal.tar.gz"
+        );
+        assert_eq!(
+            asset_name_for("macos", "aarch64", "nightly.45.1"),
+            "nuvx-setup-nightly.45.1-macos-apple-silicon.dmg"
         );
     }
 
@@ -424,5 +480,19 @@ mod tests {
         assert!(!newer("v0.2.7", "0.2.7"));
         assert!(!newer("v0.2.6", "0.2.7"));
         assert!(!newer("", "0.2.7"));
+    }
+
+    #[test]
+    fn published_release_order_crosses_stable_and_nightly_channels() {
+        let stable_time = "2026-11-13T11:00:00Z";
+        let nightly_time = "2026-11-13T12:00:00Z";
+        let later_nightly_time = "2026-11-13T13:00:00Z";
+        assert!(release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
+        assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
+        assert!(release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
+        assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
+        assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", later_nightly_time));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0", "v0.9.0", nightly_time));
+        assert!(release_is_newer("0.10.0-nightly.1.1", "nightly.1.1", stable_time, "0.9.0", "v0.9.0", later_nightly_time));
     }
 }

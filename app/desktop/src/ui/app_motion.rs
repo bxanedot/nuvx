@@ -28,7 +28,7 @@ impl MotionView {
 }
 
 pub(super) enum VideoState {
-    Saved(std::path::PathBuf),
+    Saved { path: std::path::PathBuf, offset_ms: i64 },
     Playing(MotionView),
     Failed,
 }
@@ -149,14 +149,15 @@ impl App {
             self.video = None;
             return None;
         };
-        if self.video.as_ref().is_none_or(|(v, _)| *v != id) {
-            self.backend.request(Req::Video { id: id.clone(), height: self.video_height });
-            self.video = Some((id, None));
+        let audio_id = self.playing_id().unwrap_or(&id).to_owned();
+        if self.video.as_ref().is_none_or(|(v, a, _)| *v != id || *a != audio_id) {
+            self.backend.request(Req::Video { id: id.clone(), audio_id: audio_id.clone(), height: self.video_height });
+            self.video = Some((id, audio_id, None));
             return None;
         }
-        let state = self.video.as_mut()?.1.as_mut()?;
-        if let VideoState::Saved(path) = state {
-            *state = VideoState::Playing(MotionView::new(crate::motion::video(ctx, path.clone(), self.audio.status.clone()), 0));
+        let state = self.video.as_mut()?.2.as_mut()?;
+        if let VideoState::Saved { path, offset_ms } = state {
+            *state = VideoState::Playing(MotionView::new(crate::motion::video(ctx, path.clone(), self.audio.status.clone(), *offset_ms), 0));
         }
         let VideoState::Playing(view) = state else { return None };
         let tex = view.texture(ctx)?;
@@ -169,7 +170,7 @@ impl App {
             && (self.current().is_some_and(|t| t.music_video)
                 || self.playing_track().is_some_and(|t| t.music_video)
                 || self.video_of.as_ref().is_some_and(|(listed, video)| self.current_id() == Some(listed.as_str()) && video.is_some()))
-            && self.video.as_ref().is_none_or(|(_, s)| s.is_none());
+            && self.video.as_ref().is_none_or(|(_, _, s)| s.is_none());
         self.buffering || self.video_wanted || picture
     }
 

@@ -70,13 +70,13 @@ fn run(motion: Arc<Motion>, ctx: egui::Context, master: String, max_width: u32) 
         log::info!("apple: no motion clip downloaded");
         return;
     };
-    decode(&motion, &path, &ctx, None);
+    decode(&motion, &path, &ctx, None, 0);
 }
 
-pub fn video(ctx: &egui::Context, path: PathBuf, clock: Arc<crate::audio::AudioStatus>) -> Arc<Motion> {
+pub fn video(ctx: &egui::Context, path: PathBuf, clock: Arc<crate::audio::AudioStatus>, offset_ms: i64) -> Arc<Motion> {
     let motion = Arc::new(Motion::new());
     let (this, ctx) = (motion.clone(), ctx.clone());
-    let _ = std::thread::Builder::new().name("video".into()).spawn(move || decode(&this, &path, &ctx, Some(&clock)));
+    let _ = std::thread::Builder::new().name("video".into()).spawn(move || decode(&this, &path, &ctx, Some(&clock), offset_ms));
     motion
 }
 
@@ -121,7 +121,7 @@ fn fetch(master: &str, max_width: u32) -> Option<PathBuf> {
 }
 
 #[cfg(windows)]
-fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context, clock: Option<&crate::audio::AudioStatus>) {
+fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context, clock: Option<&crate::audio::AudioStatus>, offset_ms: i64) {
     use windows::Win32::Media::MediaFoundation::{MFShutdown, MFStartup, MFSTARTUP_FULL, MF_VERSION};
     use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
     unsafe {
@@ -136,7 +136,7 @@ fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context, clo
         wide.push(0);
         let url = windows::core::PCWSTR(wide.as_ptr());
         for _ in 0..100 {
-            if motion.stop.load(Ordering::Relaxed) || !play_once(motion, ctx, url, clock) {
+            if motion.stop.load(Ordering::Relaxed) || !play_once(motion, ctx, url, clock, offset_ms) {
                 break;
             }
         }
@@ -146,7 +146,7 @@ fn decode(motion: &Arc<Motion>, path: &std::path::Path, ctx: &egui::Context, clo
 }
 
 #[cfg(windows)]
-unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PCWSTR, clock: Option<&crate::audio::AudioStatus>) -> bool {
+unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PCWSTR, clock: Option<&crate::audio::AudioStatus>, offset_ms: i64) -> bool {
     use windows::Win32::Media::MediaFoundation::*;
     let played = unsafe {
         (|| -> windows::core::Result<bool> {
@@ -172,7 +172,7 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
         let row = w * 4;
         let start = Instant::now();
         let mut base: Option<i64> = None;
-        let mut seeked = clock.map(song_at);
+        let mut seeked = clock.map(|clock| song_at(clock, offset_ms));
         if let Some(at) = seeked {
             seek(&reader, at)?;
         }
@@ -193,7 +193,7 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
                     if motion.stop.load(Ordering::Relaxed) {
                         return Ok(false);
                     }
-                    let at = song_at(clock);
+                    let at = song_at(clock, offset_ms);
                     if at + 10_000_000 < last {
                         seek(&reader, at)?;
                         seeked = Some(at);
@@ -211,8 +211,8 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
                         continue;
                     }
                     let first = seeked.take().is_some() || motion.version.load(Ordering::Acquire) == 0;
-                    if !first && !wait_for(&reader, motion, clock, ts)? {
-                        seeked = Some(song_at(clock));
+                    if !first && !wait_for(&reader, motion, clock, offset_ms, ts)? {
+                        seeked = Some(song_at(clock, offset_ms));
                         continue;
                     }
                 }
@@ -297,17 +297,18 @@ pub fn drop_edit_lists(mp4: &mut [u8]) {
 }
 
 #[cfg(windows)]
-fn song_at(clock: &crate::audio::AudioStatus) -> i64 {
-    clock.position_smooth().as_micros() as i64 * 10
+fn song_at(clock: &crate::audio::AudioStatus, offset_ms: i64) -> i64 {
+    let position = clock.position_smooth().saturating_sub(clock.latency()).as_millis().min(i64::MAX as u128) as i64;
+    position.saturating_add(offset_ms).max(0).saturating_mul(10_000)
 }
 
 #[cfg(windows)]
-unsafe fn wait_for(reader: &windows::Win32::Media::MediaFoundation::IMFSourceReader, motion: &Motion, clock: &crate::audio::AudioStatus, ts: i64) -> windows::core::Result<bool> {
+unsafe fn wait_for(reader: &windows::Win32::Media::MediaFoundation::IMFSourceReader, motion: &Motion, clock: &crate::audio::AudioStatus, offset_ms: i64, ts: i64) -> windows::core::Result<bool> {
     loop {
         if motion.stop.load(Ordering::Relaxed) {
             return Ok(false);
         }
-        let at = song_at(clock);
+        let at = song_at(clock, offset_ms);
         if ts < at - 5_000_000 || ts > at + 20_000_000 {
             unsafe { seek(reader, at)? };
             return Ok(false);
@@ -331,7 +332,7 @@ unsafe fn seek(reader: &windows::Win32::Media::MediaFoundation::IMFSourceReader,
 }
 
 #[cfg(not(windows))]
-fn decode(_motion: &Arc<Motion>, _path: &std::path::Path, _ctx: &egui::Context, _clock: Option<&crate::audio::AudioStatus>) {}
+fn decode(_motion: &Arc<Motion>, _path: &std::path::Path, _ctx: &egui::Context, _clock: Option<&crate::audio::AudioStatus>, _offset_ms: i64) {}
 
 #[cfg(windows)]
 fn layout(w: usize, h: usize, len: usize, reported: i32) -> (usize, bool) {
@@ -354,6 +355,16 @@ fn layout(w: usize, h: usize, len: usize, reported: i32) -> (usize, bool) {
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn video_clock_tracks_audio_after_output_latency_for_different_tracks() {
+        let clock = crate::audio::AudioStatus::default();
+        for (position_ms, latency_ms, offset_ms, expected) in [(5_000, 100, 0, 49_000_000), (213_000, 80, 0, 2_129_200_000), (5_000, 100, 650, 55_500_000), (5_000, 100, -650, 42_500_000), (300, 500, 0, 0)] {
+            clock.position_ms.store(position_ms, Ordering::Relaxed);
+            clock.set_latency_ms(latency_ms);
+            assert_eq!(song_at(&clock, offset_ms), expected);
+        }
+    }
 
     #[test]
     fn edit_lists_are_blanked_and_nothing_else() {
@@ -379,7 +390,7 @@ mod tests {
         let ctx = egui::Context::default();
         let motion = Arc::new(Motion::new());
         let this = motion.clone();
-        std::thread::spawn(move || decode(&this, &path, &ctx, None));
+        std::thread::spawn(move || decode(&this, &path, &ctx, None, 0));
         let start = Instant::now();
         while motion.latest().is_none() && start.elapsed() < Duration::from_secs(15) {
             std::thread::sleep(Duration::from_millis(50));

@@ -1,7 +1,9 @@
 package com.bxane.nuvx.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppUpdateCheckerTest {
@@ -53,6 +55,51 @@ class AppUpdateCheckerTest {
         assertEquals(
             "https://example.test/universal.apk",
             selectApkAssetUrl(assets, "gms", listOf("arm64-v8a")),
+        )
+    }
+
+    @Test
+    fun `stable builds can update to a newer nightly`() {
+        assertTrue(
+            isNewerRelease("0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T11:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `nightly builds can update to a newer stable release`() {
+        assertTrue(
+            isNewerRelease("0.9.0", "v0.9.0", "2026-11-13T13:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `nightly builds can return to an already published stable release`() {
+        assertTrue(
+            isNewerRelease("0.9.0", "v0.9.0", "2026-11-13T11:00:00Z", "0.9.0-nightly.43.1", "nightly.43.1", "2026-11-13T13:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `nightly builds can update to a newer nightly`() {
+        assertTrue(
+            isNewerRelease("0.9.0-nightly.43.1", "nightly.43.1", "2026-11-13T13:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `older releases and the installed release are not offered`() {
+        assertFalse(
+            isNewerRelease("0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T13:00:00Z"),
+        )
+        assertFalse(
+            isNewerRelease("0.9.0", "v0.9.0", "2026-11-13T13:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T12:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `higher version wins even when its publication time is older`() {
+        assertTrue(
+            isNewerRelease("0.10.0-nightly.1.1", "nightly.1.1", "2026-11-13T11:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T12:00:00Z"),
         )
     }
 }

@@ -88,7 +88,7 @@ export default function GuidePage() {
           {source === 'github' && browser === 'chrome'
             ? 'After downloading, extract the ZIP and choose the extracted folder in chrome://extensions with Developer mode enabled. GitHub ZIP installs do not update automatically.'
             : source === 'github'
-              ? 'This unsigned Firefox ZIP is for testing in Firefox Developer Edition or Nightly. For a permanent Firefox Stable install, wait for the Mozilla listing.'
+              ? 'In Firefox Developer Edition or Nightly, open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on, and select this ZIP. It is removed when Firefox closes. Firefox Stable requires a Mozilla-signed add-on.'
               : chosen.href
                 ? 'Approved store installs receive browser-managed updates automatically.'
                 : 'Firefox installation from the store will be available after the desktop add-on passes Mozilla review.'}

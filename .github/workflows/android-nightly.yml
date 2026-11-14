@@ -7,6 +7,7 @@ on:
     paths:
       - "app/android/**"
       - "app/desktop/**"
+      - "app/web/extension/**"
       - "app/web/app/public/models/**"
       - "core/**"
       - "!core/worker/**"
@@ -40,6 +41,7 @@ jobs:
       stable_version: ${{ steps.metadata.outputs.stable_version }}
       source_ref: ${{ steps.metadata.outputs.source_ref }}
       desktop_version: ${{ steps.metadata.outputs.desktop_version }}
+      build_time: ${{ steps.metadata.outputs.build_time }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -62,7 +64,7 @@ jobs:
             suffix=""
             is_stable=true
             [[ $release_tag == "v$version" ]]
-            [[ $version != 0.8.0 || $code == 8 ]]
+            [[ $version != 0.9.0 || $code == 9 ]]
           else
             release_tag="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
             suffix="$release_tag"
@@ -74,6 +76,7 @@ jobs:
           echo "stable_version=$version" >> "$GITHUB_OUTPUT"
           echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "desktop_version=$desktop_version" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
       - name: Create nightly draft
         if: steps.metadata.outputs.is_stable == 'false'
         env:
@@ -119,6 +122,7 @@ jobs:
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
       VERSION_SUFFIX: ${{ needs.prepare.outputs.version_suffix }}
       STABLE_VERSION: ${{ needs.prepare.outputs.stable_version }}
+      BUILD_TIME: ${{ needs.prepare.outputs.build_time }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -171,7 +175,8 @@ jobs:
           bash gradlew :app:testProdGmsDebugUnitTest :app:testProdFossDebugUnitTest \
             :app:assembleProdGmsRelease :app:assembleProdFossRelease \
             :tv:assembleProdGmsRelease :tv:assembleProdFossRelease :wearos:assembleProdRelease \
-            -Pnuvx.nightlyBaseCode="$code" -Pnuvx.nightlyBaseName="$version" -Pnuvx.nightlySuffix="$suffix"
+            -Pnuvx.nightlyBaseCode="$code" -Pnuvx.nightlyBaseName="$version" -Pnuvx.nightlySuffix="$suffix" \
+            -Pnuvx.releaseTag="$RELEASE_TAG" -Pnuvx.buildTime="$BUILD_TIME"
           for module in app tv; do
             bash gradlew ":$module:dependencies" --configuration prodFossReleaseRuntimeClasspath \
               > "$RUNNER_TEMP/$module-foss-dependencies.txt"
@@ -232,6 +237,10 @@ jobs:
     env:
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      VERSION_SUFFIX: ${{ needs.prepare.outputs.version_suffix }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
+      BUILD_TIME: ${{ needs.prepare.outputs.build_time }}
     defaults:
       run:
         shell: bash
@@ -246,7 +255,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
       - run: |
-          cargo build --release --locked --target "${{ matrix.target }}"
+          update_version="$DESKTOP_VERSION"
+          [[ -z "$VERSION_SUFFIX" ]] || update_version="$DESKTOP_VERSION-$VERSION_SUFFIX"
+          NUVX_UPDATE_VERSION="$update_version" NUVX_RELEASE_TAG="$RELEASE_TAG" NUVX_BUILD_TIME="$BUILD_TIME" \
+            cargo build --release --locked --target "${{ matrix.target }}"
           mkdir -p "universal/${{ matrix.arch }}"
           cp "target/${{ matrix.target }}/release/nuvx.exe" "universal/${{ matrix.arch }}/nuvx.exe"
       - uses: actions/upload-artifact@v6
@@ -308,6 +320,10 @@ jobs:
     env:
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      VERSION_SUFFIX: ${{ needs.prepare.outputs.version_suffix }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
+      BUILD_TIME: ${{ needs.prepare.outputs.build_time }}
     defaults:
       run:
         shell: bash
@@ -325,7 +341,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
       - run: |
-          cargo build --release --locked --target "${{ matrix.target }}"
+          update_version="$DESKTOP_VERSION"
+          [[ -z "$VERSION_SUFFIX" ]] || update_version="$DESKTOP_VERSION-$VERSION_SUFFIX"
+          NUVX_UPDATE_VERSION="$update_version" NUVX_RELEASE_TAG="$RELEASE_TAG" NUVX_BUILD_TIME="$BUILD_TIME" \
+            cargo build --release --locked --target "${{ matrix.target }}"
           mkdir -p "universal/${{ matrix.arch }}"
           cp "target/${{ matrix.target }}/release/nuvx" "universal/${{ matrix.arch }}/nuvx"
       - uses: actions/upload-artifact@v6
@@ -393,6 +412,10 @@ jobs:
     env:
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      VERSION_SUFFIX: ${{ needs.prepare.outputs.version_suffix }}
+      DESKTOP_VERSION: ${{ needs.prepare.outputs.desktop_version }}
+      BUILD_TIME: ${{ needs.prepare.outputs.build_time }}
     defaults:
       run:
         shell: bash
@@ -407,7 +430,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: app/desktop, key: "${{ matrix.arch }}" }
       - run: |
-          cargo build --release --locked --target "${{ matrix.target }}"
+          update_version="$DESKTOP_VERSION"
+          [[ -z "$VERSION_SUFFIX" ]] || update_version="$DESKTOP_VERSION-$VERSION_SUFFIX"
+          NUVX_UPDATE_VERSION="$update_version" NUVX_RELEASE_TAG="$RELEASE_TAG" NUVX_BUILD_TIME="$BUILD_TIME" \
+            cargo build --release --locked --target "${{ matrix.target }}"
           mkdir -p "universal/${{ matrix.arch }}"
           cp "target/${{ matrix.target }}/release/nuvx" "universal/${{ matrix.arch }}/nuvx"
       - uses: actions/upload-artifact@v6
@@ -444,36 +470,28 @@ jobs:
           path: app/desktop/universal/aarch64
       - name: Package and upload macOS installers
         run: |
-          mkdir -p universal dmg
-          if [[ "$IS_STABLE" == true ]]; then
-            for arch in x86_64 aarch64; do
-              variant=intel
-              [[ "$arch" == aarch64 ]] && variant=apple-silicon
-              folder="dmg-$variant"
-              sh macos/bundle.sh "universal/$arch/nuvx" "$DESKTOP_VERSION" "$folder"
-              ln -s /Applications "$folder/Applications"
-              installer="nuvx-setup-$DESKTOP_VERSION-macos-$variant.dmg"
-              hdiutil create -volname "nuvx $variant" -srcfolder "$folder" -format UDZO "$installer"
-              gh release upload "$RELEASE_TAG" "$installer" --clobber
-            done
-          else
-            lipo -create universal/x86_64/nuvx universal/aarch64/nuvx -output universal/nuvx
-            lipo universal/nuvx -verify_arch x86_64 arm64
-            sh macos/bundle.sh universal/nuvx "$DESKTOP_VERSION" dmg
-            ln -s /Applications dmg/Applications
-            installer="nuvx-setup-$RELEASE_TAG-macos-universal.dmg"
-            hdiutil create -volname nuvx -srcfolder dmg -format UDZO "$installer"
+          mkdir -p universal
+          asset_version="$DESKTOP_VERSION"
+          [[ "$IS_STABLE" == true ]] || asset_version="$RELEASE_TAG"
+          for arch in x86_64 aarch64; do
+            variant=intel
+            [[ "$arch" == aarch64 ]] && variant=apple-silicon
+            folder="dmg-$variant"
+            sh macos/bundle.sh "universal/$arch/nuvx" "$DESKTOP_VERSION" "$folder"
+            ln -s /Applications "$folder/Applications"
+            installer="nuvx-setup-$asset_version-macos-$variant.dmg"
+            hdiutil create -volname "nuvx $variant" -srcfolder "$folder" -format UDZO "$installer"
             gh release upload "$RELEASE_TAG" "$installer" --clobber
-          fi
+          done
 
   extensions:
     needs: prepare
-    if: needs.prepare.outputs.is_stable == 'true'
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
       STABLE_VERSION: ${{ needs.prepare.outputs.stable_version }}
+      IS_STABLE: ${{ needs.prepare.outputs.is_stable }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -502,15 +520,18 @@ jobs:
           const output = process.env.RUNNER_TEMP;
           const manifest = JSON.parse(readFileSync(join(downloads, 'extension.json'), 'utf8'));
           if (manifest.version !== process.env.STABLE_VERSION) throw new Error(`Unexpected extension version ${manifest.version}`);
+          const assetVersion = process.env.IS_STABLE === 'true' ? manifest.version : process.env.RELEASE_TAG;
           for (const browser of ['chrome', 'firefox']) {
-            const name = `nuvx-extension-${browser}-${manifest.version}.zip`;
+            const name = `nuvx-extension-${browser}-${assetVersion}.zip`;
             copyFileSync(join(downloads, manifest.files[browser]), join(output, name));
           }
           copyFileSync(join(downloads, 'extension.json'), join(output, 'extension.json'));
           JS
+          asset_version="$STABLE_VERSION"
+          [[ "$IS_STABLE" == true ]] || asset_version="$RELEASE_TAG"
           gh release upload "$RELEASE_TAG" \
-            "$RUNNER_TEMP/nuvx-extension-chrome-$STABLE_VERSION.zip" \
-            "$RUNNER_TEMP/nuvx-extension-firefox-$STABLE_VERSION.zip" \
+            "$RUNNER_TEMP/nuvx-extension-chrome-$asset_version.zip" \
+            "$RUNNER_TEMP/nuvx-extension-firefox-$asset_version.zip" \
             "$RUNNER_TEMP/extension.json" --clobber
 
   publish:
@@ -526,7 +547,7 @@ jobs:
     steps:
       - name: Publish nightly and prune older builds
         run: |
-          if [[ "${{ needs.android.result }}" != success || "${{ needs.windows.result }}" != success || "${{ needs.linux.result }}" != success || "${{ needs.macos.result }}" != success || ("$IS_STABLE" == true && "${{ needs.extensions.result }}" != success) ]]; then
+          if [[ "${{ needs.android.result }}" != success || "${{ needs.windows.result }}" != success || "${{ needs.linux.result }}" != success || "${{ needs.macos.result }}" != success || "${{ needs.extensions.result }}" != success ]]; then
             if [[ "$IS_STABLE" == true ]]; then
               gh release delete "$RELEASE_TAG" --yes || true
               exit 1

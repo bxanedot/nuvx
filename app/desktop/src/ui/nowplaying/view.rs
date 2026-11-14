@@ -1,7 +1,12 @@
 use super::*;
 
+fn lyrics_column(content: Rect, artwork_right: f32) -> Option<Rect> {
+    let column = Rect::from_min_max(pos2(artwork_right, content.top()), content.max);
+    (column.width() >= 300.0).then_some(column)
+}
+
 pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
-    use crate::preset::BgMode;
+    use crate::preset::{BgMode, Layout};
     let t = theme::anim_bool(ctx, "np-open", app.np_open && app.current().is_some(), 0.42);
     if t <= 0.001 {
         return;
@@ -21,11 +26,14 @@ pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
             }
             let painter = ui.painter_at(rect);
             let art = matches!(b.mode, BgMode::Kawarp | BgMode::CoverStatic);
+            let lyrics_open = app.np_tab == NpTab::Lyrics && look.cover.layout == Layout::LyricsOnly && !app.no_lyrics();
             if b.mode == BgMode::CoverFullbleed {
                 let solid = look.solid();
                 painter.rect_filled(rect, 0.0, solid);
-                if let Some(track) = app.shown().cloned().map(|t| app.with_cover(&t)) {
-                    let side_by_side = look.cover.layout == crate::preset::Layout::LyricsOnly && rect.width() >= 900.0;
+                let art_right = rect.left() + rect.height();
+                let side_by_side = look.cover.layout == Layout::LyricsOnly
+                    && lyrics_column(rect.shrink2(vec2(32.0, 20.0)), art_right).is_some();
+                if (!lyrics_open || side_by_side) && let Some(track) = app.shown().cloned().map(|t| app.with_cover(&t)) {
                     let area = if side_by_side { Rect::from_min_size(rect.min, Vec2::splat(rect.height())) } else { rect };
                     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(area));
                     child.set_clip_rect(area);
@@ -35,7 +43,7 @@ pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
                         super::super::shell::hgradient(&painter, fade, Color32::TRANSPARENT, solid);
                     }
                 }
-            } else if let Some(bg) = app.bg.as_ref().filter(|_| art) {
+            } else if let Some(bg) = app.bg.as_ref().filter(|_| art && !lyrics_open) {
                 let blend = theme::ease_in_out(((now - app.art_changed) / 1.4) as f32);
                 let level = if app.reactive_bg && app.playing() { app.audio.status.level() * b.reactive } else { 0.0 };
                 bg.paint(
@@ -58,11 +66,11 @@ pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
             let k = b.scrim / 0.3;
             super::super::shell::vgradient(ui.painter(), rect, theme::shade((0.18 * k).min(0.95)), theme::shade((0.42 * k).min(0.95)));
             let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(32.0, 20.0))));
-            body(app, &mut child, now);
+            body(app, &mut child, now, rect.left() + rect.height());
         });
 }
 
-fn body(app: &mut App, ui: &mut Ui, now: f64) {
+fn body(app: &mut App, ui: &mut Ui, now: f64, artwork_right: f32) {
     use crate::preset::{Layout, Side};
     let hold = app.mix_hold().map(|h| (h.total, h.mix, app.mix_hold_pos(h)));
     let Some(track) = app.current().cloned() else { return };
@@ -129,7 +137,9 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
     };
     let glide = p * p * (3.0 - 2.0 * p);
     let lyrics_only = narrow || cs.layout == Layout::LyricsOnly;
-    let beside_cover = !narrow && cs.layout == Layout::LyricsOnly && look.background.mode == crate::preset::BgMode::CoverFullbleed;
+    let beside_cover = cs.layout == Layout::LyricsOnly
+        && look.background.mode == crate::preset::BgMode::CoverFullbleed
+        && lyrics_column(content, artwork_right).is_some();
     let centered = lyrics_only && !beside_cover;
     let col_art = Rect::from_center_size(content.center(), vec2(content.width().min(content.height() * 0.9), content.height()));
     let slide = 72.0;
@@ -142,7 +152,7 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
         } else {
             widgets::preload_cover(ui.ctx(), &track.thumbs, px);
         }
-        if beside_cover { Rect::from_min_max(pos2(content.left() + content.width() * 0.46, content.top()), content.max) } else { content }
+        if beside_cover { lyrics_column(content, artwork_right).unwrap() } else { content }
     } else {
         let frac = if cs.layout == Layout::CoverHero { 0.5 } else { 0.42 };
         let col_w = content.width() * frac;
@@ -187,5 +197,24 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
                 _ => super::super::shell::queue_list(app, &mut rui, "np"),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lyrics_start_after_full_bleed_artwork_when_there_is_room() {
+        let content = Rect::from_min_max(pos2(32.0, 0.0), pos2(1168.0, 700.0));
+        let lyrics = lyrics_column(content, 780.0).unwrap();
+        assert_eq!(lyrics.left(), 780.0);
+        assert_eq!(lyrics.right(), content.right());
+    }
+
+    #[test]
+    fn lyrics_use_centered_layout_when_full_bleed_artwork_leaves_too_little_room() {
+        let content = Rect::from_min_max(pos2(32.0, 0.0), pos2(992.0, 700.0));
+        assert!(lyrics_column(content, 768.0).is_none());
     }
 }

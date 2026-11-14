@@ -46,6 +46,7 @@ mod turnstile;
 mod ui;
 mod update;
 mod webmusic;
+mod video_alignment;
 mod ytdlp;
 mod ytm;
 mod vault;

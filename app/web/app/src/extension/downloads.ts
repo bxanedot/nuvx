@@ -46,7 +46,7 @@ export function downloadsFor(): Download[] {
       browser: 'firefox',
       source: 'github',
       title: 'Download Firefox extension ZIP from GitHub',
-      detail: 'Unsigned testing package · Firefox Stable requires Mozilla approval for permanent installation',
+      detail: 'Temporary install · Load this ZIP in Firefox Developer Edition or Nightly',
       href: `${GITHUB_ASSETS}/nuvx-extension-firefox.zip`,
       Icon: FaFirefoxBrowser,
     },

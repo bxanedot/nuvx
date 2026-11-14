@@ -42,6 +42,8 @@ val addonAuthServer: String = (
     ).trim().trimEnd('/')
 
 val betaSuffix = rootProject.extra["nuvxBetaSuffix"] as String
+val releaseTag = providers.gradleProperty("nuvx.releaseTag").getOrElse("v${rootProject.extra["nuvxVersionName"]}")
+val buildTime = providers.gradleProperty("nuvx.buildTime").getOrElse("")
 
 android {
     namespace = "com.bxane.nuvx"
@@ -69,6 +71,8 @@ android {
             "\"${addonAuthServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"nuvx-\"")
+        buildConfigField("String", "NUVX_RELEASE_TAG", "\"$releaseTag\"")
+        buildConfigField("String", "NUVX_BUILD_TIME", "\"$buildTime\"")
     }
 
     sourceSets {

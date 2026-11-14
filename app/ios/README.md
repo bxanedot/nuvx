@@ -93,7 +93,7 @@ publish a release.
 To package an unsigned IPA after bootstrapping, from the repository root:
 
 ```sh
-bash app/ios/scripts/package-ios-ipa.sh 0.8.0
+bash app/ios/scripts/package-ios-ipa.sh 0.9.0
 ```
 
 Use the version in `mobile/project.yml`. The file is written to
