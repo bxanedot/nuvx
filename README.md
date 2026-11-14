@@ -65,6 +65,13 @@
 
 The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs, each containing armeabi-v7a, arm64-v8a and x86_64 builds. New Android builds use one shared universal APK per phone and TV app; Cast and Wear features require Google Play Services. Nightlies keep byte-identical `-gms` and `-foss` aliases so existing 0.9 updaters can install the shared APK. Version 1.0.0 remains without a stable release or tag. Android Auto support is part of the phone app; there is no standalone car APK. Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched.
 
+### Install and update on iPhone or iPad
+
+1. Download `Nuvx-<version>-build<number>-ios-unsigned.ipa` from a release. If a release has no IPA, download the `ios-unsigned` artifact from a successful **Apple builds** workflow run; workflow artifacts expire after 14 days and require a GitHub sign-in.
+2. Sign and install the unsigned IPA with a sideloading tool such as Sideloadly, AltStore Classic, or SideStore. An unsigned IPA cannot be installed by opening it in Files or Safari. See the [iOS install guide](app/ios/README.md) for setup steps.
+3. nuvx checks the latest stable GitHub release on launch. To check again, open **Settings → Version & Updates → Check for Updates**. When an update is available, download its IPA and install it through the same sideloading tool and Apple Account used for the current install. Install over the existing app; do not uninstall first if you want to keep local data.
+4. Free Apple Account provisioning profiles expire after 7 days, so refresh the signature by re-signing and reinstalling before it expires. The in-app updater finds releases and downloads the IPA; signing and installation must be completed with the sideloading tool. [Apple's personal-team limits](https://developer.apple.com/help/account/basics/about-your-developer-account/) have the current details.
+
 ## How the counters work
 
 - **GitHub downloads** totals installers and portable app packages across public GitHub releases. Updates and repeat downloads count too. Web visits and extension downloads from the web player are separate. [Download count](https://nuvx-listen.bxane.workers.dev/api/stats/downloads)

@@ -32,6 +32,9 @@ struct UpdatesSettingsPage: View {
                 Section("Installation") {
                     Text("The latest release page is the single place to find the published iOS IPA and Mac DMG.")
                     Link("Open Latest Release", destination: UpdateChecker.latestReleaseURL)
+                    #if os(iOS)
+                    Link("iPhone install and update instructions", destination: UpdateChecker.iosInstallGuideURL)
+                    #endif
                 }
             }
             #if os(macOS)
