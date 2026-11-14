@@ -198,7 +198,7 @@ fn settings_window(app: &mut App, ui: &mut Ui) {
             divider(ui);
             use crate::material::Material;
             let desc = if cfg!(windows) {
-                "Dynamic is nuvx's own background. Mica and Acrylic let Windows 11 tint the window with your desktop behind it, Acrylic with more blur."
+                "Dynamic uses nuvx's own background. Mica is the recommended main-window backdrop. Acrylic is more translucent, intended for temporary surfaces, and Windows may fall back to a solid color when transparency effects are unavailable."
             } else if cfg!(target_os = "macos") {
                 "Dynamic is nuvx's own background. Window and Sidebar are macOS's own vibrancy, with your desktop blurred behind the window."
             } else {

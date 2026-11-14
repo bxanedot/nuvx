@@ -15,11 +15,27 @@ export default function DownloadsPage() {
 
         <h2 className={settingsUi.sectionHeader}>Apps</h2>
         <section className={settingsUi.group}>
-          <a className={settingsUi.download} href={config.appDownloadUrl} target="_blank" rel="noreferrer">
+          <a className={settingsUi.download} href={config.androidDownloadUrl}>
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
-              <span className={settingsUi.downloadTitle}>App installers</span>
-              <span className={settingsUi.downloadDetail}>Android, Windows, macOS and Linux · choose a build on GitHub</span>
+              <span className={settingsUi.downloadTitle}>Android · universal GMS APK</span>
+              <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 phones and tablets</span>
+            </span>
+            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+          </a>
+          <a className={settingsUi.download} href={config.androidFossDownloadUrl}>
+            <Download size={25} className="text-primary" />
+            <span className={settingsUi.downloadText}>
+              <span className={settingsUi.downloadTitle}>Android · universal FOSS APK</span>
+              <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 phones and tablets</span>
+            </span>
+            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+          </a>
+          <a className={settingsUi.download} href={config.desktopDownloadUrl} target="_blank" rel="noreferrer">
+            <Download size={25} className="text-primary" />
+            <span className={settingsUi.downloadText}>
+              <span className={settingsUi.downloadTitle}>Windows, macOS and Linux</span>
+              <span className={settingsUi.downloadDetail}>Universal desktop installers on GitHub</span>
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
           </a>

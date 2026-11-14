@@ -12,6 +12,10 @@ function devExtensionId(): string {
   }
 }
 
+function extensionVersion(): string {
+  return JSON.parse(readFileSync(new URL('../extension/package.json', import.meta.url), 'utf8')).version;
+}
+
 function requirePartyServer(mode: string): void {
   const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_');
   if (!env.VITE_PARTY_SERVER_URL?.trim()) {
@@ -25,6 +29,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [react(), tailwindcss()],
     define: {
       DEV_EXTENSION_ID: JSON.stringify(devExtensionId()),
+      EXTENSION_VERSION: JSON.stringify(extensionVersion()),
     },
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

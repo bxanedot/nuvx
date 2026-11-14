@@ -8,6 +8,7 @@ import { startHistoryReporting } from '@/playback/historyReporting';
 import { startLivePresence } from '@/playback/livePresence';
 import { Outlet } from 'react-router';
 import { PrefetchLink } from '@/components/PrefetchLink';
+import { config } from '@/config';
 import { useExtension } from '@/extension/useExtension';
 import { currentBrowser, downloadsFor } from '@/extension/downloads';
 import { isMobileBrowser } from '@/lib/platform';
@@ -22,6 +23,7 @@ import { SidePanel } from './SidePanel';
 import { Sidebar } from './Sidebar';
 
 const mobile = isMobileBrowser();
+const android = /Android/i.test(navigator.userAgent);
 
 const FullScreenPlayer = lazy(() => import('./FullScreenPlayer').then((m) => ({ default: m.FullScreenPlayer })));
 
@@ -62,8 +64,12 @@ export function AppShell() {
     banner = (
       <Banner
         title="nuvx is better in the app."
-        detail="Download nuvx for Android, Windows, macOS, or Linux."
-        action={<PrefetchLink className={bannerButtonClass} to="/downloads">Choose a download</PrefetchLink>}
+        detail={android ? 'Download the universal Android APK.' : 'Download nuvx for Android, Windows, macOS, or Linux.'}
+        action={android ? (
+          <a className={bannerButtonClass} href={config.androidDownloadUrl}>Download for Android</a>
+        ) : (
+          <PrefetchLink className={bannerButtonClass} to="/downloads">Choose a download</PrefetchLink>
+        )}
       />
     );
   } else if (extension.state === 'missing' && !bannerDismissed) {

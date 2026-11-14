@@ -32,7 +32,7 @@ impl Material {
     }
 
     const fn initial() -> Material {
-        if cfg!(any(windows, target_os = "macos")) { Material::Acrylic } else { Material::Default }
+        Material::Mica
     }
 }
 
@@ -171,5 +171,10 @@ mod tests {
             assert_eq!(load(&dir), m);
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn defaults_to_the_long_lived_window_material() {
+        assert_eq!(Material::initial(), Material::Mica);
     }
 }

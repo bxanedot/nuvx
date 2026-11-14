@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const download = require('./download');
 
-async function request(platform, assets, version = '0.8.0', query = '', userAgent = 'Android 15') {
+async function request(platform, assets, version = '0.9.0', query = '', userAgent = 'Android 15') {
   const originalFetch = global.fetch;
   let result;
   global.fetch = async (url) => {
@@ -28,17 +28,17 @@ async function request(platform, assets, version = '0.8.0', query = '', userAgen
 
 test('release downloads select the requested universal platform package', async (t) => {
   const routes = [
-    ['windows', 'nuvx-setup-0.8.0.exe'],
-    ['android', 'nuvx-v0.8.0-gms.apk'],
-    ['android-foss', 'nuvx-v0.8.0-foss.apk'],
-    ['tv', 'NuvxTV-v0.8.0-gms.apk'],
-    ['tv-foss', 'NuvxTV-v0.8.0-foss.apk'],
-    ['wear', 'NuvxWear-v0.8.0.apk'],
-    ['mac-intel', 'nuvx-setup-0.8.0-macos-intel.dmg'],
-    ['mac-arm', 'nuvx-setup-0.8.0-macos-apple-silicon.dmg'],
-    ['linux', 'nuvx-setup-0.8.0-linux-universal.tar.gz'],
-    ['chrome', 'nuvx-extension-chrome-0.8.0.zip'],
-    ['firefox', 'nuvx-extension-firefox-0.8.0.zip'],
+    ['windows', 'nuvx-setup-0.9.0.exe'],
+    ['android', 'nuvx-v0.9.0-gms.apk'],
+    ['android-foss', 'nuvx-v0.9.0-foss.apk'],
+    ['tv', 'NuvxTV-v0.9.0-gms.apk'],
+    ['tv-foss', 'NuvxTV-v0.9.0-foss.apk'],
+    ['wear', 'NuvxWear-v0.9.0.apk'],
+    ['mac-intel', 'nuvx-setup-0.9.0-macos-intel.dmg'],
+    ['mac-arm', 'nuvx-setup-0.9.0-macos-apple-silicon.dmg'],
+    ['linux', 'nuvx-setup-0.9.0-linux-universal.tar.gz'],
+    ['chrome', 'nuvx-extension-chrome-0.9.0.zip'],
+    ['firefox', 'nuvx-extension-firefox-0.9.0.zip'],
   ];
 
   for (const [platform, asset] of routes) {

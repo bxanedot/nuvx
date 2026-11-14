@@ -14,3 +14,4 @@ interface ImportMeta {
 }
 
 declare const DEV_EXTENSION_ID: string;
+declare const EXTENSION_VERSION: string;
