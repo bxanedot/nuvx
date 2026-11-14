@@ -121,6 +121,7 @@ import com.bxane.nuvx.ui.components.DacVolumeHud
 import com.bxane.nuvx.ui.components.DacVolumeKeys
 import com.bxane.nuvx.ui.components.LocalPlayingBarsMotion
 import com.bxane.nuvx.ui.components.VolumeHud
+import com.bxane.nuvx.ui.MainDetailPlaybackController
 import com.bxane.nuvx.ui.navigation.AppDestination
 import com.bxane.nuvx.ui.navigation.AppRoute
 import com.bxane.nuvx.ui.screens.EqualizerPresetPage
@@ -160,7 +161,6 @@ import com.bxane.nuvx.playback.beginRadioQueue
 import com.bxane.nuvx.playback.commitRadioQueue
 import com.bxane.nuvx.playback.hasYouTubeOriginal
 import com.bxane.nuvx.playback.playSongs
-import com.bxane.nuvx.playback.contextEntryKey
 import com.bxane.nuvx.playback.toggleAutoplay
 import com.bxane.nuvx.playback.toggleShuffle
 import com.bxane.nuvx.playback.upgradeQuality
@@ -915,6 +915,15 @@ internal fun NuvxApp(
         boundedContext: Boolean = false,
         continuationToken: String? = null,
     ) = playbackStarter.playFrom(allSongs, allIndex, source, boundedContext, continuationToken)
+    val detailPlayback = MainDetailPlaybackController(
+        playFrom = { songs, index, source, boundedContext, continuationToken ->
+            playFrom(songs, index, source, boundedContext, continuationToken)
+        },
+        takePlaybackContext = viewModel::takePlaybackContext,
+        controlsLocked = { ListenTogether.state.value.controlsLocked },
+        casting = { CastController.state.value.casting },
+        refusedByHost = { refusedByHost() },
+    )
     val play: (List<Song>, Int) -> Unit = { songs, index ->
         val first = songs.getOrNull(index)
         val source = QueueSource(
@@ -1673,51 +1682,8 @@ internal fun NuvxApp(
                             } else {
                                 null
                             }
-                            val withAlbum: (Song) -> Song = { song ->
-                                if (page.type == BrowseType.ALBUM) {
-                                    song.copy(albumName = song.albumName ?: page.title)
-                                } else {
-                                    song
-                                }
-                            }
-                            fun playDetailSongs(songs: List<Song>, index: Int) {
-                                if (ListenTogether.state.value.controlsLocked) {
-                                    refusedByHost()
-                                    return
-                                }
-                                val source = QueueSource(
-                                    page.title,
-                                    PlaybackSourceType.BROWSE,
-                                    page.browseId,
-                                )
-                                val selected = songs.getOrNull(index)
-                                val pageSongKeys =
-                                    (page.songs as? UiState.Success)?.data.orEmpty().mapTo(HashSet()) { it.contextEntryKey() }
-                                val useBounded =
-                                    (page.type == BrowseType.ALBUM || page.type == BrowseType.PLAYLIST) &&
-                                        selected?.contextEntryKey()?.let(pageSongKeys::contains) == true &&
-                                        !CastController.state.value.casting
-                                val latestPage = if (useBounded) {
-                                    viewModel.takePlaybackContext(page.browseId)
-                                } else {
-                                    null
-                                }
-                                val latestSongs = latestPage
-                                    ?.let { (it.songs as? UiState.Success)?.data.orEmpty() }
-                                    ?.map(withAlbum)
-                                    ?.takeIf { it.isNotEmpty() }
-                                val queue = latestSongs ?: songs.map(withAlbum)
-                                if (queue.isEmpty()) return
-                                val queueIndex = selected?.let { tapped ->
-                                    queue.indexOfFirst { it.contextEntryKey() == tapped.contextEntryKey() }
-                                }?.takeIf { it >= 0 } ?: index
-                                playFrom(
-                                    queue,
-                                    queueIndex.coerceIn(queue.indices),
-                                    source,
-                                    boundedContext = useBounded,
-                                    continuationToken = latestPage?.continuation ?: page.continuation,
-                                )
+                            val playDetailSongs: (List<Song>, Int) -> Unit = { songs, index ->
+                                detailPlayback.play(page, songs, index)
                             }
                             val reordering = reorderTarget?.takeIf { it.browseId == page.browseId }
                             DetailScreen(
@@ -1730,9 +1696,9 @@ internal fun NuvxApp(
                                     if (shelf != null) navigator.push(AppRoute.ArtistShelf(page.browseId, shelf))
                                     else navigator.pop()
                                 },
-                                onSongClick = ::playDetailSongs,
-                                onSongLongPress = { openSongMenu(withAlbum(it)) },
-                                onSongSwipe = { onSongSwipe(withAlbum(it)) },
+                                onSongClick = playDetailSongs,
+                                onSongLongPress = { openSongMenu(detailPlayback.albumSong(page, it)) },
+                                onSongSwipe = { onSongSwipe(detailPlayback.albumSong(page, it)) },
                                 onShuffle = { songs ->
                                     if (songs.isNotEmpty()) {
                                         QueueShuffle.enableForNextQueue()
