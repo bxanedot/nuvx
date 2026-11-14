@@ -33,6 +33,32 @@ pub(super) enum VideoState {
     Failed,
 }
 
+impl VideoState {
+    pub(super) fn from_aligned(video: Option<(std::path::PathBuf, i64)>) -> Self {
+        video.map_or(Self::Failed, |(path, offset_ms)| Self::Saved { path, offset_ms })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::VideoState;
+    use std::path::PathBuf;
+
+    #[test]
+    fn a_video_without_a_confident_alignment_is_not_started() {
+        assert!(matches!(VideoState::from_aligned(None), VideoState::Failed));
+    }
+
+    #[test]
+    fn a_video_with_a_confident_zero_offset_can_be_started() {
+        let path = PathBuf::from("video.mp4");
+        assert!(matches!(
+            VideoState::from_aligned(Some((path.clone(), 0))),
+            VideoState::Saved { path: saved, offset_ms: 0 } if saved == path
+        ));
+    }
+}
+
 impl Drop for MotionView {
     fn drop(&mut self) {
         self.motion.stop();

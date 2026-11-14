@@ -363,14 +363,14 @@ impl App {
                     }
                 }
             }
-            Resp::Video { id, audio_id, path, offset_ms } => {
+            Resp::Video { id, audio_id, video } => {
                 let playing_id = self.playing_id().map(str::to_owned);
                 if let Some((v, a, state)) = &mut self.video
                     && *v == id
                     && *a == audio_id
                     && playing_id.as_deref() == Some(audio_id.as_str())
                 {
-                    *state = Some(path.map_or(super::VideoState::Failed, |path| super::VideoState::Saved { path, offset_ms }));
+                    *state = Some(super::VideoState::from_aligned(video));
                 }
             }
             Resp::VideoOf { generation, listed, video } => {

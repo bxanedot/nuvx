@@ -229,7 +229,7 @@ pub enum Resp {
     AppleArtist { id: String, info: Option<crate::apple::Artwork> },
     SongCover { id: String, song: Option<Track> },
     Canvas { key: String, url: Option<String> },
-    Video { id: String, audio_id: String, path: Option<PathBuf>, offset_ms: i64 },
+    Video { id: String, audio_id: String, video: Option<(PathBuf, i64)> },
     VideoOf { generation: u64, listed: String, video: Option<Track> },
     ArtistSignature { key: String, signature: Option<crate::artist_signature::Signature> },
     Radio { seed: String, tracks: Vec<Track> },
