@@ -1,10 +1,10 @@
 # nuvx
 
-> nuvx is a free, open-source YouTube Music client built with Kotlin Multiplatform, Compose Multiplatform and Rust. Version 0.8.0 is available for Android phones and tablets, Android TV, Wear OS, Windows, Linux and macOS, and as a web player at https://web.nuvx.lol.
+> nuvx is a free, open-source YouTube Music client built with Kotlin Multiplatform, Compose Multiplatform and Rust. Version 0.9.0 is available for Android phones and tablets, Android TV, Wear OS, Windows, Linux and macOS, and as a web player at https://web.nuvx.lol.
 
 ## Current status
 
-nuvx 0.8.0 (Android version code 8) ships signed universal GMS and FOSS APKs for Android phones and tablets and Android TV, a separate Wear OS APK, universal Windows and Linux installers, Intel and Apple silicon macOS installers, and Chrome and Firefox extensions on GitHub Releases: https://github.com/bxanedot/nuvx/releases/latest. The web player runs at https://web.nuvx.lol. iOS/iPadOS is not included in this release. nuvx is independent and not affiliated with YouTube or Google. Release notes for every version: https://www.nuvx.lol/changelog.
+nuvx 0.9.0 (Android version code 9) ships signed universal GMS and FOSS APKs for Android phones and tablets and Android TV, a separate Wear OS APK, universal Windows and Linux installers, Intel and Apple silicon macOS installers, and Chrome and Firefox extensions on GitHub Releases: https://github.com/bxanedot/nuvx/releases/latest. The web player runs at https://web.nuvx.lol. iOS/iPadOS is not included in this release. nuvx is independent and not affiliated with YouTube or Google. Release notes for every version: https://www.nuvx.lol/changelog.
 
 ## Features
 
