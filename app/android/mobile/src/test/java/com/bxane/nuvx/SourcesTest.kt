@@ -19,8 +19,13 @@ import com.bxane.nuvx.data.sources.StreamFormat
 import com.bxane.nuvx.data.sources.StreamRequest
 import com.bxane.nuvx.data.sources.TrackMatcher
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -909,6 +914,7 @@ class SourcesTest {
         private val format: StreamFormat?,
         override val kind: SourceKind = SourceKind.JIOSAAVN,
         private val candidates: List<Song>? = null,
+        private val responseGate: CompletableDeferred<Unit>? = null,
     ) : MusicSource {
         override val configId = displayName
         var asked = false
@@ -926,7 +932,7 @@ class SourcesTest {
         ): List<Song> {
             asked = true
             try {
-                delay(answerAfterMs)
+                responseGate?.await() ?: delay(answerAfterMs)
             } catch (e: CancellationException) {
                 cancelled = true
                 throw e
@@ -1074,12 +1080,30 @@ class SourcesTest {
     }
 
     @Test
-    fun `prefers the better of two answers that arrive together`() = runBlocking {
-        val worse = FakeSource("Ricky's Addon", answerAfterMs = 5, format = StreamFormat("mp3", kbps = 128))
-        val better = FakeSource("JioSaavn", answerAfterMs = 5, format = StreamFormat("mp4", kbps = 320))
-        val (source, stream) = SourceResolver.bestAcross(
-            listOf(worse, better), raceTarget(), StreamRequest.Lossless,
-        )!!
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `prefers the better of two answers that arrive together`() = runTest {
+        val responseGate = CompletableDeferred<Unit>()
+        val worse = FakeSource(
+            "Ricky's Addon",
+            answerAfterMs = 0,
+            format = StreamFormat("mp3", kbps = 128),
+            responseGate = responseGate,
+        )
+        val better = FakeSource(
+            "JioSaavn",
+            answerAfterMs = 0,
+            format = StreamFormat("mp4", kbps = 320),
+            responseGate = responseGate,
+        )
+        val pending = async {
+            SourceResolver.bestAcross(listOf(worse, better), raceTarget(), StreamRequest.Lossless)
+        }
+        runCurrent()
+        assertTrue(worse.asked)
+        assertTrue(better.asked)
+        responseGate.complete(Unit)
+        runCurrent()
+        val (source, stream) = pending.await()!!
         assertEquals("JioSaavn", source.displayName)
         assertEquals(320, stream.format.kbps)
     }
