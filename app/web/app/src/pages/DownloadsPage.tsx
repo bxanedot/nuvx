@@ -18,15 +18,7 @@ export default function DownloadsPage() {
           <a className={settingsUi.download} href={config.androidDownloadUrl}>
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
-              <span className={settingsUi.downloadTitle}>Android · universal GMS APK</span>
-              <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 phones and tablets</span>
-            </span>
-            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
-          </a>
-          <a className={settingsUi.download} href={config.androidFossDownloadUrl}>
-            <Download size={25} className="text-primary" />
-            <span className={settingsUi.downloadText}>
-              <span className={settingsUi.downloadTitle}>Android · universal FOSS APK</span>
+              <span className={settingsUi.downloadTitle}>Android · universal APK</span>
               <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 phones and tablets</span>
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
@@ -34,15 +26,7 @@ export default function DownloadsPage() {
           <a className={settingsUi.download} href={config.tvDownloadUrl}>
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
-              <span className={settingsUi.downloadTitle}>Android TV · universal GMS APK</span>
-              <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 Android TV devices</span>
-            </span>
-            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
-          </a>
-          <a className={settingsUi.download} href={config.tvFossDownloadUrl}>
-            <Download size={25} className="text-primary" />
-            <span className={settingsUi.downloadText}>
-              <span className={settingsUi.downloadTitle}>Android TV · universal FOSS APK</span>
+              <span className={settingsUi.downloadTitle}>Android TV · universal APK</span>
               <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 Android TV devices</span>
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />

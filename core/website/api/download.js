@@ -4,29 +4,25 @@ const files = {
   linux: 'nuvx-setup-{v}-linux-universal.tar.gz',
   'mac-arm': 'nuvx-setup-{v}-macos-apple-silicon.dmg',
   'mac-intel': 'nuvx-setup-{v}-macos-intel.dmg',
-  android: 'nuvx-v{v}-gms.apk',
-  'android-foss': 'nuvx-v{v}-foss.apk',
-  tv: 'NuvxTV-v{v}-gms.apk',
-  'tv-foss': 'NuvxTV-v{v}-foss.apk',
-  wear: 'NuvxWear-v{v}.apk',
+  android: 'nuvx-v{v}-universal.apk',
+  tv: 'NuvxTV-v{v}-universal.apk',
+  car: 'NuvxCar-v{v}-universal.apk',
+  wear: 'NuvxWear-v{v}-universal.apk',
+  ios: 'nuvx-v{v}-universal.ipa',
   chrome: 'nuvx-extension-chrome-{v}.zip',
   firefox: 'nuvx-extension-firefox-{v}.zip',
 };
-const androidAbis = new Set(['arm64-v8a', 'armeabi-v7a', 'x86_64']);
 
-function androidAbi(params, req) {
-  const requested = params.get('abi');
-  if (androidAbis.has(requested)) return requested;
-  const agent = req.headers?.['user-agent'] ?? '';
-  if (/\b(?:x86_64|amd64)\b/i.test(agent)) return 'x86_64';
-  if (/\b(?:armeabi-v7a|armv7l|armv8l)\b/i.test(agent)) return 'armeabi-v7a';
-  return 'arm64-v8a';
-}
-
-function candidatesFor(platform, version, params, req) {
+function candidatesFor(platform, version, requestedPlatform) {
   const primary = files[platform].replace('{v}', version);
-  if (platform === 'android') return [primary, `nuvx-v${version}_${androidAbi(params, req)}.apk`, `nuvx-v${version}.apk`];
-  if (platform === 'tv') return [primary, `NuvxTV-v${version}.apk`];
+  // shortcut: old releases still resolve to one GMS/FOSS APK; remove this fallback once universal assets ship.
+  if (platform === 'android') return [primary, ...(requestedPlatform === 'android-foss'
+    ? [`nuvx-v${version}-foss.apk`, `nuvx-v${version}.apk`, `nuvx-v${version}-gms.apk`]
+    : [`nuvx-v${version}.apk`, `nuvx-v${version}-gms.apk`, `nuvx-v${version}-foss.apk`])];
+  if (platform === 'tv') return [primary, ...(requestedPlatform === 'tv-foss'
+    ? [`NuvxTV-v${version}-foss.apk`, `NuvxTV-v${version}.apk`, `NuvxTV-v${version}-gms.apk`]
+    : [`NuvxTV-v${version}.apk`, `NuvxTV-v${version}-gms.apk`, `NuvxTV-v${version}-foss.apk`])];
+  if (platform === 'wear') return [primary, `NuvxWear-v${version}.apk`];
   if (platform === 'linux') return [primary, `nuvx-${version}-linux-x86_64.tar.gz`];
   if (platform === 'mac-arm') return [primary, `nuvx-setup-${version}-macos-aarch64.dmg`];
   if (platform === 'mac-intel') return [primary, `nuvx-setup-${version}-macos-x86_64.dmg`];
@@ -58,7 +54,9 @@ module.exports = async (req, res) => {
     res.end();
     return;
   }
-  const platform = params.get('platform');
+  const requestedPlatform = params.get('platform');
+  const platform = requestedPlatform === 'android-foss' ? 'android'
+    : requestedPlatform === 'tv-foss' ? 'tv' : requestedPlatform;
   let target = releases + '/latest';
   if (Object.hasOwn(files, platform)) {
     try {
@@ -66,7 +64,7 @@ module.exports = async (req, res) => {
       const tag = new URL(latest.headers.get('location'), target);
       const version = /^\/bxanedot\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
       if (latest.status === 302 && tag.origin === 'https://github.com' && version) {
-        for (const candidate of candidatesFor(platform, version, params, req)) {
+        for (const candidate of candidatesFor(platform, version, requestedPlatform)) {
           const asset = releases + '/download/v' + version + '/' + candidate;
           const response = await fetch(asset, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
           if (response.ok || response.status === 302) {
