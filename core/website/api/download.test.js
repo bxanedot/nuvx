@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const download = require('./download');
 
-async function request(platform, assets, version = '0.9.0', query = '', userAgent = 'Android 15') {
+async function request(platform, assets, version = '0.9.0') {
   const originalFetch = global.fetch;
   let result;
   global.fetch = async (url) => {
@@ -17,7 +17,7 @@ async function request(platform, assets, version = '0.9.0', query = '', userAgen
   };
   try {
     await download(
-      { url: `/?platform=${platform}${query}`, headers: { 'user-agent': userAgent } },
+      { url: `https://www.nuvx.lol/api/download?platform=${platform}`, headers: {} },
       { writeHead: (status, headers) => { result = { status, headers }; }, end() {} },
     );
   } finally {
@@ -26,14 +26,14 @@ async function request(platform, assets, version = '0.9.0', query = '', userAgen
   return result;
 }
 
-test('release downloads select the requested universal platform package', async (t) => {
+test('release downloads select universal platform packages', async (t) => {
   const routes = [
     ['windows', 'nuvx-setup-0.9.0.exe'],
-    ['android', 'nuvx-v0.9.0-gms.apk'],
-    ['android-foss', 'nuvx-v0.9.0-foss.apk'],
-    ['tv', 'NuvxTV-v0.9.0-gms.apk'],
-    ['tv-foss', 'NuvxTV-v0.9.0-foss.apk'],
-    ['wear', 'NuvxWear-v0.9.0.apk'],
+    ['android', 'nuvx-v0.9.0-universal.apk'],
+    ['tv', 'NuvxTV-v0.9.0-universal.apk'],
+    ['car', 'NuvxCar-v0.9.0-universal.apk'],
+    ['wear', 'NuvxWear-v0.9.0-universal.apk'],
+    ['ios', 'nuvx-v0.9.0-universal.ipa'],
     ['mac-intel', 'nuvx-setup-0.9.0-macos-intel.dmg'],
     ['mac-arm', 'nuvx-setup-0.9.0-macos-apple-silicon.dmg'],
     ['linux', 'nuvx-setup-0.9.0-linux-universal.tar.gz'],
@@ -50,10 +50,11 @@ test('release downloads select the requested universal platform package', async 
   }
 });
 
-test('previous stable assets keep resolving until the new release is published', async (t) => {
+test('downloads fall back to legacy assets when universal naming is unavailable', async (t) => {
   const routes = [
-    ['android', 'nuvx-v0.7.0.apk'],
+    ['android', 'nuvx-v0.7.0-gms.apk'],
     ['tv', 'NuvxTV-v0.7.0.apk'],
+    ['wear', 'NuvxWear-v0.7.0.apk'],
     ['linux', 'nuvx-0.7.0-linux-x86_64.tar.gz'],
     ['mac-arm', 'nuvx-setup-0.7.0-macos-aarch64.dmg'],
     ['mac-intel', 'nuvx-setup-0.7.0-macos-x86_64.dmg'],
@@ -68,20 +69,17 @@ test('previous stable assets keep resolving until the new release is published',
   }
 });
 
-test('Android keeps selecting legacy ABI APKs and universal fallbacks', async (t) => {
-  await t.test('uses the device ABI', async () => {
-    const result = await request('android', new Set(['nuvx-v0.7.0_arm64-v8a.apk']), '0.7.0');
-    assert.equal(result.status, 302);
-    assert.match(result.headers.Location, /nuvx-v0\.7\.0_arm64-v8a\.apk$/);
-  });
+test('FOSS compatibility routes keep legacy releases on the matching flavor', async (t) => {
+  const routes = [
+    ['android-foss', 'nuvx-v0.9.0-foss.apk', 'nuvx-v0.9.0-gms.apk'],
+    ['tv-foss', 'NuvxTV-v0.9.0-foss.apk', 'NuvxTV-v0.9.0-gms.apk'],
+  ];
 
-  await t.test('honors an explicit supported ABI', async () => {
-    const result = await request('android', new Set(['nuvx-v0.7.0_armeabi-v7a.apk']), '0.7.0', '&abi=armeabi-v7a', 'x86_64');
-    assert.match(result.headers.Location, /nuvx-v0\.7\.0_armeabi-v7a\.apk$/);
-  });
-
-  await t.test('falls back to the previous universal APK', async () => {
-    const result = await request('android', new Set(['nuvx-v0.7.0.apk']), '0.7.0');
-    assert.match(result.headers.Location, /nuvx-v0\.7\.0\.apk$/);
-  });
+  for (const [platform, fossAsset, gmsAsset] of routes) {
+    await t.test(platform, async () => {
+      const result = await request(platform, new Set([fossAsset, gmsAsset]));
+      assert.equal(result.status, 302);
+      assert.ok(result.headers.Location.endsWith(`/${fossAsset}`));
+    });
+  }
 });
