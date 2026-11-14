@@ -341,7 +341,7 @@ jobs:
         run: |
           installer="windows/Output/nuvx-setup-$DESKTOP_VERSION.exe"
           install_dir="$RUNNER_TEMP/nuvx-notice-test"
-          "$installer" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER "/DIR=$install_dir"
+          MSYS2_ARG_CONV_EXCL="*" "$installer" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER "/DIR=$install_dir"
           test -s "$install_dir/licenses/cargo-notices.txt"
           cmp assets/licenses/cargo-notices.txt "$install_dir/licenses/cargo-notices.txt"
       - name: Upload Windows installer
