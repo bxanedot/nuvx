@@ -31,6 +31,8 @@ object VersionAudioAligner {
     private const val WIN_MS = 40.0
     private const val MAX_LAG_SECONDS = 40.0
     private const val MIN_CONFIDENCE = 0.40
+    private const val MIN_PEAK_MARGIN = 0.03
+    private const val PEAK_SEPARATION_FRAMES = 30
 
     private val offsetCache = ConcurrentHashMap<Pair<String, String>, Long>()
 
@@ -145,7 +147,7 @@ object VersionAudioAligner {
                 sourceSong.videoId,
             )
 
-            if (confidence >= MIN_CONFIDENCE) {
+            if (!correlation.ambiguous && confidence >= MIN_CONFIDENCE) {
                 val floor = correlation.floor
                 val ceiling = correlation.ceiling
                 if (bestLagFrames == floor || bestLagFrames == ceiling) {
@@ -234,7 +236,13 @@ object VersionAudioAligner {
         return env
     }
 
-    data class Correlation(val lagFrames: Int, val confidence: Double, val floor: Int, val ceiling: Int)
+    data class Correlation(
+        val lagFrames: Int,
+        val confidence: Double,
+        val floor: Int,
+        val ceiling: Int,
+        val ambiguous: Boolean = false,
+    )
 
     fun crossCorrelate(
         sourceEnv: FloatArray,
@@ -252,6 +260,8 @@ object VersionAudioAligner {
 
         val minLag = max(-maxLagFrames, -(sourceEnv.size - minOverlapFrames))
         val maxLag = min(maxLagFrames, targetEnv.size - minOverlapFrames)
+        if (minLag > maxLag) return Correlation(0, -1.0, minLag, maxLag)
+        val correlations = DoubleArray(maxLag - minLag + 1) { -1.0 }
 
         val crossTerms = crossTermsByLag(sourceEnv, targetEnv)
 
@@ -288,6 +298,7 @@ object VersionAudioAligner {
             val denom = sqrt(denSrc * denTgt)
             if (denom > 1e-6) {
                 val r = num / denom
+                correlations[lag - minLag] = r
                 if (r > bestCorrelation) {
                     bestCorrelation = r
                     bestLag = lag
@@ -295,7 +306,11 @@ object VersionAudioAligner {
             }
         }
 
-        return Correlation(bestLag, bestCorrelation, minLag, maxLag)
+        val ambiguous = correlations.indices.any { index ->
+            kotlin.math.abs(minLag + index - bestLag) >= PEAK_SEPARATION_FRAMES &&
+                bestCorrelation - correlations[index] < MIN_PEAK_MARGIN
+        }
+        return Correlation(bestLag, bestCorrelation, minLag, maxLag, ambiguous)
     }
 
     private fun crossTermsByLag(source: FloatArray, target: FloatArray): DoubleArray {
