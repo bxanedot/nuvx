@@ -14,6 +14,9 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin" "$app/Contents/MacOS/nuvx"
 chmod 755 "$app/Contents/MacOS/nuvx"
 sed "s/@VERSION@/$version/g" "$here/Info.plist" > "$app/Contents/Info.plist"
+cp "$here/../LICENSE" "$app/Contents/Resources/LICENSE"
+mkdir -p "$app/Contents/Resources/licenses"
+cp "$here/../assets/fonts"/LICENSE-*.txt "$app/Contents/Resources/licenses/"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
