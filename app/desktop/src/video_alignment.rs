@@ -7,6 +7,8 @@ const HOP_MS: i64 = 10;
 const MAX_LAG_FRAMES: usize = 6_000;
 const MIN_OVERLAP_FRAMES: usize = 300;
 const MIN_CONFIDENCE: f64 = 0.4;
+const MIN_PEAK_MARGIN: f64 = 0.03;
+const PEAK_SEPARATION_FRAMES: isize = 30;
 const WINDOW_MS: usize = 40;
 const ANALYSIS_SECONDS: usize = 90;
 
@@ -66,6 +68,7 @@ pub(crate) fn offset_ms(source: &[f32], target: &[f32]) -> Option<i64> {
     let max_lag = MAX_LAG_FRAMES.min(target.len() - MIN_OVERLAP_FRAMES) as isize;
     let mut best_lag = 0;
     let mut best_correlation = -1.0f64;
+    let mut correlations = Vec::with_capacity((max_lag - min_lag + 1) as usize);
     for lag in min_lag..=max_lag {
         let source_start = lag.saturating_neg().max(0) as usize;
         let target_start = lag.max(0) as usize;
@@ -90,6 +93,7 @@ pub(crate) fn offset_ms(source: &[f32], target: &[f32]) -> Option<i64> {
         let denominator = (source_variance * target_variance).sqrt();
         if denominator > 1e-6 {
             let correlation = covariance / denominator;
+            correlations.push((lag, correlation));
             if correlation > best_correlation {
                 best_correlation = correlation;
                 best_lag = lag;
@@ -97,6 +101,12 @@ pub(crate) fn offset_ms(source: &[f32], target: &[f32]) -> Option<i64> {
         }
     }
     if best_correlation < MIN_CONFIDENCE || best_lag == min_lag || best_lag == max_lag {
+        return None;
+    }
+    if correlations.iter().any(|(lag, correlation)| {
+        (*lag - best_lag).abs() >= PEAK_SEPARATION_FRAMES
+            && best_correlation - correlation < MIN_PEAK_MARGIN
+    }) {
         return None;
     }
     Some(best_lag as i64 * HOP_MS)
@@ -140,6 +150,17 @@ mod tests {
         target.extend_from_slice(&source);
         target.extend(signal(200, 12));
         assert_eq!(offset_ms(&source, &target), Some(45_000));
+    }
+
+    #[test]
+    fn rejects_repeated_audio_when_multiple_offsets_fit_equally() {
+        let pattern = signal(200, 13);
+        let source: Vec<_> = (0..6).flat_map(|_| pattern.iter().copied()).collect();
+        let mut target = signal(65, 14);
+        target.extend_from_slice(&pattern);
+        target.extend_from_slice(&source);
+        target.extend(signal(90, 15));
+        assert_eq!(offset_ms(&source, &target), None);
     }
 
     #[test]
