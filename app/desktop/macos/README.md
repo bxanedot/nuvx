@@ -13,10 +13,9 @@ cargo run --release
 
 ## Install
 
-Use the universal DMG for both Apple silicon and Intel from a
-[GitHub release](https://github.com/bxanedot/nuvx/releases), if available.
-Open the DMG and drag `nuvx.app` into Applications. Requires macOS 15 or newer.
-Older releases may have separate architecture-specific packages.
+Choose the Apple silicon or Intel DMG from a
+[GitHub release](https://github.com/bxanedot/nuvx/releases). Open it and drag
+`nuvx.app` into Applications. Requires macOS 15 or newer.
 
 Builds are ad-hoc signed, not Developer ID signed or notarized. macOS may
 block the first launch: after verifying the download's origin and checksum,
@@ -27,7 +26,8 @@ Do not disable Gatekeeper system-wide.
 
 The **Apple builds** workflow compiles/tests the Rust desktop on both Apple
 silicon and Intel GitHub runners, combines them into a universal app, then uploads
-a DMG artifact with SHA-256 checksums. It runs on relevant PRs and `main` pushes,
+a universal DMG artifact with SHA-256 checksums. Release assets are separate
+Apple silicon and Intel DMGs. It runs on relevant PRs and `main` pushes,
 or manually from **Actions**. Download `macos-universal` from the completed
 run; artifacts expire after 14 days.
 
