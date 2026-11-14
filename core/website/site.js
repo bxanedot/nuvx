@@ -129,10 +129,12 @@
   const hero = document.querySelector('#device-download');
   const downloads = { Windows: 'windows', Linux: 'linux', macOS: 'mac-arm', Android: 'android', 'Android TV': 'tv', 'Wear OS': 'wear' };
   if (hero && downloads[device]) hero.href = '/api/download?platform=' + downloads[device];
-  if (hero && device === 'macOS' && navigator.userAgentData?.getHighEntropyValues) {
-    navigator.userAgentData.getHighEntropyValues(['architecture'])
+  if (hero && device === 'macOS') {
+    hero.href = 'https://github.com/bxanedot/nuvx/releases/latest';
+    navigator.userAgentData?.getHighEntropyValues?.(['architecture'])
       .then(({ architecture }) => {
-        if (architecture === 'x86') hero.href = '/api/download?platform=mac-intel';
+        if (architecture === 'x86' || architecture === 'x86_64') hero.href = '/api/download?platform=mac-intel';
+        else if (architecture === 'arm' || architecture === 'arm64') hero.href = '/api/download?platform=mac-arm';
       }).catch(() => {});
   }
   const showNote = (version) => {
