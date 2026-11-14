@@ -1,6 +1,6 @@
 # nuvx Web
 
-The web player and its companion browser extension. The plan, and the decisions behind it, are in [`docs/web-app-build-prompt.md`](../../core/docs/web-app-build-prompt.md).
+The web player and its companion browser extension. Project documentation is in [`docs/`](docs/).
 
 | Package | What it is |
 |---|---|

@@ -4,8 +4,9 @@ The DJ engine in this folder is ported from **AutoMix**
 (https://github.com/heydavidf/automix), Copyright (C) 2026 David Finnegan,
 licensed under the GNU Affero General Public License v3.0 (`./LICENSE`).
 nuvx is GPL-3.0; GPLv3 §13 permits combining it with AGPLv3 code, and the
-files here stay under the AGPL; their original headers are in the root `THIRD_PARTY_NOTICES.md`. Because the web player is served over a
-network, its users are offered the source (the repository is public).
+files here stay under the AGPL. This notice records their attribution. Because
+the web player is served over a network, its users are offered the source (the
+repository is public).
 
 AutoMix's analysis uses **essentia.js** (AGPL-3.0, Music Technology Group,
 Universitat Pompeu Fabra) and **idb** (ISC, Jake Archibald).

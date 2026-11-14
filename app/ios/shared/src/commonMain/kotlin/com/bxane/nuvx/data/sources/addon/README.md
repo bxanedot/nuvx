@@ -2,8 +2,8 @@
 
 Renewal is optional per addon and uses a renewal link supplied by the listener.
 No provider, hostname, addon directory or automatic provider adapter is bundled.
-See [the renewal protocol documentation](../../../../../../../../../../ADDON_REFRESH.md)
-for configuration, supported response formats and lifecycle behavior.
+See [AddonRefresh.kt](AddonRefresh.kt) for the renewal response formats and
+lifecycle behavior.
 
 `AddonRefreshSession` owns each configured link's serialized renewal and cached
 lease. `AddonSessionTransport` bounds documents to 16 KiB, applies request
