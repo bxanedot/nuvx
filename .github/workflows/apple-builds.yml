@@ -7,6 +7,9 @@ on:
       - 'core/apple/**'
       - 'core/native/**'
       - 'app/desktop/**'
+      - 'scripts/cargo_notices.py'
+      - 'scripts/test_cargo_notices.py'
+      - 'scripts/spdx/**'
       - '.github/workflows/apple-builds.yml'
   push:
     branches: [main]
@@ -15,6 +18,9 @@ on:
       - 'core/apple/**'
       - 'core/native/**'
       - 'app/desktop/**'
+      - 'scripts/cargo_notices.py'
+      - 'scripts/test_cargo_notices.py'
+      - 'scripts/spdx/**'
       - '.github/workflows/apple-builds.yml'
   workflow_dispatch:
     inputs:
@@ -59,10 +65,14 @@ jobs:
         run: |
           python3 app/ios/scripts/check-nuvx-port.py
           python3 -m unittest discover -s app/ios/tests -v
+          python3 scripts/test_cargo_notices.py
+          ruby -e 'require "yaml"; YAML.load_file(".github/workflows/desktop-release.yml"); YAML.load_file(".github/workflows/android-nightly.yml")'
           bash -n app/ios/scripts/package-ios-ipa.sh
           bash -n app/ios/scripts/build-native-core.sh
           bash -n app/ios/scripts/build-shared-framework.sh
           sh -n app/desktop/macos/bundle.sh
+          sh -n app/desktop/linux/install.sh
+          sh -n app/desktop/linux/test-installer.sh
 
   ios:
     needs: source
@@ -224,6 +234,14 @@ jobs:
         with:
           name: macos-binary-x86_64
           path: app/desktop/universal/x86_64
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Generate locked Cargo dependency notices
+        run: |
+          python3 ../../scripts/test_cargo_notices.py
+          python3 ../../scripts/cargo_notices.py --output assets/licenses/cargo-notices.txt
       - name: Package ad-hoc signed universal DMG
         run: |
           version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1)"
