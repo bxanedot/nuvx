@@ -42,6 +42,16 @@ impl Motion {
         self.stop.store(true, Ordering::Relaxed);
     }
 
+    #[cfg(test)]
+    pub(crate) fn test_new() -> Self {
+        Self::new()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_stopped(&self) -> bool {
+        self.stop.load(Ordering::Relaxed)
+    }
+
     fn publish(&self, ctx: &egui::Context, w: usize, h: usize, rgba: Vec<u8>) {
         if let Ok(mut slot) = self.latest.lock() {
             *slot = Some(Arc::new(Frame { w, h, rgba }));
