@@ -18,9 +18,44 @@ let loadedQuality: VideoQuality | null = null;
 let generation = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
 let listening: HTMLAudioElement | null = null;
+let alignmentKey: string | null = null;
+let alignmentOffsetMs = 0;
 
 export function shouldSeekForDrift(drift: number): boolean {
   return Math.abs(drift) > SEEK_DRIFT_SEC;
+}
+
+export function videoTargetTime(audioTime: number, offsetMs: number): number {
+  return audioTime + offsetMs / 1000;
+}
+
+function resetAlignment() {
+  alignmentKey = null;
+  alignmentOffsetMs = 0;
+}
+
+function currentAlignmentOffset(): number {
+  const songId = source?.engine.currentVideoId;
+  if (!songId || !loaded) return 0;
+  return alignmentKey === `${songId}>${loaded}` ? alignmentOffsetMs : 0;
+}
+
+function prepareAlignment(engine: YouTubeEngine, videoId: string) {
+  const songId = engine.currentVideoId;
+  if (!songId || songId === videoId) {
+    resetAlignment();
+    return;
+  }
+  const key = `${songId}>${videoId}`;
+  if (alignmentKey === key) return;
+  alignmentKey = key;
+  alignmentOffsetMs = 0;
+  void import('./videoAlignmentService')
+    .then((module) => module.alignVideoPair(songId, videoId))
+    .then((offset) => {
+      if (alignmentKey === key) alignmentOffsetMs = offset ?? 0;
+    })
+    .catch(() => {});
 }
 
 async function ensurePlayer(): Promise<shaka.Player> {
@@ -66,12 +101,14 @@ function reportActive(target: shaka.Player) {
 
 export function followVideo(engine: YouTubeEngine, audio: HTMLAudioElement): void {
   source = { engine, audio };
+  resetAlignment();
   listen(audio);
   void refresh();
 }
 
 export function stopVideo(): void {
   source = null;
+  resetAlignment();
   void refresh();
 }
 
@@ -107,6 +144,7 @@ async function refresh(): Promise<void> {
     const active = shakaPlayer.getVariantTracks().find((t) => t.active);
     trackLog.i(`video: ${active?.height ?? '?'}p ${active?.videoCodec ?? ''} (${quality === 'auto' ? 'auto' : qualityLabel(quality)})`, stream.videoId);
     useVideo.setState({ videoId: stream.videoId, aspect: stream.aspect, heights: stream.heights, activeHeight: active?.height ?? null });
+    prepareAlignment(wanted!.engine, stream.videoId);
     sync();
     timer ??= setInterval(sync, SYNC_EVERY_MS);
   } catch (error) {
@@ -125,6 +163,7 @@ async function refresh(): Promise<void> {
 async function unload(keepPicture = false): Promise<void> {
   if (timer) clearInterval(timer);
   timer = null;
+  if (!keepPicture) resetAlignment();
   loaded = null;
   loadedQuality = null;
   if (!keepPicture) useVideo.setState({ videoId: null, heights: [], activeHeight: null });
@@ -144,9 +183,10 @@ function sync() {
   const audio = source?.audio;
   const video = getVideoElement();
   if (!audio || !loaded || useVideo.getState().videoId !== loaded || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
-  const drift = video.currentTime - audio.currentTime;
+  const target = videoTargetTime(audio.currentTime, currentAlignmentOffset());
+  const drift = video.currentTime - target;
   if (shouldSeekForDrift(drift) || audio.paused) {
-    if (Math.abs(drift) > IGNORE_DRIFT_SEC) video.currentTime = audio.currentTime;
+    if (Math.abs(drift) > IGNORE_DRIFT_SEC) video.currentTime = target;
     video.playbackRate = audio.playbackRate;
   } else {
     const nudge = Math.abs(drift) > IGNORE_DRIFT_SEC ? Math.max(-0.1, Math.min(0.1, -drift)) : 0;
