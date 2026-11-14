@@ -9,6 +9,7 @@ pub(super) struct MotionView {
 
 impl MotionView {
     fn new(motion: std::sync::Arc<crate::motion::Motion>, width: u32) -> Self {
+        motion.acquire_view();
         Self { motion, tex: None, seen: 0, width }
     }
 
@@ -72,7 +73,7 @@ mod tests {
 
 impl Drop for MotionView {
     fn drop(&mut self) {
-        self.motion.stop();
+        self.motion.release_view();
     }
 }
 

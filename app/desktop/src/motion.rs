@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, Weak};
 use std::time::{Duration, Instant};
 
@@ -25,12 +25,13 @@ pub struct Frame {
 pub struct Motion {
     latest: Mutex<Option<Arc<Frame>>>,
     version: AtomicU64,
+    viewers: AtomicUsize,
     stop: Arc<AtomicBool>,
 }
 
 impl Motion {
     fn new() -> Self {
-        Self { latest: Mutex::new(None), version: AtomicU64::new(0), stop: Arc::new(AtomicBool::new(false)) }
+        Self { latest: Mutex::new(None), version: AtomicU64::new(0), viewers: AtomicUsize::new(0), stop: Arc::new(AtomicBool::new(false)) }
     }
 
     pub fn latest(&self) -> Option<(u64, Arc<Frame>)> {
@@ -40,6 +41,16 @@ impl Motion {
 
     pub fn stop(&self) {
         self.stop.store(true, Ordering::Relaxed);
+    }
+
+    pub(crate) fn acquire_view(&self) {
+        self.viewers.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub(crate) fn release_view(&self) {
+        if self.viewers.fetch_sub(1, Ordering::Relaxed) == 1 {
+            self.stop();
+        }
     }
 
     #[cfg(test)]
