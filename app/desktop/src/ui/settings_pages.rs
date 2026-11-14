@@ -200,9 +200,9 @@ fn settings_window(app: &mut App, ui: &mut Ui) {
             let desc = if cfg!(windows) {
                 "Dynamic uses nuvx's own background. Mica is the recommended main-window backdrop. Acrylic is more translucent, intended for temporary surfaces, and Windows may fall back to a solid color when transparency effects are unavailable."
             } else if cfg!(target_os = "macos") {
-                "Dynamic is nuvx's own background. Window and Sidebar are macOS's own vibrancy, with your desktop blurred behind the window."
+                "Dynamic uses nuvx's own background. Window is macOS's opaque, desktop-tinted material. Under Window lets the desktop show through with macOS vibrancy."
             } else {
-                "Dynamic is nuvx's own background. Tinted and Translucent let your desktop show through the window; your compositor decides any blur."
+                "Dynamic uses nuvx's own background. Tinted keeps the window opaque like Mica; Linux has no shared wallpaper-tint or blur API. Translucent lets your desktop show through, and your compositor may add blur."
             };
             setting_row(ui, "Window material", Some(desc), |ui| {
                 let now = crate::material::active();
