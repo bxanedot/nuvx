@@ -106,7 +106,9 @@ export default function ExtensionPage() {
           })}
         </section>
         <p className={settingsUi.footer}>
-          GitHub ZIP downloads need manual installation and updates. Firefox Stable only accepts Mozilla-approved extensions.
+          On Firefox Developer Edition or Nightly, open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on,
+          and select the ZIP. Firefox removes it when you close the browser; Firefox Stable requires a Mozilla-signed add-on.
+          GitHub ZIP installs need manual updates.
         </p>
         <p className={settingsUi.footer}>
           New to this?{' '}

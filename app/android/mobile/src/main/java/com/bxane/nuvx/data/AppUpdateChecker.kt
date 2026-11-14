@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
@@ -30,8 +32,8 @@ object AppUpdateChecker {
 
     private const val CACHE_SUBDIR = "updates"
 
-    private const val LATEST_RELEASE_URL =
-        "https://api.github.com/repos/bxanedot/nuvx/releases/latest"
+    private const val RELEASES_URL =
+        "https://api.github.com/repos/bxanedot/nuvx/releases?per_page=100"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -53,20 +55,51 @@ object AppUpdateChecker {
 
     suspend fun check() = withContext(Dispatchers.IO) {
         runCatching {
-            val request = Request.Builder().url(LATEST_RELEASE_URL).build()
+            val request = Request.Builder().url(RELEASES_URL).build()
             val body = Http.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) null else response.body?.string()
             } ?: return@runCatching
-            val release = json.parseToJsonElement(body) as? JsonObject ?: return@runCatching
-            val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull ?: return@runCatching
-            val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return@runCatching
-            val apkUrl = apkAssetUrl(release)
-            val notes = release["body"]?.jsonPrimitive?.contentOrNull
-            val latest = tag.removePrefix("v")
-            if (isNewer(latest, BuildConfig.VERSION_NAME)) {
-                _available.value = UpdateInfo(latest, url, apkUrl, notes)
-            }
+            val releases = json.parseToJsonElement(body) as? JsonArray ?: return@runCatching
+            _available.value = releases.mapNotNull { it as? JsonObject }
+                .mapNotNull(::releaseCandidate)
+                .filter {
+                    isNewerRelease(
+                        it.version,
+                        it.tag,
+                        it.publishedAt,
+                        BuildConfig.VERSION_NAME,
+                        BuildConfig.NUVX_RELEASE_TAG,
+                        BuildConfig.NUVX_BUILD_TIME,
+                    )
+                }
+                .maxByOrNull { it.publishedAt }
+                ?.let { UpdateInfo(it.version, it.releaseUrl, it.apkUrl, it.notes) }
         }
+    }
+
+    private data class ReleaseCandidate(
+        val version: String,
+        val tag: String,
+        val publishedAt: String,
+        val releaseUrl: String,
+        val apkUrl: String,
+        val notes: String?,
+    )
+
+    private fun releaseCandidate(release: JsonObject): ReleaseCandidate? {
+        if (release["draft"]?.jsonPrimitive?.booleanOrNull != false) return null
+        val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull ?: return null
+        val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return null
+        val title = release["name"]?.jsonPrimitive?.contentOrNull
+        val version = if (tag.startsWith("nightly.")) {
+            title?.removePrefix("nuvx ")?.takeIf { it != title }
+        } else {
+            tag.removePrefix("v")
+        } ?: return null
+        if (!version.matches(Regex("\\d+\\.\\d+\\.\\d+(-nightly\\.\\d+\\.\\d+)?"))) return null
+        val publishedAt = release["published_at"]?.jsonPrimitive?.contentOrNull ?: return null
+        val apkUrl = apkAssetUrl(release) ?: return null
+        return ReleaseCandidate(version, tag, publishedAt, url, apkUrl, release["body"]?.jsonPrimitive?.contentOrNull)
     }
 
     suspend fun clearCache(context: Context) = withContext(Dispatchers.IO) {
@@ -170,24 +203,25 @@ object AppUpdateChecker {
         )
     }
 
-    private data class ParsedVersion(val parts: List<Int>, val isPreRelease: Boolean)
+}
 
-    private fun parseVersion(raw: String): ParsedVersion {
-        val dash = raw.indexOf('-')
-        val base = if (dash >= 0) raw.substring(0, dash) else raw
-        return ParsedVersion(base.split(".").map { it.toIntOrNull() ?: 0 }, dash >= 0)
+internal fun isNewerRelease(
+    candidateVersion: String,
+    candidateTag: String,
+    candidatePublishedAt: String,
+    currentVersion: String,
+    currentTag: String,
+    currentBuildTime: String,
+): Boolean {
+    val candidateParts = candidateVersion.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
+    val currentParts = currentVersion.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
+    for (index in 0 until maxOf(candidateParts.size, currentParts.size)) {
+        val candidate = candidateParts.getOrElse(index) { 0L }
+        val current = currentParts.getOrElse(index) { 0L }
+        if (candidate != current) return candidate > current
     }
-
-    private fun isNewer(latest: String, current: String): Boolean {
-        val l = parseVersion(latest)
-        val c = parseVersion(current.substringBefore("-nightly."))
-        for (i in 0 until maxOf(l.parts.size, c.parts.size)) {
-            val a = l.parts.getOrElse(i) { 0 }
-            val b = c.parts.getOrElse(i) { 0 }
-            if (a != b) return a > b
-        }
-        return c.isPreRelease && !l.isPreRelease
-    }
+    if (currentTag.startsWith("nightly.") && candidateTag.startsWith("v")) return true
+    return candidateTag != currentTag && (currentBuildTime.isEmpty() || candidatePublishedAt > currentBuildTime)
 }
 
 internal fun selectApkAssetUrl(

@@ -131,9 +131,13 @@ impl Backend {
                     log::info!("canvas for '{}' by '{artist}': {}", title.as_deref().or(album).unwrap_or_default(), url.as_deref().unwrap_or("none"));
                     Resp::Canvas { key, url }
                 }
-                Req::Video { id, height } => {
-                    let path = self.video_file(&id, height).await.inspect_err(|e| log::warn!("video {id}: {e:#}")).ok();
-                    Resp::Video { id, path }
+                Req::Video { id, audio_id, height } => {
+                    let (path, offset_ms) = tokio::join!(
+                        self.video_file(&id, height),
+                        self.video_offset(&audio_id, &id),
+                    );
+                    let path = path.inspect_err(|e| log::warn!("video {id}: {e:#}")).ok();
+                    Resp::Video { id, audio_id, path, offset_ms }
                 }
                 Req::VideoOf { generation, track } => {
                     let video = ytm::video_of(&self.api, &track).await?;

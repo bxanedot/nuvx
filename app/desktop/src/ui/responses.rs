@@ -363,22 +363,26 @@ impl App {
                     }
                 }
             }
-            Resp::Video { id, path } => {
-                if let Some((v, state)) = &mut self.video
+            Resp::Video { id, audio_id, path, offset_ms } => {
+                let playing_id = self.playing_id().map(str::to_owned);
+                if let Some((v, a, state)) = &mut self.video
                     && *v == id
+                    && *a == audio_id
+                    && playing_id.as_deref() == Some(audio_id.as_str())
                 {
-                    *state = Some(path.map_or(super::VideoState::Failed, super::VideoState::Saved));
+                    *state = Some(path.map_or(super::VideoState::Failed, |path| super::VideoState::Saved { path, offset_ms }));
                 }
             }
             Resp::VideoOf { generation, listed, video } => {
                 if generation == self.generation && self.current_id() == Some(listed.as_str()) {
-                    self.video_of = Some((listed, video.clone()));
+                    self.video_of = Some((listed.clone(), video.clone()));
                     if std::mem::take(&mut self.video_wanted) {
                         self.play_video_version();
                     } else if let Some(v) = video {
                         self.backend.request(Req::Prefetch { video_id: v.id.clone(), song_of: None, track: Some(v.clone()) });
-                        self.video = Some((v.id.clone(), None));
-                        self.backend.request(Req::Video { id: v.id, height: self.video_height });
+                        let audio_id = self.playing_id().unwrap_or(&listed).to_owned();
+                        self.video = Some((v.id.clone(), audio_id.clone(), None));
+                        self.backend.request(Req::Video { id: v.id, audio_id, height: self.video_height });
                     }
                 }
             }

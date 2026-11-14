@@ -263,7 +263,7 @@ struct RadioView: View {
                 var components = URLComponents(string: "https://\(host)/json/\(path)")!
                 if !query.isEmpty { components.queryItems = query }
                 var request = URLRequest(url: components.url!, timeoutInterval: 15)
-                request.setValue("nuvx/0.8.0", forHTTPHeaderField: "User-Agent")
+                request.setValue("nuvx/0.9.0", forHTTPHeaderField: "User-Agent")
                 let (data, response) = try await URLSession.shared.data(for: request)
                 guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                     throw URLError(.badServerResponse)

@@ -15,8 +15,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5"
-    MARKETING_VERSION: "0.8.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.9.0"
+    CURRENT_PROJECT_VERSION: "9"
     NUVX_BUILD_REVISION: "unknown"
 
     NUVX_UPDATE_FEED_URL: ""

@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { zipSync } from 'fflate';
+import { unzipSync, zipSync } from 'fflate';
 
 const output = fileURLToPath(new URL('../.output/', import.meta.url));
 const target = fileURLToPath(new URL('../../app/public/downloads/', import.meta.url));
@@ -28,14 +28,19 @@ for (const [browser, folder] of Object.entries(builds)) {
   version = manifest.version;
 
   const parent = `nuvx-extension-${browser} (${manifest.version})`;
+  const prefix = browser === 'chrome' ? `${parent}/` : '';
   const entries = {};
   for (const file of filesUnder(root)) {
-    entries[`${parent}/${relative(root, file).split(sep).join('/')}`] = readFileSync(file);
+    entries[`${prefix}${relative(root, file).split(sep).join('/')}`] = readFileSync(file);
   }
   const name = `${parent}.zip`;
-  writeFileSync(join(target, name), zipSync(entries, { level: 9 }));
+  const archive = zipSync(entries, { level: 9 });
+  if (browser === 'firefox' && !unzipSync(archive)['manifest.json']) {
+    throw new Error('Firefox ZIP must have manifest.json at the archive root for direct temporary installation.');
+  }
+  writeFileSync(join(target, name), archive);
   files[browser] = name;
-  console.log(`${folder} -> app/public/downloads/${name} (${parent}/, v${version})`);
+  console.log(`${folder} -> app/public/downloads/${name} (${prefix || 'archive root'}, v${version})`);
 }
 
 writeFileSync(

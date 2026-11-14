@@ -2,6 +2,28 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
 
+## 0.9.0
+
+### Desktop
+
+- Account for the active audio output buffer when presenting video frames, and keep Now Playing lyrics clear of artwork behind the text.
+- Measure and cache a separate audio/video start offset for each desktop music-video pair.
+- Discover stable and nightly desktop releases across channels and select assets by release tag.
+
+### Android
+
+- Offer newer stable and nightly releases across channels, including newer nightlies, with the matching GMS or FOSS APK.
+
+### Web and browser extensions
+
+- Load the unsigned Firefox ZIP directly as a temporary add-on in Firefox Developer Edition or Nightly; its manifest is at the archive root.
+- Publish Chrome and Firefox extensions with the desktop, Android mobile, Android TV, and Wear OS release assets.
+
+### Releases
+
+- Set the next release version to 0.9.0, with Android version code 9.
+- Build one multi-architecture Windows installer and Linux package, separate Intel and Apple silicon macOS DMGs, universal GMS and FOSS phone and TV APKs, a Wear OS APK, and both browser extensions in the same release.
+
 ## 0.8.0
 
 ### Android

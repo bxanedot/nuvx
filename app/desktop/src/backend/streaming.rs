@@ -35,6 +35,67 @@ impl Backend {
         })
     }
 
+    pub(super) async fn video_offset(&self, source_id: &str, target_id: &str) -> i64 {
+        if let Some(offset) = crate::video_alignment::cached_offset(source_id, target_id) {
+            return offset;
+        }
+        let (source, target) = tokio::join!(
+            self.resolve_from(Source::VisionOs, source_id, stream::Format::Aac, None),
+            self.resolve_from(Source::VisionOs, target_id, stream::Format::Aac, None),
+        );
+        let (Ok(source), Ok(target)) = (source, target) else {
+            log::info!("video alignment unavailable for {source_id} -> {target_id}");
+            return 0;
+        };
+        let (source, target) = tokio::join!(self.alignment_audio(source_id, source), self.alignment_audio(target_id, target));
+        let (Some(source), Some(target)) = (source, target) else {
+            log::info!("video alignment audio unavailable for {source_id} -> {target_id}");
+            return 0;
+        };
+        let aligned = tokio::task::spawn_blocking(move || {
+            let source = crate::video_alignment::decode_envelope(source.0, source.1, source.2).ok()?;
+            let target = crate::video_alignment::decode_envelope(target.0, target.1, target.2).ok()?;
+            crate::video_alignment::offset_ms(&source, &target)
+        })
+        .await
+        .ok()
+        .flatten();
+        if let Some(offset) = aligned {
+            crate::video_alignment::remember_offset(source_id, target_id, offset);
+            log::info!("video alignment for {source_id} -> {target_id}: {offset} ms");
+            offset
+        } else {
+            log::info!("video alignment not confident for {source_id} -> {target_id}");
+            0
+        }
+    }
+
+    async fn alignment_audio(&self, video_id: &str, s: ResolvedStream) -> Option<(Vec<u8>, u64, stream::Format)> {
+        const MAX_BYTES: u64 = 32 * 1024 * 1024;
+        let ResolvedStream { url, size, duration_ms, user_agent, format, ranging, .. } = s;
+        if size == 0 || size > MAX_BYTES || !matches!(format, stream::Format::Aac | stream::Format::Opus) {
+            return None;
+        }
+        let shared = Shared::new(size, duration_ms, None, format.clone(), None, false);
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(25),
+            stream::download(
+                self.http(),
+                url,
+                user_agent,
+                shared.clone(),
+                Some(self.refresher(Source::VisionOs, video_id, format.clone(), None)),
+                ranging,
+            ),
+        )
+        .await;
+        if result.is_err() {
+            shared.cancel();
+            return None;
+        }
+        shared.bytes().map(|bytes| (bytes, duration_ms, format))
+    }
+
     pub(super) async fn download(&self, t: &Track, for_video: Option<String>) -> anyhow::Result<PathBuf> {
         static SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(3);
         let _slot = SLOTS.acquire().await?;

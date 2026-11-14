@@ -35,6 +35,8 @@ val listenTogetherServer: String = (
     ).trim().trimEnd('/')
 
 val betaSuffix = providers.gradleProperty("nuvx.nightlySuffix").getOrElse("")
+val releaseTag = providers.gradleProperty("nuvx.releaseTag").getOrElse("v${rootProject.extra["nuvxVersionName"]}")
+val buildTime = providers.gradleProperty("nuvx.buildTime").getOrElse("")
 
 android {
     namespace = "com.bxane.nuvx"
@@ -58,6 +60,8 @@ android {
         )
         buildConfigField("String", "ADDON_AUTH_URL", "\"\"")
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"NuvxTV-\"")
+        buildConfigField("String", "NUVX_RELEASE_TAG", "\"$releaseTag\"")
+        buildConfigField("String", "NUVX_BUILD_TIME", "\"$buildTime\"")
     }
 
     sourceSets {
