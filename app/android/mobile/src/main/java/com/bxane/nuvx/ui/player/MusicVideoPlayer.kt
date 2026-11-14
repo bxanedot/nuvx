@@ -36,11 +36,11 @@ import com.metrolist.innertubex.extraction.StreamResolveException
 import com.bxane.nuvx.data.Http
 import com.bxane.nuvx.data.TrackLog
 import com.bxane.nuvx.data.innertube.InnerTubeXResolver
-import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.playback.ChunkedDataSource
 import com.bxane.nuvx.playback.MusicOnlyPlayback
-import com.bxane.nuvx.playback.toSong
+import com.bxane.nuvx.playback.MusicVideoAlignment
+import com.bxane.nuvx.playback.musicVideoTargetMs
 import com.bxane.nuvx.ui.rememberIsForeground
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -82,14 +82,19 @@ object MusicVideoEngine {
 
     private var controller: Player? = null
     private var player: ExoPlayer? = null
-    private class Surface(val view: TextureView, val priority: Int)
+    private class Surface(val view: TextureView, val priority: Int, val videoId: String)
 
     private val surfaces = ArrayList<Surface>()
 
-    private fun top(): TextureView? = surfaces.lastOrNull { s -> surfaces.none { it.priority > s.priority } }?.view
+    private fun topSurface(): Surface? = surfaces.lastOrNull { s -> surfaces.none { it.priority > s.priority } }
+
+    private fun top(): TextureView? = topSurface()?.view
 
     private var loadedId: String? = null
+    private var loadedAudioId: String? = null
+    private var alignmentOffsetMs = 0L
     private var loadJob: Job? = null
+    private var alignJob: Job? = null
     private var syncJob: Job? = null
     private var releaseJob: Job? = null
     private var lastSeekAt = 0L
@@ -218,10 +223,10 @@ object MusicVideoEngine {
         refresh()
     }
 
-    internal fun claim(view: TextureView, priority: Int): () -> Unit {
+    internal fun claim(view: TextureView, priority: Int, videoId: String): () -> Unit {
         releaseJob?.cancel()
         surfaces.removeAll { it.view === view }
-        surfaces += Surface(view, priority)
+        surfaces += Surface(view, priority, videoId)
         val app = view.context.applicationContext
         if (prefs == null) {
             prefs = app.getSharedPreferences("music_video", Context.MODE_PRIVATE).also { stored ->
@@ -273,24 +278,28 @@ object MusicVideoEngine {
         }
     }
 
-    private fun wanted(): Song? {
-        val song = controller?.currentMediaItem?.toSong() ?: return null
-        return song.takeIf {
-            it.isVideo && it.videoId !in noPicture && MusicOnlyPlayback.showsPicture(it.videoId)
-        }
+    private fun wanted(): String? {
+        val videoId = topSurface()?.videoId ?: return null
+        return videoId.takeIf { it !in noPicture && MusicOnlyPlayback.showsPicture(it) }
     }
 
     private fun refresh() {
-        val song = if (surfaces.isEmpty()) null else wanted()
-        if (song == null) {
-            if (surfaces.isNotEmpty() || wanted()?.videoId != loadedId) unload()
+        val videoId = if (surfaces.isEmpty()) null else wanted()
+        if (videoId == null) {
+            if (loadedId != null || surfaces.isNotEmpty()) unload()
             return
         }
-        if (song.videoId == loadedId) {
+        if (videoId == loadedId) {
+            val audioId = controller?.currentMediaItem?.mediaId
+            if (audioId != loadedAudioId) {
+                loadedAudioId = audioId
+                alignmentOffsetMs = audioId?.let { MusicVideoAlignment.cached(it, videoId) } ?: 0L
+                startAlignment(audioId, videoId)
+            }
             startSync()
             return
         }
-        load(song.videoId)
+        load(videoId)
     }
 
     fun setQuality(height: Int?) {
@@ -336,6 +345,9 @@ object MusicVideoEngine {
     private fun load(videoId: String) {
         unload()
         loadedId = videoId
+        val audioId = controller?.currentMediaItem?.mediaId
+        loadedAudioId = audioId
+        alignmentOffsetMs = audioId?.let { MusicVideoAlignment.cached(it, videoId) } ?: 0L
         val cap = capFor(videoId)
         loadedCap = cap
         loadJob = scope.launch {
@@ -370,12 +382,26 @@ object MusicVideoEngine {
             _quality.value = _quality.value.copy(heights = stream.heights, activeHeight = stream.height)
             loadedProfile = stream.profileId
             val start = controller?.currentPosition?.coerceAtLeast(0L) ?: 0L
-            exo.setMediaSource(source, start + seekLeadMs)
+            exo.setMediaSource(source, musicVideoTargetMs(start + seekLeadMs, alignmentOffsetMs))
             exo.playWhenReady = controller?.isPlaying == true
             exo.prepare()
             lastSeekAt = System.currentTimeMillis()
             seekStartedAt = lastSeekAt
             startSync()
+            startAlignment(audioId, videoId)
+        }
+    }
+
+    private fun startAlignment(audioId: String?, videoId: String) {
+        alignJob?.cancel()
+        alignJob = null
+        if (audioId == null || audioId == videoId) return
+        alignJob = scope.launch {
+            val offset = MusicVideoAlignment.align(audioId, videoId) ?: return@launch
+            if (loadedId == videoId && loadedAudioId == audioId) {
+                alignmentOffsetMs = offset
+                sync()
+            }
         }
     }
 
@@ -391,9 +417,13 @@ object MusicVideoEngine {
     private fun unload() {
         loadJob?.cancel()
         loadJob = null
+        alignJob?.cancel()
+        alignJob = null
         syncJob?.cancel()
         syncJob = null
         loadedId = null
+        loadedAudioId = null
+        alignmentOffsetMs = 0L
         loadedProfile = null
         _shownVideoId.value = null
         _frameOn.value = null
@@ -420,19 +450,19 @@ object MusicVideoEngine {
         val exo = player ?: return
         if (loadedId == null || exo.playbackState == Player.STATE_IDLE || exo.playbackState == Player.STATE_ENDED) return
         val speed = audio.playbackParameters.speed
-        val audioPos = audio.currentPosition
+        val target = musicVideoTargetMs(audio.currentPosition, alignmentOffsetMs)
         val now = System.currentTimeMillis()
         if (!audio.isPlaying) {
             exo.playWhenReady = false
             setSpeed(exo, speed)
-            if (abs(exo.currentPosition - audioPos) > 40L && now - lastSeekAt > 120L) seek(exo, audioPos)
+            if (abs(exo.currentPosition - target) > 40L && now - lastSeekAt > 120L) seek(exo, target)
             return
         }
         exo.playWhenReady = true
         if (exo.playbackState == Player.STATE_BUFFERING) return
-        val drift = exo.currentPosition - audioPos
+        val drift = exo.currentPosition - target
         if (musicVideoNeedsSeek(drift)) {
-            if (now - lastSeekAt > SEEK_COOLDOWN_MS) seek(exo, audioPos + seekLeadMs)
+            if (now - lastSeekAt > SEEK_COOLDOWN_MS) seek(exo, target + seekLeadMs)
             return
         }
         val nudge = if (abs(drift) > IGNORE_DRIFT_MS) (-drift / 1000f).coerceIn(-0.1f, 0.1f) else 0f
@@ -478,9 +508,9 @@ internal fun AndroidMusicVideo(
 ) {
     val foreground = rememberIsForeground()
     var view by remember { mutableStateOf<TextureView?>(null) }
-    DisposableEffect(view, foreground, priority) {
+    DisposableEffect(view, foreground, priority, videoId) {
         val target = view
-        val release = if (target != null && foreground) MusicVideoEngine.claim(target, priority) else null
+        val release = if (target != null && foreground) MusicVideoEngine.claim(target, priority, videoId) else null
         onDispose { release?.invoke() }
     }
 
