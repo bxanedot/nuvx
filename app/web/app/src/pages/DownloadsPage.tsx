@@ -31,6 +31,30 @@ export default function DownloadsPage() {
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
           </a>
+          <a className={settingsUi.download} href={config.tvDownloadUrl}>
+            <Download size={25} className="text-primary" />
+            <span className={settingsUi.downloadText}>
+              <span className={settingsUi.downloadTitle}>Android TV · universal GMS APK</span>
+              <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 Android TV devices</span>
+            </span>
+            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+          </a>
+          <a className={settingsUi.download} href={config.tvFossDownloadUrl}>
+            <Download size={25} className="text-primary" />
+            <span className={settingsUi.downloadText}>
+              <span className={settingsUi.downloadTitle}>Android TV · universal FOSS APK</span>
+              <span className={settingsUi.downloadDetail}>Installs on arm32, arm64 and x86_64 Android TV devices</span>
+            </span>
+            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+          </a>
+          <a className={settingsUi.download} href={config.wearDownloadUrl}>
+            <Download size={25} className="text-primary" />
+            <span className={settingsUi.downloadText}>
+              <span className={settingsUi.downloadTitle}>Wear OS companion APK</span>
+              <span className={settingsUi.downloadDetail}>Requires Wear OS 3+ and a paired Android phone running nuvx</span>
+            </span>
+            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+          </a>
           <a className={settingsUi.download} href={config.desktopDownloadUrl} target="_blank" rel="noreferrer">
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
