@@ -13,5 +13,5 @@ A native YouTube Music client for Windows, Linux and macOS, written in Rust (egu
 cargo build --release
 ```
 
-Each system has its own folder: `windows/` (the Inno Setup installer, `windows/nuvx.iss`), `linux/` and `macos/`. Desktop packages include the app license and bundled font notices in a `licenses/` folder. Last.fm needs `LASTFM_API_KEY` and
+Each system has its own folder: `windows/` (the Inno Setup installer, `windows/nuvx.iss`), `linux/` and `macos/`. Desktop packages include the app license and bundled font notices in a `licenses/` folder. The Linux package also includes notices for its vendored GLib crate. Last.fm needs `LASTFM_API_KEY` and
 `LASTFM_SECRET` set at build time; without them that sign-in is off.
