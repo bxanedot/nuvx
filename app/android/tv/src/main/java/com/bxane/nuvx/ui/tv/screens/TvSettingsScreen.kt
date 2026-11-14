@@ -69,6 +69,7 @@ fun TvSettingsScreen(
     val crossfade by AppSettings.crossfadeSeconds.collectAsState()
     val autoplay by AppSettings.autoplay.collectAsState()
     val skipSilence by AppSettings.skipSilence.collectAsState()
+    val youtubeSearch by AppSettings.youtubeSearch.collectAsState()
     val eqEnabled by AppSettings.equalizerEnabled.collectAsState()
     val spatial by TvSettings.spatialAudioEnabled.collectAsState()
     val loudness by AppSettings.loudnessNormalization.collectAsState()
@@ -176,6 +177,16 @@ fun TvSettingsScreen(
                     value = onOff(skipSilence),
                     onFocused = { blurb = "Skips over silent stretches at the start and end of songs." },
                     onClick = { AppSettings.setSkipSilence(!skipSilence) },
+                )
+            }
+
+            item { TvListHeader("Content") }
+            item {
+                TvListRow(
+                    title = "Enable YouTube Search",
+                    value = onOff(youtubeSearch),
+                    onFocused = { blurb = "Adds a YouTube filter for videos beyond YouTube Music." },
+                    onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
                 )
             }
 
