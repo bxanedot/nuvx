@@ -77,6 +77,10 @@ export class YouTubeEngine {
     this.preferredCodecs = opus ? ['opus', 'mp4a'] : ['mp4a'];
   }
 
+  get currentVideoId(): string | null {
+    return this.current?.videoId ?? null;
+  }
+
   private ensurePlayer(): Promise<shaka.Player> {
     if (this.player) return Promise.resolve(this.player);
     if (this.playerPromise) return this.playerPromise;
