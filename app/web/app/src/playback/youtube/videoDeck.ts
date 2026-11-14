@@ -3,7 +3,7 @@ import { getVideoElement, qualityLabel, setVideoQuality, useVideo, type VideoQua
 import { trackLog } from '../trackLog';
 import type { YouTubeEngine } from './engine';
 
-const SEEK_DRIFT_SEC = 0.35;
+const SEEK_DRIFT_SEC = 0.05;
 const IGNORE_DRIFT_SEC = 0.02;
 const SYNC_EVERY_MS = 250;
 
@@ -18,6 +18,10 @@ let loadedQuality: VideoQuality | null = null;
 let generation = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
 let listening: HTMLAudioElement | null = null;
+
+export function shouldSeekForDrift(drift: number): boolean {
+  return Math.abs(drift) > SEEK_DRIFT_SEC;
+}
 
 async function ensurePlayer(): Promise<shaka.Player> {
   if (player) return player;
@@ -141,7 +145,7 @@ function sync() {
   const video = getVideoElement();
   if (!audio || !loaded || useVideo.getState().videoId !== loaded || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
   const drift = video.currentTime - audio.currentTime;
-  if (Math.abs(drift) > SEEK_DRIFT_SEC || audio.paused) {
+  if (shouldSeekForDrift(drift) || audio.paused) {
     if (Math.abs(drift) > IGNORE_DRIFT_SEC) video.currentTime = audio.currentTime;
     video.playbackRate = audio.playbackRate;
   } else {

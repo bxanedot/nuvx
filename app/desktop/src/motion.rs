@@ -5,6 +5,17 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, Weak};
 use std::time::{Duration, Instant};
 
+const MAX_FRAME_SYNC_ERROR_100NS: i64 = 500_000;
+const MAX_FRAME_AHEAD_100NS: i64 = 20_000_000;
+
+fn frame_needs_resync(ts: i64, at: i64) -> bool {
+    ts < at - MAX_FRAME_SYNC_ERROR_100NS || ts > at + MAX_FRAME_AHEAD_100NS
+}
+
+fn frame_before_seek_target(ts: i64, target: i64) -> bool {
+    ts < target - MAX_FRAME_SYNC_ERROR_100NS
+}
+
 pub struct Frame {
     pub w: usize,
     pub h: usize,
@@ -207,11 +218,11 @@ unsafe fn play_once(motion: &Motion, ctx: &egui::Context, url: windows::core::PC
             last = ts;
             match clock {
                 Some(clock) => {
-                    if seeked.is_some_and(|to| ts < to - 5_000_000) {
+                    if seeked.is_some_and(|to| frame_before_seek_target(ts, to)) {
                         continue;
                     }
-                    let first = seeked.take().is_some() || motion.version.load(Ordering::Acquire) == 0;
-                    if !first && !wait_for(&reader, motion, clock, offset_ms, ts)? {
+                    seeked = None;
+                    if !wait_for(&reader, motion, clock, offset_ms, ts)? {
                         seeked = Some(song_at(clock, offset_ms));
                         continue;
                     }
@@ -309,7 +320,7 @@ unsafe fn wait_for(reader: &windows::Win32::Media::MediaFoundation::IMFSourceRea
             return Ok(false);
         }
         let at = song_at(clock, offset_ms);
-        if ts < at - 5_000_000 || ts > at + 20_000_000 {
+        if frame_needs_resync(ts, at) {
             unsafe { seek(reader, at)? };
             return Ok(false);
         }
@@ -317,6 +328,26 @@ unsafe fn wait_for(reader: &windows::Win32::Media::MediaFoundation::IMFSourceRea
             return Ok(true);
         }
         std::thread::sleep(Duration::from_micros(((ts - at) / 10).min(20_000) as u64));
+    }
+}
+
+#[cfg(test)]
+mod frame_sync_tests {
+    use super::{frame_before_seek_target, frame_needs_resync};
+
+    #[test]
+    fn frame_more_than_50ms_behind_audio_is_resynchronized() {
+        assert!(frame_needs_resync(9_499_999, 10_000_000));
+    }
+
+    #[test]
+    fn frame_within_50ms_of_audio_is_kept() {
+        assert!(!frame_needs_resync(9_500_001, 10_000_000));
+    }
+
+    #[test]
+    fn frame_more_than_50ms_before_seek_target_is_skipped() {
+        assert!(frame_before_seek_target(9_499_999, 10_000_000));
     }
 }
 

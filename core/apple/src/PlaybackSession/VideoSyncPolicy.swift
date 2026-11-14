@@ -8,7 +8,7 @@ import Foundation
 
 enum VideoSyncPolicy {
 
-    static let seekDriftSeconds: Double = 0.15
+    static let seekDriftSeconds: Double = 0.05
 
     static let ignoreDriftSeconds: Double = 0.02
 

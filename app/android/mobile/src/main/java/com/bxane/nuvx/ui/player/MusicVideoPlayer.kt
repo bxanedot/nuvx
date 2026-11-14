@@ -57,16 +57,20 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+internal const val MUSIC_VIDEO_SEEK_DRIFT_MS = 50L
+
+internal fun musicVideoNeedsSeek(driftMs: Long): Boolean =
+    driftMs > MUSIC_VIDEO_SEEK_DRIFT_MS || driftMs < -MUSIC_VIDEO_SEEK_DRIFT_MS
+
 @OptIn(UnstableApi::class)
 object MusicVideoEngine {
 
     private const val TAG = "MusicVideo"
 
-    private const val SEEK_DRIFT_MS = 450L
     private const val IGNORE_DRIFT_MS = 25L
     private const val SYNC_EVERY_MS = 250L
 
-    private const val SEEK_COOLDOWN_MS = 1_500L
+    private const val SEEK_COOLDOWN_MS = 500L
 
     private const val RELEASE_GRACE_MS = 4_000L
 
@@ -427,7 +431,7 @@ object MusicVideoEngine {
         exo.playWhenReady = true
         if (exo.playbackState == Player.STATE_BUFFERING) return
         val drift = exo.currentPosition - audioPos
-        if (abs(drift) > SEEK_DRIFT_MS) {
+        if (musicVideoNeedsSeek(drift)) {
             if (now - lastSeekAt > SEEK_COOLDOWN_MS) seek(exo, audioPos + seekLeadMs)
             return
         }

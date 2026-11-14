@@ -68,20 +68,20 @@ checkAction("half a second ahead seeks back to the engine",
             .seek(seconds: 99.5))
 
 
-checkRate("0.1 s behind speeds the picture up",
-          policy.decide(engineSeconds: 100.1, videoSeconds: 100, enginePlaying: true,
-                        engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
-          1.08)
-checkRate("0.1 s ahead slows the picture down",
-          policy.decide(engineSeconds: 99.9, videoSeconds: 100, enginePlaying: true,
-                        engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
-          0.92)
+checkAction("0.1 s behind seeks to the engine",
+            policy.decide(engineSeconds: 100.1, videoSeconds: 100, enginePlaying: true,
+                          engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
+            .seek(seconds: 100.1))
+checkAction("0.1 s ahead seeks back to the engine",
+            policy.decide(engineSeconds: 99.9, videoSeconds: 100, enginePlaying: true,
+                          engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
+            .seek(seconds: 99.9))
 
 
-checkRate("the rate nudge is clamped at 1.1x",
-          policy.decide(engineSeconds: 100.14, videoSeconds: 100, enginePlaying: true,
-                        engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
-          1.1)
+checkAction("0.14 s of drift seeks instead of keeping a visible offset",
+            policy.decide(engineSeconds: 100.14, videoSeconds: 100, enginePlaying: true,
+                          engineRate: 1, videoRate: 1, secondsSinceSeek: 1),
+            .seek(seconds: 100.14))
 
 
 
@@ -96,8 +96,8 @@ checkRate("a stopped picture starts even inside the ignore band",
 
 
 checkAction("already at the nudged rate does nothing",
-            policy.decide(engineSeconds: 100.1, videoSeconds: 100, enginePlaying: true,
-                          engineRate: 1, videoRate: 1.08, secondsSinceSeek: 1),
+            policy.decide(engineSeconds: 100.04, videoSeconds: 100, enginePlaying: true,
+                          engineRate: 1, videoRate: 1.032, secondsSinceSeek: 1),
             .none)
 
 
@@ -145,7 +145,7 @@ checkRate("a 1.5x engine runs the picture at 1.5x",
                         engineRate: 1.5, videoRate: 0, secondsSinceSeek: 1),
           1.5)
 checkRate("the picture cannot be pushed past the player's 2x ceiling",
-          policy.decide(engineSeconds: 100.1, videoSeconds: 100, enginePlaying: true,
+          policy.decide(engineSeconds: 100.04, videoSeconds: 100, enginePlaying: true,
                         engineRate: 2, videoRate: 0, secondsSinceSeek: 1),
           2.0)
 
