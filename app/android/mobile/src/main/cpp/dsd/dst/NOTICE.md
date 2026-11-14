@@ -5,13 +5,15 @@ commit `b3f443d4c42ccf52806eb57def3b3a34805714bd`.
 
 Source: https://github.com/wichers/dsd-nexus/tree/b3f443d4c42ccf52806eb57def3b3a34805714bd/libs/libdst
 
+Copyright (c) 2014 Peter Ross <pross@xvid.org>.
+
 License: LGPL-2.1-or-later. See `COPYING.LGPL-2.1`.
 
 Modified in September 2026: the utility dependency is replaced with bounded
 input access (`compat.h`), output capacity and uncoded-frame lengths are
 validated, table/filter errors are propagated, and a JNI entry point
 (`jni.cpp`) is added. The files in this directory are distributed under the
-same LGPL terms. The original copyright notice of `decoder.c` is in the root `THIRD_PARTY_NOTICES.md`.
+same LGPL terms.
 
 The decoder is built as its own shared library, `libnuvx_dst.so`, by the
 parent CMake file, so it can be rebuilt or replaced independently of the rest
