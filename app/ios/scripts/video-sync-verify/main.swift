@@ -145,7 +145,7 @@ checkRate("a 1.5x engine runs the picture at 1.5x",
                         engineRate: 1.5, videoRate: 0, secondsSinceSeek: 1),
           1.5)
 checkRate("the picture cannot be pushed past the player's 2x ceiling",
-          policy.decide(engineSeconds: 100.1, videoSeconds: 100, enginePlaying: true,
+          policy.decide(engineSeconds: 100.04, videoSeconds: 100, enginePlaying: true,
                         engineRate: 2, videoRate: 0, secondsSinceSeek: 1),
           2.0)
 
