@@ -1,10 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// JNI bridge to the mel front end.
-//
-// Kept as thin as a bridge can be: it copies the sample array in, calls
-// ComputeBeatSpectrogram, and hands back a flat float[]. No policy, no
-// buffering, no threading -- all of that belongs on the Kotlin side where it
-// can be cancelled and tested.
 
 #include <jni.h>
 
@@ -15,13 +9,10 @@
 
 extern "C" {
 
-// Converts mono float PCM to the model's rate. Separate from nativeCompute
-// because the caller decodes at whatever rate the container carries and only
-// then knows what conversion is needed.
 JNIEXPORT jfloatArray JNICALL
 Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeResample(
     JNIEnv* env,
-    jclass /* clazz */,
+    jclass,
     jfloatArray samples,
     jdouble input_rate,
     jdouble output_rate) {
@@ -45,14 +36,10 @@ Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeResample(
   return result;
 }
 
-// Returns the flattened [frames][kBeatSpectrogramMels] spectrogram, or an
-// empty array when the front end declined the input (wrong rate, or shorter
-// than one padded frame). The caller derives the frame count by dividing, so
-// no second return value is needed.
 JNIEXPORT jfloatArray JNICALL
 Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeCompute(
     JNIEnv* env,
-    jclass /* clazz */,
+    jclass,
     jfloatArray samples,
     jdouble sample_rate) {
   const jsize count = env->GetArrayLength(samples);
@@ -67,7 +54,7 @@ Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeCompute(
   const jsize produced = static_cast<jsize>(spectrogram.values.size());
   jfloatArray result = env->NewFloatArray(produced);
   if (result == nullptr) {
-    return nullptr;  // OOM; the exception is already pending.
+    return nullptr;
   }
   if (produced > 0) {
     env->SetFloatArrayRegion(result, 0, produced, spectrogram.values.data());
@@ -75,27 +62,25 @@ Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeCompute(
   return result;
 }
 
-// The mel band count is part of the model contract rather than a choice, so
-// it is read from the header instead of being duplicated in Kotlin.
 JNIEXPORT jint JNICALL
 Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeMelCount(
-    JNIEnv* /* env */,
-    jclass /* clazz */) {
+    JNIEnv*,
+    jclass) {
   return static_cast<jint>(nuvx::smart::kBeatSpectrogramMels);
 }
 
 JNIEXPORT jdouble JNICALL
 Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeSampleRate(
-    JNIEnv* /* env */,
-    jclass /* clazz */) {
+    JNIEnv*,
+    jclass) {
   return nuvx::smart::kBeatSpectrogramSampleRate;
 }
 
 JNIEXPORT jint JNICALL
 Java_com_bxane_nuvx_playback_smart_MelSpectrogram_nativeHop(
-    JNIEnv* /* env */,
-    jclass /* clazz */) {
+    JNIEnv*,
+    jclass) {
   return static_cast<jint>(nuvx::smart::kBeatSpectrogramHop);
 }
 
-}  // extern "C"
+}

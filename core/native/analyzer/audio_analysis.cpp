@@ -10,8 +10,6 @@
 #include <utility>
 #include <vector>
 
-// Offline DSP implementation: reusable vectors and percentile copies favor
-// readable whole-track analysis over real-time allocation constraints.
 
 namespace nuvx::smart {
 namespace {
@@ -51,9 +49,6 @@ double Average(const std::vector<double>& values, size_t start, size_t end) {
   return std::accumulate(values.begin() + start, values.begin() + end, 0.0) / (end - start);
 }
 
-// Only a genuinely deep quiet passage followed by a sustained recovery is a
-// comeback. Treating every later loud window as a ramp-up pushes ordinary,
-// gently varying outros all the way to the file's end.
 bool HasMaterialRecovery(
   const std::vector<double>& levels,
   size_t start,
@@ -85,8 +80,6 @@ bool HasQuietThenRecovery(
   return false;
 }
 
-// Unnormalized radix-2 Cooley-Tukey FFT. Internal callers must provide a
-// non-empty power-of-two frame; the transform intentionally works in place.
 void Fft(std::vector<std::complex<double>>& values) {
   const size_t size = values.size();
   for (size_t index = 1, swapped = 0; index < size; ++index) {
@@ -110,9 +103,6 @@ void Fft(std::vector<std::complex<double>>& values) {
   }
 }
 
-// Builds nominal 250 ms RMS windows. Percentile-derived reference/noise levels
-// adapt absolute gates to the track; sustained activity locates the pickup,
-// while a separate quiet-tail pass distinguishes content end from file duration.
 EnvelopeResult AnalyzeEnvelope(
   const std::vector<float>& samples,
   double sample_rate,
@@ -182,8 +172,6 @@ EnvelopeResult AnalyzeEnvelope(
   return result;
 }
 
-// Finds a late internal silence bordered by resumed audio, then backtracks to
-// its energy cliff. Terminal silence remains the envelope's content-end cue.
 double FindMixOutTime(
   const std::vector<float>& samples,
   double sample_rate,
@@ -229,8 +217,6 @@ double FindMixOutTime(
       const double before_peak = *std::max_element(levels.begin() + before_start, levels.begin() + index);
       const double after_peak = *std::max_element(levels.begin() + end, levels.begin() + after_end);
       const double quiet_level = Average(levels, index, end);
-      // Late gaps often separate an outro/hidden track and remain useful mix
-      // points. Earlier gaps are protected when the main arrangement returns.
       const bool early_gap = index * window_seconds < envelope.content_end * 0.8;
       if (before_peak >= silence_threshold * 2 &&
           after_peak >= silence_threshold * 2 &&
@@ -274,16 +260,6 @@ double DownbeatAtOrBefore(const std::vector<double>& downbeats, double target, d
   return found == downbeats.begin() ? downbeats.front() : *(found - 1);
 }
 
-// Sparse 4096-point Hann frames feed chroma templates and broad spectral bands.
-// FFT power is log-compressed before aggregation; chroma is sum-normalized and
-// the vocal value is a bounded spectral heuristic rather than a classifier.
-// Band ratios and flatness map to a probability that a voice is present. Shared
-// by the per-frame curve and the track-wide summary so the two cannot drift.
-//
-// Compress spectral power before comparing bands. Raw FFT power lets kick
-// drums and bass overwhelm the much wider voice band, which made vocal-led
-// tracks look instrumental. Flatness adds a small boost for speech-like
-// broadband detail without making it the primary signal.
 double VocalProbabilityFrom(double low, double vocal, double high, double flatness) {
   const double total = low + vocal + high;
   const double mid_ratio = vocal / std::max(1e-12, total);
@@ -292,10 +268,6 @@ double VocalProbabilityFrom(double low, double vocal, double high, double flatne
   return Clamp(1.0 / (1.0 + std::exp(-score)), 0, 1);
 }
 
-// `vocal_frames` receives one probability per accepted frame, which is what
-// makes vocal activity a curve rather than a single number for the whole
-// track. A transition needs to know whether a voice is present *at the
-// overlap*, not whether the track has singing in it somewhere.
 void AnalyzeKeyAndTimbre(
   const std::vector<float>& samples,
   double sample_rate,
@@ -406,9 +378,6 @@ void AnalyzeKeyAndTimbre(
     );
   }
 
-  // The track-wide summary keeps its existing meaning -- the same logistic over
-  // whole-track band totals -- so callers that only want "is this a vocal
-  // track" are unaffected by the per-frame curve.
   result.vocal_probability = VocalProbabilityFrom(
     low_energy,
     vocal_energy,
@@ -417,8 +386,6 @@ void AnalyzeKeyAndTimbre(
   );
 }
 
-// Models 4/4 music in eight-bar (32-beat) phrases and snaps transition cues to
-// the inferred downbeat grid; energy is used only for boundary/type refinement.
 void BuildStructure(const EnvelopeResult& envelope, AnalysisResult& result) {
   const double phrase_seconds = result.beat_interval > 0 ? result.beat_interval * 32.0 : 16.0;
   const double phrase_start = !result.downbeats.empty()
@@ -456,9 +423,6 @@ void BuildStructure(const EnvelopeResult& envelope, AnalysisResult& result) {
         tail_average >= envelope.reference * 0.72) {
       continue;
     }
-    // A candidate may begin just before a breakdown because its four-second
-    // average straddles the energy drop. Look for the complete quiet/recovery
-    // sequence instead of judging only the candidate's first window.
     if (!HasQuietThenRecovery(
       envelope.levels,
       index,
@@ -513,10 +477,6 @@ void BuildStructure(const EnvelopeResult& envelope, AnalysisResult& result) {
     envelope.audible_start,
     std::min(36.0, envelope.content_end * 0.28)
   );
-  // The first eight-bar boundary is the useful dominance target. A later
-  // energy-based intro boundary can describe the song structure, but seeking
-  // to it discards a musical intro that can be pre-rolled under the outgoing
-  // track.
   const double bounded_target = std::min(latest_cue, eight_bar_target);
   result.mix_in_time = Clamp(
     DownbeatAtOrBefore(result.downbeats, bounded_target, bounded_target),
@@ -546,10 +506,6 @@ void BuildStructure(const EnvelopeResult& envelope, AnalysisResult& result) {
 
   std::vector<MixCuePoint> mix_outs;
   if (result.mix_out_time > 0 && result.mix_out_time < envelope.content_end - 1.0) {
-    // FindMixOutTime only returns an interior anchor after observing an abrupt
-    // energy collapse into silence. Preserve that meaning for the planner: a
-    // cliff is useful because the remaining tail is silence, not because the
-    // song should be cut short at an arbitrary quiet passage.
     mix_outs.push_back({result.mix_out_time, 0.95, "energy_cliff"});
   }
   mix_outs.push_back({result.outro_start_time, 0.9, "outro_start"});
@@ -557,10 +513,8 @@ void BuildStructure(const EnvelopeResult& envelope, AnalysisResult& result) {
   result.mix_out_candidates = std::move(mix_outs);
 }
 
-}  // namespace
+}
 
-// Orchestrates independent envelope, tempo, level, spectral, and structure
-// stages. Every temporary and returned allocation is owned by this call.
 AnalysisResult AnalyzeAudio(
   const std::vector<float>& samples,
   double sample_rate,
@@ -584,9 +538,6 @@ AnalysisResult AnalyzeAudio(
   result.beats = tempo.beats;
   result.downbeats = tempo.downbeats;
 
-  // This level estimate is RMS dBFS minus the conventional 0.691 offset. It is
-  // intentionally not advertised as a gated, K-weighted loudness measurement;
-  // the envelope percentile spread supplies the companion dynamics estimate.
   double square_sum = 0;
   double peak = 0;
   const size_t content_start = std::min(samples.size(), static_cast<size_t>(envelope.audible_start * sample_rate));
@@ -604,8 +555,6 @@ AnalysisResult AnalyzeAudio(
     70
   );
 
-  // Downsample to at most 240 points and scale against the track reference;
-  // values may exceed unity for loud passages but are capped at 1.5.
   const size_t curve_stride = std::max<size_t>(1, (envelope.levels.size() + 239) / 240);
   for (size_t index = 0; index < envelope.levels.size(); index += curve_stride) {
     const double time = index * envelope.window_seconds;
@@ -625,10 +574,6 @@ AnalysisResult AnalyzeAudio(
     low_frames,
     vocal_frames
   );
-  // Low-band frames come from actual FFT energy below 250 Hz. Resample them onto the compact
-  // envelope grid so the mobile planner can compare the same track-relative timestamps without
-  // storing another high-resolution curve. Silence remains zero rather than borrowing the nearest
-  // active spectral frame.
   std::vector<double> low_values;
   low_values.reserve(low_frames.size());
   for (const EnergyPoint& frame : low_frames) low_values.push_back(frame.energy);
@@ -645,11 +590,6 @@ AnalysisResult AnalyzeAudio(
       : Clamp(low_frames[low_cursor].energy / low_reference, 0, 1.5);
     result.low_energy_curve.push_back({point.time, energy});
   }
-  // The mask stays parallel to energy_curve -- callers index the two together --
-  // so the analysis frames are resampled onto that grid rather than shipped on
-  // their own. Frames are ~0.65s apart and the curve is ~1s, so nearest-frame
-  // is close enough; silence keeps the loudness gate so a quiet passage cannot
-  // read as singing on spectral shape alone.
   size_t frame_cursor = 0;
   for (const EnergyPoint& point : result.energy_curve) {
     while (frame_cursor + 1 < vocal_frames.size() &&
@@ -668,4 +608,4 @@ AnalysisResult AnalyzeAudio(
   return result;
 }
 
-}  // namespace nuvx::smart
+}

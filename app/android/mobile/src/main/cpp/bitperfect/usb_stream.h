@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 #pragma once
 
-// The realtime arithmetic of the direct USB stream, free of libusb so a host
-// compiler can test it: how many frames go into each isochronous packet, and
-// how a transfer is completed when the queue runs short.
 
 #include <cmath>
 #include <cstddef>
@@ -22,9 +19,6 @@ struct Format {
     Encoding encoding = Encoding::Pcm;
 };
 
-// Frames per packet at the nominal rate, or at the rate the DAC's feedback
-// endpoint reports. Fractional rates (44.1 kHz in 1 ms packets) accumulate a
-// remainder so the long-run count is exact.
 class PacketClock {
     double nominal;
     double feedbackFrames = 0;
@@ -35,9 +29,6 @@ public:
     PacketClock(uint32_t rate, uint32_t intervalUs)
         : nominal(static_cast<double>(rate) * intervalUs / 1000000.0) {}
 
-    // 10.14 (full speed, 3 bytes) or 16.16 (high speed, 4 bytes) frames per
-    // (micro)frame. A value more than 2% from nominal is ignored: a broken
-    // feedback endpoint must never push packets past the endpoint's capacity.
     bool feedback(const uint8_t *bytes, size_t size, bool highSpeed, uint32_t intervalUs) {
         double frames;
         if (size == 3 && !highSpeed) {
@@ -65,8 +56,6 @@ public:
     }
 };
 
-// Completes an underrun without putting PCM zero words into a DSD stream.
-// DoP markers describe wire frames, so they continue through silence too.
 inline void finishTransfer(uint8_t *bytes, size_t total, size_t realBytes, const Format &format, uint8_t &marker) {
     std::memset(bytes + realBytes, format.encoding == Encoding::Pcm ? 0 : 0x69, total - realBytes);
     if (format.encoding != Encoding::Dop) return;
@@ -81,4 +70,4 @@ inline void finishTransfer(uint8_t *bytes, size_t total, size_t realBytes, const
     }
 }
 
-} // namespace usbaudio
+}

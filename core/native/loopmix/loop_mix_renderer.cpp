@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// nuvx: the Automix loop mix's renderer. See loop_mix_renderer.h.
 #include "loopmix/loop_mix_renderer.h"
 
 #include <algorithm>
@@ -9,19 +8,16 @@ namespace nuvx::loopmix {
 
 namespace {
 
-/** Filter coefficients are recomputed at most this often; gains ramp per sample. */
 constexpr int kControlFrames = 64;
-/** The incoming deck's last fade, to its own player: identical audio crossed this fast is heard as one. */
 constexpr double kFadeSeconds = 0.025;
 constexpr double kPi = 3.14159265358979323846;
 
-}  // namespace
+}
 
 float Envelope::at(double time) const {
   if (times.empty()) return 0;
   if (time <= times.front()) return values.front();
   if (time >= times.back()) return values.back();
-  // Envelopes are a handful of points; a linear scan beats a search's branches.
   size_t i = 1;
   while (i < times.size() && times[i] < time) ++i;
   const double t0 = times[i - 1], t1 = times[i];
@@ -32,7 +28,6 @@ float Envelope::at(double time) const {
 }
 
 void Biquad::lowShelf(double sampleRate, double frequency, double gainDb) {
-  // RBJ cookbook, shelf slope 1: the Web Audio lowshelf the web player's EQ uses.
   const double a = std::pow(10.0, gainDb / 40.0);
   const double w0 = 2 * kPi * frequency / sampleRate;
   const double cosw = std::cos(w0), sinw = std::sin(w0);
@@ -65,7 +60,6 @@ int64_t Deck::sampleAt(int64_t unwrapped) const {
     if (unwrapped < int64_t(releaseAt)) {
       index = loopStart + (unwrapped - loopStart) % length;
     } else {
-      // Let go: the song carries on from the loop's end.
       index = loopEnd + (unwrapped - int64_t(releaseAt));
     }
   }
@@ -111,9 +105,6 @@ Renderer::Renderer(int sampleRate) : sampleRate_(sampleRate) {}
 
 void Renderer::prepare() {
   for (Deck& deck : decks_) {
-    // The cheaper preset with its computation spread evenly: the mix is
-    // written well ahead of the speaker, so latency costs nothing, and an even
-    // load keeps the playback thread's blocks short.
     deck.stretch.presetCheaper(2, float(sampleRate_), true);
     deck.started = false;
     deck.finished = deck.left.empty() || deck.knotTimes.size() < 2;
@@ -164,9 +155,6 @@ void Renderer::renderDeck(Deck& deck, int64_t frame, int frames) {
   const double frameEnd = double(frame + frames);
   if (!deck.started) {
     if (blockEnd <= startTime) return;
-    // Seeded at this block's start, its read pointer the stretch's own latency
-    // ahead of what will be heard: the first outLatency samples are pre-roll,
-    // over by the time the deck's gain opens.
     const double rate = deck.knotRate(frameStart);
     deck.heardPos = deck.knotHeard(frameStart);
     deck.readPos = deck.heardPos + inLatency + rate * outLatency;
@@ -188,8 +176,6 @@ void Renderer::renderDeck(Deck& deck, int64_t frame, int frames) {
     deck.started = true;
   }
 
-  // Where the block must end, heard: on the knots, or (past the last one, the
-  // incoming song running on) at rate 1.
   double heardEnd;
   double rateEnd;
   const double lastKnot = deck.knotTimes.back();
@@ -232,7 +218,6 @@ void Renderer::renderDeck(Deck& deck, int64_t frame, int frames) {
   deck.heardPos = heardEnd;
   deck.heard.store(deck.trackSecondsAt(heardEnd, sr), std::memory_order_relaxed);
 
-  // Gain, bass shelf and high-pass, in control blocks; the gain ramps per sample.
   const double fadeAt = deck.fadeOutAt.load(std::memory_order_relaxed);
   const double fadeSamples = kFadeSeconds * sr;
   for (int at = 0; at < frames; at += kControlFrames) {
@@ -282,4 +267,4 @@ void Renderer::renderDeck(Deck& deck, int64_t frame, int frames) {
   if (fadeAt >= 0 && heardStart > fadeAt + fadeSamples) deck.finished = true;
 }
 
-}  // namespace nuvx::loopmix
+}

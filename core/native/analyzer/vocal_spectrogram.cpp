@@ -15,10 +15,6 @@ namespace {
 
 constexpr double kPi = 3.14159265358979323846;
 
-// Unnormalized in-place radix-2 FFT. kVocalSpectrogramFft is a power of two,
-// so no generic padding is performed. Private to this file, matching the
-// existing convention (tempo_analysis.cpp and mel_spectrogram.cpp each carry
-// their own copy rather than sharing one across translation units).
 void Fft(std::vector<std::complex<double>>& values) {
   const size_t size = values.size();
   for (size_t index = 1, swapped = 0; index < size; ++index) {
@@ -42,9 +38,6 @@ void Fft(std::vector<std::complex<double>>& values) {
   }
 }
 
-// Periodic Hann, matching torch.hann_window(periodic=True) -- the divisor is
-// the window length, not length - 1. transforms.py's TorchSTFT uses this via
-// `nn.Parameter(torch.hann_window(n_fft))`.
 std::vector<double> HannWindow(size_t size) {
   std::vector<double> window(size);
   for (size_t index = 0; index < size; ++index) {
@@ -53,7 +46,7 @@ std::vector<double> HannWindow(size_t size) {
   return window;
 }
 
-}  // namespace
+}
 
 VocalSpectrogram ComputeVocalSpectrogram(
   const std::vector<std::vector<float>>& channels,
@@ -65,8 +58,6 @@ VocalSpectrogram ComputeVocalSpectrogram(
   const size_t input_length = channels.front().size();
   if (channels[1].size() != input_length) return result;
 
-  // torch.stft(center=True, pad_mode="reflect") centres frame f on sample
-  // f * hop, matching the mel front end's identical padding.
   const size_t pad = kVocalSpectrogramFft / 2;
   if (input_length <= pad + 1) return result;
 
@@ -98,16 +89,6 @@ VocalSpectrogram ComputeVocalSpectrogram(
       }
       Fft(spectrum);
 
-      // torch.stft is called with normalized=False: the raw DFT magnitude,
-      // with no additional 1/sqrt(win_length) scaling. That is the one
-      // difference from the Beat This mel front end's `normalized=True`
-      // convention, and getting it backwards would feed the model a
-      // spectrogram scaled by sqrt(4096) ~= 64x too loud.
-      //
-      // Written bin-major (stride `frames` apart) rather than contiguously,
-      // to land directly in the [channel][bin][frame] layout the ONNX tensor
-      // needs; the FFT still produces one whole frame's bins at a time, only
-      // where each one is stored differs.
       const size_t channel_base = channel * kVocalSpectrogramBins * frames;
       for (size_t bin = 0; bin < kVocalSpectrogramBins; ++bin) {
         result.values[channel_base + bin * frames + frame] =
@@ -118,4 +99,4 @@ VocalSpectrogram ComputeVocalSpectrogram(
   return result;
 }
 
-}  // namespace nuvx::smart
+}

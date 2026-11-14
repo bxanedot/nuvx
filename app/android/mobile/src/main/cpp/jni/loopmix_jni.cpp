@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// JNI bridge for the Automix loop mix renderer (native/loopmix/). Every call
-// but render() is made while the mix is being set up; render() runs on the
-// player's playback thread, inside its audio sink.
 #include <jni.h>
 
 #include <algorithm>
@@ -22,7 +19,7 @@ Deck* DeckOf(jlong handle, jint index) {
   return &From(handle)->deck(index);
 }
 
-}  // namespace
+}
 
 extern "C" {
 
@@ -94,7 +91,6 @@ JNIEXPORT void JNICALL
 Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeRender(
     JNIEnv* env, jclass, jlong handle, jlong frame, jfloatArray interleaved, jint offsetFrames, jint frames) {
   if (handle == 0 || frames <= 0) return;
-  // Critical access: no copy of the block, and render() itself never calls back into Java.
   auto* samples = static_cast<jfloat*>(env->GetPrimitiveArrayCritical(interleaved, nullptr));
   if (samples == nullptr) return;
   From(handle)->render(frame, samples + 2 * offsetFrames, frames);
@@ -116,4 +112,4 @@ Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeHeard(JNIEnv*, jclass
   return deck != nullptr ? deck->heard.load() : 0.0;
 }
 
-}  // extern "C"
+}

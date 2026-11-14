@@ -1,18 +1,4 @@
 // SPDX-License-Identifier: LGPL-3.0-only
-// A mixer-free USB Audio Class output: Android grants permission and opens
-// the device; one worker thread here owns libusb, the claimed interfaces,
-// four isochronous OUT transfers and the explicit feedback transfer. No
-// resampling or gain happens anywhere below the queue.
-//
-// Every raw libusb pointer belongs to the worker. Transfer buffers keep
-// stable addresses until libusb acknowledges completion or cancellation,
-// including on detach and error paths, before any memory is freed. Class
-// control requests (the DAC's volume) are queued to the same worker rather
-// than issued from another thread.
-//
-// Descriptor parsing and the choice of alternate setting happen in Kotlin
-// (UsbDescriptors.kt); this side is handed the candidates in preference order
-// and opens the first one the device accepts.
 
 #include <jni.h>
 #include <libusb.h>
@@ -103,7 +89,6 @@ struct Slot {
         require(transfer != nullptr, "USB transfer allocation failed");
     }
     ~Slot() {
-        // Freed only after the worker has seen the completion or cancellation.
         if (transfer) libusb_free_transfer(transfer);
     }
 
@@ -148,8 +133,6 @@ public:
     std::unique_ptr<Slot> feedbackSlot;
 
     Session(int fd, const std::vector<Candidate> &candidates) {
-        // NO_DEVICE_DISCOVERY is required on Android: the USB permission grant
-        // is the file descriptor, not a scan of /dev.
         libusb_init_option option{};
         option.option = LIBUSB_OPTION_NO_DEVICE_DISCOVERY;
         check(libusb_init_context(&context, &option, 1));
@@ -214,7 +197,6 @@ public:
             const uint16_t index = static_cast<uint16_t>((c.clock << 8) | c.control);
             uint8_t rate[4];
             std::memcpy(rate, &c.format.sampleRate, 4);
-            // A read-only clock already at the exact rate needs no SET_CUR.
             uint8_t current[4] = {};
             control(true, 1, 0x100, index, current, 4, false);
             if (std::memcmp(current, rate, 4) != 0) control(false, 1, 0x100, index, rate, 4, false);
@@ -238,8 +220,6 @@ public:
         check(libusb_handle_events_timeout(context, &timeout));
     }
 
-    // Cancellation is asynchronous: keep every buffer and the context alive
-    // until libusb acknowledges it, including after a detach or an error.
     void drain() {
         auto any = [this] {
             for (auto &slot : slots) if (slot->pending) return true;
@@ -309,8 +289,6 @@ public:
                 started = false;
                 state.changed.notify_all();
             }
-            // Account for transfers that completed, playing or not, so a pause
-            // does not hold back the frame count by what was in flight.
             for (auto &slot : slots) {
                 if (slot->pending || !slot->submitted) continue;
                 require(slot->success(), "USB audio transfer failed");
@@ -319,7 +297,6 @@ public:
                 slot->submitted = false;
             }
             if (!state.playing) {
-                // Resuming after a pause restarts the feedback watchdog.
                 started = false;
                 state.changed.wait_for(lock, std::chrono::milliseconds(20));
                 continue;
@@ -383,12 +360,9 @@ public:
         std::promise<std::pair<int, Format>> opened;
         auto result = opened.get_future();
         worker = std::thread([this, fd, candidates = std::move(candidates), opened = std::move(opened)]() mutable {
-            // Best effort; failure changes scheduling only, never audio data.
             setpriority(PRIO_PROCESS, 0, -16);
             std::unique_ptr<Session> session;
             try {
-                // Android owns the descriptor and keeps it open until this
-                // worker has joined.
                 session = std::make_unique<Session>(fd, candidates);
                 opened.set_value({session->chosenIndex, session->chosen.format});
             } catch (...) {
@@ -424,7 +398,6 @@ public:
 
     ~Output() { close(); }
 
-    // Nonblocking: takes what fits in the bounded queue (about 200 ms).
     int write(const uint8_t *data, size_t size) {
         require(size <= 256 * 1024 && size % frameBytes == 0, "Invalid USB frame buffer");
         std::lock_guard<std::mutex> lock(state.mutex);
@@ -444,7 +417,6 @@ public:
         state.changed.notify_all();
     }
 
-    // Cancels in-flight transfers, clears queued audio and resets the frame count.
     void flush() {
         std::unique_lock<std::mutex> lock(state.mutex);
         state.playing = false;
@@ -457,7 +429,6 @@ public:
         require(done, "USB cancellation timed out");
     }
 
-    // Completed USB frames since the last flush, excluding inserted silence.
     uint64_t frames() {
         std::lock_guard<std::mutex> lock(state.mutex);
         if (!state.error.empty()) throw std::runtime_error(state.error);
@@ -541,7 +512,7 @@ std::vector<Candidate> decode(const jint *v, jsize length) {
     }
     return result;
 }
-} // namespace
+}
 
 #define JNI_USB(name) Java_com_bxane_nuvx_playback_audio_bitperfect_usb_UsbDirectNative_##name
 

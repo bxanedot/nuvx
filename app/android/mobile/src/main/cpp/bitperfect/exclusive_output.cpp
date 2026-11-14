@@ -1,9 +1,4 @@
 // SPDX-License-Identifier: LGPL-3.0-only
-// Exact-rate PCM through an AAudio exclusive stream (Oboe), for players with
-// a built-in DAC. Exclusive is only a request: Android may grant a shared
-// stream instead, and a shared stream is mixed. The stream is accepted only
-// when the API, sharing mode, rate, channel count and format all came back
-// exactly as asked; otherwise it is closed and the caller uses normal output.
 
 #include <jni.h>
 #include <oboe/Oboe.h>
@@ -28,8 +23,6 @@ void report(JNIEnv *env, const std::exception &error) {
     env->ThrowNew(env->FindClass("java/lang/IllegalStateException"), error.what());
 }
 
-// Handles never expose raw pointers. A stale or double close cannot reach a
-// freed stream; each JNI call holds ownership for its whole duration.
 template <class T> class Handles {
     std::mutex mutex;
     std::unordered_map<jlong, std::shared_ptr<T>> values;
@@ -63,7 +56,6 @@ public:
 
 class ExclusiveOutput final : public oboe::AudioStreamDataCallback {
     std::shared_ptr<oboe::AudioStream> stream;
-    // Single producer (the playback thread), single consumer (the audio callback).
     std::vector<uint8_t> ring;
     std::atomic<uint64_t> read{0}, written{0}, musicFrames{0};
     std::atomic<int64_t> lastMusicEnd{0};
@@ -111,8 +103,6 @@ public:
                 attempts << " open=" << oboe::convertToText(result);
                 continue;
             }
-            // Exclusive is a request: Android can silently return Shared. Reject
-            // that stream instead of showing a misleading exclusive badge.
             if (stream->getAudioApi() == oboe::AudioApi::AAudio &&
                 stream->getSharingMode() == oboe::SharingMode::Exclusive &&
                 stream->getSampleRate() == rate && stream->getChannelCount() == channels &&
@@ -175,8 +165,6 @@ public:
             const size_t index = (w + offset) % ring.size();
             const size_t count = std::min(size - offset, ring.size() - index);
             if (floatOutput) {
-                // Integer samples of 24 bits or fewer, padded to 32, have an exact
-                // float representation. This path is never opened for 32-bit sources.
                 for (size_t sample = 0; sample < count; sample += 4) {
                     int32_t integer;
                     std::memcpy(&integer, data + offset + sample, 4);
@@ -197,7 +185,6 @@ public:
         require(stream->requestStart() == oboe::Result::OK, "AAudio start failed");
     }
 
-    // Unlike flush, keeps the ring: the stream resumes where it stopped.
     void pause() {
         check();
         const auto state = stream->getState();
@@ -208,7 +195,6 @@ public:
 
     void flush() {
         check();
-        // Wait for the callback to stop before resetting its ring and counters.
         const auto state = stream->getState();
         if (state != oboe::StreamState::Open && state != oboe::StreamState::Flushed) {
             if (state != oboe::StreamState::Paused) {
@@ -224,8 +210,6 @@ public:
         lastMusicEnd.store(frameBase);
     }
 
-    // Music frames the hardware has presented, excluding the silence the
-    // callback inserts when the ring runs dry.
     int64_t frames() {
         check();
         int64_t presented = 0, nanos = 0;
@@ -234,13 +218,12 @@ public:
             const auto pending = std::max<int64_t>(0, lastMusicEnd.load(std::memory_order_acquire) - presented);
             return std::max<int64_t>(0, music - pending);
         }
-        // A timestamp may not exist until the first hardware burst completes.
         return 0;
     }
 };
 
 Handles<ExclusiveOutput> outputs;
-} // namespace
+}
 
 #define JNI_EXCLUSIVE(name) Java_com_bxane_nuvx_playback_audio_bitperfect_ExclusiveNative_##name
 

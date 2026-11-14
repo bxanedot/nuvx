@@ -1,16 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// JNI bridge to the whole-track DSP analyzer and its resampler.
-//
-// AnalysisResult carries about twenty fields including strings, which is more
-// than is worth marshalling field by field through JNI. It is serialized to
-// JSON instead: analysis runs once per track, so the cost is irrelevant
-// beside the decode around it, and a string is far easier to log and to test
-// against than a hand-packed buffer.
-//
-// Only the subset the transition policy actually reads is emitted. Chroma,
-// the mid and high energy curves, loudness, peak and dynamic range are
-// computed by the analyzer but nothing downstream consumes them, and emitting
-// them would mean three more float arrays per track for no reader.
 
 #include <jni.h>
 
@@ -22,10 +10,6 @@
 
 namespace {
 
-// The analyzer's strings are its own literals -- key names like "C# minor"
-// and candidate types like "main_drop" -- so they are known ASCII with
-// nothing to escape. Anything unexpected is dropped rather than emitted
-// unescaped.
 void AppendString(std::string& out, const std::string& value) {
   out += '"';
   for (const char character : value) {
@@ -37,8 +21,6 @@ void AppendString(std::string& out, const std::string& value) {
 }
 
 void AppendNumber(std::string& out, double value) {
-  // Not finite means the field never got a defensible value; null reads as
-  // absent on the Kotlin side, which is what every consumer already handles.
   if (!(value == value) || value > 1e308 || value < -1e308) {
     out += "null";
     return;
@@ -93,14 +75,14 @@ void AppendField(std::string& out, const char* name, double value, bool first = 
   AppendNumber(out, value);
 }
 
-}  // namespace
+}
 
 extern "C" {
 
 JNIEXPORT jstring JNICALL
 Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeAnalyze(
     JNIEnv* env,
-    jclass /* clazz */,
+    jclass,
     jfloatArray samples,
     jdouble sample_rate,
     jdouble duration) {
@@ -114,8 +96,6 @@ Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeAnalyze(
       nuvx::smart::AnalyzeAudio(input, sample_rate, duration);
 
   std::string json;
-  // A whole-track energy curve dominates the output; reserving up front keeps
-  // this from repeatedly reallocating a string that reaches tens of kilobytes.
   json.reserve(8192 + result.energy_curve.size() * 24);
 
   json += '{';
@@ -157,19 +137,15 @@ Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeAnalyze(
 
 JNIEXPORT jdouble JNICALL
 Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeSampleRate(
-    JNIEnv* /* env */,
-    jclass /* clazz */) {
-  // The rate the analyzer's window and hop constants assume.
+    JNIEnv*,
+    jclass) {
   return 11025.0;
 }
 
-// Converts mono float PCM to the analyzer's rate. Separate from nativeAnalyze
-// because the caller decodes at whatever rate the container carries and only
-// then knows what conversion is needed.
 JNIEXPORT jfloatArray JNICALL
 Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeResample(
     JNIEnv* env,
-    jclass /* clazz */,
+    jclass,
     jfloatArray samples,
     jdouble input_rate,
     jdouble output_rate) {
@@ -185,7 +161,7 @@ Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeResample(
   const jsize produced = static_cast<jsize>(resampled.size());
   jfloatArray result = env->NewFloatArray(produced);
   if (result == nullptr) {
-    return nullptr;  // OOM; the exception is already pending.
+    return nullptr;
   }
   if (produced > 0) {
     env->SetFloatArrayRegion(result, 0, produced, resampled.data());
@@ -193,4 +169,4 @@ Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeResample(
   return result;
 }
 
-}  // extern "C"
+}
