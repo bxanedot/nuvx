@@ -1,6 +1,6 @@
 # Android ONNX Runtime Size Experiment
 
-> **For agentic workers:** Execute natively in the current worktree; the user authorized implementation and pushes.
+> **For agentic workers:** Execute natively in the current worktree. The master handoff controls any push or release authorization.
 
 **Goal:** Measure a model-specific ONNX Runtime Android AAR against the current full AAR without changing shipped playback or analysis behavior.
 
@@ -18,7 +18,7 @@
 ## Review Focus
 
 - A newly used model operator is absent from the config — regenerate and compare against both models.
-- One ABI's native library is missing — inspect the AAR and each split APK.
+- One ABI's native library is missing — inspect the AAR and each universal APK.
 - Quantized LSTM or large vocal inference fails — run both real model graphs, not session creation alone.
 - The reduced AAR is larger or slower — retain the Maven runtime and leave issue #230 open.
 - Gradle local builds lack Docker — preserve the existing Maven fallback when no custom AAR exists.
@@ -44,7 +44,8 @@
 **Files:** `app/android/mobile/src/androidTest/java/com/bxane/nuvx/OnnxRuntimeModelTest.kt`, `.github/workflows/android-ort-size-experiment.yml`
 
 - [x] Add instrumentation that executes beat and vocal model inference.
-- [ ] Add a manual CI workflow that builds the pinned custom AAR, compares full/custom APK sizes for phone and TV, and runs the inference tests on an emulator.
+- [x] Add a manual CI workflow that builds the pinned custom AAR, compares full/custom shared APK sizes for phone and TV, and runs the inference tests on an emulator.
+- [ ] Run the workflow and record its size and emulator results.
 - [ ] Inspect all three ABI libraries and record the measured size result.
 
 ### Task 4: Decide whether to ship

@@ -86,6 +86,13 @@
         android:theme="@style/Theme.nuvx"
         tools:targetApi="34">
 
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.bxane.nuvx.playback.cast.CastOptionsProvider" />
+
         <!--
           One UI 7+ only routes an app's ongoing notification to Live
           Notifications / the Now Bar if the app opts in here. Ignored by every

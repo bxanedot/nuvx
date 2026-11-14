@@ -59,7 +59,8 @@ android {
             "\"${listenTogetherServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
         buildConfigField("String", "ADDON_AUTH_URL", "\"\"")
-        buildConfigField("String", "UPDATE_APK_PREFIX", "\"NuvxTV-\"")
+        buildConfigField("String", "UPDATE_APK_PREFIX", "\"NuvxTV-v\"")
+        buildConfigField("String", "NUVX_DISTRIBUTION", "\"universal\"")
         buildConfigField("String", "NUVX_RELEASE_TAG", "\"$releaseTag\"")
         buildConfigField("String", "NUVX_BUILD_TIME", "\"$buildTime\"")
     }
@@ -67,6 +68,7 @@ android {
     sourceSets {
         getByName("main") {
             java.srcDir("../mobile/src/main/java")
+            java.srcDir("../mobile/src/gms/java/com/bxane/nuvx/playback")
             res.srcDir("../mobile/src/main/res")
             assets.srcDir("../../web/app/public/models")
             jniLibs.srcDir("../mobile/src/main/jniLibs")
@@ -74,12 +76,6 @@ android {
         getByName("debug") { java.srcDir("../mobile/src/debug/java") }
         configureEach {
             when (name) {
-                "gms" -> {
-                    java.srcDir("../mobile/src/gms/java/com/bxane/nuvx/playback")
-                }
-                "foss" -> {
-                    java.srcDir("../mobile/src/foss/java/com/bxane/nuvx/playback")
-                }
                 "dev" -> manifest.srcFile("src/dev/AndroidManifest.xml")
             }
         }
@@ -92,7 +88,7 @@ android {
         }
     }
 
-    flavorDimensions += listOf("env", "distribution")
+    flavorDimensions += listOf("env")
     productFlavors {
         create("dev") {
             dimension = "env"
@@ -102,14 +98,6 @@ android {
         create("prod") {
             dimension = "env"
             resValue("string", "app_name", "nuvx TV")
-        }
-        create("gms") {
-            dimension = "distribution"
-            buildConfigField("String", "NUVX_DISTRIBUTION", "\"gms\"")
-        }
-        create("foss") {
-            dimension = "distribution"
-            buildConfigField("String", "NUVX_DISTRIBUTION", "\"foss\"")
         }
     }
 
@@ -266,7 +254,7 @@ dependencies {
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
     else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
-    add("gmsImplementation", "com.google.android.gms:play-services-cast-framework:23.0.0")
+    implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
 
     testImplementation("junit:junit:4.13.2")

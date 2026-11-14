@@ -287,12 +287,13 @@ object WearBridge {
     internal fun serveStream(context: Context, channel: ChannelClient.Channel, ensureService: () -> Unit) {
         val app = context.applicationContext
         streamPool.execute {
-            val client = Wearable.getChannelClient(app)
+            var client: ChannelClient? = null
             var source: DataSource? = null
             try {
-                val input = DataInputStream(Tasks.await(client.getInputStream(channel), 10, TimeUnit.SECONDS))
+                val activeClient = Wearable.getChannelClient(app).also { client = it }
+                val input = DataInputStream(Tasks.await(activeClient.getInputStream(channel), 10, TimeUnit.SECONDS))
                 val output = DataOutputStream(
-                    BufferedOutputStream(Tasks.await(client.getOutputStream(channel), 10, TimeUnit.SECONDS), STREAM_BUFFER),
+                    BufferedOutputStream(Tasks.await(activeClient.getOutputStream(channel), 10, TimeUnit.SECONDS), STREAM_BUFFER),
                 )
                 val uri = input.readUTF()
                 val position = input.readLong()
@@ -352,7 +353,7 @@ object WearBridge {
                 Log.d(TAG, "stream ended: ${e.javaClass.simpleName} ${e.message}")
             } finally {
                 runCatching { source?.close() }
-                runCatching { Tasks.await(client.close(channel), 5, TimeUnit.SECONDS) }
+                runCatching { client?.let { Tasks.await(it.close(channel), 5, TimeUnit.SECONDS) } }
             }
         }
     }
@@ -415,8 +416,13 @@ object WearBridge {
     }
 
     private fun put(app: Context, request: PutDataMapRequest) {
-        val task = Wearable.getDataClient(app).putDataItem(request.asPutDataRequest().setUrgent())
-        runCatching { Tasks.await(task, 10, TimeUnit.SECONDS) }
+        runCatching {
+            Tasks.await(
+                Wearable.getDataClient(app).putDataItem(request.asPutDataRequest().setUrgent()),
+                10,
+                TimeUnit.SECONDS,
+            )
+        }
             .onFailure { Log.w(TAG, "put ${request.uri.path} failed: ${it.message}") }
     }
 

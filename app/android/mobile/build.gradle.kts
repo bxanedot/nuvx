@@ -70,13 +70,15 @@ android {
             "ADDON_AUTH_URL",
             "\"${addonAuthServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
-        buildConfigField("String", "UPDATE_APK_PREFIX", "\"nuvx-\"")
+        buildConfigField("String", "UPDATE_APK_PREFIX", "\"nuvx-v\"")
+        buildConfigField("String", "NUVX_DISTRIBUTION", "\"universal\"")
         buildConfigField("String", "NUVX_RELEASE_TAG", "\"$releaseTag\"")
         buildConfigField("String", "NUVX_BUILD_TIME", "\"$buildTime\"")
     }
 
     sourceSets {
         getByName("main") {
+            java.srcDir("src/gms/java")
             java.srcDir("../wearos/protocol")
             assets.srcDir("../../web/app/public/models")
         }
@@ -89,7 +91,7 @@ android {
         }
     }
 
-    flavorDimensions += listOf("env", "distribution")
+    flavorDimensions += listOf("env")
     productFlavors {
         create("dev") {
             dimension = "env"
@@ -98,14 +100,6 @@ android {
         }
         create("prod") {
             dimension = "env"
-        }
-        create("gms") {
-            dimension = "distribution"
-            buildConfigField("String", "NUVX_DISTRIBUTION", "\"gms\"")
-        }
-        create("foss") {
-            dimension = "distribution"
-            buildConfigField("String", "NUVX_DISTRIBUTION", "\"foss\"")
         }
     }
 
@@ -259,15 +253,15 @@ dependencies {
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
     else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
-    add("gmsImplementation", "com.google.android.gms:play-services-cast-framework:23.0.0")
-    add("gmsImplementation", "androidx.mediarouter:mediarouter:1.8.1")
-    add("gmsImplementation", "com.google.android.gms:play-services-wearable:20.0.1")
-    add("gmsImplementation", "androidx.wear:wear-remote-interactions:1.2.0")
-    add("gmsImplementation", "com.github.MuntashirAkon:libadb-android:3.1.1") {
+    implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
+    implementation("androidx.mediarouter:mediarouter:1.8.1")
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
+    implementation("androidx.wear:wear-remote-interactions:1.2.0")
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1") {
         exclude(group = "org.bouncycastle")
     }
-    add("gmsImplementation", "org.conscrypt:conscrypt-android:2.9.0")
-    add("gmsImplementation", "org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.conscrypt:conscrypt-android:2.9.0")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
@@ -329,7 +323,6 @@ abstract class BundleWearApk : DefaultTask() {
 if (providers.gradleProperty("nuvx.bundleWear").orNull != "false" && findProject(":wearos") != null) {
     androidComponents.onVariants { variant ->
         val flavor = variant.productFlavors.firstOrNull { it.first == "env" }?.second ?: return@onVariants
-        if (variant.productFlavors.firstOrNull { it.first == "distribution" }?.second != "gms") return@onVariants
         val type = variant.buildType ?: return@onVariants
         if (type != "debug" && type != "release") return@onVariants
         val cap = "${flavor.replaceFirstChar { it.uppercase() }}${type.replaceFirstChar { it.uppercase() }}"
