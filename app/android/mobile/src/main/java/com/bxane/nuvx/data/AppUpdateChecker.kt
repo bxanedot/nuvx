@@ -72,7 +72,7 @@ object AppUpdateChecker {
                         BuildConfig.NUVX_BUILD_TIME,
                     )
                 }
-                .maxByOrNull { it.publishedAt }
+                .maxWithOrNull(compareBy<ReleaseCandidate> { it.tag.startsWith("v") }.thenBy { it.publishedAt })
                 ?.let { UpdateInfo(it.version, it.releaseUrl, it.apkUrl, it.notes) }
         }
     }
@@ -213,6 +213,7 @@ internal fun isNewerRelease(
     currentTag: String,
     currentBuildTime: String,
 ): Boolean {
+    if (!currentTag.startsWith("nightly.") && candidateTag.startsWith("nightly.")) return false
     val candidateParts = candidateVersion.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
     val currentParts = currentVersion.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
     for (index in 0 until maxOf(candidateParts.size, currentParts.size)) {
@@ -220,8 +221,22 @@ internal fun isNewerRelease(
         val current = currentParts.getOrElse(index) { 0L }
         if (candidate != current) return candidate > current
     }
-    if (currentTag.startsWith("nightly.") && candidateTag.startsWith("v")) return true
+    if (currentTag.startsWith("nightly.")) {
+        if (!candidateTag.startsWith("nightly.")) {
+            return currentBuildTime.isEmpty() || candidatePublishedAt > currentBuildTime
+        }
+        val candidateBuild = nightlyBuild(candidateTag) ?: return false
+        val currentBuild = nightlyBuild(currentTag) ?: return false
+        return candidateBuild.first > currentBuild.first ||
+            candidateBuild.first == currentBuild.first && candidateBuild.second > currentBuild.second
+    }
     return candidateTag != currentTag && (currentBuildTime.isEmpty() || candidatePublishedAt > currentBuildTime)
+}
+
+private fun nightlyBuild(tag: String): Pair<Long, Long>? {
+    val parts = tag.removePrefix("nightly.").split('.')
+    if (parts.size != 2) return null
+    return (parts[0].toLongOrNull() ?: return null) to (parts[1].toLongOrNull() ?: return null)
 }
 
 internal fun selectApkAssetUrl(
