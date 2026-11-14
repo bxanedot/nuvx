@@ -298,6 +298,7 @@ jobs:
   windows:
     needs: [prepare, windows-build, cargo-notices]
     runs-on: windows-2022
+    timeout-minutes: 90
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -325,16 +326,26 @@ jobs:
         with:
           name: nuvx-cargo-notices
           path: app/desktop/assets/licenses
-      - name: Build and upload installer
+      - name: Check Cargo notice artifact
+        timeout-minutes: 5
+        run: test -s assets/licenses/cargo-notices.txt
+      - name: Install Inno Setup
+        timeout-minutes: 15
+        run: choco install innosetup --no-progress -y
+      - name: Compile universal installer
+        timeout-minutes: 30
+        run: MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$DESKTOP_VERSION" windows/nuvx.iss
+      - name: Verify bundled Cargo notices
+        timeout-minutes: 20
         run: |
-          test -s assets/licenses/cargo-notices.txt
-          choco install innosetup --no-progress -y
-          MSYS2_ARG_CONV_EXCL="*" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$DESKTOP_VERSION" windows/nuvx.iss
           installer="windows/Output/nuvx-setup-$DESKTOP_VERSION.exe"
           install_dir="$RUNNER_TEMP/nuvx-notice-test"
           "$installer" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER "/DIR=$install_dir"
           test -s "$install_dir/licenses/cargo-notices.txt"
           cmp assets/licenses/cargo-notices.txt "$install_dir/licenses/cargo-notices.txt"
+      - name: Upload Windows installer
+        timeout-minutes: 15
+        run: |
           if [[ "$IS_STABLE" == true ]]; then
             installer="nuvx-setup-$DESKTOP_VERSION.exe"
           else
@@ -342,7 +353,6 @@ jobs:
           fi
           mv "windows/Output/nuvx-setup-$DESKTOP_VERSION.exe" "$installer"
           gh release upload "$RELEASE_TAG" "$installer" --clobber
-
   linux-build:
     needs: prepare
     strategy:
