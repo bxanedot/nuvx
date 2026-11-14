@@ -41,6 +41,7 @@ import com.bxane.nuvx.data.model.SearchHistoryEntity
 import com.bxane.nuvx.data.model.SearchResult
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.model.UiState
+import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.playback.playSongs
 import com.bxane.nuvx.ui.MainViewModel
 import com.bxane.nuvx.ui.tv.components.TvActivityIndicator
@@ -81,6 +82,13 @@ fun TvSearchScreen(
     val history by viewModel.searchHistory.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val loadingMore by viewModel.searchLoadingMore.collectAsState()
+    val youtubeSearch by AppSettings.youtubeSearch.collectAsState()
+    val filters = remember(youtubeSearch) {
+        SearchFilters + if (youtubeSearch) listOf(SearchFilter.YOUTUBE) else emptyList()
+    }
+    LaunchedEffect(youtubeSearch) {
+        if (!youtubeSearch && filter == SearchFilter.YOUTUBE) viewModel.onFilterChange(SearchFilter.ALL)
+    }
     val keyboard = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     var menuSong by remember { mutableStateOf<Song?>(null) }
@@ -160,9 +168,9 @@ fun TvSearchScreen(
                 if (resultsState != null) {
                     Spacer(modifier = Modifier.height(14.dp))
                     TvSegmented(
-                        options = SearchFilters.map { it.label },
-                        selectedIndex = SearchFilters.indexOf(filter).coerceAtLeast(0),
-                        onSelect = { viewModel.onFilterChange(SearchFilters[it]) },
+                        options = filters.map { it.label },
+                        selectedIndex = filters.indexOf(filter).coerceAtLeast(0),
+                        onSelect = { viewModel.onFilterChange(filters[it]) },
                     )
                 }
                 Spacer(modifier = Modifier.height(11.dp))
