@@ -9,6 +9,7 @@ pub(super) struct MotionView {
 
 impl MotionView {
     fn new(motion: std::sync::Arc<crate::motion::Motion>, width: u32) -> Self {
+        motion.acquire_view();
         Self { motion, tex: None, seen: 0, width }
     }
 
@@ -41,7 +42,7 @@ impl VideoState {
 
 #[cfg(test)]
 mod tests {
-    use super::VideoState;
+    use super::{MotionView, VideoState};
     use std::path::PathBuf;
 
     #[test]
@@ -57,11 +58,22 @@ mod tests {
             VideoState::Saved { path: saved, offset_ms: 0 } if saved == path
         ));
     }
+
+    #[test]
+    fn dropping_one_of_two_views_does_not_stop_the_shared_motion() {
+        let motion = std::sync::Arc::new(crate::motion::Motion::test_new());
+        let first = MotionView::new(motion.clone(), 256);
+        let second = MotionView::new(motion.clone(), 256);
+        drop(first);
+        assert!(!motion.is_stopped());
+        drop(second);
+        assert!(motion.is_stopped());
+    }
 }
 
 impl Drop for MotionView {
     fn drop(&mut self) {
-        self.motion.stop();
+        self.motion.release_view();
     }
 }
 
