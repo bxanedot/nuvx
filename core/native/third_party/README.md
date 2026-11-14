@@ -13,15 +13,15 @@ against this folder.
 
 | Library | Upstream | Version | License | Used by |
 |---|---|---|---|---|
-| Oboe | https://github.com/google/oboe | 1.11.0 (SHA-256 pinned in `app/src/main/cpp/CMakeLists.txt`) | Apache-2.0 | `libnuvx_exclusive.so` (AAudio exclusive output) |
-| libusb | https://github.com/libusb/libusb | 1.0.27 (SHA-256 pinned in `app/src/main/cpp/CMakeLists.txt`) | LGPL-2.1-or-later | `libnuvx_usb.so` (direct USB output) |
+| Oboe | https://github.com/google/oboe | 1.11.0 (SHA-256 pinned in `app/android/mobile/src/main/cpp/CMakeLists.txt`) | Apache-2.0 | `libnuvx_exclusive.so` (AAudio exclusive output) |
+| libusb | https://github.com/libusb/libusb | 1.0.27 (SHA-256 pinned in `app/android/mobile/src/main/cpp/CMakeLists.txt`) | LGPL-2.1-or-later | `libnuvx_usb.so` (direct USB output) |
 
 ## Adapted code
 
-The bit-perfect output (`app/src/main/cpp/bitperfect/`,
-`app/src/main/java/com/bxane/nuvx/playback/audio/bitperfect/`) adapts
+The bit-perfect output (`app/android/mobile/src/main/cpp/bitperfect/`,
+`app/android/mobile/src/main/java/com/bxane/nuvx/playback/audio/bitperfect/`) adapts
 parts of [Mornye](https://github.com/mornyeapp/Mornye), Copyright 2026 zarzet,
 licensed LGPL-3.0-only. Each adapted file carries an `LGPL-3.0-only` SPDX
-line; its original header is in `THIRD_PARTY_NOTICES.md`. The direct USB driver's realtime arithmetic has
-host tests in `app/src/main/cpp/bitperfect/tests/` (see the build line at the
-top of the file); its descriptor and volume logic is tested from JUnit.
+line. The direct USB driver's realtime arithmetic has host tests in
+`app/android/mobile/src/main/cpp/bitperfect/tests/`; its descriptor and volume
+logic is tested from JUnit.

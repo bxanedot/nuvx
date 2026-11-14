@@ -15,7 +15,7 @@ impl Material {
         match self {
             Material::Default => "Dynamic",
             Material::Mica if cfg!(target_os = "macos") => "Window",
-            Material::Acrylic if cfg!(target_os = "macos") => "Sidebar",
+            Material::Acrylic if cfg!(target_os = "macos") => "Under Window",
             Material::Mica if cfg!(target_os = "linux") => "Tinted",
             Material::Acrylic if cfg!(target_os = "linux") => "Translucent",
             Material::Mica => "Mica",
@@ -83,11 +83,15 @@ pub fn set_view(view: *mut std::ffi::c_void) {
 
 pub fn veil(light: bool) -> egui::Color32 {
     let tinted = cfg!(target_os = "linux") && active() == Material::Mica;
+    veil_for(light, tinted)
+}
+
+fn veil_for(light: bool, tinted: bool) -> egui::Color32 {
     match (light, tinted) {
         (true, false) => egui::Color32::from_white_alpha(110),
-        (true, true) => egui::Color32::from_white_alpha(200),
+        (true, true) => egui::Color32::from_white_alpha(255),
         (false, false) => egui::Color32::from_black_alpha(90),
-        (false, true) => egui::Color32::from_black_alpha(185),
+        (false, true) => egui::Color32::from_black_alpha(255),
     }
 }
 
@@ -111,10 +115,10 @@ fn apply() {
         let _ = clear_vibrancy(&view);
         let kind = match active() {
             Material::Default => return,
-            Material::Mica => NSVisualEffectMaterial::UnderWindowBackground,
-            Material::Acrylic => NSVisualEffectMaterial::Sidebar,
+            Material::Mica => NSVisualEffectMaterial::WindowBackground,
+            Material::Acrylic => NSVisualEffectMaterial::UnderWindowBackground,
         };
-        let ok = apply_vibrancy(&view, kind, Some(NSVisualEffectState::Active), None);
+        let ok = apply_vibrancy(&view, kind, Some(NSVisualEffectState::FollowsWindowActiveState), None);
         if let Err(e) = &ok {
             log::warn!("material: {:?} unavailable ({e})", active());
         }
@@ -176,5 +180,11 @@ mod tests {
     #[test]
     fn defaults_to_the_long_lived_window_material() {
         assert_eq!(Material::initial(), Material::Mica);
+    }
+
+    #[test]
+    fn opaque_material_stays_opaque_in_both_themes() {
+        assert_eq!(veil_for(true, true).a(), 255);
+        assert_eq!(veil_for(false, true).a(), 255);
     }
 }
