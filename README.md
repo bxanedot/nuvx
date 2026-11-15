@@ -73,6 +73,10 @@ The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs. 
 3. nuvx checks the latest stable GitHub release on launch. To check again, open **Settings → Version & Updates → Check for Updates**. When an update is available, download its IPA and install it through the same sideloading tool and Apple Account used for the current install. Install over the existing app; do not uninstall first if you want to keep local data.
 4. Free Apple Account provisioning profiles expire after 7 days, so refresh the signature by re-signing and reinstalling before it expires. The in-app updater finds releases and downloads the IPA; signing and installation must be completed with the sideloading tool. [Apple's personal-team limits](https://developer.apple.com/help/account/basics/about-your-developer-account/) have the current details.
 
+### Website search discovery
+
+The public site exposes [`robots.txt`](https://www.nuvx.lol/robots.txt), which points crawlers to its [XML sitemap](https://www.nuvx.lol/sitemap.xml), and a root-hosted [IndexNow key](https://www.nuvx.lol/045adc84f9a240278c33ee11e35eff56.txt). Keep the sitemap limited to canonical pages and update `lastmod` when page content changes. After deploying URL changes, submit the affected canonical URLs through IndexNow. Submission requests discovery; search engines decide whether and when to list pages. See [website search indexing](docs/WEBSITE_SEARCH_INDEXING.md).
+
 ## How the counters work
 
 - **GitHub downloads** totals installers and portable app packages across public GitHub releases. Updates and repeat downloads count too. Web visits and extension downloads from the web player are separate. [Download count](https://nuvx-listen.bxane.workers.dev/api/stats/downloads)
