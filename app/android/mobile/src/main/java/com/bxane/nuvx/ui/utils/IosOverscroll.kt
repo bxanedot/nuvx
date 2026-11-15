@@ -1,3 +1,8 @@
+/*
+ * Adapted from Convx's IosOverscroll.kt (GPL-3.0):
+ * https://github.com/cosmictaserdev-creator/Convx
+ */
+
 package com.bxane.nuvx.ui.utils
 
 import androidx.compose.animation.core.Spring

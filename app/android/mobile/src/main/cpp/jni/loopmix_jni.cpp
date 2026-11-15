@@ -2,6 +2,9 @@
 // JNI bridge for the Automix loop mix renderer (native/loopmix/). Every call
 // but render() is made while the mix is being set up; render() runs on the
 // player's playback thread, inside its audio sink.
+//
+// Copyright (C) 2026 Kushagra Singh. GPL-3.0-or-later, with the rest of BitChord.
+
 #include <jni.h>
 
 #include <algorithm>
