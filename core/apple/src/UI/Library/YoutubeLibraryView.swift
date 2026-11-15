@@ -6,6 +6,7 @@ import UIKit
 #endif
 import NuvxShared
 import UniformTypeIdentifiers
+import PhotosUI
 
 
 
@@ -192,10 +193,27 @@ struct LocalM3uPlaylist: Identifiable {
 struct LocalM3uDetailView: View {
     let playlist: LocalM3uPlaylist
     @Environment(PlaybackController.self) private var controller
+    @State private var selectedArtwork: PhotosPickerItem?
+    @State private var artworkError: String?
 
     var body: some View {
         List {
-            ForEach(Array(playlist.tracks.enumerated()), id: \.element.id) { index, track in
+            Section {
+                HStack(spacing: 16) {
+                    PlaylistArtworkView(
+                        path: PlaylistArtworkOverrides.path(for: artworkKey),
+                        fallback: playlist.tracks.first?.thumbnailUrl
+                    )
+                    .frame(width: 88, height: 88)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    PhotosPicker(selection: $selectedArtwork, matching: .images) {
+                        Label("Upload Playlist Artwork", systemImage: "photo.badge.plus")
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            Section {
+                ForEach(Array(playlist.tracks.enumerated()), id: \.element.id) { index, track in
                 SongRow(
                     entry: QueueEntry.from(track),
                     play: {
@@ -205,10 +223,32 @@ struct LocalM3uDetailView: View {
                     addToQueue: { controller.addToQueue(QueueEntry.from(track)) }
                 )
                 .listRowInsets(EdgeInsets(top: 2, leading: 24, bottom: 2, trailing: 24))
+                }
             }
         }
         .listStyle(.plain)
         .navigationTitle(playlist.name)
+        .onChange(of: selectedArtwork) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    do {
+                        try PlaylistArtworkOverrides.save(data, for: artworkKey)
+                    } catch {
+                        artworkError = error.localizedDescription
+                    }
+                }
+                selectedArtwork = nil
+            }
+        }
+        .alert("Playlist Artwork", isPresented: Binding(
+            get: { artworkError != nil },
+            set: { if !$0 { artworkError = nil } }
+        )) {
+            Button("OK", role: .cancel) { artworkError = nil }
+        } message: {
+            Text(artworkError ?? "")
+        }
         #if os(iOS)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -217,4 +257,6 @@ struct LocalM3uDetailView: View {
         }
         #endif
     }
+
+    private var artworkKey: String { "m3u:\(playlist.id)" }
 }

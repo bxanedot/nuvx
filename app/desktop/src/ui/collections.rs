@@ -1,11 +1,23 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::backend::{Collection, Req};
-use crate::model::{Card, ShelfKind, Target, Track};
+use crate::model::{Card, ShelfKind, Target, Track, Thumb};
 
+use super::{App, LocalPlaylist, shuffle};
 use super::lists::{Arrival, Done, LIKED_MUSIC, Opened, Start};
 use super::queue::QueueFill;
-use super::{App, LocalPlaylist, shuffle};
+
+pub(super) fn apply_playlist_artwork(card: &mut Card, overrides: &HashMap<String, String>) {
+    if let Target::Playlist(id) = &card.target
+        && let Some(url) = overrides.get(playlist_artwork_key(id))
+    {
+        card.thumbs = vec![Thumb { url: url.clone(), width: 512, height: 512 }];
+    }
+}
+
+fn playlist_artwork_key(id: &str) -> &str {
+    id.strip_prefix("VL").unwrap_or(id)
+}
 
 impl App {
     pub(super) fn load_list(&mut self, id: &str, album: bool, changed: bool) {
@@ -28,7 +40,8 @@ impl App {
         self.local_playlists.iter().map(|playlist| Card {
             title: playlist.title.clone(),
             subtitle: format!("{} songs · This device", playlist.tracks.len()),
-            thumbs: playlist.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default(),
+            thumbs: playlist.artwork.as_ref().map(|url| vec![Thumb { url: url.clone(), width: 512, height: 512 }])
+                .unwrap_or_else(|| playlist.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default()),
             target: Target::Playlist(playlist.id.clone()),
             round: false,
             links: Vec::new(),
@@ -37,7 +50,7 @@ impl App {
 
     pub(super) fn save_local_playlist(&mut self, title: String, tracks: Vec<Track>) -> String {
         let id = format!("nuvx-local:{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos()));
-        self.local_playlists.insert(0, LocalPlaylist { id: id.clone(), title, tracks });
+        self.local_playlists.insert(0, LocalPlaylist { id: id.clone(), title, tracks, artwork: None });
         self.refresh_local_playlist(&id);
         id
     }
@@ -62,6 +75,29 @@ impl App {
         }
     }
 
+    pub(super) fn set_playlist_artwork(&mut self, id: &str, artwork: String) {
+        if let Some(playlist) = self.local_playlists.iter_mut().find(|playlist| playlist.id == id) {
+            playlist.artwork = Some(artwork);
+            self.refresh_local_playlist(id);
+            return;
+        }
+        let key = playlist_artwork_key(id).to_owned();
+        self.playlist_artwork.insert(key, artwork.clone());
+        if let Some(collection) = self.lists.collection_mut(id) {
+            collection.thumbs = vec![Thumb { url: artwork.clone(), width: 512, height: 512 }];
+        }
+        if let Some(library) = &mut self.library {
+            for card in &mut library.playlists {
+                apply_playlist_artwork(card, &self.playlist_artwork);
+            }
+        }
+        if let Some(cards) = &mut self.sidebar_cache {
+            for card in cards {
+                apply_playlist_artwork(card, &self.playlist_artwork);
+            }
+        }
+    }
+
     pub(super) fn remove_local_playlist(&mut self, id: &str) {
         self.local_playlists.retain(|playlist| playlist.id != id);
         self.lists.forget(id);
@@ -83,7 +119,8 @@ impl App {
         let card = Card {
             title: local.title.clone(),
             subtitle: format!("{} songs · This device", local.tracks.len()),
-            thumbs: local.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default(),
+            thumbs: local.artwork.as_ref().map(|url| vec![Thumb { url: url.clone(), width: 512, height: 512 }])
+                .unwrap_or_else(|| local.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default()),
             target: Target::Playlist(local.id.clone()),
             round: false,
             links: Vec::new(),
@@ -146,7 +183,13 @@ impl App {
     }
 
     pub(super) fn collection_in(&mut self, load: u64, c: Collection, more: bool) {
+        let mut c = c;
         let id = c.id.clone();
+        if !c.is_album
+            && let Some(url) = self.playlist_artwork.get(playlist_artwork_key(&id))
+        {
+            c.thumbs = vec![Thumb { url: url.clone(), width: 512, height: 512 }];
+        }
         let keep = self.keep_lists();
         let keep: Vec<&str> = keep.iter().map(String::as_str).collect();
         let Some(arrival) = self.lists.arrived(load, c, more, &keep) else { return };
@@ -265,10 +308,33 @@ fn local_collection(playlist: LocalPlaylist) -> Collection {
         subtitle: "Saved on this device".to_owned(),
         artists: Vec::new(),
         description: None,
-        thumbs: playlist.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default(),
+        thumbs: playlist.artwork.as_ref().map(|url| vec![Thumb { url: url.clone(), width: 512, height: 512 }])
+            .unwrap_or_else(|| playlist.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default()),
         set_ids: vec![None; playlist.tracks.len()],
         tracks: playlist.tracks,
         count: Some(count),
         owned: true,
+    }
+}
+
+#[cfg(test)]
+mod artwork_tests {
+    use super::*;
+
+    #[test]
+    fn saved_artwork_overrides_a_playlist_card() {
+        let mut card = Card {
+            title: "Playlist".to_owned(),
+            subtitle: String::new(),
+            thumbs: Vec::new(),
+            target: Target::Playlist("VLplaylist-id".to_owned()),
+            round: false,
+            links: Vec::new(),
+        };
+        let overrides = HashMap::from([("playlist-id".to_owned(), "nuvx-artwork://cover.png".to_owned())]);
+
+        apply_playlist_artwork(&mut card, &overrides);
+
+        assert_eq!(card.thumbs[0].url, "nuvx-artwork://cover.png");
     }
 }

@@ -428,6 +428,18 @@ internal fun NuvxApp(
     var creatingOfflinePlaylist by remember { mutableStateOf(false) }
     var showSpotifyImportDialog by remember { mutableStateOf(false) }
     var browseActions by remember { mutableStateOf<BrowseTarget?>(null) }
+    var playlistArtworkTarget by remember { mutableStateOf<String?>(null) }
+    val playlistArtworkPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val id = playlistArtworkTarget
+        playlistArtworkTarget = null
+        if (uri != null && id != null) {
+            playerSheetScope.launch {
+                withContext(Dispatchers.IO) { runCatching { com.bxane.nuvx.data.PlaylistArtworkStore.set(context, id, uri) } }
+                    .onSuccess { viewModel.setPlaylistArtwork(id, it) }
+                    .onFailure { Toast.makeText(context, it.message ?: context.getString(R.string.failed), Toast.LENGTH_SHORT).show() }
+            }
+        }
+    }
     var browseMenuOrigin by remember { mutableStateOf<HeldItem?>(null) }
     var browseMenuAnchor by remember { mutableStateOf<Rect?>(null) }
     var browseRenameInSheet by remember { mutableStateOf(false) }
@@ -591,7 +603,13 @@ internal fun NuvxApp(
     val likeStatuses by viewModel.likeStatuses.collectAsStateWithLifecycle()
     val offlineLiked by OfflinePlaylists.liked.collectAsStateWithLifecycle()
     val offlinePlaylists by OfflinePlaylists.playlists.collectAsStateWithLifecycle()
-    val offlinePlaylistGroups = remember(offlinePlaylists) { offlinePlaylists.map { it.toGroup() } }
+    val playlistArtworkVersion by com.bxane.nuvx.data.PlaylistArtworkStore.version.collectAsStateWithLifecycle()
+    val offlinePlaylistGroups = remember(offlinePlaylists, playlistArtworkVersion) {
+        offlinePlaylists.map { playlist ->
+            val group = playlist.toGroup()
+            group.copy(thumbnailUrl = com.bxane.nuvx.data.PlaylistArtworkStore.get(context, playlist.browseId) ?: group.thumbnailUrl)
+        }
+    }
     val likeStatusOf: (Song) -> LikeStatus = { song ->
         val uri = song.localUri
         when {
@@ -618,11 +636,17 @@ internal fun NuvxApp(
         Downloads.savedReleases()
     }
     val localPlaylists by com.bxane.nuvx.data.spotify.LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
+    val localPlaylistArtwork = remember(localPlaylists, playlistArtworkVersion) {
+        localPlaylists.associate { playlist ->
+            playlist.browseId to com.bxane.nuvx.data.PlaylistArtworkStore.get(context, playlist.browseId)
+        }
+    }
     val localPlaylistItems = localPlaylists.map { playlist ->
         ShelfItem(
             title = playlist.title,
             subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
-            thumbnailUrl = playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+            thumbnailUrl = localPlaylistArtwork[playlist.browseId]
+                ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
             videoId = null,
             browseId = playlist.browseId,
         )
@@ -2135,7 +2159,8 @@ internal fun NuvxApp(
                                 pullState = libraryPull,
                                 contentPadding = listPadding,
                                 links = libraryLinks(),
-                                deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
+                                localPlaylists = localPlaylistItems,
+                                deviceItems = libraryDeviceItems(downloadedReleases),
                             )
                         }
                     }
@@ -3013,7 +3038,8 @@ internal fun NuvxApp(
                         playlistId = playlist.browseId,
                         title = playlist.title,
                         subtitle = context.resources.getQuantityString(R.plurals.song_count_plural, playlist.songs.size, playlist.songs.size),
-                        thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl },
+                        thumbnailUrl = com.bxane.nuvx.data.PlaylistArtworkStore.get(context, playlist.browseId)
+                            ?: playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl },
                     )
                 },
                 loading = playlistsLoading,
@@ -3049,7 +3075,7 @@ internal fun NuvxApp(
                 offlinePlaylistTarget = null
                 creatingOfflinePlaylist = false
             }
-            val choices = remember(offlinePlaylists) {
+            val choices = remember(offlinePlaylists, playlistArtworkVersion) {
                 offlinePlaylists.map { playlist ->
                     UserPlaylist(
                         playlistId = playlist.id,
@@ -3059,8 +3085,8 @@ internal fun NuvxApp(
                             playlist.songs.size,
                             playlist.songs.size,
                         ),
-                        thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
-                            .takeUnless { playlist.isLiked },
+                        thumbnailUrl = com.bxane.nuvx.data.PlaylistArtworkStore.get(context, playlist.browseId)
+                            ?: playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }.takeUnless { playlist.isLiked },
                     )
                 }
             }
@@ -3237,6 +3263,13 @@ internal fun NuvxApp(
                         browseActions = null
                         OfflinePlaylists.rename(p.browseId, name)
                         viewModel.retitleDetail(p.browseId, name.trim())
+                    }
+                },
+                onSetArtwork = target.browseId?.takeIf { target.type == BrowseType.PLAYLIST }?.let { id ->
+                    {
+                        browseActions = null
+                        playlistArtworkTarget = id
+                        playlistArtworkPicker.launch(arrayOf("image/*"))
                     }
                 },
                 onReorder = playlist?.let { p ->

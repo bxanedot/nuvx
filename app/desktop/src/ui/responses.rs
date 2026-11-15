@@ -258,6 +258,9 @@ impl App {
                 }
                 l.playlists.retain(|card| !matches!(&card.target, crate::model::Target::Playlist(id) if id.starts_with("nuvx-local:")));
                 l.playlists.splice(0..0, self.local_playlist_cards());
+                for card in &mut l.playlists {
+                    super::collections::apply_playlist_artwork(card, &self.playlist_artwork);
+                }
                 self.library = Some(l);
                 self.loading = false;
             }

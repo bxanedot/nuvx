@@ -173,6 +173,28 @@ impl App {
                     });
                 }
             }
+            Action::SetPlaylistArtwork => {
+                let Some(id) = self.current_collection()
+                    .filter(|c| !c.is_album)
+                    .map(|c| c.id.clone()) else { return };
+                let Some(source) = rfd::FileDialog::new()
+                    .set_title("Choose playlist artwork")
+                    .add_filter("Images", &["jpg", "jpeg", "png", "webp"])
+                    .pick_file() else { return };
+                let result = (|| -> anyhow::Result<String> {
+                    anyhow::ensure!(std::fs::metadata(&source)?.len() <= 20 * 1024 * 1024, "Images must be 20 MB or smaller");
+                    let directory = self.backend.data_dir().join("playlist-artwork");
+                    std::fs::create_dir_all(&directory)?;
+                    let suffix = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_nanos();
+                    let destination = directory.join(format!("{}-{suffix}.png", std::process::id()));
+                    image::open(source)?.thumbnail(512, 512).save_with_format(&destination, image::ImageFormat::Png)?;
+                    Ok(format!("nuvx-artwork://{}", destination.file_name().and_then(|name| name.to_str()).unwrap_or_default()))
+                })();
+                match result {
+                    Ok(artwork) => self.set_playlist_artwork(&id, artwork),
+                    Err(error) => self.toast(format!("Couldn't use that image: {error}")),
+                }
+            }
             Action::Collaborate => {
                 if let Some(id) = self.current_collection().filter(|c| !c.is_album && c.owned && !c.id.starts_with("nuvx-local:")).map(|c| c.id.clone()) {
                     self.backend.request(Req::Collaboration(id.clone()));

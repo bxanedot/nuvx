@@ -243,6 +243,9 @@ struct SavedPlaylistsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .libraryPlaylistsChanged)) { _ in
             Task { await load(force: true) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: PlaylistArtworkOverrides.changed)) { _ in
+            rescanM3u()
+        }
     }
 
 
@@ -286,8 +289,9 @@ struct SavedPlaylistsView: View {
                         ImportedPlaylistDetailView(playlist: playlist)
                     } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "music.note.list")
-                                .foregroundStyle(.secondary)
+                            PlaylistArtworkView(path: playlist.artworkPath, fallback: playlist.tracks.first?.thumbnailUrl)
+                                .frame(width: 42, height: 42)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(playlist.title).lineLimit(1)
                                 Text("\(playlist.matchedCount) of \(playlist.tracks.count) tracks · \(playlist.sourceName)")
@@ -316,8 +320,12 @@ struct SavedPlaylistsView: View {
                         LocalM3uDetailView(playlist: playlist)
                     } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "music.note.list")
-                                .foregroundStyle(.secondary)
+                            PlaylistArtworkView(
+                                path: PlaylistArtworkOverrides.path(for: "m3u:\(playlist.id)"),
+                                fallback: playlist.tracks.first?.thumbnailUrl
+                            )
+                            .frame(width: 42, height: 42)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(playlist.name).lineLimit(1)
                                 Text("\(playlist.tracks.count) \(playlist.tracks.count == 1 ? "song" : "songs")")

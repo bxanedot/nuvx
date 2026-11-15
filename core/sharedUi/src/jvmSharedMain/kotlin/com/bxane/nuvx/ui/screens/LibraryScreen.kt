@@ -82,6 +82,7 @@ fun LibraryScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues,
     links: List<LibraryLink>,
+    localPlaylists: List<ShelfItem>,
     deviceItems: List<ShelfItem>,
     showTitle: Boolean = true,
 ) {
@@ -125,7 +126,7 @@ fun LibraryScreen(
             }
             if (!signedIn) {
                 item(key = "shelf:$PLAYLISTS") {
-                    val emptyPlaylists = HomeShelf(PLAYLISTS, emptyList())
+                    val emptyPlaylists = HomeShelf(PLAYLISTS, localPlaylists)
                     PlaylistShelf(
                         shelf = emptyPlaylists,
                         onItemClick = onShelfItemClick,
@@ -144,16 +145,33 @@ fun LibraryScreen(
                 }
                 return@LazyColumn
             }
+            if (state !is UiState.Success && localPlaylists.isNotEmpty()) {
+                item(key = "shelf:$PLAYLISTS-local") {
+                    PlaylistShelf(
+                        shelf = HomeShelf(PLAYLISTS, localPlaylists),
+                        onItemClick = onShelfItemClick,
+                        onItemLongPress = onShelfItemLongPress,
+                        onNewPlaylist = onNewPlaylist,
+                        onImportSpotifyPlaylist = onImportSpotifyPlaylist,
+                        onShowAll = { onShowAll(HomeShelf(PLAYLISTS, localPlaylists)) },
+                    )
+                }
+            }
             when (state) {
                 is UiState.Loading -> librarySkeleton()
                 is UiState.Error -> item {
                     MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
                 }
                 is UiState.Success -> {
-                    val shelves = state.data.shelves
+                    val localIds = localPlaylists.mapNotNullTo(HashSet()) { it.browseId }
+                    val shelves = state.data.shelves.map { shelf ->
+                        if (shelf.title == PLAYLISTS) {
+                            shelf.copy(items = localPlaylists + shelf.items.filterNot { it.browseId in localIds })
+                        } else shelf
+                    }
                     if (shelves.none { it.title == PLAYLISTS }) {
                         item(key = "shelf:$PLAYLISTS") {
-                            val emptyPlaylists = HomeShelf(PLAYLISTS, emptyList())
+                            val emptyPlaylists = HomeShelf(PLAYLISTS, localPlaylists)
                             PlaylistShelf(
                                 shelf = emptyPlaylists,
                                 onItemClick = onShelfItemClick,

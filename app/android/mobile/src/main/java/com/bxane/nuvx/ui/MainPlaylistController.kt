@@ -26,6 +26,7 @@ internal class MainPlaylistController(
     private val markLibraryStale: () -> Unit,
     private val text: (Int) -> String,
     private val withArtwork: (List<Song>, String?) -> List<Song>,
+    private val playlistArtwork: (String) -> String?,
     private val navigator: AppNavigator,
     private val _library: MutableStateFlow<UiState<LibraryPage>>,
     private val _detailStack: MutableStateFlow<List<DetailPage>>,
@@ -47,7 +48,11 @@ internal class MainPlaylistController(
         val identity = listenerKey()
         _playlistsLoading.value = true
         scope.launch {
-            YtMusicRepository.userPlaylists().onSuccess { if (identity == listenerKey()) _playlists.value = it }
+            YtMusicRepository.userPlaylists().onSuccess {
+                if (identity == listenerKey()) _playlists.value = it.map { playlist ->
+                    playlist.copy(thumbnailUrl = playlistArtwork(playlist.browseId) ?: playlist.thumbnailUrl)
+                }
+            }
             if (identity == listenerKey()) _playlistsLoading.value = false
         }
     }
@@ -340,6 +345,19 @@ internal class MainPlaylistController(
                 onFailure = {},
             )
         }
+    }
+
+    fun setArtwork(browseId: String, artwork: String) {
+        _playlists.value = _playlists.value.map {
+            if (it.browseId == browseId || it.playlistId == browseId) it.copy(thumbnailUrl = artwork) else it
+        }
+        val page = (_library.value as? UiState.Success)?.data ?: return
+        val shelves = page.shelves.map { shelf ->
+            shelf.copy(items = shelf.items.map { item ->
+                if (item.browseId == browseId || item.browseId == browseId.removePrefix("VL")) item.copy(thumbnailUrl = artwork) else item
+            })
+        }
+        _library.value = UiState.Success(page.copy(shelves = shelves))
     }
 
     fun loadPlaylistEntries(playlist: UserPlaylist, onResult: (Result<List<Song>>) -> Unit) {

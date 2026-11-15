@@ -137,6 +137,9 @@ pub(super) fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
                     if app.logged_in && !auto && (save_id.is_some() || owned) {
                         ui.separator();
                     }
+                    if !is_album && widgets::menu_action(ui, Some(icon::MUSIC), "Change playlist artwork") {
+                        acts.push(Action::SetPlaylistArtwork);
+                    }
                     if owned {
                         if widgets::menu_action(ui, Some(icon::MUSIC), "Edit playlist") {
                             acts.push(Action::EditPlaylist);

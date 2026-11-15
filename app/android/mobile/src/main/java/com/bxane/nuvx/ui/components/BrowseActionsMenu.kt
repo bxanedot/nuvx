@@ -48,6 +48,7 @@ fun BrowseActionsMenu(
     isPinned: Boolean = false,
     onTogglePin: (() -> Unit)? = null,
     onRename: ((String) -> Unit)? = null,
+    onSetArtwork: (() -> Unit)? = null,
     onReorder: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     onDeleteDownload: (() -> Unit)? = null,
@@ -139,6 +140,9 @@ fun BrowseActionsMenu(
                         renaming = true
                     }
                 }
+            }
+            onSetArtwork?.let {
+                ActionRow(SfIcons.Pencil, stringResource(R.string.change_playlist_artwork), onClick = it)
             }
             onReorder?.let {
                 ActionRow(SfIcons.Reorder, stringResource(R.string.reorder_songs), onClick = it)

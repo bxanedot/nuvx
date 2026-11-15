@@ -275,6 +275,7 @@ impl eframe::App for App {
         });
         storage.set_string("account_cache", cache.and_then(|c| serde_json::to_string(&c).ok()).unwrap_or_default());
         storage.set_string("nuvx_local_playlists", serde_json::to_string(&self.local_playlists).unwrap_or_default());
+        storage.set_string("nuvx_playlist_artwork", serde_json::to_string(&self.playlist_artwork).unwrap_or_default());
         storage.set_string("create_playlists_locally", b(self.create_playlists_locally));
         storage.set_string("normalize", b(self.normalize));
         storage.set_string("spatial_audio", b(self.spatial));

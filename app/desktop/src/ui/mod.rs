@@ -142,6 +142,7 @@ pub enum Action {
     DownloadAll(String, Vec<Target>),
     NewPlaylist(Vec<Track>),
     EditPlaylist,
+    SetPlaylistArtwork,
     Collaborate,
     DeletePlaylist,
     SaveCollection(String, bool),
@@ -235,6 +236,7 @@ pub struct App {
     artist: Option<ArtistPage>,
     library: Option<Library>,
     local_playlists: Vec<LocalPlaylist>,
+    playlist_artwork: HashMap<String, String>,
     create_playlists_locally: bool,
     library_requested: std::time::Instant,
     history: Option<Vec<Track>>,
@@ -401,6 +403,8 @@ struct LocalPlaylist {
     id: String,
     title: String,
     tracks: Vec<Track>,
+    #[serde(default)]
+    artwork: Option<String>,
 }
 
 pub(super) const CROSSFADE_MAX: u32 = 12;

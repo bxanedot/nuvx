@@ -1,4 +1,4 @@
-import { Check, Plus, Shuffle } from 'lucide-react';
+import { Camera, Check, Plus, Shuffle } from 'lucide-react';
 import { useState } from 'react';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { PlayIcon } from '@/components/icons/Transport';
@@ -17,6 +17,7 @@ interface DetailHeaderProps {
   canPlay: boolean;
   extra?: React.ReactNode;
   motion?: AppleMotion | null;
+  onArtworkChange?: (artwork: string | null) => void;
 }
 
 export const detailButton = {
@@ -25,8 +26,9 @@ export const detailButton = {
     'grid size-9 place-items-center rounded-full border-[0.75px] border-quaternary bg-quinary text-primary disabled:opacity-40 enabled:hover:bg-quaternary',
 };
 
-export function DetailHeader({ info, onPlay, onShuffle, canPlay, extra, motion }: DetailHeaderProps) {
+export function DetailHeader({ info, onPlay, onShuffle, canPlay, extra, motion, onArtworkChange }: DetailHeaderProps) {
   const [expanded, setExpanded] = useState(false);
+  const [artworkError, setArtworkError] = useState(false);
   const signedIn = useSignedIn();
   const setSaved = useSetListSaved();
   const library = signedIn ? info.library : null;
@@ -46,6 +48,27 @@ export function DetailHeader({ info, onPlay, onShuffle, canPlay, extra, motion }
             className="absolute inset-0 size-full rounded-artwork-lg object-cover opacity-0 transition-opacity duration-600 ease-in data-ready:opacity-100"
           />
         )}
+        {onArtworkChange && (
+          <label className="absolute bottom-2 right-2 grid size-10 cursor-pointer place-items-center rounded-full border border-white/20 bg-black/65 text-white shadow-lg hover:bg-black/80" title="Change playlist artwork">
+            <span className="sr-only">Change playlist artwork</span>
+            <input
+              className="sr-only"
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = '';
+                if (!file) return;
+                setArtworkError(false);
+                void normalizePlaylistArtwork(file)
+                  .then(onArtworkChange)
+                  .catch(() => setArtworkError(true));
+              }}
+            />
+            <Camera size={17} aria-hidden="true" />
+          </label>
+        )}
+        {artworkError && <span className="sr-only" role="alert">Could not use that image.</span>}
       </div>
       <div className="flex flex-col pt-[37px] [grid-area:headings] max-md:items-center max-md:pt-5">
         <h1 className="flex items-center type-large-title-emphasized leading-[30px] max-md:justify-center">
@@ -109,4 +132,24 @@ export function DetailHeader({ info, onPlay, onShuffle, canPlay, extra, motion }
       </div>
     </div>
   );
+}
+
+async function normalizePlaylistArtwork(file: File): Promise<string> {
+  if (file.size > 20 * 1024 * 1024) throw new Error('Image is too large');
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Image conversion failed')), 'image/jpeg', 0.86);
+  });
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Image read failed'));
+    reader.onerror = () => reject(reader.error ?? new Error('Image read failed'));
+    reader.readAsDataURL(blob);
+  });
 }

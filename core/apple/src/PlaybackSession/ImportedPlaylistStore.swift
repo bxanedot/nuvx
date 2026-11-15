@@ -2,6 +2,45 @@ import Foundation
 import Observation
 import SwiftUI
 import NuvxShared
+import PhotosUI
+#if canImport(UIKit)
+import UIKit
+#else
+import AppKit
+#endif
+
+enum PlaylistArtworkOverrides {
+    private static let key = "nuvx-playlist-artwork-overrides"
+    static let changed = Notification.Name("nuvx-playlist-artwork-changed")
+
+    static func path(for playlistId: String) -> String? {
+        guard let name = (UserDefaults.standard.dictionary(forKey: key) as? [String: String])?[playlistId],
+              URL(fileURLWithPath: name).lastPathComponent == name else { return nil }
+        let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("nuvx/playlist-artwork", isDirectory: true)
+        return root.appendingPathComponent(name).path
+    }
+
+    static func data(for playlistId: String) -> Data? {
+        guard let path = path(for: playlistId) else { return nil }
+        return try? Data(contentsOf: URL(fileURLWithPath: path))
+    }
+
+    static func save(_ data: Data, for playlistId: String) throws {
+        guard data.count <= 20 * 1024 * 1024 else {
+            throw NSError(domain: "NuvxPlaylistArtwork", code: 1, userInfo: [NSLocalizedDescriptionKey: "Images must be 20 MB or smaller."])
+        }
+        let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("nuvx/playlist-artwork", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let name = UUID().uuidString + ".img"
+        try data.write(to: root.appendingPathComponent(name), options: .atomic)
+        var overrides = UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+        overrides[playlistId] = name
+        UserDefaults.standard.set(overrides, forKey: key)
+        NotificationCenter.default.post(name: changed, object: nil, userInfo: ["playlistId": playlistId])
+    }
+}
 
 struct ImportedPlaylistTrack: Codable, Identifiable, Hashable {
     var id: String
@@ -33,6 +72,7 @@ struct ImportedPlaylist: Codable, Identifiable, Hashable {
     var sourceName: String
     var importedAt: Date
     var tracks: [ImportedPlaylistTrack]
+    var artworkPath: String? = nil
 
     var matchedCount: Int { tracks.filter { $0.videoId != nil }.count }
 }
@@ -118,6 +158,30 @@ final class ImportedPlaylistStore {
         try persist()
     }
 
+    func setArtwork(_ data: Data, for playlist: ImportedPlaylist) throws -> ImportedPlaylist {
+        guard data.count <= 20 * 1024 * 1024 else {
+            throw NSError(domain: "NuvxPlaylistArtwork", code: 1, userInfo: [NSLocalizedDescriptionKey: "Images must be 20 MB or smaller."])
+        }
+        guard let index = playlists.firstIndex(where: { $0.id == playlist.id }) else { return playlist }
+        let folder = fileURL.deletingLastPathComponent().appendingPathComponent("playlist-artwork", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let destination = folder.appendingPathComponent(UUID().uuidString).appendingPathExtension("img")
+        try data.write(to: destination, options: .atomic)
+        let previous = playlist.artworkPath
+        var updated = playlist
+        updated.artworkPath = destination.path
+        playlists[index] = updated
+        do {
+            try persist()
+            if let previous { try? FileManager.default.removeItem(atPath: previous) }
+        } catch {
+            playlists[index].artworkPath = previous
+            try? FileManager.default.removeItem(at: destination)
+            throw error
+        }
+        return updated
+    }
+
     private func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? JSONDecoder().decode([ImportedPlaylist].self, from: data) else { return }
@@ -141,6 +205,7 @@ final class ImportedPlaylistStore {
 
 struct ImportedPlaylistDetailView: View {
     @State private var playlist: ImportedPlaylist
+    @State private var selectedArtwork: PhotosPickerItem?
     @State private var matching = false
     @State private var errorMessage: String?
     @Environment(PlaybackController.self) private var controller
@@ -153,7 +218,19 @@ struct ImportedPlaylistDetailView: View {
 
     var body: some View {
         List {
-            ForEach(Array(playlist.tracks.enumerated()), id: \.element.id) { offset, track in
+            Section {
+                HStack(spacing: 16) {
+                    PlaylistArtworkView(path: playlist.artworkPath, fallback: playlist.tracks.first?.thumbnailUrl)
+                        .frame(width: 88, height: 88)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    PhotosPicker(selection: $selectedArtwork, matching: .images) {
+                        Label("Upload Playlist Artwork", systemImage: "photo.badge.plus")
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            Section {
+                ForEach(Array(playlist.tracks.enumerated()), id: \.element.id) { offset, track in
                 if let entry = track.queueEntry {
                     let playIndex = playlist.tracks[..<offset].filter { $0.videoId != nil }.count
                     HStack(spacing: 4) {
@@ -209,9 +286,23 @@ struct ImportedPlaylistDetailView: View {
             }
             .onDelete(perform: deleteTracks)
             .onMove(perform: moveTracks)
+            }
         }
         .listStyle(.plain)
         .navigationTitle(playlist.title)
+        .onChange(of: selectedArtwork) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    do {
+                        playlist = try ImportedPlaylistStore.shared.setArtwork(data, for: playlist)
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+                selectedArtwork = nil
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if playlist.tracks.contains(where: { $0.videoId == nil }) {
@@ -332,6 +423,34 @@ struct ImportedPlaylistDetailView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+struct PlaylistArtworkView: View {
+    var path: String?
+    var fallback: String? = nil
+
+    var body: some View {
+        Group {
+            if let path, let data = try? Data(contentsOf: URL(fileURLWithPath: path)), let image = platformImage(data) {
+                image.resizable().scaledToFill()
+            } else if let fallback, let url = URL(string: fallback) {
+                AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: {
+                    Image(systemName: "music.note.list").foregroundStyle(.secondary)
+                }
+            } else {
+                Image(systemName: "music.note.list").foregroundStyle(.secondary)
+            }
+        }
+        .clipped()
+    }
+
+    private func platformImage(_ data: Data) -> Image? {
+        #if canImport(UIKit)
+        UIImage(data: data).map { Image(uiImage: $0) }
+        #else
+        NSImage(data: data).map { Image(nsImage: $0) }
+        #endif
     }
 }
 

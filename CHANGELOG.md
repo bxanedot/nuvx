@@ -2,6 +2,13 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
 
+## 1.1.0 (Unreleased)
+
+### Playlists
+
+- Let users upload custom artwork for created, imported, downloaded, or YouTube Music playlists on Android, Apple platforms, desktop, and web. Artwork stays local to the current device or browser.
+- Show device-only playlists in the Playlists shelf immediately after creation, including while the remote library is loading or signed out.
+
 ## 1.0.0
 
 This section records every change since the v0.9.0 stable release.

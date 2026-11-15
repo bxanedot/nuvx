@@ -155,7 +155,7 @@ internal class MainDetailPageResolver(
                     it.copy(
                         songs = state,
                         sections = sections,
-                        thumbnailUrl = artwork ?: it.thumbnailUrl,
+                        thumbnailUrl = com.bxane.nuvx.data.PlaylistArtworkStore.get(application, browseId) ?: artwork ?: it.thumbnailUrl,
                         title = name ?: it.title,
                         subtitle = credit ?: it.subtitle,
                         suggestedSongs = suggested,
