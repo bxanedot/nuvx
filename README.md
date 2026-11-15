@@ -51,31 +51,6 @@
 - **Community Canvases.** Add motion artwork to Now Playing on supported players. [Browse the project](core/canvas/README.md)
 - **Controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
 
-## Stable release artwork
-
-Each stable release has its own artwork from this README. Select a banner to open that version's release.
-
-<p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v1.0.0"><img src="docs/nuvx-banner-now-playing.png" width="48%" alt="Stable v1.0.0 artwork: nuvx Now Playing"></a>
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.9.0"><img src="docs/nuvx-banner-encore.png" width="48%" alt="Stable v0.9.0 artwork: Encore"></a>
-</p>
-<p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.8.0"><img src="docs/nuvx-banner-amber.png" width="48%" alt="Stable v0.8.0 artwork: amber synced lyrics"></a>
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.7.0"><img src="docs/nuvx-banner-lyrics-motion.png" width="48%" alt="Stable v0.7.0 artwork: lyrics in motion"></a>
-</p>
-<p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.6.0"><img src="docs/nuvx-banner-desktop.png" width="48%" alt="Stable v0.6.0 artwork: desktop Home and lyrics"></a>
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.5.0"><img src="docs/nuvx-banner-desktop-lyrics.png" width="48%" alt="Stable v0.5.0 artwork: full-screen desktop lyrics"></a>
-</p>
-<p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.4.0"><img src="docs/screenshots/windows.jpg" width="48%" alt="Stable v0.4.0 artwork: nuvx on Windows"></a>
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.3.0"><img src="docs/screenshots/windows-lyrics-panel.png" width="48%" alt="Stable v0.3.0 artwork: desktop lyrics panel"></a>
-</p>
-<p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.2.0"><img src="docs/screenshots/windows-fullscreen-lyrics.png" width="48%" alt="Stable v0.2.0 artwork: desktop full-screen lyrics"></a>
-  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.1.0"><img src="docs/screenshots/android-now-playing.png" width="48%" alt="Stable v0.1.0 artwork: Android Now Playing"></a>
-</p>
-
 ## Download
 
 | Device | Requirements | Where to start |
