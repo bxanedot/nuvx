@@ -32,7 +32,6 @@ import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.TvSettings
 import com.bxane.nuvx.ui.MainViewModel
 import com.bxane.nuvx.ui.tv.TvAppMark
-import com.bxane.nuvx.ui.tv.audio.TvSpatialAudioEngine
 import com.bxane.nuvx.ui.tv.components.TvChromePinned
 import com.bxane.nuvx.ui.tv.components.TvListHeader
 import com.bxane.nuvx.ui.tv.components.TvListRow
@@ -52,7 +51,7 @@ import com.bxane.nuvx.ui.tv.theme.TvType
 
 private enum class SettingsSheet { Theme, RefreshRate, Equalizer, Scrobbling, LyricsSources, Update, About }
 
-private const val DefaultBlurb = "Playback, sound and display preferences for nuvx on this TV."
+private const val DefaultBlurb = "Playback, sound and display preferences for nuvx."
 
 @Composable
 fun TvSettingsScreen(
@@ -72,7 +71,7 @@ fun TvSettingsScreen(
     val excorFallback by AppSettings.excorFallback.collectAsState()
     val youtubeSearch by AppSettings.youtubeSearch.collectAsState()
     val eqEnabled by AppSettings.equalizerEnabled.collectAsState()
-    val spatial by TvSettings.spatialAudioEnabled.collectAsState()
+    val spatial by AppSettings.spatialAudio.collectAsState()
     val loudness by AppSettings.loudnessNormalization.collectAsState()
     val usbDac by AppSettings.preferUsbDac.collectAsState()
     val syncedLyrics by AppSettings.syncedLyrics.collectAsState()
@@ -212,10 +211,9 @@ fun TvSettingsScreen(
                 TvListRow(
                     title = "Spatial Audio",
                     value = onOff(spatial),
-                    onFocused = { blurb = "Widens stereo music using the TV's audio virtualizer, where it has one." },
+                    onFocused = { blurb = "Widens stereo. Leave it off for a conventional car stereo." },
                     onClick = {
-                        TvSettings.setSpatialAudioEnabled(!spatial)
-                        TvSpatialAudioEngine.setEnabled(!spatial)
+                        AppSettings.setSpatialAudio(!spatial)
                     },
                 )
             }
