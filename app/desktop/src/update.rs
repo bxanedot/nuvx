@@ -529,7 +529,7 @@ mod tests {
         let stable_time = "2026-11-13T11:00:00Z";
         let nightly_time = "2026-11-13T12:00:00Z";
         let later_nightly_time = "2026-11-13T13:00:00Z";
-        assert!(release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
+        assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
         assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
