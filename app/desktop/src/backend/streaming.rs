@@ -106,7 +106,7 @@ impl Backend {
         };
         log::info!("download {}: {} bytes from {source:?}", t.id, s.size);
         let shared = Shared::new(s.size, s.duration_ms, s.loudness_db, s.format.clone(), s.info, false);
-        stream::download(self.http(), s.url, s.user_agent, shared.clone(), Some(self.refresher(source, &t.id, s.format, None)), s.ranging).await;
+        stream::download(self.http(), s.url, s.user_agent, shared.clone(), Some(self.refresher(source, &t.id, s.format, Some(t.clone()))), s.ranging).await;
         if let Some(e) = shared.error() {
             anyhow::bail!("{e}");
         }
@@ -122,21 +122,6 @@ impl Backend {
     pub(super) async fn resolve(&self, video_id: &str, best: bool, track: Option<&Track>, allow_hires: bool) -> anyhow::Result<(Source, ResolvedStream)> {
         let reverted = self.reverted.lock().unwrap().contains(video_id);
         let hires = if allow_hires && !reverted { self.hires.read().unwrap().clone() } else { Vec::new() };
-        if let Some(track) = track
-            && !hires.is_empty()
-        {
-            let started = std::time::Instant::now();
-            match tokio::time::timeout(HIRES_WAIT, self.from_hires(&hires, track)).await {
-                Ok(Some(s)) => {
-                    if let Some(info) = s.info.as_ref() {
-                        log::info!("{video_id}: {} audio from {}", info.badge(), info.source);
-                    }
-                    return Ok((Source::HiRes, s));
-                }
-                Ok(None) => log::info!("{video_id}: no hi-res source has a copy ({:.1}s)", started.elapsed().as_secs_f32()),
-                Err(_) => log::info!("{video_id}: the hi-res sources gave no answer in {HIRES_WAIT:?}"),
-            }
-        }
         let hq = best || self.hq.load(Ordering::Relaxed);
         if best
             && !self.jsc.ready()
@@ -162,21 +147,55 @@ impl Backend {
             }
         }
         let opus = if best { stream::Format::Aac } else { stream::Format::Opus };
-        match self.resolve_from(Source::VisionOs, video_id, opus, None).await {
-            Ok(s) => Ok((Source::VisionOs, s)),
+        let youtube_error = match self.resolve_from(Source::VisionOs, video_id, opus, None).await {
+            Ok(s) => return Ok((Source::VisionOs, s)),
             Err(e) if needs_account(&e) => {
                 log::info!("{video_id} needs a signed-in player ({e:#})");
-                let session = self.api.account().ok_or_else(|| anyhow::anyhow!("sign in to play this song"))?;
-                if self.is_premium(&session).await {
-                    match self.resolve_from(Source::WebMusic, video_id, stream::Format::Aac, None).await {
-                        Ok(s) => return Ok((Source::WebMusic, s)),
-                        Err(e) => log::warn!("web music player failed ({e:#}); using yt-dlp"),
+                if let Some(session) = self.api.account() {
+                    if self.is_premium(&session).await {
+                        match self.resolve_from(Source::WebMusic, video_id, stream::Format::Aac, None).await {
+                            Ok(s) => return Ok((Source::WebMusic, s)),
+                            Err(e) => log::warn!("web music player failed ({e:#}); trying yt-dlp"),
+                        }
                     }
+                    match self.resolve_from(Source::YtDlp, video_id, stream::Format::Aac, None).await {
+                        Ok(s) => return Ok((Source::YtDlp, s)),
+                        Err(e) => e,
+                    }
+                } else {
+                    anyhow::anyhow!("sign in to play this song")
                 }
-                Ok((Source::YtDlp, self.resolve_from(Source::YtDlp, video_id, stream::Format::Aac, None).await?))
             }
-            Err(e) => Err(e),
+            Err(e) => e,
+        };
+        if let Some(track) = track {
+            if self.jiosaavn_enabled.load(Ordering::Relaxed) {
+                match sources::jiosaavn(&self.http(), track).await {
+                    Ok(s) => return Ok((Source::JioSaavn, s)),
+                    Err(e) => log::info!("JioSaavn fallback failed for {video_id}: {e:#}"),
+                }
+            }
+            if self.radiojavan_enabled.load(Ordering::Relaxed) {
+                match sources::radiojavan(&self.http(), track).await {
+                    Ok(s) => return Ok((Source::RadioJavan, s)),
+                    Err(e) => log::info!("Radio Javan fallback failed for {video_id}: {e:#}"),
+                }
+            }
+            if !hires.is_empty() {
+                let started = std::time::Instant::now();
+                match tokio::time::timeout(HIRES_WAIT, self.from_hires(&hires, track)).await {
+                    Ok(Some(s)) => {
+                        if let Some(info) = s.info.as_ref() {
+                            log::info!("{video_id}: {} audio from {}", info.badge(), info.source);
+                        }
+                        return Ok((Source::HiRes, s));
+                    }
+                    Ok(None) => log::info!("{video_id}: no hi-res source has a copy ({:.1}s)", started.elapsed().as_secs_f32()),
+                    Err(_) => log::info!("{video_id}: the hi-res sources gave no answer in {HIRES_WAIT:?}"),
+                }
+            }
         }
+        Err(youtube_error)
     }
 
     pub(super) async fn resolve_from(&self, source: Source, video_id: &str, format: stream::Format, track: Option<&Track>) -> anyhow::Result<ResolvedStream> {
@@ -203,6 +222,8 @@ impl Backend {
                 self.api.keep(&session, s.replaced.iter().map(String::as_str));
                 ResolvedStream { url: s.url, size: s.size, duration_ms: s.duration_ms, user_agent: s.user_agent, loudness_db: None, format: stream::Format::Aac, info: None, ranging: stream::Ranging::Query, data: None }
             }
+            Source::JioSaavn => sources::jiosaavn(&self.http(), track.ok_or_else(|| anyhow::anyhow!("no song to look up"))?).await?,
+            Source::RadioJavan => sources::radiojavan(&self.http(), track.ok_or_else(|| anyhow::anyhow!("no song to look up"))?).await?,
             Source::HiRes => {
                 let track = track.ok_or_else(|| anyhow::anyhow!("no song to look up"))?;
                 let sources = self.hires.read().unwrap().clone();

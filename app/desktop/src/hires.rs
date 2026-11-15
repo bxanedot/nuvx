@@ -1,4 +1,4 @@
-mod matching;
+pub(crate) mod matching;
 use std::collections::{BTreeSet, HashMap};
 use std::time::Duration;
 
