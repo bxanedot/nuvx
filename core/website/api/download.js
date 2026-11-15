@@ -1,4 +1,5 @@
 const releases = 'https://github.com/bxanedot/nuvx/releases';
+const downloadsPage = 'https://www.nuvx.lol/#releases';
 const files = {
   windows: 'nuvx-setup-{v}.exe',
   linux: 'nuvx-setup-{v}-linux-universal.tar.gz',
@@ -11,6 +12,19 @@ const files = {
   ios: 'nuvx-{v}-universal.ipa',
   chrome: 'nuvx-extension-chrome-{v}.zip',
   firefox: 'nuvx-extension-firefox-{v}.zip',
+};
+
+const nightlyNames = {
+  windows: ['nuvx-setup-', '.exe'],
+  linux: ['nuvx-setup-', '-linux-universal.tar.gz'],
+  'mac-arm': ['nuvx-setup-', '-macos-apple-silicon.dmg'],
+  'mac-intel': ['nuvx-setup-', '-macos-intel.dmg'],
+  android: ['nuvx-v', '-universal.apk'],
+  tv: ['NuvxTV-v', '-universal.apk'],
+  auto: ['NuvxAuto-v', '-universal.apk'],
+  wear: ['NuvxWear-v', '.apk'],
+  chrome: ['nuvx-extension-chrome-', '.zip'],
+  firefox: ['nuvx-extension-firefox-', '.zip'],
 };
 
 function candidatesFor(platform, version, requestedPlatform) {
@@ -32,24 +46,31 @@ function candidatesFor(platform, version, requestedPlatform) {
 module.exports = async (req, res) => {
   const params = new URL(req.url, 'https://www.nuvx.lol').searchParams;
   if (params.get('channel') === 'nightly') {
-    let tag;
+    let target = downloadsPage;
+    const requestedPlatform = params.get('platform');
+    const platform = requestedPlatform === 'android-foss' || requestedPlatform === 'android-auto' ? 'android'
+      : requestedPlatform === 'tv-foss' ? 'tv'
+        : requestedPlatform === 'car' ? 'auto' : requestedPlatform;
+    const match = nightlyNames[platform];
     try {
       const response = await fetch('https://api.github.com/repos/bxanedot/nuvx/releases?per_page=30', {
         signal: AbortSignal.timeout(4000),
       });
       if (response.ok) {
         const builds = await response.json();
-        tag = builds
+        const latest = builds
           .filter((build) => build.prerelease && !build.draft && /^nightly\.\d+\.\d+$/.test(build.tag_name))
-          .map((build) => build.tag_name)
-          .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }))[0];
+          .sort((a, b) => b.tag_name.localeCompare(a.tag_name, 'en', { numeric: true }))[0];
+        const asset = latest && match && latest.assets?.find(({ name }) =>
+          name.startsWith(match[0]) && name.includes(latest.tag_name) && name.endsWith(match[1]));
+        const assetUrl = asset?.browser_download_url;
+        if (assetUrl && new URL(assetUrl).origin === 'https://github.com') target = assetUrl;
       }
     } catch {
     }
     res.writeHead(302, {
-      Location: tag ? releases + '/tag/' + tag : releases,
+      Location: target,
       'Cache-Control': 'no-store',
-      ...(tag && { 'Vercel-CDN-Cache-Control': 's-maxage=60' }),
     });
     res.end();
     return;
@@ -58,11 +79,11 @@ module.exports = async (req, res) => {
   const platform = requestedPlatform === 'android-foss' || requestedPlatform === 'android-auto' ? 'android'
     : requestedPlatform === 'tv-foss' ? 'tv'
       : requestedPlatform === 'car' ? 'auto' : requestedPlatform;
-  let target = releases + '/latest';
+  let target = downloadsPage;
   if (Object.hasOwn(files, platform)) {
     try {
-      const latest = await fetch(target, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
-      const tag = new URL(latest.headers.get('location'), target);
+      const latest = await fetch(releases + '/latest', { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
+      const tag = new URL(latest.headers.get('location'), releases + '/latest');
       const version = /^\/bxanedot\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
       if (latest.status === 302 && tag.origin === 'https://github.com' && version) {
         for (const candidate of candidatesFor(platform, version, requestedPlatform)) {

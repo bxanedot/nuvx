@@ -5,6 +5,5 @@ export const config = {
   autoDownloadUrl: 'https://www.nuvx.lol/api/download?platform=auto',
   wearDownloadUrl: 'https://www.nuvx.lol/api/download?platform=wear',
   iosDownloadUrl: 'https://www.nuvx.lol/api/download?platform=ios',
-  desktopDownloadUrl: 'https://github.com/bxanedot/nuvx/releases/latest',
   partyServerUrl: import.meta.env.VITE_PARTY_SERVER_URL ?? '',
 } as const;
