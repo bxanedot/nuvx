@@ -35,6 +35,34 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
             }
         });
         divider(ui);
+        setting_row(ui, "Sleep timer", Some("Fades the music out and pauses after a set time."), |ui| {
+            let now = ui.input(|i| i.time);
+            let label = app.sleep.remaining(now).map_or("Off".to_string(), super::sleep_timer::label);
+            let btn = dropdown_button(ui, &label, 150.0, "Sleep timer");
+            let mut pick = None;
+            egui::Popup::menu(&btn).show(|ui| {
+                ui.set_width(150.0);
+                ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                ui.add_space(4.0);
+                for m in std::iter::once(None).chain(super::sleep_timer::CHOICES_MIN.map(Some)) {
+                    let name = m.map_or("Off".to_string(), |m| format!("{m} minutes"));
+                    if option_row(ui, &name, false).clicked() {
+                        pick = Some(m);
+                        ui.close();
+                    }
+                }
+                ui.add_space(4.0);
+            });
+            match pick {
+                Some(Some(m)) => app.sleep.start(m, now),
+                Some(None) => {
+                    app.sleep.cancel();
+                    app.audio.set_sleep_cut(0);
+                }
+                None => {}
+            }
+        });
+        divider(ui);
         setting_row(ui, "Spatial audio", Some("Widens stereo songs for a more immersive feel."), |ui| {
             if toggle(ui, &mut app.spatial, "Spatial audio").changed() {
                 app.audio.set_spatial(app.spatial);

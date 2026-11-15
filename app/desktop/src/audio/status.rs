@@ -20,6 +20,8 @@ pub struct AudioStatus {
     pub(super) volume: AtomicU32,
     pub normalize: AtomicBool,
     pub norm_target: AtomicI32,
+    /// Sleep-timer fade, permille of volume removed.
+    pub sleep_cut: AtomicU32,
     pub(super) spatial: AtomicBool,
     pub(super) eq: std::sync::Mutex<crate::eq::Tuning>,
     pub(super) log_volume: AtomicBool,

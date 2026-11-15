@@ -246,6 +246,16 @@ use super::*;
     }
 
     #[test]
+    fn sleep_fade_scales_the_slider_gain() {
+        let status = AudioStatus::default();
+        assert_eq!(slider_gain(&status, 0.8), 0.8);
+        status.sleep_cut.store(500, Ordering::Relaxed);
+        assert!((slider_gain(&status, 0.8) - 0.4).abs() < 1e-6);
+        status.sleep_cut.store(1000, Ordering::Relaxed);
+        assert_eq!(slider_gain(&status, 0.8), 0.0);
+    }
+
+    #[test]
     fn spatial_widens_stereo_and_leaves_it_alone_when_off() {
         let status = Arc::new(AudioStatus::default());
         let frames = [0.5f32, -0.5, 0.25, 0.25].repeat(2000);
