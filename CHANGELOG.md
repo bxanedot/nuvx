@@ -40,7 +40,10 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 
 - Add direct Android TV and Wear OS downloads to the web Downloads page.
 - Route phone, TV, Auto and iPhone downloads to their packaged assets; keep the browser extensions, desktop installers and Android packages under the same release tag.
-- Preserve the published v0.9.0 GMS/FOSS phone and TV asset names; keep Auto and iPhone packages marked as planned until they ship with v1.0.0.
+- Preserve compatibility with the published v0.9.0 GMS/FOSS phone and TV assets, and add direct routes for the shared 1.0.0 phone, TV, Auto and iPhone packages.
+- Serialize batch YouTube stream lookups on Android, iOS, and desktop to reduce request bursts while keeping audio transfers concurrent; report temporary YouTube refusals separately from missing audio.
+- Detect the website visitor's device and link supported stable/nightly downloads to the matching asset; unavailable or unknown devices return to the on-site package list.
+- Add Telegram to the community invitation and settings links across phone, TV/Auto, iOS, macOS, desktop and web.
 - Preserve silent Windows installer switches and put a time limit on the Windows nightly installer packaging job.
 - Record startup smoke-test results for the phone, TV, Auto, and Wear APKs, including the limits of the available emulator checks.
 - Align package metadata to version 1.0.0 and Android version code 10 across Android, iOS, desktop and browser extensions.

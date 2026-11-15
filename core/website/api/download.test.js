@@ -15,6 +15,7 @@ const stableV090Assets = new Set([
   'NuvxTV-v0.9.0-gms.apk',
   'NuvxWear-v0.9.0.apk',
 ]);
+const downloadsPage = 'https://www.nuvx.lol/#releases';
 
 async function request(platform, assets, version = '1.0.0') {
   const originalFetch = global.fetch;
@@ -88,9 +89,63 @@ test('v0.9.0 routes match the published assets and defer upcoming packages', asy
       const result = await request(platform, stableV090Assets, '0.9.0');
       assert.equal(result.status, 302);
       if (asset) assert.ok(result.headers.Location.endsWith(`/${asset}`));
-      else assert.equal(result.headers.Location, 'https://github.com/bxanedot/nuvx/releases/latest');
+      else assert.equal(result.headers.Location, downloadsPage);
     });
   }
+});
+
+async function requestNightly(platform, assets) {
+  const originalFetch = global.fetch;
+  let result;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => [{
+      tag_name: 'nightly.170.1',
+      prerelease: true,
+      draft: false,
+      assets: assets.map((name) => ({
+        name,
+        browser_download_url: `https://github.com/bxanedot/nuvx/releases/download/nightly.170.1/${name}`,
+      })),
+    }],
+  });
+  try {
+    await download(
+      { url: `https://www.nuvx.lol/api/download?channel=nightly&platform=${platform}`, headers: {} },
+      { writeHead: (status, headers) => { result = { status, headers }; }, end() {} },
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+  return result;
+}
+
+test('nightly downloads select the matching device artifact directly', async (t) => {
+  const routes = [
+    ['windows', 'nuvx-setup-nightly.170.1.exe'],
+    ['linux', 'nuvx-setup-nightly.170.1-linux-universal.tar.gz'],
+    ['mac-arm', 'nuvx-setup-nightly.170.1-macos-apple-silicon.dmg'],
+    ['mac-intel', 'nuvx-setup-nightly.170.1-macos-intel.dmg'],
+    ['android', 'nuvx-v0.9.0-nightly.170.1-universal.apk'],
+    ['tv', 'NuvxTV-v0.9.0-nightly.170.1-universal.apk'],
+    ['auto', 'NuvxAuto-v0.9.0-nightly.170.1-universal.apk'],
+    ['wear', 'NuvxWear-v0.9.0-nightly.170.1.apk'],
+    ['chrome', 'nuvx-extension-chrome-nightly.170.1.zip'],
+    ['firefox', 'nuvx-extension-firefox-nightly.170.1.zip'],
+  ];
+
+  for (const [platform, asset] of routes) {
+    await t.test(platform, async () => {
+      const result = await requestNightly(platform, [asset]);
+      assert.equal(result.status, 302);
+      assert.equal(result.headers.Location, `https://github.com/bxanedot/nuvx/releases/download/nightly.170.1/${asset}`);
+    });
+  }
+});
+
+test('unavailable nightly packages return to the on-site package list', async () => {
+  const result = await requestNightly('ios', ['nuvx-v0.9.0-nightly.170.1-universal.apk']);
+  assert.equal(result.headers.Location, downloadsPage);
 });
 
 test('downloads fall back to legacy assets when universal naming is unavailable', async (t) => {
