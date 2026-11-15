@@ -40,6 +40,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 - Add direct Android TV and Wear OS downloads to the web Downloads page.
 - Route phone, TV, Auto and iPhone downloads to their packaged assets; keep the browser extensions, desktop installers and Android packages under the same release tag.
 - Preserve silent Windows installer switches and put a time limit on the Windows nightly installer packaging job.
+- Record startup smoke-test results for the phone, TV, Auto, and Wear APKs, including the limits of the available emulator checks.
 - Align package metadata to version 1.0.0 and Android version code 10 across Android, iOS, desktop and browser extensions.
 
 ### Licensing and maintenance
