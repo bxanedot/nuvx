@@ -31,7 +31,9 @@ internal object InnertubeHomeParser {
             .o("chipCloudRenderer").a("chips").orEmpty()
         return chips.firstNotNullOfOrNull { element ->
             val chip = element.o("chipCloudChipRenderer") ?: return@firstNotNullOfOrNull null
-            val params = chip.o("navigationEndpoint").o("browseEndpoint").s("params") ?: return@firstNotNullOfOrNull null
+            val params = chip.o("navigationEndpoint").o("browseEndpoint").s("params")
+                ?: chip.o("onDeselectedCommand").o("browseEndpoint").s("params")
+                ?: return@firstNotNullOfOrNull null
             val title = chip.o("text").runs()
             params.takeIf { title.equals("Podcasts", ignoreCase = true) || PODCASTS_CHIP in params }
         }
