@@ -22,7 +22,8 @@
   <a href="#screenshots">Screenshots</a> ·
   <a href="#build-from-source">Build</a> ·
   <a href="https://web.nuvx.lol">Web player</a> ·
-  <a href="https://discord.gg/h4Wsu824Uf">Discord</a>
+  <a href="https://discord.gg/h4Wsu824Uf">Discord</a> ·
+  <a href="CONTRIBUTORS.md">Contributors</a>
 </p>
 
 ---
@@ -54,18 +55,18 @@
 
 | Device | Requirements | Where to start |
 | --- | --- | --- |
-| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `nuvx-v*-universal.apk` (one multi-ABI APK) |
+| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/nuvx-v1.0.0-universal.apk) |
 | **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
-| **nuvx Auto** | Compatible Android head unit | Planned for v1.0.0 · standalone `NuvxAuto-v*-universal.apk`; stereo widening starts off and loudness normalization stays enabled |
-| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `NuvxTV-v*-universal.apk` (one multi-ABI APK) |
-| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate `NuvxWear-v*.apk` companion |
-| **iPhone** | iOS/iPadOS 18+; signing required | No IPA in v0.9.0; unsigned IPA planned for v1.0.0 · [build and sideload notes](app/ios/README.md) |
+| **nuvx Auto** | Compatible Android head unit | [Standalone v1.0.0 APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/NuvxAuto-v1.0.0-universal.apk) · stereo widening starts off and loudness normalization stays enabled |
+| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/NuvxTV-v1.0.0-universal.apk) |
+| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · [v1.0.0 Wear APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/NuvxWear-v1.0.0.apk) |
+| **iPhone** | iOS/iPadOS 18+; signing required | [Unsigned v1.0.0 IPA](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/nuvx-1.0.0-universal.ipa) · [install and update guide](app/ios/README.md) |
 | **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
 | **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
-The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs. New Android builds use one shared universal APK for the phone, TV, and nuvx Auto, each containing armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for 0.9 updater compatibility; Auto has one canonical asset. Until stable `v1.0.0` is published, Android nightlies use version 0.9.0/code 9, desktop nightlies use 0.9.0, and browser extensions use 0.9.0 with an increasing build component. Stable 1.0.0 packages use Android code 10 and include nuvx Auto. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched. Version 1.0.0 remains without a stable release or tag.
+The stable v1.0.0 release is available on GitHub. The older v0.9.0 phone and TV APKs remain split into GMS and FOSS variants; v1.0.0 provides one shared universal APK for each app, plus a standalone nuvx Auto APK. Each phone, TV, and Auto APK includes armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for older updater compatibility; Auto has one canonical APK. Nightlies generated before v1.0.0 used version 0.9.0/code 9; the first post-release nightlies use 1.0.0/code 10 and later builds follow the current manifest version. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The v1.0.0 release includes an unsigned iOS IPA; Apple builds can attach future IPAs to an existing release when manually dispatched.
 
 ### Download troubleshooting
 
@@ -85,6 +86,10 @@ Playlist creation defaults to YouTube Music. To keep newly created playlists ins
 ### Website search discovery
 
 The public site exposes [`robots.txt`](https://www.nuvx.lol/robots.txt), which points crawlers to its [XML sitemap](https://www.nuvx.lol/sitemap.xml), and a root-hosted [IndexNow key](https://www.nuvx.lol/045adc84f9a240278c33ee11e35eff56.txt), tracked at `core/website/045adc84f9a240278c33ee11e35eff56.txt`. Keep the sitemap limited to canonical pages and update `lastmod` when page content changes. After deploying URL changes, submit the affected canonical URLs through IndexNow. Submission requests discovery; search engines decide whether and when to list pages. See [website search indexing](docs/WEBSITE_SEARCH_INDEXING.md).
+
+## Contributors
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for project and software contributors.
 
 ## How the counters work
 

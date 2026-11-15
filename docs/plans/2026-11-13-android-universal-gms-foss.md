@@ -1,10 +1,10 @@
 # Android shared universal APK implementation plan
 
-> Updated 2026-11-15 after the user's choice of one shared APK. This replaces the original GMS/FOSS split plan. See [design](../specs/2026-11-13-android-universal-gms-foss-design.md).
+> Updated 2026-11-15 after the project owner's choice of one shared APK. This replaces the original GMS/FOSS split plan. See [design](../specs/2026-11-13-android-universal-gms-foss-design.md).
 
 **Goal:** Build shared universal Android phone, TV, and nuvx Auto APKs with optional Play Services features, and preserve in-app updates from existing 0.9 installs.
 
-**Release hold:** Do not create or publish version 1.0.0 (Android version code 10) without owner authorization.
+**Release status:** v1.0.0 (Android version code 10) was published on GitHub after owner authorization on 2026-11-15.
 
 ## Build and runtime behavior
 
@@ -20,7 +20,7 @@
 - [x] Set each updater to select the `-universal.apk` asset for its own phone, TV, or Auto package prefix.
 - [x] Build one signed release APK per app in the nightly workflow.
 - [x] Stage phone, TV, and Auto APKs under canonical `-universal.apk` names; copy identical phone/TV bytes under old `-gms.apk` and `-foss.apk` names for 0.9 clients.
-- [ ] Verify package metadata, signing certificate, ABI contents, and the eight-APK set (three canonical, four compatibility aliases, one Wear APK) in CI; local APKs built here are unsigned.
+- [x] Verify package metadata, signing certificate, ABI contents, and the eight-APK set (three canonical, four compatibility aliases, one Wear APK) in CI.
 - [x] Update the ONNX size experiment to compare one mobile and one TV APK.
 - [x] Build mobile, TV, Auto, and Wear release variants locally with version 1.0.0 / code 10; verify their package metadata.
 - [x] Run actionlint v1.7.12 against the repository workflows; no diagnostics were reported.
@@ -32,7 +32,6 @@
 
 ## Release and remaining scope
 
-- [ ] Only after separate authorization, run the nightly workflow and verify actual release assets and alias hashes.
-- [ ] Do not create a 1.0.0 release/tag as part of this work.
+- [x] Publish v1.0.0 only after owner authorization and verify its release assets and alias hashes.
 - [x] Add standalone nuvx Auto as a TV-module flavor with a separate package ID, release artifact, and car-friendly stereo audio defaults. Android Auto projection remains integrated with the phone app.
-- [ ] iOS parity/signing, desktop installers, extension packaging, GlyphStudio installer inclusion, and remaining handoff tasks stay in the master plan.
+- [x] Package desktop installers and browser extensions in the v1.0.0 release. The unsigned iOS IPA is being added by the Apple release workflow; iOS still needs external signing and has documented parity limits.

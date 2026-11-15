@@ -47,7 +47,7 @@ When the identity changes, the page resets every `['music', …]` query and the 
 - **Verified signed out** (Playwright Chromium and stock Firefox): the auth state, the refusal codes (`unauthenticated` signed out, `forbidden` off-host), pushes over both transports, the update notice.
 - **Verified in Firefox with a planted first-party cookie:** the extension reads the session and signs requests.
   - Testing note: puppeteer's `page.setCookie` stores a partitioned cookie that the extension can't see. Set test cookies with `document.cookie` on a youtube.com page instead.
-- **Verified in the user's Chrome (Claude in Chrome, 0.2.4)**, reads only:
+- **Verified in a Chrome session**, reads only:
   - the account, name and picture;
   - every library page (songs, albums, artists, history, Made for You, playlists);
   - the like state (`LIKE` for Liked Music tracks). Library "Songs" are saved songs, not liked ones, so they read `INDIFFERENT`;

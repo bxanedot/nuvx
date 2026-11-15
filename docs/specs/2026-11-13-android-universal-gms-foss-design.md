@@ -13,7 +13,7 @@ Play Services is optional at runtime. Casting stays disabled when the service is
 - Emit one canonical `-universal.apk` per mobile, TV, and Auto app.
 - Let existing 0.9 GMS/FOSS installs update in place: publish identical copies of each shared APK under the former `-gms.apk` and `-foss.apk` asset names.
 - Keep the Wear OS APK and desktop assets as separate release assets.
-- Keep version 1.0.0 unreleased until owner authorization.
+- Version 1.0.0 / Android version code 10 was published after owner authorization on 2026-11-15.
 
 ## Design
 

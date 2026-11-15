@@ -53,15 +53,12 @@ keystore.properties
 .tmp_verify/
 .debug/
 
-# AI agent configuration
+# Generated output files
 /output/
 
 # Built packages — release APKs/bundles are handed out, never committed
 *.apk
 *.aab
-
-# Claude Code session files (launch configs, worktrees)
-.claude/
 
 # Desktop app (Rust)
 /app/desktop/target/
