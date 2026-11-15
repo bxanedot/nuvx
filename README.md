@@ -55,10 +55,10 @@
 | --- | --- | --- |
 | **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `nuvx-v*-universal.apk` (one multi-ABI APK) |
 | **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
-| **nuvx Auto** | Compatible Android head unit | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · standalone `NuvxAuto-v*-universal.apk`; stereo widening starts off and loudness normalization stays enabled (included when v1.0.0 is released) |
+| **nuvx Auto** | Compatible Android head unit | Planned for v1.0.0 · standalone `NuvxAuto-v*-universal.apk`; stereo widening starts off and loudness normalization stays enabled |
 | **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `NuvxTV-v*-universal.apk` (one multi-ABI APK) |
 | **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate `NuvxWear-v*.apk` companion |
-| **iPhone** | iOS/iPadOS 18+; signing required | Unsigned IPA if attached to a release · [build and sideload notes](app/ios/README.md) |
+| **iPhone** | iOS/iPadOS 18+; signing required | No IPA in v0.9.0; unsigned IPA planned for v1.0.0 · [build and sideload notes](app/ios/README.md) |
 | **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
 | **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
