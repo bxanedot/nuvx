@@ -15,6 +15,7 @@ import com.bxane.nuvx.sharedui.resources.Res
 import com.bxane.nuvx.sharedui.resources.spotify_logo
 import com.bxane.nuvx.data.model.ShelfItem
 import com.bxane.nuvx.data.settings.AppSettings
+import com.bxane.nuvx.data.OfflinePlaylist
 import com.bxane.nuvx.download.Downloads
 import com.bxane.nuvx.download.SavedCollection
 import com.bxane.nuvx.ui.components.PAGE_GUTTER
@@ -86,6 +87,21 @@ fun libraryDeviceItems(downloadedReleases: List<SavedCollection>): List<ShelfIte
             browseId = Downloads.pageIdFor(release.id),
         )
     }
+}
+
+internal fun offlinePlaylistShelfItems(
+    playlists: List<OfflinePlaylist>,
+    subtitleFor: (Int) -> String,
+    artworkFor: (String) -> String?,
+): List<ShelfItem> = playlists.filterNot { it.isLiked }.map { playlist ->
+    ShelfItem(
+        title = playlist.title,
+        subtitle = subtitleFor(playlist.songs.size),
+        thumbnailUrl = artworkFor(playlist.browseId)
+            ?: playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl },
+        videoId = null,
+        browseId = playlist.browseId,
+    )
 }
 
 fun deviceFolderIcon(browseId: String): ImageVector? = when (browseId) {
