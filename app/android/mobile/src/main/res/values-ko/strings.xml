@@ -28,6 +28,7 @@
     <string name="local_music">로컬 음악</string>
     <string name="search_source_youtube" translatable="false">YouTube</string>
     <string name="search_source_addons">애드온</string>
+    <string name="change_playlist_artwork">재생목록 아트워크 변경</string>
     <string name="search_addons_none">켜진 애드온이 없습니다. 설정 → 소스에서 하나 켜세요.</string>
     <string name="audio_files_on_device">기기의 오디오 파일</string>
     <string name="on_device">기기 내</string>

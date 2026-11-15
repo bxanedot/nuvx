@@ -1183,6 +1183,7 @@
     <string name="artist_signatures_unconfigured">Non configurato — tocca per impostare l\'URL dell\'API</string>
     <string name="artist_signatures_test_failed">Impossibile raggiungere l\'API a questo URL</string>
     <string name="search_source_addons">Addon</string>
+    <string name="change_playlist_artwork">Cambia copertina della playlist</string>
     <string name="search_addons_none">Nessun addon attivo. Aggiungine uno in Impostazioni → Fonti.</string>
     <string name="app_icon">Icona dell’app</string>
     <string name="app_icon_default">Predefinita</string>

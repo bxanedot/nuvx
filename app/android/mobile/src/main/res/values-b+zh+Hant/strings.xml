@@ -1226,6 +1226,7 @@
     <string name="saved_on_this_device">已儲存在這部裝置上</string>
     <string name="direct_source_stream_in_party">在 Listen Together 派對中時關閉</string>
     <string name="search_source_addons">外掛</string>
+    <string name="change_playlist_artwork">更改播放清單封面</string>
     <string name="search_addons_none">尚未啟用任何外掛。請在「設定 → 來源」中新增。</string>
     <string name="direct_source_stream">直接從來源串流</string>
     <string name="spotify_use_spdc_token">使用 sp_dc 權杖</string>

@@ -1271,6 +1271,7 @@
     <string name="artist_signatures_unconfigured">Не настроено — нажмите, чтобы задать URL API</string>
     <string name="artist_signatures_test_failed">Не удалось связаться с API по этому URL</string>
     <string name="search_source_addons">Аддоны</string>
+    <string name="change_playlist_artwork">Изменить обложку плейлиста</string>
     <string name="search_addons_none">Нет включённых аддонов. Добавьте аддон в Настройки → Источники.</string>
     <string name="app_icon">Значок приложения</string>
     <string name="app_icon_default">По умолчанию</string>
