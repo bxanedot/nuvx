@@ -480,7 +480,7 @@ fn client() -> anyhow::Result<reqwest::Client> {
 
 #[cfg(test)]
 mod tests {
-    use super::{asset_name_for, newer, release_is_newer};
+    use super::{asset_name_for, compare_release_order, newer, release_is_newer};
 
     #[test]
     fn installer_names_match_each_platform_variant() {
