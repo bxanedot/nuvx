@@ -44,6 +44,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 - Serialize batch YouTube stream lookups on Android, iOS, and desktop to reduce request bursts while keeping audio transfers concurrent; report temporary YouTube refusals separately from missing audio.
 - Detect the website visitor's device and link supported stable/nightly downloads to the matching asset; unavailable or unknown devices return to the on-site package list.
 - Add Telegram to the community invitation and settings links across phone, TV/Auto, iOS, macOS, desktop and web.
+- Keep `robots.txt`, the canonical sitemap, and the IndexNow key in the website source so Google and Bing can discover the public pages after deployment.
 - Preserve silent Windows installer switches and put a time limit on the Windows nightly installer packaging job.
 - Record startup smoke-test results for the phone, TV, Auto, and Wear APKs, including the limits of the available emulator checks.
 - Align package metadata to version 1.0.0 and Android version code 10 across Android, iOS, desktop and browser extensions.

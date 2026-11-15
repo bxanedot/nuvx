@@ -100,3 +100,20 @@ test('unknown browsers stay on the local package list', async () => {
   assert.equal(page.nightly.href, packageList);
   assert.equal(page.label.textContent, 'Choose a download');
 });
+
+test('search discovery files keep the IndexNow key and canonical sitemap connected', () => {
+  const indexNowKey = '045adc84f9a240278c33ee11e35eff56';
+  const key = readFileSync(`${__dirname}/${indexNowKey}.txt`, 'utf8');
+  const robots = readFileSync(`${__dirname}/robots.txt`, 'utf8');
+  const sitemap = readFileSync(`${__dirname}/sitemap.xml`, 'utf8');
+  const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(([, url]) => url);
+  assert.equal(key, indexNowKey);
+  assert.match(robots, /Sitemap: https:\/\/www\.nuvx\.lol\/sitemap\.xml/);
+  assert.deepEqual(urls, [
+    'https://www.nuvx.lol/',
+    'https://www.nuvx.lol/docs',
+    'https://www.nuvx.lol/changelog',
+    'https://www.nuvx.lol/terms',
+    'https://www.nuvx.lol/privacy',
+  ]);
+});
