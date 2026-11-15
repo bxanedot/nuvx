@@ -5,7 +5,7 @@ import { CircleLockup, SquareLockup, VideoLockup } from '@/components/music/Lock
 import { EmptyState, LoadError, LoadMoreError, NeedsExtension } from '@/components/music/States';
 import { TrackList } from '@/components/music/TrackList';
 import { isLibrarySection, LIBRARY_SECTIONS } from '@/data/music/library';
-import { useNuvxPlaylists } from '@/data/music/localPlaylists';
+import { readNuvxPlaylistArtwork, useNuvxPlaylists } from '@/data/music/localPlaylists';
 import { useLibrary, useSignedIn, useYouTubeReady } from '@/data/music/queries';
 import { useYtAuth } from '@/extension/useYtAuth';
 import { PlainSkeleton } from '@/skeletons/PageSkeletons';
@@ -38,7 +38,7 @@ export default function LibraryPage() {
     subtitle: `${playlist.tracks.length} songs · This device`,
     artists: [],
     album: null,
-    thumbnail: playlist.tracks[0]?.thumbnail ?? null,
+    thumbnail: playlist.artwork ?? playlist.tracks[0]?.thumbnail ?? null,
     wide: false,
     durationSec: null,
     explicit: false,
@@ -68,7 +68,11 @@ export default function LibraryPage() {
   if (library.isError && !library.data) return <><LoadError error={library.error} onRetry={() => void library.refetch()} />{localGrid.length > 0 && <ul className={seeAllGrid}>{localGrid.map((item) => <li key={item.id}><SquareLockup item={item} /></li>)}</ul>}</>;
   if (!library.data && localGrid.length === 0) return <PlainSkeleton />;
 
-  const grid = [...localGrid, ...(library.data?.pages.flatMap((page) => page.data.grid) ?? [])];
+  const grid = [...localGrid, ...(library.data?.pages.flatMap((page) => page.data.grid) ?? [])].map((item) =>
+    item.kind === 'playlist'
+      ? { ...item, thumbnail: readNuvxPlaylistArtwork(item.id) ?? item.thumbnail }
+      : item,
+  );
   const tracks = library.data?.pages.flatMap((page) => page.data.tracks) ?? [];
   return (
     <>

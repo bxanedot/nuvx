@@ -1,5 +1,6 @@
 import SwiftUI
 import NuvxShared
+import PhotosUI
 
 
 
@@ -23,6 +24,7 @@ struct DetailView: View {
     @State private var error: String?
     @State private var loading = true
     @State private var headerArt: Data?
+    @State private var selectedPlaylistArtwork: PhotosPickerItem?
     @State private var filter = ""
 
 
@@ -133,6 +135,19 @@ struct DetailView: View {
             saving = false; subscribing = false; subscriptionOverride = nil
             pinned = PlaylistPinning.pinnedIds().contains(browseId)
             await load()
+        }
+        .onChange(of: selectedPlaylistArtwork) { _, item in
+            guard let item else { return }
+            Task {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                do {
+                    try PlaylistArtworkOverrides.save(data, for: browseId)
+                    headerArt = data
+                } catch {
+                    toast.show(error.localizedDescription, kind: .failure)
+                }
+                selectedPlaylistArtwork = nil
+            }
         }
         .onAppear { mirrorPlaybackContext() }
         .onChange(of: controller.playbackContextRevision) { _, _ in mirrorPlaybackContext() }
@@ -321,7 +336,11 @@ struct DetailView: View {
             }
         }
         .task(id: page.thumbnailUrl) {
-            headerArt = await loadHeaderArt(page.thumbnailUrl)
+            if let artwork = PlaylistArtworkOverrides.data(for: browseId) {
+                headerArt = artwork
+            } else {
+                headerArt = await loadHeaderArt(page.thumbnailUrl)
+            }
             await loadCanvas(page)
         }
     }
@@ -500,6 +519,19 @@ struct DetailView: View {
                     CanvasPlayer(url: canvasURL, fallbackURL: canvasFallbackURL, isPlaying: true)
                         .frame(width: sleeve, height: sleeve)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                if kind(of: page) == .playlist {
+                    PhotosPicker(selection: $selectedPlaylistArtwork, matching: .images) {
+                        Image(systemName: "camera.fill")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .frame(width: 38, height: 38)
+                            .chromeGlass(in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Upload playlist artwork")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(9)
                 }
             }
 

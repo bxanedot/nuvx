@@ -25,14 +25,17 @@ pub struct HttpImages {
     backend: Backend,
     cache: Arc<Mutex<HashMap<String, Entry>>>,
     dir: std::path::PathBuf,
+    artwork_dir: std::path::PathBuf,
 }
 
 impl HttpImages {
     pub fn new(backend: Backend) -> Self {
         let dir = backend.data_dir().join("thumbs");
+        let artwork_dir = backend.data_dir().join("playlist-artwork");
         let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::create_dir_all(&artwork_dir);
         trim(&dir);
-        Self { backend, cache: Default::default(), dir }
+        Self { backend, cache: Default::default(), dir, artwork_dir }
     }
 }
 
@@ -70,6 +73,15 @@ impl BytesLoader for HttpImages {
     }
 
     fn load(&self, _ctx: &egui::Context, uri: &str) -> BytesLoadResult {
+        if let Some(name) = uri.strip_prefix("nuvx-artwork://") {
+            if std::path::Path::new(name).file_name().and_then(|n| n.to_str()) != Some(name) {
+                return Err(LoadError::NotSupported);
+            }
+            return match std::fs::read(self.artwork_dir.join(name)) {
+                Ok(bytes) => Ok(BytesPoll::Ready { size: None, bytes: Bytes::Shared(Arc::from(bytes)), mime: None }),
+                Err(error) => Err(LoadError::Loading(error.to_string())),
+            };
+        }
         if !is_http(uri) {
             return Err(LoadError::NotSupported);
         }
@@ -181,7 +193,7 @@ impl TextureLoader for Textures {
     fn load(&self, ctx: &egui::Context, uri: &str, options: TextureOptions, size_hint: SizeHint) -> TextureLoadResult {
         let gray = uri.strip_prefix("gray:");
         let src = gray.unwrap_or(uri);
-        if !is_http(src) && !uri.starts_with("bytes://app-icon/") {
+        if !is_http(src) && !uri.starts_with("bytes://app-icon/") && !uri.starts_with("nuvx-artwork://") {
             return Err(LoadError::NotSupported);
         }
         {

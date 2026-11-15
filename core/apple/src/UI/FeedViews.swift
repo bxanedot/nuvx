@@ -440,6 +440,7 @@ struct ShelfCardView: View {
 
 
     @State private var hovering = false
+    @State private var playlistArtwork: Data?
 
     var body: some View {
         ShelfCardTap(card: card, preferTrack: preferTrack) {
@@ -467,7 +468,7 @@ struct ShelfCardView: View {
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                ArtworkView(url: card.thumbnailUrl, data: nil, side: artworkSide)
+                ArtworkView(url: playlistArtwork == nil ? card.thumbnailUrl : nil, data: playlistArtwork, side: artworkSide)
                     .clipShape(.rect(cornerRadius: 10, style: .continuous))
                     .shadow(color: .black.opacity(0.15), radius: 5, y: 2)
                     .modifier(NowPlayingCardAccent(
@@ -505,6 +506,13 @@ struct ShelfCardView: View {
         }
         .contentShape(.rect)
         .onHover { hovering = $0 }
+        .task(id: card.browseId) {
+            playlistArtwork = card.browseId.flatMap { PlaylistArtworkOverrides.data(for: $0) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PlaylistArtworkOverrides.changed)) { note in
+            guard note.userInfo?["playlistId"] as? String == card.browseId else { return }
+            playlistArtwork = card.browseId.flatMap { PlaylistArtworkOverrides.data(for: $0) }
+        }
         .modifier(MacCardHoverLift())
         .shelfCardContextMenu(card)
     }

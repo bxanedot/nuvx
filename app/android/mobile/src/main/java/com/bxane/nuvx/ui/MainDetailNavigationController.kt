@@ -43,6 +43,12 @@ internal class MainDetailNavigationController(
         _detailStack.value = _detailStack.value.map { if (it.browseId == browseId) it.copy(title = title) else it }
     }
 
+    fun setArtwork(browseId: String, artwork: String) {
+        _detailStack.value = _detailStack.value.map {
+            if (it.browseId == browseId) it.copy(thumbnailUrl = artwork) else it
+        }
+    }
+
     fun reloadLocal(browseId: String) {
         scope.launch {
             val state = localPageState(browseId) ?: return@launch

@@ -81,6 +81,7 @@ impl App {
             artist: None,
             library: None,
             local_playlists: get("nuvx_local_playlists").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
+            playlist_artwork: get("nuvx_playlist_artwork").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
             create_playlists_locally: get("create_playlists_locally").is_some_and(|v| v == "1"),
             library_requested: std::time::Instant::now(),
             history: None,
@@ -300,6 +301,11 @@ impl App {
             app.account_name = c.name;
             app.account_avatar = c.avatar;
             app.sidebar_cache = Some(c.playlists).filter(|p| !p.is_empty());
+            if let Some(cards) = &mut app.sidebar_cache {
+                for card in cards {
+                    super::collections::apply_playlist_artwork(card, &app.playlist_artwork);
+                }
+            }
         }
         if std::env::var_os("NUVX_QUEUE").is_some() {
             app.queue_open = true;

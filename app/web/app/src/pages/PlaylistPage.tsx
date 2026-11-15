@@ -5,7 +5,7 @@ import { playList, shuffleList } from '@/components/music/play';
 import { LoadError, LoadMoreError, NeedsExtension } from '@/components/music/States';
 import { TrackList } from '@/components/music/TrackList';
 import { usePlaylist, useYouTubeReady } from '@/data/music/queries';
-import { useNuvxPlaylists } from '@/data/music/localPlaylists';
+import { readNuvxPlaylistArtwork, setNuvxPlaylistArtwork, useNuvxPlaylists } from '@/data/music/localPlaylists';
 import { useArtworkColor } from '@/lib/artworkColor';
 import { usePageTint } from '@/lib/usePageTint';
 import { PlaylistSkeleton } from '@/skeletons/PageSkeletons';
@@ -23,12 +23,17 @@ export default function PlaylistPage() {
         subtitle: 'Nuvx only · This device',
         meta: `${local.tracks.length} songs`,
         description: null,
-        thumbnail: local.tracks[0]?.thumbnail ?? null,
+        thumbnail: readNuvxPlaylistArtwork(id) ?? local.artwork ?? local.tracks[0]?.thumbnail ?? null,
         artists: [],
         explicit: false,
         library: null,
       }
-    : playlist.data?.pages[0]?.header ?? null;
+    : playlist.data?.pages[0]?.header
+      ? {
+          ...playlist.data.pages[0].header,
+          thumbnail: readNuvxPlaylistArtwork(id) ?? playlist.data.pages[0].header.thumbnail,
+        }
+      : null;
   usePageTint(useArtworkColor(header?.thumbnail));
 
   const { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } = playlist;
@@ -50,6 +55,7 @@ export default function PlaylistPage() {
         canPlay={tracks.length > 0}
         onPlay={() => playList(tracks, 0, context)}
         onShuffle={() => shuffleList(tracks, context)}
+        onArtworkChange={(artwork) => setNuvxPlaylistArtwork(id, artwork)}
       />
       <TrackList tracks={tracks} variant="playlist" onNearEnd={onNearEnd} source={context.source} />
       {!isLocal && isFetchingNextPage && <div className="flex justify-center py-5 type-callout text-secondary">Loading more songs…</div>}

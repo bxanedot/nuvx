@@ -230,6 +230,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun renamePlaylist(playlist: UserPlaylist, title: String) =
         playlistController.renamePlaylist(playlist, title)
 
+    fun setPlaylistArtwork(browseId: String, artwork: String) {
+        playlistController.setArtwork(browseId, artwork)
+        detailNavigationController.setArtwork(browseId, artwork)
+    }
+
     fun loadPlaylistEntries(playlist: UserPlaylist, onResult: (Result<List<Song>>) -> Unit) =
         playlistController.loadPlaylistEntries(playlist, onResult)
 
@@ -253,6 +258,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         markLibraryStale = feedRefreshController::markLibraryStale,
         text = ::text,
         withArtwork = { songs, fallback -> songs.withArtwork(fallback) },
+        playlistArtwork = { com.bxane.nuvx.data.PlaylistArtworkStore.get(app, it) },
         navigator = navigator,
         _library = libraryHistory.mutableLibrary,
         _detailStack = detailNavigationController.mutableDetailStack,

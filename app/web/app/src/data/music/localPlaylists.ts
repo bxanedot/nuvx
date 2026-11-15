@@ -6,10 +6,12 @@ export interface NuvxPlaylist {
   id: string;
   title: string;
   tracks: Track[];
+  artwork?: string | null;
 }
 
 const PLAYLISTS_KEY = 'nuvx-local-playlists';
 const MODE_KEY = 'nuvx-create-playlists-locally';
+const ARTWORK_KEY = 'nuvx-playlist-artwork';
 const changed = new EventTarget();
 
 export function useNuvxPlaylists(): NuvxPlaylist[] {
@@ -62,6 +64,48 @@ export function addToNuvxPlaylist(id: string, track: Track): boolean {
   return true;
 }
 
+export function setNuvxPlaylistArtwork(id: string, artwork: string | null): boolean {
+  const playlists = readNuvxPlaylists();
+  const index = playlists.findIndex((playlist) => playlist.id === id);
+  if (index >= 0) {
+    playlists[index] = { ...playlists[index]!, artwork };
+    save(playlists);
+    return true;
+  }
+
+  let overrides: Record<string, string> = {};
+  try {
+    const value: unknown = JSON.parse(readStorage('localStorage', ARTWORK_KEY) ?? '{}');
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      overrides = Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+    }
+  } catch { /* Keep artwork overrides empty when stored data is malformed. */ }
+  const key = playlistArtworkKey(id);
+  if (artwork) overrides[key] = artwork;
+  else delete overrides[key];
+  writeStorage('localStorage', ARTWORK_KEY, JSON.stringify(overrides));
+  changed.dispatchEvent(new Event('change'));
+  return true;
+}
+
+export function readNuvxPlaylistArtwork(id: string): string | null {
+  if (id.startsWith('nuvx-local:')) {
+    return readNuvxPlaylists().find((playlist) => playlist.id === id)?.artwork ?? null;
+  }
+  try {
+    const value: unknown = JSON.parse(readStorage('localStorage', ARTWORK_KEY) ?? '{}');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const artwork = (value as Record<string, unknown>)[playlistArtworkKey(id)];
+    return typeof artwork === 'string' ? artwork : null;
+  } catch {
+    return null;
+  }
+}
+
+function playlistArtworkKey(id: string): string {
+  return id.startsWith('VL') ? id.slice(2) : id;
+}
+
 function withoutStreamUrl(track: Track): Track {
   const { streamUrl: _expired, ...saved } = track;
   return saved;
@@ -71,6 +115,7 @@ function isPlaylist(value: unknown): value is NuvxPlaylist {
   if (!value || typeof value !== 'object') return false;
   const item = value as Record<string, unknown>;
   return typeof item.id === 'string' && typeof item.title === 'string' &&
+    (item.artwork === undefined || item.artwork === null || typeof item.artwork === 'string') &&
     Array.isArray(item.tracks) && item.tracks.every(isTrack);
 }
 
