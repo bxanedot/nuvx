@@ -48,6 +48,26 @@ core/rust/nuvx-core      one crate: decode, analysis, AutoMix, loudness (EBU R12
 | ruvnet/ruflo | MIT | Dev-side agent harness only (its predecessor claude-flow is already set up in your eXcor folder). Optional. | No app value. |
 | Rohit-554/NStream | **none** | Nothing. | No license, so it can't be reused; it's a KMP template nuvx already surpasses. |
 
+## Second batch: tooling and website repos
+
+| Repo | License | Take | Skip / why |
+|---|---|---|---|
+| heydamir/unslop | CC-BY-4.0 | **Use as a design pass on nuvx.lol.** The current hero (pink-purple gradient, italic serif, glow) matches the "AI-looking" patterns it removes. Install as a plugin; don't vendor it. | — |
+| Motionsites-AI/claude-skill | MIT (skill); examples/media © MotionSites | Optional second design skill for a cinematic landing section. | Its example prompts/media can't be redistributed; don't copy them into the repo. |
+| adrianhajdin/award-winning-website | **none** | Idea only: scroll-driven animation (GSAP-style) for one showcase section. | No license, so no code reuse. |
+| xtool-org/xtool | MIT | Later: build/sign the iOS app from Windows via WSL. | nuvx iOS uses an XcodeGen `project.yml`, not SwiftPM; converting is real work, and CI (macOS runners) already builds iOS. |
+| storytold/craft-anything | MIT/Apache-2.0 | Nothing needed. | Early-alpha "rebuild any app" engine; nuvx isn't cloning anything. |
+| mattpocock/skills, affaan-m/ECC, muratcankoylan/Agent-Skills-for-Context-Engineering | MIT | Optional dev-side skills for coding agents; pick one pack at most. | They overlap each other and Ponytail/superpowers you already use; no app value. |
+| FlorianBruniaux/claude-code-ultimate-guide | CC-BY-SA-4.0 | Reading material for agent workflows. | Docs, not code; ShareAlike would bind anything copied. |
+
+## Website (nuvx.lol, `core/website`)
+
+Keep it: static HTML/CSS/JS on Vercel, fast, already covers every device, release channels, nightlies, web player, extension, Canvas, community and docs. Ultra-minimal changes:
+
+1. Add one **Ecosystem** section: a single diagram of phone / TV / Auto / Wear / desktop / web / extension sharing one account, library, Listen Together and (later) the Rust core, each linking to its download.
+2. Run an unslop design pass on the hero and cards: replace the generic gradient + italic serif with nuvx's own type and colour (signature mark, waveform motif), keep layout and copy.
+3. No framework migration, no rebuild.
+
 ## Blockers
 
 - No Rust toolchain on this Windows machine (`cargo` missing), so Rust can't be built locally until rustup is installed. iOS/macOS builds still need CI (no Xcode here).
