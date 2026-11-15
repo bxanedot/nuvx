@@ -45,7 +45,7 @@ object DownloadBridge {
                 return@launch
             }
             val maxKbps = if (quality.maxKbps == Int.MAX_VALUE) Int.MAX_VALUE else quality.maxKbps
-            PlayerBridge.resolve(videoId, maxKbps) { payload, message ->
+            PlayerBridge.resolveForDownload(videoId, maxKbps) { payload, message ->
                 if (payload == null) callback.onResult(null, message)
                 else {
                     val fields = json.parseToJsonElement(payload).jsonObject.toMutableMap()
