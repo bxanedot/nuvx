@@ -125,7 +125,7 @@ internal object YtMusicHomeRepository {
 
     suspend fun podcasts(): Result<List<HomeShelf>> = YtMusicRepository.call("podcasts") {
         val params = InnertubeParser.podcastsChipParams(Innertube.browse("FEmusic_home"))
-            ?: error("YouTube Music offered no Podcasts")
+            ?: "ggNCSgQIDBAD"
         InnertubeParser.parseHome(Innertube.browse("FEmusic_home", params))
     }
 
