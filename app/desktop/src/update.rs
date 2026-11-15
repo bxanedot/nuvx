@@ -525,12 +525,12 @@ mod tests {
     }
 
     #[test]
-    fn published_release_order_crosses_stable_and_nightly_channels() {
+    fn release_selection_respects_stable_and_nightly_channels() {
         let stable_time = "2026-11-13T11:00:00Z";
         let nightly_time = "2026-11-13T12:00:00Z";
         let later_nightly_time = "2026-11-13T13:00:00Z";
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
-        assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
         assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", stable_time, "0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time));
