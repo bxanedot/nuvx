@@ -273,6 +273,8 @@
     <string name="discord_token_rejected">Discordがそのトークンを拒否しました。</string>
     <string name="discord_token_warning">Discordはアプリがプレゼンスを設定できるAPIを提供していないため、この機能はあなたのアカウントとしてログインし、Discordのプロトコルを使用します。トークンはこのデバイス内で暗号化され、Discordにのみ送信されます。アカウント全体へのアクセス権を与えることになり、アカウントの自動化はDiscordの利用規約に違反します。このリスクを受け入れられる場合のみ使用してください。</string>
     <string name="dislike">低評価</string>
+    <string name="disliked">低評価しました</string>
+    <string name="undo">元に戻す</string>
     <string name="done">完了</string>
     <string name="download">ダウンロード</string>
     <string name="download_quality_dialog_subtitle">このデバイスに保存するファイル向け</string>

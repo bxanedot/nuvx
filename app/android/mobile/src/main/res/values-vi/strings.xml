@@ -311,6 +311,8 @@
     <string name="discord_token_rejected">Discord đã từ chối token đó.</string>
     <string name="discord_token_warning">Discord không cung cấp API cho phép ứng dụng đặt trạng thái của bạn, vì vậy tính năng này đăng nhập bằng tài khoản của bạn và sử dụng giao thức của Discord. Token của bạn được mã hóa trên thiết bị này và chỉ gửi đến Discord. Token cấp toàn quyền truy cập tài khoản của bạn, và việc tự động hóa tài khoản vi phạm điều khoản của Discord. Bạn chỉ nên sử dụng nếu chấp nhận rủi ro này.</string>
     <string name="dislike">Không thích</string>
+    <string name="disliked">Đã đánh dấu không thích</string>
+    <string name="undo">Hoàn tác</string>
     <string name="done">Xong</string>
     <string name="download">Tải xuống</string>
     <string name="download_quality_dialog_subtitle">Dành cho các tệp được lưu trên thiết bị này</string>

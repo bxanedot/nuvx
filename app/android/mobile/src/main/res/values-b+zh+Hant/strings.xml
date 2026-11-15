@@ -272,6 +272,8 @@
     <string name="discord_token_rejected">Discord 拒絕了該令牌。</string>
     <string name="discord_token_warning">Discord 沒有提供可供應用設定狀態的 API，因此此功能會以你的賬號登入並使用 Discord 的協議。你的令牌會在此裝置上加密儲存，且只會傳送給 Discord。它會授予對你整個賬號的訪問許可權，而賬號自動化違反了 Discord 的服務條款。請僅在你接受此風險時使用此功能。</string>
     <string name="dislike">不喜歡</string>
+    <string name="disliked">已標記為不喜歡</string>
+    <string name="undo">復原</string>
     <string name="done">完成</string>
     <string name="download">下載</string>
     <string name="download_quality_dialog_subtitle">適用於儲存在此裝置上的檔案</string>

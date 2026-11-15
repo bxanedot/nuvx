@@ -276,6 +276,8 @@
     <string name="discord_token_rejected">Discord hat diesen Token abgelehnt.</string>
     <string name="discord_token_warning">Discord bietet keine API, mit der Apps deine Presence festlegen können. Diese Funktion meldet sich daher als dein Konto an und nutzt Discords Protokoll. Dein Token bleibt verschlüsselt auf diesem Gerät gespeichert und wird nur an Discord gesendet. Er gewährt Zugriff auf dein gesamtes Konto, und Kontoautomatisierung verstößt gegen Discords Nutzungsbedingungen. Verwende ihn nur, wenn du dieses Risiko akzeptierst.</string>
     <string name="dislike">Nicht gefällt mir</string>
+    <string name="disliked">Als „Mag ich nicht“ markiert</string>
+    <string name="undo">Rückgängig</string>
     <string name="done">Fertig</string>
     <string name="download">Herunterladen</string>
     <string name="download_quality_dialog_subtitle">Für Dateien, die auf diesem Gerät gespeichert werden</string>

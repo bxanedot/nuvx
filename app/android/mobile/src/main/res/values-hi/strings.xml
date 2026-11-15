@@ -276,6 +276,8 @@
     <string name="discord_token_rejected">Discord ने वह टोकन अस्वीकार कर दिया।</string>
     <string name="discord_token_warning">Discord कोई ऐसा API नहीं देता जिससे ऐप्स आपकी प्रेज़ेंस सेट कर सकें, इसलिए यह फ़ीचर आपके खाते के रूप में साइन इन करता है और Discord के प्रोटोकॉल का इस्तेमाल करता है। आपका टोकन इस डिवाइस पर एन्क्रिप्टेड रहता है और केवल Discord को भेजा जाता है। यह आपके पूरे खाते तक पहुंच देता है, और खाता ऑटोमेशन Discord की शर्तों का उल्लंघन करता है। इसे तभी इस्तेमाल करें जब आप यह जोखिम स्वीकार करते हों।</string>
     <string name="dislike">नापसंद</string>
+    <string name="disliked">नापसंद किया गया</string>
+    <string name="undo">पूर्ववत करें</string>
     <string name="done">हो गया</string>
     <string name="download">डाउनलोड करें</string>
     <string name="download_quality_dialog_subtitle">इस डिवाइस पर रखी गई फ़ाइलों के लिए</string>

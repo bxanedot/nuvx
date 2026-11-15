@@ -53,6 +53,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -886,6 +889,7 @@ internal fun NuvxApp(
 
     val scope = rememberCoroutineScope()
     val playbackStarter = MainPlaybackStarter(
+    val snackbars = remember { SnackbarHostState() }
         context = context,
         scope = scope,
         controller = { controller },
@@ -2720,15 +2724,22 @@ internal fun NuvxApp(
                 onToggleLike = { toggleLikeOf(song) },
                 onToggleDislike = {
                     val previousStatus = viewModel.toggleDislike(song.videoId)
-                    if (
-                        previousStatus != null &&
+                    val skipped = previousStatus != null &&
                         shouldSkipAfterDislike(
                             previousStatus = previousStatus,
                             targetVideoId = song.videoId,
                             currentVideoId = player.song?.videoId,
                         )
-                    ) {
-                        controller?.seekToNextMediaItem()
+                    if (skipped) controller?.seekToNextMediaItem()
+                    if (previousStatus != null && previousStatus != LikeStatus.DISLIKE) scope.launch {
+                        val result = snackbars.showSnackbar(
+                            message = context.getString(R.string.disliked),
+                            actionLabel = context.getString(R.string.undo),
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.setLike(song.videoId, previousStatus)
+                            if (skipped) controller?.seekToPreviousMediaItem()
+                        }
                     }
                 },
                 onAddToPlaylist = {
@@ -3684,6 +3695,11 @@ internal fun NuvxApp(
 
     }
 }
+        SnackbarHost(
+            snackbars,
+            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 88.dp),
+        )
+
 
 private val OnboardingDismissEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 

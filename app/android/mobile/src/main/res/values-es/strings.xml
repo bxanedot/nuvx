@@ -289,6 +289,8 @@
     <string name="discord_token_rejected">Discord rechazó ese token.</string>
     <string name="discord_token_warning">Discord no ofrece una API para que una app cambie tu presencia, así que esta función inicia sesión con tu cuenta y usa el protocolo de Discord. El token se guarda cifrado en este dispositivo y solo se envía a Discord. Da acceso a toda tu cuenta y automatizarla infringe los términos de Discord. Úsalo solo si aceptas ese riesgo.</string>
     <string name="dislike">No me gusta</string>
+    <string name="disliked">Marcado como No me gusta</string>
+    <string name="undo">Deshacer</string>
     <string name="done">Listo</string>
     <string name="download">Descargar</string>
     <string name="download_quality_dialog_subtitle">Para archivos guardados en este dispositivo</string>

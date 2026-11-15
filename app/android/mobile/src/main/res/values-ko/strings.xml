@@ -412,6 +412,8 @@
     <string name="discord_token_rejected">Discord에서 이 토큰을 거부했습니다.</string>
     <string name="discord_token_warning">Discord에서는 앱에서 사용자의 활동 정보를 설정할 수 있도록 하는 API를 제공하지 않습니다. 따라서 본 기능은 사용자의 계정으로 직접 로그인하여 Discord 프로토콜을 사용합니다. 토큰은 이 기기 내에서 암호화된 채로 유지되며 Discord로만 전송됩니다. 이 방식을 사용하면 계정 전체의 접근 권한을 부여하게 되며, 계정 자동화는 Discord 서비스 약관을 위반하는 행위입니다. 위험을 감수할 수 있는 경우에만 사용하세요.</string>
     <string name="dislike">싫어요</string>
+    <string name="disliked">싫어요 표시함</string>
+    <string name="undo">실행취소</string>
     <string name="done">완료</string>
     <string name="download">다운로드</string>
     <string name="download_quality_dialog_subtitle">이 기기에 보관할 파일에 적용</string>

@@ -282,6 +282,8 @@
     <string name="discord_token_rejected">Discord отклонил этот токен.</string>
     <string name="discord_token_warning">Discord не предоставляет API, позволяющий приложениям задавать ваш статус, поэтому эта функция выполняет вход в ваш аккаунт и использует протокол Discord. Ваш токен хранится в зашифрованном виде на этом устройстве и отправляется только в Discord. Он даёт доступ ко всему вашему аккаунту, а автоматизация аккаунта нарушает условия использования Discord. Используйте эту функцию, только если принимаете этот риск.</string>
     <string name="dislike">Не нравится</string>
+    <string name="disliked">Отмечено как «Не нравится»</string>
+    <string name="undo">Отменить</string>
     <string name="done">Готово</string>
     <string name="download">Загрузить</string>
     <string name="download_quality_dialog_subtitle">Для файлов, хранящихся на этом устройстве</string>
