@@ -26,6 +26,10 @@
 - [ ] Run actionlint or CI workflow validation; actionlint is not installed in this checkout.
 - [ ] Run the ONNX inference/size experiment; retain Maven ONNX Runtime unless evidence supports changing it.
 
+## APK install smoke coverage
+
+- [x] Exercise phone, TV, Auto, and Wear debug APK install/launch paths with ApkStart on an API 36 phone emulator; see the [smoke report](../../ANDROID_APK_SMOKE_TEST.md) for results and limits.
+
 ## Release and remaining scope
 
 - [ ] Only after separate authorization, run the nightly workflow and verify actual release assets and alias hashes.
