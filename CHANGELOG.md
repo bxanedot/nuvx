@@ -47,6 +47,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 
 - Include third-party license notices with desktop packages, add the LGPL-3.0-only license text for the existing bit-perfect component, and clarify AGPL and bundled PoToken client attributions.
 - Include project license texts plus native and AutoMix model notices in Android phone, TV, Auto, and Wear APKs; merge duplicate Android dependency license resources instead of retaining only the first copy.
+- Keep the bundled iOS InnerTubeX notice aligned with its vendored v0.11.7 source revision.
 - Correct Linux backdrop, download architecture and release documentation; extract Android detail playback handling into a focused controller without changing its intended behavior.
 
 ## 0.9.0
