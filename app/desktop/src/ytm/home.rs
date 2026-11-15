@@ -14,7 +14,7 @@ pub async fn home(api: &Api, params: Option<&str>, auth: bool) -> anyhow::Result
     Ok(parse_home(&api.call("browse", body, auth).await?))
 }
 
-fn parse_home(v: &Value) -> HomePage {
+pub(super) fn parse_home(v: &Value) -> HomePage {
     let sec = &v["contents"]["singleColumnBrowseResultsRenderer"]["tabs"][0]["tabRenderer"]["content"]["sectionListRenderer"];
     let chips = arr(&sec["header"]["chipCloudRenderer"]["chips"])
         .iter()
