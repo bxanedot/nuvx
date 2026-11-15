@@ -92,9 +92,19 @@ pub async fn mood_art(api: &Api, sections: &mut [MoodSection], auth: bool) {
     }
 }
 
+const PODCASTS_PARAMS: &str = "ggNCSgQIDBAD";
+
+pub(super) fn podcasts_params(chips: &[Chip]) -> String {
+    chips.iter().find_map(|chip| {
+        let matches = chip.title.eq_ignore_ascii_case("podcasts")
+            || chip.params.as_deref().is_some_and(|params| params.contains("SgQIDBAD"));
+        if matches { chip.params.clone() } else { None }
+    }).unwrap_or_else(|| PODCASTS_PARAMS.to_owned())
+}
+
 pub async fn podcasts(api: &Api, auth: bool) -> anyhow::Result<MoodPage> {
-    let params = home(api, None, auth).await?.chips.into_iter().find(|c| c.title.eq_ignore_ascii_case("podcasts")).and_then(|c| c.params);
-    let params = params.ok_or_else(|| anyhow::anyhow!("YouTube Music offered no Podcasts"))?;
+    let home_page = home(api, None, auth).await?;
+    let params = podcasts_params(&home_page.chips);
     let page = home(api, Some(&params), auth).await?;
     Ok(MoodPage { browse_id: PODCASTS.into(), params: None, title: Some("Podcasts".into()), shelves: page.shelves })
 }
