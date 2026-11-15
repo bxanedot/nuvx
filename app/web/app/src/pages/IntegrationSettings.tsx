@@ -227,7 +227,7 @@ export function DiscordSettings() {
                 <span>Listen button text</span>
                 <input
                   className={settingsUi.input}
-                  placeholder="Listen on YouTube Music"
+                  placeholder="Listen on nuvx"
                   value={options.button1Text}
                   onChange={(e) => set({ button1Text: e.currentTarget.value })}
                 />

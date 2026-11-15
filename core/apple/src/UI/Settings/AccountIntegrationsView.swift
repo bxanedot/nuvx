@@ -182,7 +182,7 @@ struct AccountIntegrationsView: View {
                 Text("Rich Presence")
             } footer: {
                 Text(discordAdvanced
-                     ? "{song_name}, {artist_name} and {album_name} are replaced with the track. The first button opens the song on YouTube Music, the second this project."
+                     ? "{song_name}, {artist_name} and {album_name} are replaced with the track. The first button opens nuvx, or nuvx.lol if the app is unavailable; the second opens this project."
                      : "Show what you’re playing on your Discord profile, updating as the track does.")
             }
 

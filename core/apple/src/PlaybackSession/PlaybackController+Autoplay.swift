@@ -330,11 +330,11 @@ extension PlaybackController {
         guard PlatformSettings.shared.getBoolean(key: "discord_rpc_enabled", default: true) else { return }
         guard let current else { return }
         let speed = PlatformSettings.shared.getFloat(key: "playback_speed", default: 1)
-        let videoId = current.source.hasPrefix("yt:") ? String(current.source.dropFirst(3)) : nil
+
         DiscordGateway.shared.updatePresence(
             title: current.title, artist: current.artist, album: current.albumName,
             positionMs: Swift.Int64(position * 1000), durationMs: Swift.Int64(duration * 1000),
-            speed: speed, videoId: videoId
+            speed: speed
         )
     }
 

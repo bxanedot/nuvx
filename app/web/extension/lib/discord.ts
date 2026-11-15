@@ -7,9 +7,10 @@ export const APPLICATION_ID = '1543679166967193620';
 const GATEWAY = 'wss://gateway.discord.gg/?v=9&encoding=json';
 const API = 'https://discord.com/api/v9';
 const PROJECT_URL = 'https://github.com/bxanedot/nuvx';
-const DEFAULT_BUTTON_1 = 'Listen on YouTube Music';
+const DEFAULT_BUTTON_1 = 'Listen on nuvx';
 const DEFAULT_BUTTON_2 = 'Visit nuvx';
 const APP_NAME = 'nuvx';
+const OPEN_NUVX_URL = 'https://nuvx.lol/open';
 
 const INITIAL_RECONNECT_MS = 1_000;
 const MAX_RECONNECT_MS = 60_000;
@@ -357,9 +358,9 @@ const ACTIVITY_TYPES = { playing: 0, listening: 2, watching: 3, competing: 5 } a
 export async function buildPresence(token: string, track: DiscordNowPlaying, options: DiscordPresenceOptions): Promise<Presence> {
   const now = Date.now();
   const rate = track.playbackRate > 0 ? track.playbackRate : 1;
-  const watchUrl = `https://music.youtube.com/watch?v=${track.videoId}`;
+  const appUrl = OPEN_NUVX_URL;
   const buttons: [string, string][] = [];
-  if (options.button1Visible) buttons.push([resolveVariables(options.button1Text || DEFAULT_BUTTON_1, track), watchUrl]);
+  if (options.button1Visible) buttons.push([resolveVariables(options.button1Text || DEFAULT_BUTTON_1, track), appUrl]);
   if (options.button2Visible) buttons.push([resolveVariables(options.button2Text || DEFAULT_BUTTON_2, track), PROJECT_URL]);
   const art = track.artworkUrl?.startsWith('http') ? track.artworkUrl : null;
   const largeImage = art ? ((await externalAsset(token, art)) ?? art) : null;
@@ -368,7 +369,7 @@ export async function buildPresence(token: string, track: DiscordNowPlaying, opt
       {
         name: options.activityName.trim() || APP_NAME,
         details: rate !== 1 ? `${track.title} [${rate.toFixed(2)}x]` : track.title,
-        details_url: watchUrl,
+        details_url: appUrl,
         state: track.artist,
         state_url: null,
         type: ACTIVITY_TYPES[options.activityType] ?? 2,

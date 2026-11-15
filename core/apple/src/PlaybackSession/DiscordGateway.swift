@@ -45,11 +45,11 @@ final class DiscordGateway: NSObject, URLSessionWebSocketDelegate {
         tearDown()
     }
 
-    func updatePresence(title: String, artist: String, album: String?, positionMs: Int64, durationMs: Int64, speed: Float, videoId: String?) {
+    func updatePresence(title: String, artist: String, album: String?, positionMs: Int64, durationMs: Int64, speed: Float) {
         guard token != nil else { return }
         let payload = DiscordBridge.shared.presencePayload(
             title: title, artist: artist, album: album,
-            positionMs: positionMs, durationMs: durationMs, speed: speed, videoId: videoId
+            positionMs: positionMs, durationMs: durationMs, speed: speed
         )
         lastPresence = payload
         if ready { send(payload) }

@@ -22,6 +22,8 @@ object DiscordBridge {
     private val json = Json { ignoreUnknownKeys = true }
 
     private const val APPLICATION_ID = "1411019391843172514"
+    private const val APP_URL = "https://nuvx.lol/open"
+    private const val PROJECT_URL = "https://github.com/bxanedot/nuvx"
 
     fun interface TokenCallback {
         fun onResult(ok: Boolean, username: String?)
@@ -61,7 +63,6 @@ object DiscordBridge {
         positionMs: Long,
         durationMs: Long,
         speed: Float,
-        videoId: String?,
     ): String {
         val swap = AppSettings.discordSwapTitle.value
         val detailsRaw = if (swap) artist else title
@@ -81,28 +82,19 @@ object DiscordBridge {
         }
         val status = AppSettings.discordStatus.value.ifBlank { "online" }
         val displayType = if (AppSettings.discordUseDetails.value) 2 else 1
-        val buttonLabels = buildList {
+        val buttons = buildList {
             if (AppSettings.discordButton1Visible.value) {
-                add(
-                    resolveVariables(
-                        AppSettings.discordButton1Text.value.ifBlank { "Listen on YouTube Music" },
-                        title, artist, album,
-                    ),
-                )
+                add(resolveVariables(AppSettings.discordButton1Text.value.ifBlank { "Listen on nuvx" }, title, artist, album) to APP_URL)
             }
             if (AppSettings.discordButton2Visible.value) {
-                add(
-                    resolveVariables(
-                        AppSettings.discordButton2Text.value.ifBlank { "Visit Nuvx" },
-                        title, artist, album,
-                    ),
-                )
+                add(resolveVariables(AppSettings.discordButton2Text.value.ifBlank { "Visit Nuvx" }, title, artist, album) to PROJECT_URL)
             }
         }
-        val buttons = if (buttonLabels.isEmpty()) "" else {
-            ""","buttons":[${buttonLabels.joinToString(",") { jsonStr(it) }}],"application_id":"$APPLICATION_ID""""
+        val buttonJson = buttons.joinToString(",") { (label, url) ->
+            """{"label":${jsonStr(label)},"url":${jsonStr(url)}}"""
         }
-        return """{"op":3,"d":{"since":$now,"status":${jsonStr(status)},"afk":false,"activities":[{"name":${jsonStr(activityName)},"type":$activityType,"details":${jsonStr(details)},"state":${jsonStr(stateRaw)},"status_display_type":$displayType,"timestamps":{"start":$start,"end":$end}$buttons}]}}"""
+        val buttonPayload = if (buttons.isEmpty()) "" else ",\"buttons\":[$buttonJson],\"application_id\":\"$APPLICATION_ID\""
+        return """{"op":3,"d":{"since":$now,"status":${jsonStr(status)},"afk":false,"activities":[{"name":${jsonStr(activityName)},"type":$activityType,"details":${jsonStr(details)},"details_url":${jsonStr(APP_URL)},"state":${jsonStr(stateRaw)},"status_display_type":$displayType,"timestamps":{"start":$start,"end":$end}$buttonPayload}]}}"""
     }
 
     private fun resolveVariables(text: String, title: String, artist: String, album: String?): String =

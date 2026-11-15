@@ -607,7 +607,7 @@ private fun RichPresencePreview(
                 onClick = {
                     song?.let {
                         context.startActivity(
-                            Intent(Intent.ACTION_VIEW, DiscordRPC.watchUrl(it).toUri()),
+                            Intent(Intent.ACTION_VIEW, DiscordRPC.openUrl().toUri()),
                         )
                     }
                 },
