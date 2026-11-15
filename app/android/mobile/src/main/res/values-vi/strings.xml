@@ -677,6 +677,8 @@
     <string name="prefer_usb_dac">Ưu tiên DAC USB</string>
     <string name="loudness_normalization">Chuẩn hóa âm lượng</string>
     <string name="loudness_normalization_subtitle">Cân bằng âm lượng giữa các bài hát</string>
+    <string name="loudness_target">Mục tiêu độ lớn</string>
+    <string name="loudness_target_subtitle">Thấp hơn thì nhỏ hơn và dư địa nhiều hơn. −14 LUFS khớp với YouTube.</string>
     <string name="loudness_off_on_speaker">Tắt trên loa điện thoại</string>
     <string name="loudness_gain_db">%1$s dB</string>
     <string name="loudness_lufs">%1$s LUFS</string>

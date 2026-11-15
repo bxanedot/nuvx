@@ -794,6 +794,8 @@
     <string name="prefer_usb_dac">Preferir DAC USB</string>
     <string name="loudness_normalization">Normalización de volumen</string>
     <string name="loudness_normalization_subtitle">Iguala la sonoridad de todas las pistas</string>
+    <string name="loudness_target">Objetivo de sonoridad</string>
+    <string name="loudness_target_subtitle">Más bajo suena más suave y con más margen. −14 LUFS coincide con YouTube.</string>
     <string name="loudness_off_on_speaker">Desactivar en el altavoz del telefono</string>
     <string name="pipeline_loudness_gain">Ganancia</string>
     <string name="pipeline_loudness_measured">Medida</string>

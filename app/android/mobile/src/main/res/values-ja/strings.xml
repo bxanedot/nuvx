@@ -742,6 +742,8 @@
     <string name="prefer_usb_dac">USB DAC を優先</string>
     <string name="loudness_normalization">音量の正規化</string>
     <string name="loudness_normalization_subtitle">すべての曲を同じラウドネスにそろえます</string>
+    <string name="loudness_target">ラウドネス目標</string>
+    <string name="loudness_target_subtitle">低いほど静かで余裕が増えます。−14 LUFS は YouTube と同じです。</string>
     <string name="loudness_off_on_speaker">バイトフォンで無効化</string>
     <string name="pipeline_loudness_gain">ゲイン</string>
     <string name="pipeline_loudness_measured">測定値</string>

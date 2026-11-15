@@ -821,6 +821,8 @@
     <string name="prefer_usb_dac">USB DAC को प्राथमिकता दें</string>
     <string name="loudness_normalization">लाउडनेस नॉर्मलाइज़ेशन</string>
     <string name="loudness_normalization_subtitle">हर ट्रैक को एक जैसी लाउडनेस पर लाता है</string>
+    <string name="loudness_target">लाउडनेस लक्ष्य</string>
+    <string name="loudness_target_subtitle">कम मान धीमा और अधिक हेडरूम देता है। −14 LUFS YouTube जैसा है।</string>
     <string name="loudness_off_on_speaker">फ़ोन स्पीकर पर बंद करें</string>
     <string name="pipeline_loudness_gain">गेन</string>
     <string name="pipeline_loudness_measured">मापा गया</string>

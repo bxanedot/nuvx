@@ -947,6 +947,8 @@
     <string name="loudness_normalization">체감 음량 평준화</string>
 
     <string name="loudness_normalization_subtitle">모든 음악의 체감 음량을 같게 조절합니다</string>
+    <string name="loudness_target">음량 목표</string>
+    <string name="loudness_target_subtitle">낮을수록 더 조용하고 여유가 커집니다. −14 LUFS는 YouTube와 같습니다.</string>
     <string name="loudness_off_on_speaker">폰 스피커에서 비활성화</string>
 
 

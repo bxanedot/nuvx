@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 internal fun defaultSpatialAudioEnabled(applicationId: String): Boolean =
     !applicationId.endsWith(".auto")
 
+const val DEFAULT_LOUDNESS_TARGET_LUFS = -14
+val LOUDNESS_TARGET_RANGE = -20..-10
+
 internal class AudioOutputSettingsController {
     private lateinit var prefs: SharedPreferences
 
@@ -17,6 +20,7 @@ internal class AudioOutputSettingsController {
     val usbAllowFixedVolume = MutableStateFlow(false)
     val convertForLimitedDac = MutableStateFlow(false)
     val loudnessNormalization = MutableStateFlow(true)
+    val loudnessTargetLufs = MutableStateFlow(DEFAULT_LOUDNESS_TARGET_LUFS)
     val loudnessOffOnSpeaker = MutableStateFlow(true)
     val dolbyAtmos = MutableStateFlow(true)
     val directSourceStream = MutableStateFlow(false)
@@ -41,6 +45,8 @@ internal class AudioOutputSettingsController {
         usbAllowFixedVolume.value = prefs.getBoolean(KEY_USB_ALLOW_FIXED_VOLUME, false)
         convertForLimitedDac.value = prefs.getBoolean(KEY_CONVERT_FOR_LIMITED_DAC, false)
         loudnessNormalization.value = prefs.getBoolean(KEY_LOUDNESS_NORMALIZATION, true)
+        loudnessTargetLufs.value = prefs.getInt(KEY_LOUDNESS_TARGET_LUFS, DEFAULT_LOUDNESS_TARGET_LUFS)
+            .coerceIn(LOUDNESS_TARGET_RANGE)
         loudnessOffOnSpeaker.value = prefs.getBoolean(KEY_LOUDNESS_OFF_ON_SPEAKER, true)
         dolbyAtmos.value = prefs.getBoolean(KEY_DOLBY_ATMOS, true)
         directSourceStream.value = prefs.getBoolean(KEY_DIRECT_SOURCE_STREAM, false)
@@ -93,6 +99,11 @@ internal class AudioOutputSettingsController {
         prefs.edit().putBoolean(KEY_LOUDNESS_NORMALIZATION, value).apply()
     }
 
+    fun setLoudnessTargetLufs(value: Int) {
+        loudnessTargetLufs.value = value.coerceIn(LOUDNESS_TARGET_RANGE)
+        prefs.edit().putInt(KEY_LOUDNESS_TARGET_LUFS, loudnessTargetLufs.value).apply()
+    }
+
     fun setDolbyAtmos(value: Boolean) {
         dolbyAtmos.value = value
         prefs.edit().putBoolean(KEY_DOLBY_ATMOS, value).apply()
@@ -116,6 +127,7 @@ internal class AudioOutputSettingsController {
         const val KEY_USB_ALLOW_FIXED_VOLUME = "usb_allow_fixed_volume"
         const val KEY_CONVERT_FOR_LIMITED_DAC = "convert_for_limited_dac"
         const val KEY_LOUDNESS_NORMALIZATION = "loudness_normalization"
+        const val KEY_LOUDNESS_TARGET_LUFS = "loudness_target_lufs"
         const val KEY_LOUDNESS_OFF_ON_SPEAKER = "loudness_off_on_speaker"
         const val KEY_DOLBY_ATMOS = "dolby_atmos"
         const val KEY_DIRECT_SOURCE_STREAM = "direct_source_stream"

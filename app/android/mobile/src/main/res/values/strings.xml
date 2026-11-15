@@ -1013,6 +1013,8 @@
     <string name="loudness_normalization">Loudness normalization</string>
 
     <string name="loudness_normalization_subtitle">Levels every track to the same loudness</string>
+    <string name="loudness_target">Loudness target</string>
+    <string name="loudness_target_subtitle">Lower is quieter with more headroom. −14 LUFS matches YouTube.</string>
     <string name="loudness_off_on_speaker">Disable on Phone Speaker</string>
 
 
