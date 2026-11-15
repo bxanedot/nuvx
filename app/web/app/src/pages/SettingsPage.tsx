@@ -151,6 +151,17 @@ export default function SettingsPage() {
           />
         </section>
 
+        <h2 className={settingsUi.sectionHeader}>Community</h2>
+        <section className={settingsUi.group}>
+          <a className={`${settingsUi.integrationPlain} ${settingsUi.linkRow}`} href="https://t.me/nuvxserver" target="_blank" rel="noreferrer">
+            <span className={settingsUi.integrationName}>Telegram</span>
+            <span className={settingsUi.value}>
+              @nuvxserver
+              <ChevronRight size={16} />
+            </span>
+          </a>
+        </section>
+
         <h2 className={settingsUi.sectionHeader}>Playback</h2>
         <section className={settingsUi.group}>
           <Toggle

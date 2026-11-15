@@ -277,6 +277,9 @@ extension SettingsView {
         rows.row("Discord", "discord", "community", "chat") {
             Link("Discord", destination: URL(string: "https://discord.gg/h4Wsu824Uf")!)
         }
+        rows.row("Telegram", "telegram", "community", "chat") {
+            Link("Telegram", destination: URL(string: "https://t.me/nuvxserver")!)
+        }
     }
 
     private func buildUpdateRows(_ rows: inout SettingsRows) {
