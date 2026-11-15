@@ -1,0 +1,34 @@
+:root {
+  color-scheme: dark light;
+  font: 16px/1.5 system-ui, sans-serif;
+  background: #101012;
+  color: #f6f4f1;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+}
+
+main {
+  width: min(24rem, calc(100vw - 3rem));
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+h1, p { margin: 0; }
+p { color: #b7b3ae; }
+a { color: #e9c79a; }
+.primary {
+  padding: .75rem 1.1rem;
+  border-radius: 999px;
+  background: #e9c79a;
+  color: #201911;
+  font-weight: 650;
+  text-decoration: none;
+}

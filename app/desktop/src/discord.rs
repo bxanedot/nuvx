@@ -112,7 +112,7 @@ fn activity(p: &Presence) -> Activity<'_> {
             assets = assets.large_text(field(album));
         }
     }
-    let url = format!("https://music.youtube.com/watch?v={}", p.video_id);
+    let url = "https://nuvx.lol/open".to_owned();
     Activity::new()
         .name(APP_NAME)
         .activity_type(ActivityType::Listening)
@@ -122,7 +122,7 @@ fn activity(p: &Presence) -> Activity<'_> {
         .state(field(&p.artist))
         .timestamps(ts)
         .assets(assets)
-        .buttons(vec![Button::new("Listen on YouTube Music", url)])
+        .buttons(vec![Button::new("Listen on nuvx", url)])
 }
 
 fn field(s: &str) -> String {

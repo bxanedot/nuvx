@@ -54,7 +54,7 @@ class DiscordRPC(
                 button1Text.ifEmpty { DEFAULT_BUTTON_1 },
                 song,
             )
-            buttonsList.add(resolvedText to watchUrl(song))
+            buttonsList.add(resolvedText to openUrl())
         }
         if (button2Visible) {
             val resolvedText = resolveVariables(
@@ -77,7 +77,7 @@ class DiscordRPC(
             name = name,
             details = songTitleWithRate,
             state = song.artist,
-            detailsUrl = watchUrl(song),
+            detailsUrl = openUrl(),
             largeImage = song.artworkAt(ART_PX)
                 ?.takeIf { it.startsWith("http") }
                 ?.let(RpcImage::ExternalImage),
@@ -101,13 +101,13 @@ class DiscordRPC(
     companion object {
         const val PROJECT_URL = "https://github.com/bxanedot/nuvx"
 
-        const val DEFAULT_BUTTON_1 = "Listen on YouTube Music"
+        const val DEFAULT_BUTTON_1 = "Listen on nuvx"
         const val DEFAULT_BUTTON_2 = "Visit nuvx"
+        const val APP_URL = "https://nuvx.lol/open"
 
         private const val ART_PX = 480
 
-        fun watchUrl(song: Song): String =
-            "https://music.youtube.com/watch?v=${song.videoId}"
+        fun openUrl(): String = APP_URL
 
         fun resolveVariables(text: String, song: Song): String {
             return text

@@ -5,6 +5,28 @@ const { test } = require('node:test');
 
 const source = readFileSync(`${__dirname}/site.js`, 'utf8');
 const packageList = '#releases';
+const openSource = readFileSync(`${__dirname}/open.js`, 'utf8');
+const openPage = readFileSync(`${__dirname}/open.html`, 'utf8');
+
+test('nuvx open page tries the app and offers the web fallback', () => {
+  const status = { textContent: '' };
+  let destination = '';
+  let showFallback;
+  const context = {
+    document: { hidden: false, querySelector: () => status, addEventListener() {} },
+    window: {
+      location: { assign: (url) => { destination = url; } },
+      addEventListener() {},
+      setTimeout: (callback) => { showFallback = callback; },
+    },
+  };
+
+  runInNewContext(openSource, context);
+  assert.equal(destination, 'nuvx://open-player');
+  assert.match(openPage, /href="https:\/\/nuvx\.lol\/"/);
+  showFallback();
+  assert.match(status.textContent, /continue on nuvx\.lol/);
+});
 
 function loadPage(userAgentData, device = {}) {
   const hero = { href: packageList };

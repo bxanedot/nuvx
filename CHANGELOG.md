@@ -14,6 +14,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Add optional Radio Javan search and AAC streams to Android and Apple clients; it starts disabled and appears after YouTube Music and JioSaavn in source order.
 - Keep built-in sources ahead of user-added sources in Android and Apple clients, even when an existing install stored add-ons first. Every non-YouTube source can be switched off in those clients.
 
+### Discord
+
+- Change the default Discord activity action to **Listen on nuvx** and send it to `https://nuvx.lol/open`, which attempts to open the installed app and keeps a website fallback available.
+
 ## 1.0.0
 
 This section records every change since the v0.9.0 stable release.
