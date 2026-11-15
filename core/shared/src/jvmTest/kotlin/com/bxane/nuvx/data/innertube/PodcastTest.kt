@@ -146,6 +146,15 @@ class PodcastTest {
         assertEquals("ggNCSgQIDBAD", InnertubeParser.podcastsChipParams(home("Podcasts", "ggNCSgQIDBAD")))
         assertEquals("ggNCSgQIDBADSgQIBxAB", InnertubeParser.podcastsChipParams(home("Подкасты", "ggNCSgQIDBADSgQIBxAB")))
         assertNull(InnertubeParser.podcastsChipParams(home("Sleep", "ggNCSgQIDBABSgQIBRAD")))
+
+        val selectedChip = json(
+            """{"contents":{"singleColumnBrowseResultsRenderer":{"tabs":[{"tabRenderer":{"content":{"sectionListRenderer":{
+              "header":{"chipCloudRenderer":{"chips":[{"chipCloudChipRenderer":{
+                "isSelected":true,"text":{"runs":[{"text":"Podcasts"}]},
+                "onDeselectedCommand":{"browseEndpoint":{"params":"ggNCSgQIDBAD"}}
+              }}]}},"contents":[]}}}}]}}}""",
+        )
+        assertEquals("ggNCSgQIDBAD", InnertubeParser.podcastsChipParams(selectedChip))
     }
 
     @Test
