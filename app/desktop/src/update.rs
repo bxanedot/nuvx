@@ -106,18 +106,38 @@ pub fn newer(a: &str, b: &str) -> bool {
 
 fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time: &str, current_version: &str, current_tag: &str, current_time: &str) -> bool {
     let (candidate, current) = (version_core(candidate_version), version_core(current_version));
+    if !current_tag.starts_with("nightly.") && candidate_tag.starts_with("nightly.") {
+        return false;
+    }
     if newer(candidate, current) {
         return true;
     }
     if newer(current, candidate) || candidate_tag == current_tag {
         return false;
     }
-    if current_tag.starts_with("nightly.") && candidate_tag.starts_with('v') {
-        return true;
+    if current_tag.starts_with("nightly.") {
+        if candidate_tag.starts_with("nightly.") {
+            return nightly_build(candidate_tag)
+                .zip(nightly_build(current_tag))
+                .is_some_and(|(candidate, current)| candidate > current);
+        }
+        if !candidate_tag.starts_with('v') {
+            return false;
+        }
     }
     let published = candidate_time.get(..19).unwrap_or(candidate_time);
     let built = current_time.get(..19).unwrap_or(current_time);
-    built.is_empty() || published > built
+    !built.is_empty() && published > built
+}
+
+fn nightly_build(tag: &str) -> Option<(u64, u64)> {
+    let mut parts = tag.strip_prefix("nightly.")?.split('.');
+    let run = parts.next()?.parse().ok()?;
+    let attempt = parts.next()?.parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((run, attempt))
 }
 
 fn version_core(version: &str) -> &str {
@@ -489,10 +509,14 @@ mod tests {
         let later_nightly_time = "2026-11-13T13:00:00Z";
         assert!(release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
         assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
-        assert!(release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
-        assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", ""));
+        assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", stable_time, "0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time));
+        assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", later_nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0", "v0.9.0", nightly_time));
-        assert!(release_is_newer("0.10.0-nightly.1.1", "nightly.1.1", stable_time, "0.9.0", "v0.9.0", later_nightly_time));
+        assert!(!release_is_newer("0.10.0-nightly.1.1", "nightly.1.1", later_nightly_time, "0.9.0", "v0.9.0", stable_time));
+        assert!(release_is_newer("1.0.0", "v1.0.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
+        assert!(release_is_newer("0.10.0", "v0.10.0", stable_time, "0.9.0", "v0.9.0", later_nightly_time));
     }
 }

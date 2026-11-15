@@ -32,6 +32,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 
 ### Desktop
 
+- Keep stable installs on stable releases, offer only newer nightlies to nightly installs, and prevent a previous stable release from replacing a nightly.
 - Clarify and correct window material behavior: macOS now distinguishes the opaque Window backdrop from translucent Under Window; Linux Tinted remains opaque while Translucent follows compositor behavior.
 - Keep animated cover playback active while any visible desktop view still uses it.
 - Select the correct Intel or Apple silicon macOS download when the browser reports its architecture, and fall back to the release chooser when it is unknown.
