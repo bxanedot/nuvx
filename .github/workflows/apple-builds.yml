@@ -226,11 +226,11 @@ jobs:
         working-directory: app/desktop
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: macos-binary-aarch64
           path: app/desktop/universal/aarch64
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: macos-binary-x86_64
           path: app/desktop/universal/x86_64
@@ -267,7 +267,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: ios-unsigned
           path: packages

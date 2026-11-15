@@ -368,15 +368,15 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.source_ref }}
           persist-credentials: false
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-windows-x86_64
           path: app/desktop/target/x86_64-pc-windows-msvc/release
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-windows-aarch64
           path: app/desktop/target/aarch64-pc-windows-msvc/release
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-cargo-notices
           path: app/desktop/assets/licenses
@@ -473,15 +473,15 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.source_ref }}
           persist-credentials: false
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-linux-x86_64
           path: app/desktop/universal/x86_64
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-linux-aarch64
           path: app/desktop/universal/aarch64
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-cargo-notices
           path: app/desktop/assets/licenses
@@ -572,15 +572,15 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.source_ref }}
           persist-credentials: false
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-macos-x86_64
           path: app/desktop/universal/x86_64
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-macos-aarch64
           path: app/desktop/universal/aarch64
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: nuvx-cargo-notices
           path: app/desktop/assets/licenses
