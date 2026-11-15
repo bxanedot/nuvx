@@ -106,6 +106,7 @@ impl App {
             skip_streak: 0,
             recoveries: 0,
             autoplay: get("autoplay").is_none_or(|v| v == "1"),
+            lib_list: get("lib_list").is_some_and(|v| v == "1"),
             norm_target: match get("norm_target").as_deref() {
                 Some("off") => None,
                 Some(v) => v.parse().ok().filter(|t| (-20..=-10).contains(t)).or(Some(crate::audio::NORM_DEFAULT_LUFS)),
