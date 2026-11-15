@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
+// Its motion model includes code ported from liquid_glass_easy 4.3.4 (MIT); see the Android license assets.
 package com.bxane.nuvx.ui.components.floatingtabbar
 
 import android.os.Build

@@ -222,6 +222,7 @@ jobs:
               assets/licenses/LICENSE-Apache-2.0.txt \
               assets/licenses/LICENSE-MIT-Signalsmith-Stretch.txt \
               assets/licenses/LICENSE-MIT-Signalsmith-Linear.txt \
+              assets/licenses/LICENSE-MIT-Liquid-Glass-Easy.txt \
               assets/licenses/LICENSE-MIT-Model-Weights.txt \
               assets/licenses/THIRD_PARTY_NOTICES.txt; do
               unzip -Z1 "$apk" | grep -Fqx "$entry" || {

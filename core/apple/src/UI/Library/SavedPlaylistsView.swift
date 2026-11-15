@@ -145,16 +145,19 @@ struct SavedPlaylistsView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        if auth.signedIn {
+                        if auth.signedIn || PlatformSettings.shared.getBoolean(key: "create_playlists_locally", default: false) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 180), spacing: 16)], spacing: 20) {
                                 NewPlaylistTile {
                                     appModel.playlistPicker = PlaylistPickerRequest(videoId: "", title: "")
                                 }
-                                ForEach(items) { card in
-                                    ShelfCardView(card: card)
+                                if auth.signedIn {
+                                    ForEach(items) { card in
+                                        ShelfCardView(card: card)
+                                    }
                                 }
                             }
-                        } else {
+                        }
+                        if !auth.signedIn {
                             signedOutPrompt
                         }
                         if !devicePlaylists.isEmpty || !m3uPlaylists.isEmpty {

@@ -49,6 +49,14 @@ pub(super) fn settings_account(app: &mut App, ui: &mut Ui) {
         app.backend.request(crate::backend::Req::Logout);
     }
     super::transfer::spotify_section(app, ui);
+    section_label(ui, "Playlists", None);
+    let mut create_locally = app.create_playlists_locally;
+    settings_card(ui, |ui| {
+        setting_row(ui, "Create playlists in Nuvx only", Some("New playlists stay on this computer and are not added to YouTube Music."), |ui| {
+            toggle(ui, &mut create_locally, "Create playlists in Nuvx only");
+        });
+    });
+    app.create_playlists_locally = create_locally;
     settings_integrations(app, ui);
     section_label(ui, "Community", None);
     settings_card(ui, |ui| {

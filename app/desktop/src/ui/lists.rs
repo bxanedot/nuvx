@@ -58,6 +58,11 @@ pub struct Lists {
 }
 
 impl Lists {
+    pub fn set_local(&mut self, c: Collection) {
+        self.opened.retain(|o| o.c.id != c.id);
+        self.opened.insert(0, Opened { c, load: 0, at: Instant::now() });
+    }
+
     pub fn get(&self, id: &str) -> Option<&Opened> {
         self.opened.iter().find(|o| o.c.id == id)
     }

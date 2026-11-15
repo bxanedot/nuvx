@@ -70,6 +70,7 @@ fun TvSettingsScreen(
     val skipSilence by AppSettings.skipSilence.collectAsState()
     val excorFallback by AppSettings.excorFallback.collectAsState()
     val youtubeSearch by AppSettings.youtubeSearch.collectAsState()
+    val createPlaylistsLocally by AppSettings.createPlaylistsLocally.collectAsState()
     val eqEnabled by AppSettings.equalizerEnabled.collectAsState()
     val spatial by AppSettings.spatialAudio.collectAsState()
     val loudness by AppSettings.loudnessNormalization.collectAsState()
@@ -195,6 +196,14 @@ fun TvSettingsScreen(
                     value = onOff(youtubeSearch),
                     onFocused = { blurb = "Adds a YouTube filter for videos beyond YouTube Music." },
                     onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
+                )
+            }
+            item {
+                TvListRow(
+                    title = "Create Playlists in Nuvx Only",
+                    value = onOff(createPlaylistsLocally),
+                    onFocused = { blurb = "New playlists stay on this device and are not added to YouTube Music." },
+                    onClick = { AppSettings.setCreatePlaylistsLocally(!createPlaylistsLocally) },
                 )
             }
 

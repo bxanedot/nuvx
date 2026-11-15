@@ -67,9 +67,11 @@ import com.bxane.nuvx.data.model.ROW_ART_PX
 import com.bxane.nuvx.data.model.Song
 import com.bxane.nuvx.data.model.UserPlaylist
 import com.bxane.nuvx.data.model.artworkAt
+import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.ui.components.thumbnailBorder
 import java.util.Locale
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +85,7 @@ fun PlaylistPickerSheet(
     startCreating: Boolean = false,
     offline: Boolean = false,
 ) {
+    val createLocally = AppSettings.createPlaylistsLocally.collectAsStateWithLifecycle().value
     var creating by remember { mutableStateOf(startCreating) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
 
@@ -121,6 +124,7 @@ fun PlaylistPickerSheet(
                     onClose = { closeAfter {} },
                     onCreate = { name, privacy -> closeAfter { onCreate(name, privacy) } },
                     offline = offline,
+                    localOnly = createLocally,
                 )
             } else {
                 SheetTopBar(
@@ -289,6 +293,7 @@ private fun NewPlaylistForm(
     onClose: () -> Unit,
     onCreate: (String, PlaylistPrivacy) -> Unit,
     offline: Boolean,
+    localOnly: Boolean,
 ) {
     var name by remember { mutableStateOf("") }
     var privacy by remember { mutableStateOf(PlaylistPrivacy.PRIVATE) }
@@ -324,7 +329,7 @@ private fun NewPlaylistForm(
                     )
                     Text(
                         text = stringResource(
-                            if (offline) R.string.saved_on_this_device else R.string.saved_to_youtube_music_account,
+                            if (offline || localOnly) R.string.saved_on_this_device else R.string.saved_to_youtube_music_account,
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -383,7 +388,7 @@ private fun NewPlaylistForm(
             }
         }
 
-        if (!offline) {
+        if (!offline && !localOnly) {
             SheetHeading(stringResource(R.string.who_can_see_it).uppercase(Locale.getDefault()))
             Row(
                 modifier = Modifier

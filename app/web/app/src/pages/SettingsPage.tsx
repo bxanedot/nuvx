@@ -9,6 +9,7 @@ import { useExtension } from '@/extension/useExtension';
 import { useYtAuth } from '@/extension/useYtAuth';
 import { useParty } from '@/party/useParty';
 import { useHistorySettings } from '@/playback/historyReporting';
+import { createPlaylistsLocally, setCreatePlaylistsLocally } from '@/data/music/localPlaylists';
 import { Select } from '@/components/Select';
 import { AUTOMIX_BARS } from '@/playback/automix/choices';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
@@ -65,6 +66,7 @@ export default function SettingsPage() {
   const setBackgroundMotion = useUi((s) => s.setBackgroundMotion);
   const { setAutoplay, setCrossfade, setAutomix, setAutomixBars, setShowNerdStats } = usePlayer.getState();
   const [lyrics, setLyrics] = useState(false);
+  const [localPlaylistsOnly, setLocalPlaylistsOnly] = useState(createPlaylistsLocally);
   const present = extension.state === 'present';
   const discordText =
     discord.state === 'ready' && discord.discord.connected
@@ -107,6 +109,15 @@ export default function SettingsPage() {
           />
         </section>
         <section className={`${settingsUi.group} mt-3 empty:hidden`}>
+          <Toggle
+            label="Create Playlists in Nuvx Only"
+            detail="New playlists are saved in this browser and aren't added to YouTube Music."
+            checked={localPlaylistsOnly}
+            onChange={(value) => {
+              setLocalPlaylistsOnly(value);
+              setCreatePlaylistsLocally(value);
+            }}
+          />
           <Toggle
             label="Share Listening Activity to YouTube"
             detail={

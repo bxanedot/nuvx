@@ -1,0 +1,6 @@
+Nuvx web app third-party notices
+
+The Shaka SABR adapter and helpers in app/src/playback/youtube/ are adapted
+from Kira at commit 7a41cdc (https://github.com/LuanRT/kira).
+Copyright (c) 2025 LuanRT; MIT License. The full license text is in
+LICENSE-MIT-Kira.txt.

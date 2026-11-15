@@ -28,6 +28,15 @@ The LGPL-2.1-or-later text is in [`app/android/mobile/src/main/cpp/dsd/dst/COPYI
 - `core/shared/src/jvmSharedMain/kotlin/com/bxane/nuvx/data/YtMusic*Repository.kt` and `core/shared/src/jvmSharedMain/kotlin/com/bxane/nuvx/data/innertube/Innertube*Parser.kt`.
 - `app/web/app/src/playback/automix/analysis/models.ts`.
 
+## `GPL-3.0-only`
+
+- [`GlassSelectionPill.kt`](app/android/mobile/src/main/java/com/bxane/nuvx/ui/components/floatingtabbar/GlassSelectionPill.kt) is adapted from BitChord's `GlassSelectionPill.kt` at commit `edc1e6f`. The file's pill-motion code also ports portions of `liquid_glass_easy` 4.3.4 under MIT; its copyright and full MIT text are included in Android APKs at [`LICENSE-MIT-Liquid-Glass-Easy.txt`](app/android/legal-assets/licenses/LICENSE-MIT-Liquid-Glass-Easy.txt).
+
+## MIT-licensed source code and portions
+
+- [`ShakaPlayerAdapter.ts`](app/web/app/src/playback/youtube/ShakaPlayerAdapter.ts) and [`shakaHelpers.ts`](app/web/app/src/playback/youtube/shakaHelpers.ts) adapt the Shaka SABR adapter and helpers from Kira at commit `7a41cdc`; Copyright (c) 2025 LuanRT. The web app serves the full MIT text and attribution under `/licenses/` from [`public/licenses/`](app/web/app/public/licenses/).
+- The pill-motion portions in [`GlassSelectionPill.kt`](app/android/mobile/src/main/java/com/bxane/nuvx/ui/components/floatingtabbar/GlassSelectionPill.kt) are adapted from `liquid_glass_easy` 4.3.4; Copyright (c) 2025 Ahmed Gamil. The full MIT text and attribution ship in Android `assets/licenses/`.
+
 ## MIT-licensed AutoMix model assets
 
 - `app/web/app/public/models/beat_this_final0_q8.onnx` is from the Beat This! final0 checkpoint by the Institute of Computational Perception, JKU Linz.

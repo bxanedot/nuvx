@@ -74,6 +74,7 @@ struct SettingsView: View {
     @State var smartAlign = PlatformSettings.shared.getBoolean(key: "smart_version_alignment", default: true)
     @State var legacyMesh = PlatformSettings.shared.getBoolean(key: "legacy_mesh_gradient", default: false)
     @State var preferMusicOnly = PlatformSettings.shared.getBoolean(key: "prefer_music_only", default: false)
+    @State var createPlaylistsLocally = PlatformSettings.shared.getBoolean(key: "create_playlists_locally", default: false)
     @State var confirmImport = false
     @State var theme = PlatformSettings.shared.getString(key: "theme_mode", default: "dark")
     @State var lyricsSources = LyricsSourceNames.normalizeList(
@@ -191,6 +192,9 @@ struct SettingsView: View {
         .onChange(of: videoOverCellular) { _, value in
             PlatformSettings.shared.putBoolean(key: "video_over_cellular", value: value)
             VideoPlayback.shared.refreshNetworkPolicy()
+        }
+        .onChange(of: createPlaylistsLocally) { _, value in
+            PlatformSettings.shared.putBoolean(key: "create_playlists_locally", value: value)
         }
         .onChange(of: lyricsBlur) { _, value in AppSettings.shared.setLyricsBlur(value: value) }
         .onChange(of: translationLanguage) { _, value in AppSettings.shared.setTranslationLanguage(value: value) }

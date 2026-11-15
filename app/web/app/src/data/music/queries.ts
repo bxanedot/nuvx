@@ -136,7 +136,7 @@ export function useHome() {
 }
 export function usePlaylist(id: string) {
   const { ready } = useYouTubeReady();
-  return useInfiniteQuery({ ...playlistQuery(id), enabled: ready });
+  return useInfiniteQuery({ ...playlistQuery(id), enabled: ready && !id.startsWith('nuvx-local:') });
 }
 
 export function useSuggestions(input: string) {

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use crate::backend::{Collection, Req};
-use crate::model::{ShelfKind, Target, Track};
+use crate::model::{Card, ShelfKind, Target, Track};
 
 use super::lists::{Arrival, Done, LIKED_MUSIC, Opened, Start};
 use super::queue::QueueFill;
-use super::{App, shuffle};
+use super::{App, LocalPlaylist, shuffle};
 
 impl App {
     pub(super) fn load_list(&mut self, id: &str, album: bool, changed: bool) {
@@ -15,9 +15,85 @@ impl App {
     }
 
     pub(super) fn visit_list(&mut self, id: &str, album: bool) {
+        if let Some(local) = self.local_playlists.iter().find(|p| p.id == id).cloned() {
+            self.lists.set_local(local_collection(local));
+            return;
+        }
         if let Some(s) = self.lists.visit(id, album, std::time::Instant::now()) {
             self.start_load(s);
         }
+    }
+
+    pub(super) fn local_playlist_cards(&self) -> Vec<Card> {
+        self.local_playlists.iter().map(|playlist| Card {
+            title: playlist.title.clone(),
+            subtitle: format!("{} songs · This device", playlist.tracks.len()),
+            thumbs: playlist.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default(),
+            target: Target::Playlist(playlist.id.clone()),
+            round: false,
+            links: Vec::new(),
+        }).collect()
+    }
+
+    pub(super) fn save_local_playlist(&mut self, title: String, tracks: Vec<Track>) -> String {
+        let id = format!("nuvx-local:{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos()));
+        self.local_playlists.insert(0, LocalPlaylist { id: id.clone(), title, tracks });
+        self.refresh_local_playlist(&id);
+        id
+    }
+
+    pub(super) fn add_to_local_playlist(&mut self, id: &str, tracks: &[Track]) -> bool {
+        let Some(playlist) = self.local_playlists.iter_mut().find(|playlist| playlist.id == id) else { return false };
+        let mut added = false;
+        for track in tracks {
+            if !playlist.tracks.iter().any(|current| current.id == track.id) {
+                playlist.tracks.push(track.clone());
+                added = true;
+            }
+        }
+        if added { self.refresh_local_playlist(id); }
+        true
+    }
+
+    pub(super) fn rename_local_playlist(&mut self, id: &str, title: String) {
+        if let Some(playlist) = self.local_playlists.iter_mut().find(|playlist| playlist.id == id) {
+            playlist.title = title;
+            self.refresh_local_playlist(id);
+        }
+    }
+
+    pub(super) fn remove_local_playlist(&mut self, id: &str) {
+        self.local_playlists.retain(|playlist| playlist.id != id);
+        self.lists.forget(id);
+        if let Some(library) = &mut self.library {
+            library.playlists.retain(|card| card.target != Target::Playlist(id.to_owned()));
+        }
+    }
+
+    pub(super) fn remove_local_playlist_rows(&mut self, id: &str, rows: &[usize]) {
+        let Some(playlist) = self.local_playlists.iter_mut().find(|playlist| playlist.id == id) else { return };
+        for &index in rows.iter().rev() {
+            if index < playlist.tracks.len() { playlist.tracks.remove(index); }
+        }
+        self.refresh_local_playlist(id);
+    }
+
+    pub(super) fn refresh_local_playlist(&mut self, id: &str) {
+        let Some(local) = self.local_playlists.iter().find(|playlist| playlist.id == id).cloned() else { return };
+        let card = Card {
+            title: local.title.clone(),
+            subtitle: format!("{} songs · This device", local.tracks.len()),
+            thumbs: local.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default(),
+            target: Target::Playlist(local.id.clone()),
+            round: false,
+            links: Vec::new(),
+        };
+        let library = self.library.get_or_insert(crate::backend::Library {
+            playlists: Vec::new(), albums: Vec::new(), playlists_failed: false, albums_failed: false,
+        });
+        library.playlists.retain(|item| item.target != Target::Playlist(id.to_owned()));
+        library.playlists.insert(0, card);
+        self.lists.set_local(local_collection(local));
     }
 
     fn start_load(&self, s: Start) {
@@ -176,5 +252,23 @@ impl App {
             }
         }
         ids.into_iter().collect()
+    }
+}
+
+fn local_collection(playlist: LocalPlaylist) -> Collection {
+    let count = playlist.tracks.len() as u64;
+    Collection {
+        id: playlist.id,
+        is_album: false,
+        save_id: None,
+        title: playlist.title,
+        subtitle: "Saved on this device".to_owned(),
+        artists: Vec::new(),
+        description: None,
+        thumbs: playlist.tracks.first().map(|track| track.thumbs.clone()).unwrap_or_default(),
+        set_ids: vec![None; playlist.tracks.len()],
+        tracks: playlist.tracks,
+        count: Some(count),
+        owned: true,
     }
 }

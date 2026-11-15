@@ -223,6 +223,7 @@ fun SettingsScreen(
     val swipeToPlayNext by AppSettings.swipeToPlayNext.collectAsStateWithLifecycle()
     val dontRepeatSuggestions by AppSettings.dontRepeatSuggestions.collectAsStateWithLifecycle()
     val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
+    val createPlaylistsLocally by AppSettings.createPlaylistsLocally.collectAsStateWithLifecycle()
     val squareVideoThumbnails by AppSettings.squareVideoThumbnails.collectAsStateWithLifecycle()
     val hideRecents by AppSettings.hideRecents.collectAsStateWithLifecycle()
     val hideHomeVideos by AppSettings.hideHomeVideos.collectAsStateWithLifecycle()
@@ -528,6 +529,7 @@ fun SettingsScreen(
                 search = search,
                 preferMusicOnly = preferMusicOnly,
                 youtubeSearch = youtubeSearch,
+                createPlaylistsLocally = createPlaylistsLocally,
                 hideRecents = hideRecents,
                 hideHomeVideos = hideHomeVideos,
                 hideTopPicks = hideTopPicks,
