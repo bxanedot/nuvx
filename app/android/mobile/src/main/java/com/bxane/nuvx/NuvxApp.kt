@@ -136,6 +136,7 @@ import com.bxane.nuvx.ui.screens.EqualizerScreen
 import com.bxane.nuvx.ui.screens.HistoryScreen
 import com.bxane.nuvx.ui.screens.LibraryReplayEntry
 import com.bxane.nuvx.ui.screens.libraryDeviceItems
+import com.bxane.nuvx.ui.screens.offlinePlaylistShelfItems
 import com.bxane.nuvx.ui.screens.SPOTIFY_BROWSE_ID
 import com.bxane.nuvx.ui.screens.libraryLinks
 import com.bxane.nuvx.ui.screens.CACHE_FOLDER_BROWSE_ID
@@ -641,7 +642,11 @@ internal fun NuvxApp(
             playlist.browseId to com.bxane.nuvx.data.PlaylistArtworkStore.get(context, playlist.browseId)
         }
     }
-    val localPlaylistItems = localPlaylists.map { playlist ->
+    val localPlaylistItems = offlinePlaylistShelfItems(
+        offlinePlaylists,
+        subtitleFor = { context.getString(R.string.local_playlist_subtitle, it) },
+        artworkFor = { localPlaylistArtwork[it] ?: com.bxane.nuvx.data.PlaylistArtworkStore.get(context, it) },
+    ) + localPlaylists.map { playlist ->
         ShelfItem(
             title = playlist.title,
             subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
