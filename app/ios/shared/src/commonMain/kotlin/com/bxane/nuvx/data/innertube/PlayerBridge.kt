@@ -56,15 +56,27 @@ object PlayerBridge {
         resolveRequest(videoId, maxKbps, callback)
     }
 
+    fun resolveForDownload(videoId: String, maxKbps: Int, callback: ResolveCallback) {
+        resolveRequest(videoId, maxKbps, callback, forDownload = true)
+    }
+
 
     fun resolveRequest(videoId: String, maxKbps: Int, callback: ResolveCallback): Long {
+        return resolveRequest(videoId, maxKbps, callback, forDownload = false)
+    }
+
+    private fun resolveRequest(videoId: String, maxKbps: Int, callback: ResolveCallback, forDownload: Boolean): Long {
         val id = ids.addAndFetch(1)
         val generation = Innertube.sessionGeneration
         val job = bridgeScope.launch(start = CoroutineStart.LAZY) {
             try {
                 Innertube.checkSession(generation)
-                val resolved = StreamResolver.resolve(videoId, maxKbps)
-                    ?: throw IllegalStateException("No playable stream for $videoId")
+                val resolved = if (forDownload) {
+                    StreamResolver.resolveForDownload(videoId, maxKbps)
+                } else {
+                    StreamResolver.resolve(videoId, maxKbps)
+                        ?: throw IllegalStateException("No playable stream for $videoId")
+                }
                 val payload = StreamPayload(
                     url = resolved.url,
                     kbps = resolved.kbps,
