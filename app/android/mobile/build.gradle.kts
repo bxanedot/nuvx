@@ -85,6 +85,7 @@ android {
             java.srcDir("src/gms/java")
             java.srcDir("../wearos/protocol")
             assets.srcDir("../../web/app/public/models")
+            assets.srcDir(rootProject.file("app/android/legal-assets"))
         }
     }
 
@@ -148,7 +149,7 @@ android {
         jniLibs.useLegacyPackaging = true
         resources {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-            pickFirsts += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
+            merges += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
         }
     }
     buildFeatures {

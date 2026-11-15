@@ -207,7 +207,28 @@ jobs:
             [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             "$tools/apksigner" verify --print-certs "$source" |
               grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+            assert_android_legal_assets "$source"
             cp "$source" "nightly/$prefix-v$version${suffix:+-$suffix}.apk"
+          }
+          assert_android_legal_assets() {
+            local apk=$1 entry
+            for entry in \
+              assets/licenses/README.txt \
+              assets/licenses/LICENSE \
+              assets/licenses/LICENSES.md \
+              assets/licenses/LICENSE-AGPL-3.0.txt \
+              assets/licenses/LICENSE-LGPL-3.0-only.txt \
+              assets/licenses/LICENSE-LGPL-2.1.txt \
+              assets/licenses/LICENSE-Apache-2.0.txt \
+              assets/licenses/LICENSE-MIT-Signalsmith-Stretch.txt \
+              assets/licenses/LICENSE-MIT-Signalsmith-Linear.txt \
+              assets/licenses/LICENSE-MIT-Model-Weights.txt \
+              assets/licenses/THIRD_PARTY_NOTICES.txt; do
+              unzip -Z1 "$apk" | grep -Fqx "$entry" || {
+                echo "Missing Android legal asset $entry in $apk" >&2
+                return 1
+              }
+            done
           }
           stage_shared_universal() {
             local dir=$1 variant=$2 prefix=$3 package=$4 aliases=${5:-false} source metadata asset
@@ -217,6 +238,7 @@ jobs:
             [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             "$tools/apksigner" verify --print-certs "$source" |
               grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+            assert_android_legal_assets "$source"
             for abi in armeabi-v7a arm64-v8a x86_64; do
               unzip -l "$source" | grep -F "lib/$abi/libonnxruntime.so"
             done
