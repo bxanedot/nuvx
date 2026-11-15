@@ -51,6 +51,31 @@
 - **Community Canvases.** Add motion artwork to Now Playing on supported players. [Browse the project](core/canvas/README.md)
 - **Controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
 
+## Stable release artwork
+
+Each stable release has its own artwork from this README. Select a banner to open that version's release.
+
+<p align="center">
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v1.0.0"><img src="docs/nuvx-banner-now-playing.png" width="48%" alt="Stable v1.0.0 artwork: nuvx Now Playing"></a>
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.9.0"><img src="docs/nuvx-banner-encore.png" width="48%" alt="Stable v0.9.0 artwork: Encore"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.8.0"><img src="docs/nuvx-banner-amber.png" width="48%" alt="Stable v0.8.0 artwork: amber synced lyrics"></a>
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.7.0"><img src="docs/nuvx-banner-lyrics-motion.png" width="48%" alt="Stable v0.7.0 artwork: lyrics in motion"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.6.0"><img src="docs/nuvx-banner-desktop.png" width="48%" alt="Stable v0.6.0 artwork: desktop Home and lyrics"></a>
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.5.0"><img src="docs/nuvx-banner-desktop-lyrics.png" width="48%" alt="Stable v0.5.0 artwork: full-screen desktop lyrics"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.4.0"><img src="docs/screenshots/windows.jpg" width="48%" alt="Stable v0.4.0 artwork: nuvx on Windows"></a>
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.3.0"><img src="docs/screenshots/windows-lyrics-panel.png" width="48%" alt="Stable v0.3.0 artwork: desktop lyrics panel"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.2.0"><img src="docs/screenshots/windows-fullscreen-lyrics.png" width="48%" alt="Stable v0.2.0 artwork: desktop full-screen lyrics"></a>
+  <a href="https://github.com/bxanedot/nuvx/releases/tag/v0.1.0"><img src="docs/screenshots/android-now-playing.png" width="48%" alt="Stable v0.1.0 artwork: Android Now Playing"></a>
+</p>
+
 ## Download
 
 | Device | Requirements | Where to start |
@@ -64,7 +89,7 @@
 | **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
 | **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
-| **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
+| **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Firefox 1.0.0 add-on ZIP](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/nuvx-extension-firefox-1.0.0.zip) · [Extension setup](https://web.nuvx.lol/guide) |
 
 The stable v1.0.0 release is available on GitHub. The older v0.9.0 phone and TV APKs remain split into GMS and FOSS variants; v1.0.0 provides one shared universal APK for each app, plus a standalone nuvx Auto APK. Each phone, TV, and Auto APK includes armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for older updater compatibility; Auto has one canonical APK. Nightlies generated before v1.0.0 used version 0.9.0/code 9; the first post-release nightlies use 1.0.0/code 10 and later builds follow the current manifest version. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The v1.0.0 release includes an unsigned iOS IPA; Apple builds can attach future IPAs to an existing release when manually dispatched.
 
@@ -127,4 +152,4 @@ Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/is
 
 ## License
 
-nuvx uses [GPL-3.0](LICENSE) by default. Files with a different SPDX identifier keep that file-level license; their scopes and attributions are listed in [LICENSES.md](LICENSES.md), with full AGPL and LGPL texts linked there. Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later. The Android bit-perfect output also contains Mornye-adapted code under LGPL-3.0-only; see [LICENSES.md](LICENSES.md) and [the attribution](core/native/third_party/README.md). Android APKs include the project license texts and native notices under `assets/licenses/`; Android dependency notices remain under `META-INF/`. The web app serves the Kira MIT notice under `/licenses/`.
+nuvx uses [GPL-3.0](LICENSE) by default. Files with a different SPDX identifier keep that file-level license; their scopes and attributions are listed in the [license map](docs/licenses/LICENSES.md), with full AGPL and LGPL texts linked there. Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later. The Android bit-perfect output also contains Mornye-adapted code under LGPL-3.0-only; see the [license map](docs/licenses/LICENSES.md) and [the attribution](core/native/third_party/README.md). Android APKs include the project license texts and native notices under `assets/licenses/`; Android dependency notices remain under `META-INF/`. The web app serves the Kira MIT notice under `/licenses/`.
