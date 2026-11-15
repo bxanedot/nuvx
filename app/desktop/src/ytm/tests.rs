@@ -19,6 +19,22 @@ fn podcasts_chip_params_support_localized_selected_and_missing_chips() {
 }
 
 #[test]
+fn selected_podcasts_chip_reads_its_deselection_endpoint() {
+    let page = parse_home(&json!({
+        "contents": {"singleColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {"sectionListRenderer": {
+            "header": {"chipCloudRenderer": {"chips": [{"chipCloudChipRenderer": {
+                "isSelected": true,
+                "text": {"runs": [{"text": "Podcasts"}]},
+                "onDeselectedCommand": {"browseEndpoint": {"params": "ggNCSgQIDBAD"}}
+            }}]}},
+            "contents": []
+        }}}}]}}
+    }));
+    assert_eq!(page.chips.len(), 1);
+    assert_eq!(page.chips[0].params.as_deref(), Some("ggNCSgQIDBAD"));
+}
+
+#[test]
 fn moods_parse_and_drop_shortcuts() {
     let tile = |t: &str, p: &str, c: Value| {
         json!({"musicNavigationButtonRenderer": {
