@@ -259,6 +259,8 @@ pub struct App {
     recoveries: u32,
     autoplay: bool,
     norm_target: Option<i32>,
+    /// Library playlists and albums as rows instead of a cover grid.
+    lib_list: bool,
     spatial: bool,
     eq: crate::eq::Prefs,
     log_volume: bool,
