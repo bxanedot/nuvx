@@ -28,6 +28,7 @@ mod settings_pages;
 mod playback;
 mod playback_settings;
 mod queue;
+mod sleep_timer;
 mod radio;
 mod responses;
 mod shell;
@@ -259,6 +260,8 @@ pub struct App {
     recoveries: u32,
     autoplay: bool,
     norm_target: Option<i32>,
+    sleep: sleep_timer::SleepTimer,
+    sleep_cut: u32,
     /// Library playlists and albums as rows instead of a cover grid.
     lib_list: bool,
     spatial: bool,

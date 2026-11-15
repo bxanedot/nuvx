@@ -55,6 +55,13 @@ impl AudioHandle {
         self.send(AudioCmd::Volume(self.volume()));
     }
 
+    /// Fades the output by `permille` (0 = untouched) without moving the volume slider.
+    pub fn set_sleep_cut(&self, permille: u32) {
+        if self.status.sleep_cut.swap(permille, Ordering::Relaxed) != permille {
+            self.send(AudioCmd::Volume(self.volume()));
+        }
+    }
+
     pub fn set_spatial(&self, on: bool) {
         self.status.spatial.store(on, Ordering::Relaxed);
     }

@@ -25,7 +25,8 @@ pub(super) fn mix_ms(status: &AudioStatus, length: Option<Duration>) -> u32 {
 }
 
 pub(super) fn slider_gain(status: &AudioStatus, v: f32) -> f32 {
-    if status.log_volume.load(Ordering::Relaxed) { v.powi(3) } else { v }
+    let v = if status.log_volume.load(Ordering::Relaxed) { v.powi(3) } else { v };
+    v * (1.0 - status.sleep_cut.load(Ordering::Relaxed).min(1000) as f32 / 1000.0)
 }
 
 pub const NORM_DEFAULT_LUFS: i32 = -14;
