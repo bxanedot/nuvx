@@ -1387,8 +1387,6 @@
     <string name="recognize_no_match">ไม่พบเพลง</string>
     <string name="recognize_no_match_body">จดจำเพลงนี้ไม่ได้ ลองอีกครั้งใกล้เสียงเพลง</string>
     <string name="recognize_find">ค้นหาใน nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">สำหรับวิทยุติดรถยนต์: แนวนอน และหน้าจอเปิดค้าง</string>
     <string name="classic_search">ค้นหาแบบคลาสสิก</string>
     <string name="classic_search_subtitle">หน้าค้นหาแบบเรียบแทนไทล์หมวดหมู่สีสัน</string>
     <string name="enable_youtube_search">เปิดการค้นหา YouTube</string>

@@ -173,7 +173,6 @@ fun SettingsScreen(
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val hideRadioTab by AppSettings.hideRadioTab.collectAsStateWithLifecycle()
     val hidePodcastsTab by AppSettings.hidePodcastsTab.collectAsStateWithLifecycle()
-    val carMode by AppSettings.carMode.collectAsStateWithLifecycle()
     val classicSearch by AppSettings.classicSearch.collectAsStateWithLifecycle()
     val youtubeSearch by AppSettings.youtubeSearch.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -618,7 +617,6 @@ fun SettingsScreen(
             context = context,
             search = search,
             classicSearch = classicSearch,
-            carMode = carMode,
             hideRadioTab = hideRadioTab,
             hidePodcastsTab = hidePodcastsTab,
             swipeToPlayNext = swipeToPlayNext,

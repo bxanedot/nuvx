@@ -1259,8 +1259,6 @@
     <string name="recognize_no_match">No match</string>
     <string name="recognize_no_match_body">Couldn\'t name that one. Try again closer to the music.</string>
     <string name="recognize_find">Find in nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">For car stereos and head units: landscape, and the screen stays on</string>
     <string name="classic_search">Classic search</string>
     <string name="classic_search_subtitle">A plain search page instead of the colour category tiles</string>
     <string name="enable_youtube_search">Enable YouTube Search</string>

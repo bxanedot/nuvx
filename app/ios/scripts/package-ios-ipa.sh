@@ -9,7 +9,7 @@ Usage:
   scripts/package-ios-ipa.sh <version> [--output-dir DIR] [--overwrite]
 
 The script archives the iOS app with code signing disabled, removes embedded
-provisioning profiles, and writes Nuvx-VERSION-buildBUILD-ios-unsigned.ipa.
+provisioning profiles, and writes nuvx-VERSION-universal.ipa.
 USAGE
 }
 fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
@@ -66,7 +66,7 @@ short_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' 
 [[ "$short_version" == "$version" ]] || fail "archive is version $short_version, not requested version $version"
 build_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
 [[ "$build_version" =~ ^[0-9]+$ ]] || fail 'archive has no numeric build number'
-ipa="$output_dir/Nuvx-$version-build$build_version-ios-unsigned.ipa"
+ipa="$output_dir/nuvx-$version-universal.ipa"
 [[ ! -e "$ipa" || "$overwrite" -eq 1 ]] || fail "IPA already exists: $ipa (pass --overwrite to replace it)"
 mkdir -p "$stage/package/Payload"
 ditto "$app" "$stage/package/Payload/nuvx.app"

@@ -1321,8 +1321,6 @@
     <string name="recognize_no_match">Không tìm thấy</string>
     <string name="recognize_no_match_body">Không nhận ra bài này. Thử lại gần nguồn nhạc hơn.</string>
     <string name="recognize_find">Tìm trong nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">Cho đầu phát ô tô: màn hình ngang và luôn sáng</string>
     <string name="classic_search">Tìm kiếm cổ điển</string>
     <string name="classic_search_subtitle">Trang tìm kiếm đơn giản thay cho các ô danh mục màu</string>
     <string name="enable_youtube_search">Bật tìm kiếm YouTube</string>

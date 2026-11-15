@@ -37,17 +37,21 @@ val listenTogetherServer: String = (
 val betaSuffix = providers.gradleProperty("nuvx.nightlySuffix").getOrElse("")
 val releaseTag = providers.gradleProperty("nuvx.releaseTag").getOrElse("v${rootProject.extra["nuvxVersionName"]}")
 val buildTime = providers.gradleProperty("nuvx.buildTime").getOrElse("")
+val androidVersionCode = providers.gradleProperty("nuvx.androidVersionCode")
+    .getOrElse((rootProject.extra["nuvxVersionCode"] as Int).toString()).toInt()
+val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
+    .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
     namespace = "com.bxane.nuvx"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bxane.nuvx.tv"
+        applicationId = "com.bxane.nuvx"
         minSdk = 26
         targetSdk = 36
-        versionCode = rootProject.extra["nuvxVersionCode"] as Int
-        versionName = rootProject.extra["nuvxVersionName"] as String
+        versionCode = androidVersionCode
+        versionName = androidVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -59,7 +63,6 @@ android {
             "\"${listenTogetherServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
         buildConfigField("String", "ADDON_AUTH_URL", "\"\"")
-        buildConfigField("String", "UPDATE_APK_PREFIX", "\"NuvxTV-v\"")
         buildConfigField("String", "NUVX_DISTRIBUTION", "\"universal\"")
         buildConfigField("String", "NUVX_RELEASE_TAG", "\"$releaseTag\"")
         buildConfigField("String", "NUVX_BUILD_TIME", "\"$buildTime\"")
@@ -88,16 +91,26 @@ android {
         }
     }
 
-    flavorDimensions += listOf("env")
+    flavorDimensions += listOf("env", "device")
     productFlavors {
         create("dev") {
             dimension = "env"
-            applicationId = "com.bxane.nuvx.dev.tv"
-            resValue("string", "app_name", "nuvx TV")
+            applicationIdSuffix = ".dev"
         }
         create("prod") {
             dimension = "env"
+        }
+        create("tv") {
+            dimension = "device"
+            applicationIdSuffix = ".tv"
+            buildConfigField("String", "UPDATE_APK_PREFIX", "\"NuvxTV-v\"")
             resValue("string", "app_name", "nuvx TV")
+        }
+        create("auto") {
+            dimension = "device"
+            applicationIdSuffix = ".auto"
+            buildConfigField("String", "UPDATE_APK_PREFIX", "\"NuvxAuto-v\"")
+            resValue("string", "app_name", "nuvx Auto")
         }
     }
 
@@ -275,15 +288,15 @@ val verifyDevInstall = tasks.register("verifyDevInstall") {
             .drop(1)
             .mapNotNull { line -> line.split('\t').takeIf { it.size == 2 && it[1] == "device" }?.get(0) }
         serials.forEach { serial ->
-            logger.lifecycle("verifyDevInstall: compiling com.bxane.nuvx.dev on $serial")
+            logger.lifecycle("verifyDevInstall: compiling com.bxane.nuvx.dev.tv on $serial")
             ProcessBuilder(
                 adbPath, "-s", serial, "shell", "cmd", "package", "compile",
-                "-m", "verify", "-f", "com.bxane.nuvx.dev",
+                "-m", "verify", "-f", "com.bxane.nuvx.dev.tv",
             ).inheritIO().start().waitFor()
         }
     }
 }
-tasks.matching { it.name == "installDevDebug" }.configureEach { finalizedBy(verifyDevInstall) }
+tasks.matching { it.name == "installDevTvDebug" }.configureEach { finalizedBy(verifyDevInstall) }
 
 val phoneJava = file("../mobile/src/main/java")
 val tvJava = file("src/main/java")

@@ -1439,8 +1439,6 @@
     <string name="recognize_no_match">Brak wyników</string>
     <string name="recognize_no_match_body">Nie udało się rozpoznać. Spróbuj bliżej muzyki.</string>
     <string name="recognize_find">Znajdź w nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">Do radia samochodowego: poziomo, a ekran nie gaśnie</string>
     <string name="classic_search">Klasyczne wyszukiwanie</string>
     <string name="classic_search_subtitle">Prosta strona wyszukiwania zamiast kolorowych kategorii</string>
     <string name="enable_youtube_search">Włącz wyszukiwanie YouTube</string>

@@ -1428,8 +1428,6 @@
     <string name="recognize_no_match">Не найдено</string>
     <string name="recognize_no_match_body">Не удалось распознать. Попробуйте ближе к музыке.</string>
     <string name="recognize_find">Найти в nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">Для автомагнитол: альбомная ориентация, экран не гаснет</string>
     <string name="classic_search">Классический поиск</string>
     <string name="classic_search_subtitle">Простая страница поиска вместо цветных категорий</string>
     <string name="enable_youtube_search">Включить поиск YouTube</string>

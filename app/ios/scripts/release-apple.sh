@@ -48,7 +48,7 @@ mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
 NUVX_BUILD_REVISION="$revision" scripts/package-ios-ipa.sh "$version" --output-dir "$output_dir" --overwrite
 
-ipa="$output_dir/Nuvx-$version-build$spec_build-ios-unsigned.ipa"
+ipa="$output_dir/nuvx-$version-universal.ipa"
 [[ -f "$ipa" ]] || fail "expected IPA not found: $ipa"
 
 printf '\niOS release file in %s:\n  %s\n' "$output_dir" "$(basename "$ipa")"

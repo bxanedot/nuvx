@@ -44,6 +44,10 @@ val addonAuthServer: String = (
 val betaSuffix = rootProject.extra["nuvxBetaSuffix"] as String
 val releaseTag = providers.gradleProperty("nuvx.releaseTag").getOrElse("v${rootProject.extra["nuvxVersionName"]}")
 val buildTime = providers.gradleProperty("nuvx.buildTime").getOrElse("")
+val androidVersionCode = providers.gradleProperty("nuvx.androidVersionCode")
+    .getOrElse((rootProject.extra["nuvxVersionCode"] as Int).toString()).toInt()
+val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
+    .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
     namespace = "com.bxane.nuvx"
@@ -53,8 +57,8 @@ android {
         applicationId = "com.bxane.nuvx"
         minSdk = 26
         targetSdk = 36
-        versionCode = rootProject.extra["nuvxVersionCode"] as Int
-        versionName = rootProject.extra["nuvxVersionName"] as String
+        versionCode = androidVersionCode
+        versionName = androidVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

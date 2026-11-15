@@ -1406,8 +1406,6 @@
     <string name="recognize_no_match">Nada encontrado</string>
     <string name="recognize_no_match_body">Não consegui reconhecer. Tente mais perto da música.</string>
     <string name="recognize_find">Encontrar no nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">Para centrais multimídia: paisagem, e a tela fica ligada</string>
     <string name="classic_search">Busca clássica</string>
     <string name="classic_search_subtitle">Uma página de busca simples no lugar das categorias coloridas</string>
     <string name="enable_youtube_search">Ativar a pesquisa do YouTube</string>
