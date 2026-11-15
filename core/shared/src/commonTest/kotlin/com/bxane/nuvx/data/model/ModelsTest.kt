@@ -17,6 +17,15 @@ class ModelsTest {
     }
 
     @Test
+    fun largeYouTubeThumbnailsFallBackToHqDefault() {
+        val hq = "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        assertEquals(hq, "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg".youTubeThumbnailFallback())
+        assertEquals(hq, "https://i9.ytimg.com/vi_webp/dQw4w9WgXcQ/sddefault.webp?sqp=x".youTubeThumbnailFallback())
+        assertEquals(null, hq.youTubeThumbnailFallback())
+        assertEquals(null, "https://lh3.googleusercontent.com/abc=w544-h544".youTubeThumbnailFallback())
+    }
+
+    @Test
     fun durationIsSharedAcrossTargets() {
         assertEquals(225_000L, "3:45".durationMillis())
         assertEquals(3_723_000L, "1:02:03".durationMillis())
