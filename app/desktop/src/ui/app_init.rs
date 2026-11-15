@@ -246,6 +246,7 @@ impl App {
             xfer: Default::default(),
             jam: Default::default(),
             toast: None,
+            toast_undo: None,
             actions: Vec::new(),
             dialog: None,
             share_pending: None,

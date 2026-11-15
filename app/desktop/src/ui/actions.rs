@@ -120,7 +120,8 @@ impl App {
             Action::Dislike(t) => {
                 if !self.logged_in { self.toast("Sign in to rate songs"); return; }
                 self.set_liked(std::slice::from_ref(&t), false);
-                self.backend.request(Req::Dislike(t.id));
+                self.backend.request(Req::Dislike(t.id.clone()));
+                self.toast_with_undo("Song disliked", t);
             }
             Action::Share(target) => {
                 self.share_pending = Some(share_url(&target));

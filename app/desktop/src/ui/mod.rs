@@ -350,6 +350,8 @@ pub struct App {
     jam: jam::Session,
     signing_in: Arc<AtomicBool>,
     toast: Option<(String, f64)>,
+    /// Disliked song the toast offers to restore.
+    toast_undo: Option<Track>,
 
     updater: Option<crate::update::Updater>,
     update_checked: Option<f64>,
