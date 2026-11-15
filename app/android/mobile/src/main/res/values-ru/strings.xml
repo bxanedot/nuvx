@@ -1428,8 +1428,6 @@
     <string name="recognize_no_match">Не найдено</string>
     <string name="recognize_no_match_body">Не удалось распознать. Попробуйте ближе к музыке.</string>
     <string name="recognize_find">Найти в nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">Для автомагнитол: альбомная ориентация, экран не гаснет</string>
     <string name="classic_search">Классический поиск</string>
     <string name="classic_search_subtitle">Простая страница поиска вместо цветных категорий</string>
     <string name="enable_youtube_search">Включить поиск YouTube</string>
@@ -1439,6 +1437,9 @@
     <string name="delete_download_failed">Couldn’t delete the download. Try again.</string>
     <string name="spotify_import_partial">Imported \'%1$s\', but %2$d songs could not be added.</string>
     <string name="discord_invite_title">Join Discord Server</string>
+    <string name="community_invite_title">Join the nuvx community</string>
+    <string name="community_invite_discord">Join Discord</string>
+    <string name="telegram_invite_join">Join Telegram</string>
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>

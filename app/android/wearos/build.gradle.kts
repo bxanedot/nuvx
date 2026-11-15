@@ -12,6 +12,10 @@ val signing = Properties().apply {
 }
 
 val betaSuffix = rootProject.extra["nuvxBetaSuffix"] as String
+val androidVersionCode = providers.gradleProperty("nuvx.androidVersionCode")
+    .getOrElse((rootProject.extra["nuvxVersionCode"] as Int).toString()).toInt()
+val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
+    .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
     namespace = "com.bxane.nuvx.wear"
@@ -21,14 +25,15 @@ android {
         applicationId = "com.bxane.nuvx"
         minSdk = 30
         targetSdk = 36
-        versionCode = rootProject.extra["nuvxVersionCode"] as Int
-        versionName = rootProject.extra["nuvxVersionName"] as String
+        versionCode = androidVersionCode
+        versionName = androidVersionName
     }
 
     sourceSets {
         getByName("main") {
             java.srcDir("protocol")
             java.srcDir("../mobile/src/main/java/com/bxane/nuvx/ui/intro")
+            assets.srcDir(rootProject.file("app/android/legal-assets"))
         }
     }
 
@@ -97,6 +102,7 @@ android {
                 "DebugProbesKt.bin",
                 "kotlin/**",
             )
+            merges += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
         }
     }
 }

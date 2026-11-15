@@ -101,7 +101,7 @@ set_property(TARGET nuvx_exclusive APPEND PROPERTY LINK_DEPENDS
 
 # Direct USB output: a userspace USB Audio Class driver on libusb, so a DAC
 # can be streamed to without Android's mixer on any Android version. libusb
-# (LGPL-2.1) is built from its pinned release using the source list and
+# (LGPL-2.1-or-later) is built from its pinned release using the source list and
 # config.h it ships for Android (android/jni/libusb.mk). The transport is
 # adapted from Mornye's Rust driver (LGPL-3.0).
 FetchContent_Declare(libusb

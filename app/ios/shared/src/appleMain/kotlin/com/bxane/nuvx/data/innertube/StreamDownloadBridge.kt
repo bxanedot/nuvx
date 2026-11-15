@@ -339,7 +339,7 @@ object StreamDownloadBridge {
 
                             val fresh = if (readyFired && videoId != null && remints < MAX_REMINTS) {
                                 remints++
-                                runCatching { StreamResolver.resolve(videoId, maxKbps) }.getOrNull()
+                                runCatching { StreamResolver.resolveForDownload(videoId, maxKbps) }.getOrNull()
                                     ?.takeIf { sameRendition(currentUrl, it.url) }
                             } else null
                             if (fresh == null) throw e

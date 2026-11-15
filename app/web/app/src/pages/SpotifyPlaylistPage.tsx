@@ -7,8 +7,9 @@ import { playList, shuffleList } from '@/components/music/play';
 import { EmptyState, LoadError, LoadMoreError, NeedsExtension } from '@/components/music/States';
 import { TrackList } from '@/components/music/TrackList';
 import { createPlaylist } from '@/data/music/api';
+import { addToNuvxPlaylist, createNuvxPlaylist, createPlaylistsLocally } from '@/data/music/localPlaylists';
 import { useSignedIn } from '@/data/music/queries';
-import type { HeaderInfo } from '@/data/music/types';
+import type { HeaderInfo, Track } from '@/data/music/types';
 import { useSpotifyPlaylistInfo, useSpotifyRows } from '@/data/spotify/queries';
 import { useExtension } from '@/extension/useExtension';
 import { useSpotifySignedIn } from '@/extension/useSpotifyAuth';
@@ -60,7 +61,7 @@ export default function SpotifyPlaylistPage() {
         canPlay={playable.length > 0}
         onPlay={() => playList(playable, 0, context)}
         onShuffle={() => shuffleList(playable, context)}
-        extra={<ImportButton title={info.data.name} videoIds={playable.map((t) => t.videoId)} ready={rows.matching === 0} />}
+        extra={<ImportButton title={info.data.name} tracks={playable} ready={rows.matching === 0} />}
       />
       <TrackList tracks={rows.rows} variant="playlist" source={context.source} />
       {rows.status === 'error' && rows.rows.length > 0 && <LoadMoreError onRetry={rows.retry} />}
@@ -71,24 +72,33 @@ export default function SpotifyPlaylistPage() {
   );
 }
 
-function ImportButton({ title, videoIds, ready }: { title: string; videoIds: string[]; ready: boolean }) {
+function ImportButton({ title, tracks, ready }: { title: string; tracks: Track[]; ready: boolean }) {
   const ytSignedIn = useSignedIn();
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
+  const localOnly = createPlaylistsLocally();
+  const videoIds = tracks.map((track) => track.videoId);
   const create = useMutation({
-    mutationFn: () => createPlaylist(title, videoIds, 'Imported from Spotify with nuvx'),
-    onSuccess: (playlistId) => navigate(`/playlist/${encodeURIComponent(`VL${playlistId}`)}`),
+    mutationFn: async () => {
+      if (localOnly) {
+        const playlist = createNuvxPlaylist(title, tracks[0]);
+        for (const track of tracks.slice(1)) addToNuvxPlaylist(playlist.id, track);
+        return playlist.id;
+      }
+      return createPlaylist(title, videoIds, 'Imported from Spotify with nuvx');
+    },
+    onSuccess: (playlistId) => navigate(`/playlist/${encodeURIComponent(playlistId.startsWith('nuvx-local:') ? playlistId : `VL${playlistId}`)}`),
   });
-  if (!ytSignedIn) return null;
+  if (!ytSignedIn && !localOnly) return null;
   const label = !ready
-    ? 'Import to YouTube Music (matching…)'
+    ? localOnly ? 'Import to Nuvx only (matching…)' : 'Import to YouTube Music (matching…)'
     : create.isPending
       ? 'Importing…'
       : create.isError
         ? 'Import failed. Try again'
-        : confirming
-          ? `Make a private playlist of ${videoIds.length} songs?`
-          : 'Import to YouTube Music';
+      : confirming
+          ? localOnly ? `Save a Nuvx-only playlist of ${videoIds.length} songs?` : `Make a private playlist of ${videoIds.length} songs?`
+          : localOnly ? 'Import to Nuvx only' : 'Import to YouTube Music';
   return (
     <button
       className={confirming ? detailButton.pill : detailButton.circle}

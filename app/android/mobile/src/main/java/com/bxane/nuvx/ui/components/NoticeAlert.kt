@@ -188,13 +188,18 @@ internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean
     if (discordInvitePrompt && !discordInviteJoined && !held && radioIntroStep == 0 && podcastsIntroStep == 0 && supportPrompt == 0) {
         val dismiss = { discordInvitePrompt = false; discordPromptDismissed = true }
         NoticeAlert(
-            title = stringResource(R.string.discord_invite_title),
+            title = stringResource(R.string.community_invite_title),
             body = stringResource(R.string.discord_invite_body),
             actions = listOf(
-                NoticeAction(stringResource(R.string.discord_invite_join), emphasised = true) {
+                NoticeAction(stringResource(R.string.community_invite_discord), emphasised = true) {
                     AppSettings.setDiscordInviteJoined()
                     dismiss()
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.DISCORD_INVITE_URL)))
+                },
+                NoticeAction(stringResource(R.string.telegram_invite_join)) {
+                    AppSettings.setDiscordInviteJoined()
+                    dismiss()
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.TELEGRAM_URL)))
                 },
                 NoticeAction(stringResource(R.string.discord_invite_not_now), onClick = dismiss),
             ),

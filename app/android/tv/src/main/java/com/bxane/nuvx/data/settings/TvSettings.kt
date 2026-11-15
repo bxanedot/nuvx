@@ -21,7 +21,6 @@ object TvSettings {
     val tvNickname = MutableStateFlow("Listener")
     val tvTheme = MutableStateFlow("dynamic_artwork")
     val tvFontFamily = MutableStateFlow("sf_pro")
-    val spatialAudioEnabled = MutableStateFlow(true)
     val soundCheckEnabled = MutableStateFlow(true)
     val addPlaylistSongsToLibrary = MutableStateFlow(true)
     val addFavoriteSongsToLibrary = MutableStateFlow(true)
@@ -42,7 +41,6 @@ object TvSettings {
         tvNickname.value = prefs.getString(KEY_TV_NICKNAME, "Listener") ?: "Listener"
         tvTheme.value = prefs.getString(KEY_TV_THEME, "dynamic_artwork") ?: "dynamic_artwork"
         tvFontFamily.value = prefs.getString(KEY_TV_FONT, "sf_pro") ?: "sf_pro"
-        spatialAudioEnabled.value = prefs.getBoolean(KEY_TV_SPATIAL_AUDIO, true)
         soundCheckEnabled.value = prefs.getBoolean(KEY_SOUND_CHECK, true)
         addPlaylistSongsToLibrary.value = prefs.getBoolean(KEY_ADD_PLAYLIST_SONGS_TO_LIBRARY, true)
         addFavoriteSongsToLibrary.value = prefs.getBoolean(KEY_ADD_FAVORITE_SONGS_TO_LIBRARY, true)
@@ -96,11 +94,6 @@ object TvSettings {
     fun setTvVideoAuto1080p(enabled: Boolean) {
         tvVideoAuto1080p.value = enabled
         save { putBoolean(KEY_TV_VIDEO_AUTO_1080P, enabled) }
-    }
-
-    fun setSpatialAudioEnabled(enabled: Boolean) {
-        spatialAudioEnabled.value = enabled
-        save { putBoolean(KEY_TV_SPATIAL_AUDIO, enabled) }
     }
 
     fun setSoundCheckEnabled(enabled: Boolean) {
@@ -270,7 +263,6 @@ object TvSettings {
     private const val KEY_TV_NICKNAME = "tv_nickname"
     private const val KEY_TV_THEME = "tv_theme"
     private const val KEY_TV_FONT = "tv_font_family"
-    private const val KEY_TV_SPATIAL_AUDIO = "tv_spatial_audio"
     private const val KEY_SOUND_CHECK = "tv_sound_check"
     private const val KEY_ADD_PLAYLIST_SONGS_TO_LIBRARY = "tv_add_playlist_songs_to_library"
     private const val KEY_ADD_FAVORITE_SONGS_TO_LIBRARY = "tv_add_favorite_songs_to_library"

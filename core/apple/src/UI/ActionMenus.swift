@@ -577,25 +577,42 @@ struct PlaylistPickerView: View {
 
     @State private var selected: Set<String> = []
     @State private var adding = false
+    @State private var createLocally = PlatformSettings.shared.getBoolean(key: "create_playlists_locally", default: false)
 
     var body: some View {
         NavigationStack {
             List {
                 Section("New playlist") {
                     TextField("Title", text: $title)
-                    Picker("Privacy", selection: $privacy) {
-                        Text("Private").tag("PRIVATE")
-                        Text("Unlisted").tag("UNLISTED")
-                        Text("Public").tag("PUBLIC")
+                    if !createLocally {
+                        Picker("Privacy", selection: $privacy) {
+                            Text("Private").tag("PRIVATE")
+                            Text("Unlisted").tag("UNLISTED")
+                            Text("Public").tag("PUBLIC")
+                        }
                     }
                     Button("Create") {
                         Task {
-                            _ = await LibraryActions.createPlaylist(
-                                title: title,
-                                privacy: privacy,
-                                videoId: request.videoId.isEmpty ? nil : request.videoId
-                            )
-                            dismiss()
+                            if createLocally {
+                                do {
+                                    _ = try ImportedPlaylistStore.shared.createNuvxPlaylist(
+                                        title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                        videoId: request.videoId.isEmpty ? nil : request.videoId,
+                                        trackTitle: request.title
+                                    )
+                                    NotificationCenter.default.post(name: .libraryPlaylistsChanged, object: nil)
+                                    dismiss()
+                                } catch {
+                                    self.error = "Couldn't save this playlist on this device."
+                                }
+                            } else {
+                                _ = await LibraryActions.createPlaylist(
+                                    title: title,
+                                    privacy: privacy,
+                                    videoId: request.videoId.isEmpty ? nil : request.videoId
+                                )
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -636,10 +653,15 @@ struct PlaylistPickerView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(selected.count > 1 ? "Add to \(selected.count)" : "Add") { addToSelected() }
-                        .disabled(selected.isEmpty || adding)
+                        .disabled(selected.isEmpty || adding || request.videoId.isEmpty)
                 }
             }
-            .task { playlists = await LibraryActions.userPlaylists() }
+            .task {
+                playlists = await LibraryActions.userPlaylists()
+                playlists += ImportedPlaylistStore.shared.playlists
+                    .filter { $0.sourceName == "Nuvx only" }
+                    .map { UserPlaylistDTO(playlistId: "nuvx-local:\($0.id)", title: $0.title, subtitle: "\($0.tracks.count) songs", thumbnailUrl: $0.tracks.first?.thumbnailUrl) }
+            }
         }
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 480)
@@ -652,14 +674,25 @@ struct PlaylistPickerView: View {
         adding = true
         let ids = selected
         let videoId = request.videoId
+        var localFailures = Set<String>()
+        for id in ids where id.hasPrefix("nuvx-local:") {
+            if !ImportedPlaylistStore.shared.addNuvxTrack(playlistId: String(id.dropFirst("nuvx-local:".count)), videoId: videoId, title: request.title) {
+                localFailures.insert(id)
+            }
+        }
         Task {
-            let failures = await withTaskGroup(of: (String, String?).self) { group in
-                for id in ids {
+            let remoteIDs = ids.filter { !$0.hasPrefix("nuvx-local:") }
+            let remoteFailures = await withTaskGroup(of: (String, String?).self) { group in
+                for id in remoteIDs {
                     group.addTask { (id, await LibraryActions.addToPlaylist(playlistId: id, videoId: videoId)) }
                 }
                 var failed: [String] = []
                 for await (id, err) in group where err != nil { failed.append(id) }
                 return failed
+            }
+            let failures = localFailures.union(remoteFailures)
+            if ids.contains(where: { $0.hasPrefix("nuvx-local:") }) {
+                NotificationCenter.default.post(name: .libraryPlaylistsChanged, object: nil)
             }
             adding = false
             if failures.isEmpty {

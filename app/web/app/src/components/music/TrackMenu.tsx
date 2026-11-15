@@ -9,11 +9,16 @@ import {
   useSignedIn,
 } from '@/data/music/queries';
 import type { Track } from '@/data/music/types';
+import { addToNuvxPlaylist, createNuvxPlaylist, createPlaylistsLocally, useNuvxPlaylists } from '@/data/music/localPlaylists';
 import { usePlayer } from '@/state/player';
 
-function PlaylistChoices({ videoId, onDone, onBack }: { videoId: string; onDone: () => void; onBack: () => void }) {
+function PlaylistChoices({ track, onDone, onBack }: { track: Track; onDone: () => void; onBack: () => void }) {
+  const { videoId } = track;
   const options = usePlaylistOptions(videoId, true);
   const add = useAddToPlaylist();
+  const localPlaylists = useNuvxPlaylists();
+  const localOnly = createPlaylistsLocally();
+  const signedIn = useSignedIn();
   return (
     <>
       <MenuItem icon={<ChevronLeft size={14} />} onSelect={onBack}>
@@ -21,22 +26,44 @@ function PlaylistChoices({ videoId, onDone, onBack }: { videoId: string; onDone:
       </MenuItem>
       <MenuSeparator />
       <MenuHeader>Add to Playlist</MenuHeader>
-      {options.isPending && (
+      {localOnly && (
+        <MenuItem
+          onSelect={() => {
+            const title = window.prompt('Name this Nuvx playlist');
+            if (title?.trim()) createNuvxPlaylist(title, track);
+            onDone();
+          }}
+        >
+          New Nuvx playlist…
+        </MenuItem>
+      )}
+      {localPlaylists.map((playlist) => (
+        <MenuItem
+          key={playlist.id}
+          onSelect={() => {
+            addToNuvxPlaylist(playlist.id, track);
+            onDone();
+          }}
+        >
+          {playlist.title} · This device
+        </MenuItem>
+      ))}
+      {signedIn && options.isPending && (
         <MenuItem disabled onSelect={() => {}}>
           Loading…
         </MenuItem>
       )}
-      {options.isError && (
+      {signedIn && options.isError && (
         <MenuItem disabled onSelect={() => {}}>
           Couldn’t load your playlists
         </MenuItem>
       )}
-      {options.data?.length === 0 && (
+      {signedIn && options.data?.length === 0 && localPlaylists.length === 0 && (
         <MenuItem disabled onSelect={() => {}}>
           No playlists yet
         </MenuItem>
       )}
-      {options.data?.map((option) => (
+      {signedIn && options.data?.map((option) => (
         <MenuItem
           key={option.playlistId}
           onSelect={() => {
@@ -51,14 +78,14 @@ function PlaylistChoices({ videoId, onDone, onBack }: { videoId: string; onDone:
   );
 }
 
-function AccountItems({ track, onClose, onPlaylists }: { track: Track; onClose: () => void; onPlaylists: () => void }) {
+function AccountItems({ track, signedIn, onClose, onPlaylists }: { track: Track; signedIn: boolean; onClose: () => void; onPlaylists: () => void }) {
   const status = useLikeStatus(track.videoId);
   const setLiked = useSetLiked();
   const liked = status.data === 'LIKE';
   return (
     <>
       <MenuSeparator />
-      <MenuItem
+      {signedIn && <MenuItem
         icon={<Star size={15} fill={liked ? 'currentColor' : 'none'} />}
         disabled={status.isPending}
         onSelect={() => {
@@ -67,7 +94,7 @@ function AccountItems({ track, onClose, onPlaylists }: { track: Track; onClose: 
         }}
       >
         {liked ? 'Unfavorite' : 'Favorite'}
-      </MenuItem>
+      </MenuItem>}
       <MenuItem icon={<ListPlus size={15} />} trailing={<ChevronRight size={14} />} onSelect={onPlaylists}>
         Add to Playlist
       </MenuItem>
@@ -78,8 +105,10 @@ function AccountItems({ track, onClose, onPlaylists }: { track: Track; onClose: 
 function TrackMenuItems({ track, onClose }: { track: Track; onClose: () => void }) {
   const [view, setView] = useState<'main' | 'playlists'>('main');
   const signedIn = useSignedIn();
+  const localOnly = createPlaylistsLocally();
+  const localPlaylists = useNuvxPlaylists();
   if (view === 'playlists') {
-    return <PlaylistChoices videoId={track.videoId} onDone={onClose} onBack={() => setView('main')} />;
+    return <PlaylistChoices track={track} onDone={onClose} onBack={() => setView('main')} />;
   }
   const { playNext, addToQueue } = usePlayer.getState();
   return (
@@ -90,7 +119,7 @@ function TrackMenuItems({ track, onClose }: { track: Track; onClose: () => void 
       <MenuItem icon={<ListEnd size={15} />} onSelect={() => (onClose(), addToQueue([track]))}>
         Add to Queue
       </MenuItem>
-      {signedIn && <AccountItems track={track} onClose={onClose} onPlaylists={() => setView('playlists')} />}
+      {(signedIn || localOnly || localPlaylists.length > 0) && <AccountItems track={track} signedIn={signedIn} onClose={onClose} onPlaylists={() => setView('playlists')} />}
     </>
   );
 }

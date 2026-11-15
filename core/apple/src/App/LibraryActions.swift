@@ -199,7 +199,10 @@ struct UserPlaylistDTO: Codable, Identifiable, Hashable {
     let subtitle: String
     let thumbnailUrl: String?
     var id: String { playlistId }
-    var browseId: String { playlistId.hasPrefix("VL") ? playlistId : "VL\(playlistId)" }
+    var browseId: String {
+        if playlistId.hasPrefix("nuvx-local:") { return "local:playlist:\(playlistId.dropFirst("nuvx-local:".count))" }
+        return playlistId.hasPrefix("VL") ? playlistId : "VL\(playlistId)"
+    }
 }
 
 struct SongMenuDTO: Codable {

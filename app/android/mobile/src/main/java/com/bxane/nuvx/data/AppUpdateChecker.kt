@@ -91,35 +91,37 @@ object AppUpdateChecker {
         val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull ?: return null
         val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return null
         val title = release["name"]?.jsonPrimitive?.contentOrNull
+        val apk = apkAsset(release) ?: return null
         val version = if (tag.startsWith("nightly.")) {
-            title?.removePrefix("nuvx ")?.takeIf { it != title }
+            versionFromApkAsset(apk.first, BuildConfig.UPDATE_APK_PREFIX)
+                ?: title?.removePrefix("nuvx ")?.takeIf { it != title }
         } else {
             tag.removePrefix("v")
         } ?: return null
         if (!version.matches(Regex("\\d+\\.\\d+\\.\\d+(-nightly\\.\\d+\\.\\d+)?"))) return null
         val publishedAt = release["published_at"]?.jsonPrimitive?.contentOrNull ?: return null
-        val apkUrl = apkAssetUrl(release) ?: return null
-        return ReleaseCandidate(version, tag, publishedAt, url, apkUrl, release["body"]?.jsonPrimitive?.contentOrNull)
+        return ReleaseCandidate(version, tag, publishedAt, url, apk.second, release["body"]?.jsonPrimitive?.contentOrNull)
     }
 
-    suspend fun clearCache(context: Context) = withContext(Dispatchers.IO) {
-        File(context.cacheDir, CACHE_SUBDIR).listFiles()?.forEach { it.delete() }
-    }
-
-    private fun apkAssetUrl(release: JsonObject): String? = runCatching {
-        val apks = release["assets"]?.jsonArray
+    private fun apkAsset(release: JsonObject): Pair<String, String>? = runCatching {
+        val assets = release["assets"]?.jsonArray
             ?.mapNotNull { it as? JsonObject }
             ?.mapNotNull { asset ->
                 val name = asset["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                 val url = asset["browser_download_url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                val ours = name.startsWith(BuildConfig.UPDATE_APK_PREFIX, ignoreCase = true) &&
+                if (name.startsWith(BuildConfig.UPDATE_APK_PREFIX, ignoreCase = true) &&
                     name.endsWith(".apk", ignoreCase = true) &&
                     asset["state"]?.jsonPrimitive?.contentOrNull == "uploaded"
-                if (ours) name.removeSuffix(".apk").removeSuffix(".APK") to url else null
+                ) name.removeSuffix(".apk").removeSuffix(".APK") to url else null
             }
             .orEmpty()
-        selectApkAssetUrl(apks, BuildConfig.NUVX_DISTRIBUTION, Build.SUPPORTED_ABIS.toList())
+        val selected = selectApkAssetUrl(assets, BuildConfig.NUVX_DISTRIBUTION, Build.SUPPORTED_ABIS.toList())
+        assets.firstOrNull { it.second == selected }
     }.getOrNull()
+
+    suspend fun clearCache(context: Context) = withContext(Dispatchers.IO) {
+        File(context.cacheDir, CACHE_SUBDIR).listFiles()?.forEach { it.delete() }
+    }
 
     suspend fun downloadApk(context: Context): Unit = withContext(Dispatchers.IO) {
         val info = _available.value ?: return@withContext
@@ -222,15 +224,20 @@ internal fun isNewerRelease(
         if (candidate != current) return candidate > current
     }
     if (currentTag.startsWith("nightly.")) {
-        if (!candidateTag.startsWith("nightly.")) {
-            return currentBuildTime.isEmpty() || candidatePublishedAt > currentBuildTime
-        }
+        if (!candidateTag.startsWith("nightly.")) return false
         val candidateBuild = nightlyBuild(candidateTag) ?: return false
         val currentBuild = nightlyBuild(currentTag) ?: return false
         return candidateBuild.first > currentBuild.first ||
             candidateBuild.first == currentBuild.first && candidateBuild.second > currentBuild.second
     }
     return candidateTag != currentTag && (currentBuildTime.isEmpty() || candidatePublishedAt > currentBuildTime)
+}
+
+internal fun versionFromApkAsset(name: String, prefix: String): String? {
+    if (!name.startsWith(prefix, ignoreCase = true)) return null
+    val suffix = name.drop(prefix.length).removeSuffix(".apk").removeSuffix(".APK")
+    return Regex("^\\d+\\.\\d+\\.\\d+(?:-nightly\\.\\d+\\.\\d+)?(?=-|$)")
+        .find(suffix)?.value
 }
 
 private fun nightlyBuild(tag: String): Pair<Long, Long>? {

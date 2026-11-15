@@ -136,13 +136,19 @@ impl App {
                 self.backend.request(Req::DownloadAll { name, targets });
             }
             Action::AddToPlaylist(tracks) => {
-                if self.logged_in { self.dialog = Some(Dialog::PickPlaylist(tracks)); }
+                if self.logged_in || self.create_playlists_locally || !self.local_playlists.is_empty() { self.dialog = Some(Dialog::PickPlaylist(tracks)); }
                 else { self.toast("Sign in to edit playlists"); }
             }
             Action::RemoveFromPlaylist(mut rows) => {
-                let Some(c) = self.current_collection().filter(|c| c.owned && !c.is_album) else { return };
+                let Some(playlist_id) = self.current_collection().filter(|c| c.owned && !c.is_album).map(|c| c.id.clone()) else { return };
                 rows.sort_unstable();
                 rows.dedup();
+                if playlist_id.starts_with("nuvx-local:") {
+                    self.remove_local_playlist_rows(&playlist_id, &rows);
+                    self.selection.clear();
+                    return;
+                }
+                let Some(c) = self.current_collection() else { return };
                 rows.retain(|&i| c.set_ids.get(i).is_some_and(Option::is_some));
                 if rows.is_empty() {
                     self.toast("YouTube Music didn't say where these songs are in the playlist. Reload it and try again.");
@@ -157,7 +163,7 @@ impl App {
                 self.backend.request(Req::RemoveFromPlaylist { playlist_id: playlist, items });
             }
             Action::NewPlaylist(tracks) => {
-                if self.logged_in { self.dialog = Some(Dialog::NewPlaylist { title: String::new(), tracks }); }
+                if self.logged_in || self.create_playlists_locally { self.dialog = Some(Dialog::NewPlaylist { title: String::new(), tracks }); }
                 else { self.toast("Sign in to create playlists"); }
             }
             Action::EditPlaylist => {
@@ -168,7 +174,7 @@ impl App {
                 }
             }
             Action::Collaborate => {
-                if let Some(id) = self.current_collection().filter(|c| !c.is_album && c.owned).map(|c| c.id.clone()) {
+                if let Some(id) = self.current_collection().filter(|c| !c.is_album && c.owned && !c.id.starts_with("nuvx-local:")).map(|c| c.id.clone()) {
                     self.backend.request(Req::Collaboration(id.clone()));
                     self.dialog = Some(Dialog::Collaborate { id, info: None, busy: true, confirm_off: false });
                 }

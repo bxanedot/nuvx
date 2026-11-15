@@ -12,7 +12,7 @@ source. This document is bundled as `AudioLicenses/ThirdPartyNotices.txt`.
 
 | Component | License / retained text |
 | --- | --- |
-| InnerTubeX, revision `64c7df4d88d27e6964157b3b341f7ec70f88ea6e` | GPLv3; full text below; vendored copy `vendor/innertubex/LICENSE` |
+| InnerTubeX, revision `e4fb0003ce092beb71f3de464c661bf9f3f54c7f` | GPLv3; full text below; vendored copy `vendor/innertubex/LICENSE` |
 | QuackJS, revision `d867d98f9f2562009399cdfecd67e626a086f878` | GPL-3.0-only; full text below; `vendor/quackjs/LICENSE`; fixture notices remain in `vendor/quackjs/THIRD_PARTY_NOTICES.md` |
 | Orchard-derived analyzer by SFG545 and Kushagra Singh | AGPL-3.0-or-later; source headers in `native-core/src/analyzer/`; full text below |
 | LastWave-native clarity specifications, revision `ec11a430fcf6e7f06bbae450e768d48f1d97d161` | GPLv3; header in `native-core/src/sound.rs`; full text below |

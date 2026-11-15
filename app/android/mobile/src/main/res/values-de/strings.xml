@@ -1401,8 +1401,6 @@
     <string name="recognize_no_match">Kein Treffer</string>
     <string name="recognize_no_match_body">Den Song konnte ich nicht erkennen. Versuch es näher an der Musik.</string>
     <string name="recognize_find">In nuvx finden</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">Für Autoradios und Head Units: Querformat, Bildschirm bleibt an</string>
     <string name="classic_search">Klassische Suche</string>
     <string name="classic_search_subtitle">Eine schlichte Suchseite statt der farbigen Kategorien</string>
     <string name="enable_youtube_search">YouTube-Suche aktivieren</string>
@@ -1412,6 +1410,9 @@
     <string name="delete_download_failed">Couldn’t delete the download. Try again.</string>
     <string name="spotify_import_partial">Imported \'%1$s\', but %2$d songs could not be added.</string>
     <string name="discord_invite_title">Join Discord Server</string>
+    <string name="community_invite_title">Join the nuvx community</string>
+    <string name="community_invite_discord">Join Discord</string>
+    <string name="telegram_invite_join">Join Telegram</string>
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>

@@ -10,7 +10,7 @@ The iOS app target is in [`mobile/`](mobile), parallel to
 Requires **iOS/iPadOS 18 or later**. This is a source port: Apple compilation,
 signing, and device playback have not been verified. An IPA is not promised for
 every release. Check the [GitHub release assets](https://github.com/bxanedot/nuvx/releases)
-for `Nuvx-<version>-build<number>-ios-unsigned.ipa`. If there is no `.ipa`,
+for `nuvx-<version>-universal.ipa`. If there is no `.ipa`,
 someone with a Mac must build one first; the source ZIP, APK, and desktop
 packages cannot be installed on iOS.
 

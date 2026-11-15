@@ -1,7 +1,11 @@
 package com.bxane.nuvx.data.settings
 
 import android.content.SharedPreferences
+import com.bxane.nuvx.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
+
+internal fun defaultSpatialAudioEnabled(applicationId: String): Boolean =
+    !applicationId.endsWith(".auto")
 
 internal class AudioOutputSettingsController {
     private lateinit var prefs: SharedPreferences
@@ -40,7 +44,13 @@ internal class AudioOutputSettingsController {
         loudnessOffOnSpeaker.value = prefs.getBoolean(KEY_LOUDNESS_OFF_ON_SPEAKER, true)
         dolbyAtmos.value = prefs.getBoolean(KEY_DOLBY_ATMOS, true)
         directSourceStream.value = prefs.getBoolean(KEY_DIRECT_SOURCE_STREAM, false)
-        spatialAudio.value = prefs.getBoolean(KEY_SPATIAL_AUDIO, true)
+        if (!prefs.contains(KEY_SPATIAL_AUDIO) && prefs.contains(KEY_TV_SPATIAL_AUDIO)) {
+            prefs.edit().putBoolean(KEY_SPATIAL_AUDIO, prefs.getBoolean(KEY_TV_SPATIAL_AUDIO, true)).apply()
+        }
+        spatialAudio.value = prefs.getBoolean(
+            KEY_SPATIAL_AUDIO,
+            defaultSpatialAudioEnabled(BuildConfig.APPLICATION_ID),
+        )
     }
 
     fun setExcorFallback(value: Boolean) {
@@ -110,5 +120,6 @@ internal class AudioOutputSettingsController {
         const val KEY_DOLBY_ATMOS = "dolby_atmos"
         const val KEY_DIRECT_SOURCE_STREAM = "direct_source_stream"
         const val KEY_SPATIAL_AUDIO = "spatial_audio"
+        const val KEY_TV_SPATIAL_AUDIO = "tv_spatial_audio"
     }
 }

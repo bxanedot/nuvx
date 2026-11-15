@@ -74,6 +74,39 @@ final class ImportedPlaylistStore {
         return playlist
     }
 
+    func createNuvxPlaylist(title: String, videoId: String?, trackTitle: String) throws -> ImportedPlaylist {
+        let tracks = videoId.map { [ImportedPlaylistTrack(id: $0, title: trackTitle, artist: "", videoId: $0)] } ?? []
+        let playlist = ImportedPlaylist(
+            id: "nuvx-local-" + UUID().uuidString,
+            title: title,
+            sourceName: "Nuvx only",
+            importedAt: Date(),
+            tracks: tracks
+        )
+        playlists.insert(playlist, at: 0)
+        do {
+            try persist()
+        } catch {
+            playlists.removeAll { $0.id == playlist.id }
+            throw error
+        }
+        return playlist
+    }
+
+    func addNuvxTrack(playlistId: String, videoId: String, title: String) -> Bool {
+        guard let index = playlists.firstIndex(where: { $0.id == playlistId && $0.sourceName == "Nuvx only" }) else { return false }
+        guard !playlists[index].tracks.contains(where: { $0.videoId == videoId }) else { return true }
+        let previous = playlists[index]
+        playlists[index].tracks.append(ImportedPlaylistTrack(id: videoId, title: title, artist: "", videoId: videoId))
+        do {
+            try persist()
+            return true
+        } catch {
+            playlists[index] = previous
+            return false
+        }
+    }
+
     func remove(_ playlist: ImportedPlaylist) {
         playlists.removeAll { $0.id == playlist.id }
         try? persist()

@@ -22,7 +22,8 @@ Radio shares Android's Radio Browser endpoints and request limits without introd
 
 - Android builds Top Picks with its taste-based `TopPicks` algorithm and listener-scoped hourly cache. Apple currently selects distinct playable cards from the Home feed instead. The builder lives in Android/JVM-only shared code, so copying it into the Apple KMP module would duplicate the algorithm.
 - Find Your Mood uses different presentation and selection behavior on Apple; its tiles open the real category feed but do not reproduce Android's artwork and styling.
-- The checked-in eXcor artifact is Android-only. iOS keeps its existing native/KMP stream resolver; no nonfunctional eXcor toggle is exposed.
+- eXcor fallback is wired to Android phone, TV, and nuvx Auto; Wear relays the phone's playback. iOS still uses its native/KMP resolver and has no eXcor toggle. Upstream [`eXcorKit` at commit `17f1604`](https://github.com/bxanedot/eXcor/tree/17f1604/modules/platforms/swift) is a separate Swift package under `modules/platforms/swift`, but Nuvx does not include it. The iOS integration seam is `InnertubeStreamResolver`; a working fallback must also pass the host session safely and handle media headers, refused streams, and session changes.
+- eXcor's [current upstream README](https://github.com/bxanedot/eXcor/tree/17f1604) marks playback NO-GO and states SABR/UMP is not implemented. Treat it only as an optional fallback until its release gates and Nuvx device playback are verified; it is not an InnerTubeX replacement or a parity claim.
 
 These are source-level notes, not a claim of visual or runtime parity. The Apple
 builds workflow supplies macOS/Xcode compilation without local Apple hardware.

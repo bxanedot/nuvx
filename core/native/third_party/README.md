@@ -16,6 +16,8 @@ against this folder.
 | Oboe | https://github.com/google/oboe | 1.11.0 (SHA-256 pinned in `app/android/mobile/src/main/cpp/CMakeLists.txt`) | Apache-2.0 | `libnuvx_exclusive.so` (AAudio exclusive output) |
 | libusb | https://github.com/libusb/libusb | 1.0.27 (SHA-256 pinned in `app/android/mobile/src/main/cpp/CMakeLists.txt`) | LGPL-2.1-or-later | `libnuvx_usb.so` (direct USB output) |
 
+The Android APKs carry the Apache-2.0 and LGPL-2.1-or-later texts and these native notices under `assets/licenses/`.
+
 ## Adapted code
 
 The bit-perfect output (`app/android/mobile/src/main/cpp/bitperfect/`,

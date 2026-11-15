@@ -19,4 +19,6 @@
     <exclude domain="sharedpref" path="nuvx_last_played.xml" />
     <exclude domain="sharedpref" path="nuvx_bounded_context.xml" />
     <exclude domain="sharedpref" path="nuvx_party_queue_stash.xml" />
+    <!-- Nuvx-only playlists belong to this installation and aren't synced to another device. -->
+    <exclude domain="sharedpref" path="nuvx_local_playlists.xml" />
 </full-backup-content>

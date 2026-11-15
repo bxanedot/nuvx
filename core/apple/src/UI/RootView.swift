@@ -1368,7 +1368,7 @@ private struct AppPrompts: View {
             case .podcastsIntro, .podcastsFollowup: "Podcasts"
             case .supportTip: "Enjoying nuvx?"
             case .supportStar: "Like nuvx?"
-            case .discordInvite: "Join Discord Server"
+            case .discordInvite: "Join the nuvx community"
             }
         }
 
@@ -1441,9 +1441,13 @@ private struct AppPrompts: View {
                             supportPromptsOff = true
                         }
                     case .discordInvite:
-                        Button("Join Server") {
+                        Button("Join Discord") {
                             discordInviteJoined = true
                             open("https://discord.gg/h4Wsu824Uf")
+                        }
+                        Button("Join Telegram") {
+                            discordInviteJoined = true
+                            open("https://t.me/nuvxserver")
                         }
                         Button("Not Now", role: .cancel) {}
                     }

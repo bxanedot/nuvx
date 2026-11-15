@@ -141,7 +141,7 @@ pub(super) fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
                         if widgets::menu_action(ui, Some(icon::MUSIC), "Edit playlist") {
                             acts.push(Action::EditPlaylist);
                         }
-                        if widgets::menu_action(ui, Some(icon::USERS), "Collaborate") {
+                        if !id.starts_with("nuvx-local:") && widgets::menu_action(ui, Some(icon::USERS), "Collaborate") {
                             acts.push(Action::Collaborate);
                         }
                         if widgets::menu_action(ui, Some(icon::TRASH_2), "Delete playlist") {
@@ -151,7 +151,7 @@ pub(super) fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
                     if app.logged_in && !auto && !owned && save_id.is_none() {
                         ui.separator();
                     }
-                    if widgets::menu_action(ui, Some(icon::LINK), "Share") {
+                    if !id.starts_with("nuvx-local:") && widgets::menu_action(ui, Some(icon::LINK), "Share") {
                         acts.push(Action::Share(target.clone()));
                     }
                     ui.add_space(3.0);

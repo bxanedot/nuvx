@@ -4,6 +4,13 @@ import { downloadsFor } from '@/extension/downloads';
 import { config } from '@/config';
 import { settingsUi } from './settingsStyles';
 
+const desktopPackages = [
+  ['windows', 'Windows', 'x64 and ARM64 installer'],
+  ['mac-arm', 'macOS · Apple silicon', 'Apple silicon disk image'],
+  ['mac-intel', 'macOS · Intel', 'Intel disk image'],
+  ['linux', 'Linux', 'x64 and ARM64 package'],
+] as const;
+
 export default function DownloadsPage() {
   const extensions = downloadsFor().filter((download) => download.source === 'github');
 
@@ -31,6 +38,14 @@ export default function DownloadsPage() {
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
           </a>
+          <a className={settingsUi.download} href={config.autoDownloadUrl}>
+            <Download size={25} className="text-primary" />
+            <span className={settingsUi.downloadText}>
+              <span className={settingsUi.downloadTitle}>nuvx Auto · universal APK</span>
+              <span className={settingsUi.downloadDetail}>Planned for 1.0.0; TV-inspired head-unit app, separate from Android Auto projection</span>
+            </span>
+            <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+          </a>
           <a className={settingsUi.download} href={config.wearDownloadUrl}>
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
@@ -39,14 +54,24 @@ export default function DownloadsPage() {
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
           </a>
-          <a className={settingsUi.download} href={config.desktopDownloadUrl} target="_blank" rel="noreferrer">
+          <a className={settingsUi.download} href={config.iosDownloadUrl}>
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
-              <span className={settingsUi.downloadTitle}>Windows, macOS and Linux</span>
-              <span className={settingsUi.downloadDetail}>Universal desktop installers on GitHub</span>
+              <span className={settingsUi.downloadTitle}>iPhone and iPad · unsigned IPA</span>
+              <span className={settingsUi.downloadDetail}>Planned for 1.0.0; requires signing and installation through a sideloading tool</span>
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
           </a>
+          {desktopPackages.map(([platform, title, detail]) => (
+            <a key={platform} className={settingsUi.download} href={`https://www.nuvx.lol/api/download?platform=${platform}`}>
+              <Download size={25} className="text-primary" />
+              <span className={settingsUi.downloadText}>
+                <span className={settingsUi.downloadTitle}>{title}</span>
+                <span className={settingsUi.downloadDetail}>{detail}</span>
+              </span>
+              <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+            </a>
+          ))}
         </section>
 
         <h2 className={settingsUi.sectionHeader}>Browser extensions</h2>

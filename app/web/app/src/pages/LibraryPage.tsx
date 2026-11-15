@@ -5,6 +5,7 @@ import { CircleLockup, SquareLockup, VideoLockup } from '@/components/music/Lock
 import { EmptyState, LoadError, LoadMoreError, NeedsExtension } from '@/components/music/States';
 import { TrackList } from '@/components/music/TrackList';
 import { isLibrarySection, LIBRARY_SECTIONS } from '@/data/music/library';
+import { useNuvxPlaylists } from '@/data/music/localPlaylists';
 import { useLibrary, useSignedIn, useYouTubeReady } from '@/data/music/queries';
 import { useYtAuth } from '@/extension/useYtAuth';
 import { PlainSkeleton } from '@/skeletons/PageSkeletons';
@@ -29,6 +30,19 @@ export default function LibraryPage() {
   const { missing } = useYouTubeReady();
   const auth = useYtAuth();
   const signedIn = useSignedIn();
+  const localPlaylists = useNuvxPlaylists();
+  const localGrid = section === 'playlists' ? localPlaylists.map((playlist) => ({
+    kind: 'playlist' as const,
+    id: playlist.id,
+    title: playlist.title,
+    subtitle: `${playlist.tracks.length} songs · This device`,
+    artists: [],
+    album: null,
+    thumbnail: playlist.tracks[0]?.thumbnail ?? null,
+    wide: false,
+    durationSec: null,
+    explicit: false,
+  })) : [];
   const library = useLibrary(isLibrarySection(section) ? section : 'playlists');
   const loadMore = useLoadMore(
     library.hasNextPage && !library.isFetchingNextPage && !library.isFetchNextPageError
@@ -38,7 +52,7 @@ export default function LibraryPage() {
 
   if (!isLibrarySection(section)) return <Navigate to="/home" replace />;
   const title = LIBRARY_SECTIONS[section].title;
-  if (missing) return <NeedsExtension what="your library" />;
+  if (missing) return <><NeedsExtension what="your library" />{localGrid.length > 0 && <ul className={seeAllGrid}>{localGrid.map((item) => <li key={item.id}><SquareLockup item={item} /></li>)}</ul>}</>;
   if (auth.state === 'ready' && !signedIn) {
     return (
       <>
@@ -47,14 +61,15 @@ export default function LibraryPage() {
           title="Sign in to see your library"
           detail="nuvx uses the YouTube Music account this browser is signed in to. Sign in on music.youtube.com, then come back."
         />
+        {localGrid.length > 0 && <ul className={seeAllGrid}>{localGrid.map((item) => <li key={item.id}><SquareLockup item={item} /></li>)}</ul>}
       </>
     );
   }
-  if (library.isError && !library.data) return <LoadError error={library.error} onRetry={() => void library.refetch()} />;
-  if (!library.data) return <PlainSkeleton />;
+  if (library.isError && !library.data) return <><LoadError error={library.error} onRetry={() => void library.refetch()} />{localGrid.length > 0 && <ul className={seeAllGrid}>{localGrid.map((item) => <li key={item.id}><SquareLockup item={item} /></li>)}</ul>}</>;
+  if (!library.data && localGrid.length === 0) return <PlainSkeleton />;
 
-  const grid = library.data.pages.flatMap((page) => page.data.grid);
-  const tracks = library.data.pages.flatMap((page) => page.data.tracks);
+  const grid = [...localGrid, ...(library.data?.pages.flatMap((page) => page.data.grid) ?? [])];
+  const tracks = library.data?.pages.flatMap((page) => page.data.tracks) ?? [];
   return (
     <>
       <PageHeader title={title} />

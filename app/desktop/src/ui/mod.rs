@@ -234,6 +234,8 @@ pub struct App {
     lists: Lists,
     artist: Option<ArtistPage>,
     library: Option<Library>,
+    local_playlists: Vec<LocalPlaylist>,
+    create_playlists_locally: bool,
     library_requested: std::time::Instant,
     history: Option<Vec<Track>>,
     uploads: Option<Vec<Track>>,
@@ -392,6 +394,13 @@ pub struct App {
     dialog: Option<Dialog>,
     share_pending: Option<String>,
     smoke: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct LocalPlaylist {
+    id: String,
+    title: String,
+    tracks: Vec<Track>,
 }
 
 pub(super) const CROSSFADE_MAX: u32 = 12;

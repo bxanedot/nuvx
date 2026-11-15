@@ -10,6 +10,14 @@ import AppKit
 
 extension SettingsView {
     func buildContentPreferenceRows(_ rows: inout SettingsRows) {
+        rows.row("Create Playlists in Nuvx Only", "playlist", "device", "local", "youtube music") {
+            SettingsToggleLine(
+                glyph: .localMusic,
+                title: "Create Playlists in Nuvx Only",
+                subtitle: "New playlists are saved on this device and aren't added to YouTube Music.",
+                isOn: $createPlaylistsLocally
+            )
+        }
         rows.row("Hide Recents", "recent", "history", "home", "feed") {
             SettingsToggleLine(
                 glyph: .songStatus,
@@ -276,6 +284,9 @@ extension SettingsView {
         }
         rows.row("Discord", "discord", "community", "chat") {
             Link("Discord", destination: URL(string: "https://discord.gg/h4Wsu824Uf")!)
+        }
+        rows.row("Telegram", "telegram", "community", "chat") {
+            Link("Telegram", destination: URL(string: "https://t.me/nuvxserver")!)
         }
     }
 
