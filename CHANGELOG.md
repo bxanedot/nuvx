@@ -4,7 +4,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## 1.0.0 (Unreleased)
 
-This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightly.*` builds are prereleases; the stable `v1.0.0` release has not been published.
+This section records every change since the v0.9.0 stable release.
 
 ### Android
 

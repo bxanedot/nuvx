@@ -141,7 +141,7 @@ jobs:
             draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
             [[ "$draft" == true ]]
           else
-            notes=$(awk -v heading="## $STABLE_VERSION" '$0 == heading { found=1; next } found && /^## / { exit } found { print }' CHANGELOG.md)
+            notes=$(awk -v heading="## $STABLE_VERSION" '$0 == heading || $0 == heading " (Unreleased)" { found=1; next } found && /^## / { exit } found { print }' CHANGELOG.md)
             [[ -n "$notes" ]]
             gh release create "$RELEASE_TAG" \
               --target "$SOURCE_REF" --draft --title "nuvx $STABLE_VERSION" --notes "$notes"
@@ -668,6 +668,13 @@ jobs:
           fi
           if [[ "$IS_STABLE" == true ]]; then
             gh release edit "$RELEASE_TAG" --draft=false --latest
+            exit 0
+          fi
+          stable_v1=$(gh api "repos/$GH_REPO/releases/tags/v1.0.0" \
+            --jq 'select(.draft == false and .prerelease == false) | .tag_name' 2>/dev/null || true)
+          if [[ $stable_v1 == v1.0.0 ]]; then
+            echo "Discarding nightly $RELEASE_TAG because stable v1.0.0 is published"
+            gh release delete "$RELEASE_TAG" --yes --cleanup-tag || true
             exit 0
           fi
           current=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
