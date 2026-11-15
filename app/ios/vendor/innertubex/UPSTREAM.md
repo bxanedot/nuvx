@@ -1,12 +1,14 @@
 # InnerTubeX Apple integration
 
 Source: https://github.com/MetrolistGroup/innertubex
-Pinned revision: 64c7df4d88d27e6964157b3b341f7ec70f88ea6e (v0.11.6)
+Pinned revision: e4fb0003ce092beb71f3de464c661bf9f3f54c7f (v0.11.7)
 
-`src/` is upstream's tree at that revision, unmodified: `commonMain`,
-`nativeMain`, `commonTest` and `nativeTest`. Upstream's Android, JVM and
-Windows source sets are not copied. `LICENSE`, `README.md`, `SECURITY.md` and
-`CHANGELOG.md` are upstream's.
+`src/` contains upstream's `commonMain`, `nativeMain`, `commonTest` and
+`nativeTest` at that revision, with the v0.11.7 audio-token preference merged
+into the existing local source. The original vendored tree also has local
+comment cleanup; preserve it when updating instead of replacing `src/` blindly.
+Upstream's Android, JVM and Windows source sets are not copied. `LICENSE`,
+`README.md`, `SECURITY.md` and `CHANGELOG.md` are upstream's.
 
 The local `build.gradle.kts` is the only adapter. It adds macOS arm64 alongside
 upstream's iOS targets, leaves out the Android/JVM targets and publishing
@@ -22,8 +24,9 @@ nuvx supplies upstream's visitor-bound player-request token and video-bound
 streaming-data token through an isolated WKWebView. Challenge HTTP uses a public,
 cookie-free client; web rendering blocks network loads, matching upstream.
 
-To update: replace `src/` and the four upstream documents from the new tag,
-move the pin above, match Ktor and kotlinx versions to upstream's
+To update: review upstream's `src/` changes and merge them into the vendored
+tree, update the four upstream documents from the new tag, move the pin above,
+match Ktor and kotlinx versions to upstream's
 `gradle/libs.versions.toml` here and in `shared/build.gradle.kts`, check
 whether the QuackJS pin moved, then run `:innertubex:macosArm64Test` and
 `:shared:macosArm64Test`.
