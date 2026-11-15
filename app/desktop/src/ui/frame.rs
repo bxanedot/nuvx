@@ -345,6 +345,8 @@ impl eframe::App for App {
         storage.set_string("reactive_bg", b(self.reactive_bg));
         storage.set_string("signature_api", self.signature_api.clone());
         storage.set_string("hires_source", self.hires_sources.join("\n"));
+        storage.set_string("jiosaavn_enabled", b(self.jiosaavn_enabled));
+        storage.set_string("radiojavan_enabled", b(self.radiojavan_enabled));
         storage.set_string("prefer_atmos", b(self.prefer_atmos));
         storage.set_string("sponsorblock", b(self.sponsorblock));
         storage.set_string("crossfade", b(self.crossfade));

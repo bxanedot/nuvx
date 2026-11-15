@@ -2,6 +2,7 @@ mod catalog;
 mod dispatch;
 mod playback;
 mod streaming;
+mod sources;
 mod messages;
 mod likes;
 
@@ -46,6 +47,8 @@ pub struct Backend {
     premium: Arc<tokio::sync::Mutex<Result<bool, Option<std::time::Instant>>>>,
     hq: Arc<std::sync::atomic::AtomicBool>,
     hires: Arc<std::sync::RwLock<Vec<Arc<hires::Client>>>>,
+    jiosaavn_enabled: Arc<std::sync::atomic::AtomicBool>,
+    radiojavan_enabled: Arc<std::sync::atomic::AtomicBool>,
     atmos: Arc<std::sync::atomic::AtomicBool>,
     reverted: Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
     songs: Arc<std::sync::Mutex<std::collections::HashMap<String, SongCell>>>,
@@ -75,7 +78,7 @@ impl Backend {
         {
             log::warn!("proxy relay: {e:#}");
         }
-        let backend = Self { rt: Arc::new(rt), api, tx, audio, wake, prefetched: Default::default(), current: Default::default(), data_dir, lyrics, translate, jsc, premium: Arc::new(tokio::sync::Mutex::new(Err(None))), hq: Default::default(), hires: Default::default(), atmos: Default::default(), reverted: Default::default(), songs: Default::default() };
+        let backend = Self { rt: Arc::new(rt), api, tx, audio, wake, prefetched: Default::default(), current: Default::default(), data_dir, lyrics, translate, jsc, premium: Arc::new(tokio::sync::Mutex::new(Err(None))), hq: Default::default(), hires: Default::default(), jiosaavn_enabled: Default::default(), radiojavan_enabled: Default::default(), atmos: Default::default(), reverted: Default::default(), songs: Default::default() };
         backend.keep_signed_in();
         Ok(backend)
     }
@@ -378,6 +381,11 @@ impl Backend {
         self.hq.store(on, Ordering::Relaxed);
     }
 
+    pub fn set_music_sources(&self, jiosaavn: bool, radiojavan: bool) {
+        self.jiosaavn_enabled.store(jiosaavn, Ordering::Relaxed);
+        self.radiojavan_enabled.store(radiojavan, Ordering::Relaxed);
+    }
+
     pub fn set_prefer_atmos(&self, on: bool) {
         self.atmos.store(on, Ordering::Relaxed);
     }
@@ -458,6 +466,8 @@ enum Source {
     VisionOs,
     WebMusic,
     YtDlp,
+    JioSaavn,
+    RadioJavan,
     HiRes,
 }
 

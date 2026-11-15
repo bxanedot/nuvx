@@ -84,6 +84,34 @@ fn score(candidate: &Candidate, title: &str, artist: &str, duration: Option<u32>
     Some(100 + artist_score + duration_score + atmos_score)
 }
 
+pub(crate) fn metadata_matches(
+    title: &str,
+    artist: &str,
+    duration: Option<u32>,
+    candidate_title: &str,
+    candidate_artist: &str,
+    candidate_duration: Option<u32>,
+) -> bool {
+    let candidate = Candidate {
+        id: String::new(), title: candidate_title.to_owned(), artist: candidate_artist.to_owned(),
+        duration: candidate_duration, quality: String::new(), format: String::new(), atmos: false, stream_url: None,
+    };
+    score(&candidate, title, artist, duration, false).is_some()
+}
+
+#[cfg(test)]
+mod metadata_match_tests {
+    use super::metadata_matches;
+
+    #[test]
+    fn accepts_a_close_duration_and_rejects_wrong_song_or_artist() {
+        assert!(metadata_matches("Song", "Artist", Some(180), "Song", "Artist", Some(200)));
+        assert!(!metadata_matches("Song", "Artist", Some(180), "Other song", "Artist", Some(180)));
+        assert!(!metadata_matches("Song", "Artist", Some(180), "Song", "Unrelated", Some(180)));
+        assert!(!metadata_matches("Song", "Artist", Some(180), "Song", "Artist", Some(220)));
+    }
+}
+
 pub(super) fn searchable_title(title: &str, artist: &str) -> String {
     let (words, versions) = title_parts(title, artist);
     let mut out = words;

@@ -96,6 +96,18 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
             }
         });
         divider(ui);
+        setting_row(ui, "Use JioSaavn fallback", Some("Try a matching JioSaavn track after YouTube Music playback fails."), |ui| {
+            if toggle(ui, &mut app.jiosaavn_enabled, "Use JioSaavn fallback").changed() {
+                app.backend.set_music_sources(app.jiosaavn_enabled, app.radiojavan_enabled);
+            }
+        });
+        divider(ui);
+        setting_row(ui, "Use Radio Javan fallback", Some("Try Radio Javan after YouTube Music and JioSaavn fail."), |ui| {
+            if toggle(ui, &mut app.radiojavan_enabled, "Use Radio Javan fallback").changed() {
+                app.backend.set_music_sources(app.jiosaavn_enabled, app.radiojavan_enabled);
+            }
+        });
+        divider(ui);
         setting_row(ui, "Hi-Res audio", Some("Addon servers that serve hi-res copies of songs. When one has the song, its copy plays instead of YouTube's, and its quality shows in the player."), |_| {});
         divider(ui);
         ui.add_space(12.0);

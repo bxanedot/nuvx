@@ -295,6 +295,8 @@ pub struct App {
     hires_adding: bool,
     hires_draft: String,
     hires_focus: bool,
+    jiosaavn_enabled: bool,
+    radiojavan_enabled: bool,
     prefer_atmos: bool,
     audio_info: Option<(u64, crate::hires::Info)>,
     accent: Color32,

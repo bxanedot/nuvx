@@ -25,6 +25,9 @@ impl App {
         let hires_source = get("hires_source").unwrap_or_default();
         let hires_sources: Vec<String> = hires_source.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_owned).collect();
         backend.set_hires_source(&hires_sources.join("\n"));
+        let jiosaavn_enabled = get("jiosaavn_enabled").is_some_and(|v| v == "1");
+        let radiojavan_enabled = get("radiojavan_enabled").is_some_and(|v| v == "1");
+        backend.set_music_sources(jiosaavn_enabled, radiojavan_enabled);
         let prefer_atmos = get("prefer_atmos").is_none_or(|v| v == "1");
         backend.set_prefer_atmos(prefer_atmos);
         backend.request(Req::Home(None));
@@ -188,6 +191,8 @@ impl App {
             hires_adding: false,
             hires_draft: String::new(),
             hires_focus: false,
+            jiosaavn_enabled,
+            radiojavan_enabled,
             prefer_atmos,
             audio_info: None,
             art_changed: -10.0,
