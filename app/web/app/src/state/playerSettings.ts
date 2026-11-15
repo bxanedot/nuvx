@@ -4,6 +4,14 @@ import { trackLog } from '@/playback/trackLog';
 export type RepeatMode = 'off' | 'all' | 'one';
 
 export const CROSSFADE_CHOICES = [0, 3, 6, 9, 12] as const;
+export const LOUDNESS_TARGETS = [-20, -18, -16, -14, -12, -10] as const;
+
+// YouTube's loudnessDb is relative to its own -14 LUFS reference; gain is capped at +3 dB like Android.
+export function loudnessGain(loudnessDb: number | null, targetLufs: number | null): number {
+  if (loudnessDb === null || targetLufs === null) return 1;
+  const db = Math.min(3, Math.max(-15, targetLufs + 14 - loudnessDb));
+  return 10 ** (db / 20);
+}
 
 export interface PlayerSettings {
   shuffle: boolean;
@@ -15,6 +23,7 @@ export interface PlayerSettings {
   automix: boolean;
   automixBars: number;
   showNerdStats: boolean;
+  loudnessTarget: number | null;
 }
 
 const SETTINGS_KEY = 'nuvx:player';
@@ -28,6 +37,7 @@ const DEFAULT_SETTINGS: PlayerSettings = {
   automix: false,
   automixBars: 16,
   showNerdStats: false,
+  loudnessTarget: null,
 };
 
 export function loadPlayerSettings(): PlayerSettings {
@@ -46,6 +56,8 @@ export function loadPlayerSettings(): PlayerSettings {
       automixBars: AUTOMIX_BARS.includes(saved.automixBars as (typeof AUTOMIX_BARS)[number])
         ? saved.automixBars as number : DEFAULT_SETTINGS.automixBars,
       showNerdStats: typeof saved.showNerdStats === 'boolean' ? saved.showNerdStats : DEFAULT_SETTINGS.showNerdStats,
+      loudnessTarget: LOUDNESS_TARGETS.includes(saved.loudnessTarget as (typeof LOUDNESS_TARGETS)[number])
+        ? saved.loudnessTarget as number : DEFAULT_SETTINGS.loudnessTarget,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -53,11 +65,11 @@ export function loadPlayerSettings(): PlayerSettings {
 }
 
 export function savePlayerSettings(state: PlayerSettings, onSaveError: (error: string | null) => void) {
-  const { shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats } = state;
+  const { shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats, loudnessTarget } = state;
   try {
     localStorage.setItem(
       SETTINGS_KEY,
-      JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats }),
+      JSON.stringify({ shuffle, repeat, autoplay, volume, muted, crossfadeSec, automix, automixBars, showNerdStats, loudnessTarget }),
     );
     onSaveError(null);
   } catch (error) {
