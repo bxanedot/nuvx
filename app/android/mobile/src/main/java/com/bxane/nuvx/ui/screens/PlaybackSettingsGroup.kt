@@ -234,6 +234,20 @@ internal fun PlaybackSettingsGroup(
                 )
             }
         }
+        if (smartFade) {
+            val advancedTitle = stringResource(R.string.advanced_automix)
+            row(advancedTitle, "automix", "dj", "beat", "mix") {
+                BypassedByBitPerfect(bitPerfectReady) {
+                    val advanced by AppSettings.advancedAutomix.collectAsStateWithLifecycle()
+                    SettingsSubRow(
+                        title = advancedTitle,
+                        subtitle = stringResource(R.string.advanced_automix_subtitle),
+                        checked = advanced,
+                        onCheckedChange = AppSettings::setAdvancedAutomix,
+                    )
+                }
+            }
+        }
         val automixPerformanceTitle = stringResource(R.string.automix_performance)
         row(automixPerformanceTitle, "cpu", "battery") {
             BypassedByBitPerfect(bitPerfectReady) {

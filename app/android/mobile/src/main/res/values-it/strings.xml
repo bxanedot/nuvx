@@ -200,6 +200,8 @@
     <string name="crossfade">Dissolvenza incrociata</string>
     <string name="crossfade_subtitle">Sfuma un brano nel successivo</string>
     <string name="automix">Automix [BETA]</string>
+    <string name="advanced_automix">AutoMix avanzato</string>
+    <string name="advanced_automix_subtitle">Transizioni a tempo e attente alle frasi. Disattiva per dissolvenze semplici.</string>
     <string name="automix_performance">Prestazioni Automix</string>
     <string name="automix_performance_subtitle">Imposta quanta CPU può usare l\'analisi in background</string>
     <string name="automix_performance_warning">Prestazioni più elevate analizzano i brani più velocemente, ma possono usare più batteria e scaldare il telefono.</string>

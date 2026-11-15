@@ -127,6 +127,7 @@ object AppSettings {
     val smartFadeEnabled = transitionSettings.smartFadeEnabled
 
     val automixPerformanceMode = transitionSettings.automixPerformanceMode
+    val advancedAutomix = transitionSettings.advancedAutomix
     val skipSilence = transitionSettings.skipSilence
 
     val excorFallback = audioOutputSettings.excorFallback
@@ -514,6 +515,7 @@ object AppSettings {
     fun setSmartFadeEnabled(value: Boolean) = transitionSettings.setSmartFadeEnabled(value)
 
     fun setAutomixPerformanceMode(value: AutomixPerformanceMode) = transitionSettings.setAutomixPerformanceMode(value)
+    fun setAdvancedAutomix(value: Boolean) = transitionSettings.setAdvancedAutomix(value)
 
     fun setExcorFallback(value: Boolean) = audioOutputSettings.setExcorFallback(value)
 

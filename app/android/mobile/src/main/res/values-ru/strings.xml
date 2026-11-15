@@ -768,6 +768,8 @@
     <string name="automix_mode_performance_subtitle">4 потока · самый быстрый анализ · выше нагрев и расход</string>
 
 
+    <string name="advanced_automix">Расширенный AutoMix</string>
+    <string name="advanced_automix_subtitle">Переходы в такт и по фразам. Отключите для простого кроссфейда.</string>
     <string name="automix_performance">Производительность Automix</string>
 
     <string name="automix_performance_subtitle">Определяет нагрузку на процессор при фоновом анализе</string>

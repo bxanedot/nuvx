@@ -852,6 +852,8 @@
     <string name="automix_mode_performance_subtitle">4 スレッド · 最速分析 · 発熱とバッテリー消費が高くなります</string>
 
 
+    <string name="advanced_automix">高度な AutoMix</string>
+    <string name="advanced_automix_subtitle">ビートとフレーズに合わせたトランジション。オフでシンプルなクロスフェード。</string>
     <string name="automix_performance">Automix パフォーマンス</string>
 
     <string name="automix_performance_subtitle">バックグラウンド分析で使用できる CPU 使用量を設定します</string>

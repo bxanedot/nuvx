@@ -745,6 +745,8 @@
     <string name="automix_mode_performance_subtitle">4 Threads · schnellste Analyse · höherer Akkuverbrauch</string>
 
 
+    <string name="advanced_automix">Erweitertes AutoMix</string>
+    <string name="advanced_automix_subtitle">Beatgenaue, phrasenbewusste Übergänge. Aus für einfache Überblendungen.</string>
     <string name="automix_performance">Automix-Leistung</string>
 
     <string name="automix_performance_subtitle">Legt fest, wie viel CPU die Hintergrundanalyse nutzen darf</string>

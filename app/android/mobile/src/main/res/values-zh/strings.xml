@@ -727,6 +727,8 @@
     <string name="automix_mode_performance_subtitle">4 个线程 · 分析最快 · 发热和耗电较高</string>
 
 
+    <string name="advanced_automix">高级 AutoMix</string>
+    <string name="advanced_automix_subtitle">节拍对齐、按乐句过渡。关闭则使用简单交叉淡化。</string>
     <string name="automix_performance">Automix 性能</string>
 
     <string name="automix_performance_subtitle">设置后台分析可使用的 CPU 上限</string>

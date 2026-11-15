@@ -746,6 +746,8 @@
     <string name="automix_mode_performance_subtitle">4 threads · analyse la plus rapide · chauffe et batterie accrues</string>
 
 
+    <string name="advanced_automix">AutoMix avancé</string>
+    <string name="advanced_automix_subtitle">Transitions calées sur le tempo et les phrases. Désactivez pour de simples fondus.</string>
     <string name="automix_performance">Performance d\'Automix</string>
 
     <string name="automix_performance_subtitle">Définit la quantité de CPU allouée à l\'analyse en arrière-plan</string>

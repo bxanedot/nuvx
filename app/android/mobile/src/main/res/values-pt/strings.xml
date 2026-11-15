@@ -750,6 +750,8 @@
     <string name="automix_mode_performance_subtitle">4 threads · análise mais rápida · maior uso de bateria e calor</string>
 
 
+    <string name="advanced_automix">AutoMix avançado</string>
+    <string name="advanced_automix_subtitle">Transições sincronizadas com a batida e as frases. Desative para crossfades simples.</string>
     <string name="automix_performance">Desempenho do Automix</string>
 
     <string name="automix_performance_subtitle">Define quanto uso de CPU a análise em segundo plano pode usar</string>
