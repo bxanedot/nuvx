@@ -73,7 +73,7 @@ Batch downloads on Android, iOS, and desktop resolve YouTube stream URLs one at 
 
 iOS feature parity is partial: the iPhone app uses native SF Symbols and app-owned vectors instead of Android's GlyphStudio runtime, and does not yet include Android's eXcor playback fallback. See the [platform parity notes](app/ios/docs/ANDROID_PARITY.md) for the known differences and verification limits.
 
-Playlist creation defaults to YouTube Music. To keep newly created playlists inside nuvx, turn on **Create Playlists in Nuvx Only** in Settings (Content Preferences on Android and Apple, Account & Integrations on desktop). The web setting is stored in that browser. Local playlists stay on the current device and do not sync with YouTube Music or other nuvx installs.
+Playlist creation defaults to YouTube Music. To keep newly created playlists inside nuvx, turn on **Create Playlists in Nuvx Only** in Settings (Content Preferences on Android and Apple, Account & Integrations on desktop). The web setting is stored in that browser. Local playlists stay on the current device and do not sync with YouTube Music or other nuvx installs. Desktop's separate Spotify Transfer action still copies to its explicitly chosen YouTube Music destination.
 
 ### Install and update on iPhone or iPad
 
