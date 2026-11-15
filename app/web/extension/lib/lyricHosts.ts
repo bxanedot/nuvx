@@ -23,3 +23,6 @@ export const LYRIC_ORIGINS = [
 
 export const patternOf = (origin: string) => `${origin}/*`;
 
+
+// Optional hosts for source.fetch (see shared/src/bridge/sources.ts); granted from the settings toggle.
+export const SOURCE_ORIGINS = ['https://www.jiosaavn.com', 'https://rj-deskcloud.com'] as const;

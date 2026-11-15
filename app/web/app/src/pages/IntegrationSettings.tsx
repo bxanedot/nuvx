@@ -2,6 +2,8 @@ import type { DiscordPresenceOptions } from '@nuvx/shared/bridge';
 import { APPLE_ORIGINS, useAppleAccess } from '@/data/apple/artistArt';
 import { useAppleSettings } from '@/data/apple/motionArt';
 import { useHostAccess } from '@/extension/useHostAccess';
+import { useExtension } from '@/extension/useExtension';
+import { useSourceSettings } from '@/playback/sources/settings';
 import { LYRIC_EXTENSION_ORIGINS } from '@/lyrics/http';
 import { useSpotifySettings } from '@/data/spotify/canvas';
 import {
@@ -252,6 +254,31 @@ export function DiscordSettings() {
         This uses your Discord account’s own token, which Discord’s terms don’t allow. Button text can use {'{song_name}'},{' '}
         {'{artist_name}'} and {'{album_name}'}.
       </p>
+    </>
+  );
+}
+
+const SOURCE_HOSTS = ['https://www.jiosaavn.com', 'https://rj-deskcloud.com'] as const;
+
+export function SourceToggles() {
+  const jiosaavn = useSourceSettings((s) => s.jiosaavn);
+  const radiojavan = useSourceSettings((s) => s.radiojavan);
+  const set = useSourceSettings((s) => s.set);
+  const { access, request } = useHostAccess(SOURCE_HOSTS);
+  const present = useExtension().state === 'present';
+  const hasBridge = present && access !== 'unavailable';
+  const change = (provider: 'jiosaavn' | 'radiojavan') => (on: boolean) => {
+    set(provider, on);
+    if (on && access === 'needed') request();
+  };
+  const detail = (name: string) =>
+    hasBridge
+      ? `If YouTube Music can’t play a song, try ${name}. Needs the nuvx extension and access to that site.`
+      : `If YouTube Music can’t play a song, try ${name}. Needs an up-to-date nuvx extension.`;
+  return (
+    <>
+      <Toggle label="JioSaavn Fallback" detail={detail('JioSaavn')} checked={jiosaavn} onChange={change('jiosaavn')} />
+      <Toggle label="Radio Javan Fallback" detail={detail('Radio Javan')} checked={radiojavan} onChange={change('radiojavan')} />
     </>
   );
 }

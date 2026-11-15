@@ -14,6 +14,7 @@ import { grantedOrigins, lyricsFetch, requestOrigins } from '../lib/lyricsFetch'
 import { installRules } from '../lib/rules';
 import { authState, invalidateAccounts, isSessionCookie, selectChannel, setConnected } from '../lib/ytAuth';
 import * as spotify from '../lib/spotify';
+import { sourceFetch } from '../lib/sourceFetch';
 import { ytFetch } from '../lib/ytFetch';
 
 declare const __SITE_ORIGINS__: string[];
@@ -22,7 +23,7 @@ declare const __DISCORD_PRESENCE__: boolean;
 const ALLOWED_ORIGINS = new Set(__SITE_ORIGINS__);
 const OWN_ORIGIN = new URL(browser.runtime.getURL('/')).origin;
 
-const CAPABILITIES: Capability[] = ['yt', 'yt.auth', 'yt.stats', 'lyrics', 'spotify', ...(__DISCORD_PRESENCE__ ? (['discord'] as const) : [])];
+const CAPABILITIES: Capability[] = ['yt', 'yt.auth', 'yt.stats', 'lyrics', 'sources', 'spotify', ...(__DISCORD_PRESENCE__ ? (['discord'] as const) : [])];
 
 function originOf(sender: Browser.runtime.MessageSender): string | null {
   if (sender.origin) return sender.origin;
@@ -87,6 +88,8 @@ async function handle(request: BridgeRequest): Promise<BridgeResponse> {
       }
       case 'lyrics.fetch':
         return okResponse<'lyrics.fetch'>(request.id, await lyricsFetch((request as BridgeRequest<'lyrics.fetch'>).params));
+      case 'source.fetch':
+        return okResponse<'source.fetch'>(request.id, await sourceFetch((request as BridgeRequest<'source.fetch'>).params));
       case 'lyrics.permissions':
         return okResponse<'lyrics.permissions'>(request.id, {
           granted: await grantedOrigins((request as BridgeRequest<'lyrics.permissions'>).params.origins ?? []),

@@ -1,10 +1,12 @@
+import type { SourceFetchParams } from './sources';
+
 export const BRIDGE_PROTOCOL = 1;
 
 export const BRIDGE_CHANNEL = 'nuvx-bridge';
 
 export const EVENTS_PORT = 'nuvx-events';
 
-export type Capability = 'yt' | 'yt.auth' | 'yt.stats' | 'addon' | 'lyrics' | 'spotify' | 'discord';
+export type Capability = 'yt' | 'yt.auth' | 'yt.stats' | 'addon' | 'lyrics' | 'spotify' | 'discord' | 'sources';
 
 export type BrowserFamily = 'chromium' | 'firefox';
 
@@ -135,6 +137,7 @@ export interface BridgeMethods {
   'yt.setConnected': { params: { connected: boolean }; result: YtAuthState };
   'addon.fetch': { params: HttpRequest; result: HttpResponse };
   'lyrics.fetch': { params: HttpRequest; result: HttpResponse };
+  'source.fetch': { params: SourceFetchParams; result: HttpResponse };
   'lyrics.permissions': { params: { origins: string[] }; result: { granted: string[] } };
   'lyrics.requestPermissions': { params: { origins: string[] }; result: Record<string, never> };
   'spotify.authState': { params: { refresh?: boolean }; result: SpotifyAuthState };

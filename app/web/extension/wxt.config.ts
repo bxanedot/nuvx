@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'wxt';
-import { LYRIC_ORIGINS, patternOf } from './lib/lyricHosts';
+import { LYRIC_ORIGINS, patternOf, SOURCE_ORIGINS } from './lib/lyricHosts';
 import { matchPatternsFor, SITE_ORIGINS } from './site.config';
 
 const STORE_BUILD = process.env.NUVX_STORE_BUILD === '1';
@@ -38,7 +38,7 @@ export default defineConfig({
       'https://open.spotifycdn.com/*',
       ...matchPatternsFor(SITE_ORIGINS),
     ],
-    optional_host_permissions: [...LYRIC_ORIGINS.map(patternOf), ...(DISCORD_PRESENCE ? DISCORD_ORIGINS : [])],
+    optional_host_permissions: [...LYRIC_ORIGINS.map(patternOf), ...SOURCE_ORIGINS.map(patternOf), ...(DISCORD_PRESENCE ? DISCORD_ORIGINS : [])],
     ...(browser === 'firefox'
       ? {
           browser_specific_settings: {

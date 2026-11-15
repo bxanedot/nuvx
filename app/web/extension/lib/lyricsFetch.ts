@@ -1,6 +1,8 @@
 import type { HttpRequest, HttpResponse } from '@nuvx/shared/bridge';
 
-import { LYRIC_ORIGINS, patternOf } from './lyricHosts';
+import { LYRIC_ORIGINS, patternOf, SOURCE_ORIGINS } from './lyricHosts';
+
+const GRANTABLE: readonly string[] = [...LYRIC_ORIGINS, ...SOURCE_ORIGINS];
 import { serialiseResponse } from './httpResponse';
 
 export { LYRIC_ORIGINS, patternOf };
@@ -46,13 +48,13 @@ function installRules(): Promise<void> {
 }
 
 export async function grantedOrigins(origins: string[]): Promise<string[]> {
-  const known = origins.filter((o) => (LYRIC_ORIGINS as readonly string[]).includes(o));
+  const known = origins.filter((o) => GRANTABLE.includes(o));
   const answers = await Promise.all(known.map((o) => browser.permissions.contains({ origins: [patternOf(o)] })));
   return known.filter((_, i) => answers[i]);
 }
 
 export async function requestOrigins(origins: string[]): Promise<void> {
-  const known = origins.filter((o) => (LYRIC_ORIGINS as readonly string[]).includes(o));
+  const known = origins.filter((o) => GRANTABLE.includes(o));
   if (!known.length) return;
   const url = browser.runtime.getURL(`/grant.html?origins=${encodeURIComponent(known.join(','))}`);
   await browser.tabs.create({ url });

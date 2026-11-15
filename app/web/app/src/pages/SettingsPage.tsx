@@ -15,7 +15,7 @@ import { AUTOMIX_BARS } from '@/playback/automix/choices';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
 import { LOUDNESS_TARGETS } from '@/state/playerSettings';
 import { useUi } from '@/state/ui';
-import { AppleMusicIntegration, AppleMusicToggles, CanvasToggle, LyricSourcesAccess, SpotifyIntegration, Toggle } from './IntegrationSettings';
+import { AppleMusicIntegration, AppleMusicToggles, CanvasToggle, LyricSourcesAccess, SourceToggles, SpotifyIntegration, Toggle } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
 
 const LyricsSettings = lazy(() => import('@/shell/LyricsSettings').then((m) => ({ default: m.LyricsSettings })));
@@ -132,6 +132,7 @@ export default function SettingsPage() {
             onChange={setShareHistory}
           />
           <CanvasToggle />
+          <SourceToggles />
         </section>
 
         <h2 className={settingsUi.sectionHeader}>Appearance</h2>
