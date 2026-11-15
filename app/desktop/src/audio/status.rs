@@ -1,5 +1,5 @@
 use super::mix_ms;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, Ordering};
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 static EPOCH: LazyLock<Instant> = LazyLock::new(Instant::now);
@@ -19,6 +19,7 @@ pub struct AudioStatus {
     pub wanted_gen: AtomicU64,
     pub(super) volume: AtomicU32,
     pub normalize: AtomicBool,
+    pub norm_target: AtomicI32,
     pub(super) spatial: AtomicBool,
     pub(super) eq: std::sync::Mutex<crate::eq::Tuning>,
     pub(super) log_volume: AtomicBool,

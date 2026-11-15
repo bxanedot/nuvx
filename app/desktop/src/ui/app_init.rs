@@ -106,7 +106,11 @@ impl App {
             skip_streak: 0,
             recoveries: 0,
             autoplay: get("autoplay").is_none_or(|v| v == "1"),
-            normalize: get("normalize").is_none_or(|v| v == "1"),
+            norm_target: match get("norm_target").as_deref() {
+                Some("off") => None,
+                Some(v) => v.parse().ok().filter(|t| (-20..=-10).contains(t)).or(Some(crate::audio::NORM_DEFAULT_LUFS)),
+                None => get("normalize").is_none_or(|v| v == "1").then_some(crate::audio::NORM_DEFAULT_LUFS),
+            },
             spatial: get("spatial_audio").is_none_or(|v| v == "1"),
             eq: get("equalizer").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
             log_volume: get("log_volume").is_none_or(|v| v == "1"),
@@ -311,7 +315,7 @@ impl App {
             app.queue_open = true;
         }
         jam::dev_hooks(&mut app);
-        app.audio.set_normalize(app.normalize);
+        app.audio.set_normalize(app.norm_target);
         app.audio.set_spatial(app.spatial);
         app.audio.set_eq(app.eq.tuning());
         app.set_crossfade();

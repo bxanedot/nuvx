@@ -28,9 +28,18 @@ pub(super) fn slider_gain(status: &AudioStatus, v: f32) -> f32 {
     if status.log_volume.load(Ordering::Relaxed) { v.powi(3) } else { v }
 }
 
+pub const NORM_DEFAULT_LUFS: i32 = -14;
+
+/// Gain in dB for a track measured `loudness_db` above YouTube's reference (-14 LUFS), same formula as Android.
+pub fn norm_gain_db(target_lufs: i32, loudness_db: f32) -> f32 {
+    ((target_lufs - NORM_DEFAULT_LUFS) as f32 - loudness_db).clamp(-15.0, 3.0)
+}
+
 pub(super) fn norm_gain(status: &AudioStatus, shared: Option<&Shared>) -> f32 {
     match shared.and_then(|s| s.loudness_db) {
-        Some(db) if db > 0.0 && status.normalize.load(Ordering::Relaxed) => 10f32.powf(-db / 20.0),
+        Some(db) if status.normalize.load(Ordering::Relaxed) => {
+            10f32.powf(norm_gain_db(status.norm_target.load(Ordering::Relaxed), db) / 20.0)
+        }
         _ => 1.0,
     }
 }

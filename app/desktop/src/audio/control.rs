@@ -40,8 +40,10 @@ impl AudioHandle {
         f32::from_bits(self.status.volume.load(Ordering::Relaxed))
     }
 
-    pub fn set_normalize(&self, on: bool) {
-        self.status.normalize.store(on, Ordering::Relaxed);
+    /// `target` is the LUFS level to normalize to; `None` turns normalization off.
+    pub fn set_normalize(&self, target: Option<i32>) {
+        self.status.normalize.store(target.is_some(), Ordering::Relaxed);
+        self.status.norm_target.store(target.unwrap_or(super::mix::NORM_DEFAULT_LUFS), Ordering::Relaxed);
         self.send(AudioCmd::Volume(self.volume()));
     }
 

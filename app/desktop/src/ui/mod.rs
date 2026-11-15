@@ -258,7 +258,7 @@ pub struct App {
     skip_streak: u32,
     recoveries: u32,
     autoplay: bool,
-    normalize: bool,
+    norm_target: Option<i32>,
     spatial: bool,
     eq: crate::eq::Prefs,
     log_volume: bool,
