@@ -53,10 +53,10 @@
 
 | Device | Requirements | Where to start |
 | --- | --- | --- |
-| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `nuvx-v*-gms.apk` or FOSS `nuvx-v*-foss.apk` (multi-ABI) |
+| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `nuvx-v*-universal.apk` (one multi-ABI APK) |
 | **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
-| **nuvx Auto** | Compatible Android head unit | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · standalone `NuvxAuto-v*-universal.apk`, with a TV-inspired interface (planned for 1.0.0) |
-| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `NuvxTV-v*-gms.apk` or FOSS `NuvxTV-v*-foss.apk` (multi-ABI) |
+| **nuvx Auto** | Compatible Android head unit | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · standalone `NuvxAuto-v*-universal.apk`; stereo widening starts off and loudness normalization stays enabled (included when v1.0.0 is released) |
+| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `NuvxTV-v*-universal.apk` (one multi-ABI APK) |
 | **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate `NuvxWear-v*.apk` companion |
 | **iPhone** | iOS/iPadOS 18+; signing required | Unsigned IPA if attached to a release · [build and sideload notes](app/ios/README.md) |
 | **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
@@ -64,7 +64,7 @@
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
-The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs, each containing armeabi-v7a, arm64-v8a and x86_64 builds. New Android builds use shared universal APKs for phone, TV and nuvx Auto; Cast and Wear features require Google Play Services. Phone and TV retain byte-identical `-gms` and `-foss` aliases for 0.9 updater compatibility. Until stable `v1.0.0` is published, Android nightlies use version 0.9.0/code 9; the stable 1.0.0 packages use code 10 and include nuvx Auto. Android Auto projection remains part of the phone app. Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched. Version 1.0.0 remains without a stable release or tag.
+The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs. New Android builds use one shared universal APK for the phone, TV, and nuvx Auto, each containing armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for 0.9 updater compatibility; Auto has one canonical asset. Until stable `v1.0.0` is published, Android nightlies use version 0.9.0/code 9; stable 1.0.0 packages use code 10 and include nuvx Auto. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched. Version 1.0.0 remains without a stable release or tag.
 
 ### Install and update on iPhone or iPad
 

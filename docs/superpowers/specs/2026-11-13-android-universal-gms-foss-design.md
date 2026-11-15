@@ -2,7 +2,7 @@
 
 ## Decision
 
-Updated 2026-11-15: build one shared universal APK for Android phones/tablets and one for Android TV. This supersedes the original GMS/FOSS distribution split. Keep the `dev` and `prod` environment flavors, but compile the full Cast and Wear implementations and their Play Services dependencies into the shared production APKs.
+Updated 2026-11-15: build one shared universal APK for Android phones/tablets and one for Android TV, plus a standalone nuvx Auto APK from the TV module. This supersedes the original GMS/FOSS distribution split. Keep the `dev` and `prod` environment flavors, but compile the full Cast and Wear implementations and their Play Services dependencies into the shared production APKs.
 
 Play Services is optional at runtime. Casting stays disabled when the service is unavailable; Wear controls stay hidden, and Wear client failures must not interrupt local playback. FOSS-only dependency exclusion is retired.
 
@@ -10,7 +10,7 @@ Play Services is optional at runtime. Casting stays disabled when the service is
 
 - Preserve current mobile and TV application IDs, signing identity, and the full GMS feature set.
 - Include `armeabi-v7a`, `arm64-v8a`, and `x86_64` in each APK.
-- Emit one canonical `-universal.apk` per mobile/TV app.
+- Emit one canonical `-universal.apk` per mobile, TV, and Auto app.
 - Let existing 0.9 GMS/FOSS installs update in place: publish identical copies of each shared APK under the former `-gms.apk` and `-foss.apk` asset names.
 - Keep the Wear OS APK and desktop assets as separate release assets.
 - Keep version 1.0.0 unreleased until owner authorization.
@@ -21,7 +21,7 @@ The `:app` and `:tv` modules keep only their `dev` and `prod` flavors. The exist
 
 `BuildConfig.NUVX_DISTRIBUTION` is `universal`. The updater selects the universal asset for its own app prefix. Phone and TV use distinct prefixes to avoid selecting one another's APKs.
 
-The nightly workflow builds one mobile release APK and one TV release APK. It verifies package ID, version, signing certificate, and all three native ABIs, then stages the canonical universal name and the two legacy distribution aliases from the same source file. The aliases are compatibility names, not distinct builds; `SHA256SUMS` covers all APK assets.
+The nightly workflow builds phone, TV, Auto, and Wear release APKs under the same release tag. It verifies package ID, version, signing certificate, and all three native ABIs for phone, TV, and Auto, then stages each canonical universal name. The phone and TV APKs also get byte-identical legacy distribution aliases; Auto has no split aliases. `SHA256SUMS` covers all APK assets.
 
 ## Constraints and risks
 
