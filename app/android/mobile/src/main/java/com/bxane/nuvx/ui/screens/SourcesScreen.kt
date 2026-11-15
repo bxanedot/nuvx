@@ -177,16 +177,18 @@ fun SourcesScreen(
                     )
                 }
 
+            fixed.forEachIndexed { index, config ->
+                if (index > 0) RowDivider()
+                row(index + 1, config, null)
+            }
+
+            if (fixed.isNotEmpty() && addons.isNotEmpty()) RowDivider()
             ReorderableAddons(
                 addons = addons,
+                positionOffset = fixed.size,
                 onReorder = { SourceRegistry.reorderAddons(it.map(SourceConfig::id)) },
                 row = row,
             )
-
-            fixed.forEachIndexed { index, config ->
-                if (index > 0) RowDivider()
-                row(addons.size + index + 1, config, null)
-            }
 
             val waiting = configs.any { it.enabled && it.awaitsLosslessOutput }
             if (waiting && losslessOutput.bluetoothCodecUnknown) {
@@ -341,12 +343,13 @@ private fun RemoteLibrarySection(
 @Composable
 private fun ReorderableAddons(
     addons: List<SourceConfig>,
+    positionOffset: Int,
     onReorder: (List<SourceConfig>) -> Unit,
     row: @Composable (Int, SourceConfig, (@Composable () -> Unit)?) -> Unit,
 ) {
     if (addons.isEmpty()) return
     if (addons.size == 1) {
-        row(1, addons.first(), null)
+        row(positionOffset + 1, addons.first(), null)
         RowDivider()
         return
     }
@@ -375,7 +378,7 @@ private fun ReorderableAddons(
                         translationY = if (isDragging) totalDrag - slotShift else 0f
                     },
             ) {
-                row(index + 1, config) {
+                row(positionOffset + index + 1, config) {
                     Icon(
                         imageVector = SfIcons.DragHandle,
                         contentDescription = stringResource(R.string.drag_to_reorder),
@@ -588,6 +591,7 @@ private fun SourceRow(
                 SourceKind.CUSTOM_MODULE -> SfIcons.Extension
                 SourceKind.MODULE -> SfIcons.Extension
                 SourceKind.JIOSAAVN -> SfIcons.GraphicEq
+                SourceKind.RADIOJAVAN -> SfIcons.GraphicEq
                 SourceKind.YOUTUBE -> SfIcons.PlayCircle
             },
             contentDescription = null,

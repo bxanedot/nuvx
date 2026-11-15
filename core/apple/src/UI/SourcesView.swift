@@ -228,7 +228,7 @@ struct SourcesView: View {
     private var orderFooter: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Reachable means the provider answered its checks. Audio quality is verified separately for each track.")
-            Text("If a source does not have a track or cannot be reached, nuvx tries the next one. Sources above YouTube can replace its recording when they return a better version.")
+            Text("If a source does not have a track or cannot be reached, nuvx tries the next enabled source.")
             if !AudioRouteState.shared.carriesLossless {
                 Text("Bluetooth compresses the output. Choosing Lossless still allows lossless sources; addons that require a lossless output need a speaker or wired connection.")
             }
@@ -307,13 +307,11 @@ struct SourcesView: View {
 
 
     private var rows: [ConfigDocument] {
-        let addons = configs.filter { $0.kind == "ADDON" }
-        let fixed = configs.filter { $0.kind != "ADDON" }
-            .sorted { lhs, rhs in
-                SourceResolverBridge.shared.rankOf(kind: lhs.kind)
-                    < SourceResolverBridge.shared.rankOf(kind: rhs.kind)
-            }
-        return addons + fixed
+        configs.enumerated().sorted { lhs, rhs in
+            let leftRank = SourceResolverBridge.shared.rankOf(kind: lhs.element.kind)
+            let rightRank = SourceResolverBridge.shared.rankOf(kind: rhs.element.kind)
+            return leftRank == rightRank ? lhs.offset < rhs.offset : leftRank < rightRank
+        }.map(\.element)
     }
 
     private var addonCount: Int { configs.filter { $0.kind == "ADDON" }.count }

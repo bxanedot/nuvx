@@ -9,6 +9,11 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Let users upload custom artwork for created, imported, downloaded, or YouTube Music playlists on Android, Apple platforms, desktop, and web. Artwork stays local to the current device or browser.
 - Show device-only playlists in the Playlists shelf immediately after creation, including while the remote library is loading or signed out.
 
+### Alternate audio sources
+
+- Add optional Radio Javan search and AAC streams to Android and Apple clients; it starts disabled and appears after YouTube Music and JioSaavn in source order.
+- Keep built-in sources ahead of user-added sources in Android and Apple clients, even when an existing install stored add-ons first. Every non-YouTube source can be switched off in those clients.
+
 ## 1.0.0
 
 This section records every change since the v0.9.0 stable release.

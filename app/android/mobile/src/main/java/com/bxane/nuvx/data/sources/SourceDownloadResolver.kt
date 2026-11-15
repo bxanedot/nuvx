@@ -38,8 +38,7 @@ internal object SourceDownloadResolver {
             is StreamRequest.Capped -> return@coroutineScope null
         }
         val active = SourceRegistry.activeForDownload()
-        val youtubeId = active.firstOrNull { it.kind == SourceKind.YOUTUBE }?.configId
-        val ranked = SourceResolver.rankedAbove(youtubeId.orEmpty(), active)
+        val ranked = active.filterNot { it.kind == SourceKind.YOUTUBE }
         val strictLength = target.durationSec != null
 
         val bitExact = if (wantsLossless) ranked.filter { it.kind.canServeLossless } else emptyList()

@@ -412,7 +412,7 @@
     <string name="sleep_timer_custom">カスタム</string>
     <string name="start_sleep_timer">タイマーを開始</string>
     <string name="sources_no_lossless">有効なソースの中にロスレスオーディオを提供できるものがありません。トランスコードなしでロスレスファイルを再生するにはカスタムモジュールを追加してください。</string>
-    <string name="sources_order_footer">ソースにトラックがない、またはアクセスできない場合、nuvxは次のソースを試します。YouTubeより上のソースは、より良いバージョンが見つかった場合にその録音を置き換えられます。</string>
+    <string name="sources_order_footer">ソースにトラックがない、またはアクセスできない場合、nuvxは次のソースを試します。</string>
     <string name="sources_order_header">ソース（この順番で試行）</string>
     <string name="sources_quality_capped">この接続は「高音質」より低く設定されているため、ストリームはその上限に合わせてトランスコードされます。ダウンロードには影響しません。</string>
     <string name="jiosaavn_mismatch_warning">曲の別バージョンに一致してしまうことがあります。自己責任で有効にしてください。</string>

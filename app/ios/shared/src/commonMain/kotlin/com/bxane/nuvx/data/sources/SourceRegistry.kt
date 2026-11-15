@@ -149,6 +149,7 @@ object SourceRegistry {
                     else -> config
                 }
             }
+            .sortedBy { it.kind.rank }
     }
 
 
@@ -335,7 +336,7 @@ object SourceRegistry {
         val missed = addons.filterNot { config -> moved.any { it.id == config.id } }
         val reordered = moved + missed
         if (reordered.map { it.id } == addons.map { it.id }) return
-        publish(reordered + _configs.value.filterNot { it.kind.isUserAdded })
+        publish(_configs.value.filterNot { it.kind.isUserAdded } + reordered)
     }
 
     private fun publish(next: List<SourceConfig>, persist: Boolean = true) {
@@ -368,6 +369,7 @@ object SourceRegistry {
         SourceKind.CUSTOM_MODULE -> ModuleSource(config)
         SourceKind.MODULE -> ModuleSource(config)
         SourceKind.JIOSAAVN -> JioSaavnSource(config)
+        SourceKind.RADIOJAVAN -> RadioJavanSource(config)
         SourceKind.YOUTUBE -> YouTubeSource(config)
     }
 
@@ -484,7 +486,7 @@ object SourceRegistry {
 
     internal fun normalizeAddonBase(raw: String): String = AddonClient.normalizeBase(raw)
 
-    private val BUILT_IN_KINDS = listOf(SourceKind.JIOSAAVN, SourceKind.YOUTUBE)
+    private val BUILT_IN_KINDS = listOf(SourceKind.YOUTUBE, SourceKind.JIOSAAVN, SourceKind.RADIOJAVAN)
 
     private const val KEY_SOURCES = "sources"
 
@@ -510,7 +512,7 @@ data class SourceConfig(
     val label: String = "",
     val baseUrl: String = "",
 
-    val enabled: Boolean = kind != SourceKind.JIOSAAVN,
+    val enabled: Boolean = kind != SourceKind.JIOSAAVN && kind != SourceKind.RADIOJAVAN,
     val refreshEnabled: Boolean = false,
     val refreshUrl: String = "",
     @Transient val refreshUrlUnavailable: Boolean = false,

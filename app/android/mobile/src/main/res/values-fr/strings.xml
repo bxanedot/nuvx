@@ -424,7 +424,7 @@
     <string name="sleep_timer_custom">Personnalisé</string>
     <string name="start_sleep_timer">Démarrer le minuteur</string>
     <string name="sources_no_lossless">Aucune source activée ne peut fournir de l\'audio sans perte. Ajoutez un module personnalisé pour lire les fichiers sans perte disponibles sans transcodage.</string>
-    <string name="sources_order_footer">Si une source n\'a pas un titre ou est inaccessible, nuvx essaie la suivante. Les sources situées au-dessus de YouTube peuvent remplacer son enregistrement lorsqu\'elles renvoient une meilleure version.</string>
+    <string name="sources_order_footer">Si une source n\'a pas un titre ou est inaccessible, nuvx essaie la suivante.</string>
     <string name="sources_order_header">Sources, testées dans cet ordre</string>
     <string name="sources_quality_capped">Cette connexion est réglée en dessous de la qualité Élevée, les flux sont donc transcodés pour respecter cette limite. Les téléchargements ne sont pas concernés.</string>
     <string name="jiosaavn_mismatch_warning">Peut trouver la mauvaise version d\'un titre. Activez-le à vos risques et périls.</string>

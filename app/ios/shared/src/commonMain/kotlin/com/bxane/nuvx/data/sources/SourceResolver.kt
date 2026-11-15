@@ -118,7 +118,7 @@ object SourceResolver {
 
 
         if (request is StreamRequest.Lossless && pinned?.kind?.canServeLossless != true) {
-            for (source in rankedAbove(configId, active)) {
+            for (source in active.filterNot { it.configId == configId }) {
                 if (!source.kind.canServeLossless) continue
                 val upgraded = matchAndStream(source, target, request) ?: continue
 
@@ -186,7 +186,7 @@ object SourceResolver {
 
         val routeRequest = if (requested is StreamRequest.Lossless && !mayUseLossless) StreamRequest.Best else requested
         val (source, stream) = bestAcross(
-            rankedAbove(youtube.configId, active), target, routeRequest,
+            active.filterNot { it.kind == SourceKind.YOUTUBE }, target, routeRequest,
             allowLossless = mayUseLossless,
             accept = { _, candidate -> mayUseLossless || candidate.format.isLossless != true },
         )
@@ -235,7 +235,7 @@ object SourceResolver {
         if (target.title.isBlank() || target.isVideo) return null
         val active = SourceRegistry.activeForPlayback()
         val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return null
-        val preferred = rankedAbove(youtube.configId, active)
+        val preferred = active.filterNot { it.kind == SourceKind.YOUTUBE }
         val request = requestForNow()
         val mayUseLossless = PlaybackCodecCapabilities.allowLosslessSources
         val routeRequest = if (request is StreamRequest.Lossless && !mayUseLossless) StreamRequest.Best else request
@@ -304,7 +304,7 @@ object SourceResolver {
 
 
         val (source, chosen) = bestAcross(
-            rankedAbove(youtube.configId, active).filterNot { it.configId == servedBy },
+            active.filterNot { it.kind == SourceKind.YOUTUBE || it.configId == servedBy },
             target,
             if (requestForNow() is StreamRequest.Lossless && !PlaybackCodecCapabilities.allowLosslessSources) {
                 StreamRequest.Best
@@ -403,8 +403,7 @@ object SourceResolver {
 
 
 
-        val youtubeId = active.firstOrNull { it.kind == SourceKind.YOUTUBE }?.configId
-        val ranked = rankedAbove(youtubeId.orEmpty(), active)
+        val ranked = active.filterNot { it.kind == SourceKind.YOUTUBE }
         val strictLength = target.durationSec != null
 
 
@@ -550,20 +549,8 @@ object SourceResolver {
 
 
     fun canSubstituteForYouTube(): Boolean =
-        SourceRegistry.activeForPlayback().indexOfFirst { it.kind == SourceKind.YOUTUBE } > 0
+        SourceRegistry.activeForPlayback().any { it.kind != SourceKind.YOUTUBE }
 
-
-
-
-
-
-
-
-
-    private fun rankedAbove(configId: String, active: List<MusicSource>): List<MusicSource> {
-        val index = active.indexOfFirst { it.configId == configId }
-        return active.take(if (index < 0) active.size else index)
-    }
 
 
 

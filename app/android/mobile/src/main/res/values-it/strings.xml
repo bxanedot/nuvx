@@ -465,7 +465,7 @@
     <string name="sleep_timer_custom">Personalizzato</string>
     <string name="start_sleep_timer">Avvia timer</string>
     <string name="sources_no_lossless">Nessuna sorgente attiva può fornire audio lossless. Aggiungi un modulo personalizzato per riprodurre i file lossless disponibili senza transcodifica.</string>
-    <string name="sources_order_footer">Se una sorgente non ha un brano o non è raggiungibile, nuvx prova la successiva. Le sorgenti sopra YouTube possono sostituire la sua registrazione quando restituiscono una versione migliore.</string>
+    <string name="sources_order_footer">Se una sorgente non ha un brano o non è raggiungibile, nuvx prova la successiva.</string>
     <string name="sources_order_header">Sorgenti, provate in quest\'ordine</string>
     <string name="sources_quality_capped">Questa connessione è impostata sotto Alta qualità, quindi gli stream vengono transcodificati per rispettare questo limite. I download non ne risentono.</string>
     <string name="jiosaavn_mismatch_warning">Potrebbe trovare la versione sbagliata di un brano. Attivalo a tuo rischio.</string>

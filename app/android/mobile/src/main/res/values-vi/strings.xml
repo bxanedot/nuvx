@@ -455,7 +455,7 @@
     <string name="sleep_timer_custom">Tùy chỉnh</string>
     <string name="start_sleep_timer">Bắt đầu hẹn giờ</string>
     <string name="sources_no_lossless">Không có nguồn nào được bật có thể cung cấp âm thanh Lossless. Hãy thêm tiện ích mở rộng để phát các tệp Lossless mà không cần chuyển mã.</string>
-    <string name="sources_order_footer">Nếu một nguồn không có bản nhạc hoặc không thể kết nối, nuvx sẽ thử nguồn tiếp theo. Các nguồn nằm trên YouTube có thể thay thế bản ghi âm của YouTube khi tìm được phiên bản tốt hơn.</string>
+    <string name="sources_order_footer">Nếu một nguồn không có bản nhạc hoặc không thể kết nối, nuvx sẽ thử nguồn tiếp theo.</string>
     <string name="sources_order_header">Các nguồn nhạc, được thử theo thứ tự này</string>
     <string name="sources_quality_capped">Kết nối này được đặt dưới chất lượng Cao, vì vậy luồng phát sẽ được chuyển mã để phù hợp giới hạn đó. Việc tải xuống không bị ảnh hưởng.</string>
     <string name="sources_subtitle">Nguồn cung cấp âm thanh và thứ tự ưu tiên</string>

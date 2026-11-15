@@ -502,10 +502,22 @@ class SourcesTest {
     @Test
     fun `JioSaavn is off by default on a fresh install`() {
         assertFalse(SourceConfig(kind = SourceKind.JIOSAAVN).enabled)
+        assertFalse(SourceConfig(kind = SourceKind.RADIOJAVAN).enabled)
         val sources = SourceRegistry.sourcesForInit(emptyList(), forceJioSaavnOff = true)
 
         assertFalse(sources.single { it.kind == SourceKind.JIOSAAVN }.enabled)
+        assertFalse(sources.single { it.kind == SourceKind.RADIOJAVAN }.enabled)
         assertTrue(sources.single { it.kind == SourceKind.YOUTUBE }.enabled)
+    }
+
+    @Test
+    fun `built-in providers rank YouTube first then JioSaavn and Radio Javan`() {
+        assertEquals(
+            listOf(SourceKind.YOUTUBE, SourceKind.JIOSAAVN, SourceKind.RADIOJAVAN),
+            SourceKind.entries.filter { it == SourceKind.YOUTUBE || it == SourceKind.JIOSAAVN || it == SourceKind.RADIOJAVAN }
+                .sortedBy { it.rank },
+        )
+        assertFalse(SourceKind.RADIOJAVAN.isUserAdded)
     }
 
     @Test

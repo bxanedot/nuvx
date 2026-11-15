@@ -391,7 +391,7 @@
     <string name="sleep_timer_custom">Własny</string>
     <string name="start_sleep_timer">Uruchom minutnik</string>
     <string name="sources_no_lossless">Żadne włączone źródło nie może dostarczyć bezstratnego dźwięku. Dodaj moduł niestandardowy, aby odtwarzać dostępne pliki bezstratne bez transkodowania.</string>
-    <string name="sources_order_footer">Jeśli źródło nie ma utworu lub jest niedostępne, nuvx próbuje następne. Źródła przed YouTube mogą je zastąpić, gdy znajdą lepszą wersję.</string>
+    <string name="sources_order_footer">Jeśli źródło nie ma utworu lub jest niedostępne, nuvx próbuje następne.</string>
     <string name="sources_order_header">Źródła, sprawdzane w tej kolejności</string>
     <string name="sources_quality_capped">To połączenie jest ustawione poniżej Wysokiej jakości, więc strumienie są transkodowane. Pobierania pozostają nienaruszone.</string>
     <string name="jiosaavn_mismatch_warning">Może dopasować złą wersję utworu. Włączasz na własne ryzyko.</string>

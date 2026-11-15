@@ -16,16 +16,16 @@ enum class SourceKind(
         labels = listOf("FLAC", "Lossless", "Hi-Res"),
         needsServer = true,
         canServeLossless = true,
-        rank = 0,
+        rank = 3,
     ),
 
     CUSTOM_MODULE(
         label = "Custom module",
-        detail = "Your own compatible module index. Tried before the built-in one.",
+        detail = "Your own compatible module index, used as an alternate source.",
         labels = listOf("FLAC", "Lossless", "Hi-Res", "Plugins"),
         needsServer = true,
         canServeLossless = true,
-        rank = 0,
+        rank = 3,
     ),
 
     MODULE(
@@ -35,7 +35,7 @@ enum class SourceKind(
         labels = listOf("FLAC", "Lossless", "Hi-Res", "Plugins"),
         needsServer = true,
         canServeLossless = true,
-        rank = 1,
+        rank = 4,
     ),
 
     JIOSAAVN(
@@ -45,6 +45,15 @@ enum class SourceKind(
         needsServer = false,
         canServeLossless = false,
         worthPrefetching = true,
+        rank = 1,
+    ),
+
+    RADIOJAVAN(
+        label = "Radio Javan",
+        detail = "Optional Radio Javan streams. Catalogue matching may select another version of a song.",
+        labels = listOf("High Quality", "AAC"),
+        needsServer = false,
+        canServeLossless = false,
         rank = 2,
     ),
 
@@ -55,13 +64,13 @@ enum class SourceKind(
         labels = listOf("Lossy", "Full catalogue", "Radio"),
         needsServer = false,
         canServeLossless = false,
-        rank = 3,
+        rank = 0,
     ),
     ;
 
-    val isUserAdded: Boolean get() = rank == USER_ADDED
+    val isUserAdded: Boolean get() = this == ADDON || this == CUSTOM_MODULE
 
     companion object {
-        const val USER_ADDED = 0
+        const val USER_ADDED = 3
     }
 }
