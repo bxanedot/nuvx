@@ -10,7 +10,7 @@ description = "nuvx for desktop: a native YouTube Music client"
 
 [dependencies]
 anyhow = "1.0.104"
-base64 = "0.22.1"
+base64 = "0.23.1"
 bytes = "1.12.1"
 crossbeam-channel = "0.5.17"
 directories = "6.0.0"
