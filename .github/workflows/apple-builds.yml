@@ -149,7 +149,7 @@ jobs:
           bash scripts/package-ios-ipa.sh "$version"
           cd build/release
           shasum -a 256 ./*.ipa > SHA256-ios.txt
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: ios-unsigned
           path: |
@@ -159,7 +159,7 @@ jobs:
           retention-days: 14
       - name: Keep iOS archive diagnostics
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ios-archive-log
           path: app/ios/build/release/xcodebuild.log
@@ -209,7 +209,7 @@ jobs:
           if [[ -n "$RELEASE_TAG" ]]; then test "$RELEASE_TAG" = "v$version"; fi
           mkdir -p universal
           cp "target/$ARCH-apple-darwin/release/nuvx" "universal/nuvx"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-binary-${{ matrix.arch }}
           path: app/desktop/universal/nuvx
@@ -252,7 +252,7 @@ jobs:
           ln -s /Applications target/dmg/Applications
           hdiutil create -volname nuvx -srcfolder target/dmg -format UDZO "dist/nuvx-setup-$version-macos-universal.dmg"
           (cd dist && shasum -a 256 ./*.dmg > SHA256-macos.txt)
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-universal
           path: app/desktop/dist/*

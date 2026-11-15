@@ -112,7 +112,7 @@ jobs:
                   percent = saved * 100 / before[name]
                   print(f"| {app} | {name} | {before[name]:,} | {after[name]:,} | {saved:+,} ({percent:+.2f}%) |")
           PY
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: android-ort-size-experiment
           path: |
