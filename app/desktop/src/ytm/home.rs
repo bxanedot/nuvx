@@ -22,7 +22,11 @@ fn parse_home(v: &Value) -> HomePage {
             let c = &c["chipCloudChipRenderer"];
             let selected = c["isSelected"].as_bool().unwrap_or(false);
             let ep = if selected { &c["onDeselectedCommand"] } else { &c["navigationEndpoint"] };
-            Some(Chip { title: text(&c["text"])?, params: ep["browseEndpoint"]["params"].as_str().map(str::to_owned), selected })
+            let params = ep["browseEndpoint"]["params"].as_str()
+                .or_else(|| c["navigationEndpoint"]["browseEndpoint"]["params"].as_str())
+                .or_else(|| c["onDeselectedCommand"]["browseEndpoint"]["params"].as_str())
+                .map(str::to_owned);
+            Some(Chip { title: text(&c["text"])?, params, selected })
         })
         .collect();
     HomePage { chips, shelves: shelves(&sec["contents"]), continuation: continuation(sec) }
