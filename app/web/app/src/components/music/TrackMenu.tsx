@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ListEnd, ListPlus, ListStart, MoreHorizontal, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ListEnd, ListPlus, ListStart, MoreHorizontal, Search, Star } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Menu, MenuHeader, MenuItem, MenuSeparator, type MenuPlacement } from '@/components/Menu';
 import {
@@ -19,6 +19,8 @@ function PlaylistChoices({ track, onDone, onBack }: { track: Track; onDone: () =
   const localPlaylists = useNuvxPlaylists();
   const localOnly = createPlaylistsLocally();
   const signedIn = useSignedIn();
+  const [query, setQuery] = useState('');
+  const matches = (title: string) => title.toLowerCase().includes(query.trim().toLowerCase());
   return (
     <>
       <MenuItem icon={<ChevronLeft size={14} />} onSelect={onBack}>
@@ -26,6 +28,19 @@ function PlaylistChoices({ track, onDone, onBack }: { track: Track; onDone: () =
       </MenuItem>
       <MenuSeparator />
       <MenuHeader>Add to Playlist</MenuHeader>
+      <div className="relative mx-1 mb-1 flex items-center">
+        <Search size={13} strokeWidth={2.4} className="pointer-events-none absolute left-2 text-secondary" aria-hidden="true" />
+        <input
+          className="h-7 w-full rounded-[5px] border border-search-border bg-page pl-6 pr-2 type-body text-primary placeholder:text-tertiary [&::-webkit-search-cancel-button]:hidden"
+          type="search"
+          value={query}
+          placeholder="Find a playlist"
+          aria-label="Find a playlist"
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
       {localOnly && (
         <MenuItem
           onSelect={() => {
@@ -37,7 +52,7 @@ function PlaylistChoices({ track, onDone, onBack }: { track: Track; onDone: () =
           New Nuvx playlist…
         </MenuItem>
       )}
-      {localPlaylists.map((playlist) => (
+      {localPlaylists.filter((playlist) => matches(playlist.title)).map((playlist) => (
         <MenuItem
           key={playlist.id}
           onSelect={() => {
@@ -63,7 +78,7 @@ function PlaylistChoices({ track, onDone, onBack }: { track: Track; onDone: () =
           No playlists yet
         </MenuItem>
       )}
-      {signedIn && options.data?.map((option) => (
+      {signedIn && options.data?.filter((option) => matches(option.title)).map((option) => (
         <MenuItem
           key={option.playlistId}
           onSelect={() => {
@@ -74,6 +89,11 @@ function PlaylistChoices({ track, onDone, onBack }: { track: Track; onDone: () =
           {option.title}
         </MenuItem>
       ))}
+      {query.trim() && !localPlaylists.some((p) => matches(p.title)) && !options.data?.some((o) => matches(o.title)) && (
+        <MenuItem disabled onSelect={() => {}}>
+          No matching playlists
+        </MenuItem>
+      )}
     </>
   );
 }

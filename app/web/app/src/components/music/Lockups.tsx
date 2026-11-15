@@ -124,6 +124,18 @@ export function CircleLockup({ item, width = 160 }: { item: MusicItem; width?: n
   );
 }
 
+export function RowLockup({ item }: { item: MusicItem }) {
+  return (
+    <PrefetchLink to={hrefFor(item) ?? '#'} className="group/row grid h-16 grid-cols-[48px_minmax(0,1fr)] items-center gap-x-3 rounded-[6px] px-2 hover:bg-quinary">
+      <Artwork src={item.thumbnail} displayWidth={48} radius={item.kind === 'artist' ? '50%' : 'var(--radius-artwork-small)'} />
+      <span className="flex min-w-0 flex-col gap-px">
+        <span className="truncate type-body">{item.title}</span>
+        {item.subtitle && <span className="truncate type-callout text-secondary">{item.subtitle}</span>}
+      </span>
+    </PrefetchLink>
+  );
+}
+
 export function TrackLockup({ item, onPlay }: { item: MusicItem; onPlay?: () => void }) {
   const play = onPlay ?? (() => playTrack(item));
   return (
