@@ -46,6 +46,7 @@
 - **Listen Together.** Share an invite and keep the queue and playback in sync with friends.
 - **Synced lyrics.** Follow the words in the full-screen player.
 - **Music discovery.** Browse new releases, explore by mood, and manage your library and queue.
+- **Nuvx-only playlists.** Turn on **Create Playlists in Nuvx Only** to keep new playlists on the current device or browser without writing them to YouTube Music. Existing YouTube Music playlists stay as they are; local playlists do not sync between devices.
 - **Community Canvases.** Add motion artwork to Now Playing on supported players. [Browse the project](core/canvas/README.md)
 - **Controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
 
@@ -71,6 +72,8 @@ The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs. 
 Batch downloads on Android, iOS, and desktop resolve YouTube stream URLs one at a time to reduce request bursts; audio file transfers can still run concurrently. If YouTube temporarily refuses a track, wait a moment and retry.
 
 iOS feature parity is partial: the iPhone app uses native SF Symbols and app-owned vectors instead of Android's GlyphStudio runtime, and does not yet include Android's eXcor playback fallback. See the [platform parity notes](app/ios/docs/ANDROID_PARITY.md) for the known differences and verification limits.
+
+Playlist creation defaults to YouTube Music. To keep newly created playlists inside nuvx, turn on **Create Playlists in Nuvx Only** in Settings (Content Preferences on Android and Apple, Account & Integrations on desktop). The web setting is stored in that browser. Local playlists stay on the current device and do not sync with YouTube Music or other nuvx installs.
 
 ### Install and update on iPhone or iPad
 
@@ -119,4 +122,4 @@ Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/is
 
 ## License
 
-nuvx uses [GPL-3.0](LICENSE) by default. Files with a different SPDX identifier keep that file-level license; the AGPL-marked components and their scopes are listed in [LICENSES.md](LICENSES.md), with the full [AGPL-3.0 text](LICENSE-AGPL-3.0.txt). Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later. The Android bit-perfect output also contains Mornye-adapted code under LGPL-3.0-only; see [LICENSES.md](LICENSES.md) and [the attribution](core/native/third_party/README.md). Android APKs include the project license texts and native notices under `assets/licenses/`; Android dependency notices remain under `META-INF/`.
+nuvx uses [GPL-3.0](LICENSE) by default. Files with a different SPDX identifier keep that file-level license; their scopes and attributions are listed in [LICENSES.md](LICENSES.md), with full AGPL and LGPL texts linked there. Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later. The Android bit-perfect output also contains Mornye-adapted code under LGPL-3.0-only; see [LICENSES.md](LICENSES.md) and [the attribution](core/native/third_party/README.md). Android APKs include the project license texts and native notices under `assets/licenses/`; Android dependency notices remain under `META-INF/`. The web app serves the Kira MIT notice under `/licenses/`.

@@ -274,6 +274,8 @@ impl eframe::App for App {
             playlists: self.library.as_ref().map(|l| l.playlists.clone()).or_else(|| self.sidebar_cache.clone()).unwrap_or_default(),
         });
         storage.set_string("account_cache", cache.and_then(|c| serde_json::to_string(&c).ok()).unwrap_or_default());
+        storage.set_string("nuvx_local_playlists", serde_json::to_string(&self.local_playlists).unwrap_or_default());
+        storage.set_string("create_playlists_locally", b(self.create_playlists_locally));
         storage.set_string("normalize", b(self.normalize));
         storage.set_string("spatial_audio", b(self.spatial));
         storage.set_string("equalizer", serde_json::to_string(&self.eq).unwrap_or_default());

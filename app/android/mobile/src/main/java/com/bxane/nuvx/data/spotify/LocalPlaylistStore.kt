@@ -72,6 +72,39 @@ object LocalPlaylistStore {
         return playlist
     }
 
+    fun createNuvxPlaylist(title: String, songs: List<Song>): LocalPlaylist {
+        val playlist = LocalPlaylist(id = "nuvx_local_" + java.util.UUID.randomUUID(), title = title, songs = songs)
+        val updated = listOf(playlist) + _playlists.value
+        _playlists.value = updated
+        persist(updated)
+        return playlist
+    }
+
+    fun addSong(id: String, song: Song): Boolean {
+        val current = getPlaylist(id) ?: return false
+        if (current.songs.any { it.videoId == song.videoId }) return false
+        val updated = _playlists.value.map { if (it.id == current.id) it.copy(songs = it.songs + song) else it }
+        _playlists.value = updated
+        persist(updated)
+        return true
+    }
+
+    fun removeSong(id: String, videoId: String): Boolean {
+        val current = getPlaylist(id) ?: return false
+        val updated = _playlists.value.map { if (it.id == current.id) it.copy(songs = it.songs.filterNot { song -> song.videoId == videoId }) else it }
+        _playlists.value = updated
+        persist(updated)
+        return true
+    }
+
+    fun replaceSongs(id: String, songs: List<Song>): Boolean {
+        val current = getPlaylist(id) ?: return false
+        val updated = _playlists.value.map { if (it.id == current.id) it.copy(songs = songs) else it }
+        _playlists.value = updated
+        persist(updated)
+        return true
+    }
+
     fun deletePlaylist(id: String) {
         val updated = _playlists.value.filterNot { it.id == id || it.browseId == id || it.id == id.removePrefix("local:playlist:") }
         _playlists.value = updated

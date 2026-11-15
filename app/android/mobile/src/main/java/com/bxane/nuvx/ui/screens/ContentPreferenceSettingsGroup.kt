@@ -12,6 +12,7 @@ internal fun ContentPreferenceSettingsGroup(
     search: SettingsSearch,
     preferMusicOnly: Boolean,
     youtubeSearch: Boolean,
+    createPlaylistsLocally: Boolean,
     hideRecents: Boolean,
     hideHomeVideos: Boolean,
     hideTopPicks: Boolean,
@@ -47,6 +48,20 @@ internal fun ContentPreferenceSettingsGroup(
                     )
                 },
                 onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
+            )
+        }
+        row("Create Playlists in Nuvx Only", "playlist", "local", "device", "youtube music") {
+            SettingsRow(
+                icon = SfIcons.PlaylistPlay,
+                title = "Create Playlists in Nuvx Only",
+                subtitle = "New playlists are saved on this device and aren't added to YouTube Music.",
+                trailing = {
+                    IosSwitch(
+                        checked = createPlaylistsLocally,
+                        onCheckedChange = AppSettings::setCreatePlaylistsLocally,
+                    )
+                },
+                onClick = { AppSettings.setCreatePlaylistsLocally(!createPlaylistsLocally) },
             )
         }
         val hideRecentsTitle = stringResource(R.string.hide_recents)

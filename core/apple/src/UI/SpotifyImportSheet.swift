@@ -76,6 +76,9 @@ struct SpotifyImportSheet: View {
     }
 
     private var createTitle: String {
+        if PlatformSettings.shared.getBoolean(key: "create_playlists_locally", default: false) {
+            return matchedRows.count == 1 ? "Save Nuvx-only (1)" : "Save Nuvx-only (\(matchedRows.count))"
+        }
         if creating { return "Creating…" }
         return matchedRows.count == 1 ? "Create Playlist (1)" : "Create Playlist (\(matchedRows.count))"
     }
@@ -280,6 +283,10 @@ struct SpotifyImportSheet: View {
 
     private func create() async {
         guard !matchedRows.isEmpty else { return }
+        if PlatformSettings.shared.getBoolean(key: "create_playlists_locally", default: false) {
+            saveLocally()
+            return
+        }
         creating = true
         defer { creating = false }
         let name = playlist?.name ?? "Spotify import"

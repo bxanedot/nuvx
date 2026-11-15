@@ -297,6 +297,7 @@ object AppSettings {
     val detailSongSorts = librarySettings.detailSongSorts
 
     val localMusicFolderUri = librarySettings.localMusicFolderUri
+    val createPlaylistsLocally = librarySettings.createPlaylistsLocally
 
     val webdavUrl = remoteStorageSettings.webdavUrl
     val webdavUsername = remoteStorageSettings.webdavUsername
@@ -830,6 +831,8 @@ object AppSettings {
 
     fun setLocalMusicFolderUri(value: String) = librarySettings.setLocalMusicFolderUri(value)
 
+    fun setCreatePlaylistsLocally(value: Boolean) = librarySettings.setCreatePlaylistsLocally(value)
+
     fun setWebDavUrl(value: String) = remoteStorageSettings.setWebDavUrl(value)
 
     fun setWebDavUsername(value: String) = remoteStorageSettings.setWebDavUsername(value)
@@ -897,6 +900,7 @@ object AppSettings {
         "downloaded_tracks_metadata",
         "downloaded_collections",
         KEY_LOCAL_MUSIC_FOLDER_URI,
+        "create_playlists_locally",
         KEY_LAST_VERSION_CODE,
         KEY_ONBOARDING_COMPLETE,
     )

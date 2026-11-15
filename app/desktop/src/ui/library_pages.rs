@@ -14,7 +14,7 @@ fn select_pill(ui: &mut Ui, sel: &mut Selection, page: &Page) {
 
 pub(super) fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
     page_title(ui, "Library");
-    if !app.logged_in {
+    if !app.logged_in && (tab != LibTab::Playlists || (!app.create_playlists_locally && app.local_playlists.is_empty())) {
         ui.add_space(10.0);
         ui.label(RichText::new("Sign in to see your playlists, liked songs and history.").color(theme::text_dim()));
         ui.add_space(12.0);
@@ -110,20 +110,23 @@ pub(super) fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
             }
         }
         _ => {
-            if app.library.is_none() {
+            if app.library.is_none() && tab != LibTab::Playlists {
                 placeholder(app, ui, now, 2, CARD);
                 return;
             }
-            let Some(lib) = &app.library else { return };
             match tab {
                 LibTab::Playlists => {
-                    if pill(ui, "New playlist", None, false).clicked() {
+                    if (app.logged_in || app.create_playlists_locally) && pill(ui, "New playlist", None, false).clicked() {
                         app.actions.push(Action::NewPlaylist(Vec::new()));
                     }
                     ui.add_space(14.0);
-                    grid(ui, &lib.playlists, &mut app.actions)
+                    let mut cards = app.local_playlist_cards();
+                    cards.extend(app.library.as_ref().map(|lib| lib.playlists.iter()
+                        .filter(|card| !matches!(&card.target, crate::model::Target::Playlist(id) if id.starts_with("nuvx-local:")))
+                        .cloned().collect::<Vec<_>>()).unwrap_or_default());
+                    grid(ui, &cards, &mut app.actions)
                 }
-                LibTab::Albums => grid(ui, &lib.albums, &mut app.actions),
+                LibTab::Albums => if let Some(lib) = &app.library { grid(ui, &lib.albums, &mut app.actions) },
                 LibTab::Songs | LibTab::History | LibTab::Uploads => unreachable!(),
             }
         }

@@ -12,7 +12,12 @@ impl App {
             let (id, title) = (id.clone(), title.clone());
             match confirm_delete(ctx, &title, self.accent_color()) {
                 Some(true) => {
-                    self.backend.request(Req::DeletePlaylist(id));
+                    if id.starts_with("nuvx-local:") {
+                        self.remove_local_playlist(&id);
+                        self.go(super::Page::Library(super::LibTab::Playlists));
+                    } else {
+                        self.backend.request(Req::DeletePlaylist(id));
+                    }
                     self.dialog = None;
                 }
                 Some(false) => self.dialog = None,
@@ -45,14 +50,21 @@ impl App {
                         ui.add_space(6.0);
                         pages::divider(ui);
                         ui.add_space(6.0);
-                        let cards = self.library.as_ref().map(|l| l.playlists.clone()).unwrap_or_default();
+                        let mut cards = self.local_playlist_cards();
+                        cards.extend(self.library.as_ref().map(|l| l.playlists.iter()
+                            .filter(|c| !matches!(&c.target, Target::Playlist(id) if id.starts_with("nuvx-local:")))
+                            .cloned().collect::<Vec<_>>()).unwrap_or_default());
                         egui::ScrollArea::vertical().max_height(340.0).auto_shrink([false, true]).show(ui, |ui| {
                             for card in cards {
                                 if let Target::Playlist(id) = card.target {
-                                    if !id.starts_with("PL") { continue; }
+                                    if !id.starts_with("PL") && !id.starts_with("nuvx-local:") { continue; }
                                     if dialog_row(ui, Some(&card.thumbs), None, &card.title) {
-                                        let video_ids = tracks.iter().map(|t| t.id.clone()).collect();
-                                        self.backend.request(Req::AddToPlaylist { playlist_id: id, video_ids });
+                                        if id.starts_with("nuvx-local:") {
+                                            if self.add_to_local_playlist(&id, tracks) { self.toast("Added to Nuvx playlist"); }
+                                        } else {
+                                            let video_ids = tracks.iter().map(|t| t.id.clone()).collect();
+                                            self.backend.request(Req::AddToPlaylist { playlist_id: id, video_ids });
+                                        }
                                         done = true;
                                     }
                                 }
@@ -68,7 +80,13 @@ impl App {
                         let enter = name.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                         let (ok, cancel) = dialog_buttons(ui, "Create", !title.trim().is_empty(), accent);
                         if (ok || enter) && !title.trim().is_empty() {
-                            self.backend.request(Req::CreatePlaylist { title: title.trim().to_owned(), video_ids: tracks.iter().map(|t| t.id.clone()).collect() });
+                            if self.create_playlists_locally {
+                                let title = title.trim().to_owned();
+                                let id = self.save_local_playlist(title, tracks.clone());
+                                self.go(super::Page::Playlist(id));
+                            } else {
+                                self.backend.request(Req::CreatePlaylist { title: title.trim().to_owned(), video_ids: tracks.iter().map(|t| t.id.clone()).collect() });
+                            }
                             done = true;
                         }
                         done |= cancel;
@@ -83,7 +101,11 @@ impl App {
                         ui.add_space(26.0);
                         let (ok, cancel) = dialog_buttons(ui, "Save", !title.trim().is_empty(), accent);
                         if ok {
-                            self.backend.request(Req::EditPlaylist { id: id.clone(), title: title.trim().to_owned(), description: description.clone(), privacy: privacy.clone() });
+                            if id.starts_with("nuvx-local:") {
+                                self.rename_local_playlist(id, title.trim().to_owned());
+                            } else {
+                                self.backend.request(Req::EditPlaylist { id: id.clone(), title: title.trim().to_owned(), description: description.clone(), privacy: privacy.clone() });
+                            }
                             done = true;
                         }
                         done |= cancel;

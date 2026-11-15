@@ -54,8 +54,14 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 
 - Include third-party license notices with desktop packages, add the LGPL-3.0-only license text for the existing bit-perfect component, and clarify AGPL and bundled PoToken client attributions.
 - Include project license texts plus native and AutoMix model notices in Android phone, TV, Auto, and Wear APKs; merge duplicate Android dependency license resources instead of retaining only the first copy.
+- Correct the Android glass pill's GPL-3.0-only declaration, preserve its MIT motion-model attribution, and ship the Kira MIT notice with the web app.
 - Keep the bundled iOS InnerTubeX notice aligned with its vendored v0.11.7 source revision.
 - Correct Linux backdrop, download architecture and release documentation; extract Android detail playback handling into a focused controller without changing its intended behavior.
+
+### Playlists
+
+- Add **Create Playlists in Nuvx Only** across Android phone/TV/Auto, iOS/macOS, desktop and web. It is off by default; when enabled, new playlists are stored on the current device or browser without creating or changing YouTube Music playlists. Android, Apple and web Spotify-import flows also honor the setting.
+- Keep local playlists available after restart, playable and available in add-to-playlist pickers. Local playlists are device-specific and do not sync across nuvx installs.
 
 ## 0.9.0
 

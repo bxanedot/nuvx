@@ -17,6 +17,7 @@ internal class LibrarySettingsController(
     val librarySort = MutableStateFlow(LibrarySort.DEFAULT)
     val detailSongSorts = MutableStateFlow<Map<String, SongSort>>(emptyMap())
     val localMusicFolderUri = MutableStateFlow("")
+    val createPlaylistsLocally = MutableStateFlow(false)
     val pinnedPlaylists = MutableStateFlow<List<String>>(emptyList())
 
     fun initialize(prefs: SharedPreferences) {
@@ -33,6 +34,7 @@ internal class LibrarySettingsController(
             ?: LibrarySort.DEFAULT
         detailSongSorts.value = readDetailSongSorts()
         localMusicFolderUri.value = prefs.getString(KEY_LOCAL_MUSIC_FOLDER_URI, "").orEmpty()
+        createPlaylistsLocally.value = prefs.getBoolean(KEY_CREATE_PLAYLISTS_LOCALLY, false)
     }
 
     fun readPinnedPlaylists() {
@@ -78,6 +80,11 @@ internal class LibrarySettingsController(
         prefs.edit().putString(KEY_LOCAL_MUSIC_FOLDER_URI, value).apply()
     }
 
+    fun setCreatePlaylistsLocally(value: Boolean) {
+        createPlaylistsLocally.value = value
+        prefs.edit().putBoolean(KEY_CREATE_PLAYLISTS_LOCALLY, value).apply()
+    }
+
     fun togglePinnedPlaylist(browseId: String): Boolean {
         val current = pinnedPlaylists.value
         val updated = when {
@@ -119,5 +126,6 @@ internal class LibrarySettingsController(
         const val KEY_LOCAL_MUSIC_VIEW_TYPE = "local_music_view_type"
         const val KEY_DOWNLOADED_MUSIC_VIEW_TYPE = "downloaded_music_view_type"
         const val KEY_PINNED_PLAYLISTS = "pinned_playlists"
+        const val KEY_CREATE_PLAYLISTS_LOCALLY = "create_playlists_locally"
     }
 }

@@ -3008,7 +3008,14 @@ internal fun NuvxApp(
                 creatingPlaylist = false
             }
             PlaylistPickerSheet(
-                playlists = playlists,
+                playlists = playlists + localPlaylists.map { playlist ->
+                    UserPlaylist(
+                        playlistId = playlist.browseId,
+                        title = playlist.title,
+                        subtitle = context.resources.getQuantityString(R.plurals.song_count_plural, playlist.songs.size, playlist.songs.size),
+                        thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl },
+                    )
+                },
                 loading = playlistsLoading,
                 song = target,
                 startCreating = target == null,
@@ -3101,6 +3108,7 @@ internal fun NuvxApp(
                         showQueueNotice(
                             when {
                                 failedSongs > 0 -> context.getString(R.string.spotify_import_partial, pTitle, failedSongs)
+                                    savedLocally && AppSettings.createPlaylistsLocally.value -> context.getString(R.string.saved_on_this_device)
                                 savedLocally && signedIn -> context.getString(R.string.spotify_import_local_fallback, pTitle)
                                 else -> context.getString(R.string.spotify_import_done, pTitle)
                             },
