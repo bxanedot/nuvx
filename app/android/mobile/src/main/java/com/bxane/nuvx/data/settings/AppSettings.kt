@@ -294,6 +294,7 @@ object AppSettings {
     val downloadedMusicViewType = librarySettings.downloadedMusicViewType
     val librarySort = librarySettings.librarySort
 
+    val libraryViewType = librarySettings.libraryViewType
     val detailSongSorts = librarySettings.detailSongSorts
 
     val localMusicFolderUri = librarySettings.localMusicFolderUri
@@ -828,6 +829,7 @@ object AppSettings {
     fun setLocalMusicViewType(value: LibraryViewType) = librarySettings.setLocalMusicViewType(value)
 
     fun setDownloadedMusicViewType(value: LibraryViewType) = librarySettings.setDownloadedMusicViewType(value)
+    fun setLibraryViewType(value: LibraryViewType) = librarySettings.setLibraryViewType(value)
 
     fun setLocalMusicFolderUri(value: String) = librarySettings.setLocalMusicFolderUri(value)
 

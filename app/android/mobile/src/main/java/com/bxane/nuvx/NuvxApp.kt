@@ -634,6 +634,7 @@ internal fun NuvxApp(
     val webdavUrl by AppSettings.webdavUrl.collectAsStateWithLifecycle()
     val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
     val librarySort by AppSettings.librarySort.collectAsStateWithLifecycle()
+    val libraryViewType by AppSettings.libraryViewType.collectAsStateWithLifecycle()
     val savedCollections by Downloads.collections.collectAsStateWithLifecycle()
     val downloadedReleases = remember(savedCollections, savedDownloads) {
         Downloads.savedReleases()
@@ -888,8 +889,8 @@ internal fun NuvxApp(
     val navTabs = remember(tabs, navTabIds) { navTabIds.map { tabs[it] } }
 
     val scope = rememberCoroutineScope()
-    val playbackStarter = MainPlaybackStarter(
     val snackbars = remember { SnackbarHostState() }
+    val playbackStarter = MainPlaybackStarter(
         context = context,
         scope = scope,
         controller = { controller },
@@ -1488,6 +1489,7 @@ internal fun NuvxApp(
                                 LibraryGridPage(
                                     shelf = shelf,
                                     gridState = libraryShowAllGridState,
+                                    asList = libraryViewType == LibraryViewType.LIST,
                                     onItemClick = onLibraryItemClick,
                                     onItemLongPress = onBrowseLongPress,
                                     onNewPlaylist = if (shelf.title == YtMusicRepository.PLAYLISTS_SHELF) {
@@ -2402,6 +2404,15 @@ internal fun NuvxApp(
                                         expanded = librarySortMenuOpen,
                                         onDismissRequest = { librarySortMenuOpen = false },
                                     ) {
+                                        val grid = libraryViewType == LibraryViewType.GRID
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(if (grid) R.string.switch_to_list_view else R.string.switch_to_grid_view)) },
+                                            leadingIcon = { Icon(if (grid) SfIcons.ListView else SfIcons.GridView, contentDescription = null) },
+                                            onClick = {
+                                                AppSettings.setLibraryViewType(if (grid) LibraryViewType.LIST else LibraryViewType.GRID)
+                                                librarySortMenuOpen = false
+                                            },
+                                        )
                                         LibrarySort.entries.forEach { option ->
                                             DropdownMenuItem(
                                                 text = { Text(option.localizedLabel()) },
@@ -3684,6 +3695,11 @@ internal fun NuvxApp(
 
         DacVolumeHud(hazeState)
 
+        SnackbarHost(
+            snackbars,
+            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 88.dp),
+        )
+
         AddonPlaybackAlerts(
             hazeState = hazeState,
             blockedAddonSong = blockedAddonSong,
@@ -3695,11 +3711,6 @@ internal fun NuvxApp(
 
     }
 }
-        SnackbarHost(
-            snackbars,
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 88.dp),
-        )
-
 
 private val OnboardingDismissEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
