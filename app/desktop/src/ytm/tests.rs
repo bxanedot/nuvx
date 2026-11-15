@@ -1,6 +1,24 @@
 use super::*;
 
 #[test]
+fn podcasts_chip_params_support_localized_selected_and_missing_chips() {
+    let localized = vec![Chip {
+        title: "Подкасты".into(),
+        params: Some("ggNCSgQIDBADSgQIBxAB".into()),
+        selected: false,
+    }];
+    assert_eq!(podcasts_params(&localized), "ggNCSgQIDBADSgQIBxAB");
+
+    let selected = vec![Chip {
+        title: "Podcasts".into(),
+        params: Some("ggNCSgQIDBAD".into()),
+        selected: true,
+    }];
+    assert_eq!(podcasts_params(&selected), "ggNCSgQIDBAD");
+    assert_eq!(podcasts_params(&[]), "ggNCSgQIDBAD");
+}
+
+#[test]
 fn moods_parse_and_drop_shortcuts() {
     let tile = |t: &str, p: &str, c: Value| {
         json!({"musicNavigationButtonRenderer": {
