@@ -298,7 +298,7 @@ jobs:
         run: |
           python3 ../../scripts/test_cargo_notices.py
           python3 ../../scripts/cargo_notices.py --output assets/licenses/cargo-notices.txt
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: nuvx-cargo-notices
           path: app/desktop/assets/licenses/cargo-notices.txt
@@ -343,7 +343,7 @@ jobs:
             cargo build --release --locked --target "${{ matrix.target }}"
           mkdir -p "universal/${{ matrix.arch }}"
           cp "target/${{ matrix.target }}/release/nuvx.exe" "universal/${{ matrix.arch }}/nuvx.exe"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: nuvx-windows-${{ matrix.arch }}
           path: app/desktop/universal/${{ matrix.arch }}
@@ -449,7 +449,7 @@ jobs:
             cargo build --release --locked --target "${{ matrix.target }}"
           mkdir -p "universal/${{ matrix.arch }}"
           cp "target/${{ matrix.target }}/release/nuvx" "universal/${{ matrix.arch }}/nuvx"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: nuvx-linux-${{ matrix.arch }}
           path: app/desktop/universal/${{ matrix.arch }}
@@ -548,7 +548,7 @@ jobs:
             cargo build --release --locked --target "${{ matrix.target }}"
           mkdir -p "universal/${{ matrix.arch }}"
           cp "target/${{ matrix.target }}/release/nuvx" "universal/${{ matrix.arch }}/nuvx"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: nuvx-macos-${{ matrix.arch }}
           path: app/desktop/universal/${{ matrix.arch }}
