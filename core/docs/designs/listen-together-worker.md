@@ -1,6 +1,6 @@
 # Listen Together on the Cloudflare Worker
 
-Status: draft for Goldfish review (2026-11-08). Author: Claude for bxane.
+Status: design draft (2026-11-08).
 
 ## Problem
 

@@ -1,6 +1,6 @@
 # Android ONNX Runtime Size Experiment
 
-> **For agentic workers:** Execute natively in the current worktree. The master handoff controls any push or release authorization.
+> Execute natively in a local worktree. The project owner controls release authorization.
 
 **Goal:** Measure a model-specific ONNX Runtime Android AAR against the current full AAR without changing shipped playback or analysis behavior.
 

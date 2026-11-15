@@ -95,8 +95,16 @@ jobs:
             fi
           fi
           if [[ $is_stable == false ]]; then
-            [[ $android_version == 0.9.0 && $android_code == 9 && $desktop_version == 0.9.0 && $extension_version == 0.9.0.* ]] ||
-              { echo "Nightly version policy mismatch" >&2; exit 1; }
+            if [[ $stable_v1 == v1.0.0 ]]; then
+              major=${version%%.*}
+              [[ $major =~ ^[0-9]+$ && $major -ge 1 && $code -ge 10 &&
+                $android_version == "$version" && $android_code == "$code" &&
+                $desktop_version == "$version" && $extension_version == "$version" ]] ||
+                { echo "Nightly version policy mismatch after stable v1.0.0" >&2; exit 1; }
+            else
+              [[ $android_version == 0.9.0 && $android_code == 9 && $desktop_version == 0.9.0 && $extension_version == 0.9.0.* ]] ||
+                { echo "Nightly version policy mismatch before stable v1.0.0" >&2; exit 1; }
+            fi
           fi
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "version_suffix=$suffix" >> "$GITHUB_OUTPUT"
@@ -653,6 +661,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
       IS_STABLE: ${{ needs.prepare.outputs.is_stable }}
+      ANDROID_VERSION: ${{ needs.prepare.outputs.android_version }}
       SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
     steps:
       - name: Publish nightly and prune older builds
@@ -672,8 +681,8 @@ jobs:
           fi
           stable_v1=$(gh api "repos/$GH_REPO/releases/tags/v1.0.0" \
             --jq 'select(.draft == false and .prerelease == false) | .tag_name' 2>/dev/null || true)
-          if [[ $stable_v1 == v1.0.0 ]]; then
-            echo "Discarding nightly $RELEASE_TAG because stable v1.0.0 is published"
+          if [[ $stable_v1 == v1.0.0 && $ANDROID_VERSION == 0.9.0 ]]; then
+            echo "Discarding obsolete 0.9.0 nightly $RELEASE_TAG because stable v1.0.0 is published"
             gh release delete "$RELEASE_TAG" --yes --cleanup-tag || true
             exit 0
           fi
