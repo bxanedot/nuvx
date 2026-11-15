@@ -155,7 +155,7 @@ pub enum Action {
 }
 
 enum Dialog {
-    PickPlaylist(Vec<Track>),
+    PickPlaylist(Vec<Track>, String),
     NewPlaylist { title: String, tracks: Vec<Track> },
     EditPlaylist { id: String, title: String, description: String, privacy: Option<String> },
     ConfirmDelete { id: String, title: String },
