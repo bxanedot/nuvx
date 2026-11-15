@@ -2,6 +2,47 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
 
+## 1.0.0 (Unreleased)
+
+This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightly.*` builds are prereleases; the stable `v1.0.0` release has not been published.
+
+### Android
+
+- Add the **Enable YouTube Search** setting to Android TV. Turning it off removes YouTube results and returns the selected search filter to Music.
+- Replace separate GMS and FOSS phone and TV releases with one shared universal APK for each app. Each APK includes armeabi-v7a, arm64-v8a and x86_64. Cast and Wear features work when Google Play Services is installed.
+- Keep the old `-gms.apk` and `-foss.apk` download names as byte-identical aliases of the shared APK so existing 0.9.x installs can update.
+- Prevent update rollbacks: stable installs stay on stable; nightlies accept only a newer nightly, reject older stable releases, and can move to the next newer stable release.
+
+### iPhone and iPad
+
+- Package version 1.0.0/build 10 for iPhone and iPad as `Nuvx-1.0.0-build10-ios-unsigned.ipa`; the package must be signed with a sideloading tool such as Sideloadly, AltStore Classic or SideStore.
+- Link the IPA download and install/update guide from **Settings → Version & Updates**, alongside the stable-release check and release notes. Install over the existing app to preserve local data; a free Apple Account signature needs refreshing before its seven-day expiry.
+- iOS cannot install this unsigned IPA from inside nuvx. Finish installation and updates with the same sideloading tool and Apple Account.
+
+### Music video playback
+
+- Keep music videos aligned with the playing song on Android and the web player, with tighter offset checks on desktop and iOS.
+- Reject ambiguous synchronization offsets and hide a video when reliable audio alignment cannot be established.
+- Preserve playback timing through seeks, pauses and shared views, with regression coverage for alignment and animated cover playback.
+
+### Desktop
+
+- Clarify and correct window material behavior: macOS now distinguishes the opaque Window backdrop from translucent Under Window; Linux Tinted remains opaque while Translucent follows compositor behavior.
+- Keep animated cover playback active while any visible desktop view still uses it.
+- Select the correct Intel or Apple silicon macOS download when the browser reports its architecture, and fall back to the release chooser when it is unknown.
+
+### Web, downloads and release packages
+
+- Add direct Android TV and Wear OS downloads to the web Downloads page.
+- Route phone and TV downloads to the shared universal APKs and keep the browser extensions, desktop installers and Android packages in the combined release.
+- Preserve silent Windows installer switches and put a time limit on the Windows nightly installer packaging job.
+- Align package metadata to version 1.0.0 and Android version code 10 across Android, iOS, desktop and browser extensions.
+
+### Licensing and maintenance
+
+- Include third-party license notices with desktop packages, add the LGPL-3.0-only license text for the existing bit-perfect component, and clarify AGPL and bundled PoToken client attributions.
+- Correct Linux backdrop, download architecture and release documentation; extract Android detail playback handling into a focused controller without changing its intended behavior.
+
 ## 0.9.0
 
 ### Desktop
