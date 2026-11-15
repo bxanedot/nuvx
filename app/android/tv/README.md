@@ -8,6 +8,10 @@ The TV build is a remote-first Compose-for-TV interface
 (home, library, search, settings, a full-screen now-playing view with synced
 lyrics, display refresh-rate switching, spatial audio, and QR-code sign-in).
 
+The standalone Auto build shares the equalizer and loudness normalization. It
+starts with stereo widening off to keep a conventional car speaker image
+natural; drivers can adjust the equalizer for their vehicle in Sound settings.
+
 This module holds only what differs from the phone app. Everything else — the
 data and playback layers, resources, native code — comes from the
 [phone module](../mobile), together with the shared `:shared` and `:sharedUi`

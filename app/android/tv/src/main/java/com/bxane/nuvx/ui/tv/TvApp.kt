@@ -166,11 +166,6 @@ fun TvApp(
     val update by viewModel.updateAvailable.collectAsState()
     var updateDismissed by remember { mutableStateOf(false) }
 
-    val spatialAudio by TvSettings.spatialAudioEnabled.collectAsState()
-    LaunchedEffect(spatialAudio) {
-        com.bxane.nuvx.ui.tv.audio.TvSpatialAudioEngine.setEnabled(spatialAudio)
-    }
-
     val signedIn by viewModel.signedIn.collectAsState()
     LaunchedEffect(signedIn) {
         if (!signedIn) {
