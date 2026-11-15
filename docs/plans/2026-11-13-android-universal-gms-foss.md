@@ -34,4 +34,4 @@
 
 - [x] Publish v1.0.0 only after owner authorization and verify its release assets and alias hashes.
 - [x] Add standalone nuvx Auto as a TV-module flavor with a separate package ID, release artifact, and car-friendly stereo audio defaults. Android Auto projection remains integrated with the phone app.
-- [x] Package desktop installers and browser extensions in the v1.0.0 release. The unsigned iOS IPA is being added by the Apple release workflow; iOS still needs external signing and has documented parity limits.
+- [x] Package desktop installers and browser extensions, and attach the unsigned iOS IPA plus checksum to the existing v1.0.0 release. iOS still needs external signing and has documented parity limits.
