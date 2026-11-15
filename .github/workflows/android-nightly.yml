@@ -161,6 +161,7 @@ NOTES
             [[ "$draft" == true ]]
           else
             notes=$(awk -v heading="## $STABLE_VERSION" '$0 == heading || $0 == heading " (Unreleased)" { found=1; next } found && /^## / { exit } found { print }' CHANGELOG.md)
+            [[ -n "$notes" ]]
             notes+=$'\n\n### Downloads by device\n\nChoose only the package for your device in the release assets:\n- **Android phone/tablet:** GMS APK if Google Play Services is installed; otherwise FOSS APK.\n- **Android TV / Google TV:** TV APK, choosing GMS or FOSS to match your device.\n- **Wear OS:** separate Wear companion APK; requires a paired Android phone running nuvx.\n- **Windows:** setup EXE (x64 and ARM64).\n- **macOS:** choose the DMG for Apple silicon or Intel.\n- **Linux:** universal TAR.GZ package (x86-64 and ARM64).\n- **Chrome / Firefox:** choose the ZIP for your browser.\n- **Web:** https://web.nuvx.lol (no desktop installer needed).\n\nAndroid Auto projection is included in the phone app. Nightly builds are pre-release testing builds; use the latest stable release for everyday use.'
             gh release create "$RELEASE_TAG" \
               --target "$SOURCE_REF" --draft --title "nuvx $STABLE_VERSION" --notes "$notes"
