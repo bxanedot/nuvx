@@ -47,7 +47,7 @@ jobs:
             <(sed '/^#/d;/^$/d' "$CONFIG")
       - name: Build baseline APKs with the full runtime
         run: |
-          bash gradlew :app:assembleProdDebug :tv:assembleProdDebug
+          bash gradlew :app:assembleProdDebug :tv:assembleProdTvDebug
           mkdir -p "$RUNNER_TEMP/baseline/mobile" "$RUNNER_TEMP/baseline/tv"
           mobile=$(find app/android/mobile/build/outputs/apk -type f -name "app-prod-debug.apk" -print -quit)
           tv=$(find app/android/tv/build/outputs/apk -type f -name "tv-prod-debug.apk" -print -quit)
@@ -88,7 +88,7 @@ jobs:
           adb shell settings put global animator_duration_scale 0
       - name: Run model inference and build custom-runtime APKs
         run: |
-          bash gradlew :app:connectedProdDebugAndroidTest :tv:assembleProdDebug
+          bash gradlew :app:connectedProdDebugAndroidTest :tv:assembleProdTvDebug
           mkdir -p "$RUNNER_TEMP/custom/mobile" "$RUNNER_TEMP/custom/tv"
           mobile=$(find app/android/mobile/build/outputs/apk -type f -name "app-prod-debug.apk" -print -quit)
           tv=$(find app/android/tv/build/outputs/apk -type f -name "tv-prod-debug.apk" -print -quit)

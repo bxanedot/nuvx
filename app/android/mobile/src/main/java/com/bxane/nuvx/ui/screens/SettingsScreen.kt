@@ -173,7 +173,6 @@ fun SettingsScreen(
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val hideRadioTab by AppSettings.hideRadioTab.collectAsStateWithLifecycle()
     val hidePodcastsTab by AppSettings.hidePodcastsTab.collectAsStateWithLifecycle()
-    val carMode by AppSettings.carMode.collectAsStateWithLifecycle()
     val classicSearch by AppSettings.classicSearch.collectAsStateWithLifecycle()
     val youtubeSearch by AppSettings.youtubeSearch.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -224,6 +223,7 @@ fun SettingsScreen(
     val swipeToPlayNext by AppSettings.swipeToPlayNext.collectAsStateWithLifecycle()
     val dontRepeatSuggestions by AppSettings.dontRepeatSuggestions.collectAsStateWithLifecycle()
     val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
+    val createPlaylistsLocally by AppSettings.createPlaylistsLocally.collectAsStateWithLifecycle()
     val squareVideoThumbnails by AppSettings.squareVideoThumbnails.collectAsStateWithLifecycle()
     val hideRecents by AppSettings.hideRecents.collectAsStateWithLifecycle()
     val hideHomeVideos by AppSettings.hideHomeVideos.collectAsStateWithLifecycle()
@@ -529,6 +529,7 @@ fun SettingsScreen(
                 search = search,
                 preferMusicOnly = preferMusicOnly,
                 youtubeSearch = youtubeSearch,
+                createPlaylistsLocally = createPlaylistsLocally,
                 hideRecents = hideRecents,
                 hideHomeVideos = hideHomeVideos,
                 hideTopPicks = hideTopPicks,
@@ -618,7 +619,6 @@ fun SettingsScreen(
             context = context,
             search = search,
             classicSearch = classicSearch,
-            carMode = carMode,
             hideRadioTab = hideRadioTab,
             hidePodcastsTab = hidePodcastsTab,
             swipeToPlayNext = swipeToPlayNext,
@@ -662,6 +662,10 @@ fun SettingsScreen(
                 append("  ")
                 withLink(LinkAnnotation.Url(AppSettings.DISCORD_INVITE_URL, linkStyles)) {
                     append("Discord")
+                }
+                append("  ")
+                withLink(LinkAnnotation.Url(AppSettings.TELEGRAM_URL, linkStyles)) {
+                    append("Telegram")
                 }
                 append("  ")
                 withLink(LinkAnnotation.Url("https://nuvx.lol/", linkStyles)) {

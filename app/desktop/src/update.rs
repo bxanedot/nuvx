@@ -106,22 +106,64 @@ pub fn newer(a: &str, b: &str) -> bool {
 
 fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time: &str, current_version: &str, current_tag: &str, current_time: &str) -> bool {
     let (candidate, current) = (version_core(candidate_version), version_core(current_version));
+    if !current_tag.starts_with("nightly.") && candidate_tag.starts_with("nightly.") {
+        return false;
+    }
     if newer(candidate, current) {
         return true;
     }
     if newer(current, candidate) || candidate_tag == current_tag {
         return false;
     }
-    if current_tag.starts_with("nightly.") && candidate_tag.starts_with('v') {
-        return true;
+    if current_tag.starts_with("nightly.") {
+        if candidate_tag.starts_with("nightly.") {
+            return nightly_build(candidate_tag)
+                .zip(nightly_build(current_tag))
+                .is_some_and(|(candidate, current)| candidate > current);
+        }
+        return false;
     }
     let published = candidate_time.get(..19).unwrap_or(candidate_time);
     let built = current_time.get(..19).unwrap_or(current_time);
-    built.is_empty() || published > built
+    !built.is_empty() && published > built
+}
+
+fn nightly_build(tag: &str) -> Option<(u64, u64)> {
+    let mut parts = tag.strip_prefix("nightly.")?.split('.');
+    let run = parts.next()?.parse().ok()?;
+    let attempt = parts.next()?.parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((run, attempt))
 }
 
 fn version_core(version: &str) -> &str {
     version.trim_start_matches('v').split(['-', '+']).next().unwrap_or_default()
+}
+
+fn compare_release_order(a_version: &str, a_tag: &str, a_time: &str, b_version: &str, b_tag: &str, b_time: &str) -> std::cmp::Ordering {
+    let a_stable = a_tag.starts_with('v');
+    let b_stable = b_tag.starts_with('v');
+    match a_stable.cmp(&b_stable) {
+        std::cmp::Ordering::Equal => {}
+        order => return order,
+    }
+
+    let (a_core, b_core) = (version_core(a_version), version_core(b_version));
+    if newer(a_core, b_core) {
+        return std::cmp::Ordering::Greater;
+    }
+    if newer(b_core, a_core) {
+        return std::cmp::Ordering::Less;
+    }
+    if !a_stable {
+        let order = nightly_build(a_tag).cmp(&nightly_build(b_tag));
+        if order != std::cmp::Ordering::Equal {
+            return order;
+        }
+    }
+    a_time.cmp(b_time)
 }
 
 impl Updater {
@@ -215,7 +257,7 @@ impl Updater {
                 let asset = release["assets"].as_array()?.iter().find(|asset| asset["name"] == want)?;
                 Some((published_at, tag, version, want, release, asset))
             })
-            .max_by(|a, b| a.0.cmp(b.0));
+            .max_by(|a, b| compare_release_order(a.2, a.1, a.0, b.2, b.1, b.0));
         let Some((_, tag, version, want, release, asset)) = candidate else {
             log::info!("update: {current} is current");
             return Ok(State::UpToDate);
@@ -438,7 +480,7 @@ fn client() -> anyhow::Result<reqwest::Client> {
 
 #[cfg(test)]
 mod tests {
-    use super::{asset_name_for, newer, release_is_newer};
+    use super::{asset_name_for, compare_release_order, newer, release_is_newer};
 
     #[test]
     fn installer_names_match_each_platform_variant() {
@@ -483,16 +525,22 @@ mod tests {
     }
 
     #[test]
-    fn published_release_order_crosses_stable_and_nightly_channels() {
+    fn release_selection_respects_stable_and_nightly_channels() {
         let stable_time = "2026-11-13T11:00:00Z";
         let nightly_time = "2026-11-13T12:00:00Z";
         let later_nightly_time = "2026-11-13T13:00:00Z";
-        assert!(release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
-        assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
-        assert!(release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
-        assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
+        assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
+        assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", stable_time, "0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time));
+        assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", later_nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0", "v0.9.0", nightly_time));
-        assert!(release_is_newer("0.10.0-nightly.1.1", "nightly.1.1", stable_time, "0.9.0", "v0.9.0", later_nightly_time));
+        assert!(!release_is_newer("0.10.0-nightly.1.1", "nightly.1.1", later_nightly_time, "0.9.0", "v0.9.0", stable_time));
+        assert!(release_is_newer("1.0.0", "v1.0.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
+        assert!(release_is_newer("0.10.0", "v0.10.0", stable_time, "0.9.0", "v0.9.0", later_nightly_time));
+        assert_eq!(compare_release_order("1.0.0", "v1.0.0", stable_time, "1.0.0-nightly.44.1", "nightly.44.1", later_nightly_time), std::cmp::Ordering::Greater);
+        assert_eq!(compare_release_order("0.9.0-nightly.44.1", "nightly.44.1", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time), std::cmp::Ordering::Greater);
     }
 }

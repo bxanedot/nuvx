@@ -165,6 +165,10 @@ fun OnboardingScreen(
                             AppSettings.setDiscordInviteJoined()
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.DISCORD_INVITE_URL)))
                         },
+                        onJoinTelegram = {
+                            AppSettings.setDiscordInviteJoined()
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.TELEGRAM_URL)))
+                        },
                         onNext = next@{
                             val chosen = name.trim()
                             if (chosen.isEmpty()) return@next
@@ -205,6 +209,7 @@ private fun ColumnScope.NamePage(
     name: String,
     onNameChange: (String) -> Unit,
     onJoinDiscord: () -> Unit,
+    onJoinTelegram: () -> Unit,
     onNext: () -> Unit,
 ) {
     val keyboardUp = WindowInsets.isImeVisible
@@ -247,7 +252,7 @@ private fun ColumnScope.NamePage(
         Column {
             Spacer(Modifier.height(16.dp))
             PillButton(
-                label = stringResource(R.string.discord_invite_title),
+                label = stringResource(R.string.community_invite_discord),
                 onClick = onJoinDiscord,
                 primary = false,
                 leading = {
@@ -258,6 +263,12 @@ private fun ColumnScope.NamePage(
                         modifier = Modifier.size(20.dp),
                     )
                 },
+            )
+            Spacer(Modifier.height(8.dp))
+            PillButton(
+                label = stringResource(R.string.telegram_invite_join),
+                onClick = onJoinTelegram,
+                primary = false,
             )
         }
     }

@@ -44,6 +44,10 @@ val addonAuthServer: String = (
 val betaSuffix = rootProject.extra["nuvxBetaSuffix"] as String
 val releaseTag = providers.gradleProperty("nuvx.releaseTag").getOrElse("v${rootProject.extra["nuvxVersionName"]}")
 val buildTime = providers.gradleProperty("nuvx.buildTime").getOrElse("")
+val androidVersionCode = providers.gradleProperty("nuvx.androidVersionCode")
+    .getOrElse((rootProject.extra["nuvxVersionCode"] as Int).toString()).toInt()
+val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
+    .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
     namespace = "com.bxane.nuvx"
@@ -53,8 +57,8 @@ android {
         applicationId = "com.bxane.nuvx"
         minSdk = 26
         targetSdk = 36
-        versionCode = rootProject.extra["nuvxVersionCode"] as Int
-        versionName = rootProject.extra["nuvxVersionName"] as String
+        versionCode = androidVersionCode
+        versionName = androidVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -81,6 +85,7 @@ android {
             java.srcDir("src/gms/java")
             java.srcDir("../wearos/protocol")
             assets.srcDir("../../web/app/public/models")
+            assets.srcDir(rootProject.file("app/android/legal-assets"))
         }
     }
 
@@ -144,7 +149,7 @@ android {
         jniLibs.useLegacyPackaging = true
         resources {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-            pickFirsts += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
+            merges += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
         }
     }
     buildFeatures {
@@ -232,7 +237,7 @@ dependencies {
 
     implementation("io.ktor:ktor-client-websockets:3.6.1")
 
-    implementation("com.github.MetrolistGroup.innertubex:innertubex-android:v0.11.6")
+    implementation("com.github.MetrolistGroup.innertubex:innertubex-android:v0.11.7")
     implementation("com.excor:eXcor-android:0.2.0")
 
     implementation(files(newPipeExtractorStripped))

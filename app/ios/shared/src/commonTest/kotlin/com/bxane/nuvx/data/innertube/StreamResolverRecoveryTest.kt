@@ -1,6 +1,8 @@
 package com.bxane.nuvx.data.innertube
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
 import com.bxane.nuvx.data.http.RawHttpBytes
 import kotlin.test.*
@@ -102,6 +104,33 @@ class StreamResolverRecoveryTest {
             val second = async { StreamResolver.resolve("shared") }
             yield(); release.complete(Unit)
             assertEquals(first.await(), second.await()); assertEquals(1, requests)
+        }
+    }
+    @Test fun downloadResolutionsForDifferentTracksAreSerialized() = runTest {
+        fixture {
+            val state = Mutex()
+            val secondEntered = CompletableDeferred<Unit>()
+            var active = 0
+            var peak = 0
+            var entrants = 0
+            StreamResolver.extraction = { id, _ ->
+                val entered = state.withLock {
+                    active++
+                    peak = maxOf(peak, active)
+                    ++entrants
+                }
+                if (entered == 2) secondEntered.complete(Unit)
+                withTimeoutOrNull(100) { secondEntered.await() }
+                state.withLock { active-- }
+                stream(id)
+            }
+            coroutineScope {
+                awaitAll(
+                    async { StreamResolver.resolveForDownload("first") },
+                    async { StreamResolver.resolveForDownload("second") },
+                )
+            }
+            assertEquals(1, peak)
         }
     }
     @Test fun cancellingOneListenerDoesNotCancelAnother() = runTest {

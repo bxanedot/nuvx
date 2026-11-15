@@ -256,6 +256,8 @@ impl App {
                 if l.albums_failed {
                     l.albums = self.library.as_ref().map(|o| o.albums.clone()).unwrap_or_default();
                 }
+                l.playlists.retain(|card| !matches!(&card.target, crate::model::Target::Playlist(id) if id.starts_with("nuvx-local:")));
+                l.playlists.splice(0..0, self.local_playlist_cards());
                 self.library = Some(l);
                 self.loading = false;
             }

@@ -8,6 +8,15 @@ import org.junit.Test
 
 class AppUpdateCheckerTest {
     @Test
+    fun `nightly version follows the app-specific APK asset`() {
+        assertEquals(
+            "0.9.0-nightly.180.1",
+            versionFromApkAsset("NuvxAuto-v0.9.0-nightly.180.1-universal.apk", "NuvxAuto-v"),
+        )
+        assertNull(versionFromApkAsset("NuvxTV-v0.9.0-universal.apk", "NuvxAuto-v"))
+    }
+
+    @Test
     fun `shared builds select the universal APK over legacy distribution aliases`() {
         val assets = listOf(
             "nuvx-v1.0.0-gms" to "https://example.test/gms.apk",
@@ -80,16 +89,23 @@ class AppUpdateCheckerTest {
     }
 
     @Test
-    fun `nightly builds can update to a newer stable release`() {
+    fun `nightly builds can update to the next stable version regardless of publish time`() {
         assertTrue(
-            isNewerRelease("1.0.0", "v1.0.0", "2026-11-13T13:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z"),
+            isNewerRelease("1.0.0", "v1.0.0", "2026-11-13T11:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T13:00:00Z"),
         )
     }
 
     @Test
-    fun `nightly builds can update to the stable release of the same version`() {
-        assertTrue(
+    fun `nightly builds never return to the stable release of the same version`() {
+        assertFalse(
             isNewerRelease("1.0.0", "v1.0.0", "2026-11-15T13:00:00Z", "1.0.0-nightly.1.1", "nightly.1.1", "2026-11-15T12:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `nightly with no build time does not fall back to a same version stable`() {
+        assertFalse(
+            isNewerRelease("0.9.0", "v0.9.0", "2026-11-15T13:00:00Z", "0.9.0-nightly.180.1", "nightly.180.1", ""),
         )
     }
 
@@ -111,6 +127,13 @@ class AppUpdateCheckerTest {
     fun `the next major nightly advances from an installed nightly`() {
         assertTrue(
             isNewerRelease("1.0.0-nightly.1.1", "nightly.1.1", "2026-11-14T13:00:00Z", "0.9.0-nightly.167.1", "nightly.167.1", "2026-11-14T12:00:00Z"),
+        )
+    }
+
+    @Test
+    fun `the older nightly base cannot replace a newer installed nightly`() {
+        assertFalse(
+            isNewerRelease("0.9.0-nightly.180.1", "nightly.180.1", "2026-11-15T13:00:00Z", "1.0.0-nightly.169.1", "nightly.169.1", "2026-11-15T12:00:00Z"),
         )
     }
 

@@ -84,7 +84,7 @@ internal class MainPlaylistController(
         song: Song,
         onResult: (added: Int, alreadyThere: Int, failed: Int) -> Unit = { _, _, _ -> },
     ) {
-        if (!requireSignIn() || playlists.isEmpty()) return
+        if (playlists.isEmpty() || (playlists.any { !it.browseId.startsWith("local:playlist:") } && !requireSignIn())) return
         scope.launch {
             val outcomes = playlists.map { addOne(it, song) }
             onResult(
@@ -98,6 +98,14 @@ internal class MainPlaylistController(
     private enum class AddOutcome { ADDED, ALREADY_THERE, FAILED }
 
     private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
+        if (playlist.browseId.startsWith("local:playlist:")) {
+            val current = com.bxane.nuvx.data.spotify.LocalPlaylistStore.getPlaylist(playlist.playlistId)
+                ?: return AddOutcome.FAILED
+            if (current.songs.any { it.videoId == song.videoId }) return AddOutcome.ALREADY_THERE
+            if (!com.bxane.nuvx.data.spotify.LocalPlaylistStore.addSong(playlist.playlistId, song)) return AddOutcome.FAILED
+            appendToOpenPlaylist(playlist.browseId, song, null)
+            return AddOutcome.ADDED
+        }
         val openSongs = (_detailStack.value.firstOrNull { it.browseId == playlist.browseId }
             ?.songs as? UiState.Success)?.data
         val known = openSongs
@@ -114,8 +122,15 @@ internal class MainPlaylistController(
     }
 
     fun createPlaylist(title: String, privacy: PlaylistPrivacy, song: Song? = null) {
-        if (!requireSignIn()) return
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
+        if (com.bxane.nuvx.data.settings.AppSettings.createPlaylistsLocally.value) {
+            val local = com.bxane.nuvx.data.spotify.LocalPlaylistStore.createNuvxPlaylist(name, listOfNotNull(song))
+            _playlists.value = listOf(UserPlaylist(local.browseId, local.title, "${local.songs.size} songs", local.songs.firstOrNull()?.thumbnailUrl)) +
+                _playlists.value.filterNot { it.browseId == local.browseId }
+            setPlaylistOwned(local.browseId, true)
+            return
+        }
+        if (!requireSignIn()) return
         scope.launch {
             YtMusicRepository.createPlaylist(
                 title = name,
@@ -159,6 +174,12 @@ internal class MainPlaylistController(
     ) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         scope.launch {
+            if (com.bxane.nuvx.data.settings.AppSettings.createPlaylistsLocally.value) {
+                val local = com.bxane.nuvx.data.spotify.LocalPlaylistStore.createNuvxPlaylist(name, songs)
+                val missingSongs = (videoIds.size - songs.size).coerceAtLeast(0)
+                onResult?.invoke(local.browseId, local.title, true, missingSongs)
+                return@launch
+            }
             if (authStore.isSignedIn) {
                 val initialBatch = videoIds.take(50)
                 YtMusicRepository.createPlaylist(
@@ -211,6 +232,14 @@ internal class MainPlaylistController(
     }
 
     fun removeFromPlaylist(browseId: String, song: Song) {
+        val local = com.bxane.nuvx.data.spotify.LocalPlaylistStore.getPlaylist(browseId)
+        if (local != null) {
+            com.bxane.nuvx.data.spotify.LocalPlaylistStore.removeSong(local.id, song.videoId)
+            _detailStack.value = _detailStack.value.map { page ->
+                if (page.browseId == browseId) page.copy(songs = UiState.Success(local.songs.filterNot { it.videoId == song.videoId })) else page
+            }
+            return
+        }
         val setVideoId = song.setVideoId ?: return
         if (!requireSignIn()) return
         val playlistId = browseId.removePrefix("VL")
@@ -240,6 +269,16 @@ internal class MainPlaylistController(
     }
 
     fun addSuggestedSong(browseId: String, song: Song) {
+        val local = com.bxane.nuvx.data.spotify.LocalPlaylistStore.getPlaylist(browseId)
+        if (local != null) {
+            if (com.bxane.nuvx.data.spotify.LocalPlaylistStore.addSong(local.id, song)) {
+                _detailStack.value = _detailStack.value.map { page ->
+                    if (page.browseId != browseId) page else page.copy(suggestedSongs = page.suggestedSongs.filterNot { it.videoId == song.videoId })
+                }
+                appendToOpenPlaylist(browseId, song, null)
+            }
+            return
+        }
         if (!requireSignIn()) return
         val playlistId = browseId.removePrefix("VL")
         scope.launch {
@@ -284,9 +323,14 @@ internal class MainPlaylistController(
     }
 
     fun renamePlaylist(playlist: UserPlaylist, title: String) {
-        if (!requireSignIn()) return
         val name = title.trim()
         if (name.isBlank() || name == playlist.title) return
+        if (playlist.browseId.startsWith("local:playlist:")) {
+            com.bxane.nuvx.data.spotify.LocalPlaylistStore.renamePlaylist(playlist.playlistId, name)
+            setPlaylistTitle(playlist, name)
+            return
+        }
+        if (!requireSignIn()) return
         scope.launch {
             YtMusicRepository.renamePlaylist(playlist.playlistId, name).fold(
                 onSuccess = {
@@ -299,6 +343,10 @@ internal class MainPlaylistController(
     }
 
     fun loadPlaylistEntries(playlist: UserPlaylist, onResult: (Result<List<Song>>) -> Unit) {
+        if (playlist.browseId.startsWith("local:playlist:")) {
+            val songs = com.bxane.nuvx.data.spotify.LocalPlaylistStore.getPlaylist(playlist.playlistId)?.songs
+            return onResult(songs?.let(Result.Companion::success) ?: Result.failure(IllegalStateException("playlist missing")))
+        }
         if (!requireSignIn()) return onResult(Result.failure(IllegalStateException("signed out")))
         scope.launch {
             onResult(YtMusicRepository.playlistEntries(playlist.browseId))
@@ -311,6 +359,13 @@ internal class MainPlaylistController(
         reordered: List<Song>,
         onResult: (Boolean) -> Unit = {},
     ) {
+        if (playlist.browseId.startsWith("local:playlist:")) {
+            val saved = com.bxane.nuvx.data.spotify.LocalPlaylistStore.replaceSongs(playlist.playlistId, reordered)
+            if (saved) _detailStack.value = _detailStack.value.map { page ->
+                if (page.browseId == playlist.browseId) page.copy(songs = UiState.Success(withArtwork(reordered, page.thumbnailUrl))) else page
+            }
+            return onResult(saved)
+        }
         if (!requireSignIn()) return onResult(false)
         scope.launch {
             YtMusicRepository.reorderPlaylist(
@@ -335,6 +390,13 @@ internal class MainPlaylistController(
     }
 
     fun deletePlaylist(playlist: UserPlaylist) {
+        if (playlist.browseId.startsWith("local:playlist:")) {
+            com.bxane.nuvx.data.spotify.LocalPlaylistStore.deletePlaylist(playlist.playlistId)
+            _playlists.value = _playlists.value.filterNot { it.playlistId == playlist.playlistId }
+            _detailStack.value = _detailStack.value.filterNot { it.browseId == playlist.browseId }
+            navigator.onDetailStackShrunk(_detailStack.value.size)
+            return
+        }
         if (!requireSignIn()) return
         scope.launch {
             YtMusicRepository.deletePlaylist(playlist.playlistId).fold(
@@ -355,7 +417,12 @@ internal class MainPlaylistController(
     }
 
     fun editablePlaylist(browseId: String?): UserPlaylist? {
-        if (browseId == null || _playlistOwned.value[browseId] != true) return null
+        if (browseId == null) return null
+        _playlists.value.firstOrNull { it.browseId == browseId && it.browseId.startsWith("local:playlist:") }?.let { return it }
+        com.bxane.nuvx.data.spotify.LocalPlaylistStore.getPlaylist(browseId)?.let { local ->
+            return UserPlaylist(local.browseId, local.title, "${local.songs.size} songs", local.songs.firstOrNull()?.thumbnailUrl)
+        }
+        if (_playlistOwned.value[browseId] != true) return null
         return _playlists.value.firstOrNull { it.browseId == browseId }
     }
 
@@ -364,6 +431,7 @@ internal class MainPlaylistController(
     }
 
     fun resolvePlaylistOwnership(browseId: String?) {
+        if (browseId?.startsWith("local:playlist:") == true) return
         if (!requireSignIn() || browseId == null) return
         if (browseId in _playlistOwned.value || browseId in ownershipInFlight) return
         if (_playlists.value.none { it.browseId == browseId }) return

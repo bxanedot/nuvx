@@ -98,8 +98,12 @@ impl Backend {
 
     pub(super) async fn download(&self, t: &Track, for_video: Option<String>) -> anyhow::Result<PathBuf> {
         static SLOTS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(3);
+        static RESOLUTION: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
         let _slot = SLOTS.acquire().await?;
-        let (source, s) = self.resolve(&t.id, true, Some(t), false).await?;
+        let (source, s) = {
+            let _resolution = RESOLUTION.lock().await;
+            self.resolve(&t.id, true, Some(t), false).await?
+        };
         log::info!("download {}: {} bytes from {source:?}", t.id, s.size);
         let shared = Shared::new(s.size, s.duration_ms, s.loudness_db, s.format.clone(), s.info, false);
         stream::download(self.http(), s.url, s.user_agent, shared.clone(), Some(self.refresher(source, &t.id, s.format, None)), s.ranging).await;

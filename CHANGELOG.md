@@ -11,11 +11,16 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 - Add the **Enable YouTube Search** setting to Android TV. Turning it off removes YouTube results and returns the selected search filter to Music.
 - Replace separate GMS and FOSS phone and TV releases with one shared universal APK for each app. Each APK includes armeabi-v7a, arm64-v8a and x86_64. Cast and Wear features work when Google Play Services is installed.
 - Keep the old `-gms.apk` and `-foss.apk` download names as byte-identical aliases of the shared APK so existing 0.9.x installs can update.
+- Update InnerTubeX to v0.11.7 across Android and Apple builds; the audio resolver now prefers YouTube Music SABR profiles when resolving audio-only streams.
+- Add **nuvx Auto**, a standalone universal head-unit APK that reuses the TV app's large-focus interface, equalizer, and loudness normalization. Auto starts with stereo widening off for a conventional car speaker setup. Android Auto projection continues to use the phone app's media service; remove the phone-only Car Mode toggle.
+- Expose the eXcor fallback switch in TV settings so it is available in the shared TV and Auto builds as well as the phone app.
+- Serialize Android download stream resolution across queued tracks and report YouTube rate limits as temporary refusals instead of missing audio.
 - Prevent update rollbacks: stable installs stay on stable; nightlies accept only a newer nightly, reject older stable releases, and can move to the next newer stable release.
+- Keep Android nightlies at `0.9.0` / version code 9 and desktop nightlies at `0.9.0` until stable `v1.0.0` is published; browser extension nightlies use `0.9.0` with an increasing build component. Stable `v1.0.0` and its Android APKs use version code 10. Preserve already published nightlies as-is.
 
 ### iPhone and iPad
 
-- Package version 1.0.0/build 10 for iPhone and iPad as `Nuvx-1.0.0-build10-ios-unsigned.ipa`; the package must be signed with a sideloading tool such as Sideloadly, AltStore Classic or SideStore.
+- Package version 1.0.0/build 10 for iPhone and iPad as `nuvx-1.0.0-universal.ipa`; the unsigned package must be signed with a sideloading tool such as Sideloadly, AltStore Classic or SideStore.
 - Link the IPA download and install/update guide from **Settings → Version & Updates**, alongside the stable-release check and release notes. Install over the existing app to preserve local data; a free Apple Account signature needs refreshing before its seven-day expiry.
 - iOS cannot install this unsigned IPA from inside nuvx. Finish installation and updates with the same sideloading tool and Apple Account.
 
@@ -27,6 +32,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 
 ### Desktop
 
+- Keep stable installs on stable releases, offer only newer nightlies to nightly installs, and prevent a previous stable release from replacing a nightly.
 - Clarify and correct window material behavior: macOS now distinguishes the opaque Window backdrop from translucent Under Window; Linux Tinted remains opaque while Translucent follows compositor behavior.
 - Keep animated cover playback active while any visible desktop view still uses it.
 - Select the correct Intel or Apple silicon macOS download when the browser reports its architecture, and fall back to the release chooser when it is unknown.
@@ -34,14 +40,28 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 ### Web, downloads and release packages
 
 - Add direct Android TV and Wear OS downloads to the web Downloads page.
-- Route phone and TV downloads to the shared universal APKs and keep the browser extensions, desktop installers and Android packages in the combined release.
+- Route phone, TV, Auto and iPhone downloads to their packaged assets; keep the browser extensions, desktop installers and Android packages under the same release tag.
+- Preserve compatibility with the published v0.9.0 GMS/FOSS phone and TV assets, and add direct routes for the shared 1.0.0 phone, TV, Auto and iPhone packages.
+- Serialize batch YouTube stream lookups on Android, iOS, and desktop to reduce request bursts while keeping audio transfers concurrent; report temporary YouTube refusals separately from missing audio.
+- Detect the website visitor's device and link supported stable/nightly downloads to the matching asset; unavailable or unknown devices return to the on-site package list.
+- Add Telegram to the community invitation and settings links across phone, TV/Auto, iOS, macOS, desktop and web.
+- Keep `robots.txt`, the canonical sitemap, and the IndexNow key in the website source so Google and Bing can discover the public pages after deployment.
 - Preserve silent Windows installer switches and put a time limit on the Windows nightly installer packaging job.
+- Record startup smoke-test results for the phone, TV, Auto, and Wear APKs, including the limits of the available emulator checks.
 - Align package metadata to version 1.0.0 and Android version code 10 across Android, iOS, desktop and browser extensions.
 
 ### Licensing and maintenance
 
 - Include third-party license notices with desktop packages, add the LGPL-3.0-only license text for the existing bit-perfect component, and clarify AGPL and bundled PoToken client attributions.
+- Include project license texts plus native and AutoMix model notices in Android phone, TV, Auto, and Wear APKs; merge duplicate Android dependency license resources instead of retaining only the first copy.
+- Correct the Android glass pill's GPL-3.0-only declaration, preserve its MIT motion-model attribution, and ship the Kira MIT notice with the web app.
+- Keep the bundled iOS InnerTubeX notice aligned with its vendored v0.11.7 source revision.
 - Correct Linux backdrop, download architecture and release documentation; extract Android detail playback handling into a focused controller without changing its intended behavior.
+
+### Playlists
+
+- Add **Create Playlists in Nuvx Only** across Android phone/TV/Auto, iOS/macOS, desktop and web. It is off by default; when enabled, new playlists are stored on the current device or browser without creating or changing YouTube Music playlists. Android, Apple and web Spotify-import flows also honor the setting.
+- Keep local playlists available after restart, playable and available in add-to-playlist pickers. Local playlists are device-specific and do not sync across nuvx installs.
 
 ## 0.9.0
 

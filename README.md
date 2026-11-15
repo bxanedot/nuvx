@@ -46,6 +46,7 @@
 - **Listen Together.** Share an invite and keep the queue and playback in sync with friends.
 - **Synced lyrics.** Follow the words in the full-screen player.
 - **Music discovery.** Browse new releases, explore by mood, and manage your library and queue.
+- **Nuvx-only playlists.** Turn on **Create Playlists in Nuvx Only** to keep new playlists on the current device or browser without writing them to YouTube Music. Existing YouTube Music playlists stay as they are; local playlists do not sync between devices.
 - **Community Canvases.** Add motion artwork to Now Playing on supported players. [Browse the project](core/canvas/README.md)
 - **Controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
 
@@ -53,24 +54,37 @@
 
 | Device | Requirements | Where to start |
 | --- | --- | --- |
-| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `nuvx-v*-gms.apk` or FOSS `nuvx-v*-foss.apk` (multi-ABI) |
-| **Android Auto / car** | Compatible head unit + phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · install the phone app; Android Auto media support is built in |
-| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `NuvxTV-v*-gms.apk` or FOSS `NuvxTV-v*-foss.apk` (multi-ABI) |
+| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `nuvx-v*-universal.apk` (one multi-ABI APK) |
+| **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
+| **nuvx Auto** | Compatible Android head unit | Planned for v1.0.0 · standalone `NuvxAuto-v*-universal.apk`; stereo widening starts off and loudness normalization stays enabled |
+| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `NuvxTV-v*-universal.apk` (one multi-ABI APK) |
 | **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate `NuvxWear-v*.apk` companion |
-| **iPhone** | iOS/iPadOS 18+; signing required | Unsigned IPA if attached to a release · [build and sideload notes](app/ios/README.md) |
+| **iPhone** | iOS/iPadOS 18+; signing required | No IPA in v0.9.0; unsigned IPA planned for v1.0.0 · [build and sideload notes](app/ios/README.md) |
 | **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
 | **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
-The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs, each containing armeabi-v7a, arm64-v8a and x86_64 builds. New Android builds use one shared universal APK per phone and TV app; Cast and Wear features require Google Play Services. Nightlies keep byte-identical `-gms` and `-foss` aliases so existing 0.9 updaters can install the shared APK. Version 1.0.0 remains without a stable release or tag. Android Auto support is part of the phone app; there is no standalone car APK. Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched.
+The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs. New Android builds use one shared universal APK for the phone, TV, and nuvx Auto, each containing armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for 0.9 updater compatibility; Auto has one canonical asset. Until stable `v1.0.0` is published, Android nightlies use version 0.9.0/code 9, desktop nightlies use 0.9.0, and browser extensions use 0.9.0 with an increasing build component. Stable 1.0.0 packages use Android code 10 and include nuvx Auto. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched. Version 1.0.0 remains without a stable release or tag.
+
+### Download troubleshooting
+
+Batch downloads on Android, iOS, and desktop resolve YouTube stream URLs one at a time to reduce request bursts; audio file transfers can still run concurrently. If YouTube temporarily refuses a track, wait a moment and retry.
+
+iOS feature parity is partial: the iPhone app uses native SF Symbols and app-owned vectors instead of Android's GlyphStudio runtime, and does not yet include Android's eXcor playback fallback. See the [platform parity notes](app/ios/docs/ANDROID_PARITY.md) for the known differences and verification limits.
+
+Playlist creation defaults to YouTube Music. To keep newly created playlists inside nuvx, turn on **Create Playlists in Nuvx Only** in Settings (Content Preferences on Android and Apple, Account & Integrations on desktop). The web setting is stored in that browser. Local playlists stay on the current device and do not sync with YouTube Music or other nuvx installs. Desktop's separate Spotify Transfer action still copies to its explicitly chosen YouTube Music destination.
 
 ### Install and update on iPhone or iPad
 
-1. Download `Nuvx-<version>-build<number>-ios-unsigned.ipa` from a release. If a release has no IPA, download the `ios-unsigned` artifact from a successful **Apple builds** workflow run; workflow artifacts expire after 14 days and require a GitHub sign-in.
+1. Download `nuvx-<version>-universal.ipa` from a release. If a release has no IPA, download the `ios-unsigned` artifact from a successful **Apple builds** workflow run; workflow artifacts expire after 14 days and require a GitHub sign-in.
 2. Sign and install the unsigned IPA with a sideloading tool such as Sideloadly, AltStore Classic, or SideStore. An unsigned IPA cannot be installed by opening it in Files or Safari. See the [iOS install guide](app/ios/README.md) for setup steps.
 3. nuvx checks the latest stable GitHub release on launch. To check again, open **Settings → Version & Updates → Check for Updates**. When an update is available, download its IPA and install it through the same sideloading tool and Apple Account used for the current install. Install over the existing app; do not uninstall first if you want to keep local data.
 4. Free Apple Account provisioning profiles expire after 7 days, so refresh the signature by re-signing and reinstalling before it expires. The in-app updater finds releases and downloads the IPA; signing and installation must be completed with the sideloading tool. [Apple's personal-team limits](https://developer.apple.com/help/account/basics/about-your-developer-account/) have the current details.
+
+### Website search discovery
+
+The public site exposes [`robots.txt`](https://www.nuvx.lol/robots.txt), which points crawlers to its [XML sitemap](https://www.nuvx.lol/sitemap.xml), and a root-hosted [IndexNow key](https://www.nuvx.lol/045adc84f9a240278c33ee11e35eff56.txt), tracked at `core/website/045adc84f9a240278c33ee11e35eff56.txt`. Keep the sitemap limited to canonical pages and update `lastmod` when page content changes. After deploying URL changes, submit the affected canonical URLs through IndexNow. Submission requests discovery; search engines decide whether and when to list pages. See [website search indexing](docs/WEBSITE_SEARCH_INDEXING.md).
 
 ## How the counters work
 
@@ -86,7 +100,8 @@ Android builds use Kotlin and Compose. Install JDK 25 and Android SDK Platform 3
 
 ```bash
 ./gradlew :app:assembleDevDebug     # phone and tablet
-./gradlew :tv:assembleProdDebug     # Android TV and Google TV
+./gradlew :tv:assembleProdTvDebug   # Android TV and Google TV
+./gradlew :tv:assembleProdAutoDebug # standalone nuvx Auto head-unit app
 ./gradlew :wearos:assembleDevDebug  # watch companion
 ```
 
@@ -94,7 +109,7 @@ On Windows, use `gradlew.bat`. For signing release builds, see [keystore.propert
 
 | Project | Source and setup |
 | --- | --- |
-| Android apps | [Phone](app/android/mobile) · [TV](app/android/tv/README.md) · [Wear OS](app/android/wearos/README.md) |
+| Android apps | [Phone and Android Auto media support](app/android/mobile) · [TV and nuvx Auto](app/android/tv/README.md) · [Wear OS](app/android/wearos/README.md) |
 | Desktop player | [Rust and egui](app/desktop/README.md) |
 | Web player and extension | [React, TypeScript and WXT](app/web/README.md) |
 | Shared code | [Kotlin](core/shared) · [Compose UI](core/sharedUi) · [Native audio](core/native) |
@@ -107,4 +122,4 @@ Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/is
 
 ## License
 
-nuvx uses [GPL-3.0](LICENSE) by default. Files with a different SPDX identifier keep that file-level license; the AGPL-marked components and their scopes are listed in [LICENSES.md](LICENSES.md), with the full [AGPL-3.0 text](LICENSE-AGPL-3.0.txt). Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later. The Android bit-perfect output also contains Mornye-adapted code under LGPL-3.0-only; see [LICENSES.md](LICENSES.md) and [the attribution](core/native/third_party/README.md).
+nuvx uses [GPL-3.0](LICENSE) by default. Files with a different SPDX identifier keep that file-level license; their scopes and attributions are listed in [LICENSES.md](LICENSES.md), with full AGPL and LGPL texts linked there. Bundled third-party code keeps its own licenses. The [DST decoder](app/android/mobile/src/main/cpp/dsd/dst), for example, is under LGPL-2.1-or-later. The Android bit-perfect output also contains Mornye-adapted code under LGPL-3.0-only; see [LICENSES.md](LICENSES.md) and [the attribution](core/native/third_party/README.md). Android APKs include the project license texts and native notices under `assets/licenses/`; Android dependency notices remain under `META-INF/`. The web app serves the Kira MIT notice under `/licenses/`.

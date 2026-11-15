@@ -32,7 +32,6 @@ import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.TvSettings
 import com.bxane.nuvx.ui.MainViewModel
 import com.bxane.nuvx.ui.tv.TvAppMark
-import com.bxane.nuvx.ui.tv.audio.TvSpatialAudioEngine
 import com.bxane.nuvx.ui.tv.components.TvChromePinned
 import com.bxane.nuvx.ui.tv.components.TvListHeader
 import com.bxane.nuvx.ui.tv.components.TvListRow
@@ -52,7 +51,7 @@ import com.bxane.nuvx.ui.tv.theme.TvType
 
 private enum class SettingsSheet { Theme, RefreshRate, Equalizer, Scrobbling, LyricsSources, Update, About }
 
-private const val DefaultBlurb = "Playback, sound and display preferences for nuvx on this TV."
+private const val DefaultBlurb = "Playback, sound and display preferences for nuvx."
 
 @Composable
 fun TvSettingsScreen(
@@ -69,9 +68,11 @@ fun TvSettingsScreen(
     val crossfade by AppSettings.crossfadeSeconds.collectAsState()
     val autoplay by AppSettings.autoplay.collectAsState()
     val skipSilence by AppSettings.skipSilence.collectAsState()
+    val excorFallback by AppSettings.excorFallback.collectAsState()
     val youtubeSearch by AppSettings.youtubeSearch.collectAsState()
+    val createPlaylistsLocally by AppSettings.createPlaylistsLocally.collectAsState()
     val eqEnabled by AppSettings.equalizerEnabled.collectAsState()
-    val spatial by TvSettings.spatialAudioEnabled.collectAsState()
+    val spatial by AppSettings.spatialAudio.collectAsState()
     val loudness by AppSettings.loudnessNormalization.collectAsState()
     val usbDac by AppSettings.preferUsbDac.collectAsState()
     val syncedLyrics by AppSettings.syncedLyrics.collectAsState()
@@ -179,6 +180,14 @@ fun TvSettingsScreen(
                     onClick = { AppSettings.setSkipSilence(!skipSilence) },
                 )
             }
+            item {
+                TvListRow(
+                    title = "eXcor Fallback",
+                    value = onOff(excorFallback),
+                    onFocused = { blurb = "Uses eXcor when InnerTubeX cannot resolve a playable stream." },
+                    onClick = { AppSettings.setExcorFallback(!excorFallback) },
+                )
+            }
 
             item { TvListHeader("Content") }
             item {
@@ -187,6 +196,14 @@ fun TvSettingsScreen(
                     value = onOff(youtubeSearch),
                     onFocused = { blurb = "Adds a YouTube filter for videos beyond YouTube Music." },
                     onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
+                )
+            }
+            item {
+                TvListRow(
+                    title = "Create Playlists in Nuvx Only",
+                    value = onOff(createPlaylistsLocally),
+                    onFocused = { blurb = "New playlists stay on this device and are not added to YouTube Music." },
+                    onClick = { AppSettings.setCreatePlaylistsLocally(!createPlaylistsLocally) },
                 )
             }
 
@@ -203,10 +220,9 @@ fun TvSettingsScreen(
                 TvListRow(
                     title = "Spatial Audio",
                     value = onOff(spatial),
-                    onFocused = { blurb = "Widens stereo music using the TV's audio virtualizer, where it has one." },
+                    onFocused = { blurb = "Widens stereo. Leave it off for a conventional car stereo." },
                     onClick = {
-                        TvSettings.setSpatialAudioEnabled(!spatial)
-                        TvSpatialAudioEngine.setEnabled(!spatial)
+                        AppSettings.setSpatialAudio(!spatial)
                     },
                 )
             }

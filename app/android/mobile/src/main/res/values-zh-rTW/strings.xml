@@ -1381,8 +1381,6 @@
     <string name="recognize_no_match">找不到</string>
     <string name="recognize_no_match_body">無法辨識這首歌。請靠近音樂再試一次。</string>
     <string name="recognize_find">在 nuvx 中尋找</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">適用於車用音響：橫向，螢幕保持開啟</string>
     <string name="classic_search">經典搜尋</string>
     <string name="classic_search_subtitle">用簡潔的搜尋頁取代彩色分類方塊</string>
     <string name="enable_youtube_search">啟用 YouTube 搜尋</string>
@@ -1392,6 +1390,9 @@
     <string name="delete_download_failed">Couldn’t delete the download. Try again.</string>
     <string name="spotify_import_partial">Imported \'%1$s\', but %2$d songs could not be added.</string>
     <string name="discord_invite_title">Join Discord Server</string>
+    <string name="community_invite_title">Join the nuvx community</string>
+    <string name="community_invite_discord">Join Discord</string>
+    <string name="telegram_invite_join">Join Telegram</string>
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>

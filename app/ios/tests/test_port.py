@@ -83,6 +83,7 @@ class PortIdentityTests(unittest.TestCase):
         script = (ROOT / "scripts/package-ios-ipa.sh").read_text(encoding="utf-8")
         self.assertIn("-scheme Nuvx", script)
         self.assertIn("Payload/nuvx.app/Info.plist", script)
+        self.assertIn('ipa="$output_dir/nuvx-$version-universal.ipa"', script)
         self.assertIn(r"^Payload/nuvx\.app/PlugIns/NuvxWidget\.appex", script)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", script)
 
@@ -132,6 +133,12 @@ class PortIdentityTests(unittest.TestCase):
         self.assertIn('git rev-parse "$RELEASE_TAG^{commit}"', workflow)
         self.assertNotIn("secrets.", workflow)
         self.assertNotIn("pull_request_target", workflow)
+
+    def test_apple_release_upload_uses_the_canonical_ipa_without_a_duplicate_macos_dmg(self):
+        workflow = (ROOT.parents[1] / ".github/workflows/apple-builds.yml").read_text(encoding="utf-8")
+        upload = workflow.split("  upload-release:", 1)[1]
+        self.assertIn('gh release upload "$RELEASE_TAG" packages/*.ipa packages/SHA256-ios.txt', upload)
+        self.assertNotIn("name: macos-universal", upload)
 
     def test_apple_workflow_checks_swift_early_and_caches_frameworks_before_archiving(self):
         workflow = (ROOT.parents[1] / ".github/workflows/apple-builds.yml").read_text(encoding="utf-8")

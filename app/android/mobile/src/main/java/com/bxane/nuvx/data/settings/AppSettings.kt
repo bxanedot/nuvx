@@ -80,6 +80,7 @@ enum class SongSort {
 
 object AppSettings {
     const val DISCORD_INVITE_URL = "https://discord.gg/h4Wsu824Uf"
+    const val TELEGRAM_URL = "https://t.me/nuvxserver"
 
     private lateinit var prefs: SharedPreferences
 
@@ -187,8 +188,6 @@ object AppSettings {
     val classicSearch = MutableStateFlow(false)
 
     val youtubeSearch = MutableStateFlow(false)
-
-    val carMode = MutableStateFlow(false)
 
     val hideRadioTab = MutableStateFlow(false)
 
@@ -298,6 +297,7 @@ object AppSettings {
     val detailSongSorts = librarySettings.detailSongSorts
 
     val localMusicFolderUri = librarySettings.localMusicFolderUri
+    val createPlaylistsLocally = librarySettings.createPlaylistsLocally
 
     val webdavUrl = remoteStorageSettings.webdavUrl
     val webdavUsername = remoteStorageSettings.webdavUsername
@@ -441,7 +441,6 @@ object AppSettings {
         onboardingComplete.value = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false)
         diwaliGreetingShown.value = prefs.getBoolean(KEY_DIWALI_GREETING_SHOWN, false)
         hideRadioTab.value = prefs.getBoolean(KEY_HIDE_RADIO_TAB, false)
-        carMode.value = prefs.getBoolean(KEY_CAR_MODE, false)
         classicSearch.value = prefs.getBoolean(KEY_CLASSIC_SEARCH, false)
         youtubeSearch.value = prefs.getBoolean(KEY_YOUTUBE_SEARCH, false)
         radioIntroShown.value = prefs.getBoolean(KEY_RADIO_INTRO_SHOWN, false)
@@ -572,11 +571,6 @@ object AppSettings {
     fun setClassicSearch(value: Boolean) {
         classicSearch.value = value
         prefs.edit().putBoolean(KEY_CLASSIC_SEARCH, value).apply()
-    }
-
-    fun setCarMode(value: Boolean) {
-        carMode.value = value
-        prefs.edit().putBoolean(KEY_CAR_MODE, value).apply()
     }
 
     fun setHideRadioTab(value: Boolean) {
@@ -837,6 +831,8 @@ object AppSettings {
 
     fun setLocalMusicFolderUri(value: String) = librarySettings.setLocalMusicFolderUri(value)
 
+    fun setCreatePlaylistsLocally(value: Boolean) = librarySettings.setCreatePlaylistsLocally(value)
+
     fun setWebDavUrl(value: String) = remoteStorageSettings.setWebDavUrl(value)
 
     fun setWebDavUsername(value: String) = remoteStorageSettings.setWebDavUsername(value)
@@ -904,6 +900,7 @@ object AppSettings {
         "downloaded_tracks_metadata",
         "downloaded_collections",
         KEY_LOCAL_MUSIC_FOLDER_URI,
+        "create_playlists_locally",
         KEY_LAST_VERSION_CODE,
         KEY_ONBOARDING_COMPLETE,
     )
@@ -931,7 +928,6 @@ object AppSettings {
     private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     private const val KEY_DIWALI_GREETING_SHOWN = "diwali_greeting_2026_shown"
     private const val KEY_HIDE_RADIO_TAB = "hide_radio_tab"
-    private const val KEY_CAR_MODE = "car_mode"
     private const val KEY_CLASSIC_SEARCH = "classic_search"
     private const val KEY_YOUTUBE_SEARCH = "youtube_search"
     private const val KEY_RADIO_INTRO_SHOWN = "radio_intro_shown"

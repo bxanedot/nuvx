@@ -80,6 +80,8 @@ impl App {
             lists: Lists::default(),
             artist: None,
             library: None,
+            local_playlists: get("nuvx_local_playlists").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
+            create_playlists_locally: get("create_playlists_locally").is_some_and(|v| v == "1"),
             library_requested: std::time::Instant::now(),
             history: None,
             uploads: None,

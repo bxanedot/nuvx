@@ -10,6 +10,8 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -26,6 +28,7 @@ object StreamResolver {
     class PermanentlyUnplayableException(reason: String) : Exception(reason)
     private class Resolved(val stream: ResolvedStream, val generation: Long, val at: TimeMark)
     private val recent = CowMap<String, Resolved>()
+    private val downloadResolutionGate = Mutex()
     private data class Flight(val job: Deferred<ResolvedStream>, val waiters: Int)
     private val inFlight = CowMap<String, Flight>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -86,6 +89,11 @@ object StreamResolver {
             abandoned?.cancel()
         }
     }
+
+    suspend fun resolveForDownload(videoId: String, maxKbps: Int = Int.MAX_VALUE): ResolvedStream =
+        downloadResolutionGate.withLock {
+            resolve(videoId, maxKbps) ?: throw IllegalStateException("No playable stream for $videoId")
+        }
 
 
 

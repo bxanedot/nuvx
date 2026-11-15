@@ -48,7 +48,6 @@ import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.TvSettings
 import com.bxane.nuvx.ui.MainViewModel
 import com.bxane.nuvx.ui.tv.TvAppMark
-import com.bxane.nuvx.ui.tv.audio.TvSpatialAudioEngine
 import com.bxane.nuvx.ui.tv.components.TvButton
 import com.bxane.nuvx.ui.tv.components.TvListRow
 import com.bxane.nuvx.ui.tv.components.tvClick
@@ -234,7 +233,7 @@ private fun TvPreferencesStep(onContinue: () -> Unit) {
     val lyrics by AppSettings.syncedLyrics.collectAsState()
     val canvas by AppSettings.animatedCanvas.collectAsState()
     val automix by AppSettings.smartFadeEnabled.collectAsState()
-    val spatial by TvSettings.spatialAudioEnabled.collectAsState()
+    val spatial by AppSettings.spatialAudio.collectAsState()
 
     TvSetupPage(
         title = "Listening",
@@ -264,8 +263,7 @@ private fun TvPreferencesStep(onContinue: () -> Unit) {
                     title = "Spatial Audio",
                     value = if (spatial) "On" else "Off",
                     onClick = {
-                        TvSettings.setSpatialAudioEnabled(!spatial)
-                        TvSpatialAudioEngine.setEnabled(!spatial)
+                        AppSettings.setSpatialAudio(!spatial)
                     },
                 )
             }

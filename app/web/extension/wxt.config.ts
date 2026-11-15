@@ -4,6 +4,7 @@ import { LYRIC_ORIGINS, patternOf } from './lib/lyricHosts';
 import { matchPatternsFor, SITE_ORIGINS } from './site.config';
 
 const STORE_BUILD = process.env.NUVX_STORE_BUILD === '1';
+const MANIFEST_VERSION = process.env.NUVX_MANIFEST_VERSION;
 
 const DISCORD_PRESENCE = process.env.DISCORD_PRESENCE ? process.env.DISCORD_PRESENCE === '1' : !STORE_BUILD;
 const DISCORD_ORIGINS = ['https://discord.com/*'];
@@ -20,6 +21,7 @@ export default defineConfig({
     },
   }),
   manifest: ({ browser }) => ({
+    ...(MANIFEST_VERSION ? { version: MANIFEST_VERSION } : {}),
     name: 'nuvx',
     description: 'Connects the nuvx web player to YouTube Music and Spotify.',
     homepage_url: `${SITE_ORIGINS[0]}/extension`,

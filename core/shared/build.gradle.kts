@@ -34,7 +34,7 @@ kotlin {
                 api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
                 api("org.jsoup:jsoup:1.24.1")
-                api("com.github.MetrolistGroup.innertubex:innertubex:v0.11.6")
+                api("com.github.MetrolistGroup.innertubex:innertubex:v0.11.7")
                 compileOnly("com.github.TeamNewPipe:NewPipeExtractor:v0.27.0")
             }
         }
@@ -49,6 +49,7 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+            runtimeOnly("com.github.TeamNewPipe:NewPipeExtractor:v0.27.0")
         }
     }
 }
