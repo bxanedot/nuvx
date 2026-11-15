@@ -750,6 +750,8 @@
     <string name="automix_mode_performance_subtitle">4 תהליכונים · ניתוח מהיר ביותר · שימוש מוגבר בסוללה</string>
 
 
+    <string name="advanced_automix">AutoMix מתקדם</string>
+    <string name="advanced_automix_subtitle">מעברים מסונכרנים לקצב ולמשפטים. כבו למעברי עמעום פשוטים.</string>
     <string name="automix_performance">ביצועי Automix</string>
 
     <string name="automix_performance_subtitle">מגדיר כמה מעבד הניתוח ברקע יכול לצרוך</string>

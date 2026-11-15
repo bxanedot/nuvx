@@ -8,6 +8,7 @@ internal class PlaybackTransitionSettingsController {
 
     val crossfadeSeconds = MutableStateFlow(0)
     val smartFadeEnabled = MutableStateFlow(false)
+    val advancedAutomix = MutableStateFlow(true)
     val automixPerformanceMode = MutableStateFlow(AutomixPerformanceMode.BALANCED)
     val skipSilence = MutableStateFlow(false)
 
@@ -18,6 +19,7 @@ internal class PlaybackTransitionSettingsController {
     fun read() {
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
         smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
+        advancedAutomix.value = prefs.getBoolean(KEY_ADVANCED_AUTOMIX, true)
         automixPerformanceMode.value = runCatching {
             AutomixPerformanceMode.valueOf(
                 prefs.getString(KEY_AUTOMIX_PERFORMANCE_MODE, null) ?: AutomixPerformanceMode.BALANCED.name,
@@ -36,6 +38,11 @@ internal class PlaybackTransitionSettingsController {
         prefs.edit().putBoolean(KEY_SMART_FADE, value).apply()
     }
 
+    fun setAdvancedAutomix(value: Boolean) {
+        advancedAutomix.value = value
+        prefs.edit().putBoolean(KEY_ADVANCED_AUTOMIX, value).apply()
+    }
+
     fun setAutomixPerformanceMode(value: AutomixPerformanceMode) {
         automixPerformanceMode.value = value
         prefs.edit().putString(KEY_AUTOMIX_PERFORMANCE_MODE, value.name).apply()
@@ -49,6 +56,7 @@ internal class PlaybackTransitionSettingsController {
     private companion object {
         const val KEY_CROSSFADE = "crossfade_seconds"
         const val KEY_SMART_FADE = "smart_fade_enabled"
+        const val KEY_ADVANCED_AUTOMIX = "advanced_automix"
         const val KEY_AUTOMIX_PERFORMANCE_MODE = "automix_performance_mode"
         const val KEY_SKIP_SILENCE = "skip_silence"
     }

@@ -727,6 +727,8 @@
     <string name="automix_mode_performance_subtitle">4 thread · analisis tercepat · penggunaan baterai lebih tinggi</string>
 
 
+    <string name="advanced_automix">AutoMix lanjutan</string>
+    <string name="advanced_automix_subtitle">Transisi selaras ketukan dan frasa. Matikan untuk crossfade sederhana.</string>
     <string name="automix_performance">Performa Automix</string>
 
     <string name="automix_performance_subtitle">Mengatur seberapa banyak CPU yang dapat digunakan analisis latar belakang</string>

@@ -781,6 +781,8 @@
     <string name="automix_mode_performance_subtitle">4 wątki · najszybsza analiza · większe zużycie baterii</string>
 
 
+    <string name="advanced_automix">Zaawansowany AutoMix</string>
+    <string name="advanced_automix_subtitle">Przejścia zgrane z rytmem i frazami. Wyłącz, aby używać zwykłego przenikania.</string>
     <string name="automix_performance">Wydajność Automix</string>
 
     <string name="automix_performance_subtitle">Określa, ile procesora może używać analiza w tle</string>

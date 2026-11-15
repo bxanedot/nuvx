@@ -182,6 +182,8 @@
     <string name="crossfade">Çapraz geçiş</string>
     <string name="crossfade_subtitle">Bir parçayı diğerine karıştırır</string>
     <string name="automix">Automix [BETA]</string>
+    <string name="advanced_automix">Gelişmiş AutoMix</string>
+    <string name="advanced_automix_subtitle">Ritme ve cümlelere uygun geçişler. Basit geçişler için kapatın.</string>
     <string name="automix_performance">Automix performansı</string>
     <string name="automix_performance_subtitle">Arka plan analizinin ne kadar CPU kullanabileceğini ayarlar</string>
     <string name="automix_performance_warning">Daha yüksek performans, parçaları daha hızlı analiz eder ancak daha fazla pil kullanabilir ve telefonu ısıtabilir.</string>

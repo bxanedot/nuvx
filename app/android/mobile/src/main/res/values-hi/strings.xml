@@ -745,6 +745,8 @@
     <string name="automix_mode_performance_subtitle">4 थ्रेड्स · सबसे तेज़ विश्लेषण · अधिक बैटरी उपयोग</string>
 
 
+    <string name="advanced_automix">उन्नत AutoMix</string>
+    <string name="advanced_automix_subtitle">बीट और फ़्रेज़ के साथ मेल खाते ट्रांज़िशन। साधारण क्रॉसफ़ेड के लिए बंद करें।</string>
     <string name="automix_performance">Automix प्रदर्शन</string>
 
     <string name="automix_performance_subtitle">तय करें कि बैकग्राउंड विश्लेषण कितना CPU उपयोग कर सकता है</string>

@@ -220,6 +220,8 @@
     <string name="crossfade">크로스페이드</string>
     <string name="crossfade_subtitle">이번 곡과 다음 곡을 섞습니다</string>
     <string name="automix">자동 믹스 [베타]</string>
+    <string name="advanced_automix">고급 AutoMix</string>
+    <string name="advanced_automix_subtitle">비트와 프레이즈에 맞춘 전환. 끄면 단순 크로스페이드를 사용합니다.</string>
     <string name="automix_performance">자동 믹스 성능</string>
     <string name="automix_performance_subtitle">CPU 백그라운드 분석을 얼마나 가동할지 설정합니다</string>
     <string name="automix_performance_warning">성능이 높을수록 곡을 빠르게 분석하지만, 배터리를 더 사용하고 폰이 뜨거워질 수 있습니다.</string>
