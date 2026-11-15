@@ -11,6 +11,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 - Add the **Enable YouTube Search** setting to Android TV. Turning it off removes YouTube results and returns the selected search filter to Music.
 - Replace separate GMS and FOSS phone and TV releases with one shared universal APK for each app. Each APK includes armeabi-v7a, arm64-v8a and x86_64. Cast and Wear features work when Google Play Services is installed.
 - Keep the old `-gms.apk` and `-foss.apk` download names as byte-identical aliases of the shared APK so existing 0.9.x installs can update.
+- Update InnerTubeX to v0.11.7 across Android and Apple builds; the audio resolver now prefers YouTube Music SABR profiles when resolving audio-only streams.
 - Add **nuvx Auto**, a standalone universal head-unit APK that reuses the TV app's large-focus interface, equalizer, and loudness normalization. Auto starts with stereo widening off for a conventional car speaker setup. Android Auto projection continues to use the phone app's media service; remove the phone-only Car Mode toggle.
 - Expose the eXcor fallback switch in TV settings so it is available in the shared TV and Auto builds as well as the phone app.
 - Prevent update rollbacks: stable installs stay on stable; nightlies accept only a newer nightly, reject older stable releases, and can move to the next newer stable release.

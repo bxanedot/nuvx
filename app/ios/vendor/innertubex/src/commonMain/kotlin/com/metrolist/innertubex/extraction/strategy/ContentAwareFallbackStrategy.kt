@@ -290,6 +290,10 @@ class ContentAwareFallbackStrategy(
             adjust(80, "sabr-audio-playback")
         }
 
+        if (manifest.id == "WEB_REMIX_SABR" && !request.hints.wantVideo) {
+            adjust(30, "remix-sabr-audio-playback")
+        }
+
         val restrictedContent =
             request.hints.isExplicit == true ||
                 request.hints.isKidsContent == true ||
