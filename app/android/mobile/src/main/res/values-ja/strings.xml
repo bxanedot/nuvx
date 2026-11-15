@@ -1225,6 +1225,7 @@
     <string name="artist_signatures_unconfigured">未設定 — APIのURLを設定するにはタップしてください</string>
     <string name="artist_signatures_test_failed">そのURLでAPIに到達できませんでした</string>
     <string name="search_source_addons">アドオン</string>
+    <string name="change_playlist_artwork">プレイリストのアートワークを変更</string>
     <string name="search_addons_none">有効なアドオンがありません。設定 → ソースで追加してください。</string>
     <string name="app_icon">アプリアイコン</string>
     <string name="app_icon_default">デフォルト</string>

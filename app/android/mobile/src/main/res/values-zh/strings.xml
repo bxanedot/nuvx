@@ -1218,6 +1218,7 @@
     <string name="spotify_sign_in">使用 Spotify 登录</string>
     <string name="spotify_use_spdc_token">使用 sp_dc 令牌</string>
     <string name="search_source_addons">插件</string>
+    <string name="change_playlist_artwork">更改播放列表封面</string>
     <string name="search_addons_none">未启用任何插件。请在“设置 → 音源”中添加。</string>
     <string name="app_icon">应用图标</string>
     <string name="app_icon_default">默认</string>

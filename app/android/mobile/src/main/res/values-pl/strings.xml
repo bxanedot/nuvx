@@ -1282,6 +1282,7 @@
     <string name="artist_signatures_unconfigured">Nieskonfigurowano — dotknij, aby ustawić adres URL interfejsu API</string>
     <string name="artist_signatures_test_failed">Nie można połączyć się z API pod tym adresem URL</string>
     <string name="search_source_addons">Dodatki</string>
+    <string name="change_playlist_artwork">Zmień okładkę playlisty</string>
     <string name="search_addons_none">Brak włączonych dodatków. Dodaj jeden w Ustawienia → Źródła.</string>
     <string name="app_icon">Ikona aplikacji</string>
     <string name="app_icon_default">Domyślna</string>

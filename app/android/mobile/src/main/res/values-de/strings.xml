@@ -1244,6 +1244,7 @@
     <string name="artist_signatures_unconfigured">Nicht konfiguriert — tippen, um die API-URL festzulegen</string>
     <string name="artist_signatures_test_failed">Die API war unter dieser URL nicht erreichbar</string>
     <string name="search_source_addons">Addons</string>
+    <string name="change_playlist_artwork">Playlist-Cover ändern</string>
     <string name="search_addons_none">Es sind keine Addons aktiviert. Füge eines unter Einstellungen → Quellen hinzu.</string>
     <string name="app_icon">App-Symbol</string>
     <string name="app_icon_default">Standard</string>

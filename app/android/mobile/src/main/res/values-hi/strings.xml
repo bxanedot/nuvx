@@ -1244,6 +1244,7 @@
     <string name="artist_signatures_unconfigured">कॉन्फ़िगर नहीं है — API URL सेट करने के लिए टैप करें</string>
     <string name="artist_signatures_test_failed">उस URL पर API तक नहीं पहुंचा जा सका</string>
     <string name="search_source_addons">ऐडऑन</string>
+    <string name="change_playlist_artwork">प्लेलिस्ट आर्टवर्क बदलें</string>
     <string name="search_addons_none">कोई ऐडऑन चालू नहीं है। सेटिंग → स्रोत में जाकर एक जोड़ें।</string>
     <string name="app_icon">ऐप आइकन</string>
     <string name="app_icon_default">डिफ़ॉल्ट</string>

@@ -1217,6 +1217,7 @@
     <string name="spotify_library_subtitle">你的 Spotify 播放列表</string>
     <string name="spotify_sign_in">使用 Spotify 登入</string>
     <string name="search_source_addons">外掛</string>
+    <string name="change_playlist_artwork">更改播放清單封面</string>
     <string name="search_addons_none">尚未啟用任何外掛。請在「設定 → 來源」中新增。</string>
     <string name="app_icon">應用程式圖示</string>
     <string name="app_icon_default">預設</string>
