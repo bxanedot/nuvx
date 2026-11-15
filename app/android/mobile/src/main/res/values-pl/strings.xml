@@ -276,6 +276,8 @@
     <string name="discord_token_rejected">Discord odrzucił ten token.</string>
     <string name="discord_token_warning">Discord nie oferuje API, które pozwala aplikacjom na ustawianie statusu aktywności, więc ta funkcja loguje się na twoje konto i używa protokołu Discorda. Twój token pozostaje zaszyfrowany na tym urządzeniu i jest wysyłany tylko do Discorda. Daje dostęp do całego konta, a automatyzacja konta narusza regulamin Discorda. Używaj tylko jeśli akceptujesz to ryzyko.</string>
     <string name="dislike">Nie lubię</string>
+    <string name="disliked">Oznaczono jako „Nie lubię”</string>
+    <string name="undo">Cofnij</string>
     <string name="done">Gotowe</string>
     <string name="download">Pobierz</string>
     <string name="download_quality_dialog_subtitle">Dla plików trzymanych na tym urządzeniu</string>

@@ -277,6 +277,8 @@
     <string name="discord_token_rejected">דיסקורד דחתה את האסימון הזה.</string>
     <string name="discord_token_warning">דיסקורד אינה מציעה API המאפשר לאפליקציות להגדיר את הנוכחות שלך, ולכן תכונה זו מתחברת לחשבונך ומשתמשת בפרוטוקול של דיסקורד. האסימון שלך נשאר מוצפן במכשיר זה ונשלח רק לדיסקורד. הוא מעניק גישה מלאה לחשבון שלך, ואוטומציה של חשבון מפרה את תנאי דיסקורד. השתמש בו רק אם אתה מקבל את הסיכון.</string>
     <string name="dislike">לא אוהב</string>
+    <string name="disliked">סומן כלא אהבתי</string>
+    <string name="undo">ביטול</string>
     <string name="done">בוצע</string>
     <string name="download">הורד</string>
     <string name="download_quality_dialog_subtitle">עבור קבצים השמורים במכשיר זה</string>

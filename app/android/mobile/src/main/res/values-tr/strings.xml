@@ -296,6 +296,8 @@
     <string name="discord_token_rejected">Discord bu belirteci reddetti.</string>
     <string name="discord_token_warning">Discord, uygulamaların varlığınızı ayarlamasına izin veren bir API sunmuyor, bu yüzden bu özellik hesabınız olarak giriş yapar ve Discord\'un protokolünü kullanır. Belirteciniz bu cihazda şifreli kalır ve yalnızca Discord\'a gönderilir. Tüm hesabınıza erişim sağlar ve hesap otomasyonu Discord\'un hizmet şartlarını ihlal eder. Yalnızca bu riski kabul ediyorsanız kullanın.</string>
     <string name="dislike">Beğenme</string>
+    <string name="disliked">Beğenilmedi olarak işaretlendi</string>
+    <string name="undo">Geri al</string>
     <string name="done">Tamam</string>
     <string name="download">İndir</string>
     <string name="download_quality_dialog_subtitle">Bu cihazda tutulan dosyalar için</string>

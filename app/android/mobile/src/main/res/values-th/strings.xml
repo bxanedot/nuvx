@@ -292,6 +292,8 @@
     <string name="discord_token_rejected">Discord ปฏิเสธโทเคนนั้น</string>
     <string name="discord_token_warning">Discord ไม่มี API ให้แอปตั้งค่าสถานะของคุณ ฟีเจอร์นี้จึงลงชื่อเข้าใช้ในนามบัญชีของคุณและใช้โปรโตคอลของ Discord โทเคนของคุณจะถูกเข้ารหัสไว้ในอุปกรณ์นี้และส่งไปยัง Discord เท่านั้น แต่มันให้สิทธิ์เข้าถึงบัญชีทั้งหมดของคุณ และการทำงานอัตโนมัติกับบัญชีถือเป็นการละเมิดข้อกำหนดของ Discord ใช้ฟีเจอร์นี้เฉพาะเมื่อคุณยอมรับความเสี่ยงนี้</string>
     <string name="dislike">ไม่ชอบ</string>
+    <string name="disliked">ทำเครื่องหมายไม่ชอบแล้ว</string>
+    <string name="undo">เลิกทำ</string>
     <string name="done">เสร็จสิ้น</string>
     <string name="download">ดาวน์โหลด</string>
     <string name="download_quality_dialog_subtitle">สำหรับไฟล์ที่เก็บไว้ในอุปกรณ์นี้</string>

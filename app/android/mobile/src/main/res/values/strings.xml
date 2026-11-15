@@ -442,6 +442,8 @@
     <string name="discord_token_rejected">Discord rejected that token.</string>
     <string name="discord_token_warning">Discord does not offer an API that lets apps set your presence, so this feature signs in as your account and uses Discord\'s protocol. Your token stays encrypted on this device and is sent only to Discord. It grants access to your full account, and account automation violates Discord\'s terms. Use it only if you accept that risk.</string>
     <string name="dislike">Dislike</string>
+    <string name="disliked">Disliked</string>
+    <string name="undo">Undo</string>
     <string name="done">Done</string>
     <string name="download">Download</string>
     <string name="download_quality_dialog_subtitle">For files kept on this device</string>

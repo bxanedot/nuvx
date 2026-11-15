@@ -278,6 +278,8 @@
     <string name="discord_token_rejected">O Discord rejeitou esse token.</string>
     <string name="discord_token_warning">O Discord não oferece uma API que permite aos aplicativos definir sua presença, portanto, este recurso faz login na sua conta e usa o protocolo do Discord. Seu token permanece criptografado neste dispositivo e é enviado apenas para o Discord. Ele concede acesso à sua conta completa e a automação de contas viola os termos do Discord. Use-o apenas se aceitar esse risco.</string>
     <string name="dislike">Não curtir</string>
+    <string name="disliked">Marcado como Não gostei</string>
+    <string name="undo">Desfazer</string>
     <string name="done">Concluído</string>
     <string name="download">Baixar</string>
     <string name="download_quality_dialog_subtitle">Para arquivos mantidos neste dispositivo</string>
