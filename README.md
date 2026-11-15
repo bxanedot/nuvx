@@ -52,20 +52,36 @@
 
 ## Download
 
-| Device | Requirements | Where to start |
-| --- | --- | --- |
-| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `nuvx-v*-universal.apk` (one multi-ABI APK) |
-| **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
-| **nuvx Auto** | Compatible Android head unit | Planned for v1.0.0 · standalone `NuvxAuto-v*-universal.apk`; stereo widening starts off and loudness normalization stays enabled |
-| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · v0.9.0 uses its GMS/FOSS APKs; v1.0.0 uses `NuvxTV-v*-universal.apk` (one multi-ABI APK) |
-| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate `NuvxWear-v*.apk` companion |
-| **iPhone** | iOS/iPadOS 18+; signing required | No IPA in v0.9.0; unsigned IPA planned for v1.0.0 · [build and sideload notes](app/ios/README.md) |
-| **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
-| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
-| **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
-| **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
+**Not sure which file to choose?** Find your device below, open the [latest release](https://github.com/bxanedot/nuvx/releases/latest), then download the file listed for it. You usually only need one file.
 
-The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs. New Android builds use one shared universal APK for the phone, TV, and nuvx Auto, each containing armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for 0.9 updater compatibility; Auto has one canonical asset. Until stable `v1.0.0` is published, Android nightlies use version 0.9.0/code 9, desktop nightlies use 0.9.0, and browser extensions use 0.9.0 with an increasing build component. Stable 1.0.0 packages use Android code 10 and include nuvx Auto. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched. Version 1.0.0 remains without a stable release or tag.
+| Your device | Download this | Which one should you choose? |
+| --- | --- | --- |
+| **Android phone or tablet** (Android 8.0+) | `nuvx-v*-gms.apk` or `nuvx-v*-foss.apk` | Choose **GMS** if your device has Google Play Services. Choose **FOSS** if it does not. |
+| **Android TV / Google TV** (Android 8.0+) | `NuvxTV-v*-gms.apk` or `NuvxTV-v*-foss.apk` | Choose the version matching your device's Google Play Services support, just like the phone app. |
+| **Wear OS** (Wear OS 3+) | `NuvxWear-v*.apk` | This is a companion app for a paired Android phone running nuvx. |
+| **Windows** (Windows 10+) | `nuvx-setup-*.exe` | One installer supports x64 and ARM64 Windows devices. |
+| **macOS** (macOS 15+) | `nuvx-setup-*-apple-silicon.dmg` or `nuvx-setup-*-intel.dmg` | Choose **Apple silicon** for M-series Macs; choose **Intel** for Intel-based Macs. |
+| **Linux** (x86-64 or ARM64) | `nuvx-setup-*-linux-universal.tar.gz` | One package includes x86-64 and ARM64 builds. |
+| **Chrome** | `nuvx-extension-chrome-*.zip` | Browser extension. |
+| **Firefox** | `nuvx-extension-firefox-*.zip` | Browser extension; load it as a temporary add-on in Firefox Developer Edition or Nightly. |
+| **Web browser** | [Open nuvx Web](https://web.nuvx.lol) | No desktop app download is needed. Install the [companion extension](https://web.nuvx.lol/guide) for full playback. |
+
+### Other Android and Apple options
+
+- **Android Auto:** Install the regular nuvx phone app. Android Auto playback controls are provided by the phone app; there is no separate Android Auto APK.
+- **nuvx Auto:** A separate head-unit app is planned for v1.0.0. It is not included in the v0.9.0 stable release.
+- **iPhone and iPad:** There is no IPA in v0.9.0. An unsigned IPA is planned for v1.0.0 and must be signed and installed with a sideloading tool. See the [iOS install guide](app/ios/README.md).
+
+### GMS or FOSS?
+
+- **GMS** builds include Google Play Services integrations, such as Cast and Wear-related features. Use this if Google Play Services is available on your device.
+- **FOSS** builds are intended for devices without Google Play Services.
+
+### Before you download
+
+- Download assets from the **latest stable release** unless you specifically want to test a nightly build. Nightlies are pre-release testing builds and may be less stable.
+- Make sure the asset's version matches the release you're viewing. The `*` in the names above represents the release version.
+- You do not need to download every file. Choose only the package for your device and platform.
 
 ### Download troubleshooting
 
