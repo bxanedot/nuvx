@@ -324,7 +324,7 @@ impl Conn {
                                 _ => Some(message.unwrap_or_else(|| "You were removed from the party".into())),
                             });
                         }
-                        In::Activity { by, detail } => log::info!("party: {by}: {detail}"),
+                        In::Activity { by, detail } => self.emit(Event::Notice(format!("{by} {detail}"))),
                     }
                 }
             }
