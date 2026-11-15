@@ -12,9 +12,26 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
             toggle(ui, &mut app.autoplay, "Autoplay");
         });
         divider(ui);
-        setting_row(ui, "Volume normalization", Some("Turn loud songs down to the same level, like YouTube Music does."), |ui| {
-            if toggle(ui, &mut app.normalize, "Volume normalization").changed() {
-                app.audio.set_normalize(app.normalize);
+        setting_row(ui, "Loudness target", Some("Level songs are brought to: lower is quieter, -14 matches YouTube Music."), |ui| {
+            let label = app.norm_target.map_or("Off".to_string(), |t| format!("{t} LUFS"));
+            let btn = dropdown_button(ui, &label, 150.0, "Loudness target");
+            let mut pick = None;
+            egui::Popup::menu(&btn).show(|ui| {
+                ui.set_width(150.0);
+                ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                ui.add_space(4.0);
+                for t in std::iter::once(None).chain((-20..=-10).map(Some)) {
+                    let name = t.map_or("Off".to_string(), |t| format!("{t} LUFS"));
+                    if option_row(ui, &name, app.norm_target == t).clicked() {
+                        pick = Some(t);
+                        ui.close();
+                    }
+                }
+                ui.add_space(4.0);
+            });
+            if let Some(t) = pick {
+                app.norm_target = t;
+                app.audio.set_normalize(t);
             }
         });
         divider(ui);

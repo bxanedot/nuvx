@@ -227,14 +227,18 @@ use super::*;
     }
 
     #[test]
-    fn normalization_only_turns_loud_tracks_down() {
+    fn normalization_follows_the_target() {
+        use super::mix::norm_gain_db;
+        assert_eq!(norm_gain_db(-14, 7.29), -7.29);
+        assert_eq!(norm_gain_db(-14, -4.0), 3.0);
+        assert_eq!(norm_gain_db(-10, 7.0), -3.0);
+        assert_eq!(norm_gain_db(-20, 12.0), -15.0);
         let status = AudioStatus::default();
         let loud = Shared::new(1, 0, Some(7.29), crate::stream::Format::Aac, None, false);
-        let quiet = Shared::new(1, 0, Some(-4.0), crate::stream::Format::Aac, None, false);
         let unknown = Shared::new(1, 0, None, crate::stream::Format::Aac, None, false);
         status.normalize.store(true, Ordering::Relaxed);
+        status.norm_target.store(-14, Ordering::Relaxed);
         assert!((norm_gain(&status, Some(&loud)) - 0.432).abs() < 0.001);
-        assert_eq!(norm_gain(&status, Some(&quiet)), 1.0);
         assert_eq!(norm_gain(&status, Some(&unknown)), 1.0);
         assert_eq!(norm_gain(&status, None), 1.0);
         status.normalize.store(false, Ordering::Relaxed);
