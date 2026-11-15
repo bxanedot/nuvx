@@ -66,6 +66,8 @@
 
 The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs. New Android builds use one shared universal APK for the phone, TV, and nuvx Auto, each containing armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for 0.9 updater compatibility; Auto has one canonical asset. Until stable `v1.0.0` is published, Android nightlies use version 0.9.0/code 9; stable 1.0.0 packages use code 10 and include nuvx Auto. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched. Version 1.0.0 remains without a stable release or tag.
 
+iOS feature parity is partial: the iPhone app uses native SF Symbols and app-owned vectors instead of Android's GlyphStudio runtime, and does not yet include Android's eXcor playback fallback. See the [platform parity notes](app/ios/docs/ANDROID_PARITY.md) for the known differences and verification limits.
+
 ### Install and update on iPhone or iPad
 
 1. Download `nuvx-<version>-universal.ipa` from a release. If a release has no IPA, download the `ios-unsigned` artifact from a successful **Apple builds** workflow run; workflow artifacts expire after 14 days and require a GitHub sign-in.
