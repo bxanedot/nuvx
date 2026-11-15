@@ -137,7 +137,7 @@ impl App {
                 self.backend.request(Req::DownloadAll { name, targets });
             }
             Action::AddToPlaylist(tracks) => {
-                if self.logged_in || self.create_playlists_locally || !self.local_playlists.is_empty() { self.dialog = Some(Dialog::PickPlaylist(tracks)); }
+                if self.logged_in || self.create_playlists_locally || !self.local_playlists.is_empty() { self.dialog = Some(Dialog::PickPlaylist(tracks, String::new())); }
                 else { self.toast("Sign in to edit playlists"); }
             }
             Action::RemoveFromPlaylist(mut rows) => {
