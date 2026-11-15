@@ -18,6 +18,8 @@ import {
   type QueueEntry,
   type QueueSource,
 } from '@/playback/queue/timeline';
+import { bridgeSourceCall, resolveFallback } from '@/playback/sources/providers';
+import { useSourceSettings } from '@/playback/sources/settings';
 import { trackLog } from '@/playback/trackLog';
 import type { LoadedTrack, StreamStats, YouTubeEngine } from '@/playback/youtube/engine';
 import type { AutomixGraph, AutoDJSnapshot } from '@/playback/automix';
@@ -88,6 +90,7 @@ interface Deck {
   gain: number;
   radio: boolean;
   loudnessDb: number | null;
+  live: boolean;
 }
 
 let decks: Deck[] | null = null;
@@ -122,7 +125,7 @@ function getDecks(): Promise<Deck[]> {
       audio.preload = 'auto';
       audio.crossOrigin = 'anonymous';
       const engine = new YouTubeEngine(audio);
-      const deck: Deck = { engine, audio, gain: 1, radio: false, loudnessDb: null };
+      const deck: Deck = { engine, audio, gain: 1, radio: false, loudnessDb: null, live: false };
       engine.onFatal = (videoId, message) => {
         if (decks?.[active] !== deck) return;
         trackLog.e(`stopped: ${message}`, videoId);
@@ -634,6 +637,7 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
         deck.radio = true;
         bindElement(deck, active);
       }
+      deck.live = true;
       deck.audio.src = entry.track.streamUrl;
       deck.audio.load();
       deck.gain = 1;
@@ -670,6 +674,8 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
   } catch (error) {
     if (token !== loadToken || (error instanceof Error && error.name === 'SupersededError')) return;
     const message = error instanceof Error ? error.message : String(error);
+    if (token === loadToken && !entry.track.streamUrl && (await playFromSource(entry, token, startSec, autoplay))) return;
+    if (token !== loadToken) return;
     usePlayer.setState({ status: 'error', error: message });
     if (auto && planNext(true)) {
       trackLog.w(`skipping: ${message}`, entry.track.videoId);
@@ -677,6 +683,50 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
         if (token === loadToken) void advance(true);
       }, 1500);
     }
+  }
+}
+
+// YouTube failed: try the sources the user turned on, in order (JioSaavn, Radio Javan), as a plain file stream.
+async function playFromSource(entry: QueueEntry, token: number, startSec: number, autoplay: boolean): Promise<boolean> {
+  const { jiosaavn, radiojavan } = useSourceSettings.getState();
+  const detected = queryClient.getQueryData<DetectedExtension | null>(extensionQueryKey);
+  if ((!jiosaavn && !radiojavan) || !detected?.info.capabilities.includes('sources')) return false;
+  const t = entry.track;
+  const described = { title: t.title, artist: artistNames(t), durationSec: t.durationSec };
+  try {
+    const source = await resolveFallback(described, { jiosaavn, radiojavan }, bridgeSourceCall);
+    if (!source || token !== loadToken) return false;
+    const deck = (await getDecks())[active]!;
+    await deck.engine.stop().catch(() => {});
+    if (!deck.radio) {
+      deck.audio.pause();
+      deck.audio = new Audio();
+      deck.audio.preload = 'auto';
+      deck.radio = true;
+      bindElement(deck, active);
+    }
+    deck.live = false;
+    deck.audio.src = source.url;
+    deck.audio.load();
+    if (startSec > 0) deck.audio.currentTime = startSec;
+    deck.gain = 1;
+    applyVolumes();
+    if (autoplay) await deck.audio.play();
+    if (token !== loadToken) return true;
+    const nowPlaying = {
+      ...hintOf(t),
+      artist: described.artist,
+      durationSec: source.durationSec ?? t.durationSec ?? 0,
+      streamInfo: source.provider === 'jiosaavn' ? 'JioSaavn' : 'Radio Javan',
+    };
+    usePlayer.setState({ nowPlaying, status: autoplay ? 'playing' : 'paused', error: null, automixState: null });
+    playerMediaSession.update(nowPlaying);
+    graph?.dj.stop();
+    afterTrackStarted();
+    return true;
+  } catch (error) {
+    trackLog.w(`source fallback failed: ${String(error)}`, t.videoId);
+    return false;
   }
 }
 
@@ -855,7 +905,7 @@ function bindElement(deck: Deck, n: number) {
   element.addEventListener('waiting', () => set('buffering'));
   element.addEventListener('error', () => {
     if (!inFront() || holding || !deck.radio) return;
-    usePlayer.setState({ status: 'error', error: 'The radio stream failed. Try playing it again.' });
+    usePlayer.setState({ status: 'error', error: deck.live ? 'The radio stream failed. Try playing it again.' : 'The stream from this source failed. Try playing it again.' });
   });
   element.addEventListener('ended', () => {
     if (!inFront() || holding) return;
