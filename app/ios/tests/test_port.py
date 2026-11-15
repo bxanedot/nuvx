@@ -150,8 +150,8 @@ class PortIdentityTests(unittest.TestCase):
         self.assertLess(frameworks, cache)
         self.assertLess(cache, archive)
         self.assertIn("swiftc -frontend -parse -target arm64-apple-ios18.0", workflow)
-        self.assertIn("actions/cache/restore@v5", workflow)
-        self.assertIn("actions/cache/save@v5", workflow)
+        self.assertIn("actions/cache/restore@v6", workflow)
+        self.assertIn("actions/cache/save@v6", workflow)
 
     @staticmethod
     def plist(**overrides):
