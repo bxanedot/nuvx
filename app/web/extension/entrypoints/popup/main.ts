@@ -12,6 +12,7 @@ import {
 } from '@nuvx/shared/bridge';
 
 declare const __SITE_ORIGINS__: string[];
+declare const __DISCORD_PRESENCE__: boolean;
 
 async function call<M extends BridgeMethod>(method: M, params: ParamsOf<M>): Promise<ResultOf<M>> {
   const response = (await browser.runtime.sendMessage({
@@ -179,7 +180,7 @@ let discordStateNow: DiscordState | null = null;
 
 function render(): void {
   const youtube = youtubeRow(youtubeState, setYoutube, youtubeError) as HTMLLIElement & { problemRow?: HTMLLIElement };
-  const discord = discordRow(discordStateNow);
+  const discord = __DISCORD_PRESENCE__ ? discordRow(discordStateNow) : null;
   list.replaceChildren(
     youtube,
     ...(youtube.problemRow ? [youtube.problemRow] : []),
@@ -214,4 +215,4 @@ call('yt.authState', {})
     render();
   });
 call('spotify.authState', {}).then(setSpotify).catch(() => undefined);
-call('discord.state', {}).then(setDiscord).catch(() => undefined);
+if (__DISCORD_PRESENCE__) call('discord.state', {}).then(setDiscord).catch(() => undefined);

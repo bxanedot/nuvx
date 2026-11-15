@@ -8,7 +8,7 @@ This package describes the source for the nuvx Firefox add-on (version 1.0.0). I
 - Node.js: 22 or newer; npm is included with Node.js
 - pnpm: exactly 12.11.2 (the version pinned by `app/web/package.json`)
 - Git: a recent Git 2.x installation, needed to create the source archive
-- Firefox target: desktop Firefox 140 or newer
+- Firefox target: desktop Firefox 140 or newer; select Linux, macOS and Windows only on AMO (Android is unsupported)
 
 Install Node.js from [nodejs.org](https://nodejs.org/). Install Git from [git-scm.com](https://git-scm.com/downloads). Then install the pinned pnpm version in a terminal:
 

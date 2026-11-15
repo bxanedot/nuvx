@@ -56,13 +56,12 @@ You need the free nuvx web player at https://web.nuvx.lol. YouTube Music and Spo
 - YouTube Music, YouTube, Google video, Spotify and nuvx web-player host access: make the requests required for the connected web-player features.
 - Optional lyrics host access: contact only the lyrics sources the user selects and approves.
 
-## Required listing graphics
+## Listing graphics
 
 - Store icon: use `public/icon/128.png`.
-- Chrome Web Store screenshots: capture real screens from the current nuvx web player and extension. Do not use mockups as product screenshots.
-- Firefox screenshots: use the same real product screens.
+- Screenshots are recommended: capture real screens from the current nuvx web player and extension. Do not use mockups as product screenshots.
 - Do not claim ratings, user counts, awards or endorsements.
 
 ## Build
 
-Build and package each browser with `NUVX_STORE_BUILD=1`. Store builds remove localhost origins, the development key and Discord integration. Review generated manifests before uploading. Firefox's store package must target Firefox 140 or newer to use Firefox's built-in data-consent prompt.
+Build and package each browser with `NUVX_STORE_BUILD=1`. Store builds remove localhost origins, the development key and Discord integration. Review generated manifests before uploading. Firefox's store package must target Firefox 140 or newer to use Firefox's built-in data-consent prompt. On AMO, select desktop Firefox only; this build intentionally omits `gecko_android` because Android is unsupported.
