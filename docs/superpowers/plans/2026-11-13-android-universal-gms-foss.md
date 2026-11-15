@@ -23,7 +23,7 @@
 - [ ] Verify package metadata, signing certificate, ABI contents, and the eight-APK set (three canonical, four compatibility aliases, one Wear APK) in CI; local APKs built here are unsigned.
 - [x] Update the ONNX size experiment to compare one mobile and one TV APK.
 - [x] Build mobile, TV, Auto, and Wear release variants locally with version 1.0.0 / code 10; verify their package metadata.
-- [ ] Run actionlint or CI workflow validation; actionlint is not installed in this checkout.
+- [x] Run actionlint v1.7.12 against the repository workflows; no diagnostics were reported.
 - [ ] Run the ONNX inference/size experiment; retain Maven ONNX Runtime unless evidence supports changing it.
 
 ## APK install smoke coverage
