@@ -49,6 +49,7 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+            runtimeOnly("com.github.TeamNewPipe:NewPipeExtractor:v0.27.0")
         }
     }
 }
