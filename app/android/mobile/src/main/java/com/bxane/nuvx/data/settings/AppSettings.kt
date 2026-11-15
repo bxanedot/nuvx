@@ -80,6 +80,7 @@ enum class SongSort {
 
 object AppSettings {
     const val DISCORD_INVITE_URL = "https://discord.gg/h4Wsu824Uf"
+    const val TELEGRAM_URL = "https://t.me/nuvxserver"
 
     private lateinit var prefs: SharedPreferences
 

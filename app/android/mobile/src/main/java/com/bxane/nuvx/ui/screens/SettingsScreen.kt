@@ -662,6 +662,10 @@ fun SettingsScreen(
                     append("Discord")
                 }
                 append("  ")
+                withLink(LinkAnnotation.Url(AppSettings.TELEGRAM_URL, linkStyles)) {
+                    append("Telegram")
+                }
+                append("  ")
                 withLink(LinkAnnotation.Url("https://nuvx.lol/", linkStyles)) {
                     append("Website")
                 }

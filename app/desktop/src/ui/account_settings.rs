@@ -50,6 +50,10 @@ pub(super) fn settings_account(app: &mut App, ui: &mut Ui) {
     }
     super::transfer::spotify_section(app, ui);
     settings_integrations(app, ui);
+    section_label(ui, "Community", None);
+    settings_card(ui, |ui| {
+        ui.hyperlink_to("Telegram", "https://t.me/nuvxserver");
+    });
 }
 
 fn channel_picker(app: &mut App, ui: &mut Ui) {

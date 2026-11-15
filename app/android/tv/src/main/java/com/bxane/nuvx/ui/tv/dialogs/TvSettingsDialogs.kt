@@ -42,6 +42,8 @@ import com.bxane.nuvx.ui.tv.display.TvRefreshRatePreference
 import com.bxane.nuvx.ui.tv.personalization.AppThemeOption
 import com.bxane.nuvx.ui.tv.theme.TvGlass
 import com.bxane.nuvx.ui.tv.theme.TvType
+import android.content.Intent
+import android.net.Uri
 
 @Composable
 fun TvDiscordDialog(onDismiss: () -> Unit) {
@@ -108,11 +110,15 @@ fun TvScrobbleDialog(onDismiss: () -> Unit) {
 
 @Composable
 fun TvAboutDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     TvDialog(title = "nuvx", message = "Version ${BuildConfig.VERSION_NAME}", onDismissRequest = onDismiss) {
         TvAppMark(size = 77.dp, modifier = Modifier.padding(bottom = 21.dp))
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             TvListRow(title = "bxane", value = "Creator", enabled = false, onClick = {})
             TvListRow(title = "Nithyanantha", value = "TV App", enabled = false, onClick = {})
+            TvListRow(title = "Telegram", value = "@nuvxserver", onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.TELEGRAM_URL)))
+            })
         }
         Spacer(modifier = Modifier.height(14.dp))
         Text(
