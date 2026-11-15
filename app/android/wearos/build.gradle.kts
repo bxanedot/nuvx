@@ -33,6 +33,7 @@ android {
         getByName("main") {
             java.srcDir("protocol")
             java.srcDir("../mobile/src/main/java/com/bxane/nuvx/ui/intro")
+            assets.srcDir(rootProject.file("app/android/legal-assets"))
         }
     }
 
@@ -101,6 +102,7 @@ android {
                 "DebugProbesKt.bin",
                 "kotlin/**",
             )
+            merges += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
         }
     }
 }

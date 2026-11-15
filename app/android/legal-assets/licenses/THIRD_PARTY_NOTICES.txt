@@ -1,0 +1,19 @@
+Nuvx Android third-party notices
+
+Project code: the repository default is GPL-3.0; see LICENSE and LICENSES.md. The AGPL-3.0-only, AGPL-3.0-or-later, LGPL-3.0-only, and LGPL-2.1-or-later file scopes are recorded in LICENSES.md, with full license texts included in this directory.
+
+Native libraries:
+- DST decoder: Peter Ross via DSD-Nexus commit b3f443d4c42ccf52806eb57def3b3a34805714bd; LGPL-2.1-or-later. Source and modifications are in app/android/mobile/src/main/cpp/dsd/dst/.
+- Direct USB output: libusb 1.0.27; LGPL-2.1-or-later. Its release URL and SHA-256 pin are in app/android/mobile/src/main/cpp/CMakeLists.txt.
+- Oboe 1.11.0: Apache-2.0. Its release URL and SHA-256 pin are in app/android/mobile/src/main/cpp/CMakeLists.txt.
+- Signalsmith Stretch 1.3.2 and Signalsmith Linear 0.6.6: MIT; copied sources and upstream license files are in core/native/third_party/.
+- eXcor Android library 0.2.0: Apache-2.0; repository and pinned commit are in core/third_party/README.md.
+- Mornye-adapted bit-perfect output and USB transport keep their LGPL-3.0-only terms and attribution; see LICENSES.md and core/native/third_party/README.md.
+- Orchard-derived analyzer: adapted from Orchard by SFG5453 and Kushagra Singh (https://github.com/SFG5453/Orchard); Android analyzer sources are AGPL-3.0-or-later. The full license is LICENSE-AGPL-3.0.txt, and the covered files are listed in LICENSES.md.
+
+Bundled AutoMix models:
+- beat_this_final0_q8.onnx: Beat This! final0 checkpoint, Institute of Computational Perception, JKU Linz; MIT. Upstream: https://github.com/CPJKU/beat_this.
+- vocals_umxhq_int8.onnx: open-unmix umxhq vocals checkpoint, Fabian-Robert Stöter and Antoine Liutkus; MIT. Upstream: https://zenodo.org/records/3370489.
+- Full model license notices are in LICENSE-MIT-Model-Weights.txt.
+
+Other Android dependency notices are packaged under META-INF/ in the APK.

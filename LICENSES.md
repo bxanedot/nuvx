@@ -6,6 +6,8 @@ The full AGPLv3 text is in [LICENSE-AGPL-3.0.txt](LICENSE-AGPL-3.0.txt), copied 
 
 The full LGPLv3 text is in [LICENSE-LGPL-3.0-only.txt](LICENSE-LGPL-3.0-only.txt), copied from the [SPDX License List Data v3.29.0](https://github.com/spdx/license-list-data/blob/v3.29.0/text/LGPL-3.0-only.txt).
 
+The LGPL-2.1-or-later text is in [`app/android/mobile/src/main/cpp/dsd/dst/COPYING.LGPL-2.1`](app/android/mobile/src/main/cpp/dsd/dst/COPYING.LGPL-2.1); it also covers the pinned libusb dependency listed in [`core/native/third_party/README.md`](core/native/third_party/README.md).
+
 ## `LGPL-3.0-only`
 
 - `app/android/mobile/src/main/cpp/bitperfect/`.
@@ -26,4 +28,12 @@ The full LGPLv3 text is in [LICENSE-LGPL-3.0-only.txt](LICENSE-LGPL-3.0-only.txt
 - `core/shared/src/jvmSharedMain/kotlin/com/bxane/nuvx/data/YtMusic*Repository.kt` and `core/shared/src/jvmSharedMain/kotlin/com/bxane/nuvx/data/innertube/Innertube*Parser.kt`.
 - `app/web/app/src/playback/automix/analysis/models.ts`.
 
+## MIT-licensed AutoMix model assets
+
+- `app/web/app/public/models/beat_this_final0_q8.onnx` is from the Beat This! final0 checkpoint by the Institute of Computational Perception, JKU Linz.
+- `app/web/app/public/models/vocals_umxhq_int8.onnx` is the open-unmix umxhq vocals checkpoint by Fabian-Robert Stöter and Antoine Liutkus.
+- Android APKs include the full model notices in `assets/licenses/LICENSE-MIT-Model-Weights.txt`.
+
 Check each file's SPDX header for its exact declaration. AutoMix attribution is in [`app/web/app/src/playback/automix/NOTICE.md`](app/web/app/src/playback/automix/NOTICE.md). Orchard-derived analyzer attribution and its bundled license text are in [`app/ios/THIRD_PARTY_LICENSES.md`](app/ios/THIRD_PARTY_LICENSES.md) and [`core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt`](core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt).
+
+Android APKs include the project license map, full project license texts, Orchard analyzer attribution, and native/model third-party notices under `assets/licenses/`; Android library notices remain under `META-INF/`.

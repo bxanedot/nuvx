@@ -74,6 +74,7 @@ android {
             java.srcDir("../mobile/src/gms/java/com/bxane/nuvx/playback")
             res.srcDir("../mobile/src/main/res")
             assets.srcDir("../../web/app/public/models")
+            assets.srcDir(rootProject.file("app/android/legal-assets"))
             jniLibs.srcDir("../mobile/src/main/jniLibs")
         }
         getByName("debug") { java.srcDir("../mobile/src/debug/java") }
@@ -155,6 +156,7 @@ android {
         jniLibs.useLegacyPackaging = true
         resources {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+            merges += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
         }
     }
     buildFeatures {
