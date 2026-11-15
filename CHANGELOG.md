@@ -16,7 +16,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 - Expose the eXcor fallback switch in TV settings so it is available in the shared TV and Auto builds as well as the phone app.
 - Serialize Android download stream resolution across queued tracks and report YouTube rate limits as temporary refusals instead of missing audio.
 - Prevent update rollbacks: stable installs stay on stable; nightlies accept only a newer nightly, reject older stable releases, and can move to the next newer stable release.
-- Build future Android nightlies on `0.9.0` / version code 9 until the stable `v1.0.0` release is published; stable `v1.0.0` and its Android APKs use version code 10. Preserve already published nightlies as-is.
+- Keep Android nightlies at `0.9.0` / version code 9 and desktop nightlies at `0.9.0` until stable `v1.0.0` is published; browser extension nightlies use `0.9.0` with an increasing build component. Stable `v1.0.0` and its Android APKs use version code 10. Preserve already published nightlies as-is.
 
 ### iPhone and iPad
 

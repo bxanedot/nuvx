@@ -224,9 +224,7 @@ internal fun isNewerRelease(
         if (candidate != current) return candidate > current
     }
     if (currentTag.startsWith("nightly.")) {
-        if (!candidateTag.startsWith("nightly.")) {
-            return currentBuildTime.isNotEmpty() && candidatePublishedAt > currentBuildTime
-        }
+        if (!candidateTag.startsWith("nightly.")) return false
         val candidateBuild = nightlyBuild(candidateTag) ?: return false
         val currentBuild = nightlyBuild(currentTag) ?: return false
         return candidateBuild.first > currentBuild.first ||
