@@ -803,6 +803,8 @@
     <string name="prefer_usb_dac">Pilih DAC USB</string>
     <string name="loudness_normalization">Normalisasi kenyaringan</string>
     <string name="loudness_normalization_subtitle">Menyamakan kenyaringan setiap lagu</string>
+    <string name="loudness_target">Target kenyaringan</string>
+    <string name="loudness_target_subtitle">Lebih rendah lebih pelan dengan ruang lebih lega. −14 LUFS sama dengan YouTube.</string>
     <string name="loudness_off_on_speaker">Nonaktifkan di speaker ponsel</string>
     <string name="pipeline_loudness_gain">Gain</string>
     <string name="pipeline_loudness_measured">Terukur</string>

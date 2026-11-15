@@ -803,6 +803,8 @@
     <string name="prefer_usb_dac">首选 USB DAC</string>
     <string name="loudness_normalization">响度标准化</string>
     <string name="loudness_normalization_subtitle">将每首曲目调整到相同响度</string>
+    <string name="loudness_target">响度目标</string>
+    <string name="loudness_target_subtitle">数值越低越安静、余量越大。−14 LUFS 与 YouTube 相同。</string>
     <string name="loudness_off_on_speaker">在手机扬声器上停用</string>
     <string name="pipeline_loudness_gain">增益</string>
     <string name="pipeline_loudness_measured">测量值</string>

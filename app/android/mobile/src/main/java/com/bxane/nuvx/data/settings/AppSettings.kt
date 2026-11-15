@@ -142,6 +142,7 @@ object AppSettings {
     val convertForLimitedDac = audioOutputSettings.convertForLimitedDac
 
     val loudnessNormalization = audioOutputSettings.loudnessNormalization
+    val loudnessTargetLufs = audioOutputSettings.loudnessTargetLufs
 
     val loudnessOffOnSpeaker = audioOutputSettings.loudnessOffOnSpeaker
 
@@ -293,8 +294,8 @@ object AppSettings {
     val localMusicViewType = librarySettings.localMusicViewType
     val downloadedMusicViewType = librarySettings.downloadedMusicViewType
     val librarySort = librarySettings.librarySort
-
     val libraryViewType = librarySettings.libraryViewType
+
     val detailSongSorts = librarySettings.detailSongSorts
 
     val localMusicFolderUri = librarySettings.localMusicFolderUri
@@ -759,6 +760,7 @@ object AppSettings {
     fun setLoudnessOffOnSpeaker(value: Boolean) = audioOutputSettings.setLoudnessOffOnSpeaker(value)
 
     fun setLoudnessNormalization(value: Boolean) = audioOutputSettings.setLoudnessNormalization(value)
+    fun setLoudnessTargetLufs(value: Int) = audioOutputSettings.setLoudnessTargetLufs(value)
 
     fun setExportDownloads(value: Boolean) = downloadSettings.setExportDownloads(value)
 
@@ -827,9 +829,9 @@ object AppSettings {
     fun setDetailSongSort(browseId: String, value: SongSort) = librarySettings.setDetailSongSort(browseId, value)
 
     fun setLocalMusicViewType(value: LibraryViewType) = librarySettings.setLocalMusicViewType(value)
+    fun setLibraryViewType(value: LibraryViewType) = librarySettings.setLibraryViewType(value)
 
     fun setDownloadedMusicViewType(value: LibraryViewType) = librarySettings.setDownloadedMusicViewType(value)
-    fun setLibraryViewType(value: LibraryViewType) = librarySettings.setLibraryViewType(value)
 
     fun setLocalMusicFolderUri(value: String) = librarySettings.setLocalMusicFolderUri(value)
 

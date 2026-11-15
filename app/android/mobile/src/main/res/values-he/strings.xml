@@ -826,6 +826,8 @@
     <string name="prefer_usb_dac">העדף USB DAC</string>
     <string name="loudness_normalization">נרמול עוצמה</string>
     <string name="loudness_normalization_subtitle">מביא כל רצועה לאותה עוצמה נשמעת</string>
+    <string name="loudness_target">יעד עוצמה</string>
+    <string name="loudness_target_subtitle">נמוך יותר שקט יותר עם יותר מרווח. ‎−14 LUFS תואם ל-YouTube.</string>
     <string name="loudness_off_on_speaker">השבתה ברמקול הטלפון</string>
     <string name="pipeline_loudness_gain">הגבר</string>
     <string name="pipeline_loudness_measured">נמדד</string>

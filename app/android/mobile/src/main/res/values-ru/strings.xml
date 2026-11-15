@@ -844,6 +844,8 @@
     <string name="prefer_usb_dac">Предпочитать USB ЦАП</string>
     <string name="loudness_normalization">Нормализация громкости</string>
     <string name="loudness_normalization_subtitle">Выравнивает громкость всех треков</string>
+    <string name="loudness_target">Целевая громкость</string>
+    <string name="loudness_target_subtitle">Ниже — тише и с большим запасом. −14 LUFS соответствует YouTube.</string>
     <string name="loudness_off_on_speaker">Отключить на динамике телефона</string>
     <string name="pipeline_loudness_gain">Усиление</string>
     <string name="pipeline_loudness_measured">Измерено</string>

@@ -16,6 +16,9 @@ import com.bxane.nuvx.R
 import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.settings.AutomixPerformanceMode
 import com.bxane.nuvx.data.settings.BitPerfectMode
+import com.bxane.nuvx.data.settings.LOUDNESS_TARGET_RANGE
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bxane.nuvx.data.settings.OutputPcmMode
 import com.bxane.nuvx.playback.AudioOutputStatus
 import com.bxane.nuvx.playback.audio.bitperfect.BitPerfectOutput
@@ -163,6 +166,24 @@ internal fun PlaybackSettingsGroup(
                     },
                     onClick = { AppSettings.setLoudnessNormalization(!loudnessNormalization) },
                 )
+            }
+        }
+        if (loudnessNormalization) {
+            val targetTitle = stringResource(R.string.loudness_target)
+            row(targetTitle, "loudness", "lufs", "target", "volume") {
+                BypassedByBitPerfect(bitPerfectReady) {
+                    val target by AppSettings.loudnessTargetLufs.collectAsStateWithLifecycle()
+                    SliderRow(
+                        icon = SfIcons.VolumeUp,
+                        title = targetTitle,
+                        subtitle = stringResource(R.string.loudness_target_subtitle),
+                        value = "$target LUFS",
+                        sliderValue = target.toFloat(),
+                        onSliderValue = { AppSettings.setLoudnessTargetLufs(it.roundToInt()) },
+                        valueRange = LOUDNESS_TARGET_RANGE.first.toFloat()..LOUDNESS_TARGET_RANGE.last.toFloat(),
+                        steps = LOUDNESS_TARGET_RANGE.last - LOUDNESS_TARGET_RANGE.first - 1,
+                    )
+                }
             }
         }
         val loudnessSpeakerTitle = stringResource(R.string.loudness_off_on_speaker)

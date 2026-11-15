@@ -826,6 +826,8 @@
     <string name="prefer_usb_dac">Preferir DAC USB</string>
     <string name="loudness_normalization">Normalização de volume</string>
     <string name="loudness_normalization_subtitle">Deixa todas as faixas com a mesma intensidade sonora</string>
+    <string name="loudness_target">Alvo de loudness</string>
+    <string name="loudness_target_subtitle">Mais baixo é mais suave e com mais margem. −14 LUFS corresponde ao YouTube.</string>
     <string name="loudness_off_on_speaker">Desativar no altifalante do telefone</string>
     <string name="pipeline_loudness_gain">Ganho</string>
     <string name="pipeline_loudness_measured">Medida</string>
