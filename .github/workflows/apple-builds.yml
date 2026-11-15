@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Verify release ref when uploading
@@ -87,7 +87,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - uses: dtolnay/rust-toolchain@stable
@@ -234,7 +234,7 @@ jobs:
         with:
           name: macos-binary-x86_64
           path: app/desktop/universal/x86_64
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - uses: dtolnay/rust-toolchain@stable
