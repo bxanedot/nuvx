@@ -121,9 +121,7 @@ fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time
                 .zip(nightly_build(current_tag))
                 .is_some_and(|(candidate, current)| candidate > current);
         }
-        if !candidate_tag.starts_with('v') {
-            return false;
-        }
+        return false;
     }
     let published = candidate_time.get(..19).unwrap_or(candidate_time);
     let built = current_time.get(..19).unwrap_or(current_time);
@@ -142,6 +140,30 @@ fn nightly_build(tag: &str) -> Option<(u64, u64)> {
 
 fn version_core(version: &str) -> &str {
     version.trim_start_matches('v').split(['-', '+']).next().unwrap_or_default()
+}
+
+fn compare_release_order(a_version: &str, a_tag: &str, a_time: &str, b_version: &str, b_tag: &str, b_time: &str) -> std::cmp::Ordering {
+    let a_stable = a_tag.starts_with('v');
+    let b_stable = b_tag.starts_with('v');
+    match a_stable.cmp(&b_stable) {
+        std::cmp::Ordering::Equal => {}
+        order => return order,
+    }
+
+    let (a_core, b_core) = (version_core(a_version), version_core(b_version));
+    if newer(a_core, b_core) {
+        return std::cmp::Ordering::Greater;
+    }
+    if newer(b_core, a_core) {
+        return std::cmp::Ordering::Less;
+    }
+    if !a_stable {
+        let order = nightly_build(a_tag).cmp(&nightly_build(b_tag));
+        if order != std::cmp::Ordering::Equal {
+            return order;
+        }
+    }
+    a_time.cmp(b_time)
 }
 
 impl Updater {
@@ -235,7 +257,7 @@ impl Updater {
                 let asset = release["assets"].as_array()?.iter().find(|asset| asset["name"] == want)?;
                 Some((published_at, tag, version, want, release, asset))
             })
-            .max_by(|a, b| a.0.cmp(b.0));
+            .max_by(|a, b| compare_release_order(a.2, a.1, a.0, b.2, b.1, b.0));
         let Some((_, tag, version, want, release, asset)) = candidate else {
             log::info!("update: {current} is current");
             return Ok(State::UpToDate);
@@ -510,13 +532,15 @@ mod tests {
         assert!(release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
         assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
-        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", ""));
+        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
         assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", stable_time, "0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time));
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", later_nightly_time));
         assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0", "v0.9.0", nightly_time));
         assert!(!release_is_newer("0.10.0-nightly.1.1", "nightly.1.1", later_nightly_time, "0.9.0", "v0.9.0", stable_time));
-        assert!(release_is_newer("1.0.0", "v1.0.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
+        assert!(release_is_newer("1.0.0", "v1.0.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
         assert!(release_is_newer("0.10.0", "v0.10.0", stable_time, "0.9.0", "v0.9.0", later_nightly_time));
+        assert_eq!(compare_release_order("1.0.0", "v1.0.0", stable_time, "1.0.0-nightly.44.1", "nightly.44.1", later_nightly_time), std::cmp::Ordering::Greater);
+        assert_eq!(compare_release_order("0.9.0-nightly.44.1", "nightly.44.1", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time), std::cmp::Ordering::Greater);
     }
 }

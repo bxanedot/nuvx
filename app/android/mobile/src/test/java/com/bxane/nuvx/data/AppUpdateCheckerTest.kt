@@ -89,15 +89,15 @@ class AppUpdateCheckerTest {
     }
 
     @Test
-    fun `nightly builds can update to a newer stable release`() {
+    fun `nightly builds can update to the next stable version regardless of publish time`() {
         assertTrue(
-            isNewerRelease("1.0.0", "v1.0.0", "2026-11-13T13:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T12:00:00Z"),
+            isNewerRelease("1.0.0", "v1.0.0", "2026-11-13T11:00:00Z", "0.9.0-nightly.42.1", "nightly.42.1", "2026-11-13T13:00:00Z"),
         )
     }
 
     @Test
-    fun `nightly builds can update to the stable release of the same version`() {
-        assertTrue(
+    fun `nightly builds never return to the stable release of the same version`() {
+        assertFalse(
             isNewerRelease("1.0.0", "v1.0.0", "2026-11-15T13:00:00Z", "1.0.0-nightly.1.1", "nightly.1.1", "2026-11-15T12:00:00Z"),
         )
     }
