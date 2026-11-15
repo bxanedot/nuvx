@@ -369,13 +369,23 @@ object StreamResolver {
         videoId: String,
         maxKbps: Int,
         requireM4a: Boolean = false,
-    ): Stream {
+    ): Stream = downloadResolutionGate.withLock {
         val stream = downloadStream(videoId, maxKbps, requireM4a)
         val allowed = if (requireM4a) setOf("m4a") else setOf("m4a", "webm")
         check(stream.downloadExtension in allowed) {
             "Can't save ${stream.mimeType} — try again"
         }
-        return stream
+        stream
+    }
+
+    internal fun downloadResolutionFailure(offeredAudio: Boolean, failure: Throwable?): IllegalStateException {
+        val refusal = failure is ReCaptchaException
+        val message = when {
+            refusal -> "YouTube temporarily refused this download. Wait a moment and retry."
+            offeredAudio -> "Couldn't reach a downloadable copy just now — try again"
+            else -> "No downloadable audio for this track"
+        }
+        return IllegalStateException(message, failure)
     }
 
     private suspend fun downloadStream(videoId: String, maxKbps: Int, requireM4a: Boolean): Stream =
@@ -394,20 +404,24 @@ object StreamResolver {
 
             val format = if (requireM4a) "MP4" else "Opus"
             if (found == null) TrackLog.w(TAG, "InnerTubeX found no usable $format for $videoId; extracting")
-            runCatching {
-                newPipeStream(videoId) { candidates ->
+            var extractionFailure: Exception? = null
+            try {
+                return@withContext newPipeStream(videoId) { candidates ->
                     val matching = candidates.filter {
                         if (requireM4a) it.second.isM4a else it.second.isWebmOpus
                     }
                     underCeiling(matching, maxKbps)
                         ?.also { offered = true }
                 }
-            }.onSuccess { return@withContext it }
-                .onFailure { TrackLog.w(TAG, "extraction found no $format for $videoId: ${it.message}") }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                extractionFailure = e
+                TrackLog.w(TAG, "extraction found no $format for $videoId: ${e.message}")
+            }
 
             found?.let { return@withContext it }
-            if (offered) error("Couldn't reach a downloadable copy just now — try again")
-            error("No downloadable audio for this track")
+            throw downloadResolutionFailure(offered, extractionFailure)
         }
 
     private fun <T> pickForQuality(candidates: List<Pair<Int, T>>): T? =
@@ -529,6 +543,7 @@ object StreamResolver {
             } catch (e: LinkageError) {
                 throw IOException("Extractor cannot run on this device: $e", e)
             } catch (e: Exception) {
+                if (e is ReCaptchaException) throw e
                 permanentReason(e)?.let { reason ->
                     TrackLog.w(TAG, "extraction will not succeed for $videoId: $reason")
                     throw e
@@ -594,6 +609,8 @@ object StreamResolver {
     private const val EXTRACTION_RETRY_MS = 1000L
 
     private val extractionGate = Mutex()
+
+    private val downloadResolutionGate = Mutex()
 
     private suspend fun extractStream(
         videoId: String,
