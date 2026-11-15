@@ -54,7 +54,8 @@
 | Device | Requirements | Where to start |
 | --- | --- | --- |
 | **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `nuvx-v*-gms.apk` or FOSS `nuvx-v*-foss.apk` (multi-ABI) |
-| **Android Auto / car** | Compatible head unit + phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · install the phone app; Android Auto media support is built in |
+| **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
+| **nuvx Auto** | Compatible Android head unit | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · standalone `NuvxAuto-v*-universal.apk`, with a TV-inspired interface (planned for 1.0.0) |
 | **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · choose GMS `NuvxTV-v*-gms.apk` or FOSS `NuvxTV-v*-foss.apk` (multi-ABI) |
 | **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate `NuvxWear-v*.apk` companion |
 | **iPhone** | iOS/iPadOS 18+; signing required | Unsigned IPA if attached to a release · [build and sideload notes](app/ios/README.md) |
@@ -63,11 +64,11 @@
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
 | **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Extension setup](https://web.nuvx.lol/guide) |
 
-The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs, each containing armeabi-v7a, arm64-v8a and x86_64 builds. New Android builds use one shared universal APK per phone and TV app; Cast and Wear features require Google Play Services. Nightlies keep byte-identical `-gms` and `-foss` aliases so existing 0.9 updaters can install the shared APK. Version 1.0.0 remains without a stable release or tag. Android Auto support is part of the phone app; there is no standalone car APK. Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched.
+The published v0.9.0 stable phone and TV assets are separate GMS and FOSS APKs, each containing armeabi-v7a, arm64-v8a and x86_64 builds. New Android builds use shared universal APKs for phone, TV and nuvx Auto; Cast and Wear features require Google Play Services. Phone and TV retain byte-identical `-gms` and `-foss` aliases for 0.9 updater compatibility. Until stable `v1.0.0` is published, Android nightlies use version 0.9.0/code 9; the stable 1.0.0 packages use code 10 and include nuvx Auto. Android Auto projection remains part of the phone app. Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The Apple workflow builds an unsigned IPA as a 14-day workflow artifact and can attach it to an existing release when manually dispatched. Version 1.0.0 remains without a stable release or tag.
 
 ### Install and update on iPhone or iPad
 
-1. Download `Nuvx-<version>-build<number>-ios-unsigned.ipa` from a release. If a release has no IPA, download the `ios-unsigned` artifact from a successful **Apple builds** workflow run; workflow artifacts expire after 14 days and require a GitHub sign-in.
+1. Download `nuvx-<version>-universal.ipa` from a release. If a release has no IPA, download the `ios-unsigned` artifact from a successful **Apple builds** workflow run; workflow artifacts expire after 14 days and require a GitHub sign-in.
 2. Sign and install the unsigned IPA with a sideloading tool such as Sideloadly, AltStore Classic, or SideStore. An unsigned IPA cannot be installed by opening it in Files or Safari. See the [iOS install guide](app/ios/README.md) for setup steps.
 3. nuvx checks the latest stable GitHub release on launch. To check again, open **Settings → Version & Updates → Check for Updates**. When an update is available, download its IPA and install it through the same sideloading tool and Apple Account used for the current install. Install over the existing app; do not uninstall first if you want to keep local data.
 4. Free Apple Account provisioning profiles expire after 7 days, so refresh the signature by re-signing and reinstalling before it expires. The in-app updater finds releases and downloads the IPA; signing and installation must be completed with the sideloading tool. [Apple's personal-team limits](https://developer.apple.com/help/account/basics/about-your-developer-account/) have the current details.
@@ -86,7 +87,8 @@ Android builds use Kotlin and Compose. Install JDK 25 and Android SDK Platform 3
 
 ```bash
 ./gradlew :app:assembleDevDebug     # phone and tablet
-./gradlew :tv:assembleProdDebug     # Android TV and Google TV
+./gradlew :tv:assembleProdTvDebug   # Android TV and Google TV
+./gradlew :tv:assembleProdAutoDebug # standalone nuvx Auto head-unit app
 ./gradlew :wearos:assembleDevDebug  # watch companion
 ```
 
@@ -94,7 +96,7 @@ On Windows, use `gradlew.bat`. For signing release builds, see [keystore.propert
 
 | Project | Source and setup |
 | --- | --- |
-| Android apps | [Phone](app/android/mobile) · [TV](app/android/tv/README.md) · [Wear OS](app/android/wearos/README.md) |
+| Android apps | [Phone and Android Auto media support](app/android/mobile) · [TV and nuvx Auto](app/android/tv/README.md) · [Wear OS](app/android/wearos/README.md) |
 | Desktop player | [Rust and egui](app/desktop/README.md) |
 | Web player and extension | [React, TypeScript and WXT](app/web/README.md) |
 | Shared code | [Kotlin](core/shared) · [Compose UI](core/sharedUi) · [Native audio](core/native) |

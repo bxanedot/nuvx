@@ -39,14 +39,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.bxane.nuvx.ui.theme.NuvxTheme
 import com.bxane.nuvx.ui.utils.rememberIosOverscrollFactory
 import com.bxane.nuvx.ui.performance.resolvePerformanceRefreshRate
-import kotlinx.coroutines.launch
 import com.bxane.nuvx.ui.intro.NuvxIntro
 import com.bxane.nuvx.ui.haptics.Haptic
 import com.bxane.nuvx.ui.haptics.rememberHaptics
 import androidx.compose.ui.res.vectorResource
-import android.content.pm.ActivityInfo
-import android.view.WindowManager
-import androidx.lifecycle.lifecycleScope
 
 
 internal fun shouldSkipAfterDislike(
@@ -59,14 +55,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        lifecycleScope.launch {
-            AppSettings.carMode.collect { car ->
-                requestedOrientation = if (car) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                if (car) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            }
-        }
         PlayerDeepLink.consume(intent)
         JamInviteLink.consume(intent)
         MusicLink.consume(intent)

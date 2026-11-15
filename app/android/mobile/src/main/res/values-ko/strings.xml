@@ -1239,8 +1239,6 @@
     <string name="recognize_no_match">일치 없음</string>
     <string name="recognize_no_match_body">인식하지 못했어요. 음악 가까이에서 다시 시도해 주세요.</string>
     <string name="recognize_find">nuvx에서 찾기</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">차량용 오디오용: 가로 화면, 화면 항상 켜짐</string>
     <string name="classic_search">클래식 검색</string>
     <string name="classic_search_subtitle">색상 카테고리 타일 대신 단순한 검색 페이지</string>
     <string name="enable_youtube_search">YouTube 검색 사용</string>

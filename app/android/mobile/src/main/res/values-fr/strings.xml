@@ -1402,8 +1402,6 @@
     <string name="recognize_no_match">Aucun résultat</string>
     <string name="recognize_no_match_body">Titre non reconnu. Réessayez plus près de la musique.</string>
     <string name="recognize_find">Trouver dans nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">Pour autoradios : paysage, et l\'écran reste allumé</string>
     <string name="classic_search">Recherche classique</string>
     <string name="classic_search_subtitle">Une page de recherche simple au lieu des catégories en couleur</string>
     <string name="enable_youtube_search">Activer la recherche YouTube</string>

@@ -261,7 +261,7 @@ jobs:
 
   upload-release:
     if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
-    needs: [ios, macos-package]
+    needs: [ios]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -271,14 +271,10 @@ jobs:
         with:
           name: ios-unsigned
           path: packages
-      - uses: actions/download-artifact@v6
-        with:
-          name: macos-universal
-          path: packages
       - name: Upload to an existing release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh release view "$RELEASE_TAG" >/dev/null
-          gh release upload "$RELEASE_TAG" packages/*
+          gh release upload "$RELEASE_TAG" packages/*.ipa packages/SHA256-ios.txt

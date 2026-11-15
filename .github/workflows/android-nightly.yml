@@ -43,6 +43,8 @@ jobs:
       version_suffix: ${{ steps.metadata.outputs.version_suffix }}
       is_stable: ${{ steps.metadata.outputs.is_stable }}
       stable_version: ${{ steps.metadata.outputs.stable_version }}
+      android_version: ${{ steps.metadata.outputs.android_version }}
+      android_code: ${{ steps.metadata.outputs.android_code }}
       source_ref: ${{ steps.metadata.outputs.source_ref }}
       desktop_version: ${{ steps.metadata.outputs.desktop_version }}
       build_time: ${{ steps.metadata.outputs.build_time }}
@@ -70,15 +72,28 @@ jobs:
             [[ $release_tag == "v$version" ]]
             [[ $version != 0.9.0 || $code == 9 ]]
             [[ $version != 1.0.0 || $code == 10 ]]
+            android_version="$version"
+            android_code="$code"
           else
             release_tag="nightly.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
             suffix="$release_tag"
             is_stable=false
+            stable_v1=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v1.0.0" \
+              --jq 'select(.draft == false and .prerelease == false) | .tag_name' 2>/dev/null || true)
+            if [[ $stable_v1 == v1.0.0 ]]; then
+              android_version="$version"
+              android_code="$code"
+            else
+              android_version=0.9.0
+              android_code=9
+            fi
           fi
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "version_suffix=$suffix" >> "$GITHUB_OUTPUT"
           echo "is_stable=$is_stable" >> "$GITHUB_OUTPUT"
           echo "stable_version=$version" >> "$GITHUB_OUTPUT"
+          echo "android_version=$android_version" >> "$GITHUB_OUTPUT"
+          echo "android_code=$android_code" >> "$GITHUB_OUTPUT"
           echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "desktop_version=$desktop_version" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
@@ -87,6 +102,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
           STABLE_VERSION: ${{ steps.metadata.outputs.stable_version }}
+          ANDROID_VERSION: ${{ steps.metadata.outputs.android_version }}
+          ANDROID_CODE: ${{ steps.metadata.outputs.android_code }}
           SOURCE_REF: ${{ steps.metadata.outputs.source_ref }}
         run: |
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
@@ -101,7 +118,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $STABLE_VERSION-$RELEASE_TAG" \
-            --notes "Signed universal desktop installers for Windows, Linux and macOS, plus one shared universal APK each for Android phones and TV and a separate Wear OS APK. Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone and TV APKs include armeabi-v7a, arm64-v8a and x86_64."
+            --notes "Signed universal desktop installers for Windows, Linux and macOS, plus shared universal APKs for Android phones, TV and nuvx Auto, and a separate Wear OS APK. Android APKs use $ANDROID_VERSION (version code $ANDROID_CODE) until stable v1.0.0 is published. Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64."
       - name: Create stable release draft
         if: steps.metadata.outputs.is_stable == 'true'
         env:
@@ -126,7 +143,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
       VERSION_SUFFIX: ${{ needs.prepare.outputs.version_suffix }}
-      STABLE_VERSION: ${{ needs.prepare.outputs.stable_version }}
+      ANDROID_VERSION: ${{ needs.prepare.outputs.android_version }}
+      ANDROID_CODE: ${{ needs.prepare.outputs.android_code }}
       BUILD_TIME: ${{ needs.prepare.outputs.build_time }}
     steps:
       - uses: actions/checkout@v7
@@ -148,8 +166,8 @@ jobs:
           NUVX_KEY_ALIAS: ${{ secrets.NUVX_KEY_ALIAS }}
           NUVX_KEY_PASSWORD: ${{ secrets.NUVX_KEY_PASSWORD }}
         run: |
-          version="$STABLE_VERSION"
-          code=$(sed -nE 's/^extra\["nuvxVersionCode"\].*getOrElse\(([0-9]+)\)$/\1/p' build.gradle.kts)
+          version="$ANDROID_VERSION"
+          code="$ANDROID_CODE"
           [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ $code =~ ^[1-9][0-9]*$ ]]
           suffix="$VERSION_SUFFIX"
@@ -178,8 +196,8 @@ jobs:
           PY
           unset NUVX_KEYSTORE_BASE64 NUVX_KEYSTORE_PASSWORD NUVX_KEY_ALIAS NUVX_KEY_PASSWORD
           bash gradlew :app:testProdDebugUnitTest \
-            :app:assembleProdRelease :tv:assembleProdRelease :wearos:assembleProdRelease \
-            -Pnuvx.nightlyBaseCode="$code" -Pnuvx.nightlyBaseName="$version" -Pnuvx.nightlySuffix="$suffix" \
+            :app:assembleProdRelease :tv:assembleProdTvRelease :tv:assembleProdAutoRelease :wearos:assembleProdRelease \
+            -Pnuvx.androidVersionCode="$code" -Pnuvx.androidVersionName="$version" -Pnuvx.nightlySuffix="$suffix" \
             -Pnuvx.releaseTag="$RELEASE_TAG" -Pnuvx.buildTime="$BUILD_TIME"
           mkdir nightly
           tools="$ANDROID_HOME/build-tools/37.0.0"
@@ -192,8 +210,8 @@ jobs:
             cp "$source" "nightly/$prefix-v$version${suffix:+-$suffix}.apk"
           }
           stage_shared_universal() {
-            local dir=$1 app=$2 prefix=$3 package=$4 source metadata asset
-            source=$(find "$dir" -type f -name "*$app-prod-release.apk" -print -quit)
+            local dir=$1 variant=$2 prefix=$3 package=$4 aliases=${5:-false} source metadata asset
+            source=$(find "$dir" -type f -path "*/$variant/release/*.apk" -print -quit)
             [[ -n "$source" && -s "$source" ]]
             metadata=$("$tools/aapt2" dump badging "$source")
             [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
@@ -204,15 +222,18 @@ jobs:
             done
             asset="${prefix}-v${version}${suffix:+-$suffix}"
             cp "$source" "nightly/${asset}-universal.apk"
-            for distribution in gms foss; do
-              cp "$source" "nightly/${asset}-${distribution}.apk"
-              cmp "$source" "nightly/${asset}-${distribution}.apk"
-            done
+            if [[ $aliases == true ]]; then
+              for distribution in gms foss; do
+                cp "$source" "nightly/${asset}-${distribution}.apk"
+                cmp "$source" "nightly/${asset}-${distribution}.apk"
+              done
+            fi
           }
-          stage_shared_universal app/android/mobile/build/outputs/apk app nuvx com.bxane.nuvx
-          stage_shared_universal app/android/tv/build/outputs/apk tv NuvxTV com.bxane.nuvx.tv
+          stage_shared_universal app/android/mobile/build/outputs/apk prod nuvx com.bxane.nuvx true
+          stage_shared_universal app/android/tv/build/outputs/apk prodTv NuvxTV com.bxane.nuvx.tv true
+          stage_shared_universal app/android/tv/build/outputs/apk prodAuto NuvxAuto com.bxane.nuvx.auto
           stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
-          [[ $(find nightly -maxdepth 1 -name '*.apk' | wc -l) -eq 7 ]]
+          [[ $(find nightly -maxdepth 1 -name '*.apk' | wc -l) -eq 8 ]]
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           gh release upload "$RELEASE_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
 

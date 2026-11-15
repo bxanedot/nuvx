@@ -6,16 +6,16 @@ const files = {
   'mac-intel': 'nuvx-setup-{v}-macos-intel.dmg',
   android: 'nuvx-v{v}-universal.apk',
   tv: 'NuvxTV-v{v}-universal.apk',
-  car: 'NuvxCar-v{v}-universal.apk',
-  wear: 'NuvxWear-v{v}-universal.apk',
-  ios: 'nuvx-v{v}-universal.ipa',
+  auto: 'NuvxAuto-v{v}-universal.apk',
+  wear: 'NuvxWear-v{v}.apk',
+  ios: 'nuvx-{v}-universal.ipa',
   chrome: 'nuvx-extension-chrome-{v}.zip',
   firefox: 'nuvx-extension-firefox-{v}.zip',
 };
 
 function candidatesFor(platform, version, requestedPlatform) {
   const primary = files[platform].replace('{v}', version);
-  // shortcut: old releases still resolve to one GMS/FOSS APK; remove this fallback once universal assets ship.
+  // Keep legacy filenames available for old tagged releases.
   if (platform === 'android') return [primary, ...(requestedPlatform === 'android-foss'
     ? [`nuvx-v${version}-foss.apk`, `nuvx-v${version}.apk`, `nuvx-v${version}-gms.apk`]
     : [`nuvx-v${version}.apk`, `nuvx-v${version}-gms.apk`, `nuvx-v${version}-foss.apk`])];
@@ -55,8 +55,9 @@ module.exports = async (req, res) => {
     return;
   }
   const requestedPlatform = params.get('platform');
-  const platform = requestedPlatform === 'android-foss' ? 'android'
-    : requestedPlatform === 'tv-foss' ? 'tv' : requestedPlatform;
+  const platform = requestedPlatform === 'android-foss' || requestedPlatform === 'android-auto' ? 'android'
+    : requestedPlatform === 'tv-foss' ? 'tv'
+      : requestedPlatform === 'car' ? 'auto' : requestedPlatform;
   let target = releases + '/latest';
   if (Object.hasOwn(files, platform)) {
     try {

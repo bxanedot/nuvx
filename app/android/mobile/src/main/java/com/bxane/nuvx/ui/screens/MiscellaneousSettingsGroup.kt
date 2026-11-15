@@ -61,7 +61,6 @@ internal fun MiscellaneousSettingsGroup(
     context: Context,
     search: SettingsSearch,
     classicSearch: Boolean,
-    carMode: Boolean,
     hideRadioTab: Boolean,
     hidePodcastsTab: Boolean,
     swipeToPlayNext: Boolean,
@@ -89,21 +88,6 @@ internal fun MiscellaneousSettingsGroup(
                     )
                 },
                 onClick = { AppSettings.setClassicSearch(!classicSearch) },
-            )
-        }
-        val carModeTitle = stringResource(R.string.car_mode)
-        row(carModeTitle, "car", "auto", "head unit", "stereo", "landscape", "dashboard") {
-            SettingsRow(
-                icon = SfIcons.Car,
-                title = carModeTitle,
-                subtitle = stringResource(R.string.car_mode_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = carMode,
-                        onCheckedChange = AppSettings::setCarMode,
-                    )
-                },
-                onClick = { AppSettings.setCarMode(!carMode) },
             )
         }
         val hideRadioTabTitle = stringResource(R.string.hide_radio_tab)

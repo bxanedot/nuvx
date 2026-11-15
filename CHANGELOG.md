@@ -11,11 +11,14 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 - Add the **Enable YouTube Search** setting to Android TV. Turning it off removes YouTube results and returns the selected search filter to Music.
 - Replace separate GMS and FOSS phone and TV releases with one shared universal APK for each app. Each APK includes armeabi-v7a, arm64-v8a and x86_64. Cast and Wear features work when Google Play Services is installed.
 - Keep the old `-gms.apk` and `-foss.apk` download names as byte-identical aliases of the shared APK so existing 0.9.x installs can update.
+- Add **nuvx Auto**, a standalone universal head-unit APK that reuses the TV app's large-focus interface. Android Auto projection continues to use the phone app's media service; remove the phone-only Car Mode toggle.
+- Expose the eXcor fallback switch in TV settings so it is available in the shared TV and Auto builds as well as the phone app.
 - Prevent update rollbacks: stable installs stay on stable; nightlies accept only a newer nightly, reject older stable releases, and can move to the next newer stable release.
+- Build future Android nightlies on `0.9.0` / version code 9 until the stable `v1.0.0` release is published; stable `v1.0.0` and its Android APKs use version code 10. Preserve already published nightlies as-is.
 
 ### iPhone and iPad
 
-- Package version 1.0.0/build 10 for iPhone and iPad as `Nuvx-1.0.0-build10-ios-unsigned.ipa`; the package must be signed with a sideloading tool such as Sideloadly, AltStore Classic or SideStore.
+- Package version 1.0.0/build 10 for iPhone and iPad as `nuvx-1.0.0-universal.ipa`; the unsigned package must be signed with a sideloading tool such as Sideloadly, AltStore Classic or SideStore.
 - Link the IPA download and install/update guide from **Settings → Version & Updates**, alongside the stable-release check and release notes. Install over the existing app to preserve local data; a free Apple Account signature needs refreshing before its seven-day expiry.
 - iOS cannot install this unsigned IPA from inside nuvx. Finish installation and updates with the same sideloading tool and Apple Account.
 
@@ -34,7 +37,7 @@ This is the planned stable update after 0.9.0. `nightly.169.1` and other `nightl
 ### Web, downloads and release packages
 
 - Add direct Android TV and Wear OS downloads to the web Downloads page.
-- Route phone and TV downloads to the shared universal APKs and keep the browser extensions, desktop installers and Android packages in the combined release.
+- Route phone, TV, Auto and iPhone downloads to their packaged assets; keep the browser extensions, desktop installers and Android packages under the same release tag.
 - Preserve silent Windows installer switches and put a time limit on the Windows nightly installer packaging job.
 - Align package metadata to version 1.0.0 and Android version code 10 across Android, iOS, desktop and browser extensions.
 

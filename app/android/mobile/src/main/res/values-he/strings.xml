@@ -1406,8 +1406,6 @@
     <string name="recognize_no_match">אין התאמה</string>
     <string name="recognize_no_match_body">לא הצלחתי לזהות. נסו שוב קרוב יותר למוזיקה.</string>
     <string name="recognize_find">חיפוש ב-nuvx</string>
-    <string name="car_mode">nuvx Car</string>
-    <string name="car_mode_subtitle">למערכות שמע ברכב: לרוחב, והמסך נשאר דולק</string>
     <string name="classic_search">חיפוש קלאסי</string>
     <string name="classic_search_subtitle">דף חיפוש פשוט במקום אריחי הקטגוריות הצבעוניים</string>
     <string name="enable_youtube_search">הפעלת חיפוש ב-YouTube</string>
