@@ -266,7 +266,7 @@ dependencies {
         exclude(group = "org.bouncycastle")
     }
     implementation("org.conscrypt:conscrypt-android:2.9.0")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.87")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
