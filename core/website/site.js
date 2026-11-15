@@ -14,10 +14,6 @@
   });
   updateTheme();
 
-  const ambient = document.createElement('div');
-  ambient.className = 'nuvx-ambient';
-  ambient.setAttribute('aria-hidden', 'true');
-  document.body.prepend(ambient);
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const control = document.querySelector('.showcase-toggle');
   const video = document.querySelector('#promo-video');
