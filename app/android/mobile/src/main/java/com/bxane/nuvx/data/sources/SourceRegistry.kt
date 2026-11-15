@@ -30,7 +30,7 @@ data class SourceConfig(
     val kind: SourceKind,
     val label: String = "",
     val baseUrl: String = "",
-    val enabled: Boolean = kind != SourceKind.JIOSAAVN,
+    val enabled: Boolean = kind != SourceKind.JIOSAAVN && kind != SourceKind.RADIOJAVAN,
     val allowDownloads: Boolean = true,
     val checkValidLossless: Boolean = false,
     val qualityOptions: List<AddonQualityOption> = emptyList(),
@@ -110,6 +110,7 @@ object SourceRegistry {
                     else -> config
                 }
             }
+            .sortedBy { it.kind.rank }
     }
 
     private fun decodeStored(raw: String): List<SourceConfig> {
@@ -250,7 +251,7 @@ object SourceRegistry {
         val missed = addons.filterNot { config -> moved.any { it.id == config.id } }
         val reordered = moved + missed
         if (reordered.map { it.id } == addons.map { it.id }) return
-        publish(reordered + configs.value.filterNot { it.kind.isUserAdded })
+        publish(configs.value.filterNot { it.kind.isUserAdded } + reordered)
     }
 
     private fun publish(next: List<SourceConfig>, persist: Boolean = true) {
@@ -323,6 +324,7 @@ object SourceRegistry {
         SourceKind.CUSTOM_MODULE -> ModuleSource(config)
         SourceKind.MODULE -> ModuleSource(config)
         SourceKind.JIOSAAVN -> JioSaavnSource(config)
+        SourceKind.RADIOJAVAN -> RadioJavanSource(config)
         SourceKind.YOUTUBE -> YouTubeSource(config)
     }
 
@@ -346,7 +348,7 @@ object SourceRegistry {
             .build()
             .toString()
 
-    private val BUILT_IN_KINDS = listOf(SourceKind.JIOSAAVN, SourceKind.YOUTUBE)
+    private val BUILT_IN_KINDS = listOf(SourceKind.YOUTUBE, SourceKind.JIOSAAVN, SourceKind.RADIOJAVAN)
 
     private const val KEY_SOURCES = "sources"
     private const val KEY_JIOSAAVN_OPT_IN_V1 = "jiosaavn_opt_in_v1"

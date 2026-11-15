@@ -412,7 +412,7 @@
     <string name="sleep_timer_custom">Kustom</string>
     <string name="start_sleep_timer">Mulai timer</string>
     <string name="sources_no_lossless">Tidak ada sumber aktif yang dapat menyediakan audio lossless. Tambahkan modul kustom untuk memutar file lossless yang tersedia tanpa transcoding.</string>
-    <string name="sources_order_footer">Jika suatu sumber tidak memiliki trek atau tidak dapat dijangkau, nuvx mencoba sumber berikutnya. Sumber di atas YouTube dapat menggantikan rekamannya saat menghasilkan versi yang lebih baik.</string>
+    <string name="sources_order_footer">Jika suatu sumber tidak memiliki trek atau tidak dapat dijangkau, nuvx mencoba sumber berikutnya.</string>
     <string name="sources_order_header">Sumber, dicoba dalam urutan ini</string>
     <string name="sources_quality_capped">Koneksi ini diatur di bawah Kualitas tinggi, sehingga stream ditranskode agar sesuai dengan batas tersebut. Unduhan tidak terpengaruh.</string>
     <string name="jiosaavn_mismatch_warning">Bisa mencocokkan versi lagu yang salah. Aktifkan dengan risiko sendiri.</string>

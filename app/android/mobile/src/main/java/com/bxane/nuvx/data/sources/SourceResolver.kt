@@ -89,7 +89,7 @@ object SourceResolver {
 
         val picked = pickedMix != null && pinned is AddonSource
         if (!picked && request is StreamRequest.Lossless && pinned?.kind?.canServeLossless != true) {
-            for (source in rankedAbove(configId, active)) {
+            for (source in active.filterNot { it.configId == configId }) {
                 if (!source.kind.canServeLossless) continue
                 val upgraded = matchAndStream(source, target, request) ?: continue
                 if (upgraded.format.isLossless != true) continue
@@ -122,7 +122,7 @@ object SourceResolver {
         val active = SourceRegistry.activeForPlayback()
         val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return null
         val request = requestForNow()
-        val (source, stream) = bestAcross(rankedAbove(youtube.configId, active), target, request)
+        val (source, stream) = bestAcross(active.filterNot { it.kind == SourceKind.YOUTUBE }, target, request)
             ?: return null
         TrackLog.d(
             TAG,
@@ -135,7 +135,7 @@ object SourceResolver {
     fun directAddons(): List<MusicSource> {
         val active = SourceRegistry.activeForPlayback()
         val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return emptyList()
-        return rankedAbove(youtube.configId, active).filter { it.kind == SourceKind.ADDON }
+        return active.filter { it.kind == SourceKind.ADDON }
     }
 
     suspend fun directStream(
@@ -199,7 +199,7 @@ object SourceResolver {
         if (target.title.isBlank() || target.isVideo) return null
         val active = SourceRegistry.activeForPlayback()
         val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return null
-        val quick = rankedAbove(youtube.configId, active).filter { it.kind.worthPrefetching }
+        val quick = active.filter { it.kind != SourceKind.YOUTUBE && it.kind.worthPrefetching }
         if (quick.isEmpty()) return null
         val (source, stream) = bestAcross(quick, target, requestForNow()) ?: return null
         TrackLog.d(
@@ -219,7 +219,7 @@ object SourceResolver {
         val active = SourceRegistry.activeForPlayback()
         val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return null
         val (source, chosen) = bestAcross(
-            rankedAbove(youtube.configId, active).filterNot { it.configId == servedBy },
+            active.filterNot { it.kind == SourceKind.YOUTUBE || it.configId == servedBy },
             target,
             request,
             waitForAll = true,
@@ -262,12 +262,7 @@ object SourceResolver {
     fun upgradeSlackSec(): Int = AppSettings.upgradeLengthSlackSeconds.value
 
     fun canSubstituteForYouTube(): Boolean =
-        SourceRegistry.activeForPlayback().indexOfFirst { it.kind == SourceKind.YOUTUBE } > 0
-
-    internal fun rankedAbove(configId: String, active: List<MusicSource>): List<MusicSource> =
-        active.indexOfFirst { it.configId == configId }
-            .let { if (it < 0) active.size else it }
-            .let { active.take(it) }
+        SourceRegistry.activeForPlayback().any { it.kind != SourceKind.YOUTUBE }
 
     internal suspend fun bestAcross(
         sources: List<MusicSource>,

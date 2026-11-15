@@ -2,6 +2,7 @@ package com.bxane.nuvx.data.sources
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -14,7 +15,11 @@ import kotlin.test.assertTrue
 
 class SourceRegistryInitTest {
 
-    private fun config(kind: SourceKind, id: String = kind.name, enabled: Boolean = kind != SourceKind.JIOSAAVN) =
+    private fun config(
+        kind: SourceKind,
+        id: String = kind.name,
+        enabled: Boolean = kind != SourceKind.JIOSAAVN && kind != SourceKind.RADIOJAVAN,
+    ) =
         SourceConfig(id = id, kind = kind, enabled = enabled)
 
 
@@ -23,9 +28,20 @@ class SourceRegistryInitTest {
     fun `a fresh install gets exactly the built-in kinds`() {
         val seeded = SourceRegistry.sourcesForInit(emptyList(), forceJioSaavnOff = true)
         assertEquals(
-            listOf(SourceKind.JIOSAAVN, SourceKind.YOUTUBE),
+            listOf(SourceKind.YOUTUBE, SourceKind.JIOSAAVN, SourceKind.RADIOJAVAN),
             seeded.map { it.kind },
         )
+        assertFalse(seeded.single { it.kind == SourceKind.RADIOJAVAN }.enabled)
+    }
+
+    @Test
+    fun `built-in providers rank YouTube first then JioSaavn and Radio Javan`() {
+        assertEquals(
+            listOf(SourceKind.YOUTUBE, SourceKind.JIOSAAVN, SourceKind.RADIOJAVAN),
+            SourceKind.entries.filter { it in setOf(SourceKind.YOUTUBE, SourceKind.JIOSAAVN, SourceKind.RADIOJAVAN) }
+                .sortedBy { it.rank },
+        )
+        assertFalse(SourceKind.RADIOJAVAN.isUserAdded)
     }
 
     @Test
@@ -34,6 +50,20 @@ class SourceRegistryInitTest {
         val seeded = SourceRegistry.sourcesForInit(stored, forceJioSaavnOff = true)
         assertEquals(1, seeded.count { it.kind == SourceKind.YOUTUBE })
         assertEquals(1, seeded.count { it.kind == SourceKind.ADDON })
+    }
+
+    @Test
+    fun `initialization orders built-in providers before stored addons`() {
+        val seeded = SourceRegistry.sourcesForInit(
+            listOf(config(SourceKind.ADDON, id = "first"), config(SourceKind.YOUTUBE), config(SourceKind.ADDON, id = "second")),
+            forceJioSaavnOff = true,
+        )
+
+        assertEquals(
+            listOf(SourceKind.YOUTUBE, SourceKind.JIOSAAVN, SourceKind.RADIOJAVAN, SourceKind.ADDON, SourceKind.ADDON),
+            seeded.map { it.kind },
+        )
+        assertEquals(listOf("first", "second"), seeded.filter { it.kind == SourceKind.ADDON }.map { it.id })
     }
 
 
@@ -61,6 +91,13 @@ class SourceRegistryInitTest {
         val stored = listOf(config(SourceKind.JIOSAAVN, enabled = true))
         val seeded = SourceRegistry.sourcesForInit(stored, forceJioSaavnOff = false)
         assertTrue(seeded.first { it.kind == SourceKind.JIOSAAVN }.enabled)
+    }
+
+    @Test
+    fun `Radio Javan is optional and disabled on a fresh install`() {
+        val seeded = SourceRegistry.sourcesForInit(emptyList(), forceJioSaavnOff = true)
+        assertFalse(seeded.single { it.kind == SourceKind.RADIOJAVAN }.enabled)
+        assertTrue(seeded.first().kind == SourceKind.YOUTUBE)
     }
 
 

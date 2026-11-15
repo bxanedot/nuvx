@@ -411,7 +411,7 @@
     <string name="sleep_timer_custom">自訂</string>
     <string name="start_sleep_timer">開始計時</string>
     <string name="sources_no_lossless">已啟用的來源均無法提供無損音訊。新增自定義模組即可播放可用的無損檔案，而無需轉碼。</string>
-    <string name="sources_order_footer">如果某個來源沒有該曲目或無法訪問，nuvx 會嘗試下一個來源。排在 YouTube 之前的來源如果返回更好的版本，可以替換其錄音。</string>
+    <string name="sources_order_footer">如果某個來源沒有該曲目或無法訪問，nuvx 會嘗試下一個來源。</string>
     <string name="sources_order_header">來源，按此順序嘗試</string>
     <string name="sources_quality_capped">此連線的設定低於高品質，因此串流會被轉碼以符合該限制，下載不受影響。</string>
     <string name="jiosaavn_mismatch_warning">可能匹配到歌曲的錯誤版本。啟用風險自負。</string>

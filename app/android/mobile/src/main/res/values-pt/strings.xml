@@ -393,7 +393,7 @@
     <string name="sleep_timer_custom">Personalizado</string>
     <string name="start_sleep_timer">Iniciar temporizador</string>
     <string name="sources_no_lossless">Nenhuma fonte habilitada pode fornecer áudio lossless. Adicione um módulo personalizado para tocar arquivos lossless sem transcodificação.</string>
-    <string name="sources_order_footer">Se uma fonte não tiver a faixa, o nuvx tenta a próxima. Fontes acima do YouTube podem substituí-lo quando encontram uma versão melhor.</string>
+    <string name="sources_order_footer">Se uma fonte não tiver a faixa, o nuvx tenta a próxima.</string>
     <string name="sources_order_header">Fontes, tentadas nesta ordem</string>
     <string name="sources_quality_capped">Esta conexão está definida abaixo de Alta qualidade, então os fluxos são transcodificados. Downloads não são afetados.</string>
     <string name="jiosaavn_mismatch_warning">Pode encontrar a versão errada de uma música. Ative por sua conta e risco.</string>
