@@ -443,6 +443,21 @@
                 android:resource="@xml/widget_media_pill" />
         </receiver>
 
+        <!-- Quick Settings play/pause tile. Exported because System UI binds it; BIND_QUICK_SETTINGS_TILE limits that to the system. -->
+        <service
+            android:name=".widget.PlaybackTile"
+            android:exported="true"
+            android:icon="@drawable/ic_widget_play"
+            android:label="@string/tile_playback_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>
+
         <!-- The transport buttons. Reached only by this app's own PendingIntents. -->
         <receiver
             android:name=".widget.MediaWidgetActions"

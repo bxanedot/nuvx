@@ -113,6 +113,7 @@
     <string name="widget_preview_title">歌曲标题</string>
     <string name="widget_preview_artist">艺人</string>
     <string name="widget_pill_label">正在播放 4×1</string>
+    <string name="tile_playback_label">播放/暂停</string>
     <string name="widget_pill_description">单行显示曲目，以及喜欢、随机播放和播放控件。</string>
     <string name="widget_preview_pill">歌曲标题 - 艺人</string>
     <string name="download_quality">下载质量</string>
