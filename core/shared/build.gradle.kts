@@ -31,7 +31,7 @@ kotlin {
                 api("io.ktor:ktor-client-websockets:3.6.1")
                 api("io.ktor:ktor-client-content-negotiation:3.6.1")
                 api("io.ktor:ktor-serialization-kotlinx-json:3.6.1")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
                 api("org.jsoup:jsoup:1.24.1")
                 api("com.github.MetrolistGroup.innertubex:innertubex:v0.11.7")
@@ -42,7 +42,7 @@ kotlin {
         jvmMain.get().dependsOn(jvmSharedMain)
 
         commonMain.dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

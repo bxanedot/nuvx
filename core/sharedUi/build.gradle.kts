@@ -53,7 +53,7 @@ kotlin {
             api("dev.chrisbanes.haze:haze:1.7.3")
             api("dev.chrisbanes.haze:haze-materials:1.7.3")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
         }
         jvmMain.dependencies {
             api("org.jetbrains.compose.ui:ui-desktop:$CMP_DESKTOP")
