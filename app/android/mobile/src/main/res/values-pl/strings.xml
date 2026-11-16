@@ -1462,4 +1462,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">Prywatne połączenie</string>
+    <string name="privacy_connection_subtitle">Wysyła ruch nuvx przez Tor</string>
+    <string name="privacy_connection_footer">Kieruje żądania i dźwięk nuvx przez sieć Tor za pomocą aplikacji Orbot. Chroni tylko nuvx i nie jest systemowym VPN-em. Usługi, w których jesteś zalogowany, nadal mogą rozpoznać Twoje konto, a Tor jest wolniejszy, więc dźwięk wysokiej jakości może się buforować. Jeśli połączenie zostanie przerwane, nuvx przestaje ładować, zamiast łączyć się bezpośrednio.</string>
+    <string name="privacy_restart_needed">Zamknij i ponownie otwórz nuvx, aby zastosować tę zmianę.</string>
+    <string name="privacy_webview_uncovered">Strony logowania na tym urządzeniu nie mogą przechodzić przez Tor i łączą się bezpośrednio.</string>
+    <string name="privacy_mode_automatic">Automatycznie</string>
+    <string name="privacy_mode_embedded">Wbudowany Tor</string>
+    <string name="privacy_status">Stan</string>
+    <string name="privacy_status_disabled">Wyłączone</string>
+    <string name="privacy_status_connecting">Łączenie</string>
+    <string name="privacy_status_bootstrapping">Uruchamianie Tora (%1$d%%)</string>
+    <string name="privacy_status_connected_orbot">Połączono przez Orbot</string>
+    <string name="privacy_status_connected_embedded">Połączono przez Tor + Snowflake</string>
+    <string name="privacy_status_switching">Przełączanie połączenia</string>
+    <string name="privacy_status_unavailable">Połączenie niedostępne</string>
+    <string name="privacy_test">Przetestuj połączenie</string>
+    <string name="privacy_test_running">Testowanie…</string>
+    <string name="privacy_test_passed">Powodzenie: żądanie wyszło przez Tor</string>
+    <string name="privacy_test_failed">Niepowodzenie: brak działającego połączenia Tor</string>
+    <string name="privacy_retry">Ponów połączenie</string>
+    <string name="privacy_open_orbot">Otwórz Orbot</string>
+    <string name="privacy_install_orbot">Zainstaluj Orbot</string>
+    <string name="privacy_orbot_subtitle">Orbot musi być uruchomiony i połączony z Torem</string>
 </resources>

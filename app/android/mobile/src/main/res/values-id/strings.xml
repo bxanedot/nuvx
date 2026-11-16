@@ -1404,4 +1404,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">Koneksi Privat</string>
+    <string name="privacy_connection_subtitle">Kirim lalu lintas nuvx melalui Tor</string>
+    <string name="privacy_connection_footer">Mengalihkan permintaan dan audio nuvx melalui jaringan Tor menggunakan aplikasi Orbot. Ini hanya melindungi nuvx dan bukan VPN untuk seluruh sistem. Layanan tempat Anda masuk tetap dapat mengenali akun Anda, dan Tor lebih lambat, sehingga audio kualitas tinggi bisa tersendat. Jika koneksi terputus, nuvx berhenti memuat alih-alih terhubung secara langsung.</string>
+    <string name="privacy_restart_needed">Tutup lalu buka kembali nuvx untuk menerapkan perubahan ini.</string>
+    <string name="privacy_webview_uncovered">Halaman masuk di perangkat ini tidak dapat dialihkan melalui Tor dan terhubung secara langsung.</string>
+    <string name="privacy_mode_automatic">Otomatis</string>
+    <string name="privacy_mode_embedded">Tor bawaan</string>
+    <string name="privacy_status">Status</string>
+    <string name="privacy_status_disabled">Nonaktif</string>
+    <string name="privacy_status_connecting">Menghubungkan</string>
+    <string name="privacy_status_bootstrapping">Memulai Tor (%1$d%%)</string>
+    <string name="privacy_status_connected_orbot">Terhubung melalui Orbot</string>
+    <string name="privacy_status_connected_embedded">Terhubung melalui Tor + Snowflake</string>
+    <string name="privacy_status_switching">Beralih koneksi</string>
+    <string name="privacy_status_unavailable">Koneksi tidak tersedia</string>
+    <string name="privacy_test">Uji koneksi</string>
+    <string name="privacy_test_running">Menguji…</string>
+    <string name="privacy_test_passed">Berhasil: permintaan keluar melalui Tor</string>
+    <string name="privacy_test_failed">Gagal: tidak ada koneksi Tor yang berfungsi</string>
+    <string name="privacy_retry">Coba hubungkan lagi</string>
+    <string name="privacy_open_orbot">Buka Orbot</string>
+    <string name="privacy_install_orbot">Pasang Orbot</string>
+    <string name="privacy_orbot_subtitle">Orbot harus berjalan dengan Tor terhubung</string>
 </resources>
