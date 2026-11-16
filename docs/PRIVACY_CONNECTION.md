@@ -11,7 +11,8 @@ Routes nuvx's own network traffic through Tor. Off by default. No nuvx server, a
 | Android: Settings section (19 languages) | Done; not yet seen on a device |
 | Android: built-in Tor + Snowflake | **Not built.** The option is hidden (`PrivacyNetwork.EMBEDDED_AVAILABLE = false`) |
 | Android TV / Auto | Share the routing code; no settings UI, so it stays off |
-| Desktop, iOS, web | Not started. Desktop keeps its existing proxy setting |
+| Desktop: Privacy Connection (Tor) proxy mode, fail-closed, verified via check.torproject.org | Done, unit tested; **not yet run against a real Tor** |
+| iOS, web | No in-app routing (see below): Orbot on iOS is a device-wide VPN; the web player follows the browser |
 
 Until built-in Tor exists, a user needs the Orbot app, and Automatic mode is not offered.
 
@@ -24,6 +25,23 @@ Settings → Privacy Connection → choose **Orbot**, then close and reopen nuvx
 - Tor is slow. High audio quality may buffer; lower the streaming quality if it does.
 - If Tor is unreachable, nuvx stops loading. It does not fall back to a direct connection.
 - Tor relays can see limited connection metadata; this does not make anyone anonymous to the services they log in to.
+
+## Desktop
+
+Settings → Network → Proxy → **Privacy Connection (Tor)**. nuvx looks for a running Tor on this PC: Tor Browser (SOCKS port 9150) first, then a system `tor` service or Orbot-alike on 9050.
+
+- Everything nuvx fetches goes through it as `socks5h`, so site names are resolved by Tor, not the PC: songs, search, artwork, lyrics, downloads, sign-in windows (through the local relay), yt-dlp and Listen Together.
+- **Fail closed**: with no running Tor, the proxy points at a closed loopback port, so requests fail instead of going direct. Nothing falls back to a direct connection.
+- **Test connection** only reports success after `check.torproject.org` confirms `IsTor: true` through the proxy, then checks that YouTube Music answers.
+- When YouTube Music refuses a Tor exit, the existing exit-switching asks Tor for a new circuit (SOCKS username isolation) until one works.
+- Like the other proxy modes, a change applies from the next start.
+
+Tests (`cargo test`, `proxy::tests`): fail-closed resolution, port probing, save/load, a SOCKS5 handshake that must carry the host name, and an end-to-end check that a request in Tor mode with no Tor fails rather than reaching a live local server directly. **Not verified: a real Tor** (this build container cannot reach the Tor download servers).
+
+## iOS and web
+
+- **iOS**: Orbot for iOS is a device-wide VPN, so turning it on routes all of nuvx's traffic through Tor with nothing to build in the app. In-app, per-app routing like Android's is not possible without a network extension and is not planned for now.
+- **Web player**: the page follows the browser's own connection. Use Tor Browser (the Firefox extension works there) or a browser configured for a Tor SOCKS proxy.
 
 ## How it works
 
@@ -83,4 +101,3 @@ Backends are fakes in these tests. **Not verified anywhere:** a real Orbot, real
 - Built-in Tor + Snowflake (planned: Briar's `onionwrapper`, `tor` and `lyrebird` libraries), then Automatic mode. Needs a license and APK-size review.
 - Resume an interrupted stream at its position after a backend switch (today Media3's normal retry applies).
 - A separate "music streaming verified" check in Settings.
-- Desktop and iOS.

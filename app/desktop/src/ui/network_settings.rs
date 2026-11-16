@@ -15,7 +15,7 @@ pub(super) fn network(app: &mut App, ui: &mut Ui) {
             ui.set_width(220.0);
             ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
             ui.add_space(4.0);
-            for s in [Setting::System, Setting::Off, Setting::Custom(String::new())] {
+            for s in [Setting::System, Setting::Off, Setting::Custom(String::new()), Setting::Tor] {
                 if option_row(ui, s.label(), same(&s, &app.proxy_mode)).clicked() {
                     pick = Some(s);
                     ui.close();
@@ -69,6 +69,25 @@ pub(super) fn network(app: &mut App, ui: &mut Ui) {
             ui.add_space(12.0);
         }
         Setting::Off => {}
+        Setting::Tor => {
+            divider(ui);
+            let desc = match proxy::tor_port() {
+                Some(p) => format!("A running Tor was found on port {p}. Everything nuvx fetches goes through it; names are resolved by Tor, not this PC. If Tor stops, nuvx stops loading rather than connect directly."),
+                None => "No running Tor was found. Start Tor Browser, or a tor service on port 9050, then press Find Tor. Until then nuvx fails closed and loads nothing.".to_owned(),
+            };
+            setting_row(ui, "Tor on this PC", Some(&desc), |ui| {
+                if pill(ui, "Find Tor", None, false).clicked() {
+                    proxy::detect_tor();
+                }
+            });
+            divider(ui);
+            setting_row(
+                ui,
+                "What it covers",
+                Some("Songs, search, artwork, lyrics, downloads, sign-in and Listen together. Services you sign in to still know it's your account, and Tor is slower: lower the audio quality if it buffers."),
+                |_| {},
+            );
+        }
     }
     if let Some(e) = &app.proxy_error {
         ui.label(RichText::new(e).font(theme::regular(12.5)).color(theme::RED));
