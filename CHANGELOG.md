@@ -17,6 +17,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - Add optional JioSaavn and Radio Javan fallbacks to the web player and browser extension. Both start disabled, run after YouTube Music fails (JioSaavn first), need extension site access, and play as seekable files rather than live radio. The extension's new `source.fetch` bridge method only serves `www.jiosaavn.com/api.php` (`search.getResults`, `song.generateAuthToken`) and `rj-deskcloud.com/api2/{search,mp3}`.
 - Fix Apple clients showing JioSaavn results and fallback regardless of the source switch; the legacy flag now follows the JioSaavn source switch and defaults off.
 
+### Privacy
+
+- Add **Privacy Connection (Tor)** to desktop's Network settings: route everything nuvx fetches through a running Tor Browser or tor service, resolving names through Tor and failing closed when Tor is unreachable. The connection test only passes once check.torproject.org confirms the traffic is Tor. Android gained the equivalent Orbot-based Privacy Connection in this release.
+
 ### Discord
 
 - Change the default Discord activity action to **Listen on nuvx** and send it to `https://nuvx.lol/open`, which attempts to open the installed app and keeps a website fallback available.

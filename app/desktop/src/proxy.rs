@@ -11,6 +11,7 @@ pub enum Setting {
     System,
     Off,
     Custom(String),
+    Tor,
 }
 
 impl Setting {
@@ -19,6 +20,7 @@ impl Setting {
             Setting::System => "Use Windows settings",
             Setting::Off => "No proxy",
             Setting::Custom(_) => "Custom",
+            Setting::Tor => "Privacy Connection (Tor)",
         }
     }
 
@@ -27,8 +29,41 @@ impl Setting {
             Setting::Off => None,
             Setting::Custom(u) => parse(u).ok(),
             Setting::System => system(),
+            // Fail closed: with no Tor found, point at a loopback port nothing answers on,
+            // so requests fail instead of going direct.
+            Setting::Tor => parse(&format!("socks5h://127.0.0.1:{}", tor_port().unwrap_or(FAIL_CLOSED_PORT))).ok(),
         }
     }
+}
+
+/// Almost certainly closed (tcpmux); connecting fails fast and nothing falls back to a direct connection.
+const FAIL_CLOSED_PORT: u16 = 1;
+
+/// None = not probed yet; Some(None) = probed, no Tor; Some(Some(p)) = Tor's SOCKS port.
+static TOR: std::sync::RwLock<Option<Option<u16>>> = std::sync::RwLock::new(None);
+
+/// The local SOCKS port of a running Tor, probing on first use.
+/// Tor Browser listens on 9150, a system tor or Orbot-alike on 9050.
+pub fn tor_port() -> Option<u16> {
+    if let Some(known) = *TOR.read().unwrap() {
+        return known;
+    }
+    detect_tor()
+}
+
+/// Re-probe for a running Tor (the UI's retry), and rebuild the shared client if the port changed.
+pub fn detect_tor() -> Option<u16> {
+    let found = [9150u16, 9050].into_iter().find(|p| probe(*p));
+    let before = *TOR.read().unwrap();
+    *TOR.write().unwrap() = Some(found);
+    if before.is_some() && before != Some(found) && matches!(active(), Setting::Tor) {
+        *HTTP.write().unwrap() = None;
+    }
+    found
+}
+
+fn probe(port: u16) -> bool {
+    std::net::TcpStream::connect_timeout(&std::net::SocketAddr::from(([127, 0, 0, 1], port)), Duration::from_millis(400)).is_ok()
 }
 
 const CHILD_ENV: &str = "NUVX_PROXY_CHILD";
@@ -56,6 +91,7 @@ pub fn active() -> &'static Setting {
 pub fn load(data_dir: &Path) -> Setting {
     match std::fs::read_to_string(data_dir.join("proxy")).unwrap_or_default().trim() {
         "off" => Setting::Off,
+        "tor" => Setting::Tor,
         "custom" => crate::vault::get(VAULT, data_dir).and_then(|b| String::from_utf8(b).ok()).map_or(Setting::System, Setting::Custom),
         _ => Setting::System,
     }
@@ -65,6 +101,7 @@ pub fn save(data_dir: &Path, s: &Setting) -> anyhow::Result<()> {
     let mode = match s {
         Setting::System => "system",
         Setting::Off => "off",
+        Setting::Tor => "tor",
         Setting::Custom(u) => {
             parse(u)?;
             crate::vault::set(VAULT, data_dir, u.trim().as_bytes())?;
@@ -177,8 +214,9 @@ fn apply_with(b: reqwest::ClientBuilder, s: &Setting) -> reqwest::ClientBuilder 
 
 pub fn pass_to(cmd: &mut std::process::Command) {
     let v = match (active(), RELAY.get()) {
-        (Setting::Custom(_), Some(port)) => format!("http://127.0.0.1:{port}"),
+        (Setting::Custom(_) | Setting::Tor, Some(port)) => format!("http://127.0.0.1:{port}"),
         (Setting::Custom(u), None) => u.clone(),
+        (Setting::Tor, None) => active().resolve().map(|u| u.to_string()).unwrap_or_else(|| "off".to_owned()),
         (Setting::System, _) => "system".to_owned(),
         (Setting::Off, _) => "off".to_owned(),
     };
@@ -188,7 +226,7 @@ pub fn pass_to(cmd: &mut std::process::Command) {
 static RELAY: OnceLock<u16> = OnceLock::new();
 
 pub fn needs_relay() -> bool {
-    matches!(active(), Setting::Custom(_)) && active().resolve().is_some_and(|p| !p.username().is_empty() || p.scheme().starts_with("socks") || p.scheme() == "https")
+    matches!(active(), Setting::Custom(_) | Setting::Tor) && active().resolve().is_some_and(|p| !p.username().is_empty() || p.scheme().starts_with("socks") || p.scheme() == "https")
 }
 
 pub async fn start_relay() -> anyhow::Result<u16> {
@@ -243,7 +281,7 @@ pub fn webview(b: wry::WebViewBuilder<'_>, unbound: bool) -> wry::WebViewBuilder
         let features = if unbound { format!("{DEFAULT},DeviceBoundSessions,EnableBoundSessionCredentials") } else { DEFAULT.to_owned() };
         match (active(), active().resolve()) {
             (Setting::Off, _) => return b.with_additional_browser_args(format!("{features} --no-proxy-server")),
-            (Setting::Custom(_), Some(p)) => {
+            (Setting::Custom(_) | Setting::Tor, Some(p)) => {
                 let scheme = if p.scheme().starts_with("socks") { "socks5" } else { p.scheme() };
                 let (host, port) = (p.host_str().unwrap_or_default(), p.port_or_known_default().unwrap_or(8080));
                 return b.with_additional_browser_args(format!("{features} --proxy-server={scheme}://{host}:{port}"));
@@ -394,7 +432,24 @@ pub async fn test(s: &Setting) -> anyhow::Result<Duration> {
     if let Setting::Custom(u) = s {
         parse(u)?;
     }
-    let http = apply_with(reqwest::Client::builder().connect_timeout(Duration::from_secs(8)).timeout(Duration::from_secs(12)), s).build()?;
+    if matches!(s, Setting::Tor) {
+        detect_tor();
+        anyhow::ensure!(tor_port().is_some(), "no running Tor was found on this PC. Start Tor Browser (or a tor service), then test again. Until then nuvx fails closed and loads nothing.");
+    }
+    let http = apply_with(reqwest::Client::builder().connect_timeout(Duration::from_secs(8)).timeout(Duration::from_secs(25)), s).build()?;
+    if matches!(s, Setting::Tor) {
+        // Only report success once a real request through the proxy comes back confirmed as Tor.
+        let body = http
+            .get("https://check.torproject.org/api/ip")
+            .send()
+            .await
+            .and_then(|r| r.error_for_status())
+            .map_err(|e| anyhow::anyhow!(plain(e.without_url(), s.resolve().as_ref())))?
+            .text()
+            .await
+            .unwrap_or_default();
+        anyhow::ensure!(body.contains("\"IsTor\":true"), "the proxy on port {} answered, but it isn't Tor. nuvx won't treat it as a Privacy Connection.", tor_port().unwrap_or(FAIL_CLOSED_PORT));
+    }
     let t0 = Instant::now();
     if let Err(e) = http.get("https://music.youtube.com/generate_204").send().await.and_then(|r| r.error_for_status()) {
         anyhow::bail!(plain(e.without_url(), s.resolve().as_ref()));
@@ -433,6 +488,87 @@ fn plain(e: reqwest::Error, proxy: Option<&url::Url>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tor_mode_resolves_fail_closed_or_to_the_detected_port() {
+        // One test, because TOR is shared state and tests run in parallel.
+        *TOR.write().unwrap() = Some(None);
+        let u = Setting::Tor.resolve().expect("tor mode always resolves to a proxy");
+        assert_eq!(u.as_str(), format!("socks5h://127.0.0.1:{FAIL_CLOSED_PORT}"));
+        assert_eq!(u.scheme(), "socks5h");
+        *TOR.write().unwrap() = Some(Some(9150));
+        assert_eq!(Setting::Tor.resolve().unwrap().as_str(), "socks5h://127.0.0.1:9150");
+        *TOR.write().unwrap() = None;
+    }
+
+    #[test]
+    fn probing_finds_a_listening_port_and_not_a_closed_one() {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let open = l.local_addr().unwrap().port();
+        assert!(probe(open));
+        let closed = { std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port() };
+        assert!(!probe(closed));
+    }
+
+    #[test]
+    fn tor_mode_round_trips_through_save_and_load() {
+        let dir = std::env::temp_dir().join(format!("nuvx-proxy-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        save(&dir, &Setting::Tor).unwrap();
+        assert_eq!(load(&dir), Setting::Tor);
+        save(&dir, &Setting::Off).unwrap();
+        assert_eq!(load(&dir), Setting::Off);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn socks5_handshake_sends_the_host_name() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            let (mut s, _) = listener.accept().await.unwrap();
+            let mut greet = [0u8; 3];
+            s.read_exact(&mut greet).await.unwrap();
+            assert_eq!(greet, [5, 1, 0]);
+            s.write_all(&[5, 0]).await.unwrap();
+            let mut head = [0u8; 5];
+            s.read_exact(&mut head).await.unwrap();
+            assert_eq!(&head[..4], &[5, 1, 0, 3], "the request must carry a host name, not an IP");
+            let mut name = vec![0u8; head[4] as usize + 2];
+            s.read_exact(&mut name).await.unwrap();
+            let host = String::from_utf8_lossy(&name[..head[4] as usize]).into_owned();
+            s.write_all(&[5, 0, 0, 1, 0, 0, 0, 0, 0, 0]).await.unwrap();
+            host
+        });
+        let p = parse(&format!("socks5h://127.0.0.1:{port}")).unwrap();
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
+        socks5(&mut stream, &p, "music.youtube.com.invalid", 443).await.unwrap();
+        assert_eq!(server.await.unwrap(), "music.youtube.com.invalid");
+    }
+
+    #[tokio::test]
+    async fn requests_fail_closed_instead_of_going_direct() {
+        // A real local HTTP server that would answer if nuvx ever connected directly.
+        let direct = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = direct.local_addr().unwrap();
+        let answered = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let hit = answered.clone();
+        tokio::spawn(async move {
+            while let Ok((mut s, _)) = direct.accept().await {
+                hit.store(true, std::sync::atomic::Ordering::SeqCst);
+                let _ = s.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n").await;
+            }
+        });
+        // Tor mode with no Tor found: the client points at the fail-closed port.
+        let dead = parse(&format!("socks5h://127.0.0.1:{FAIL_CLOSED_PORT}")).unwrap();
+        let client = {
+            let b = reqwest::Client::builder().connect_timeout(Duration::from_secs(2)).timeout(Duration::from_secs(3));
+            b.proxy(reqwest::Proxy::all(dead.as_str()).unwrap()).build().unwrap()
+        };
+        let out = client.get(format!("http://127.0.0.1:{}/", addr.port())).send().await;
+        assert!(out.is_err(), "the request must fail, not fall back to a direct connection");
+        assert!(!answered.load(std::sync::atomic::Ordering::SeqCst), "nothing may reach the server directly");
+    }
 
     #[test]
     fn parses_proxy_addresses() {
