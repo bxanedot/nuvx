@@ -48,6 +48,10 @@ internal fun PlaybackSettingsGroup(
     skipSilence: Boolean,
     spatialAudio: Boolean,
     playingDolbyAtmos: Boolean,
+    swipeToPlayNext: Boolean,
+    dontRepeatSuggestions: Boolean,
+    stopOnTaskRemoved: Boolean,
+    smartVersionAlignment: Boolean,
     onOpenChoice: (SettingsChoiceKind) -> Unit,
     onConfirmFixedVolume: () -> Unit,
     onEqualizer: () -> Unit,
@@ -312,6 +316,70 @@ internal fun PlaybackSettingsGroup(
                     onClick = onEqualizer,
                 )
             }
+        }
+        val playNextOnSwipeTitle = stringResource(R.string.play_next_on_swipe)
+        row(playNextOnSwipeTitle, "swipe", "queue") {
+            SettingsRow(
+                icon = SfIcons.PlaylistPlay,
+                title = playNextOnSwipeTitle,
+                subtitle = if (swipeToPlayNext) {
+                    stringResource(R.string.swipe_plays_next)
+                } else {
+                    stringResource(R.string.swipe_adds_to_queue)
+                },
+                trailing = {
+                    IosSwitch(
+                        checked = swipeToPlayNext,
+                        onCheckedChange = AppSettings::setSwipeToPlayNext,
+                    )
+                },
+                onClick = { AppSettings.setSwipeToPlayNext(!swipeToPlayNext) },
+            )
+        }
+        val dontRepeatSongsTitle = stringResource(R.string.dont_repeat_songs)
+        row(dontRepeatSongsTitle, "radio", "suggestions") {
+            SettingsRow(
+                icon = SfIcons.History,
+                title = dontRepeatSongsTitle,
+                subtitle = stringResource(R.string.dont_repeat_songs_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = dontRepeatSuggestions,
+                        onCheckedChange = AppSettings::setDontRepeatSuggestions,
+                    )
+                },
+                onClick = { AppSettings.setDontRepeatSuggestions(!dontRepeatSuggestions) },
+            )
+        }
+        val stopMusicOnCloseTitle = stringResource(R.string.stop_music_on_close)
+        row(stopMusicOnCloseTitle, "notification", "background") {
+            SettingsRow(
+                icon = SfIcons.MusicOff,
+                title = stopMusicOnCloseTitle,
+                subtitle = stringResource(R.string.stop_music_on_close_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = stopOnTaskRemoved,
+                        onCheckedChange = AppSettings::setStopOnTaskRemoved,
+                    )
+                },
+                onClick = { AppSettings.setStopOnTaskRemoved(!stopOnTaskRemoved) },
+            )
+        }
+        val smartAlignmentTitle = stringResource(R.string.smart_version_alignment)
+        row(smartAlignmentTitle, "alignment", "sync", "waveform", "video", "audio", "skit", "intro") {
+            SettingsRow(
+                icon = SfIcons.GraphicEq,
+                title = smartAlignmentTitle,
+                subtitle = stringResource(R.string.smart_version_alignment_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = smartVersionAlignment,
+                        onCheckedChange = AppSettings::setSmartVersionAlignment,
+                    )
+                },
+                onClick = { AppSettings.setSmartVersionAlignment(!smartVersionAlignment) },
+            )
         }
     }
 }
