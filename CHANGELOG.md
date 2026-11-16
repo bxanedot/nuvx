@@ -4,6 +4,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## 1.1.0 (Unreleased)
 
+### Fixes
+
+- Keep the Android search dock and Mini Player anchored just above the keyboard. The dock applied the keyboard and navigation-bar insets on top of each other, so both elements jumped by their sum when the keyboard opened ([#279](https://github.com/bxanedot/nuvx/issues/279)). iPhone already anchors its pill with a single keyboard inset and needed no change.
+
 ### Playlists
 
 - Let users upload custom artwork for created, imported, downloaded, or YouTube Music playlists on Android, Apple platforms, desktop, and web. Artwork stays local to the current device or browser.
