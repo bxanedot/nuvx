@@ -42,13 +42,26 @@ test("join: first is host, rejoin rotates token, full party refused", () => {
   const { p, host, guest } = party();
   assert.ok(host.isHost && !guest.isHost);
   const old = guest.token;
-  const again = P.join(p, req("g", { displayName: "New" }), random, 2000) as P.Member;
+  const again = P.join(p, req("g", { displayName: "New" }), random, 2000, old) as P.Member;
   assert.equal(again.memberId, guest.memberId);
   assert.notEqual(again.token, old);
   assert.equal(P.authenticate(p, old), null);
   assert.equal(P.authenticate(p, again.token)?.memberId, guest.memberId);
   p.maxMembers = 2;
   assert.equal((P.join(p, req("x"), random, 3000) as P.Fail).error, "party_full");
+});
+
+test("join: a known deviceId without its token cannot take over the membership", () => {
+  const { p, host, guest } = party();
+  const hostToken = host.token;
+  for (const token of ["", "wrong", guest.token]) {
+    const intruder = P.join(p, req("h"), random, 2000, token) as P.Member;
+    assert.notEqual(intruder.memberId, host.memberId);
+    assert.ok(!intruder.isHost);
+    P.remove(p, intruder.memberId);
+  }
+  assert.equal(P.authenticate(p, hostToken)?.memberId, host.memberId);
+  assert.ok(host.isHost);
 });
 
 test("remove hands host to the longest-present member", () => {
