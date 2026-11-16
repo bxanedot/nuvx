@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -157,6 +157,12 @@ internal val NAV_BAR_LIFT = 6.dp
 internal val floatingBarInsets: WindowInsets
     @Composable get() = WindowInsets.navigationBars.union(WindowInsets(bottom = GESTURE_BAR_FLOOR))
 
+// One combined bottom inset for the search dock: the union takes the largest of the
+// keyboard, the navigation bar and the gesture floor instead of stacking them, so the
+// dock stays anchored just above the keyboard instead of jumping by their sum (#279).
+internal val searchDockInsets: WindowInsets
+    @Composable get() = WindowInsets.ime.union(floatingBarInsets)
+
 private val GESTURE_BAR_FLOOR = 15.dp
 
 internal val TAB_VERTICAL_PADDING = 6.5.dp
@@ -186,7 +192,7 @@ fun FloatingBottomBar(
     searchDock: (@Composable () -> Unit)? = null,
 ) {
     if (searchDock != null) {
-        Box(modifier.imePadding().windowInsetsPadding(floatingBarInsets).padding(horizontal = NAV_BAR_GUTTER).padding(bottom = NAV_BAR_LIFT)) {
+        Box(modifier.windowInsetsPadding(searchDockInsets).padding(horizontal = NAV_BAR_GUTTER).padding(bottom = NAV_BAR_LIFT)) {
             searchDock()
         }
         return
