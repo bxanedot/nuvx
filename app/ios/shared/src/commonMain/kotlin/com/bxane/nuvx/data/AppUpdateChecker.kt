@@ -45,7 +45,7 @@ object AppUpdateChecker {
     )
 
     private const val LATEST_RELEASE_URL =
-        "https://api.github.com/repos/bxanedot/nuvx/releases/latest"
+        "https://api.github.com/repos/lylicht/nuvx/releases/latest"
 
     private val json = Json { ignoreUnknownKeys = true }
 

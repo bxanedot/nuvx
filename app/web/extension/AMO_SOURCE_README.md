@@ -21,7 +21,7 @@ npm install --global pnpm@12.11.2
 1. Clone the repository and enter its web workspace:
 
    ```sh
-   git clone https://github.com/bxanedot/nuvx.git
+   git clone https://github.com/lylicht/nuvx.git
    cd nuvx/app/web
    ```
 

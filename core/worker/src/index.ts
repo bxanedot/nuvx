@@ -14,6 +14,7 @@ export interface Env {
   CANVAS_LIMIT: RateLimit;
   CANVAS_PASSCODE?: string;
   CANVAS_GITHUB_TOKEN?: string;
+  BOT_STATS_TOKEN?: string;
 }
 
 export const ALLOWED_ORIGINS = new Set(["https://web.nuvx.lol", "https://nuvx.pages.dev", "http://localhost:5173"]);
@@ -24,13 +25,48 @@ const PRESENCE_WINDOW_MS = (PRESENCE_INTERVAL_SEC + 90) * 1000;
 // Live counts are approximate; cap duplicate install IDs from a single network source.
 const MAX_PRESENCE_PER_SOURCE = 5;
 const LISTENER_WINDOW_MS = 60_000;
+const COMMUNITY_FRESH_MS = 5 * 60_000;
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
 type Reply = { status: number; body: unknown };
+type CommunityListener = { displayName: string; minutes: number };
+type CommunitySnapshot = {
+  memberCount: number;
+  activeListeners: number;
+  listeners: CommunityListener[];
+  updatedAt: number;
+};
+const EMPTY_COMMUNITY: CommunitySnapshot = { memberCount: 0, activeListeners: 0, listeners: [], updatedAt: 0 };
 const err = (f: P.Fail): Reply => ({ status: f.status, body: { error: f.error, message: f.message } });
 const isFail = (v: unknown): v is P.Fail => !!v && typeof v === "object" && "error" in v && "status" in v;
 const NO_PARTY = err(P.fail(404, "no_such_party", "No party with that code."));
 const BAD_TOKEN = err(P.fail(401, "bad_token", "This device is not a member of that party."));
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (!a || a.length !== b.length) return false;
+  let difference = 0;
+  for (let i = 0; i < a.length; i++) difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return difference === 0;
+}
+
+function communitySnapshot(value: unknown): CommunitySnapshot | null {
+  if (!value || typeof value !== "object") return null;
+  const body = value as Record<string, unknown>;
+  const memberCount = Number(body.memberCount), activeListeners = Number(body.activeListeners);
+  if (!Number.isInteger(memberCount) || memberCount < 0 || memberCount > 1_000_000) return null;
+  if (!Number.isInteger(activeListeners) || activeListeners < 0 || activeListeners > 100_000) return null;
+  if (!Array.isArray(body.listeners)) return null;
+  const listeners = body.listeners.slice(0, 10).flatMap((item): CommunityListener[] => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as Record<string, unknown>;
+    const displayName = typeof row.displayName === "string" ? row.displayName.trim().slice(0, 80) : "";
+    const minutes = Number(row.minutes);
+    return displayName && Number.isFinite(minutes) && minutes > 0
+      ? [{ displayName, minutes: Math.min(10_000_000, Math.floor(minutes)) }]
+      : [];
+  }).sort((a, b) => b.minutes - a.minutes);
+  return { memberCount, activeListeners, listeners, updatedAt: Date.now() };
+}
 
 function json(body: unknown, status: number, origin: string | null, extra: Record<string, string> = {}) {
   const headers: Record<string, string> = { "content-type": "application/json", ...extra };
@@ -81,6 +117,20 @@ export default {
         return new Response(JSON.stringify(c), { headers: { "content-type": "application/json", "access-control-allow-origin": "*", "cache-control": "public, max-age=15" } });
       }
       return new Response(badge(c.online), { headers: { "content-type": "image/svg+xml;charset=utf-8", "access-control-allow-origin": "*", "cache-control": "no-cache, no-store, must-revalidate, max-age=0" } });
+    }
+    if (route === "GET /api/community") {
+      const snapshot = await env.PRESENCE.get(env.PRESENCE.idFromName("global")).communityStats();
+      return new Response(JSON.stringify(snapshot), { headers: { "content-type": "application/json", "access-control-allow-origin": "*", "cache-control": "public, max-age=30" } });
+    }
+    if (route === "POST /api/community") {
+      if (!env.BOT_STATS_TOKEN) return send({ status: 503, body: { error: "bot_stats_unconfigured", message: "Discord stats publishing is not configured." } });
+      if (!constantTimeEqual(bearer(req), env.BOT_STATS_TOKEN)) return send({ status: 401, body: { error: "unauthorized", message: "Invalid stats publisher token." } });
+      const body = await readJson(req);
+      if (isFail(body)) return send(err(body));
+      const snapshot = communitySnapshot(body);
+      if (!snapshot) return send({ status: 422, body: { error: "invalid_community_stats", message: "Expected memberCount, activeListeners, and up to ten listener rows." } });
+      await env.PRESENCE.get(env.PRESENCE.idFromName("global")).publishCommunityStats(snapshot);
+      return send({ status: 200, body: { ok: true, updatedAt: snapshot.updatedAt } });
     }
     if (route === "POST /api/parties") {
       if (!(await env.CREATE_LIMIT.limit({ key: ip })).success) return send(err(P.fail(429, "create_rate_limited", "You can create up to two parties per minute. Please try again shortly.")));
@@ -425,6 +475,15 @@ export class Presence extends DurableObject<Env> {
     }
     await this.ctx.storage.put("release-downloads", { downloads, refreshAt: Date.now() + refreshIn });
     return downloads;
+  }
+
+  async communityStats(): Promise<CommunitySnapshot> {
+    const snapshot = (await this.ctx.storage.get<CommunitySnapshot>("discord-community")) ?? EMPTY_COMMUNITY;
+    return Date.now() - snapshot.updatedAt <= COMMUNITY_FRESH_MS ? snapshot : EMPTY_COMMUNITY;
+  }
+
+  async publishCommunityStats(snapshot: CommunitySnapshot) {
+    await this.ctx.storage.put("discord-community", snapshot);
   }
 
   async counts() {

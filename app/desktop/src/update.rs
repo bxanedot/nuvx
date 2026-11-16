@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-const RELEASE_LIST: &str = "https://api.github.com/repos/bxanedot/nuvx/releases?per_page=100";
-const BY_TAG: &str = "https://api.github.com/repos/bxanedot/nuvx/releases/tags/";
-pub const RELEASES: &str = "https://github.com/bxanedot/nuvx/releases";
+const RELEASE_LIST: &str = "https://api.github.com/repos/lylicht/nuvx/releases?per_page=100";
+const BY_TAG: &str = "https://api.github.com/repos/lylicht/nuvx/releases/tags/";
+pub const RELEASES: &str = "https://github.com/lylicht/nuvx/releases";
 
 type Notes = Arc<Mutex<std::collections::HashMap<String, Option<String>>>>;
 

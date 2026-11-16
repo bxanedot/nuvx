@@ -1425,8 +1425,8 @@ private struct AppPrompts: View {
                     case .podcastsFollowup:
                         Button("OK", role: .cancel) {}
                     case .supportTip:
-                        Button("Tip on Ko-fi") {
-                            open("https://ko-fi.com/bxane")
+                        Button("Open Licht's profile") {
+                            open("https://guns.lol/lylicht")
                         }
                         Button("Not now", role: .cancel) {}
                         Button("Don’t show again", role: .destructive) {
@@ -1434,7 +1434,7 @@ private struct AppPrompts: View {
                         }
                     case .supportStar:
                         Button("Star on GitHub") {
-                            open("https://github.com/bxanedot/nuvx")
+                            open("https://github.com/lylicht/nuvx")
                         }
                         Button("Not now", role: .cancel) {}
                         Button("Don’t show again", role: .destructive) {

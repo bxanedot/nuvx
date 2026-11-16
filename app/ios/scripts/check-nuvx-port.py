@@ -30,7 +30,7 @@ def check(root=ROOT):
     failures = []
     notices = (root / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
     bundled_notices = (APPLE_RESOURCES / "AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
-    if not notices.startswith("# Third-party licenses\n\nnuvx is distributed by bxane."):
+    if not notices.startswith("# Third-party licenses\n\nnuvx is distributed by Licht."):
         failures.append("Incorrect product identity in dependency notices")
     if notices != bundled_notices:
         failures.append("Bundled dependency notices differ from THIRD_PARTY_LICENSES.md")
@@ -127,7 +127,7 @@ def check(root=ROOT):
             failures.append(f"Missing build/license input: {path}")
     for manifest in (root / "shared/build.gradle.kts",):
         text = manifest.read_text(encoding="utf-8")
-        if "https://nuvx-listen.bxane.workers.dev" not in text:
+        if "https://nuvx-listen.lylicht.workers.dev" not in text:
             failures.append("Official Listen Together default is missing")
     return files, failures
 

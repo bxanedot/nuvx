@@ -31,7 +31,7 @@ val lastfmSecret: String = (
 val listenTogetherServer: String = (
     localProps.getProperty("LISTEN_TOGETHER_SERVER")
         ?: System.getenv("LISTEN_TOGETHER_SERVER")
-        ?: "https://nuvx-listen.bxane.workers.dev"
+        ?: "https://nuvx-listen.lylicht.workers.dev"
     ).trim().trimEnd('/')
 
 val betaSuffix = providers.gradleProperty("nuvx.nightlySuffix").getOrElse("")

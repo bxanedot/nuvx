@@ -223,7 +223,7 @@ async function lyrics() {
     }));
   } catch { }
 
-  const lrclib = { 'User-Agent': 'nuvx (https://github.com/bxanedot)' };
+  const lrclib = { 'User-Agent': 'nuvx (https://github.com/lylicht)' };
   await capture('lyrics/lrclib-get.json', q('https://lrclib.net/api/get', {
     track_name: t.title, artist_name: t.artist, duration: t.durationSec,
   }), { headers: lrclib });

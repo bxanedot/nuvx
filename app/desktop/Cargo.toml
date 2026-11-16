@@ -1,10 +1,10 @@
 [package]
 name = "nuvx"
 version = "1.1.0"
-authors = ["bxane"]
+authors = ["Licht"]
 edition = "2024"
 license = "GPL-3.0-only"
-repository = "https://github.com/bxanedot/nuvx"
+repository = "https://github.com/lylicht/nuvx"
 homepage = "https://nuvx.lol"
 description = "nuvx for desktop: a native YouTube Music client"
 

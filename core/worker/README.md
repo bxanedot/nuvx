@@ -1,6 +1,6 @@
 # nuvx Listen Together worker
 
-**Live:** https://nuvx-listen.bxane.workers.dev, running the party protocol in this folder.
+**Target URL after deployment:** https://nuvx-listen.lylicht.workers.dev, running the party protocol in this folder.
 
 A Cloudflare Worker that serves:
 
@@ -9,6 +9,9 @@ A Cloudflare Worker that serves:
 - **Live stats**: `GET /api/stats/live` reports `online` from recent app presence pings and `listening` from
   connected devices in parties with playback running. `POST /api/presence` updates the online count.
   `GET /api/stats/live/badge.svg` displays the online count.
+- **Discord community stats**: `GET /api/community` serves the server member count, current bot-channel listeners,
+  and up to ten opted-in leaderboard entries. The nuvx Discord bot publishes snapshots to `POST /api/community`.
+  Set `BOT_STATS_TOKEN` as a Worker secret and the matching `BOT_STATS_TOKEN` in the bot environment.
 - **Release downloads**: `GET /api/stats/downloads` sums GitHub download counts for published nuvx app packages.
   It refreshes at most every five minutes and serves the last successful total if GitHub is unavailable.
 - **Invite pages**: `GET /invite/{code}`, which nuvx.lol rewrites here.
@@ -44,3 +47,4 @@ nuvx.lol is hosted on Vercel, so `listen.nuvx.lol` would need a CNAME at Vercel 
 Cloudflare custom domain, which only works for zones on Cloudflare. Clients use the workers.dev URL until that changes.
 
 Canvas uploads need two secrets: `wrangler secret put CANVAS_PASSCODE` and `wrangler secret put CANVAS_GITHUB_TOKEN`.
+Discord stats publishing needs `wrangler secret put BOT_STATS_TOKEN`; use the same randomly generated token in the bot's `.env`.

@@ -12,4 +12,4 @@ Only upload videos you have the right to share. nuvx skips canvases when the dev
 
 
 
-key is bxane.
+Uploads use a private passcode configured on the Worker; do not put that passcode in this repository.

@@ -4,7 +4,7 @@
   const themeColor = document.querySelector('meta[name="theme-color"]');
   const isDark = () => root.dataset.theme === 'dark';
   const updateTheme = () => {
-    if (themeColor) themeColor.content = isDark() ? '#000000' : '#fbf8f9';
+    if (themeColor) themeColor.content = isDark() ? '#0a0a0a' : '#fafafa';
     if (toggle) toggle.setAttribute('aria-label', `Switch to ${isDark() ? 'light' : 'dark'} mode`);
   };
   toggle?.addEventListener('click', () => {
@@ -13,6 +13,36 @@
     updateTheme();
   });
   updateTheme();
+
+  const topbar = document.querySelector('.topbar');
+  const menuToggle = document.querySelector('#menu-toggle');
+  const closeMenu = () => {
+    topbar?.classList.remove('is-menu-open');
+    menuToggle?.setAttribute('aria-expanded', 'false');
+    menuToggle?.setAttribute('aria-label', 'Open navigation');
+  };
+  menuToggle?.addEventListener('click', () => {
+    const open = !topbar?.classList.contains('is-menu-open');
+    topbar?.classList.toggle('is-menu-open', open);
+    menuToggle.setAttribute('aria-expanded', String(open));
+    menuToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+  });
+  topbar?.querySelectorAll('#primary-navigation a').forEach((link) => link.addEventListener('click', closeMenu));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeMenu();
+      const downloads = document.querySelector('.download-menu');
+      if (downloads?.open) {
+        downloads.open = false;
+        downloads.querySelector('summary')?.focus();
+      }
+    }
+  });
+  document.addEventListener('click', (event) => {
+    if (topbar && !topbar.contains(event.target)) closeMenu();
+    const downloads = document.querySelector('.download-menu');
+    if (downloads?.open && !downloads.contains(event.target)) downloads.open = false;
+  });
 
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const control = document.querySelector('.showcase-toggle');
@@ -163,7 +193,7 @@
     else note.textContent = 'Choose a device package from the list below.';
   };
   showNote(document.querySelector('[data-version]')?.textContent.trim() ?? '');
-  fetch('https://api.github.com/repos/bxanedot/nuvx/releases/latest')
+  fetch('https://api.github.com/repos/lylicht/nuvx/releases/latest')
     .then((response) => response.ok ? response.json() : null)
     .then((release) => {
       const version = release?.tag_name?.replace(/^v/, '');

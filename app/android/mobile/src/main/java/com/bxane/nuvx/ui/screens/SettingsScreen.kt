@@ -654,11 +654,11 @@ fun SettingsScreen(
                         textDecoration = TextDecoration.Underline,
                     ),
                 )
-                withLink(LinkAnnotation.Url("https://github.com/bxanedot/nuvx", linkStyles)) {
+                withLink(LinkAnnotation.Url("https://github.com/lylicht/nuvx", linkStyles)) {
                     append("GitHub")
                 }
                 append("  ")
-                withLink(LinkAnnotation.Url("https://github.com/bxanedot", linkStyles)) {
+                withLink(LinkAnnotation.Url("https://github.com/lylicht", linkStyles)) {
                     append("Developer")
                 }
                 append("  ")

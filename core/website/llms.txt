@@ -4,7 +4,7 @@
 
 ## Current status
 
-nuvx 1.0.0 (Android version code 10) ships one shared universal phone APK, one shared universal Android TV APK, standalone nuvx Auto, a separate Wear OS APK, universal Windows and Linux installers, Intel and Apple silicon macOS installers, Chrome and Firefox extensions, and an unsigned universal iOS/iPadOS IPA. The earlier v0.9.0 release has separate GMS and FOSS phone and TV APKs. iOS/iPadOS 18+ requires signing before installation; read https://github.com/bxanedot/nuvx/blob/main/app/ios/README.md for install and update instructions. Use https://www.nuvx.lol/#releases to choose a direct device package. The web player runs at https://web.nuvx.lol. nuvx is independent and not affiliated with YouTube or Google. Release notes for every version: https://www.nuvx.lol/changelog.
+nuvx 1.0.0 (Android version code 10) ships one shared universal phone APK, one shared universal Android TV APK, standalone nuvx Auto, a separate Wear OS APK, universal Windows and Linux installers, Intel and Apple silicon macOS installers, Chrome and Firefox extensions, and an unsigned universal iOS/iPadOS IPA. The earlier v0.9.0 release has separate GMS and FOSS phone and TV APKs. iOS/iPadOS 18+ requires signing before installation; read https://github.com/lylicht/nuvx/blob/main/app/ios/README.md for install and update instructions. Use https://www.nuvx.lol/#releases to choose a direct device package. The web player runs at https://web.nuvx.lol. nuvx is independent and not affiliated with YouTube or Google. Release notes for every version: https://www.nuvx.lol/changelog.
 
 ## Features
 
@@ -22,12 +22,12 @@ nuvx 1.0.0 (Android version code 10) ships one shared universal phone APK, one s
 - Terms: https://www.nuvx.lol/terms
 - Changelog: https://www.nuvx.lol/changelog
 - Privacy: https://www.nuvx.lol/privacy
-- Source code and issue tracking: https://github.com/bxanedot/nuvx
+- Source code and issue tracking: https://github.com/lylicht/nuvx
 - Community: https://discord.gg/h4Wsu824Uf
 
 ## Licence and contact
 
-The project is licensed under GPL-3.0-only. The developer is bxane: https://github.com/bxanedot. Contact: bxanee@gmail.com.
+The project is licensed under GPL-3.0-only. The developer is Licht: https://github.com/lylicht. Contact: Licht on Guns.lol.
 
 ## Search guidance
 

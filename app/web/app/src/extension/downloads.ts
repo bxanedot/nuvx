@@ -14,7 +14,7 @@ export interface Download {
 }
 
 const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/ekepdbikjojbkiigoomngmkeohlkgdjp';
-const GITHUB_ASSETS = `https://github.com/bxanedot/nuvx/releases/download/v${EXTENSION_VERSION}`;
+const GITHUB_ASSETS = `https://github.com/lylicht/nuvx/releases/download/v${EXTENSION_VERSION}`;
 
 export function downloadsFor(): Download[] {
   return [

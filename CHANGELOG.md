@@ -1,12 +1,12 @@
 # Changelog
 
-Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/bxanedot/nuvx/releases).
+Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
 ## 1.1.0 (Unreleased)
 
 ### Fixes
 
-- Keep the Android search dock and Mini Player anchored just above the keyboard. The dock applied the keyboard and navigation-bar insets on top of each other, so both elements jumped by their sum when the keyboard opened ([#279](https://github.com/bxanedot/nuvx/issues/279)). iPhone already anchors its pill with a single keyboard inset and needed no change.
+- Keep the Android search dock and Mini Player anchored just above the keyboard. The dock applied the keyboard and navigation-bar insets on top of each other, so both elements jumped by their sum when the keyboard opened ([#279](https://github.com/lylicht/nuvx/issues/279)). iPhone already anchors its pill with a single keyboard inset and needed no change.
 
 ### Playlists
 
@@ -240,11 +240,11 @@ When a new version has downloaded, desktop now shows it the way Android does: a 
 
 Dead code, unused theme thumbnails and deprecated calls are gone from the desktop app.
 
-![Music in full color. nuvx Now Playing framed by cobalt and copper panels.](https://github.com/bxanedot/nuvx/raw/7e852a9/docs/nuvx-banner-now-playing.png)
+![Music in full color. nuvx Now Playing framed by cobalt and copper panels.](https://github.com/lylicht/nuvx/raw/7e852a9/docs/nuvx-banner-now-playing.png)
 
 <p>
-  <img src="https://github.com/bxanedot/nuvx/raw/7e852a9/docs/nuvx-banner-desktop.png" width="49%" alt="Make room for music. nuvx Desktop showing Home with the lyrics panel open.">
-  <img src="https://github.com/bxanedot/nuvx/raw/7e852a9/docs/nuvx-banner-desktop-lyrics.png" width="49%" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics.">
+  <img src="https://github.com/lylicht/nuvx/raw/7e852a9/docs/nuvx-banner-desktop.png" width="49%" alt="Make room for music. nuvx Desktop showing Home with the lyrics panel open.">
+  <img src="https://github.com/lylicht/nuvx/raw/7e852a9/docs/nuvx-banner-desktop-lyrics.png" width="49%" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics.">
 </p>
 
 ## 0.3.0

@@ -32,10 +32,12 @@
   #status.good { color: var(--good); } #status.bad { color: var(--bad); }
   footer { margin-top: 40px; color: var(--dim); font-size: 14px; }
   a { color: var(--accent); }
+  .licht-signature-corner { position: fixed; top: 20px; right: 24px; color: #aaa; font: italic 600 15px/1 system-ui, sans-serif; letter-spacing: -.04em; text-decoration: none; }
+  .licht-signature-corner:hover { color: #fff; }
 </style>
 </head>
 <body>
-<img class="bxane-signature-corner" src="https://www.nuvx.lol/bxane-signature.svg" alt="bxane" width="76" height="19">
+<a class="licht-signature-corner" href="https://guns.lol/lylicht" target="_blank" rel="noopener noreferrer" aria-label="Licht on Guns.lol">Licht</a>
 <div class="nuvx-ambient" aria-hidden="true"></div>
 <main>
   <header><img src="https://nuvx.lol/mark-white.svg" alt=""><h1>nuvx canvas</h1></header>
@@ -63,10 +65,10 @@
     <div id="status" role="status" aria-live="polite"></div>
   </form>
 
-  <footer>Only upload videos you have the right to share. Files are stored publicly in <a href="https://github.com/bxanedot/nuvx/tree/main/canvas">the nuvx repository</a>.</footer>
+  <footer>Only upload videos you have the right to share. Files are stored publicly in <a href="https://github.com/lylicht/nuvx/tree/main/canvas">the nuvx repository</a>.</footer>
 </main>
 <script>
-  const UPLOAD = "https://nuvx-listen.bxane.workers.dev/canvas";
+  const UPLOAD = "https://nuvx-listen.lylicht.workers.dev/canvas";
   const MAX = 10 * 1024 * 1024;
   const $ = (id) => document.getElementById(id);
   const form = $("form"), link = $("link"), video = $("video"), drop = $("drop"), pass = $("passcode"), send = $("send"), retryIndex = $("retryIndex"), status = $("status");

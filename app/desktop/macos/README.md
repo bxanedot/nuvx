@@ -14,7 +14,7 @@ cargo run --release
 ## Install
 
 Choose the Apple silicon or Intel DMG from a
-[GitHub release](https://github.com/bxanedot/nuvx/releases). Open it and drag
+[GitHub release](https://github.com/lylicht/nuvx/releases). Open it and drag
 `nuvx.app` into Applications. Requires macOS 15 or newer.
 
 Builds are ad-hoc signed, not Developer ID signed or notarized. macOS may

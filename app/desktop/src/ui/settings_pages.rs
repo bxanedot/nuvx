@@ -18,7 +18,7 @@ pub(super) fn settings(app: &mut App, ui: &mut Ui, pane: Option<super::SettingsP
             }
             ui.add_space(36.0);
             let (rect, _) = ui.allocate_exact_size(vec2(w, 16.0), Sense::hover());
-            let line = format!("nuvx {} · by bxane · nuvx.lol", crate::update::current_version());
+            let line = format!("nuvx {} · by Licht · nuvx.lol", crate::update::current_version());
             ui.painter().text(rect.center(), Align2::CENTER_CENTER, line, theme::regular(11.5), theme::text_dim());
             ui.add_space(40.0);
         });

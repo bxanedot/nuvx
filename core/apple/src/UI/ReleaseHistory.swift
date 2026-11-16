@@ -14,7 +14,7 @@ struct ReleaseNotesEntry: Identifiable {
 
 
 enum ReleaseHistory {
-    private static let listURL = URL(string: "https://api.github.com/repos/bxanedot/nuvx/releases?per_page=50")!
+    private static let listURL = URL(string: "https://api.github.com/repos/lylicht/nuvx/releases?per_page=50")!
 
 
     static func entries(after installed: String, through: String) async -> [ReleaseNotesEntry]? {
@@ -31,7 +31,7 @@ enum ReleaseHistory {
             guard !payload.draft, !payload.prerelease,
                   payload.tag_name.range(of: #"^[vV]?\d+\.\d+\.\d+$"#, options: .regularExpression) != nil,
                   let page = URL(string: payload.html_url), page.scheme == "https", page.host == "github.com",
-                  page.path.hasPrefix("/bxanedot/nuvx/releases/tag/") else { return nil }
+                  page.path.hasPrefix("/lylicht/nuvx/releases/tag/") else { return nil }
             let version = payload.tag_name.replacingOccurrences(of: "^[vV]", with: "", options: .regularExpression)
             let identity = ReleaseIdentity(version: version, build: nil)
             guard identity.compared(to: lower) == .newer,

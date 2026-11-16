@@ -1,6 +1,8 @@
 name = "nuvx-listen"
 main = "src/index.ts"
+account_id = "c244ae6ffbe000920008c3de574a2ab2"
 compatibility_date = "2026-10-01"
+workers_dev = true
 
 [[durable_objects.bindings]]
 name = "PARTIES"
