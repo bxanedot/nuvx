@@ -1911,7 +1911,7 @@ struct SearchView: View {
             do {
                 let page = try await InnertubeSearch.shared.searchPage(term, scope: wanted.rawValue)
                 var found = page.hits
-                if PlatformSettings.shared.getBoolean(key: "jiosaavn_enabled", default: true), wanted == .songs {
+                if PlatformSettings.shared.getBoolean(key: "jiosaavn_enabled", default: false), wanted == .songs {
                     let extra = await JioSaavn.search(term)
                     found.insert(contentsOf: extra, at: 0)
                 }

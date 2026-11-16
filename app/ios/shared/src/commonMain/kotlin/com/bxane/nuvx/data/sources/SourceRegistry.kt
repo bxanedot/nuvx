@@ -342,6 +342,8 @@ object SourceRegistry {
     private fun publish(next: List<SourceConfig>, persist: Boolean = true) {
         if (persist) writeStored(next)
         _configs.value = next
+        // Swift search/resolution read this legacy key; keep it equal to the JioSaavn source switch.
+        PlatformSettings.putBoolean("jiosaavn_enabled", next.any { it.kind == SourceKind.JIOSAAVN && it.enabled })
 
 
 

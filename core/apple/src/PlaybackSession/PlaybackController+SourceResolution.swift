@@ -80,7 +80,7 @@ extension PlaybackController {
             return ResolvePrefs(
                 maxKbps: Int(NetworkQuality.shared.maxKbps),
                 wantLossless: streamQuality == "LOSSLESS",
-                jiosaavn: PlatformSettings.shared.getBoolean(key: "jiosaavn_enabled", default: true),
+                jiosaavn: PlatformSettings.shared.getBoolean(key: "jiosaavn_enabled", default: false),
                 canSubstitute: QualityUpgrade.canSubstituteForYouTube(),
                 preferMusicOnly: PlatformSettings.shared.getBoolean(key: "prefer_music_only", default: false)
             )
