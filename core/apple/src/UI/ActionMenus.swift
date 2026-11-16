@@ -576,6 +576,7 @@ struct PlaylistPickerView: View {
     @State private var error: String?
 
     @State private var selected: Set<String> = []
+    @State private var query = ""
     @State private var adding = false
     @State private var createLocally = PlatformSettings.shared.getBoolean(key: "create_playlists_locally", default: false)
 
@@ -618,7 +619,7 @@ struct PlaylistPickerView: View {
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 Section("Your playlists") {
-                    ForEach(playlists) { list in
+                    ForEach(playlists.filter { query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) }) { list in
                         Button {
                             if selected.contains(list.playlistId) {
                                 selected.remove(list.playlistId)
@@ -649,6 +650,7 @@ struct PlaylistPickerView: View {
                 }
             }
             .navigationTitle("Add to Playlist")
+            .searchable(text: $query, prompt: "Search playlists")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
