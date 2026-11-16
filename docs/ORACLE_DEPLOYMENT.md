@@ -20,7 +20,7 @@ Each kind of data has one owner. Party state lives in the Worker. Synced library
 - Logs go to the user journal, which rotates itself. Request bodies, headers and tokens are never logged.
 - Limits: 256 KB request body, 200 operations per push, 32 KB per operation, 200,000 operations per space, 20 devices per space, 120 requests a minute per address.
 
-API contract: [`docs/architecture/SYNC_AND_DEVICE_PROTOCOLS.md`](architecture/SYNC_AND_DEVICE_PROTOCOLS.md).
+API contract: [`docs/architecture/SYNC_AND_CONNECT.md`](architecture/SYNC_AND_CONNECT.md).
 
 ## One-time server preparation (needs an admin, not `nuvxdeploy`)
 
