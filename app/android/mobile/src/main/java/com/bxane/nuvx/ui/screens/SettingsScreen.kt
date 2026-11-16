@@ -622,6 +622,8 @@ fun SettingsScreen(
             onImport = { confirmImport = true },
         )
 
+        if (shows(SettingsCategory.PRIVACY_CONNECTION)) PrivacyConnectionSettingsGroup(search = search)
+
         if (shows(SettingsCategory.MISCELLANEOUS)) MiscellaneousSettingsGroup(
             context = context,
             search = search,

@@ -55,6 +55,12 @@ class NuvxApplication : Application(), SingletonImageLoader.Factory, Configurati
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().build()
 
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(base)
+        // Before any network client exists, so all of them route through the Privacy Connection when it is on.
+        com.bxane.nuvx.net.privacy.PrivacyNetwork.install(this)
+    }
+
     @OptIn(UnstableApi::class)
     @kotlin.OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate() {

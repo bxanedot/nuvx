@@ -1410,4 +1410,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">การเชื่อมต่อแบบส่วนตัว</string>
+    <string name="privacy_connection_subtitle">ส่งการรับส่งข้อมูลของ nuvx ผ่าน Tor</string>
+    <string name="privacy_connection_footer">ส่งคำขอและเสียงของ nuvx ผ่านเครือข่าย Tor โดยใช้แอป Orbot ซึ่งป้องกันเฉพาะ nuvx และไม่ใช่ VPN ทั้งระบบ บริการที่คุณลงชื่อเข้าใช้ยังคงจดจำบัญชีของคุณได้ และ Tor ช้ากว่า เสียงคุณภาพสูงจึงอาจกระตุก หากการเชื่อมต่อหลุด nuvx จะหยุดโหลดแทนการเชื่อมต่อโดยตรง</string>
+    <string name="privacy_restart_needed">ปิดแล้วเปิด nuvx อีกครั้งเพื่อใช้การเปลี่ยนแปลงนี้</string>
+    <string name="privacy_webview_uncovered">หน้าลงชื่อเข้าใช้บนอุปกรณ์นี้ไม่สามารถส่งผ่าน Tor ได้และจะเชื่อมต่อโดยตรง</string>
+    <string name="privacy_mode_automatic">อัตโนมัติ</string>
+    <string name="privacy_mode_embedded">Tor ในตัว</string>
+    <string name="privacy_status">สถานะ</string>
+    <string name="privacy_status_disabled">ปิดอยู่</string>
+    <string name="privacy_status_connecting">กำลังเชื่อมต่อ</string>
+    <string name="privacy_status_bootstrapping">กำลังเริ่ม Tor (%1$d%%)</string>
+    <string name="privacy_status_connected_orbot">เชื่อมต่อผ่าน Orbot แล้ว</string>
+    <string name="privacy_status_connected_embedded">เชื่อมต่อผ่าน Tor + Snowflake แล้ว</string>
+    <string name="privacy_status_switching">กำลังสลับการเชื่อมต่อ</string>
+    <string name="privacy_status_unavailable">ไม่สามารถเชื่อมต่อได้</string>
+    <string name="privacy_test">ทดสอบการเชื่อมต่อ</string>
+    <string name="privacy_test_running">กำลังทดสอบ…</string>
+    <string name="privacy_test_passed">ผ่าน: คำขอออกผ่าน Tor</string>
+    <string name="privacy_test_failed">ไม่ผ่าน: ไม่มีการเชื่อมต่อ Tor ที่ใช้งานได้</string>
+    <string name="privacy_retry">ลองเชื่อมต่ออีกครั้ง</string>
+    <string name="privacy_open_orbot">เปิด Orbot</string>
+    <string name="privacy_install_orbot">ติดตั้ง Orbot</string>
+    <string name="privacy_orbot_subtitle">ต้องเปิด Orbot และเชื่อมต่อ Tor อยู่</string>
 </resources>

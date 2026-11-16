@@ -1344,4 +1344,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">Kết nối riêng tư</string>
+    <string name="privacy_connection_subtitle">Gửi lưu lượng của nuvx qua Tor</string>
+    <string name="privacy_connection_footer">Chuyển các yêu cầu và âm thanh của nuvx qua mạng Tor bằng ứng dụng Orbot. Tính năng này chỉ bảo vệ nuvx và không phải là VPN cho toàn hệ thống. Các dịch vụ bạn đã đăng nhập vẫn có thể nhận ra tài khoản của bạn, và Tor chậm hơn nên âm thanh chất lượng cao có thể bị giật. Nếu mất kết nối, nuvx sẽ ngừng tải thay vì kết nối trực tiếp.</string>
+    <string name="privacy_restart_needed">Đóng rồi mở lại nuvx để áp dụng thay đổi này.</string>
+    <string name="privacy_webview_uncovered">Các trang đăng nhập trên thiết bị này không thể đi qua Tor và sẽ kết nối trực tiếp.</string>
+    <string name="privacy_mode_automatic">Tự động</string>
+    <string name="privacy_mode_embedded">Tor tích hợp</string>
+    <string name="privacy_status">Trạng thái</string>
+    <string name="privacy_status_disabled">Đã tắt</string>
+    <string name="privacy_status_connecting">Đang kết nối</string>
+    <string name="privacy_status_bootstrapping">Đang khởi động Tor (%1$d%%)</string>
+    <string name="privacy_status_connected_orbot">Đã kết nối qua Orbot</string>
+    <string name="privacy_status_connected_embedded">Đã kết nối qua Tor + Snowflake</string>
+    <string name="privacy_status_switching">Đang chuyển kết nối</string>
+    <string name="privacy_status_unavailable">Không có kết nối</string>
+    <string name="privacy_test">Kiểm tra kết nối</string>
+    <string name="privacy_test_running">Đang kiểm tra…</string>
+    <string name="privacy_test_passed">Đạt: yêu cầu đã đi qua Tor</string>
+    <string name="privacy_test_failed">Không đạt: không có kết nối Tor hoạt động</string>
+    <string name="privacy_retry">Thử kết nối lại</string>
+    <string name="privacy_open_orbot">Mở Orbot</string>
+    <string name="privacy_install_orbot">Cài đặt Orbot</string>
+    <string name="privacy_orbot_subtitle">Orbot phải đang chạy và đã kết nối Tor</string>
 </resources>
