@@ -9,7 +9,7 @@
 - Support: https://github.com/bxanedot/nuvx/issues
 - Privacy policy: https://www.nuvx.lol/privacy
 - License: GNU GPL-3.0-only
-- Version: 1.0.0
+- Version: 1.1.0
 - Paid features: none
 - Discord integration: excluded from store builds
 
