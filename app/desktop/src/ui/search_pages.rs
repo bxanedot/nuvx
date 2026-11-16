@@ -39,11 +39,16 @@ fn youtube_results(app: &mut App, ui: &mut Ui, q: &str, pick: bool, now: f64) {
     };
     let rows = Rows::new(app, now);
     let acts = &mut app.actions;
+    let mut played = false;
     for (i, t) in tracks.iter().enumerate() {
         let o = RowOpts { pick, ..rows.opts(&app.liked, t, None, true) };
         if track_row(ui, t, &o, acts).clicked() {
+            played = !pick;
             acts.push(if pick { Action::TransferPick(t.clone()) } else { Action::Play(tracks.clone(), i) });
         }
+    }
+    if played {
+        app.plain_videos.extend(tracks.iter().map(|t| t.id.clone()));
     }
 }
 

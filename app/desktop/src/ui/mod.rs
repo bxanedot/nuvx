@@ -97,6 +97,7 @@ pub enum SettingsPane {
     Downloads,
     Lyrics,
     Artists,
+    Content,
     Appearance,
     Window,
     Network,
@@ -370,6 +371,8 @@ pub struct App {
     close_to_tray: bool,
     pub(super) classic_search: bool,
     pub(super) youtube_search: bool,
+    // shortcut: ids of plain YouTube videos played from YouTube Search, kept for this run only; a restored queue plays them as audio until Track carries the flag.
+    pub(super) plain_videos: std::collections::HashSet<String>,
     pub(super) search_youtube: bool,
     pub(super) youtube_results: Option<(String, Result<Vec<crate::model::Track>, String>)>,
     pub(super) youtube_asked: String,

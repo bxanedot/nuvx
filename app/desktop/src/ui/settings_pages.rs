@@ -25,7 +25,7 @@ pub(super) fn settings(app: &mut App, ui: &mut Ui, pane: Option<super::SettingsP
     });
 }
 
-const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 11] = {
+const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 12] = {
     use super::SettingsPane::*;
     [
         (Account, glyphs::PERSON, "Account & integrations", "YouTube Music, Spotify, Discord and Last.fm"),
@@ -34,6 +34,7 @@ const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 11] = {
         (Downloads, glyphs::DOWNLOAD, "Downloads", "Where downloaded songs go"),
         (Lyrics, glyphs::LYRICS_OFF, "Lyrics", "Lyrics providers, timing, translation and romanization"),
         (Artists, glyphs::PENCIL, "Artists", "Artist signatures"),
+        (Content, glyphs::SEARCH, "Search & content", "YouTube search, Home shelves, where new playlists go"),
         (Appearance, glyphs::PAINTBRUSH, "Appearance", "Light or dark, background, font, hidden playlists, classic search, tabs"),
         (Window, glyphs::MAXIMIZE_2, "Window", "Material, close to tray, sidebar, renderer"),
         (Network, glyphs::WIFI, "Network", "Proxy and connection test"),
@@ -91,18 +92,38 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
         Downloads => settings_downloads(ui),
         Lyrics => super::lyrics_settings::settings_lyrics(app, ui),
         Artists => settings_artists(app, ui),
+        Content => {
+            section_label(ui, "Search", None);
+            settings_card(ui, |ui| {
+                setting_row(ui, "Enable YouTube Search", Some("A YouTube switch over the results, for videos beyond YouTube Music's. They play with their picture."), |ui| {
+                    if toggle(ui, &mut app.youtube_search, "Enable YouTube Search").changed() && !app.youtube_search {
+                        app.search_youtube = false;
+                    }
+                });
+            });
+            section_label(ui, "Home", None);
+            settings_card(ui, |ui| {
+                setting_row(ui, "Hide Quick picks", Some("Removes the Quick picks shelf from Home."), |ui| {
+                    toggle(ui, &mut app.hide_quick_picks, "Hide Quick picks");
+                });
+                divider(ui);
+                setting_row(ui, "Hide videos from Home", Some("Leaves music videos out of Home's shelves."), |ui| {
+                    toggle(ui, &mut app.hide_home_videos, "Hide videos from Home");
+                });
+            });
+            section_label(ui, "Playlists", None);
+            settings_card(ui, |ui| {
+                setting_row(ui, "Create playlists in Nuvx only", Some("New playlists stay on this computer and are not added to YouTube Music."), |ui| {
+                    toggle(ui, &mut app.create_playlists_locally, "Create playlists in Nuvx only");
+                });
+            });
+        }
         Appearance => {
             super::appearance_settings::settings_appearance(app, ui);
             section_label(ui, "Search", None);
             settings_card(ui, |ui| {
                 setting_row(ui, "Classic search", Some("A plain search page instead of the colour category tiles."), |ui| {
                     toggle(ui, &mut app.classic_search, "Classic search");
-                });
-                divider(ui);
-                setting_row(ui, "Enable YouTube Search", Some("A YouTube switch over the results, for videos beyond YouTube Music's."), |ui| {
-                    if toggle(ui, &mut app.youtube_search, "Enable YouTube Search").changed() && !app.youtube_search {
-                        app.search_youtube = false;
-                    }
                 });
             });
             section_label(ui, "Tabs", None);
@@ -113,14 +134,6 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
                 divider(ui);
                 setting_row(ui, "Hide Podcasts tab", Some("Removes podcasts from the sidebar."), |ui| {
                     toggle(ui, &mut app.hide_podcasts, "Hide Podcasts tab");
-                });
-                divider(ui);
-                setting_row(ui, "Hide Quick picks", Some("Removes the Quick picks shelf from Home."), |ui| {
-                    toggle(ui, &mut app.hide_quick_picks, "Hide Quick picks");
-                });
-                divider(ui);
-                setting_row(ui, "Hide videos from Home", Some("Leaves music videos out of Home's shelves."), |ui| {
-                    toggle(ui, &mut app.hide_home_videos, "Hide videos from Home");
                 });
             });
         }
