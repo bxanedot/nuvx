@@ -12,6 +12,16 @@ const CONTROL_RATE = 25;
 const FRAME_RATE = 30;
 const AVATAR_HOSTS = new Set(["cdn.discordapp.com", "i.scdn.co", "lh3.googleusercontent.com", "yt3.ggpht.com", "yt3.googleusercontent.com"]);
 
+// Every member's client fetches a track's thumbnail, so an arbitrary address would let one member see the
+// IP address of all the others. Only YouTube's image hosts are relayed; anything else is dropped.
+const IMAGE_HOST_SUFFIXES = ["ytimg.com", "ggpht.com", "googleusercontent.com"];
+export function trustedImageUrl(raw: string): string | undefined {
+  let url: URL;
+  try { url = new URL(raw); } catch { return undefined; }
+  if (url.protocol !== "https:" || (url.port && url.port !== "443") || url.username || url.password) return undefined;
+  return IMAGE_HOST_SUFFIXES.some((s) => url.hostname === s || url.hostname.endsWith(`.${s}`)) ? url.href : undefined;
+}
+
 export type Track = { videoId: string; title: string; artist: string; thumbnailUrl?: string; durationMs?: number; fromAutoplay: boolean };
 export type Playback = {
   track: Track | null; queue: Track[]; queueIndex: number; isPlaying: boolean; positionMs: number; anchorMs: number;
@@ -87,7 +97,8 @@ export function trackFromWire(raw: unknown): Track | null {
     artist: typeof r.artist === "string" ? r.artist.slice(0, 300) : "",
     fromAutoplay: r.fromAutoplay === true,
   };
-  if (typeof r.thumbnailUrl === "string" && r.thumbnailUrl) track.thumbnailUrl = r.thumbnailUrl.slice(0, 1000);
+  const thumbnail = typeof r.thumbnailUrl === "string" ? trustedImageUrl(r.thumbnailUrl.slice(0, 1000)) : undefined;
+  if (thumbnail) track.thumbnailUrl = thumbnail;
   if (typeof r.durationMs === "number" && Number.isFinite(r.durationMs) && r.durationMs > 0) track.durationMs = Math.trunc(r.durationMs);
   return track;
 }
