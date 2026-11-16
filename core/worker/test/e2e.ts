@@ -63,7 +63,7 @@ await host.next("members", (m) => m.members.every((x: any) => x.connected));
 await expectListeners(0);
 
 const previousGuest = guest;
-const rotated = await post(`/api/parties/${code}/join`, joinReq("Guest"));
+const rotated = await post(`/api/parties/${code}/join`, joinReq("Guest"), joined.body.token);
 assert.equal(rotated.status, 200);
 assert.notEqual(rotated.body.token, joined.body.token);
 assert.equal(rotated.body.you.memberId, joined.body.you.memberId);
