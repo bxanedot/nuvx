@@ -18,6 +18,13 @@ Baseline on `main` at `e1cafdb`: desktop 219 pass, 27 ignored. Android phone 1,3
 
 Ponytail 5.3.3 is installed and its rules were applied to every change above. The full `/ponytail-audit` of the repository has **not** been run; only the Worker, the sync service and the touched Android and desktop files were audited.
 
+## CI facts (read from GitHub Actions, 2026-11-16)
+
+- **Swift compiles.** The `ios` job on `main` built and packaged the unsigned IPA, so the playlist picker search change is compiled. Mac runners are the way to check Swift; xtool was considered and rejected because the app is an XcodeGen project that links a Kotlin framework only a Mac can build.
+- **Desktop Tor change passes on macOS Intel**, tests included.
+- **"Apple builds" shows red on `main` for a non-code reason:** the Apple silicon job waited 15 minutes for a runner and was cancelled.
+- **Nightly release run 200 failed** at `gh release upload` with "release not found" on a re-run. Root cause not established; the first attempt's logs were not read. Do not change the workflow until they are.
+
 ## Waiting on the owner
 
 1. Approve and run the one-time server steps in `docs/ORACLE_DEPLOYMENT.md`, then the workflow's `check` action.
