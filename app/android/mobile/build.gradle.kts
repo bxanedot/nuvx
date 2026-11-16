@@ -54,7 +54,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bxane.nuvx"
+        applicationId = "com.licht.nuvx"
         minSdk = 26
         targetSdk = 36
         versionCode = androidVersionCode
@@ -100,7 +100,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            applicationId = "com.bxane.nuvx.dev"
+            applicationId = "com.licht.nuvx.dev"
             resValue("string", "app_name", "nuvx Dev")
         }
         create("prod") {
@@ -288,10 +288,10 @@ val verifyDevInstall = tasks.register("verifyDevInstall") {
             .drop(1)
             .mapNotNull { line -> line.split('\t').takeIf { it.size == 2 && it[1] == "device" }?.get(0) }
         serials.forEach { serial ->
-            logger.lifecycle("verifyDevInstall: compiling com.bxane.nuvx.dev on $serial")
+            logger.lifecycle("verifyDevInstall: compiling com.licht.nuvx.dev on $serial")
             ProcessBuilder(
                 adbPath, "-s", serial, "shell", "cmd", "package", "compile",
-                "-m", "verify", "-f", "com.bxane.nuvx.dev",
+                "-m", "verify", "-f", "com.licht.nuvx.dev",
             ).inheritIO().start().waitFor()
         }
     }

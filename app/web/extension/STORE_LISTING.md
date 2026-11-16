@@ -3,10 +3,10 @@
 ## Publisher details
 
 - Product name: nuvx
-- Developer: bxane
+- Developer: licht
 - Support email: bxanee@gmail.com
 - Homepage: https://web.nuvx.lol/extension
-- Support: https://github.com/bxanedot/nuvx/issues
+- Support: https://github.com/lylicht/nuvx/issues
 - Privacy policy: https://www.nuvx.lol/privacy
 - License: GNU GPL-3.0-only
 - Version: 1.1.0
@@ -46,7 +46,7 @@ You need the free nuvx web player at https://web.nuvx.lol. YouTube Music and Spo
 | Privacy disclosure | Authentication information, personally identifying information, search terms, website content | Required data: `authenticationInfo`, `personallyIdentifyingInfo`, `searchTerms`, `websiteContent` |
 | Remote code | No | No |
 | Supported browsers | Chrome and Chromium-based browsers supporting Manifest V3 | Desktop Firefox 140 or newer (Linux, macOS and Windows; Android not supported) |
-| Source code | https://github.com/bxanedot/nuvx | https://github.com/bxanedot/nuvx |
+| Source code | https://github.com/lylicht/nuvx | https://github.com/lylicht/nuvx |
 
 ## Permission explanations
 

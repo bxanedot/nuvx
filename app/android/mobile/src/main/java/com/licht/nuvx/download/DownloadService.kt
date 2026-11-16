@@ -186,7 +186,7 @@ class DownloadService : Service() {
 
         const val NOTIFICATION_ID = 0x8175
 
-        const val ACTION_CANCEL_ALL = "com.bxane.nuvx.download.CANCEL_ALL"
+        const val ACTION_CANCEL_ALL = "com.licht.nuvx.download.CANCEL_ALL"
 
         const val PROGRESS_REFRESH_MS = 250L
 

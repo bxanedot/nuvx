@@ -1434,7 +1434,7 @@ private struct AppPrompts: View {
                         }
                     case .supportStar:
                         Button("Star on GitHub") {
-                            open("https://github.com/bxanedot/nuvx")
+                            open("https://github.com/lylicht/nuvx")
                         }
                         Button("Not now", role: .cancel) {}
                         Button("Don’t show again", role: .destructive) {

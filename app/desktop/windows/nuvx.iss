@@ -8,9 +8,9 @@
 AppId={{469DB82D-3113-47EA-812C-36393395493F}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=bxane
-AppPublisherURL=https://github.com/bxanedot/nuvx
-AppSupportURL=https://github.com/bxanedot/nuvx/issues
+AppPublisher=licht
+AppPublisherURL=https://github.com/lylicht/nuvx
+AppSupportURL=https://github.com/lylicht/nuvx/issues
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes

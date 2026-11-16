@@ -22,7 +22,7 @@ kotlin {
     ).forEach { target ->
         target.binaries.framework {
             baseName = "NuvxShared"
-            binaryOption("bundleId", "com.bxane.nuvx.shared")
+            binaryOption("bundleId", "com.licht.nuvx.shared")
             isStatic = true
             xcf.add(this)
         }

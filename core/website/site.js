@@ -163,7 +163,7 @@
     else note.textContent = 'Choose a device package from the list below.';
   };
   showNote(document.querySelector('[data-version]')?.textContent.trim() ?? '');
-  fetch('https://api.github.com/repos/bxanedot/nuvx/releases/latest')
+  fetch('https://api.github.com/repos/lylicht/nuvx/releases/latest')
     .then((response) => response.ok ? response.json() : null)
     .then((release) => {
       const version = release?.tag_name?.replace(/^v/, '');

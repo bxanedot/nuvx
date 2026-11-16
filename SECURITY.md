@@ -18,4 +18,4 @@ Include the affected component and version, platform, steps to reproduce, and po
 
 Please allow time for investigation and a fix or mitigation before publishing technical details. We will coordinate disclosure where possible. This project does not guarantee a response or remediation timeline.
 
-For non-sensitive bugs and feature requests, use [GitHub Issues](https://github.com/bxanedot/nuvx/issues).
+For non-sensitive bugs and feature requests, use [GitHub Issues](https://github.com/lylicht/nuvx/issues).

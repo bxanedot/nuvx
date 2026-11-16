@@ -9,9 +9,9 @@
 <p align="center">An open-source YouTube Music player for your phone, TV, wrist, desktop and browser.</p>
 
 <p align="center">
-  <a href="https://github.com/bxanedot/nuvx/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/bxanedot/nuvx?style=for-the-badge&amp;labelColor=0d1117&amp;color=355f8a"></a>
+  <a href="https://github.com/lylicht/nuvx/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/lylicht/nuvx?style=for-the-badge&amp;labelColor=0d1117&amp;color=355f8a"></a>
   <a href="LICENSE"><img alt="GPL-3.0 license" src="https://img.shields.io/badge/license-GPL--3.0-4b5563?style=for-the-badge&amp;labelColor=0d1117"></a>
-  <a href="https://github.com/bxanedot/nuvx/releases"><img alt="GitHub downloads" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Fdownloads&amp;query=%24.downloads&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=GitHub%20downloads&amp;color=6b4f99"></a>
+  <a href="https://github.com/lylicht/nuvx/releases"><img alt="GitHub downloads" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Fdownloads&amp;query=%24.downloads&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=GitHub%20downloads&amp;color=6b4f99"></a>
   <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Online clients" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.online&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=Online%20clients&amp;color=397458"></a>
   <a href="https://nuvx-listen.bxane.workers.dev/api/stats/live"><img alt="Listening Together" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnuvx-listen.bxane.workers.dev%2Fapi%2Fstats%2Flive&amp;query=%24.listening&amp;style=for-the-badge&amp;labelColor=0d1117&amp;label=Listening%20Together&amp;color=87563c"></a>
 </p>
@@ -55,16 +55,16 @@
 
 | Device | Requirements | Where to start |
 | --- | --- | --- |
-| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/nuvx-v1.0.0-universal.apk) |
+| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/nuvx-v1.0.0-universal.apk) |
 | **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
-| **nuvx Auto** | Compatible Android head unit | [Standalone v1.0.0 APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/NuvxAuto-v1.0.0-universal.apk) · stereo widening starts off and loudness normalization stays enabled |
-| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/NuvxTV-v1.0.0-universal.apk) |
-| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · [v1.0.0 Wear APK](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/NuvxWear-v1.0.0.apk) |
-| **iPhone** | iOS/iPadOS 18+; signing required | [Unsigned v1.0.0 IPA](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/nuvx-1.0.0-universal.ipa) · [install and update guide](app/ios/README.md) |
-| **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal setup `.exe` |
-| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
-| **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/bxanedot/nuvx/releases/latest) · universal `.tar.gz` |
-| **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Firefox 1.0.0 add-on ZIP](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/nuvx-extension-firefox-1.0.0.zip) · [Extension setup](https://web.nuvx.lol/guide) |
+| **nuvx Auto** | Compatible Android head unit | [Standalone v1.0.0 APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/NuvxAuto-v1.0.0-universal.apk) · stereo widening starts off and loudness normalization stays enabled |
+| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/NuvxTV-v1.0.0-universal.apk) |
+| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · [v1.0.0 Wear APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/NuvxWear-v1.0.0.apk) |
+| **iPhone** | iOS/iPadOS 18+; signing required | [Unsigned v1.0.0 IPA](https://github.com/lylicht/nuvx/releases/download/v1.0.0/nuvx-1.0.0-universal.ipa) · [install and update guide](app/ios/README.md) |
+| **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · universal setup `.exe` |
+| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
+| **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · universal `.tar.gz` |
+| **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Firefox 1.0.0 add-on ZIP](https://github.com/lylicht/nuvx/releases/download/v1.0.0/nuvx-extension-firefox-1.0.0.zip) · [Extension setup](https://web.nuvx.lol/guide) |
 
 The stable v1.0.0 release is available on GitHub. The older v0.9.0 phone and TV APKs remain split into GMS and FOSS variants; v1.0.0 provides one shared universal APK for each app, plus a standalone nuvx Auto APK. Each phone, TV, and Auto APK includes armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for older updater compatibility; Auto has one canonical APK. Nightlies generated before v1.0.0 used version 0.9.0/code 9; the first post-release nightlies use 1.0.0/code 10 and later builds follow the current manifest version. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The v1.0.0 release includes an unsigned iOS IPA; Apple builds can attach future IPAs to an existing release when manually dispatched.
 
@@ -123,7 +123,7 @@ On Windows, use `gradlew.bat`. For signing release builds, see [keystore.propert
 
 ## Contribute
 
-Found a bug or have an idea? [Open an issue](https://github.com/bxanedot/nuvx/issues) or join the [Discord](https://discord.gg/h4Wsu824Uf). See [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), or the [nuvx website](https://www.nuvx.lol).
+Found a bug or have an idea? [Open an issue](https://github.com/lylicht/nuvx/issues) or join the [Discord](https://discord.gg/h4Wsu824Uf). See [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), or the [nuvx website](https://www.nuvx.lol).
 
 ## License
 

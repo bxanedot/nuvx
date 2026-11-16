@@ -22,7 +22,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bxane.nuvx"
+        applicationId = "com.licht.nuvx"
         minSdk = 30
         targetSdk = 36
         versionCode = androidVersionCode
@@ -41,7 +41,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            applicationId = "com.bxane.nuvx.dev"
+            applicationId = "com.licht.nuvx.dev"
             resValue("string", "app_name", "nuvx Dev")
         }
         create("prod") {

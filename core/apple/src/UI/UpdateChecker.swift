@@ -4,8 +4,8 @@ import Observation
 
 @MainActor @Observable final class UpdateChecker {
     static let shared = UpdateChecker()
-    static let latestReleaseURL = URL(string: "https://github.com/bxanedot/nuvx/releases/latest")!
-    static let iosInstallGuideURL = URL(string: "https://github.com/bxanedot/nuvx/blob/main/app/ios/README.md")!
+    static let latestReleaseURL = URL(string: "https://github.com/lylicht/nuvx/releases/latest")!
+    static let iosInstallGuideURL = URL(string: "https://github.com/lylicht/nuvx/blob/main/app/ios/README.md")!
     private(set) var available: AppReleaseUpdate?
     private(set) var latest: AppReleaseUpdate?
     private(set) var checking = false
@@ -74,11 +74,11 @@ import Observation
     }
     private func fetchLatest() async -> AppReleaseUpdate? {
         do {
-            let data = try await fetch(URL(string: "https://api.github.com/repos/bxanedot/nuvx/releases/latest")!)
+            let data = try await fetch(URL(string: "https://api.github.com/repos/lylicht/nuvx/releases/latest")!)
             let payload = try JSONDecoder().decode(GitHubReleasePayload.self, from: data)
             guard !payload.draft, !payload.prerelease,
                   let page = URL(string: payload.html_url), page.scheme == "https", page.host == "github.com",
-                  page.path.hasPrefix("/bxanedot/nuvx/releases/tag/") else { return nil }
+                  page.path.hasPrefix("/lylicht/nuvx/releases/tag/") else { return nil }
             let version = payload.tag_name.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "^[vV]", with: "", options: .regularExpression)
             guard ReleaseIdentity(version: version, build: nil).compared(to: currentIdentity) != nil else { return nil }
             #if os(iOS)
@@ -86,7 +86,7 @@ import Observation
             #else
             let platform = "macos"
             #endif
-            let prefix = "/bxanedot/nuvx/releases/download/\(payload.tag_name)/"
+            let prefix = "/lylicht/nuvx/releases/download/\(payload.tag_name)/"
             let assets = payload.assets.filter { $0.url?.path.hasPrefix(prefix) == true }
             var manifest: ReleaseManifest?
             let manifests = assets.filter { $0.name == "release.json" }

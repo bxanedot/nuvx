@@ -636,7 +636,7 @@ private final class ModernNowPlayingSession: NowPlayingSessionDriver {
 final class WidgetStatePublisher {
     func publish(entry: QueueEntry?, isPlaying: Bool, canNext: Bool, canPrevious: Bool) {
         guard let entry else { return }
-        let group = "group.com.bxane.nuvx"
+        let group = "group.com.licht.nuvx"
 
 
         guard FileManager.default.containerURL(
@@ -666,7 +666,7 @@ final class WidgetStatePublisher {
 
     nonisolated private static func artworkFileURL() -> URL? {
         guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.com.bxane.nuvx"
+            forSecurityApplicationGroupIdentifier: "group.com.licht.nuvx"
         ) else { return nil }
         return container.appendingPathComponent("widget-artwork.jpg")
     }

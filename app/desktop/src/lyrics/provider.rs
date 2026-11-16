@@ -12,7 +12,7 @@ const API: &str = "https://lyrics.api.dacubeking.com/";
 const UNISON_API: &str = "https://unison.betterlyrics.org/lyrics";
 const LRCRED_API: &str = "https://lrc.red/";
 
-const LRCRED_UA: &str = concat!("nuvx/", env!("CARGO_PKG_VERSION"), " (+https://github.com/bxanedot/nuvx)");
+const LRCRED_UA: &str = concat!("nuvx/", env!("CARGO_PKG_VERSION"), " (+https://github.com/lylicht/nuvx)");
 
 pub struct Client {
     http: reqwest::Client,

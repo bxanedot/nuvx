@@ -6,7 +6,7 @@ validation_dir="$(mktemp -d)"
 trap 'cp "$validation_dir/runtime.log" /tmp/nuvx-queue-runtime-last.log 2>/dev/null || true; rm -rf "$validation_dir"' EXIT
 validation_app="$validation_dir/NuvxQueueValidation.app"
 ditto "$app" "$validation_app"
-/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.bxane.nuvx.queuevalidation.run-$RANDOM-$RANDOM" "$validation_app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.licht.nuvx.queuevalidation.run-$RANDOM-$RANDOM" "$validation_app/Contents/Info.plist"
 codesign --force --deep --sign - "$validation_app" > "$validation_dir/sign.log" 2>&1
 rm -f /tmp/nuvx-queue-runtime.json
 "$validation_app/Contents/MacOS/Nuvx" --verify-queue > "$validation_dir/runtime.log" 2>&1

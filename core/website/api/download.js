@@ -1,4 +1,4 @@
-const releases = 'https://github.com/bxanedot/nuvx/releases';
+const releases = 'https://github.com/lylicht/nuvx/releases';
 const downloadsPage = 'https://www.nuvx.lol/#releases';
 const files = {
   windows: 'nuvx-setup-{v}.exe',
@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
         : requestedPlatform === 'car' ? 'auto' : requestedPlatform;
     const match = nightlyNames[platform];
     try {
-      const response = await fetch('https://api.github.com/repos/bxanedot/nuvx/releases?per_page=30', {
+      const response = await fetch('https://api.github.com/repos/lylicht/nuvx/releases?per_page=30', {
         signal: AbortSignal.timeout(4000),
       });
       if (response.ok) {
@@ -84,7 +84,7 @@ module.exports = async (req, res) => {
     try {
       const latest = await fetch(releases + '/latest', { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
       const tag = new URL(latest.headers.get('location'), releases + '/latest');
-      const version = /^\/bxanedot\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
+      const version = /^\/lichtdot\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
       if (latest.status === 302 && tag.origin === 'https://github.com' && version) {
         for (const candidate of candidatesFor(platform, version, requestedPlatform)) {
           const asset = releases + '/download/v' + version + '/' + candidate;

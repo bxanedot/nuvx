@@ -91,7 +91,7 @@ class PortIdentityTests(unittest.TestCase):
         notices = (ROOT / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
         bundled = (ROOT.parents[1] / "core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
         self.assertEqual(notices, bundled)
-        self.assertTrue(notices.startswith("# Third-party licenses\n\nnuvx is distributed by bxane."))
+        self.assertTrue(notices.startswith("# Third-party licenses\n\nnuvx is distributed by licht."))
         self.assertIn("## Components", notices)
         self.assertIn("libsoxr", notices)
 
@@ -156,7 +156,7 @@ class PortIdentityTests(unittest.TestCase):
     @staticmethod
     def plist(**overrides):
         return {
-            "CFBundleIdentifier": "com.bxane.nuvx",
+            "CFBundleIdentifier": "com.licht.nuvx",
             "CFBundleShortVersionString": "0.8.0",
             "CFBundleVersion": "1",
             "NuvxRevision": "123456789abc",

@@ -82,7 +82,7 @@ final class ModuleJsEngine: NSObject, ModuleEngineImpl {
 
         init(moduleId: String, script: String, fetchBase: String) {
             queue = DispatchQueue(
-                label: "com.bxane.nuvx.module.\(moduleId).\(UUID().uuidString)"
+                label: "com.licht.nuvx.module.\(moduleId).\(UUID().uuidString)"
             )
             guard let context = JSContext() else {
 

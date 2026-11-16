@@ -1,5 +1,5 @@
 (() => {
-  const SOURCE = 'https://raw.githubusercontent.com/bxanedot/nuvx/main/CHANGELOG.md';
+  const SOURCE = 'https://raw.githubusercontent.com/lylicht/nuvx/main/CHANGELOG.md';
   const root = document.getElementById('changelog');
   if (!root) return;
 
@@ -136,7 +136,7 @@
       const p = root.firstChild;
       p.append("The changelog couldn't load. Read it on ");
       const a = el('a', null, 'GitHub');
-      a.href = 'https://github.com/bxanedot/nuvx/blob/main/CHANGELOG.md';
+      a.href = 'https://github.com/lylicht/nuvx/blob/main/CHANGELOG.md';
       p.append(a, '.');
     })
     .finally(() => root.setAttribute('aria-busy', 'false'));

@@ -94,31 +94,31 @@ import java.util.UUID
 import com.licht.nuvx.data.model.isLiveRadio
 
 
-const val ACTION_TOGGLE_AUTOPLAY = "com.bxane.nuvx.action.TOGGLE_AUTOPLAY"
+const val ACTION_TOGGLE_AUTOPLAY = "com.licht.nuvx.action.TOGGLE_AUTOPLAY"
 
-const val ACTION_START_BOUNDED_CONTEXT = "com.bxane.nuvx.action.START_BOUNDED_CONTEXT"
-const val ACTION_CLEAR_BOUNDED_CONTEXT = "com.bxane.nuvx.action.CLEAR_BOUNDED_CONTEXT"
+const val ACTION_START_BOUNDED_CONTEXT = "com.licht.nuvx.action.START_BOUNDED_CONTEXT"
+const val ACTION_CLEAR_BOUNDED_CONTEXT = "com.licht.nuvx.action.CLEAR_BOUNDED_CONTEXT"
 const val EXTRA_BOUNDED_CONTEXT_SONGS = "nuvx.boundedContext.songs"
 
-const val ACTION_SWAP_VERSION = "com.bxane.nuvx.action.SWAP_VERSION"
+const val ACTION_SWAP_VERSION = "com.licht.nuvx.action.SWAP_VERSION"
 const val EXTRA_SWAP_MEDIA_ITEM = "nuvx.swap.media_item"
 
 private const val WATCH_SESSION_FOREGROUND_MS = 6 * 60 * 60 * 1000L
 
-const val ACTION_TOGGLE_FAVORITE = "com.bxane.nuvx.action.TOGGLE_FAVORITE"
+const val ACTION_TOGGLE_FAVORITE = "com.licht.nuvx.action.TOGGLE_FAVORITE"
 
-const val ACTION_TOGGLE_SHUFFLE = "com.bxane.nuvx.action.TOGGLE_SHUFFLE"
+const val ACTION_TOGGLE_SHUFFLE = "com.licht.nuvx.action.TOGGLE_SHUFFLE"
 
-const val ACTION_START_STATION = "com.bxane.nuvx.action.START_STATION"
-const val ACTION_REVERT_TO_ORIGINAL = "com.bxane.nuvx.action.REVERT_TO_ORIGINAL"
-const val ACTION_SWAP_TO_VERSION = "com.bxane.nuvx.action.SWAP_TO_VERSION"
+const val ACTION_START_STATION = "com.licht.nuvx.action.START_STATION"
+const val ACTION_REVERT_TO_ORIGINAL = "com.licht.nuvx.action.REVERT_TO_ORIGINAL"
+const val ACTION_SWAP_TO_VERSION = "com.licht.nuvx.action.SWAP_TO_VERSION"
 
-const val ACTION_BEGIN_RADIO_QUEUE = "com.bxane.nuvx.action.BEGIN_RADIO_QUEUE"
-const val ACTION_COMMIT_RADIO_QUEUE = "com.bxane.nuvx.action.COMMIT_RADIO_QUEUE"
+const val ACTION_BEGIN_RADIO_QUEUE = "com.licht.nuvx.action.BEGIN_RADIO_QUEUE"
+const val ACTION_COMMIT_RADIO_QUEUE = "com.licht.nuvx.action.COMMIT_RADIO_QUEUE"
 
-const val ACTION_UPGRADE_QUALITY = "com.bxane.nuvx.action.UPGRADE_QUALITY"
+const val ACTION_UPGRADE_QUALITY = "com.licht.nuvx.action.UPGRADE_QUALITY"
 
-const val ACTION_QUEUE_DRAG = "com.bxane.nuvx.action.QUEUE_DRAG"
+const val ACTION_QUEUE_DRAG = "com.licht.nuvx.action.QUEUE_DRAG"
 const val EXTRA_QUEUE_DRAG_ACTIVE = "nuvx.queueDrag.active"
 
 private const val INITIAL_STATION_TRACKS = 24

@@ -5,7 +5,7 @@ A Maven repository for libraries that are not published anywhere yet. Gradle rea
 
 | Artifact | Built from | Licence |
 |---|---|---|
-| `com.excor:eXcor-android:0.2.0` | https://github.com/bxanedot/eXcor at `bbeee33` | Apache-2.0 |
+| `com.excor:eXcor-android:0.2.0` | https://github.com/lylicht/eXcor at `bbeee33` | Apache-2.0 |
 
 To update eXcor, from an eXcor checkout with `local.properties` pointing at the Android SDK (JDK 27):
 

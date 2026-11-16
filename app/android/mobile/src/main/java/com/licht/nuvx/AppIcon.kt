@@ -9,7 +9,7 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
     Monochrome("LauncherMonochrome", R.mipmap.ic_monochrome, R.string.app_icon_monochrome);
 
     private fun component(context: Context) =
-        ComponentName(context.packageName, "com.bxane.nuvx.$alias")
+        ComponentName(context.packageName, "com.licht.nuvx.$alias")
 
     companion object {
         fun current(context: Context): AppIcon {

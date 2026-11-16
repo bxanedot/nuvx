@@ -83,11 +83,11 @@ class MediaWidgetActions : BroadcastReceiver() {
 
     companion object {
 
-        const val ACTION_TOGGLE = "com.bxane.nuvx.widget.TOGGLE"
-        const val ACTION_NEXT = "com.bxane.nuvx.widget.NEXT"
-        const val ACTION_PREVIOUS = "com.bxane.nuvx.widget.PREVIOUS"
-        const val ACTION_LIKE = "com.bxane.nuvx.widget.LIKE"
-        const val ACTION_SHUFFLE = "com.bxane.nuvx.widget.SHUFFLE"
+        const val ACTION_TOGGLE = "com.licht.nuvx.widget.TOGGLE"
+        const val ACTION_NEXT = "com.licht.nuvx.widget.NEXT"
+        const val ACTION_PREVIOUS = "com.licht.nuvx.widget.PREVIOUS"
+        const val ACTION_LIKE = "com.licht.nuvx.widget.LIKE"
+        const val ACTION_SHUFFLE = "com.licht.nuvx.widget.SHUFFLE"
 
         fun pendingIntent(context: Context, action: String): PendingIntent =
             PendingIntent.getBroadcast(

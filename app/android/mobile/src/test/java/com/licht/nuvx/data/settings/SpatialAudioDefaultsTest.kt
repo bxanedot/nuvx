@@ -7,9 +7,9 @@ import org.junit.Test
 class SpatialAudioDefaultsTest {
     @Test
     fun spatialWideningIsOffByDefaultOnlyForAuto() {
-        assertFalse(defaultSpatialAudioEnabled("com.bxane.nuvx.auto"))
-        assertTrue(defaultSpatialAudioEnabled("com.bxane.nuvx"))
-        assertTrue(defaultSpatialAudioEnabled("com.bxane.nuvx.tv"))
-        assertTrue(defaultSpatialAudioEnabled("com.bxane.nuvx.dev"))
+        assertFalse(defaultSpatialAudioEnabled("com.licht.nuvx.auto"))
+        assertTrue(defaultSpatialAudioEnabled("com.licht.nuvx"))
+        assertTrue(defaultSpatialAudioEnabled("com.licht.nuvx.tv"))
+        assertTrue(defaultSpatialAudioEnabled("com.licht.nuvx.dev"))
     }
 }

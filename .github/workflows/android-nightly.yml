@@ -271,10 +271,10 @@ jobs:
               done
             fi
           }
-          stage_shared_universal app/android/mobile/build/outputs/apk prod nuvx com.bxane.nuvx true
-          stage_shared_universal app/android/tv/build/outputs/apk prodTv NuvxTV com.bxane.nuvx.tv true
-          stage_shared_universal app/android/tv/build/outputs/apk prodAuto NuvxAuto com.bxane.nuvx.auto
-          stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
+          stage_shared_universal app/android/mobile/build/outputs/apk prod nuvx com.licht.nuvx true
+          stage_shared_universal app/android/tv/build/outputs/apk prodTv NuvxTV com.licht.nuvx.tv true
+          stage_shared_universal app/android/tv/build/outputs/apk prodAuto NuvxAuto com.licht.nuvx.auto
+          stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.licht.nuvx
           [[ $(find nightly -maxdepth 1 -name '*.apk' | wc -l) -eq 8 ]]
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           gh release upload "$RELEASE_TAG" nightly/*.apk nightly/SHA256SUMS --clobber

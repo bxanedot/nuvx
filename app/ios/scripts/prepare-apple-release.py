@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import zipfile
 
-BUNDLE_ID = 'com.bxane.nuvx'
+BUNDLE_ID = 'com.licht.nuvx'
 
 
 def identity(plist):
@@ -59,7 +59,7 @@ This release contains one iOS IPA and one Apple Silicon Mac DMG, built from revi
 - **Mac update:** use Version & Updates in nuvx and open the Mac updater. The signed Sparkle feed must name this exact build and DMG.
 - **First Mac install/manual recovery:** open `{dmg.name}` and move nuvx to Applications, replacing the installed app. Do not uninstall the app or delete its data first.
 
-The latest release page is the permanent entry point: https://github.com/bxanedot/nuvx/releases/latest
+The latest release page is the permanent entry point: https://github.com/lylicht/nuvx/releases/latest
 The in-app build number distinguishes packages that share a marketing version. Downloading an installer does not itself install it.
 
 SHA-256 checksums are listed in SHA256.txt and release.json. Keep these artifacts immutable once published.

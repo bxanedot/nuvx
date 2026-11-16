@@ -79,7 +79,7 @@ import platform.Foundation.valueForHTTPHeaderField
 actual object Http {
 
     private val cookieJar: NSHTTPCookieStorage =
-        NSHTTPCookieStorage.sharedCookieStorageForGroupContainerIdentifier("group.com.bxane.nuvx").also { jar ->
+        NSHTTPCookieStorage.sharedCookieStorageForGroupContainerIdentifier("group.com.licht.nuvx").also { jar ->
 
 
             listOf(jar, NSHTTPCookieStorage.sharedHTTPCookieStorage).forEach { store ->

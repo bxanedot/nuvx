@@ -6,7 +6,7 @@ Status: design draft (2026-11-08).
 
 nuvx is now the upstream app's code base (Android phone, Android TV, Wear OS, web player + extension), renamed. Its
 Listen Together clients speak the party protocol of the upstream Go server (`backend/` in the old tree, deployed on Render).
-bxane wants one server: the existing Cloudflare Worker `nuvx-listen` (`worker/`), which today speaks an older, smaller
+licht wants one server: the existing Cloudflare Worker `nuvx-listen` (`worker/`), which today speaks an older, smaller
 "room" protocol used only by the deleted Kotlin Multiplatform app. Nothing has been released, so the old room protocol
 has no users to keep working.
 
@@ -142,7 +142,7 @@ These override anything above that disagrees.
   max-age=15`; badge SVG is Go's `handleLiveBadge` template. The Presence DO keeps one SQLite row per install
   (upsert `last_ms`), counts rows newer than 390 s, and deletes older rows on each count.
 - **Invite page.** Go's `inviteTemplate`, rebranded to nuvx; origin = `new URL(req.url).origin`; download link
-  `https://github.com/bxanedot/nuvx/releases`, plus "open in the web player" `https://web.nuvx.lol/invite/<code>`.
+  `https://github.com/lylicht/nuvx/releases`, plus "open in the web player" `https://web.nuvx.lol/invite/<code>`.
 - **`report`** only triggers the heartbeat; drift is not logged (the Worker logs nothing).
 - **`GET /`** returns `{service: "nuvx-listen-together", serverMs}`; per-process member/party counts do not exist on
   Durable Objects and nothing reads them.

@@ -1676,7 +1676,7 @@ class SourcesTest {
 
     @Test
     fun `refuses to let a module point the player at anything but http`() {
-        assertTrue(ModuleSource.malformed("file:///data/data/com.bxane.nuvx/files/x.flac"))
+        assertTrue(ModuleSource.malformed("file:///data/data/com.licht.nuvx/files/x.flac"))
         assertTrue(ModuleSource.malformed("content://media/external/audio/media/42"))
         assertTrue(ModuleSource.malformed("ftp://cdn.example.com/f.mp3"))
     }

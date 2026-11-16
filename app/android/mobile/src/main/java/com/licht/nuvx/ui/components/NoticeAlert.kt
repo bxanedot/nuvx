@@ -165,7 +165,7 @@ internal fun AppPrompts(radioOpen: Boolean, podcastsOpen: Boolean, held: Boolean
 
     if (supportPrompt != 0 && !held && radioIntroStep == 0 && podcastsIntroStep == 0) {
         val tip = supportPrompt == 1
-        val url = if (tip) "https://ko-fi.com/bxane" else "https://github.com/bxanedot/nuvx"
+        val url = if (tip) "https://ko-fi.com/bxane" else "https://github.com/lylicht/nuvx"
         NoticeAlert(
             title = stringResource(if (tip) R.string.support_tip_title else R.string.support_star_title),
             body = stringResource(if (tip) R.string.support_tip_body else R.string.support_star_body),

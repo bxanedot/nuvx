@@ -1,6 +1,5 @@
 package com.licht.nuvx.data.model
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 
@@ -112,17 +111,13 @@ data class BrowseItem(
 
 @Serializable
 sealed interface SearchResult {
-    // Stored data names these types by their original package; keep it readable after the package rename.
     @Serializable
-    @SerialName("com.bxane.nuvx.data.model.SearchResult.TopTrack")
     data class TopTrack(val song: Song) : SearchResult
 
     @Serializable
-    @SerialName("com.bxane.nuvx.data.model.SearchResult.Track")
     data class Track(val song: Song) : SearchResult
 
     @Serializable
-    @SerialName("com.bxane.nuvx.data.model.SearchResult.Browse")
     data class Browse(val item: BrowseItem) : SearchResult
 }
 

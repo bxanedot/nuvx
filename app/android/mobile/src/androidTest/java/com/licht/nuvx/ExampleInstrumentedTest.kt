@@ -13,6 +13,6 @@ class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.bxane.nuvx", appContext.packageName)
+        assertEquals("com.licht.nuvx", appContext.packageName)
     }
 }

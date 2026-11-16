@@ -14,7 +14,7 @@ import kotlin.math.abs
 object LrcLib {
 
     private const val BASE = "https://lrclib.net/api"
-    private const val AGENT = "nuvx (https://github.com/bxanedot/nuvx)"
+    private const val AGENT = "nuvx (https://github.com/lylicht/nuvx)"
     private const val MIN_GAP_MS = 4_000L
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }

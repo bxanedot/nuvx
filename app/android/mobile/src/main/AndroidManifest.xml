@@ -312,7 +312,7 @@
           (see AppIcon). Exactly one is enabled at a time; Default is the shipped one.
         -->
         <activity-alias
-            android:name="com.bxane.nuvx.LauncherDefault"
+            android:name=".LauncherDefault"
             android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
@@ -326,7 +326,7 @@
         </activity-alias>
 
         <activity-alias
-            android:name="com.bxane.nuvx.LauncherMonochrome"
+            android:name=".LauncherMonochrome"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_monochrome"

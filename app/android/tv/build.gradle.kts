@@ -47,7 +47,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bxane.nuvx"
+        applicationId = "com.licht.nuvx"
         minSdk = 26
         targetSdk = 36
         versionCode = androidVersionCode
@@ -292,10 +292,10 @@ val verifyDevInstall = tasks.register("verifyDevInstall") {
             .drop(1)
             .mapNotNull { line -> line.split('\t').takeIf { it.size == 2 && it[1] == "device" }?.get(0) }
         serials.forEach { serial ->
-            logger.lifecycle("verifyDevInstall: compiling com.bxane.nuvx.dev.tv on $serial")
+            logger.lifecycle("verifyDevInstall: compiling com.licht.nuvx.dev.tv on $serial")
             ProcessBuilder(
                 adbPath, "-s", serial, "shell", "cmd", "package", "compile",
-                "-m", "verify", "-f", "com.bxane.nuvx.dev.tv",
+                "-m", "verify", "-f", "com.licht.nuvx.dev.tv",
             ).inheritIO().start().waitFor()
         }
     }

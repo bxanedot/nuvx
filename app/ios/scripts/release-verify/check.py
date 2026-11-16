@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as temporary:
     root = Path(temporary)
     ipa, dmg = root / 'Nuvx-build13.ipa', root / 'Nuvx-build13.dmg'
     ipa.write_bytes(b'ios fixture'); dmg.write_bytes(b'mac fixture')
-    plist = dict(CFBundleIdentifier='com.bxane.nuvx', CFBundleShortVersionString='1.0.4', CFBundleVersion='13', NuvxRevision='abc1234')
+    plist = dict(CFBundleIdentifier='com.licht.nuvx', CFBundleShortVersionString='1.0.4', CFBundleVersion='13', NuvxRevision='abc1234')
     output = root / 'release'
     manifest = module.prepare(ipa, dmg, plist, plist, output)
     assert manifest['build'] == 13 and len(manifest['artifacts']) == 2

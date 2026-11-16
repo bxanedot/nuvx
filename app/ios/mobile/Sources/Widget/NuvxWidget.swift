@@ -9,7 +9,7 @@ import AppIntents
 
 
 
-private let groupDefaults = UserDefaults(suiteName: "group.com.bxane.nuvx")
+private let groupDefaults = UserDefaults(suiteName: "group.com.licht.nuvx")
 
 struct MediaWidgetEntry: TimelineEntry {
     let date: Date
@@ -188,7 +188,7 @@ struct WidgetTransportIntent: AppIntent {
     init(command: String) { self.command = command }
 
     func perform() async throws -> some IntentResult {
-        UserDefaults(suiteName: "group.com.bxane.nuvx")?.set(command, forKey: "widget.command")
+        UserDefaults(suiteName: "group.com.licht.nuvx")?.set(command, forKey: "widget.command")
         return .result()
     }
 }

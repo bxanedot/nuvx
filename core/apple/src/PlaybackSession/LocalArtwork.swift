@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 final class LocalArtwork: @unchecked Sendable {
     static let shared = LocalArtwork()
     private static let scheme = "nuvx-local-artwork"
-    private let queue = DispatchQueue(label: "com.bxane.nuvx.local-artwork", qos: .utility)
+    private let queue = DispatchQueue(label: "com.licht.nuvx.local-artwork", qos: .utility)
     private let memory = NSCache<NSString, NSData>()
 
     init() {

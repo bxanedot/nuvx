@@ -21,11 +21,11 @@ enum Keychain {
         #if DEBUG
 
         if let identifier = Bundle.main.bundleIdentifier,
-           identifier.hasPrefix("com.bxane.nuvx.queuevalidation") {
+           identifier.hasPrefix("com.licht.nuvx.queuevalidation") {
             return identifier
         }
         #endif
-        return "com.bxane.nuvx"
+        return "com.licht.nuvx"
     }()
     private static let service = namespace + ".credentials"
 

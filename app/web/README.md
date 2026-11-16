@@ -38,7 +38,7 @@ corepack pnpm --dir app/web/extension build
 - **Chrome, Edge, Brave:** `chrome://extensions` → Developer mode → *Load unpacked* → `app/web/extension/.output/chrome-mv3`. The id is always `ddclilijgpfpkhidfcooohihfalmmfmm`, pinned by the manifest `key` (`extension/dev-key/`), so the site finds it without configuration.
 - **Firefox:** `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `app/web/extension/.output/firefox-mv3/manifest.json`.
 
-To update a temporary Firefox install from 0.8.0, download the [v1.0.0 Firefox ZIP](https://github.com/bxanedot/nuvx/releases/download/v1.0.0/nuvx-extension-firefox-1.0.0.zip), extract it, open `about:debugging#/runtime/this-firefox`, remove the old temporary add-on, then choose the new `manifest.json` with **Load Temporary Add-on**. This unsigned ZIP is for Firefox Developer Edition or Nightly; Firefox clears temporary add-ons when it closes, so load the new version again after restarting. A Firefox Add-ons (AMO) installation should be updated through AMO.
+To update a temporary Firefox install from 0.8.0, download the [v1.0.0 Firefox ZIP](https://github.com/lylicht/nuvx/releases/download/v1.0.0/nuvx-extension-firefox-1.0.0.zip), extract it, open `about:debugging#/runtime/this-firefox`, remove the old temporary add-on, then choose the new `manifest.json` with **Load Temporary Add-on**. This unsigned ZIP is for Firefox Developer Edition or Nightly; Firefox clears temporary add-ons when it closes, so load the new version again after restarting. A Firefox Add-ons (AMO) installation should be updated through AMO.
 
 To offer the extension as a download from the site's Extension page, package it:
 

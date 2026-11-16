@@ -14,7 +14,7 @@ export function invitePage(info: InviteInfo, origin: string): string {
 <div class="box"><p class="label">Party code</p><p class="code">${code}</p>${info.title ? `<p class="now">${esc(info.title)} · ${esc(info.artist ?? "")}</p>` : ""}</div>
 <a class="btn" id="join" href="${esc(intent)}">Join in nuvx</a>
 <a class="btn alt" href="${esc(web)}">Open in the web player</a>
-<p class="note">Didn't open? Tap the button. No nuvx yet? <a href="https://github.com/bxanedot/nuvx/releases" rel="noopener">Download it</a>.</p>
+<p class="note">Didn't open? Tap the button. No nuvx yet? <a href="https://github.com/lylicht/nuvx/releases" rel="noopener">Download it</a>.</p>
 <script>setTimeout(function () { location.href = /Android/i.test(navigator.userAgent) ? ${JSON.stringify(intent)} : ${JSON.stringify(deepLink)}; }, 100);</script>`
     : `<p class="badge"><span class="dot off"></span>Party inactive</p>
 <h1>Party not found</h1>
@@ -41,7 +41,7 @@ h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .note{margin-top:14px;font-size:13px;color:#888}.note a{color:var(--accent)}
 .ambient-pause{margin-top:12px;color:#bbb}
-</style></head><body><img class="bxane-signature-corner" src="https://www.nuvx.lol/bxane-signature.svg" alt="bxane" width="76" height="19"><div class="nuvx-ambient" aria-hidden="true"></div><main>
+</style></head><body><img class="licht-signature-corner" src="https://www.nuvx.lol/licht-signature.svg" alt="licht" width="76" height="19"><div class="nuvx-ambient" aria-hidden="true"></div><main>
 ${body}
 <label class="ambient-pause"><input id="ambient-pause" type="checkbox"> Pause background motion</label>
 </main></body></html>`;

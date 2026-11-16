@@ -98,7 +98,7 @@ for t in "${TARGETS[@]}"; do
   /usr/libexec/PlistBuddy \
     -c "Add :CFBundleDevelopmentRegion string en" \
     -c "Add :CFBundleExecutable string NativeCoreFFI" \
-    -c "Add :CFBundleIdentifier string com.bxane.nuvx.native-core-ffi" \
+    -c "Add :CFBundleIdentifier string com.licht.nuvx.native-core-ffi" \
     -c "Add :CFBundleInfoDictionaryVersion string 6.0" \
     -c "Add :CFBundleName string NativeCoreFFI" \
     -c "Add :CFBundlePackageType string FMWK" \

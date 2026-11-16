@@ -173,7 +173,7 @@ object Mp4Tagger {
         return box("----", mean + label + dataAtom(1, text.toByteArray(Charsets.UTF_8)))
     }
 
-    private const val MEAN = "com.bxane.nuvx"
+    private const val MEAN = "com.licht.nuvx"
 
 
     private fun hdlrAtom(): ByteArray {

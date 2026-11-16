@@ -30,7 +30,7 @@ def check(root=ROOT):
     failures = []
     notices = (root / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
     bundled_notices = (APPLE_RESOURCES / "AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
-    if not notices.startswith("# Third-party licenses\n\nnuvx is distributed by bxane."):
+    if not notices.startswith("# Third-party licenses\n\nnuvx is distributed by licht."):
         failures.append("Incorrect product identity in dependency notices")
     if notices != bundled_notices:
         failures.append("Bundled dependency notices differ from THIRD_PARTY_LICENSES.md")
@@ -89,9 +89,9 @@ def check(root=ROOT):
             failures.append(f"Model checksum/size mismatch: {name}")
     spec = (root / "mobile/project.yml").read_text(encoding="utf-8")
     for required in [
-        "PRODUCT_BUNDLE_IDENTIFIER: com.bxane.nuvx\n",
-        "PRODUCT_BUNDLE_IDENTIFIER: com.bxane.nuvx.widget\n",
-        "group.com.bxane.nuvx", "CFBundleDisplayName: nuvx\n",
+        "PRODUCT_BUNDLE_IDENTIFIER: com.licht.nuvx\n",
+        "PRODUCT_BUNDLE_IDENTIFIER: com.licht.nuvx.widget\n",
+        "group.com.licht.nuvx", "CFBundleDisplayName: nuvx\n",
         "CFBundleURLSchemes: [nuvx]", "SUEnableAutomaticChecks: false",
         'NUVX_UPDATE_FEED_URL: ""', 'NUVX_UPDATE_PUBLIC_KEY: ""',
         "Frameworks/NuvxShared.xcframework", "Resources/Models",

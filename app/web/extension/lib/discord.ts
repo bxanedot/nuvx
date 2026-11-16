@@ -6,7 +6,7 @@ declare const __DISCORD_PRESENCE__: boolean;
 export const APPLICATION_ID = '1543679166967193620';
 const GATEWAY = 'wss://gateway.discord.gg/?v=9&encoding=json';
 const API = 'https://discord.com/api/v9';
-const PROJECT_URL = 'https://github.com/bxanedot/nuvx';
+const PROJECT_URL = 'https://github.com/lylicht/nuvx';
 const DEFAULT_BUTTON_1 = 'Listen on nuvx';
 const DEFAULT_BUTTON_2 = 'Visit nuvx';
 const APP_NAME = 'nuvx';
