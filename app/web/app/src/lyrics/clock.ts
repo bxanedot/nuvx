@@ -28,6 +28,9 @@ export class LyricClock {
     this.jumpPending = false;
     this.glideStartMs = Number.NaN;
     this.clearSuspect();
+    // Speed may have changed while paused; never restart faster than 1x, since catching up is cheap and backing off is slow.
+    this.rate = Math.min(this.rate, 1);
+    this.rateSettled = false;
   }
 
   hold(positionMs: number, nowMs: number): void {

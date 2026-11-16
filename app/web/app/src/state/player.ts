@@ -23,7 +23,7 @@ import type { LoadedTrack, StreamStats, YouTubeEngine } from '@/playback/youtube
 import type { AutomixGraph, AutoDJSnapshot } from '@/playback/automix';
 import { PlayerAutoplayController } from '@/playback/autoplayController';
 import { PlayerMediaSessionController } from '@/playback/mediaSessionController';
-import { CROSSFADE_CHOICES, loadPlayerSettings, savePlayerSettings } from './playerSettings';
+import { CROSSFADE_CHOICES, loadPlayerSettings, loudnessGain, savePlayerSettings } from './playerSettings';
 import type { PlayerSettings, RepeatMode } from './playerSettings';
 
 export { CROSSFADE_CHOICES } from './playerSettings';
@@ -50,6 +50,7 @@ interface PlayerState extends PlayerSettings {
   deck: number;
   automixState: AutoDJSnapshot | null;
   mixing: boolean;
+  sleepMinutes: number | null;
 
   playTracks: (tracks: Track[], startIndex: number, source: QueueSource, sourceIndices?: number[]) => void;
   playTrack: (track: Track, source: QueueSource) => void;
@@ -73,6 +74,8 @@ interface PlayerState extends PlayerSettings {
   setAutomix: (on: boolean) => void;
   setAutomixBars: (bars: number) => void;
   setShowNerdStats: (on: boolean) => void;
+  setLoudnessTarget: (lufs: number | null) => void;
+  setSleepTimer: (minutes: number | null) => void;
 }
 
 function saveSettings(state: PlayerSettings) {
@@ -84,6 +87,7 @@ interface Deck {
   audio: HTMLAudioElement;
   gain: number;
   radio: boolean;
+  loudnessDb: number | null;
 }
 
 let decks: Deck[] | null = null;
@@ -118,7 +122,7 @@ function getDecks(): Promise<Deck[]> {
       audio.preload = 'auto';
       audio.crossOrigin = 'anonymous';
       const engine = new YouTubeEngine(audio);
-      const deck: Deck = { engine, audio, gain: 1, radio: false };
+      const deck: Deck = { engine, audio, gain: 1, radio: false, loudnessDb: null };
       engine.onFatal = (videoId, message) => {
         if (decks?.[active] !== deck) return;
         trackLog.e(`stopped: ${message}`, videoId);
@@ -128,6 +132,8 @@ function getDecks(): Promise<Deck[]> {
         if (decks?.[active] !== deck) return;
         const { queue, index } = usePlayer.getState();
         const entry = queue[index];
+        deck.loudnessDb = track.loudnessDb;
+        applyVolumes();
         applyTrack(track, entry?.track.videoId === track.videoId ? entry.track : undefined);
       };
       bindElement(deck, n);
@@ -141,18 +147,20 @@ function getDecks(): Promise<Deck[]> {
 }
 
 function applyVolumes() {
-  const { volume, muted } = usePlayer.getState();
-  const level = muted ? 0 : Math.min(1, Math.max(0, volume));
+  const { volume, muted, loudnessTarget } = usePlayer.getState();
+  const level = muted ? 0 : Math.min(1, Math.max(0, volume)) * sleepFade;
+  const norm = (deck: Deck) => deck.gain * loudnessGain(deck.loudnessDb, loudnessTarget);
   if (graph) {
     const now = graph.ctx.currentTime;
     graph.master.gain.setTargetAtTime(level, now, 0.015);
     (decks ?? []).forEach((deck, n) => {
       deck.audio.volume = deck.radio ? level * deck.gain : 1;
-      graph!.decks[n]!.fader.gain.setTargetAtTime(deck.gain, now, 0.015);
+      graph!.decks[n]!.fader.gain.setTargetAtTime(norm(deck), now, 0.015);
     });
     return;
   }
-  for (const deck of decks ?? []) deck.audio.volume = level * deck.gain;
+  // shortcut: without the Web Audio graph an <audio> element can't go above 1, so boosts clip at full volume; fine until the graph is always on.
+  for (const deck of decks ?? []) deck.audio.volume = Math.min(1, level * norm(deck));
 }
 
 let graph: AutomixGraph | null = null;
@@ -182,9 +190,12 @@ function ensureAutomix(): Promise<AutomixGraph | null> {
         loadBack: async (videoId) => {
           const back = all[1 - active]!;
           back.gain = 1;
+          back.loudnessDb = null;
           applyVolumes();
           try {
             const track = await back.engine.load(videoId, { autoplay: false });
+            back.loudnessDb = track.loudnessDb;
+            applyVolumes();
             mixLoaded = { videoId, track };
             return true;
           } catch (error) {
@@ -323,6 +334,7 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   deck: 0,
   automixState: null,
   mixing: false,
+  sleepMinutes: null,
 
   playTracks(tracks, startIndex, source, sourceIndices) {
     if (!tracks.length) return;
@@ -525,7 +537,35 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
     set({ showNerdStats });
     saveSettings(get());
   },
+  setLoudnessTarget(loudnessTarget) {
+    set({ loudnessTarget });
+    saveSettings(get());
+    applyVolumes();
+  },
+  setSleepTimer(minutes) {
+    window.clearTimeout(sleepTimer);
+    window.clearInterval(sleepFadeTimer);
+    sleepFade = 1;
+    applyVolumes();
+    set({ sleepMinutes: minutes });
+    if (!minutes) return;
+    sleepTimer = window.setTimeout(() => {
+      const started = performance.now();
+      sleepFadeTimer = window.setInterval(() => {
+        sleepFade = Math.max(0, 1 - (performance.now() - started) / SLEEP_FADE_MS);
+        applyVolumes();
+        if (sleepFade > 0) return;
+        if (getAudio()?.paused === false) get().togglePlay();
+        get().setSleepTimer(null);
+      }, 100);
+    }, Math.max(0, minutes * 60_000 - SLEEP_FADE_MS));
+  },
 }));
+
+const SLEEP_FADE_MS = 10_000;
+let sleepTimer: number | undefined;
+let sleepFadeTimer: number | undefined;
+let sleepFade = 1;
 
 const playerAutoplay = new PlayerAutoplayController(
   () => usePlayer.getState(),
@@ -597,6 +637,7 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
       deck.audio.src = entry.track.streamUrl;
       deck.audio.load();
       deck.gain = 1;
+      deck.loudnessDb = null;
       applyVolumes();
       await deck.audio.play();
       if (token !== loadToken) return;
@@ -616,9 +657,12 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
       bindElement(deck, active);
     }
     deck.gain = 1;
+    deck.loudnessDb = null;
     applyVolumes();
     const track = await deck.engine.load(entry.track.videoId, { startSec, autoplay });
     if (token !== loadToken) return;
+    deck.loudnessDb = track.loudnessDb;
+    applyVolumes();
     applyTrack(track, entry.track);
     if (!autoplay) usePlayer.setState({ status: 'paused' });
     afterTrackStarted();
@@ -720,6 +764,7 @@ function maybeCrossfade() {
   const token = ++loadToken;
   fade = { token, frame: 0, pending: true };
   back.gain = 0;
+  back.loudnessDb = null;
   applyVolumes();
   trackLog.i(`crossfading into the next track over ${Math.round(remaining)}s`, entry.track.videoId);
 
@@ -728,6 +773,7 @@ function maybeCrossfade() {
     .then((track) => {
       if (!fade || fade.token !== token || !decks) return;
       fade.pending = false;
+      back.loudnessDb = track.loudnessDb;
       const from = front;
       const to = back;
       active = 1 - active;

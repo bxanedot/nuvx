@@ -12,6 +12,31 @@ fn select_pill(ui: &mut Ui, sel: &mut Selection, page: &Page) {
     }
 }
 
+fn view_pill(ui: &mut Ui, list: &mut bool) {
+    if pill(ui, if *list { "Grid view" } else { "List view" }, None, false).clicked() {
+        *list = !*list;
+    }
+}
+
+fn card_row(ui: &mut Ui, c: &Card, acts: &mut Vec<Action>) {
+    use egui::{Rect, Sense, pos2};
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
+    let resp = widgets::named(resp, &c.title).on_hover_cursor(egui::CursorIcon::PointingHand);
+    let h = theme::anim_bool(ui.ctx(), resp.id.with("h"), resp.hovered(), 0.12);
+    if h > 0.0 {
+        ui.painter().rect_filled(rect, 10.0, theme::glass(0.08 * h));
+    }
+    let art = Rect::from_center_size(pos2(rect.left() + 32.0, rect.center().y), vec2(44.0, 44.0));
+    widgets::paint_cover(ui, art, &c.thumbs, if c.round { 22.0 } else { 6.0 }, 1.0);
+    let x = art.right() + 14.0;
+    let w = rect.right() - x - 10.0;
+    widgets::text_at(ui, pos2(x, rect.center().y - 19.0), &c.title, theme::semibold(14.0), theme::text(), w);
+    widgets::text_at(ui, pos2(x, rect.center().y + 2.0), &c.subtitle, theme::regular(13.0), theme::text_dim(), w);
+    if resp.clicked() {
+        acts.push(Action::Open(c.target.clone()));
+    }
+}
+
 pub(super) fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
     page_title(ui, "Library");
     if !app.logged_in && (tab != LibTab::Playlists || (!app.create_playlists_locally && app.local_playlists.is_empty())) {
@@ -38,7 +63,14 @@ pub(super) fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
         }
     });
     ui.add_space(12.0);
+    let as_list = app.lib_list;
     let grid = |ui: &mut Ui, cards: &[Card], acts: &mut Vec<Action>| {
+        if as_list {
+            for c in cards {
+                card_row(ui, c, acts);
+            }
+            return;
+        }
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = vec2(20.0, 22.0);
             for c in cards {
@@ -116,9 +148,12 @@ pub(super) fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
             }
             match tab {
                 LibTab::Playlists => {
-                    if (app.logged_in || app.create_playlists_locally) && pill(ui, "New playlist", None, false).clicked() {
-                        app.actions.push(Action::NewPlaylist(Vec::new()));
-                    }
+                    ui.horizontal(|ui| {
+                        if (app.logged_in || app.create_playlists_locally) && pill(ui, "New playlist", None, false).clicked() {
+                            app.actions.push(Action::NewPlaylist(Vec::new()));
+                        }
+                        view_pill(ui, &mut app.lib_list);
+                    });
                     ui.add_space(14.0);
                     let mut cards = app.local_playlist_cards();
                     cards.extend(app.library.as_ref().map(|lib| lib.playlists.iter()
@@ -126,7 +161,11 @@ pub(super) fn library(app: &mut App, ui: &mut Ui, tab: LibTab, now: f64) {
                         .cloned().collect::<Vec<_>>()).unwrap_or_default());
                     grid(ui, &cards, &mut app.actions)
                 }
-                LibTab::Albums => if let Some(lib) = &app.library { grid(ui, &lib.albums, &mut app.actions) },
+                LibTab::Albums => {
+                    view_pill(ui, &mut app.lib_list);
+                    ui.add_space(14.0);
+                    if let Some(lib) = &app.library { grid(ui, &lib.albums, &mut app.actions) }
+                }
                 LibTab::Songs | LibTab::History | LibTab::Uploads => unreachable!(),
             }
         }

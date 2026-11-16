@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { sizedArtwork } from '@/lib/artwork';
+import { sizedArtwork, youTubeThumbnailFallback } from '@/lib/artwork';
 
 interface ArtworkProps {
   src: string | null;
@@ -16,7 +16,8 @@ export function Artwork({ src, displayWidth, aspect = 1, radius, className, eage
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const sized = src ? sizedArtwork(src, displayWidth, aspect) : null;
-  const url = attempt >= 2 || sized === src ? src : sized;
+  const fallback = src ? youTubeThumbnailFallback(src) : null;
+  const url = attempt >= 3 ? fallback : attempt >= 2 || sized === src ? src : sized;
   return (
     <div
       className={className ? `${frame} ${className}` : frame}
@@ -37,6 +38,7 @@ export function Artwork({ src, displayWidth, aspect = 1, radius, className, eage
           onError={() => {
             if (attempt === 0) setTimeout(() => setAttempt(1), 1500);
             else if (attempt === 1 && url !== src) setAttempt(2);
+            else if (attempt < 3 && fallback) setAttempt(3);
           }}
         />
       )}

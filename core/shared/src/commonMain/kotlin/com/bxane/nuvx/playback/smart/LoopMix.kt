@@ -1,4 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+/*
+ * BitChord: the Automix loop mix, a DJ transition on two beat-tracked songs.
+ * Ported from the web player's playback/automix/engine/loopMix.ts (which
+ * builds on AutoMix by David Finnegan, AGPL-3.0; see that folder's NOTICE.md).
+ *
+ * Copyright (C) 2026 Kushagra Singh
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. Combined into BitChord (GPL-3.0-or-later) under
+ * section 13 of the AGPL.
+ */
 
 package com.bxane.nuvx.playback.smart
 

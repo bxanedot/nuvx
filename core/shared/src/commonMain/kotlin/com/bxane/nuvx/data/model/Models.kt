@@ -154,6 +154,13 @@ private fun isGoogleImageHost(url: String): Boolean {
         host == "googleusercontent.com" || host.endsWith(".googleusercontent.com")
 }
 
+// maxresdefault/sddefault/hq720 404 for many older videos; hqdefault always exists.
+fun String.youTubeThumbnailFallback(): String? =
+    YT_LARGE_THUMB.find(this)?.let { "https://i.ytimg.com/vi/${it.groupValues[1]}/hqdefault.jpg" }
+
+private val YT_LARGE_THUMB =
+    Regex("""^https?://i\d?\.ytimg\.com/vi(?:_webp)?/([\w-]{11})/(?:maxresdefault|sddefault|hq720|maxres\d)\.\w+""")
+
 private val SIZE_HINT = Regex("""w\d+-h\d+""")
 private val PARAM_SIZE_HINT = Regex("""=s\d+""")
 

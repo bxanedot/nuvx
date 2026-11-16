@@ -113,6 +113,7 @@
     <string name="widget_preview_title">曲名</string>
     <string name="widget_preview_artist">アーティスト</string>
     <string name="widget_pill_label">再生中 4×1</string>
+    <string name="tile_playback_label">再生/一時停止</string>
     <string name="widget_pill_description">曲名といいね、シャッフル、再生コントロールを1行に。</string>
     <string name="widget_preview_pill">曲名 - アーティスト</string>
     <string name="download_quality">ダウンロード品質</string>
@@ -272,6 +273,8 @@
     <string name="discord_token_rejected">Discordがそのトークンを拒否しました。</string>
     <string name="discord_token_warning">Discordはアプリがプレゼンスを設定できるAPIを提供していないため、この機能はあなたのアカウントとしてログインし、Discordのプロトコルを使用します。トークンはこのデバイス内で暗号化され、Discordにのみ送信されます。アカウント全体へのアクセス権を与えることになり、アカウントの自動化はDiscordの利用規約に違反します。このリスクを受け入れられる場合のみ使用してください。</string>
     <string name="dislike">低評価</string>
+    <string name="disliked">低評価しました</string>
+    <string name="undo">元に戻す</string>
     <string name="done">完了</string>
     <string name="download">ダウンロード</string>
     <string name="download_quality_dialog_subtitle">このデバイスに保存するファイル向け</string>
@@ -739,6 +742,8 @@
     <string name="prefer_usb_dac">USB DAC を優先</string>
     <string name="loudness_normalization">音量の正規化</string>
     <string name="loudness_normalization_subtitle">すべての曲を同じラウドネスにそろえます</string>
+    <string name="loudness_target">ラウドネス目標</string>
+    <string name="loudness_target_subtitle">低いほど静かで余裕が増えます。−14 LUFS は YouTube と同じです。</string>
     <string name="loudness_off_on_speaker">バイトフォンで無効化</string>
     <string name="pipeline_loudness_gain">ゲイン</string>
     <string name="pipeline_loudness_measured">測定値</string>
@@ -847,6 +852,8 @@
     <string name="automix_mode_performance_subtitle">4 スレッド · 最速分析 · 発熱とバッテリー消費が高くなります</string>
 
 
+    <string name="advanced_automix">高度な AutoMix</string>
+    <string name="advanced_automix_subtitle">ビートとフレーズに合わせたトランジション。オフでシンプルなクロスフェード。</string>
     <string name="automix_performance">Automix パフォーマンス</string>
 
     <string name="automix_performance_subtitle">バックグラウンド分析で使用できる CPU 使用量を設定します</string>
@@ -1218,6 +1225,7 @@
     <string name="artist_signatures_unconfigured">未設定 — APIのURLを設定するにはタップしてください</string>
     <string name="artist_signatures_test_failed">そのURLでAPIに到達できませんでした</string>
     <string name="search_source_addons">アドオン</string>
+    <string name="change_playlist_artwork">プレイリストのアートワークを変更</string>
     <string name="search_addons_none">有効なアドオンがありません。設定 → ソースで追加してください。</string>
     <string name="app_icon">アプリアイコン</string>
     <string name="app_icon_default">デフォルト</string>

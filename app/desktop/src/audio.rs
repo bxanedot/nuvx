@@ -17,6 +17,7 @@ pub use control::{AudioCmd, AudioEvent, AudioHandle};
 use effects::{Eq, Meter, Spatial};
 use engine::run;
 use fading::{Fading, HANDOFF_WAIT, QUICK_FADE_MS};
+pub use mix::NORM_DEFAULT_LUFS;
 use mix::{mix_ms, norm_gain, slider_gain};
 use output::{Output, DEVICE_CHECK};
 use seek::{SeekJob, build_seek};

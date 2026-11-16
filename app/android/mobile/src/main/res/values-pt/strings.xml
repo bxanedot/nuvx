@@ -118,6 +118,7 @@
     <string name="widget_preview_title">Título da música</string>
     <string name="widget_preview_artist">Artista</string>
     <string name="widget_pill_label">Tocando agora 4×1</string>
+    <string name="tile_playback_label">Reproduzir/pausar</string>
     <string name="widget_pill_description">A faixa com Curtir, ordem aleatória e controles de reprodução em uma única linha.</string>
     <string name="widget_preview_pill">Título da música - Artista</string>
     <string name="download_quality">Qualidade de download</string>
@@ -277,6 +278,8 @@
     <string name="discord_token_rejected">O Discord rejeitou esse token.</string>
     <string name="discord_token_warning">O Discord não oferece uma API que permite aos aplicativos definir sua presença, portanto, este recurso faz login na sua conta e usa o protocolo do Discord. Seu token permanece criptografado neste dispositivo e é enviado apenas para o Discord. Ele concede acesso à sua conta completa e a automação de contas viola os termos do Discord. Use-o apenas se aceitar esse risco.</string>
     <string name="dislike">Não curtir</string>
+    <string name="disliked">Marcado como Não gostei</string>
+    <string name="undo">Desfazer</string>
     <string name="done">Concluído</string>
     <string name="download">Baixar</string>
     <string name="download_quality_dialog_subtitle">Para arquivos mantidos neste dispositivo</string>
@@ -747,6 +750,8 @@
     <string name="automix_mode_performance_subtitle">4 threads · análise mais rápida · maior uso de bateria e calor</string>
 
 
+    <string name="advanced_automix">AutoMix avançado</string>
+    <string name="advanced_automix_subtitle">Transições sincronizadas com a batida e as frases. Desative para crossfades simples.</string>
     <string name="automix_performance">Desempenho do Automix</string>
 
     <string name="automix_performance_subtitle">Define quanto uso de CPU a análise em segundo plano pode usar</string>
@@ -823,6 +828,8 @@
     <string name="prefer_usb_dac">Preferir DAC USB</string>
     <string name="loudness_normalization">Normalização de volume</string>
     <string name="loudness_normalization_subtitle">Deixa todas as faixas com a mesma intensidade sonora</string>
+    <string name="loudness_target">Alvo de loudness</string>
+    <string name="loudness_target_subtitle">Mais baixo é mais suave e com mais margem. −14 LUFS corresponde ao YouTube.</string>
     <string name="loudness_off_on_speaker">Desativar no altifalante do telefone</string>
     <string name="pipeline_loudness_gain">Ganho</string>
     <string name="pipeline_loudness_measured">Medida</string>
@@ -1242,6 +1249,7 @@
     <string name="artist_signatures_unconfigured">Não configurado — toque para definir a URL da API</string>
     <string name="artist_signatures_test_failed">Não foi possível alcançar a API nesse URL</string>
     <string name="search_source_addons">Addons</string>
+    <string name="change_playlist_artwork">Alterar capa da playlist</string>
     <string name="search_addons_none">Nenhum addon ativado. Adicione um em Configurações → Fontes.</string>
     <string name="app_icon">Ícone do app</string>
     <string name="app_icon_default">Padrão</string>

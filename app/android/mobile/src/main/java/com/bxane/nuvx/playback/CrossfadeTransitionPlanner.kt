@@ -161,7 +161,7 @@ internal class CrossfadeTransitionPlanner(
         val currentAnalysis = analysisFor(currentItem)
         val nextAnalysis = analysisFor(nextItem)
         val analysisState = AppSettings.smartAnalysis.value
-        val advanced = true
+        val advanced = AppSettings.advancedAutomix.value
 
         val plan = planTransition(
             analysis = currentAnalysis,

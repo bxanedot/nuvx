@@ -29,7 +29,7 @@ impl App {
         let accent = self.accent_color();
         let mut done = false;
         let heading = match &dialog {
-            Dialog::PickPlaylist(_) => "Add to playlist",
+            Dialog::PickPlaylist(..) => "Add to playlist",
             Dialog::NewPlaylist { .. } => "New playlist",
             Dialog::EditPlaylist { .. } => "Edit playlist",
             Dialog::ConfirmDelete { .. } => "Delete playlist",
@@ -42,7 +42,9 @@ impl App {
                 ui.label(egui::RichText::new(heading).font(theme::bold(22.0)).color(theme::text()));
                 ui.add_space(18.0);
                 match &mut dialog {
-                    Dialog::PickPlaylist(tracks) => {
+                    Dialog::PickPlaylist(tracks, query) => {
+                        text_field(ui, "", query, false, "Search playlists");
+                        ui.add_space(10.0);
                         if dialog_row(ui, None, Some(theme::icon::LIST_PLUS), "New playlist") {
                             self.actions.push(Action::NewPlaylist(tracks.clone()));
                             done = true;
@@ -56,6 +58,7 @@ impl App {
                             .cloned().collect::<Vec<_>>()).unwrap_or_default());
                         egui::ScrollArea::vertical().max_height(340.0).auto_shrink([false, true]).show(ui, |ui| {
                             for card in cards {
+                                if !title_matches(&card.title, query) { continue; }
                                 if let Target::Playlist(id) = card.target {
                                     if !id.starts_with("PL") && !id.starts_with("nuvx-local:") { continue; }
                                     if dialog_row(ui, Some(&card.thumbs), None, &card.title) {
@@ -321,4 +324,23 @@ fn confirm_delete(ctx: &egui::Context, title: &str, _accent: Color32) -> Option<
         answer = Some(false);
     }
     answer
+}
+
+/// Case-insensitive substring match; an empty query matches everything.
+fn title_matches(title: &str, query: &str) -> bool {
+    let q = query.trim().to_lowercase();
+    q.is_empty() || title.to_lowercase().contains(&q)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::title_matches;
+
+    #[test]
+    fn playlist_search_ignores_case_and_blank_queries() {
+        assert!(title_matches("Road Trip", ""));
+        assert!(title_matches("Road Trip", "  "));
+        assert!(title_matches("Road Trip", "trip"));
+        assert!(!title_matches("Road Trip", "gym"));
+    }
 }

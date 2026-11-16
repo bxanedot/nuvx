@@ -118,6 +118,7 @@
     <string name="widget_preview_title">שם השיר</string>
     <string name="widget_preview_artist">אמן</string>
     <string name="widget_pill_label">מתנגן כעת 4×1</string>
+    <string name="tile_playback_label">הפעלה/השהיה</string>
     <string name="widget_pill_description">הרצועה עם לייק, ערבוב ופקדי הפעלה, בשורה אחת.</string>
     <string name="widget_preview_pill">שם השיר - אמן</string>
     <string name="download_quality">איכות הורדה</string>
@@ -276,6 +277,8 @@
     <string name="discord_token_rejected">דיסקורד דחתה את האסימון הזה.</string>
     <string name="discord_token_warning">דיסקורד אינה מציעה API המאפשר לאפליקציות להגדיר את הנוכחות שלך, ולכן תכונה זו מתחברת לחשבונך ומשתמשת בפרוטוקול של דיסקורד. האסימון שלך נשאר מוצפן במכשיר זה ונשלח רק לדיסקורד. הוא מעניק גישה מלאה לחשבון שלך, ואוטומציה של חשבון מפרה את תנאי דיסקורד. השתמש בו רק אם אתה מקבל את הסיכון.</string>
     <string name="dislike">לא אוהב</string>
+    <string name="disliked">סומן כלא אהבתי</string>
+    <string name="undo">ביטול</string>
     <string name="done">בוצע</string>
     <string name="download">הורד</string>
     <string name="download_quality_dialog_subtitle">עבור קבצים השמורים במכשיר זה</string>
@@ -747,6 +750,8 @@
     <string name="automix_mode_performance_subtitle">4 תהליכונים · ניתוח מהיר ביותר · שימוש מוגבר בסוללה</string>
 
 
+    <string name="advanced_automix">AutoMix מתקדם</string>
+    <string name="advanced_automix_subtitle">מעברים מסונכרנים לקצב ולמשפטים. כבו למעברי עמעום פשוטים.</string>
     <string name="automix_performance">ביצועי Automix</string>
 
     <string name="automix_performance_subtitle">מגדיר כמה מעבד הניתוח ברקע יכול לצרוך</string>
@@ -823,6 +828,8 @@
     <string name="prefer_usb_dac">העדף USB DAC</string>
     <string name="loudness_normalization">נרמול עוצמה</string>
     <string name="loudness_normalization_subtitle">מביא כל רצועה לאותה עוצמה נשמעת</string>
+    <string name="loudness_target">יעד עוצמה</string>
+    <string name="loudness_target_subtitle">נמוך יותר שקט יותר עם יותר מרווח. ‎−14 LUFS תואם ל-YouTube.</string>
     <string name="loudness_off_on_speaker">השבתה ברמקול הטלפון</string>
     <string name="pipeline_loudness_gain">הגבר</string>
     <string name="pipeline_loudness_measured">נמדד</string>
@@ -1242,6 +1249,7 @@
     <string name="artist_signatures_unconfigured">לא מוגדר — הקש כדי להגדיר את כתובת ה-API</string>
     <string name="artist_signatures_test_failed">לא ניתן היה להתחבר ל-API בכתובת זו</string>
     <string name="search_source_addons">תוספים</string>
+    <string name="change_playlist_artwork">שינוי תמונת הפלייליסט</string>
     <string name="search_addons_none">אין תוספים מופעלים. אפשר להוסיף אחד בהגדרות ← מקורות.</string>
     <string name="app_icon">סמל האפליקציה</string>
     <string name="app_icon_default">ברירת מחדל</string>

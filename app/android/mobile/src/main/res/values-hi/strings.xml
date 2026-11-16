@@ -116,6 +116,7 @@
     <string name="widget_preview_title">गाने का शीर्षक</string>
     <string name="widget_preview_artist">कलाकार</string>
     <string name="widget_pill_label">अभी चल रहा है 4×1</string>
+    <string name="tile_playback_label">चलाएं/रोकें</string>
     <string name="widget_pill_description">ट्रैक के साथ लाइक, शफ़ल और प्लेबैक नियंत्रण, एक ही पंक्ति में।</string>
     <string name="widget_preview_pill">गाने का शीर्षक - कलाकार</string>
     <string name="download_quality">डाउनलोड क्वालिटी</string>
@@ -275,6 +276,8 @@
     <string name="discord_token_rejected">Discord ने वह टोकन अस्वीकार कर दिया।</string>
     <string name="discord_token_warning">Discord कोई ऐसा API नहीं देता जिससे ऐप्स आपकी प्रेज़ेंस सेट कर सकें, इसलिए यह फ़ीचर आपके खाते के रूप में साइन इन करता है और Discord के प्रोटोकॉल का इस्तेमाल करता है। आपका टोकन इस डिवाइस पर एन्क्रिप्टेड रहता है और केवल Discord को भेजा जाता है। यह आपके पूरे खाते तक पहुंच देता है, और खाता ऑटोमेशन Discord की शर्तों का उल्लंघन करता है। इसे तभी इस्तेमाल करें जब आप यह जोखिम स्वीकार करते हों।</string>
     <string name="dislike">नापसंद</string>
+    <string name="disliked">नापसंद किया गया</string>
+    <string name="undo">पूर्ववत करें</string>
     <string name="done">हो गया</string>
     <string name="download">डाउनलोड करें</string>
     <string name="download_quality_dialog_subtitle">इस डिवाइस पर रखी गई फ़ाइलों के लिए</string>
@@ -742,6 +745,8 @@
     <string name="automix_mode_performance_subtitle">4 थ्रेड्स · सबसे तेज़ विश्लेषण · अधिक बैटरी उपयोग</string>
 
 
+    <string name="advanced_automix">उन्नत AutoMix</string>
+    <string name="advanced_automix_subtitle">बीट और फ़्रेज़ के साथ मेल खाते ट्रांज़िशन। साधारण क्रॉसफ़ेड के लिए बंद करें।</string>
     <string name="automix_performance">Automix प्रदर्शन</string>
 
     <string name="automix_performance_subtitle">तय करें कि बैकग्राउंड विश्लेषण कितना CPU उपयोग कर सकता है</string>
@@ -818,6 +823,8 @@
     <string name="prefer_usb_dac">USB DAC को प्राथमिकता दें</string>
     <string name="loudness_normalization">लाउडनेस नॉर्मलाइज़ेशन</string>
     <string name="loudness_normalization_subtitle">हर ट्रैक को एक जैसी लाउडनेस पर लाता है</string>
+    <string name="loudness_target">लाउडनेस लक्ष्य</string>
+    <string name="loudness_target_subtitle">कम मान धीमा और अधिक हेडरूम देता है। −14 LUFS YouTube जैसा है।</string>
     <string name="loudness_off_on_speaker">फ़ोन स्पीकर पर बंद करें</string>
     <string name="pipeline_loudness_gain">गेन</string>
     <string name="pipeline_loudness_measured">मापा गया</string>
@@ -1237,6 +1244,7 @@
     <string name="artist_signatures_unconfigured">कॉन्फ़िगर नहीं है — API URL सेट करने के लिए टैप करें</string>
     <string name="artist_signatures_test_failed">उस URL पर API तक नहीं पहुंचा जा सका</string>
     <string name="search_source_addons">ऐडऑन</string>
+    <string name="change_playlist_artwork">प्लेलिस्ट आर्टवर्क बदलें</string>
     <string name="search_addons_none">कोई ऐडऑन चालू नहीं है। सेटिंग → स्रोत में जाकर एक जोड़ें।</string>
     <string name="app_icon">ऐप आइकन</string>
     <string name="app_icon_default">डिफ़ॉल्ट</string>

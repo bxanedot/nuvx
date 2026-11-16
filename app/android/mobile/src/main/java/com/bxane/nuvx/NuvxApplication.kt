@@ -8,6 +8,9 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
+import coil3.intercept.Interceptor
+import coil3.request.ErrorResult
+import com.bxane.nuvx.data.model.youTubeThumbnailFallback
 import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.request.allowHardware
@@ -141,6 +144,12 @@ class NuvxApplication : Application(), SingletonImageLoader.Factory, Configurati
         ImageLoader.Builder(context)
             .components {
                 add(WebDavCoilAuth())
+                add(Interceptor { chain ->
+                    val result = chain.proceed()
+                    val fallback = chain.request.data.toString().youTubeThumbnailFallback()
+                    if (result !is ErrorResult || fallback == null) result
+                    else chain.withRequest(chain.request.newBuilder().data(fallback).build()).proceed()
+                })
                 add(SmbCoverFetcher.Factory())
                 add(SvgDecoder.Factory())
                 add(OkHttpNetworkFetcherFactory(callFactory = { coilHttpClient }))

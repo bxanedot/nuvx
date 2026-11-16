@@ -14,3 +14,11 @@ export function artworkAtPixels(url: string, px: number): string {
   if (!RESIZABLE.test(url)) return url;
   return `${url.replace(/=[^/=]*$/, '')}=w${px}-h${px}-l90-rj`;
 }
+
+// maxresdefault/sddefault/hq720 404 for many older videos; hqdefault always exists.
+const YT_LARGE_THUMB = /^https?:\/\/i\d?\.ytimg\.com\/vi(?:_webp)?\/([\w-]{11})\/(?:maxresdefault|sddefault|hq720|maxres\d)\.\w+/;
+
+export function youTubeThumbnailFallback(url: string): string | null {
+  const id = YT_LARGE_THUMB.exec(url)?.[1];
+  return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
+}

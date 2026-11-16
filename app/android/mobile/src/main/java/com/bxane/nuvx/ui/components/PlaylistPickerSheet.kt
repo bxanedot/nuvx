@@ -88,6 +88,7 @@ fun PlaylistPickerSheet(
     val createLocally = AppSettings.createPlaylistsLocally.collectAsStateWithLifecycle().value
     var creating by remember { mutableStateOf(startCreating) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
+    var query by remember { mutableStateOf("") }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -175,6 +176,12 @@ fun PlaylistPickerSheet(
                     )
 
                     else -> {
+                        SearchField(
+                            query = query,
+                            onQueryChange = { query = it },
+                            onSubmit = {},
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 6.dp),
                             thickness = 0.5.dp,
@@ -184,7 +191,7 @@ fun PlaylistPickerSheet(
                             modifier = Modifier.weight(1f),
                             contentPadding = WindowInsets.navigationBars.asPaddingValues(),
                         ) {
-                            items(playlists, key = { it.playlistId }) { playlist ->
+                            items(playlists.filter { it.title.contains(query.trim(), ignoreCase = true) }, key = { it.playlistId }) { playlist ->
                                 val ticked = playlist.playlistId in selected
                                 PlaylistRow(
                                     playlist = playlist,

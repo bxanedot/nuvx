@@ -213,6 +213,45 @@ class LyricClockTest {
         assertEquals(10_016L, clock.frame(60_016.0, 10_000, 0.0, 0))
     }
 
+    private fun resumeError(before: Double, after: Double, settleMs: Double = 1_500.0): Double {
+        val clock = LyricClock(10_000)
+        var now = 0.0
+        while (now <= 10_000) {
+            val taken = (now / 500).toLong() * 500.0
+            clock.frame(now, 10_000 + (taken * before).toLong(), taken, 0)
+            now += frameMs
+        }
+        val pausedAt = 10_000 + (10_000 * before).toLong()
+        clock.hold(pausedAt, now)
+        clock.restart()
+        val resumedAt = now + 5_000
+        now = resumedAt
+        var worst = 0.0
+        while (now <= resumedAt + 4_000) {
+            val taken = resumedAt + ((now - resumedAt) / 500).toLong() * 500.0
+            val shown = clock.frame(now, pausedAt + ((taken - resumedAt) * after).toLong(), taken, 0)
+            val truth = pausedAt + (now - resumedAt) * after
+            if (now - resumedAt >= settleMs) worst = maxOf(worst, abs(shown - truth))
+            now += frameMs
+        }
+        return worst
+    }
+
+    @Test fun speedChangedWhilePausedIsPickedUpQuickly() {
+        val error = resumeError(before = 2.0, after = 1.0)
+        assertTrue("off by $error after resuming at normal speed", error < 40.0)
+    }
+
+    @Test fun resumingAtTheSameSlowerSpeedStaysInTime() {
+        val error = resumeError(before = 0.75, after = 0.75)
+        assertTrue("off by $error after resuming at 0.75x", error < 40.0)
+    }
+
+    @Test fun resumingAtTheSameFasterSpeedStaysInTime() {
+        val error = resumeError(before = 1.25, after = 1.25, settleMs = 3_000.0)
+        assertTrue("off by $error after resuming at 1.25x", error < 40.0)
+    }
+
     @Test fun returningToTheAppExtrapolatesFromTheLastReading() {
         val clock = LyricClock(10_000)
         clock.frame(0.0, 10_000, 0.0, 0)

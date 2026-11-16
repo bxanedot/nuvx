@@ -1,4 +1,14 @@
 // SPDX-License-Identifier: LGPL-3.0-only
+/*
+ * Copyright (C) 2026 BitChord Project
+ *
+ * Adapted from Mornye (https://github.com/mornyeapp/Mornye),
+ * android/app/src/main/kotlin/com/zarz/mornye/HiResPlayback.kt and NativeAudio.kt,
+ * Copyright 2026 zarzet.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-only
+ */
+
 package com.bxane.nuvx.playback.audio.bitperfect
 
 import android.media.AudioDeviceCallback

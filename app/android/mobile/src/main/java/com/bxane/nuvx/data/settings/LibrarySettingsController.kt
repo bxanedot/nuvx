@@ -15,6 +15,7 @@ internal class LibrarySettingsController(
     val localMusicViewType = MutableStateFlow(LibraryViewType.LIST)
     val downloadedMusicViewType = MutableStateFlow(LibraryViewType.LIST)
     val librarySort = MutableStateFlow(LibrarySort.DEFAULT)
+    val libraryViewType = MutableStateFlow(LibraryViewType.GRID)
     val detailSongSorts = MutableStateFlow<Map<String, SongSort>>(emptyMap())
     val localMusicFolderUri = MutableStateFlow("")
     val createPlaylistsLocally = MutableStateFlow(false)
@@ -29,6 +30,7 @@ internal class LibrarySettingsController(
         downloadedMusicSort.value = readLocalMusicSort(KEY_DOWNLOADED_MUSIC_SORT)
         localMusicViewType.value = readLibraryViewType(KEY_LOCAL_MUSIC_VIEW_TYPE)
         downloadedMusicViewType.value = readLibraryViewType(KEY_DOWNLOADED_MUSIC_VIEW_TYPE)
+        libraryViewType.value = readLibraryViewType(KEY_LIBRARY_VIEW_TYPE, LibraryViewType.GRID)
         librarySort.value = prefs.getString(KEY_LIBRARY_SORT, null)
             ?.let { saved -> LibrarySort.entries.firstOrNull { it.name == saved } }
             ?: LibrarySort.DEFAULT
@@ -50,6 +52,11 @@ internal class LibrarySettingsController(
     fun setDownloadedMusicSort(value: LocalMusicSort) {
         downloadedMusicSort.value = value
         prefs.edit().putString(KEY_DOWNLOADED_MUSIC_SORT, value.name).apply()
+    }
+
+    fun setLibraryViewType(value: LibraryViewType) {
+        libraryViewType.value = value
+        prefs.edit().putString(KEY_LIBRARY_VIEW_TYPE, value.name).apply()
     }
 
     fun setLibrarySort(value: LibrarySort) {
@@ -102,10 +109,10 @@ internal class LibrarySettingsController(
             ?.let { saved -> LocalMusicSort.entries.firstOrNull { it.name == saved } }
             ?: LocalMusicSort.TITLE_ASC
 
-    private fun readLibraryViewType(key: String): LibraryViewType =
+    private fun readLibraryViewType(key: String, default: LibraryViewType = LibraryViewType.LIST): LibraryViewType =
         prefs.getString(key, null)
             ?.let { saved -> LibraryViewType.entries.firstOrNull { it.name == saved } }
-            ?: LibraryViewType.LIST
+            ?: default
 
     private fun readDetailSongSorts(): Map<String, SongSort> =
         prefs.getString(KEY_DETAIL_SONG_SORTS, null)
@@ -122,6 +129,7 @@ internal class LibrarySettingsController(
         const val KEY_LOCAL_MUSIC_SORT = "local_music_sort"
         const val KEY_DOWNLOADED_MUSIC_SORT = "downloaded_music_sort"
         const val KEY_LIBRARY_SORT = "library_sort"
+        const val KEY_LIBRARY_VIEW_TYPE = "library_view_type"
         const val KEY_DETAIL_SONG_SORTS = "detail_song_sorts"
         const val KEY_LOCAL_MUSIC_VIEW_TYPE = "local_music_view_type"
         const val KEY_DOWNLOADED_MUSIC_VIEW_TYPE = "downloaded_music_view_type"
