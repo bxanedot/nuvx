@@ -70,7 +70,7 @@ object PlaylistSync {
                 .collect { (on, wifiOnly) ->
                     val firstLook = wasOn == null
                     if (on) {
-                        schedule(app, wifiOnly, replace = !firstLook)
+                        schedule(app, wifiOnly)
                         if (wasOn == false) checkNow(app)
                     } else if (!firstLook) {
                         cancel(app)
@@ -100,7 +100,7 @@ object PlaylistSync {
         work.cancelUniqueWork(ONE_OFF_WORK)
     }
 
-    private fun schedule(context: Context, wifiOnly: Boolean, replace: Boolean) {
+    private fun schedule(context: Context, wifiOnly: Boolean) {
         val request = PeriodicWorkRequestBuilder<PlaylistSyncWorker>(
             PERIOD_HOURS,
             TimeUnit.HOURS,
@@ -109,7 +109,9 @@ object PlaylistSync {
         ).setConstraints(constraints(wifiOnly)).build()
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             PERIODIC_WORK,
-            if (replace) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,
+            // UPDATE, not KEEP: WorkManager stores the worker's class name, and the package rename left
+            // the previous install's schedule pointing at a class that no longer exists.
+            ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
     }
