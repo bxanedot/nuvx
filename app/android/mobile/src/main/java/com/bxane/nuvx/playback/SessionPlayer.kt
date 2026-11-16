@@ -23,8 +23,17 @@ internal class SessionPlayer(
     private val deferPlayToParty: () -> Boolean,
     private val lockedTransport: (Boolean) -> Boolean,
     private val cast: RemoteSpeaker,
+    private val onShuffleToggle: () -> Unit,
     private val getSubtitle: () -> String?,
 ) : ForwardingPlayer(player), CastSink {
+
+    // nuvx shuffles its own queue. A car stereo, headset or other controller must reach that shuffle;
+    // forwarding to ExoPlayer's native one plays in random order while the app shows shuffle off.
+    override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
+        if (shuffleModeEnabled != QueueShuffle.enabled.value) onShuffleToggle()
+    }
+
+    override fun getShuffleModeEnabled() = QueueShuffle.enabled.value
 
     private val listeners = CopyOnWriteArraySet<Player.Listener>()
     private var reportedPlayWhenReady = false
