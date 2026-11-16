@@ -519,6 +519,10 @@ fun SettingsScreen(
             skipSilence = skipSilence,
             spatialAudio = spatialAudio,
             playingDolbyAtmos = playingDolbyAtmos,
+            swipeToPlayNext = swipeToPlayNext,
+            dontRepeatSuggestions = dontRepeatSuggestions,
+            stopOnTaskRemoved = stopOnTaskRemoved,
+            smartVersionAlignment = smartVersionAlignment,
             onOpenChoice = onOpenChoice,
             onConfirmFixedVolume = onConfirmFixedVolume,
             onEqualizer = onEqualizer,
@@ -535,6 +539,9 @@ fun SettingsScreen(
                 hideTopPicks = hideTopPicks,
                 hideHomeMoods = hideHomeMoods,
                 squareVideoThumbnails = squareVideoThumbnails,
+                classicSearch = classicSearch,
+                hideRadioTab = hideRadioTab,
+                hidePodcastsTab = hidePodcastsTab,
             )
         }
 
@@ -618,18 +625,11 @@ fun SettingsScreen(
         if (shows(SettingsCategory.MISCELLANEOUS)) MiscellaneousSettingsGroup(
             context = context,
             search = search,
-            classicSearch = classicSearch,
-            hideRadioTab = hideRadioTab,
-            hidePodcastsTab = hidePodcastsTab,
-            swipeToPlayNext = swipeToPlayNext,
-            dontRepeatSuggestions = dontRepeatSuggestions,
-            stopOnTaskRemoved = stopOnTaskRemoved,
             hideVolumeBar = hideVolumeBar,
             listenTogetherButton = listenTogetherButton,
             hideStatusBarInPlayer = hideStatusBarInPlayer,
             showQueueHistory = showQueueHistory,
             hideSongStatus = hideSongStatus,
-            smartVersionAlignment = smartVersionAlignment,
             nerdStats = nerdStats,
         )
 

@@ -47,7 +47,7 @@ internal fun hidePodcastsTabSymbol(): SfSymbol = PodcastsSymbol
 internal fun hidePodcastsTabGlyphSize(): Dp = TAB_SYMBOL_SIZE
 
 @Composable
-private fun HidePodcastsTabIcon() {
+internal fun HidePodcastsTabIcon() {
     TabSymbolIcon(
         symbol = hidePodcastsTabSymbol(),
         size = hidePodcastsTabGlyphSize(),
@@ -60,115 +60,14 @@ private fun HidePodcastsTabIcon() {
 internal fun MiscellaneousSettingsGroup(
     context: Context,
     search: SettingsSearch,
-    classicSearch: Boolean,
-    hideRadioTab: Boolean,
-    hidePodcastsTab: Boolean,
-    swipeToPlayNext: Boolean,
-    dontRepeatSuggestions: Boolean,
-    stopOnTaskRemoved: Boolean,
     hideVolumeBar: Boolean,
     listenTogetherButton: Boolean,
     hideStatusBarInPlayer: Boolean,
     showQueueHistory: Boolean,
     hideSongStatus: Boolean,
-    smartVersionAlignment: Boolean,
     nerdStats: Boolean,
 ) {
     SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
-        val classicSearchTitle = stringResource(R.string.classic_search)
-        row(classicSearchTitle, "search", "classic", "categories", "browse") {
-            SettingsRow(
-                icon = SfIcons.Search,
-                title = classicSearchTitle,
-                subtitle = stringResource(R.string.classic_search_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = classicSearch,
-                        onCheckedChange = AppSettings::setClassicSearch,
-                    )
-                },
-                onClick = { AppSettings.setClassicSearch(!classicSearch) },
-            )
-        }
-        val hideRadioTabTitle = stringResource(R.string.hide_radio_tab)
-        row(hideRadioTabTitle, "radio", "tab", "stations", "nav") {
-            SettingsRow(
-                icon = SfIcons.Radio,
-                title = hideRadioTabTitle,
-                subtitle = stringResource(R.string.hide_radio_tab_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = hideRadioTab,
-                        onCheckedChange = AppSettings::setHideRadioTab,
-                    )
-                },
-                onClick = { AppSettings.setHideRadioTab(!hideRadioTab) },
-            )
-        }
-        val hidePodcastsTabTitle = stringResource(R.string.hide_podcasts_tab)
-        row(hidePodcastsTabTitle, "podcasts", "podcast", "episodes", "tab", "nav") {
-            SettingsRow(
-                iconContent = { HidePodcastsTabIcon() },
-                title = hidePodcastsTabTitle,
-                subtitle = stringResource(R.string.hide_podcasts_tab_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = hidePodcastsTab,
-                        onCheckedChange = AppSettings::setHidePodcastsTab,
-                    )
-                },
-                onClick = { AppSettings.setHidePodcastsTab(!hidePodcastsTab) },
-            )
-        }
-        val playNextOnSwipeTitle = stringResource(R.string.play_next_on_swipe)
-        row(playNextOnSwipeTitle, "swipe", "queue") {
-            SettingsRow(
-                icon = SfIcons.PlaylistPlay,
-                title = playNextOnSwipeTitle,
-                subtitle = if (swipeToPlayNext) {
-                    stringResource(R.string.swipe_plays_next)
-                } else {
-                    stringResource(R.string.swipe_adds_to_queue)
-                },
-                trailing = {
-                    IosSwitch(
-                        checked = swipeToPlayNext,
-                        onCheckedChange = AppSettings::setSwipeToPlayNext,
-                    )
-                },
-                onClick = { AppSettings.setSwipeToPlayNext(!swipeToPlayNext) },
-            )
-        }
-        val dontRepeatSongsTitle = stringResource(R.string.dont_repeat_songs)
-        row(dontRepeatSongsTitle, "radio", "suggestions") {
-            SettingsRow(
-                icon = SfIcons.History,
-                title = dontRepeatSongsTitle,
-                subtitle = stringResource(R.string.dont_repeat_songs_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = dontRepeatSuggestions,
-                        onCheckedChange = AppSettings::setDontRepeatSuggestions,
-                    )
-                },
-                onClick = { AppSettings.setDontRepeatSuggestions(!dontRepeatSuggestions) },
-            )
-        }
-        val stopMusicOnCloseTitle = stringResource(R.string.stop_music_on_close)
-        row(stopMusicOnCloseTitle, "notification", "background") {
-            SettingsRow(
-                icon = SfIcons.MusicOff,
-                title = stopMusicOnCloseTitle,
-                subtitle = stringResource(R.string.stop_music_on_close_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = stopOnTaskRemoved,
-                        onCheckedChange = AppSettings::setStopOnTaskRemoved,
-                    )
-                },
-                onClick = { AppSettings.setStopOnTaskRemoved(!stopOnTaskRemoved) },
-            )
-        }
         val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
         row(hideVolumeBarTitle, "volume", "player") {
             SettingsRow(
@@ -242,21 +141,6 @@ internal fun MiscellaneousSettingsGroup(
                     )
                 },
                 onClick = { AppSettings.setHideSongStatus(!hideSongStatus) },
-            )
-        }
-        val smartAlignmentTitle = stringResource(R.string.smart_version_alignment)
-        row(smartAlignmentTitle, "alignment", "sync", "waveform", "video", "audio", "skit", "intro") {
-            SettingsRow(
-                icon = SfIcons.GraphicEq,
-                title = smartAlignmentTitle,
-                subtitle = stringResource(R.string.smart_version_alignment_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = smartVersionAlignment,
-                        onCheckedChange = AppSettings::setSmartVersionAlignment,
-                    )
-                },
-                onClick = { AppSettings.setSmartVersionAlignment(!smartVersionAlignment) },
             )
         }
         val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
