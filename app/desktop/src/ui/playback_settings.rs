@@ -140,7 +140,9 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
                 app.request_segments();
             }
         });
-        divider(ui);
+    });
+    section_label(ui, "Sources", None);
+    settings_card(ui, |ui| {
         setting_row(ui, "Use JioSaavn fallback", Some("Try a matching JioSaavn track after YouTube Music playback fails."), |ui| {
             if toggle(ui, &mut app.jiosaavn_enabled, "Use JioSaavn fallback").changed() {
                 app.backend.set_music_sources(app.jiosaavn_enabled, app.radiojavan_enabled);
