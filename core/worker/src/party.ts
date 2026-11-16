@@ -172,8 +172,11 @@ function addUpcoming(p: Playback, by: string, tracks: Track[], playNext: boolean
   return null;
 }
 
-export function join(party: Party, req: JoinRequest, random: (n: number) => Uint8Array, now: number): Member | Fail {
-  const known = party.members.find((m) => m.deviceId === req.deviceId);
+// A rejoin reclaims a membership only with that membership's current token. deviceId alone is not
+// proof: clients may send it as userId, which every member can see.
+export function join(party: Party, req: JoinRequest, random: (n: number) => Uint8Array, now: number, token = ""): Member | Fail {
+  const held = token ? authenticate(party, token) : null;
+  const known = held?.deviceId === req.deviceId ? held : null;
   if (known) {
     Object.assign(known, { displayName: req.displayName, avatarUrl: req.avatarUrl, userId: req.userId, lastSeenMs: now, token: randomHex(random, 24) });
     return known;

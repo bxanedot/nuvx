@@ -126,7 +126,7 @@ export default {
       const body = await readJson(req);
       if (isFail(body)) return send(err(body));
       const join = P.validateJoin(body);
-      return send(isFail(join) ? err(join) : await stub.join(join));
+      return send(isFail(join) ? err(join) : await stub.join(join, bearer(req)));
     }
     if (req.method === "GET" && tail === "/preview") return send(await stub.preview());
     if ((req.method === "GET" && tail === "") || (req.method === "POST" && tail === "/leave")) {
@@ -246,14 +246,14 @@ export class Party extends DurableObject<Env> {
     return { ...this.joined(party, m, now), status: 201 };
   }
 
-  async join(req: P.JoinRequest): Promise<Reply> {
+  async join(req: P.JoinRequest, token = ""): Promise<Reply> {
     const party = await this.load();
     if (!party) return NO_PARTY;
-    const existing = party.members.find((member) => member.deviceId === req.deviceId);
+    const before = new Set(party.members.map((member) => member.memberId));
     const now = Date.now();
-    const m = P.join(party, req, random, now);
+    const m = P.join(party, req, random, now, token);
     if (isFail(m)) return err(m);
-    if (existing) for (const ws of this.sockets(existing.memberId)) try { ws.close(1000, "device rejoined"); } catch { }
+    if (before.has(m.memberId)) for (const ws of this.sockets(m.memberId)) try { ws.close(1000, "device rejoined"); } catch { }
     await this.save(party);
     return this.joined(party, m, now);
   }
