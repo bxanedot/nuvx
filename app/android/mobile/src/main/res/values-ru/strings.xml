@@ -1451,4 +1451,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">Приватное подключение</string>
+    <string name="privacy_connection_subtitle">Отправлять трафик nuvx через Tor</string>
+    <string name="privacy_connection_footer">Направляет запросы и аудио nuvx через сеть Tor с помощью приложения Orbot. Защищает только nuvx и не является системным VPN. Сервисы, в которые вы вошли, по-прежнему могут узнать ваш аккаунт, а Tor медленнее, поэтому звук высокого качества может буферизоваться. Если соединение пропадёт, nuvx прекратит загрузку, а не подключится напрямую.</string>
+    <string name="privacy_restart_needed">Закройте и снова откройте nuvx, чтобы применить изменение.</string>
+    <string name="privacy_webview_uncovered">Страницы входа на этом устройстве нельзя направить через Tor, они подключаются напрямую.</string>
+    <string name="privacy_mode_automatic">Автоматически</string>
+    <string name="privacy_mode_embedded">Встроенный Tor</string>
+    <string name="privacy_status">Состояние</string>
+    <string name="privacy_status_disabled">Отключено</string>
+    <string name="privacy_status_connecting">Подключение</string>
+    <string name="privacy_status_bootstrapping">Запуск Tor (%1$d%%)</string>
+    <string name="privacy_status_connected_orbot">Подключено через Orbot</string>
+    <string name="privacy_status_connected_embedded">Подключено через Tor + Snowflake</string>
+    <string name="privacy_status_switching">Смена подключения</string>
+    <string name="privacy_status_unavailable">Подключение недоступно</string>
+    <string name="privacy_test">Проверить подключение</string>
+    <string name="privacy_test_running">Проверка…</string>
+    <string name="privacy_test_passed">Успешно: запрос прошёл через Tor</string>
+    <string name="privacy_test_failed">Ошибка: нет рабочего подключения Tor</string>
+    <string name="privacy_retry">Повторить подключение</string>
+    <string name="privacy_open_orbot">Открыть Orbot</string>
+    <string name="privacy_install_orbot">Установить Orbot</string>
+    <string name="privacy_orbot_subtitle">Orbot должен быть запущен и подключён к Tor</string>
 </resources>

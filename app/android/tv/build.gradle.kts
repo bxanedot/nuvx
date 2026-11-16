@@ -214,6 +214,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.appcompat:appcompat:1.8.0")
+    implementation("androidx.webkit:webkit:1.18.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.tv:tv-material:1.1.0")

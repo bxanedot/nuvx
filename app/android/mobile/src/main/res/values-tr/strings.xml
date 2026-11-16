@@ -1381,4 +1381,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">Gizli Bağlantı</string>
+    <string name="privacy_connection_subtitle">nuvx trafiğini Tor üzerinden gönder</string>
+    <string name="privacy_connection_footer">nuvx\'in kendi isteklerini ve sesini Orbot uygulamasını kullanarak Tor ağı üzerinden yönlendirir. Yalnızca nuvx\'i korur ve sistem genelinde bir VPN değildir. Oturum açtığın hizmetler hesabını yine de tanıyabilir ve Tor daha yavaştır, bu yüzden yüksek kaliteli ses arabelleğe alınabilir. Bağlantı koparsa nuvx doğrudan bağlanmak yerine yüklemeyi durdurur.</string>
+    <string name="privacy_restart_needed">Bu değişikliği uygulamak için nuvx\'i kapatıp yeniden aç.</string>
+    <string name="privacy_webview_uncovered">Bu cihazdaki oturum açma sayfaları Tor üzerinden yönlendirilemez ve doğrudan bağlanır.</string>
+    <string name="privacy_mode_automatic">Otomatik</string>
+    <string name="privacy_mode_embedded">Yerleşik Tor</string>
+    <string name="privacy_status">Durum</string>
+    <string name="privacy_status_disabled">Devre dışı</string>
+    <string name="privacy_status_connecting">Bağlanıyor</string>
+    <string name="privacy_status_bootstrapping">Tor başlatılıyor (%%%1$d)</string>
+    <string name="privacy_status_connected_orbot">Orbot üzerinden bağlı</string>
+    <string name="privacy_status_connected_embedded">Tor + Snowflake üzerinden bağlı</string>
+    <string name="privacy_status_switching">Bağlantı değiştiriliyor</string>
+    <string name="privacy_status_unavailable">Bağlantı kullanılamıyor</string>
+    <string name="privacy_test">Bağlantıyı sına</string>
+    <string name="privacy_test_running">Sınanıyor…</string>
+    <string name="privacy_test_passed">Başarılı: istek Tor üzerinden çıktı</string>
+    <string name="privacy_test_failed">Başarısız: çalışan bir Tor bağlantısı yok</string>
+    <string name="privacy_retry">Bağlantıyı yeniden dene</string>
+    <string name="privacy_open_orbot">Orbot\'u aç</string>
+    <string name="privacy_install_orbot">Orbot\'u yükle</string>
+    <string name="privacy_orbot_subtitle">Orbot çalışıyor ve Tor\'a bağlı olmalı</string>
 </resources>

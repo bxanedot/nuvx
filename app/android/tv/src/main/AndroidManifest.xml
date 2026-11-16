@@ -70,6 +70,11 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
+    <queries>
+        <!-- Privacy Connection: see whether Orbot is installed and talk to its status broadcast. -->
+        <package android:name="org.torproject.android" />
+    </queries>
+
     <application
         android:name=".NuvxApplication"
         android:allowBackup="true"

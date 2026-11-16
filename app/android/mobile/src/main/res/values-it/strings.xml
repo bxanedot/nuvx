@@ -1363,4 +1363,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">Connessione privata</string>
+    <string name="privacy_connection_subtitle">Invia il traffico di nuvx tramite Tor</string>
+    <string name="privacy_connection_footer">Instrada le richieste e l\'audio di nuvx attraverso la rete Tor usando l\'app Orbot. Protegge solo nuvx e non è una VPN per tutto il sistema. I servizi a cui hai effettuato l\'accesso possono comunque riconoscere il tuo account, e Tor è più lento, quindi l\'audio ad alta qualità può andare in buffering. Se la connessione cade, nuvx smette di caricare invece di collegarsi direttamente.</string>
+    <string name="privacy_restart_needed">Chiudi e riapri nuvx per applicare questa modifica.</string>
+    <string name="privacy_webview_uncovered">Le pagine di accesso su questo dispositivo non possono passare da Tor e si collegano direttamente.</string>
+    <string name="privacy_mode_automatic">Automatica</string>
+    <string name="privacy_mode_embedded">Tor integrato</string>
+    <string name="privacy_status">Stato</string>
+    <string name="privacy_status_disabled">Disattivata</string>
+    <string name="privacy_status_connecting">Connessione in corso</string>
+    <string name="privacy_status_bootstrapping">Avvio di Tor (%1$d%%)</string>
+    <string name="privacy_status_connected_orbot">Connesso tramite Orbot</string>
+    <string name="privacy_status_connected_embedded">Connesso tramite Tor + Snowflake</string>
+    <string name="privacy_status_switching">Cambio di connessione</string>
+    <string name="privacy_status_unavailable">Connessione non disponibile</string>
+    <string name="privacy_test">Prova la connessione</string>
+    <string name="privacy_test_running">Prova in corso…</string>
+    <string name="privacy_test_passed">Riuscita: la richiesta è uscita da Tor</string>
+    <string name="privacy_test_failed">Non riuscita: nessuna connessione Tor funzionante</string>
+    <string name="privacy_retry">Riprova la connessione</string>
+    <string name="privacy_open_orbot">Apri Orbot</string>
+    <string name="privacy_install_orbot">Installa Orbot</string>
+    <string name="privacy_orbot_subtitle">Orbot deve essere in esecuzione con Tor connesso</string>
 </resources>
