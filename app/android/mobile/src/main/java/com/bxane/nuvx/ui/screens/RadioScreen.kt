@@ -55,6 +55,7 @@ import coil3.compose.AsyncImage
 import com.bxane.nuvx.R
 import com.bxane.nuvx.data.model.LIVE_RADIO_PREFIX
 import com.bxane.nuvx.data.model.Song
+import com.bxane.nuvx.data.settings.AppSettings
 import com.bxane.nuvx.data.radio.RadioBrowser
 import com.bxane.nuvx.data.radio.RadioCountry
 import com.bxane.nuvx.data.radio.RadioStation
@@ -98,6 +99,7 @@ fun RadioScreen(
 ) {
     val countries by RadioDirectory.countries.collectAsStateWithLifecycle()
     val cache by RadioDirectory.stations.collectAsStateWithLifecycle()
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf(RadioDirectory.selected) }
     var query by remember { mutableStateOf("") }
     var submitted by remember { mutableStateOf("") }
@@ -156,7 +158,7 @@ fun RadioScreen(
                     weight = SfWeight.Semibold,
                     mode = SfRenderingMode.Hierarchical,
                     tint = MaterialTheme.colorScheme.primary,
-                    effect = SfSymbolEffect.VariableColor(),
+                    effect = if (reduceAnimation) null else SfSymbolEffect.VariableColor(),
                     repeat = SfEffectRepeat.Continuous,
                     active = isPlaying && playingId?.startsWith(LIVE_RADIO_PREFIX) == true,
                     contentDescription = null,
@@ -233,6 +235,7 @@ fun RadioScreen(
                     station = station,
                     onAir = playingId == LIVE_RADIO_PREFIX + station.id,
                     isPlaying = isPlaying,
+                    reduceAnimation = reduceAnimation,
                     onClick = {
                         focus.clearFocus()
                         onPlay(station)
@@ -299,7 +302,7 @@ private fun CountryChip(country: RadioCountry, selected: Boolean, onClick: () ->
 }
 
 @Composable
-private fun StationRow(station: RadioStation, onAir: Boolean, isPlaying: Boolean, onClick: () -> Unit) {
+private fun StationRow(station: RadioStation, onAir: Boolean, isPlaying: Boolean, reduceAnimation: Boolean, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -353,7 +356,7 @@ private fun StationRow(station: RadioStation, onAir: Boolean, isPlaying: Boolean
                 symbol = SfSymbol.named("waveform") ?: RadioSymbol,
                 size = 20.dp,
                 tint = MaterialTheme.colorScheme.primary,
-                effect = SfSymbolEffect.VariableColor(),
+                effect = if (reduceAnimation) null else SfSymbolEffect.VariableColor(),
                 repeat = SfEffectRepeat.Continuous,
                 active = isPlaying,
                 contentDescription = null,
