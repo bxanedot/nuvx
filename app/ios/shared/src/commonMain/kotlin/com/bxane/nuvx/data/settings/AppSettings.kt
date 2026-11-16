@@ -681,7 +681,7 @@ object AppSettings {
         settings.putSecret("spotify_spdc_token", _spotifySpdc.value.ifEmpty { null })
     }
 
-    private val _jiosaavnEnabled = MutableStateFlow(settings.getBoolean("jiosaavn_enabled", true))
+    private val _jiosaavnEnabled = MutableStateFlow(settings.getBoolean("jiosaavn_enabled", false))
     val jiosaavnEnabled: StateFlow<Boolean> = _jiosaavnEnabled.asStateFlow()
     fun setJiosaavnEnabled(value: Boolean) {
         _jiosaavnEnabled.value = value
