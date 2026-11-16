@@ -50,7 +50,7 @@ val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
     .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
-    namespace = "com.bxane.nuvx"
+    namespace = "com.licht.nuvx"
     compileSdk = 37
 
     defaultConfig {

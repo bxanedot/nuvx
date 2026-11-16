@@ -1,0 +1,804 @@
+package com.licht.nuvx.ui.components
+
+import com.licht.nuvx.ui.icons.SfIcons
+import com.licht.nuvx.R
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.licht.nuvx.data.settings.AppSettings
+import kotlinx.coroutines.launch
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun ListenBrainzTokenAlert(
+    hazeState: HazeState,
+    tokenInput: String,
+    onTokenInputChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.listenbrainz_token),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = stringResource(R.string.listenbrainz_token_description),
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            PillTextField(
+                value = tokenInput,
+                onValueChange = onTokenInputChange,
+                placeholder = stringResource(R.string.api_token),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave() }),
+            )
+        }
+        AlertRule()
+        AlertAction(label = stringResource(R.string.save), emphasised = true, onClick = onSave)
+        AlertRule()
+        AlertAction(label = stringResource(R.string.cancel), emphasised = false, onClick = onDismiss)
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun LastfmLoginAlert(
+    hazeState: HazeState,
+    usernameInput: String,
+    onUsernameInputChange: (String) -> Unit,
+    passwordInput: String,
+    onPasswordInputChange: (String) -> Unit,
+    error: String?,
+    loading: Boolean,
+    onSignIn: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.lastfm_login),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = error ?: stringResource(R.string.lastfm_login_description),
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            PillTextField(
+                value = usernameInput,
+                onValueChange = onUsernameInputChange,
+                placeholder = stringResource(R.string.username),
+                enabled = !loading,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            )
+            Spacer(Modifier.height(8.dp))
+            PillTextField(
+                value = passwordInput,
+                onValueChange = onPasswordInputChange,
+                placeholder = stringResource(R.string.password),
+                enabled = !loading,
+                isPassword = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = { if (usernameInput.isNotBlank() && passwordInput.isNotBlank()) onSignIn() },
+                ),
+            )
+        }
+        AlertRule()
+        AlertAction(
+            label = if (loading) stringResource(R.string.signing_in) else stringResource(R.string.sign_in),
+            emphasised = true,
+            onClick = onSignIn,
+            enabled = !loading && usernameInput.isNotBlank() && passwordInput.isNotBlank(),
+        )
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.cancel),
+            emphasised = false,
+            onClick = onDismiss,
+            enabled = !loading,
+        )
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun DiscordTokenAlert(
+    hazeState: HazeState,
+    tokenInput: String,
+    onTokenInputChange: (String) -> Unit,
+    error: String?,
+    loading: Boolean,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.discord_token),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = error ?: stringResource(R.string.discord_token_description),
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            PillTextField(
+                value = tokenInput,
+                onValueChange = onTokenInputChange,
+                placeholder = stringResource(R.string.token),
+                enabled = !loading,
+                isPassword = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (tokenInput.isNotBlank()) onSave() }),
+            )
+        }
+        AlertRule()
+        AlertAction(
+            label = if (loading) stringResource(R.string.checking) else stringResource(R.string.save),
+            emphasised = true,
+            onClick = onSave,
+            enabled = !loading && tokenInput.isNotBlank(),
+        )
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.cancel),
+            emphasised = false,
+            onClick = onDismiss,
+            enabled = !loading,
+        )
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun TextValueAlert(
+    hazeState: HazeState,
+    title: String,
+    message: String,
+    placeholder: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+    saveEnabled: Boolean = true,
+    onRemove: (() -> Unit)? = null,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = message,
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            PillTextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = placeholder,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave() }),
+            )
+        }
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.save),
+            emphasised = true,
+            onClick = onSave,
+            enabled = saveEnabled,
+        )
+        if (onRemove != null) {
+            AlertRule()
+            AlertAction(label = stringResource(R.string.remove), emphasised = false, onClick = onRemove)
+        }
+        AlertRule()
+        AlertAction(label = stringResource(R.string.cancel), emphasised = false, onClick = onDismiss)
+    }
+}
+
+data class EditorField(
+    val value: String,
+    val onChange: (String) -> Unit,
+    val placeholder: String,
+    val keyboardType: KeyboardType = KeyboardType.Text,
+    val isPassword: Boolean = false,
+)
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun ServerEditorAlert(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    fields: List<EditorField>,
+    status: String?,
+    statusIsGood: Boolean,
+    testing: Boolean,
+    canSubmit: Boolean,
+    onTest: () -> Unit,
+    onSave: () -> Unit,
+    removeLabel: String? = null,
+    onRemove: (() -> Unit)? = null,
+    onDismiss: () -> Unit,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = { if (!testing) onDismiss() }) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = status ?: description,
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = when {
+                    status == null -> MaterialTheme.colorScheme.onSurface
+                    statusIsGood -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.error
+                },
+                textAlign = TextAlign.Center,
+            )
+            fields.forEachIndexed { index, field ->
+                if (index > 0) Spacer(Modifier.height(8.dp))
+                PillTextField(
+                    value = field.value,
+                    onValueChange = field.onChange,
+                    placeholder = field.placeholder,
+                    enabled = !testing,
+                    isPassword = field.isPassword,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = field.keyboardType,
+                        imeAction = if (index == fields.lastIndex) ImeAction.Done else ImeAction.Next,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { if (canSubmit && !testing) onSave() },
+                    ),
+                )
+            }
+        }
+        AlertRule()
+        AlertAction(
+            label = if (testing) stringResource(R.string.testing) else stringResource(R.string.test),
+            emphasised = false,
+            onClick = onTest,
+            enabled = canSubmit && !testing,
+        )
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.save),
+            emphasised = true,
+            onClick = onSave,
+            enabled = canSubmit && !testing,
+        )
+        if (onRemove != null && removeLabel != null) {
+            AlertRule()
+            AlertAction(
+                label = removeLabel,
+                emphasised = false,
+                destructive = true,
+                onClick = onRemove,
+                enabled = !testing,
+            )
+        }
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.cancel),
+            emphasised = false,
+            onClick = onDismiss,
+            enabled = !testing,
+        )
+    }
+}
+
+data class FieldConfig(
+    val initial: String,
+    val placeholder: String,
+    val keyboardType: KeyboardType = KeyboardType.Text,
+    val isPassword: Boolean = false,
+)
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun ServerEditorHost(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    fields: List<FieldConfig>,
+    canSubmit: (List<String>) -> Boolean,
+    testFailedRes: Int,
+    onTest: suspend (List<String>) -> Result<Unit>,
+    onSave: (List<String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val states = remember { fields.map { mutableStateOf(it.initial) } }
+    var status by remember { mutableStateOf<String?>(null) }
+    var statusIsGood by remember { mutableStateOf(false) }
+    var testing by remember { mutableStateOf(false) }
+    val values = states.map { it.value }
+    ServerEditorAlert(
+        hazeState = hazeState,
+        title = title,
+        description = description,
+        fields = fields.mapIndexed { index, field ->
+            EditorField(
+                value = states[index].value,
+                onChange = { states[index].value = it; status = null },
+                placeholder = field.placeholder,
+                keyboardType = field.keyboardType,
+                isPassword = field.isPassword,
+            )
+        },
+        status = status,
+        statusIsGood = statusIsGood,
+        testing = testing,
+        canSubmit = canSubmit(values),
+        onTest = {
+            testing = true
+            status = null
+            scope.launch {
+                onTest(values).fold(
+                    onSuccess = {
+                        status = context.getString(R.string.connected)
+                        statusIsGood = true
+                    },
+                    onFailure = {
+                        status = context.getString(
+                            testFailedRes,
+                            it.message ?: context.getString(R.string.failed),
+                        )
+                        statusIsGood = false
+                    },
+                )
+                testing = false
+            }
+        },
+        onSave = { onSave(values) },
+        onDismiss = onDismiss,
+    )
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun AddonEditorAlert(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    urlValue: String,
+    onUrlChange: (String) -> Unit,
+    urlPlaceholder: String,
+    status: String?,
+    statusIsGood: Boolean,
+    testing: Boolean,
+    canSubmit: Boolean,
+    onTest: () -> Unit,
+    onSave: () -> Unit,
+    onRemove: (() -> Unit)?,
+    removeLabel: String? = null,
+    onDismiss: () -> Unit,
+) {
+    ServerEditorAlert(
+        hazeState = hazeState,
+        title = title,
+        description = description,
+        fields = listOf(
+            EditorField(
+                value = urlValue,
+                onChange = onUrlChange,
+                placeholder = urlPlaceholder,
+                keyboardType = KeyboardType.Uri,
+            ),
+        ),
+        status = status,
+        statusIsGood = statusIsGood,
+        testing = testing,
+        canSubmit = canSubmit,
+        onTest = onTest,
+        onSave = onSave,
+        removeLabel = removeLabel ?: stringResource(R.string.remove_source),
+        onRemove = onRemove,
+        onDismiss = onDismiss,
+    )
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun WebDavConflictAlert(
+    hazeState: HazeState,
+    fileName: String,
+    showApplyToAll: Boolean,
+    applyToAll: Boolean,
+    onApplyToAllChange: (Boolean) -> Unit,
+    onOverwrite: () -> Unit,
+    onKeepBoth: () -> Unit,
+    onSkip: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.webdav_conflict_title, fileName),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = stringResource(R.string.webdav_conflict_message),
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.webdav_keep_both),
+            emphasised = true,
+            onClick = onKeepBoth,
+        )
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.webdav_overwrite),
+            emphasised = false,
+            onClick = onOverwrite,
+        )
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.webdav_skip),
+            emphasised = false,
+            onClick = onSkip,
+        )
+        if (showApplyToAll) {
+            AlertRule()
+            ChoiceRow(
+                label = stringResource(R.string.webdav_apply_to_all),
+                detail = null,
+                checked = applyToAll,
+                onClick = { onApplyToAllChange(!applyToAll) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun ConfirmationAlert(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = description,
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
+        AlertRule()
+        AlertAction(label = confirmLabel, emphasised = true, onClick = onConfirm)
+        AlertRule()
+        AlertAction(label = stringResource(R.string.cancel), emphasised = false, onClick = onDismiss)
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun InfoAlert(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    onDismiss: () -> Unit,
+    inOwnWindow: Boolean = false,
+) {
+    if (inOwnWindow) {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+            SideEffect { window?.setDimAmount(0f) }
+            InfoAlertFrame(hazeState, title, description, onDismiss, frosted = false)
+        }
+    } else {
+        InfoAlertFrame(hazeState, title, description, onDismiss, frosted = true)
+    }
+}
+
+@Composable
+private fun InfoAlertFrame(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    onDismiss: () -> Unit,
+    frosted: Boolean,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss, frosted = frosted) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = description,
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
+        AlertRule()
+        AlertAction(label = stringResource(android.R.string.ok), emphasised = true, onClick = onDismiss)
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun <T> ChoiceAlert(
+    hazeState: HazeState,
+    title: String,
+    message: String?,
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    detail: (T) -> String? = { null },
+    onSelect: (T) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            if (message != null) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        options.forEach { option ->
+            AlertRule()
+            ChoiceRow(
+                label = label(option),
+                detail = detail(option),
+                checked = option == selected,
+                onClick = { onSelect(option) },
+            )
+        }
+        AlertRule()
+        AlertAction(label = stringResource(R.string.cancel), emphasised = false, onClick = onDismiss)
+    }
+}
+
+@Composable
+private fun ChoiceRow(
+    label: String,
+    detail: String?,
+    checked: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = ACTION_HEIGHT)
+            .background(
+                if (pressed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f) else Color.Transparent,
+            )
+            .clickable(
+                indication = null,
+                interactionSource = interactionSource,
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (detail != null) {
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp, lineHeight = 15.sp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        if (checked) {
+            Icon(
+                imageVector = SfIcons.Check,
+                contentDescription = stringResource(R.string.selected),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(19.dp),
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+internal fun AlertScaffold(
+    hazeState: HazeState,
+    onDismiss: () -> Unit,
+    frosted: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val shape = RoundedCornerShape(ALERT_CORNER)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SCRIM_COLOR)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .width(ALERT_WIDTH)
+                .clip(shape)
+                .then(
+                    if (reduceDynamicBlur || !frosted) {
+                        Modifier.background(MaterialTheme.colorScheme.surface)
+                    } else {
+                        Modifier.optimizedHazeEffect(
+                            state = hazeState,
+                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
+                        )
+                    },
+                )
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = {},
+                ),
+            content = content,
+        )
+    }
+}

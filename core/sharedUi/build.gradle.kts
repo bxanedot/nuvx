@@ -72,7 +72,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.bxane.nuvx.sharedui"
+    namespace = "com.licht.nuvx.sharedui"
     compileSdk = 37
     defaultConfig {
         minSdk = 26
@@ -81,6 +81,6 @@ android {
 
 compose.resources {
     publicResClass = true
-    packageOfResClass = "com.bxane.nuvx.sharedui.resources"
+    packageOfResClass = "com.licht.nuvx.sharedui.resources"
     generateResClass = always
 }

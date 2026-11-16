@@ -12,11 +12,11 @@ state = (root / "../../core/apple/src/PlaybackSession/AudioRouteState.swift").re
 upgrade = (root / "../../core/apple/src/PlaybackSession/PlaybackController+QualityUpgrade.swift").read_text()
 source = (root / "../../core/apple/src/PlaybackSession/PlaybackController+SourceResolution.swift").read_text()
 session = (root / "../../core/apple/src/PlaybackSession/AudioSessionManager.swift").read_text()
-kotlin = (root / "shared/src/commonMain/kotlin/com/bxane/nuvx/data/sources/SourceResolver.kt").read_text()
+kotlin = (root / "shared/src/commonMain/kotlin/com/licht/nuvx/data/sources/SourceResolver.kt").read_text()
 preferences = (root / "../../core/apple/src/PlaybackSession/PlaybackController+Preferences.swift").read_text()
 checks = {
     "unknown Bluetooth codec is conservatively capped": "guard let codec = bluetoothCodec?.lowercased() else { return false }" in route,
-    "source quality can remain lossless independently of the physical Bluetooth output": "PlaybackCodecCapabilities.allowLosslessSources" in kotlin and "StreamRequest.Best" in kotlin and "val allowLosslessSources" in (root / "shared/src/commonMain/kotlin/com/bxane/nuvx/data/sources/PlaybackCodecCapabilities.kt").read_text(),
+    "source quality can remain lossless independently of the physical Bluetooth output": "PlaybackCodecCapabilities.allowLosslessSources" in kotlin and "StreamRequest.Best" in kotlin and "val allowLosslessSources" in (root / "shared/src/commonMain/kotlin/com/licht/nuvx/data/sources/PlaybackCodecCapabilities.kt").read_text(),
     "direct wired routes can carry lossless": "guard route.contains(\"bluetooth\") else { return true }" in route,
     "bit-perfect requires lossless integer PCM and a direct route": "guard sourceIsLossless, integerPcm else { return false }" in route and "!route.contains(\"airplay\")" in route,
     "the route policy drives codec capability": "LosslessRoute.permitsLossless(routeKind: kind)" in state,

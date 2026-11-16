@@ -1,0 +1,528 @@
+package com.licht.nuvx.playback
+
+import android.os.SystemClock
+import androidx.media3.common.Player
+import com.licht.nuvx.data.DebugLog as Log
+import com.licht.nuvx.data.listentogether.ListenTogether
+import com.licht.nuvx.data.listentogether.PartyTrack
+import com.licht.nuvx.data.listentogether.partyQueueIndexOf
+import com.licht.nuvx.data.model.QueueTier
+import com.licht.nuvx.data.model.Song
+import com.licht.nuvx.data.sources.TrackMatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.math.abs
+
+class PartySync(
+    private val scope: CoroutineScope,
+    private val player: () -> Player?,
+) {
+
+    private val jobs = mutableListOf<Job>()
+    private val queueReconciler = PartyQueueReconciler()
+    private val driftController = PartyPlaybackDriftController()
+    private var publishJob: Job? = null
+    private var startJob: Job? = null
+
+    private var reconcileQuietUntilMs = 0L
+
+    private var awaitPlaybackSeq = Long.MAX_VALUE
+    private var awaitQueueSeq = Long.MAX_VALUE
+
+    private var loadingVideoId: String? = null
+
+    private var deferredPlayPending: Boolean
+        get() = ListenTogether.awaitingStart.value
+        set(value) = ListenTogether.setAwaitingStart(value)
+
+    @Volatile
+    private var focusLost = false
+
+    @Volatile
+    private var rejoining = false
+
+    private var lastPartyCode: String? = null
+
+    fun start() {
+        jobs += scope.launch {
+            ListenTogether.state
+                .map { ReconcileKey(it.playback.seq, it.queue.seq, it.code, it.clockSynced) }
+                .distinctUntilChanged()
+                .collect { key ->
+                    if (key.code != lastPartyCode) {
+                        val wasInParty = lastPartyCode != null
+                        val nowInParty = key.code != null
+                        lastPartyCode = key.code
+                        if (!wasInParty && nowInParty) {
+                            onEnteredParty()
+                        } else if (wasInParty && !nowInParty) {
+                            onLeftParty()
+                        }
+                    }
+                    if (key.seq >= awaitPlaybackSeq && key.queueSeq >= awaitQueueSeq) {
+                        reconcileQuietUntilMs = 0L
+                    }
+                    reconcile()
+                }
+        }
+        jobs += scope.launch {
+            while (true) {
+                delay(TICK_MS)
+                if (ListenTogether.state.value.inParty) ListenTogether.ensureConnected()
+                reconcile()
+            }
+        }
+    }
+
+    fun stop() {
+        jobs.forEach(Job::cancel)
+        jobs.clear()
+        publishJob?.cancel()
+        startJob?.cancel()
+    }
+
+    fun onLocalIntent() {
+        val party = ListenTogether.state.value
+        if (!party.inParty) return
+        if (party.controlsLocked) return
+        if (focusLost) {
+            Log.i(TAG, "rejoining the party after losing the audio")
+            focusLost = false
+            rejoining = true
+        }
+        reconcileQuietUntilMs = SystemClock.elapsedRealtime() + INTENT_QUIET_MS
+        awaitPlaybackSeq = Long.MAX_VALUE
+        awaitQueueSeq = Long.MAX_VALUE
+        if (queueDragActive) {
+            queueDragDirty = true
+            publishJob?.cancel()
+            return
+        }
+        publishJob?.cancel()
+        publishJob = scope.launch {
+            delay(PUBLISH_DEBOUNCE_MS)
+            publish()
+        }
+    }
+
+    private var queueDragActive = false
+
+    private var queueDragDirty = false
+
+    fun beginQueueDrag() {
+        queueDragActive = true
+    }
+
+    fun endQueueDrag() {
+        queueDragActive = false
+        if (queueDragDirty) {
+            queueDragDirty = false
+            onLocalIntent()
+        }
+    }
+
+    fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        if (playWhenReady) {
+            focusLost = false
+            return
+        }
+        if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS &&
+            ListenTogether.state.value.inParty
+        ) {
+            Log.i(TAG, "another app took the audio; dropping out of the party until asked back")
+            focusLost = true
+            deferredPlayPending = false
+            startJob?.cancel()
+        }
+    }
+
+    private var locallyPaused = false
+
+    fun onLockedTransport(playing: Boolean): Boolean {
+        val party = ListenTogether.state.value
+        if (!party.controlsLocked) return false
+        val exo = player() ?: return false
+        if (playing) {
+            locallyPaused = false
+            if (!party.playback.isPlaying) return true
+            ListenTogether.partyPositionMs()
+                ?.takeIf { party.clockSynced }
+                ?.let(exo::seekTo)
+            exo.play()
+        } else {
+            locallyPaused = true
+            exo.pause()
+        }
+        return true
+    }
+
+    private fun clearLocalPauseIfFreed(party: ListenTogether.State) {
+        if (!locallyPaused) return
+        if (!party.controlsLocked) locallyPaused = false
+    }
+
+    fun shouldDeferPlay(): Boolean {
+        val party = ListenTogether.state.value
+        if (!party.inParty || party.connection != ListenTogether.Connection.LIVE) return false
+        if (!party.clockSynced) return false
+        if (player()?.playWhenReady == true) return false
+        deferredPlayPending = true
+        deferredPlayFallback()
+        return true
+    }
+
+    private fun deferredPlayFallback() {
+        startJob?.cancel()
+        startJob = scope.launch {
+            delay(DEFERRED_PLAY_TIMEOUT_MS)
+            if (!deferredPlayPending) return@launch
+            deferredPlayPending = false
+            val exo = player() ?: return@launch
+            if (!exo.playWhenReady) {
+                Log.w(TAG, "party never acknowledged the resume; starting locally")
+                exo.play()
+            }
+        }
+    }
+
+    private fun reconcile() {
+        val party = ListenTogether.state.value
+        if (!party.inParty) {
+            loadingVideoId = null
+            focusLost = false
+            rejoining = false
+            deferredPlayPending = false
+            locallyPaused = false
+            driftController.resetPlaybackAnchor()
+            return
+        }
+        clearLocalPauseIfFreed(party)
+        if (SystemClock.elapsedRealtime() < reconcileQuietUntilMs) return
+        if (focusLost) return
+        val target = party.playback
+        val track = target.track ?: run {
+            seedEmptyParty(party)
+            return
+        }
+        val exo = player() ?: return
+
+        if (exo.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) return
+
+        if (exo.currentMediaItem?.toSong()?.isDeviceFile() == true) return
+
+        if (exo.currentMediaItem?.mediaId != track.videoId) {
+            load(party)
+            return
+        }
+        loadingVideoId = null
+        queueReconciler.reconcile(party, exo, MAX_PARTY_UPCOMING_QUEUE)
+
+        if (locallyPaused) {
+            deferredPlayPending = false
+            return
+        }
+
+        if (!target.isPlaying) {
+            deferredPlayPending = false
+            if (exo.playWhenReady) exo.pause()
+            if (abs(exo.currentPosition - target.positionMs) > PAUSED_TOLERANCE_MS) {
+                exo.seekTo(target.positionMs)
+            }
+            return
+        }
+
+        if (!party.clockSynced) return
+
+        val want = ListenTogether.partyPositionMs()
+        if (!exo.playWhenReady) {
+            val wait = ListenTogether.msUntilStart()
+            if (wait > 0) {
+                startJob?.cancel()
+                startJob = scope.launch {
+                    delay(wait)
+                    reconcile()
+                }
+                return
+            }
+            if (want != null) exo.seekTo(want)
+            deferredPlayPending = false
+            startJob?.cancel()
+            exo.play()
+            driftController.markAligned(target.seq)
+            return
+        }
+
+        deferredPlayPending = false
+
+        if (want == null) return
+        driftController.reconcile(exo, target, track.videoId, want)
+    }
+
+    private fun load(party: ListenTogether.State) {
+        val track = party.playback.track ?: return
+        if (loadingVideoId == track.videoId) return
+        loadingVideoId = track.videoId
+
+        scope.launch {
+            val partyQueue = party.queue.items
+            val index = partyQueueIndexOf(party.queue, party.playback, track.videoId)
+            val queue = if (index >= 0) partyQueue else listOf(track)
+            val startIndex = if (index >= 0) index else 0
+            val items = withContext(Dispatchers.Default) { queue.map { it.toSong().toMediaItem() } }
+            val exo = player()
+            if (exo == null) {
+                loadingVideoId = null
+                return@launch
+            }
+            val startAt = ListenTogether.partyPositionMs() ?: party.playback.positionMs
+            exo.setMediaItems(items, startIndex, startAt)
+            exo.prepare()
+            if (party.playback.isPlaying &&
+                party.clockSynced &&
+                ListenTogether.msUntilStart() <= 0L
+            ) {
+                exo.play()
+            }
+            reconcile()
+        }
+    }
+
+    private fun publish() {
+        val party = ListenTogether.state.value
+        if (!party.inParty) return
+        if (rejoining) {
+            rejoining = false
+            reconcileQuietUntilMs = 0L
+            return
+        }
+        val exo = player() ?: return
+        val song = exo.currentMediaItem?.toSong() ?: return
+        if (song.isDeviceFile()) return
+        val track = song.toPartyTrack(exo.duration)
+        val position = exo.currentPosition.coerceAtLeast(0L)
+        val wantsPlaying = deferredPlayPending || exo.playWhenReady
+        val basePlayback = party.playback.seq
+        val baseQueue = party.queue.seq
+        var playbackControls = 0
+        var queueControls = 0
+
+        val rawLocalItems = (0 until exo.mediaItemCount)
+            .map { exo.getMediaItemAt(it) }
+            .filterNot { it.mediaId.startsWith("content://") || it.mediaId.startsWith("file://") }
+
+        val rawTrackIndex = rawLocalItems.indexOfFirst { it.mediaId == track.videoId }
+        val localItems = if (rawTrackIndex >= 0) {
+            val pastAndCurrent = rawLocalItems.subList(0, rawTrackIndex + 1)
+            val upcoming = rawLocalItems.subList(rawTrackIndex + 1, rawLocalItems.size)
+                .filter { it.queueTier != QueueTier.CONTEXT }
+            pastAndCurrent + upcoming
+        } else {
+            rawLocalItems.filter { it.queueTier != QueueTier.CONTEXT }
+        }
+
+        val localIds = localItems.map { it.mediaId }
+        val trackIndex = localIds.indexOf(track.videoId)
+        val clampedIds = if (trackIndex >= 0) {
+            val upcomingEnd = (trackIndex + 1 + MAX_PARTY_UPCOMING_QUEUE).coerceAtMost(localIds.size)
+            localIds.subList(0, upcomingEnd)
+        } else {
+            localIds.take(1 + MAX_PARTY_UPCOMING_QUEUE)
+        }
+
+        val partyIndex = partyQueueIndexOf(party.queue, party.playback, party.playback.track?.videoId)
+        val upcomingPartyTracks = if (partyIndex >= 0) {
+            party.queue.items.drop(partyIndex + 1)
+        } else {
+            emptyList()
+        }
+
+        val partyIds = party.queue.items.map(PartyTrack::videoId)
+        if (party.playback.track?.videoId != track.videoId && clampedIds.size == 1 && upcomingPartyTracks.isNotEmpty()) {
+            val toPreserve = upcomingPartyTracks
+                .filterNot { it.fromAutoplay }
+                .take(MAX_PARTY_UPCOMING_QUEUE)
+            if (exo.mediaItemCount == 1 && toPreserve.isNotEmpty()) {
+                exo.addMediaItems(toPreserve.map { it.toSong().toMediaItem() })
+            }
+            val queue = listOf(track) + toPreserve
+            ListenTogether.setQueue(queue, 0)
+            queueControls++
+        } else if (clampedIds != partyIds) {
+            val singleMove = if (partyIds.size == clampedIds.size && trackIndex >= 0 && trackIndex < partyIds.size && partyIds[trackIndex] == clampedIds[trackIndex]) {
+                detectSingleMove(partyIds, clampedIds)
+            } else {
+                null
+            }
+
+            if (singleMove != null && singleMove.fromIndex > trackIndex && singleMove.toIndex > trackIndex) {
+                ListenTogether.queueMove(singleMove.fromIndex, singleMove.toIndex, singleMove.videoId)
+                queueControls++
+            } else {
+                val countToTake = clampedIds.size
+                val queue = (0 until countToTake)
+                    .map { localItems[it].toSong() }
+                    .filterNot(Song::isDeviceFile)
+                    .map { it.toPartyTrack(0L) }
+                ListenTogether.setQueue(queue, trackIndex)
+                queueControls++
+            }
+        }
+
+        when {
+            party.playback.track?.videoId != track.videoId -> {
+                ListenTogether.setTrack(track, position, wantsPlaying)
+                playbackControls++
+            }
+            party.playback.isPlaying != wantsPlaying -> {
+                if (wantsPlaying) ListenTogether.play(position) else ListenTogether.pause(position)
+                playbackControls++
+            }
+            else -> {
+                val partyPosition = ListenTogether.partyPositionMs()
+                if (partyPosition == null || abs(position - partyPosition) > SEEK_REPORT_FLOOR_MS) {
+                    ListenTogether.seek(position)
+                    playbackControls++
+                }
+            }
+        }
+
+        awaitPlaybackSeq = basePlayback + playbackControls
+        awaitQueueSeq = baseQueue + queueControls
+        if (playbackControls == 0 && queueControls == 0) reconcileQuietUntilMs = 0L
+    }
+
+    private fun seedEmptyParty(party: ListenTogether.State) {
+        if (party.connection != ListenTogether.Connection.LIVE) return
+        if (party.you?.isHost != true) return
+        val exo = player() ?: return
+        val song = exo.currentMediaItem?.toSong() ?: return
+        if (song.isDeviceFile()) return
+        Log.i(TAG, "seeding the new party with what this device is already playing")
+        val currentIndex = exo.currentMediaItemIndex
+        if (currentIndex >= 0 && currentIndex + 1 < exo.mediaItemCount) {
+            val toKeep = (currentIndex + 1 until exo.mediaItemCount)
+                .map { exo.getMediaItemAt(it) }
+                .filter { it.queueTier != QueueTier.CONTEXT }
+            if (toKeep.size != exo.mediaItemCount - (currentIndex + 1)) {
+                exo.replaceMediaItems(currentIndex + 1, exo.mediaItemCount, toKeep)
+            }
+        }
+        publish()
+    }
+
+    private fun onEnteredParty() {
+        val exo = player() ?: return
+        Log.i(TAG, "entered party, stashing personal queue")
+        PartyPersonalQueueStash.stashFromPlayer(exo)
+    }
+
+    private fun onLeftParty() {
+        Log.i(TAG, "left party, restoring personal queue if stashed")
+        loadingVideoId = null
+        focusLost = false
+        rejoining = false
+        val stashed = PartyPersonalQueueStash.load()
+        if (stashed != null) {
+            val exo = player() ?: return
+            val items = stashed.songs.map { it.toMediaItem() }
+            exo.setMediaItems(items, stashed.index, stashed.positionMs)
+            exo.prepare()
+            if (stashed.wasPlaying) {
+                exo.play()
+            } else {
+                exo.pause()
+            }
+            PartyPersonalQueueStash.clear()
+        }
+    }
+
+    private data class ReconcileKey(
+        val seq: Long,
+        val queueSeq: Long,
+        val code: String?,
+        val clockSynced: Boolean,
+    )
+
+    private companion object {
+        const val TAG = "PartySync"
+
+        const val TICK_MS = 700L
+
+        const val PAUSED_TOLERANCE_MS = 400L
+
+        const val SEEK_REPORT_FLOOR_MS = 1_000L
+
+        const val DEFERRED_PLAY_TIMEOUT_MS = 1_800L
+
+        const val PUBLISH_DEBOUNCE_MS = 120L
+
+        const val INTENT_QUIET_MS = 4_500L
+
+        const val MAX_PARTY_UPCOMING_QUEUE = 25
+
+        const val MAX_PUBLISHED_QUEUE = 1 + MAX_PARTY_UPCOMING_QUEUE
+    }
+}
+
+private fun Song.isDeviceFile(): Boolean =
+    videoId.startsWith("content://") || videoId.startsWith("file://")
+
+internal fun Song.toPartyTrack(playerDurationMs: Long): PartyTrack = PartyTrack(
+    videoId = videoId,
+    title = title,
+    artist = artist,
+    thumbnailUrl = thumbnailUrl,
+    durationMs = playerDurationMs.takeIf { it > 0L }
+        ?: TrackMatcher.secondsOf(durationText)?.let { it * 1000L },
+    fromAutoplay = fromAutoplay,
+)
+
+internal fun PartyTrack.toSong(): Song = Song(
+    videoId = videoId,
+    title = title,
+    artist = artist,
+    thumbnailUrl = thumbnailUrl,
+    durationText = durationMs?.let { ms ->
+        val total = ms / 1000
+        "%d:%02d".format(total / 60, total % 60)
+    },
+    queueTier = if (fromAutoplay) QueueTier.AUTOPLAY else QueueTier.USER_QUEUE,
+)
+
+internal data class QueueMoveDelta(
+    val fromIndex: Int,
+    val toIndex: Int,
+    val videoId: String,
+)
+
+internal fun detectSingleMove(
+    oldList: List<String>,
+    newList: List<String>,
+    baseOffset: Int = 0,
+): QueueMoveDelta? {
+    if (oldList.size != newList.size || oldList == newList || oldList.isEmpty()) return null
+    if (oldList.groupingBy { it }.eachCount() != newList.groupingBy { it }.eachCount()) return null
+
+    for (from in oldList.indices) {
+        val item = oldList[from]
+        val withoutItem = oldList.toMutableList().apply { removeAt(from) }
+        for (to in oldList.indices) {
+            if (from == to) continue
+            val simulated = withoutItem.toMutableList().apply { add(to, item) }
+            if (simulated == newList) {
+                return QueueMoveDelta(
+                    fromIndex = baseOffset + from,
+                    toIndex = baseOffset + to,
+                    videoId = item,
+                )
+            }
+        }
+    }
+    return null
+}

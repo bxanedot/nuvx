@@ -41,7 +41,7 @@
 
 ### Task 3: Compare APKs and execute both models
 
-**Files:** `app/android/mobile/src/androidTest/java/com/bxane/nuvx/OnnxRuntimeModelTest.kt`, `.github/workflows/android-ort-size-experiment.yml`
+**Files:** `app/android/mobile/src/androidTest/java/com/licht/nuvx/OnnxRuntimeModelTest.kt`, `.github/workflows/android-ort-size-experiment.yml`
 
 - [x] Add instrumentation that executes beat and vocal model inference.
 - [x] Add a manual CI workflow that builds the pinned custom AAR, compares full/custom shared APK sizes for phone and TV, and runs the inference tests on an emulator.

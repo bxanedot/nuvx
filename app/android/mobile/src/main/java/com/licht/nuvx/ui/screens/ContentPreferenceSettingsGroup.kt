@@ -1,0 +1,188 @@
+package com.licht.nuvx.ui.screens
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.licht.nuvx.R
+import com.licht.nuvx.data.settings.AppSettings
+import com.licht.nuvx.ui.icons.SfIcons
+import com.licht.nuvx.ui.components.IosSwitch
+
+@Composable
+internal fun ContentPreferenceSettingsGroup(
+    search: SettingsSearch,
+    preferMusicOnly: Boolean,
+    youtubeSearch: Boolean,
+    createPlaylistsLocally: Boolean,
+    hideRecents: Boolean,
+    hideHomeVideos: Boolean,
+    hideTopPicks: Boolean,
+    hideHomeMoods: Boolean,
+    squareVideoThumbnails: Boolean,
+    classicSearch: Boolean,
+    hideRadioTab: Boolean,
+    hidePodcastsTab: Boolean,
+) {
+    SearchableSettingsGroup(search, header = stringResource(R.string.content_preferences)) {
+        val preferMusicOnlyTitle = stringResource(R.string.prefer_music_only)
+        row(preferMusicOnlyTitle, "video", "audio", "music video", "convert", "song") {
+            SettingsRow(
+                icon = SfIcons.Video,
+                title = preferMusicOnlyTitle,
+                subtitle = stringResource(R.string.prefer_music_only_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = preferMusicOnly,
+                        onCheckedChange = AppSettings::setPreferMusicOnly,
+                    )
+                },
+                onClick = { AppSettings.setPreferMusicOnly(!preferMusicOnly) },
+            )
+        }
+        val youtubeSearchTitle = stringResource(R.string.enable_youtube_search)
+        row(youtubeSearchTitle, "search", "youtube", "videos") {
+            SettingsRow(
+                icon = SfIcons.Video,
+                title = youtubeSearchTitle,
+                subtitle = stringResource(R.string.enable_youtube_search_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = youtubeSearch,
+                        onCheckedChange = AppSettings::setYoutubeSearch,
+                    )
+                },
+                onClick = { AppSettings.setYoutubeSearch(!youtubeSearch) },
+            )
+        }
+        row("Create Playlists in Nuvx Only", "playlist", "local", "device", "youtube music") {
+            SettingsRow(
+                icon = SfIcons.PlaylistPlay,
+                title = "Create Playlists in Nuvx Only",
+                subtitle = "New playlists are saved on this device and aren't added to YouTube Music.",
+                trailing = {
+                    IosSwitch(
+                        checked = createPlaylistsLocally,
+                        onCheckedChange = AppSettings::setCreatePlaylistsLocally,
+                    )
+                },
+                onClick = { AppSettings.setCreatePlaylistsLocally(!createPlaylistsLocally) },
+            )
+        }
+        val hideRecentsTitle = stringResource(R.string.hide_recents)
+        row(hideRecentsTitle, "recents", "recent", "history", "feed", "home") {
+            SettingsRow(
+                icon = SfIcons.VisibilityOff,
+                title = hideRecentsTitle,
+                trailing = {
+                    IosSwitch(
+                        checked = hideRecents,
+                        onCheckedChange = AppSettings::setHideRecents,
+                    )
+                },
+                onClick = { AppSettings.setHideRecents(!hideRecents) },
+            )
+        }
+        val hideHomeVideosTitle = stringResource(R.string.hide_home_videos)
+        row(hideHomeVideosTitle, "video", "music video", "feed", "home") {
+            SettingsRow(
+                icon = SfIcons.VisibilityOff,
+                title = hideHomeVideosTitle,
+                subtitle = stringResource(R.string.hide_home_videos_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = hideHomeVideos,
+                        onCheckedChange = AppSettings::setHideHomeVideos,
+                    )
+                },
+                onClick = { AppSettings.setHideHomeVideos(!hideHomeVideos) },
+            )
+        }
+        val hideTopPicksTitle = stringResource(R.string.hide_top_picks)
+        row(hideTopPicksTitle, "top picks", "recommendations", "feed", "home") {
+            SettingsRow(
+                icon = SfIcons.AutoAwesome,
+                title = hideTopPicksTitle,
+                trailing = {
+                    IosSwitch(
+                        checked = hideTopPicks,
+                        onCheckedChange = AppSettings::setHideTopPicks,
+                    )
+                },
+                onClick = { AppSettings.setHideTopPicks(!hideTopPicks) },
+            )
+        }
+        val hideHomeMoodsTitle = stringResource(R.string.hide_home_moods)
+        row(hideHomeMoodsTitle, "mood", "moods", "find your mood", "feed", "home") {
+            SettingsRow(
+                icon = SfIcons.Star,
+                title = hideHomeMoodsTitle,
+                trailing = {
+                    IosSwitch(
+                        checked = hideHomeMoods,
+                        onCheckedChange = AppSettings::setHideHomeMoods,
+                    )
+                },
+                onClick = { AppSettings.setHideHomeMoods(!hideHomeMoods) },
+            )
+        }
+        val squareVideoThumbnailsTitle = stringResource(R.string.square_video_thumbnails)
+        row(squareVideoThumbnailsTitle, "video", "thumbnail", "cover", "artwork", "player") {
+            SettingsRow(
+                icon = SfIcons.Apps,
+                title = squareVideoThumbnailsTitle,
+                subtitle = stringResource(R.string.square_video_thumbnails_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = squareVideoThumbnails,
+                        onCheckedChange = AppSettings::setSquareVideoThumbnails,
+                    )
+                },
+                onClick = { AppSettings.setSquareVideoThumbnails(!squareVideoThumbnails) },
+            )
+        }
+        val classicSearchTitle = stringResource(R.string.classic_search)
+        row(classicSearchTitle, "search", "classic", "categories", "browse") {
+            SettingsRow(
+                icon = SfIcons.Search,
+                title = classicSearchTitle,
+                subtitle = stringResource(R.string.classic_search_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = classicSearch,
+                        onCheckedChange = AppSettings::setClassicSearch,
+                    )
+                },
+                onClick = { AppSettings.setClassicSearch(!classicSearch) },
+            )
+        }
+        val hideRadioTabTitle = stringResource(R.string.hide_radio_tab)
+        row(hideRadioTabTitle, "radio", "tab", "stations", "nav") {
+            SettingsRow(
+                icon = SfIcons.Radio,
+                title = hideRadioTabTitle,
+                subtitle = stringResource(R.string.hide_radio_tab_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = hideRadioTab,
+                        onCheckedChange = AppSettings::setHideRadioTab,
+                    )
+                },
+                onClick = { AppSettings.setHideRadioTab(!hideRadioTab) },
+            )
+        }
+        val hidePodcastsTabTitle = stringResource(R.string.hide_podcasts_tab)
+        row(hidePodcastsTabTitle, "podcasts", "podcast", "episodes", "tab", "nav") {
+            SettingsRow(
+                iconContent = { HidePodcastsTabIcon() },
+                title = hidePodcastsTabTitle,
+                subtitle = stringResource(R.string.hide_podcasts_tab_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = hidePodcastsTab,
+                        onCheckedChange = AppSettings::setHidePodcastsTab,
+                    )
+                },
+                onClick = { AppSettings.setHidePodcastsTab(!hidePodcastsTab) },
+            )
+        }
+    }
+}

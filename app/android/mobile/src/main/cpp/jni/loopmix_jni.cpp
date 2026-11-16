@@ -30,17 +30,17 @@ Deck* DeckOf(jlong handle, jint index) {
 extern "C" {
 
 JNIEXPORT jlong JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeCreate(JNIEnv*, jclass, jint sampleRate) {
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeCreate(JNIEnv*, jclass, jint sampleRate) {
   return reinterpret_cast<jlong>(new (std::nothrow) Renderer(sampleRate));
 }
 
 JNIEXPORT void JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeDestroy(JNIEnv*, jclass, jlong handle) {
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeDestroy(JNIEnv*, jclass, jlong handle) {
   delete From(handle);
 }
 
 JNIEXPORT void JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeSetDeck(
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeSetDeck(
     JNIEnv* env, jclass, jlong handle, jint index, jfloatArray left, jfloatArray right,
     jdouble regionStart, jlong loopStart, jlong loopEnd, jdouble releaseAt,
     jdoubleArray knotFrames, jdoubleArray knotPositions, jboolean runOn, jdouble stopAt,
@@ -68,7 +68,7 @@ Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeSetDeck(
 }
 
 JNIEXPORT void JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeSetEnvelope(
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeSetEnvelope(
     JNIEnv* env, jclass, jlong handle, jint index, jint kind, jdoubleArray times, jfloatArray values,
     jboolean exponential) {
   Deck* deck = DeckOf(handle, index);
@@ -84,17 +84,17 @@ Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeSetEnvelope(
 }
 
 JNIEXPORT void JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativePrepare(JNIEnv*, jclass, jlong handle) {
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativePrepare(JNIEnv*, jclass, jlong handle) {
   if (handle != 0) From(handle)->prepare();
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeFirstFrame(JNIEnv*, jclass, jlong handle) {
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeFirstFrame(JNIEnv*, jclass, jlong handle) {
   return handle != 0 ? From(handle)->firstFrame() : 0;
 }
 
 JNIEXPORT void JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeRender(
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeRender(
     JNIEnv* env, jclass, jlong handle, jlong frame, jfloatArray interleaved, jint offsetFrames, jint frames) {
   if (handle == 0 || frames <= 0) return;
   // Critical access: no copy of the block, and render() itself never calls back into Java.
@@ -105,7 +105,7 @@ Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeRender(
 }
 
 JNIEXPORT void JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeSetFadeOut(JNIEnv*, jclass, jlong handle, jint index,
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeSetFadeOut(JNIEnv*, jclass, jlong handle, jint index,
                                                                         jdouble trackSeconds) {
   Deck* deck = DeckOf(handle, index);
   if (deck == nullptr) return;
@@ -114,7 +114,7 @@ Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeSetFadeOut(JNIEnv*, j
 }
 
 JNIEXPORT jdouble JNICALL
-Java_com_bxane_nuvx_playback_loopmix_LoopMixRenderer_nativeHeard(JNIEnv*, jclass, jlong handle, jint index) {
+Java_com_licht_nuvx_playback_loopmix_LoopMixRenderer_nativeHeard(JNIEnv*, jclass, jlong handle, jint index) {
   Deck* deck = DeckOf(handle, index);
   return deck != nullptr ? deck->heard.load() : 0.0;
 }

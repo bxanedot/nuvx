@@ -119,7 +119,7 @@ void AppendField(std::string& out, const char* name, double value, bool first = 
 extern "C" {
 
 JNIEXPORT jstring JNICALL
-Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeAnalyze(
+Java_com_licht_nuvx_playback_smart_TrackFeatures_nativeAnalyze(
     JNIEnv* env,
     jclass /* clazz */,
     jfloatArray samples,
@@ -177,7 +177,7 @@ Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeAnalyze(
 }
 
 JNIEXPORT jdouble JNICALL
-Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeSampleRate(
+Java_com_licht_nuvx_playback_smart_TrackFeatures_nativeSampleRate(
     JNIEnv* /* env */,
     jclass /* clazz */) {
   // The rate the analyzer's window and hop constants assume.
@@ -188,7 +188,7 @@ Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeSampleRate(
 // because the caller decodes at whatever rate the container carries and only
 // then knows what conversion is needed.
 JNIEXPORT jfloatArray JNICALL
-Java_com_bxane_nuvx_playback_smart_TrackFeatures_nativeResample(
+Java_com_licht_nuvx_playback_smart_TrackFeatures_nativeResample(
     JNIEnv* env,
     jclass /* clazz */,
     jfloatArray samples,

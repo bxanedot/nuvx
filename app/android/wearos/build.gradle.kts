@@ -18,7 +18,7 @@ val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
     .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
-    namespace = "com.bxane.nuvx.wear"
+    namespace = "com.licht.nuvx.wear"
     compileSdk = 37
 
     defaultConfig {
@@ -32,7 +32,7 @@ android {
     sourceSets {
         getByName("main") {
             java.srcDir("protocol")
-            java.srcDir("../mobile/src/main/java/com/bxane/nuvx/ui/intro")
+            java.srcDir("../mobile/src/main/java/com/licht/nuvx/ui/intro")
             assets.srcDir(rootProject.file("app/android/legal-assets"))
         }
     }

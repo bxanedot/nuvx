@@ -43,7 +43,7 @@ val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
     .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
-    namespace = "com.bxane.nuvx"
+    namespace = "com.licht.nuvx"
     compileSdk = 37
 
     defaultConfig {
@@ -71,7 +71,7 @@ android {
     sourceSets {
         getByName("main") {
             java.srcDir("../mobile/src/main/java")
-            java.srcDir("../mobile/src/gms/java/com/bxane/nuvx/playback")
+            java.srcDir("../mobile/src/gms/java/com/licht/nuvx/playback")
             res.srcDir("../mobile/src/main/res")
             assets.srcDir("../../web/app/public/models")
             assets.srcDir(rootProject.file("app/android/legal-assets"))
