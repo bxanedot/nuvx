@@ -1426,7 +1426,7 @@ private struct AppPrompts: View {
                         Button("OK", role: .cancel) {}
                     case .supportTip:
                         Button("Tip on Ko-fi") {
-                            open("https://ko-fi.com/bxane")
+                            open("https://ko-fi.com/lylicht")
                         }
                         Button("Not now", role: .cancel) {}
                         Button("Don’t show again", role: .destructive) {
