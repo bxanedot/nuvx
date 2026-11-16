@@ -90,7 +90,7 @@ class Presence(
     }
 
     companion object {
-        const val ENDPOINT = "https://nuvx-listen.bxane.workers.dev/api/presence"
+        const val ENDPOINT = "https://nuvx-listen.lylicht.workers.dev/api/presence"
         private const val TAG = "Presence"
         private const val DEFAULT_INTERVAL_SEC = 300
         private const val MIN_INTERVAL_SEC = 60

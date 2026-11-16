@@ -14,7 +14,7 @@ export function invitePage(info: InviteInfo, origin: string): string {
 <div class="box"><p class="label">Party code</p><p class="code">${code}</p>${info.title ? `<p class="now">${esc(info.title)} · ${esc(info.artist ?? "")}</p>` : ""}</div>
 <a class="btn" id="join" href="${esc(intent)}">Join in nuvx</a>
 <a class="btn alt" href="${esc(web)}">Open in the web player</a>
-<p class="note">Didn't open? Tap the button. No nuvx yet? <a href="https://github.com/bxanedot/nuvx/releases" rel="noopener">Download it</a>.</p>
+<p class="note">Didn't open? Tap the button. No nuvx yet? <a href="https://github.com/lylicht/nuvx/releases" rel="noopener">Download it</a>.</p>
 <script>setTimeout(function () { location.href = /Android/i.test(navigator.userAgent) ? ${JSON.stringify(intent)} : ${JSON.stringify(deepLink)}; }, 100);</script>`
     : `<p class="badge"><span class="dot off"></span>Party inactive</p>
 <h1>Party not found</h1>
@@ -27,10 +27,10 @@ export function invitePage(info: InviteInfo, origin: string): string {
 <link rel="stylesheet" href="https://www.nuvx.lol/ambient.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{--accent:#d98aa6;isolation:isolate;color-scheme:dark;accent-color:var(--accent);background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+body{--accent:#f4f4f4;isolation:isolate;color-scheme:dark;accent-color:var(--accent);background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 main{max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a;border-radius:24px;padding:32px 24px;background:#0c0c0c}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#bbb;border:1px solid #2a2a2a;border-radius:99px;padding:6px 12px;margin-bottom:20px}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}.dot.off{background:#ff5252}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}.dot.off{background:#777}
 h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .box{border:1px solid #2a2a2a;border-radius:16px;padding:16px;margin-bottom:24px}
 .label{font-size:12px;color:#777;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
@@ -41,7 +41,9 @@ h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .note{margin-top:14px;font-size:13px;color:#888}.note a{color:var(--accent)}
 .ambient-pause{margin-top:12px;color:#bbb}
-</style></head><body><img class="bxane-signature-corner" src="https://www.nuvx.lol/bxane-signature.svg" alt="bxane" width="76" height="19"><div class="nuvx-ambient" aria-hidden="true"></div><main>
+.licht-signature-corner{position:fixed;top:20px;right:24px;color:#aaa;font:italic 600 15px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.04em;text-decoration:none}
+.licht-signature-corner:hover{color:#fff}
+</style></head><body><a class="licht-signature-corner" href="https://guns.lol/lylicht" target="_blank" rel="noopener noreferrer" aria-label="Licht on Guns.lol">Licht</a><div class="nuvx-ambient" aria-hidden="true"></div><main>
 ${body}
 <label class="ambient-pause"><input id="ambient-pause" type="checkbox"> Pause background motion</label>
 </main></body></html>`;

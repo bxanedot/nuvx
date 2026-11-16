@@ -1,4 +1,4 @@
-const RELEASES_URL = "https://api.github.com/repos/bxanedot/nuvx/releases";
+const RELEASES_URL = "https://api.github.com/repos/lylicht/nuvx/releases";
 const APP_PACKAGE = /^nuvx(?:tv|wear)?-(?:(?:setup|portable)-)?v?\d.*\.(?:apk|exe|dmg|zip|tar\.gz)$/i;
 const PAGE_SIZE = 100;
 

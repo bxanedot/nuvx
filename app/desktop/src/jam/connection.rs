@@ -13,7 +13,7 @@ use super::control::*;
 use super::types::{Event, Out};
 use super::wire::*;
 
-const SERVER: &str = "https://nuvx-listen.bxane.workers.dev";
+const SERVER: &str = "https://nuvx-listen.lylicht.workers.dev";
 
 pub(super) fn device_id(data_dir: &std::path::Path) -> String {
     let path = data_dir.join("party_device");

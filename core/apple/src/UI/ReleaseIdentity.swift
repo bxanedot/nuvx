@@ -36,7 +36,7 @@ struct ReleaseAsset: Decodable {
     var url: URL? {
         guard let url = URL(string: browser_download_url), url.scheme == "https",
               url.host == "github.com", url.user == nil, url.password == nil,
-              url.path.hasPrefix("/bxanedot/nuvx/releases/download/"), !url.path.contains("..") else { return nil }
+              url.path.hasPrefix("/lylicht/nuvx/releases/download/"), !url.path.contains("..") else { return nil }
         return url
     }
 }

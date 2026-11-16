@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 
 private const val LYRICS_TIMEOUT_MS = 6_000L
 
-internal const val LYRICS_AGENT = "nuvx (https://github.com/bxanedot/nuvx)"
+internal const val LYRICS_AGENT = "nuvx (https://github.com/lylicht/nuvx)"
 
 internal val lyricsJson = Json { ignoreUnknownKeys = true; isLenient = true }
 

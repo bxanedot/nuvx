@@ -33,7 +33,7 @@ object AppUpdateChecker {
     private const val CACHE_SUBDIR = "updates"
 
     private const val RELEASES_URL =
-        "https://api.github.com/repos/bxanedot/nuvx/releases?per_page=100"
+        "https://api.github.com/repos/lylicht/nuvx/releases?per_page=100"
 
     private val json = Json { ignoreUnknownKeys = true }
 

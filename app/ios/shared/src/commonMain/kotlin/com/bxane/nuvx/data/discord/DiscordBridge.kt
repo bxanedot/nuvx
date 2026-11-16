@@ -23,7 +23,7 @@ object DiscordBridge {
 
     private const val APPLICATION_ID = "1411019391843172514"
     private const val APP_URL = "https://nuvx.lol/open"
-    private const val PROJECT_URL = "https://github.com/bxanedot/nuvx"
+    private const val PROJECT_URL = "https://github.com/lylicht/nuvx"
 
     fun interface TokenCallback {
         fun onResult(ok: Boolean, username: String?)

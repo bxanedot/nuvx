@@ -277,10 +277,10 @@ extension SettingsView {
         }
         buildUpdateRows(&rows)
         rows.row("GitHub", "github", "source", "code", "repository") {
-            Link("GitHub", destination: URL(string: "https://github.com/bxanedot/nuvx")!)
+            Link("GitHub", destination: URL(string: "https://github.com/lylicht/nuvx")!)
         }
         rows.row("Developer", "developer", "author", "github") {
-            Link("Developer", destination: URL(string: "https://github.com/bxanedot")!)
+            Link("Developer", destination: URL(string: "https://github.com/lylicht")!)
         }
         rows.row("Discord", "discord", "community", "chat") {
             Link("Discord", destination: URL(string: "https://discord.gg/h4Wsu824Uf")!)

@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, type MouseEvent } from 'react';
-import bxaneSignature from '@/assets/bxane-signature.svg';
 import chromeWebStoreBadge from '@/assets/chrome-web-store-badge.png';
 import { resumeSession } from '@/party/listenTogether';
 import { startPartySync } from '@/party/partySync';
@@ -118,10 +117,11 @@ export function AppShell() {
         <MobileTopBar />
         <span
           role="img"
-          aria-label="bxane"
-          className="pointer-events-none absolute top-4 right-5 z-[calc(var(--z-web-chrome)-2)] h-5 w-[76px] bg-key mask-contain mask-center mask-no-repeat max-sm:right-3.5"
-          style={{ maskImage: `url("${bxaneSignature}")` }}
-        />
+          aria-label="Licht"
+          className="pointer-events-none absolute top-4 right-5 z-[calc(var(--z-web-chrome)-2)] font-[family-name:var(--font-family)] text-base font-semibold italic tracking-[-0.04em] text-key max-sm:right-3.5"
+        >
+          Licht
+        </span>
         <main
           id="scrollable-page"
           tabIndex={-1}

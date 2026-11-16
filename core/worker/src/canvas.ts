@@ -1,6 +1,6 @@
 export const MAX_CANVAS_BYTES = 10 * 1024 * 1024;
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
-const REPO_FILE = "https://api.github.com/repos/bxanedot/nuvx/contents/core/canvas/";
+const REPO_FILE = "https://api.github.com/repos/lylicht/nuvx/contents/core/canvas/";
 
 export function videoIdFromLink(link: string): string | null {
   const text = link.trim();

@@ -21,10 +21,10 @@ async function request(platform, assets, version = '1.0.0') {
   const originalFetch = global.fetch;
   let result;
   global.fetch = async (url) => {
-    if (url === 'https://github.com/bxanedot/nuvx/releases/latest') {
+    if (url === 'https://github.com/lylicht/nuvx/releases/latest') {
       return {
         status: 302,
-        headers: { get: () => `https://github.com/bxanedot/nuvx/releases/tag/v${version}` },
+        headers: { get: () => `https://github.com/lylicht/nuvx/releases/tag/v${version}` },
       };
     }
     const name = new URL(url).pathname.split('/').at(-1);
@@ -105,7 +105,7 @@ async function requestNightly(platform, assets) {
       draft: false,
       assets: assets.map((name) => ({
         name,
-        browser_download_url: `https://github.com/bxanedot/nuvx/releases/download/nightly.170.1/${name}`,
+        browser_download_url: `https://github.com/lylicht/nuvx/releases/download/nightly.170.1/${name}`,
       })),
     }],
   });
@@ -138,7 +138,7 @@ test('nightly downloads select the matching device artifact directly', async (t)
     await t.test(platform, async () => {
       const result = await requestNightly(platform, [asset]);
       assert.equal(result.status, 302);
-      assert.equal(result.headers.Location, `https://github.com/bxanedot/nuvx/releases/download/nightly.170.1/${asset}`);
+      assert.equal(result.headers.Location, `https://github.com/lylicht/nuvx/releases/download/nightly.170.1/${asset}`);
     });
   }
 });
