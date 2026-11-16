@@ -73,7 +73,7 @@ gtk = "0.18"
 # The login Keychain for the sign-ins.
 keyring = { version = "3.6.3", features = ["apple-native"] }
 # macOS's own window materials (NSVisualEffectView) behind the see-through window.
-window-vibrancy = "0.6"
+window-vibrancy = "0.8"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
