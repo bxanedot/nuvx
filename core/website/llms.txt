@@ -27,7 +27,7 @@ nuvx 1.0.0 (Android version code 10) ships one shared universal phone APK, one s
 
 ## Licence and contact
 
-The project is licensed under GPL-3.0-only. The developer is licht: https://github.com/lylicht. Contact: bxanee@gmail.com.
+The project is licensed under GPL-3.0-only. The developer is licht: https://github.com/lylicht. Contact: loveylicht@gmail.com.
 
 ## Search guidance
 

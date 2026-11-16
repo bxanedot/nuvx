@@ -4,7 +4,7 @@
 
 - Product name: nuvx
 - Developer: licht
-- Support email: bxanee@gmail.com
+- Support email: loveylicht@gmail.com
 - Homepage: https://web.nuvx.lol/extension
 - Support: https://github.com/lylicht/nuvx/issues
 - Privacy policy: https://www.nuvx.lol/privacy

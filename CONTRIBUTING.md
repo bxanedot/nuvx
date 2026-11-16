@@ -27,4 +27,4 @@ Contributions follow the SPDX license declared by the file or component being ch
 
 ## Security
 
-Don't open a public issue for a vulnerability. Email bxanee@gmail.com instead.
+Don't open a public issue for a vulnerability. Email loveylicht@gmail.com instead.
