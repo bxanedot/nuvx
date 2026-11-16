@@ -322,7 +322,7 @@ struct SavedPlaylistsView: View {
                         HStack(spacing: 12) {
                             PlaylistArtworkView(
                                 path: PlaylistArtworkOverrides.path(for: "m3u:\(playlist.id)"),
-                                fallback: playlist.tracks.first?.thumbnailUrl
+                                fallback: playlist.tracks.first?.artworkURL
                             )
                             .frame(width: 42, height: 42)
                             .clipShape(RoundedRectangle(cornerRadius: 8))

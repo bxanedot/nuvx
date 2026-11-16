@@ -202,7 +202,7 @@ struct LocalM3uDetailView: View {
                 HStack(spacing: 16) {
                     PlaylistArtworkView(
                         path: PlaylistArtworkOverrides.path(for: artworkKey),
-                        fallback: playlist.tracks.first?.thumbnailUrl
+                        fallback: playlist.tracks.first?.artworkURL
                     )
                     .frame(width: 88, height: 88)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
