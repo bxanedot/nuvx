@@ -317,7 +317,7 @@ impl App {
 
     pub(super) fn play_current_at(&mut self, at: Duration, report: bool, lookup_song: bool, preserve_play_state: bool) {
         let Some(track) = self.current().cloned() else { return };
-        self.video_mode = crate::motion::SUPPORTED && track.music_video;
+        self.video_mode = crate::motion::SUPPORTED && (track.music_video || self.plain_videos.contains(&track.id));
         if self.version_alternate.as_ref().is_some_and(|(listed, _)| listed != &track.id) {
             self.version_alternate = None;
         }

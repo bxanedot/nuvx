@@ -173,6 +173,7 @@ impl App {
             .current()
             .filter(|t| t.music_video)
             .or_else(|| self.playing_track().filter(|t| t.music_video))
+            .or_else(|| self.current().filter(|t| self.plain_videos.contains(&t.id)))
             .map(|t| t.id.clone())
             .or_else(|| {
                 let current = self.current()?;
@@ -207,6 +208,7 @@ impl App {
             && crate::motion::SUPPORTED
             && (self.current().is_some_and(|t| t.music_video)
                 || self.playing_track().is_some_and(|t| t.music_video)
+                || self.current().is_some_and(|t| self.plain_videos.contains(&t.id))
                 || self.video_of.as_ref().is_some_and(|(listed, video)| self.current_id() == Some(listed.as_str()) && video.is_some()))
             && self.video.as_ref().is_none_or(|(_, _, s)| s.is_none());
         self.buffering || self.video_wanted || picture
