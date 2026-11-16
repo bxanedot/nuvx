@@ -706,6 +706,7 @@ async function playFromSource(entry: QueueEntry, token: number, startSec: number
       bindElement(deck, active);
     }
     deck.live = false;
+    deck.loudnessDb = null;
     deck.audio.src = source.url;
     deck.audio.load();
     if (startSec > 0) deck.audio.currentTime = startSec;
