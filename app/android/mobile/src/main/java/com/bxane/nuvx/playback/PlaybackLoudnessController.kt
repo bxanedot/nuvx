@@ -55,7 +55,7 @@ internal class PlaybackLoudnessController(
         ) return null
         val id = mediaId?.takeIf { it.isNotBlank() } ?: return null
         val loudnessDb = StreamResolver.loudnessDbFor(id) ?: return null
-        return (-loudnessDb * 100.0).roundToInt().coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
+        return loudnessGainMb(loudnessDb, AppSettings.loudnessTargetLufs.value)
     }
 
     private fun publish(mediaId: String?) {
@@ -69,8 +69,10 @@ internal class PlaybackLoudnessController(
     }
 
     private companion object {
-        const val MIN_GAIN_MB = -1500
-        const val MAX_GAIN_MB = 300
         const val LOUDNESS_RETRY_MS = 6_000L
     }
 }
+
+// YouTube's loudnessDb is relative to its own -14 LUFS reference.
+internal fun loudnessGainMb(loudnessDb: Double, targetLufs: Int): Int =
+    ((targetLufs + 14 - loudnessDb) * 100.0).roundToInt().coerceIn(-1500, 300)

@@ -28,6 +28,7 @@ mod settings_pages;
 mod playback;
 mod playback_settings;
 mod queue;
+mod sleep_timer;
 mod radio;
 mod responses;
 mod shell;
@@ -155,7 +156,7 @@ pub enum Action {
 }
 
 enum Dialog {
-    PickPlaylist(Vec<Track>),
+    PickPlaylist(Vec<Track>, String),
     NewPlaylist { title: String, tracks: Vec<Track> },
     EditPlaylist { id: String, title: String, description: String, privacy: Option<String> },
     ConfirmDelete { id: String, title: String },
@@ -258,7 +259,11 @@ pub struct App {
     skip_streak: u32,
     recoveries: u32,
     autoplay: bool,
-    normalize: bool,
+    norm_target: Option<i32>,
+    sleep: sleep_timer::SleepTimer,
+    sleep_cut: u32,
+    /// Library playlists and albums as rows instead of a cover grid.
+    lib_list: bool,
     spatial: bool,
     eq: crate::eq::Prefs,
     log_volume: bool,
@@ -352,6 +357,8 @@ pub struct App {
     jam: jam::Session,
     signing_in: Arc<AtomicBool>,
     toast: Option<(String, f64)>,
+    /// Disliked song the toast offers to restore.
+    toast_undo: Option<Track>,
 
     updater: Option<crate::update::Updater>,
     update_checked: Option<f64>,

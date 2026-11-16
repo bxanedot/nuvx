@@ -28,6 +28,7 @@
     <string name="local_music">로컬 음악</string>
     <string name="search_source_youtube" translatable="false">YouTube</string>
     <string name="search_source_addons">애드온</string>
+    <string name="change_playlist_artwork">재생목록 아트워크 변경</string>
     <string name="search_addons_none">켜진 애드온이 없습니다. 설정 → 소스에서 하나 켜세요.</string>
     <string name="audio_files_on_device">기기의 오디오 파일</string>
     <string name="on_device">기기 내</string>
@@ -155,6 +156,7 @@
     <string name="widget_preview_title">곡 제목</string>
     <string name="widget_preview_artist">아티스트</string>
     <string name="widget_pill_label">지금 재생 4×1</string>
+    <string name="tile_playback_label">재생/일시정지</string>
     <string name="widget_pill_description">곡 정보, 좋아요, 셔플, 재생 컨트롤 버튼을 행 하나에 배열합니다.</string>
     <string name="widget_preview_pill">곡 제목 - 아티스트</string>
     <string name="download_quality">다운로드 품질</string>
@@ -219,6 +221,8 @@
     <string name="crossfade">크로스페이드</string>
     <string name="crossfade_subtitle">이번 곡과 다음 곡을 섞습니다</string>
     <string name="automix">자동 믹스 [베타]</string>
+    <string name="advanced_automix">고급 AutoMix</string>
+    <string name="advanced_automix_subtitle">비트와 프레이즈에 맞춘 전환. 끄면 단순 크로스페이드를 사용합니다.</string>
     <string name="automix_performance">자동 믹스 성능</string>
     <string name="automix_performance_subtitle">CPU 백그라운드 분석을 얼마나 가동할지 설정합니다</string>
     <string name="automix_performance_warning">성능이 높을수록 곡을 빠르게 분석하지만, 배터리를 더 사용하고 폰이 뜨거워질 수 있습니다.</string>
@@ -411,6 +415,8 @@
     <string name="discord_token_rejected">Discord에서 이 토큰을 거부했습니다.</string>
     <string name="discord_token_warning">Discord에서는 앱에서 사용자의 활동 정보를 설정할 수 있도록 하는 API를 제공하지 않습니다. 따라서 본 기능은 사용자의 계정으로 직접 로그인하여 Discord 프로토콜을 사용합니다. 토큰은 이 기기 내에서 암호화된 채로 유지되며 Discord로만 전송됩니다. 이 방식을 사용하면 계정 전체의 접근 권한을 부여하게 되며, 계정 자동화는 Discord 서비스 약관을 위반하는 행위입니다. 위험을 감수할 수 있는 경우에만 사용하세요.</string>
     <string name="dislike">싫어요</string>
+    <string name="disliked">싫어요 표시함</string>
+    <string name="undo">실행취소</string>
     <string name="done">완료</string>
     <string name="download">다운로드</string>
     <string name="download_quality_dialog_subtitle">이 기기에 보관할 파일에 적용</string>
@@ -944,6 +950,8 @@
     <string name="loudness_normalization">체감 음량 평준화</string>
 
     <string name="loudness_normalization_subtitle">모든 음악의 체감 음량을 같게 조절합니다</string>
+    <string name="loudness_target">음량 목표</string>
+    <string name="loudness_target_subtitle">낮을수록 더 조용하고 여유가 커집니다. −14 LUFS는 YouTube와 같습니다.</string>
     <string name="loudness_off_on_speaker">폰 스피커에서 비활성화</string>
 
 

@@ -7,6 +7,8 @@ pub fn toast(app: &mut App, ctx: &egui::Context, now: f64) {
     }
     let age = (now - shown) as f32;
     let t = theme::ease_out(age / 0.25) * (1.0 - ((age - 4.1) / 0.4).clamp(0.0, 1.0));
+    let undo = app.toast_undo.is_some();
+    let mut clicked = false;
     let screen = ctx.content_rect();
     egui::Area::new(egui::Id::unique("toast"))
         .order(egui::Order::Tooltip)
@@ -21,9 +23,18 @@ pub fn toast(app: &mut App, ctx: &egui::Context, now: f64) {
                 .shadow(egui::epaint::Shadow { offset: [0, 8], blur: 24, spread: 0, color: theme::shade(0.45) })
                 .show(ui, |ui| {
                     ui.set_max_width(520.0);
-                    ui.label(egui::RichText::new(msg.as_str()).font(theme::regular(14.0)).color(theme::text()));
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new(msg.as_str()).font(theme::regular(14.0)).color(theme::text()));
+                        if undo && ui.link(egui::RichText::new("Undo").font(theme::semibold(14.0))).clicked() {
+                            clicked = true;
+                        }
+                    });
                 });
         });
+    if clicked {
+        app.undo_dislike();
+        return;
+    }
     if (0.25..4.1).contains(&age) {
         ctx.request_repaint_after(std::time::Duration::from_secs_f32(4.1 - age));
     } else {

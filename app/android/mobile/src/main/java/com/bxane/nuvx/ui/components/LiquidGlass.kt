@@ -1,3 +1,13 @@
+/*
+ * The glass rendering itself is Kyant0/backdrop (Apache-2.0), vendored at
+ * [com.bxane.nuvx.ui.components.backdrop] — see that package for the
+ * upstream attribution. This file is the integration glue, adapted from
+ * EchoMusicApp/Echo-Music's GlassEffectConfig/Modifier.liquidGlass
+ * (GPL-3.0), cut down from Echo's full per-component/vibrancy-slider config
+ * to the single on/off switch BitChord exposes in Settings. It is used by the
+ * floating nav bar and, while enabled, the app-wide floating top controls.
+ */
+
 package com.bxane.nuvx.ui.components
 
 import android.os.Build

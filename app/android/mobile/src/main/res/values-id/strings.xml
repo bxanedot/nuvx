@@ -113,6 +113,7 @@
     <string name="widget_preview_title">Judul lagu</string>
     <string name="widget_preview_artist">Artis</string>
     <string name="widget_pill_label">Sedang diputar 4×1</string>
+    <string name="tile_playback_label">Putar/jeda</string>
     <string name="widget_pill_description">Lagu dengan Suka, Acak, dan kontrol pemutaran dalam satu baris.</string>
     <string name="widget_preview_pill">Judul lagu - Artis</string>
     <string name="download_quality">Kualitas unduhan</string>
@@ -272,6 +273,8 @@
     <string name="discord_token_rejected">Discord menolak token tersebut.</string>
     <string name="discord_token_warning">Discord tidak menyediakan API yang memungkinkan aplikasi mengatur presence Anda, sehingga fitur ini masuk sebagai akun Anda dan menggunakan protokol Discord. Token Anda tetap terenkripsi di perangkat ini dan hanya dikirim ke Discord. Token ini memberikan akses ke seluruh akun Anda, dan otomatisasi akun melanggar ketentuan layanan Discord. Gunakan hanya jika Anda menerima risiko ini.</string>
     <string name="dislike">Tidak suka</string>
+    <string name="disliked">Ditandai tidak suka</string>
+    <string name="undo">Urungkan</string>
     <string name="done">Selesai</string>
     <string name="download">Unduh</string>
     <string name="download_quality_dialog_subtitle">Untuk file yang disimpan di perangkat ini</string>
@@ -724,6 +727,8 @@
     <string name="automix_mode_performance_subtitle">4 thread · analisis tercepat · penggunaan baterai lebih tinggi</string>
 
 
+    <string name="advanced_automix">AutoMix lanjutan</string>
+    <string name="advanced_automix_subtitle">Transisi selaras ketukan dan frasa. Matikan untuk crossfade sederhana.</string>
     <string name="automix_performance">Performa Automix</string>
 
     <string name="automix_performance_subtitle">Mengatur seberapa banyak CPU yang dapat digunakan analisis latar belakang</string>
@@ -800,6 +805,8 @@
     <string name="prefer_usb_dac">Pilih DAC USB</string>
     <string name="loudness_normalization">Normalisasi kenyaringan</string>
     <string name="loudness_normalization_subtitle">Menyamakan kenyaringan setiap lagu</string>
+    <string name="loudness_target">Target kenyaringan</string>
+    <string name="loudness_target_subtitle">Lebih rendah lebih pelan dengan ruang lebih lega. −14 LUFS sama dengan YouTube.</string>
     <string name="loudness_off_on_speaker">Nonaktifkan di speaker ponsel</string>
     <string name="pipeline_loudness_gain">Gain</string>
     <string name="pipeline_loudness_measured">Terukur</string>
@@ -1217,6 +1224,7 @@
     <string name="artist_signatures_unconfigured">Belum dikonfigurasi — ketuk untuk mengatur URL API</string>
     <string name="artist_signatures_test_failed">Tidak dapat menjangkau API di URL tersebut</string>
     <string name="search_source_addons">Addon</string>
+    <string name="change_playlist_artwork">Ubah gambar playlist</string>
     <string name="search_addons_none">Tidak ada addon yang aktif. Tambahkan satu di Pengaturan → Sumber.</string>
     <string name="app_icon">Ikon aplikasi</string>
     <string name="app_icon_default">Default</string>

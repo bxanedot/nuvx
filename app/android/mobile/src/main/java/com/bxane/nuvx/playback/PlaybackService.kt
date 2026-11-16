@@ -1218,7 +1218,7 @@ class PlaybackService : MediaLibraryService() {
             AppSettings.spatialAudio.collect { applySpatialAudioEnabled() }
         }
         scope.launch {
-            AppSettings.loudnessNormalization.collect {
+            combine(AppSettings.loudnessNormalization, AppSettings.loudnessTargetLufs) { on, target -> on to target }.collect {
                 loudnessController.setup(player?.currentMediaItem?.mediaId)
             }
         }

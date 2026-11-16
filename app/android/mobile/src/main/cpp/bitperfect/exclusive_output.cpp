@@ -1,4 +1,14 @@
 // SPDX-License-Identifier: LGPL-3.0-only
+/*
+ * Copyright (C) 2026 BitChord Project
+ *
+ * Adapted from Mornye (https://github.com/mornyeapp/Mornye),
+ * android/app/src/main/cpp/native_audio.cpp (ExclusiveOutput),
+ * Copyright 2026 zarzet.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-only
+ */
+
 // Exact-rate PCM through an AAudio exclusive stream (Oboe), for players with
 // a built-in DAC. Exclusive is only a request: Android may grant a shared
 // stream instead, and a shared stream is mixed. The stream is accepted only

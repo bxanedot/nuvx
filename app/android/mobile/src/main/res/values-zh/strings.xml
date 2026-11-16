@@ -113,6 +113,7 @@
     <string name="widget_preview_title">歌曲标题</string>
     <string name="widget_preview_artist">艺人</string>
     <string name="widget_pill_label">正在播放 4×1</string>
+    <string name="tile_playback_label">播放/暂停</string>
     <string name="widget_pill_description">单行显示曲目，以及喜欢、随机播放和播放控件。</string>
     <string name="widget_preview_pill">歌曲标题 - 艺人</string>
     <string name="download_quality">下载质量</string>
@@ -272,6 +273,8 @@
     <string name="discord_token_rejected">Discord 拒绝了该令牌。</string>
     <string name="discord_token_warning">Discord 没有提供可供应用设置状态的 API，因此此功能会以你的账号登录并使用 Discord 的协议。你的令牌会在此设备上加密保存，且只会发送给 Discord。它会授予对你整个账号的访问权限，而账号自动化违反了 Discord 的服务条款。请仅在你接受此风险时使用此功能。</string>
     <string name="dislike">不喜欢</string>
+    <string name="disliked">已标记为不喜欢</string>
+    <string name="undo">撤销</string>
     <string name="done">完成</string>
     <string name="download">下载</string>
     <string name="download_quality_dialog_subtitle">适用于保存在此设备上的文件</string>
@@ -724,6 +727,8 @@
     <string name="automix_mode_performance_subtitle">4 个线程 · 分析最快 · 发热和耗电较高</string>
 
 
+    <string name="advanced_automix">高级 AutoMix</string>
+    <string name="advanced_automix_subtitle">节拍对齐、按乐句过渡。关闭则使用简单交叉淡化。</string>
     <string name="automix_performance">Automix 性能</string>
 
     <string name="automix_performance_subtitle">设置后台分析可使用的 CPU 上限</string>
@@ -800,6 +805,8 @@
     <string name="prefer_usb_dac">首选 USB DAC</string>
     <string name="loudness_normalization">响度标准化</string>
     <string name="loudness_normalization_subtitle">将每首曲目调整到相同响度</string>
+    <string name="loudness_target">响度目标</string>
+    <string name="loudness_target_subtitle">数值越低越安静、余量越大。−14 LUFS 与 YouTube 相同。</string>
     <string name="loudness_off_on_speaker">在手机扬声器上停用</string>
     <string name="pipeline_loudness_gain">增益</string>
     <string name="pipeline_loudness_measured">测量值</string>
@@ -1211,6 +1218,7 @@
     <string name="spotify_sign_in">使用 Spotify 登录</string>
     <string name="spotify_use_spdc_token">使用 sp_dc 令牌</string>
     <string name="search_source_addons">插件</string>
+    <string name="change_playlist_artwork">更改播放列表封面</string>
     <string name="search_addons_none">未启用任何插件。请在“设置 → 音源”中添加。</string>
     <string name="app_icon">应用图标</string>
     <string name="app_icon_default">默认</string>

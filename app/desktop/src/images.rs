@@ -39,6 +39,15 @@ impl HttpImages {
     }
 }
 
+/// YouTube only renders maxresdefault/sddefault/hq720 for some videos; hqdefault always exists.
+fn ytimg_fallback(uri: &str) -> Option<String> {
+    let rest = uri.strip_prefix("https://i.ytimg.com/vi/").or_else(|| uri.strip_prefix("https://i.ytimg.com/vi_webp/"))?;
+    let (id, file) = rest.split_once('/')?;
+    let name = file.split(['.', '?']).next()?;
+    (matches!(name, "maxresdefault" | "sddefault" | "hq720") && !id.is_empty())
+        .then(|| format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg"))
+}
+
 fn disk_path(dir: &std::path::Path, uri: &str) -> std::path::PathBuf {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -113,16 +122,24 @@ impl BytesLoader for HttpImages {
                 backend.wake();
                 return;
             }
-            let res = async {
-                let resp = http.get(&uri).send().await?.error_for_status()?;
-                let mime = resp
-                    .headers()
-                    .get(reqwest::header::CONTENT_TYPE)
-                    .and_then(|v| v.to_str().ok())
-                    .map(str::to_owned);
-                Ok::<_, reqwest::Error>((resp.bytes().await?, mime))
+            let fetch = |url: String| {
+                let http = http.clone();
+                async move {
+                    let resp = http.get(&url).send().await?.error_for_status()?;
+                    let mime = resp
+                        .headers()
+                        .get(reqwest::header::CONTENT_TYPE)
+                        .and_then(|v| v.to_str().ok())
+                        .map(str::to_owned);
+                    Ok::<_, reqwest::Error>((resp.bytes().await?, mime))
+                }
+            };
+            let mut res = fetch(uri.clone()).await;
+            if res.is_err()
+                && let Some(small) = ytimg_fallback(&uri)
+            {
+                res = fetch(small).await;
             }
-            .await;
             let entry = match res {
                 Ok((bytes, mime)) => {
                     if bytes.len() <= DISK_MAX_FILE {
@@ -270,6 +287,18 @@ fn desaturate(image: &egui::ColorImage) -> egui::ColorImage {
 
 #[cfg(test)]
 mod tests {
+    use super::ytimg_fallback;
+
+    #[test]
+    fn large_ytimg_thumbnails_fall_back_to_hqdefault() {
+        let hq = Some("https://i.ytimg.com/vi/abc123/hqdefault.jpg".to_owned());
+        assert_eq!(ytimg_fallback("https://i.ytimg.com/vi/abc123/maxresdefault.jpg"), hq);
+        assert_eq!(ytimg_fallback("https://i.ytimg.com/vi/abc123/sddefault.jpg?sqp=x"), hq);
+        assert_eq!(ytimg_fallback("https://i.ytimg.com/vi_webp/abc123/hq720.webp"), hq);
+        assert_eq!(ytimg_fallback("https://i.ytimg.com/vi/abc123/hqdefault.jpg"), None);
+        assert_eq!(ytimg_fallback("https://lh3.googleusercontent.com/x=w544"), None);
+    }
+
     #[test]
     fn desaturate_keeps_luminance_and_alpha() {
         let img = egui::ColorImage::new([2, 1], vec![egui::Color32::from_rgb(255, 0, 0), egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128)]);

@@ -132,3 +132,39 @@ describe('LyricClock', () => {
     expect(Math.abs(shown - (60_000 + (now - FRAME_MS - seekAt)))).toBeLessThan(100);
   });
 });
+
+function resumeError(before: number, after: number, settleMs = 1_500): number {
+  const clock = new LyricClock(10_000);
+  let now = 0;
+  while (now <= 10_000) {
+    const taken = Math.trunc(now / 500) * 500;
+    clock.frame(now, 10_000 + Math.trunc(taken * before), taken, 0);
+    now += FRAME_MS;
+  }
+  const pausedAt = 10_000 + Math.trunc(10_000 * before);
+  clock.hold(pausedAt, now);
+  clock.restart();
+  const resumedAt = now + 5_000;
+  now = resumedAt;
+  let worst = 0;
+  while (now <= resumedAt + 4_000) {
+    const taken = resumedAt + Math.trunc((now - resumedAt) / 500) * 500;
+    const shown = clock.frame(now, pausedAt + Math.trunc((taken - resumedAt) * after), taken, 0);
+    const truth = pausedAt + (now - resumedAt) * after;
+    if (now - resumedAt >= settleMs) worst = Math.max(worst, Math.abs(shown - truth));
+    now += FRAME_MS;
+  }
+  return worst;
+}
+
+describe('LyricClock after pause and resume', () => {
+  it('picks up a speed change made while paused', () => {
+    expect(resumeError(2, 1)).toBeLessThan(40);
+  });
+  it('stays in time when resuming at the same slower speed', () => {
+    expect(resumeError(0.75, 0.75)).toBeLessThan(40);
+  });
+  it('stays in time when resuming at the same faster speed', () => {
+    expect(resumeError(1.25, 1.25, 3_000)).toBeLessThan(40);
+  });
+});

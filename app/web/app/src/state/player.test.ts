@@ -187,6 +187,7 @@ describe('player behavior at queue and media boundaries', () => {
       automix: true,
       automixBars: 32,
       showNerdStats: true,
+      loudnessTarget: -16,
     };
     localStorage.setItem('nuvx:player', JSON.stringify(saved));
     const player = await import('./player');
@@ -195,6 +196,37 @@ describe('player behavior at queue and media boundaries', () => {
     player.usePlayer.getState().setShowNerdStats(false);
 
     expect(JSON.parse(localStorage.getItem('nuvx:player')!)).toEqual({ ...saved, showNerdStats: false });
+  });
+
+  it('fades out and pauses when the sleep timer ends', async () => {
+    const player = await radioPlayer();
+    const deckAudio = FakeAudio.instances.slice(-2);
+    vi.useFakeTimers();
+    try {
+      player.usePlayer.getState().setSleepTimer(15);
+      vi.advanceTimersByTime(15 * 60_000 - 5_000);
+      expect(deckAudio[0]!.volume).toBeGreaterThan(0.3);
+      expect(deckAudio[0]!.volume).toBeLessThan(0.7);
+      vi.advanceTimersByTime(6_000);
+      expect(player.getAudio()?.paused).toBe(true);
+      expect(player.usePlayer.getState().sleepMinutes).toBeNull();
+      expect(deckAudio[0]!.volume).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('turns a loud track down to the loudness target', async () => {
+    engineLoad.mockImplementation(async (videoId) => ({ ...loaded(videoId), loudnessDb: 6 }));
+    const player = await import('./player');
+    player.usePlayer.getState().setLoudnessTarget(-14);
+    fetchRadio.mockResolvedValue({ candidates: [], seedIsVideo: false });
+    player.usePlayer.getState().playTrack(track('loud', ''), { title: 'Queue', type: 'search' });
+    await vi.waitFor(() => expect(engineLoad).toHaveBeenCalled());
+    const deckAudio = FakeAudio.instances.slice(-2);
+    await vi.waitFor(() => expect(deckAudio[0]!.volume).toBeCloseTo(10 ** (-6 / 20)));
+    player.usePlayer.getState().setLoudnessTarget(null);
+    expect(deckAudio[0]!.volume).toBe(1);
   });
 
   it('replaces stale media metadata and keeps actions safe with an empty queue', async () => {

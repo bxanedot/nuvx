@@ -348,6 +348,7 @@ fun LibraryGridPage(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     onNewPlaylist: (() -> Unit)? = null,
+    asList: Boolean = false,
 ) {
     val pinnedPlaylists by AppUi.host.pinnedPlaylists.collectAsStateWithLifecycle()
     val librarySort by AppUi.host.librarySort.collectAsStateWithLifecycle()
@@ -355,16 +356,22 @@ fun LibraryGridPage(
     BoxWithConstraints(modifier.fillMaxSize()) {
         val grid = libraryGrid(maxWidth - PAGE_GUTTER * 2)
         LazyVerticalGrid(
-            columns = GridCells.Fixed(grid.columns),
+            columns = GridCells.Fixed(if (asList) 1 else grid.columns),
             state = gridState,
             contentPadding = contentPadding,
             horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(if (asList) 4.dp else 20.dp),
             modifier = Modifier.padding(horizontal = PAGE_GUTTER),
         ) {
             if (onNewPlaylist != null) {
                 item(key = "leading") {
-                    NewShelfCard(
+                    if (asList) CompactTrackRow(
+                        title = stringResource(Res.string.new_playlist),
+                        subtitle = stringResource(Res.string.saved_to_youtube_music),
+                        thumbnailUrl = null,
+                        onClick = onNewPlaylist,
+                        onLongPress = null,
+                    ) else NewShelfCard(
                         icon = SfIcons.Add,
                         label = stringResource(Res.string.new_playlist),
                         subtitle = stringResource(Res.string.saved_to_youtube_music),
@@ -374,7 +381,13 @@ fun LibraryGridPage(
                 }
             }
             items(sortedShelf.items, key = { it.browseId ?: it.title }) { item ->
-                ShelfCard(
+                if (asList) CompactTrackRow(
+                    title = item.title,
+                    subtitle = item.subtitle,
+                    thumbnailUrl = item.thumbnailUrl,
+                    onClick = { onItemClick(item) },
+                    onLongPress = { onItemLongPress(item) },
+                ) else ShelfCard(
                     item = item,
                     onClick = { onItemClick(item) },
                     onLongPress = { onItemLongPress(item) },

@@ -1,4 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+ * Modeled on Orchard's own AudioDecoder (https://github.com/SFG5453/Orchard),
+ * scoped down to the platform MediaCodec path — Orchard prefers a native
+ * libopus decode with the platform decoder as its documented fallback; this
+ * only needs the fallback, since BitChord has no reason to carry a second
+ * Opus decoder purely for background analysis.
+ *
+ * Copyright (C) 2026 Kushagra Singh
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.bxane.nuvx.playback.smart
 

@@ -10,6 +10,7 @@ import com.bxane.nuvx.data.model.LikeStatus
 import com.bxane.nuvx.wear.WearBridge
 import com.bxane.nuvx.widget.MediaWidget
 import com.bxane.nuvx.widget.MediaWidgetSnapshot
+import com.bxane.nuvx.widget.PlaybackTile
 
 internal class PlaybackWidgetPublisher(
     private val context: Context,
@@ -39,11 +40,13 @@ internal class PlaybackWidgetPublisher(
         )
         MediaWidgetSnapshot.save(context, snapshot)
         MediaWidget.refresh(context)
+        PlaybackTile.refresh(context)
         WearBridge.publish(context, snapshot, reported, playing)
     }
 
     fun clear() {
         MediaWidgetSnapshot.save(context, MediaWidgetSnapshot.EMPTY)
         MediaWidget.refresh(context)
+        PlaybackTile.refresh(context)
     }
 }

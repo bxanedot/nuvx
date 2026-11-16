@@ -36,6 +36,9 @@ internal class LyricClock(startMs: Long) {
 
     fun restart() {
         lastNowMs = Double.NaN
+        // Speed may have changed while paused; never restart faster than 1x, since catching up is cheap and backing off is slow.
+        rate = minOf(rate, 1.0)
+        rateSettled = false
         jumpPending = false
         glideStartMs = Double.NaN
         clearSuspect()

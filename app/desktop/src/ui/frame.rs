@@ -71,6 +71,7 @@ impl eframe::App for App {
         self.mini.tick(ctx, now);
         self.tray_window(ctx);
         self.window_hidden = self.tray.is_some() || ctx.input(|i| i.viewport().minimized == Some(true));
+        self.tick_sleep(ctx, now);
         self.sync_discord();
         self.sync_lastfm();
         self.sync_server_queue(ctx, now);
@@ -277,7 +278,8 @@ impl eframe::App for App {
         storage.set_string("nuvx_local_playlists", serde_json::to_string(&self.local_playlists).unwrap_or_default());
         storage.set_string("nuvx_playlist_artwork", serde_json::to_string(&self.playlist_artwork).unwrap_or_default());
         storage.set_string("create_playlists_locally", b(self.create_playlists_locally));
-        storage.set_string("normalize", b(self.normalize));
+        storage.set_string("lib_list", b(self.lib_list));
+        storage.set_string("norm_target", self.norm_target.map_or("off".into(), |t| t.to_string()));
         storage.set_string("spatial_audio", b(self.spatial));
         storage.set_string("equalizer", serde_json::to_string(&self.eq).unwrap_or_default());
         storage.set_string("log_volume", b(self.log_volume));

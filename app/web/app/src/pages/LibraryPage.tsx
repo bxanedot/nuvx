@@ -1,7 +1,8 @@
+import { LayoutGrid, List } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
-import { CircleLockup, SquareLockup, VideoLockup } from '@/components/music/Lockups';
+import { CircleLockup, RowLockup, SquareLockup, VideoLockup } from '@/components/music/Lockups';
 import { EmptyState, LoadError, LoadMoreError, NeedsExtension } from '@/components/music/States';
 import { TrackList } from '@/components/music/TrackList';
 import { isLibrarySection, LIBRARY_SECTIONS } from '@/data/music/library';
@@ -9,6 +10,7 @@ import { readNuvxPlaylistArtwork, useNuvxPlaylists } from '@/data/music/localPla
 import { useLibrary, useSignedIn, useYouTubeReady } from '@/data/music/queries';
 import { useYtAuth } from '@/extension/useYtAuth';
 import { PlainSkeleton } from '@/skeletons/PageSkeletons';
+import { useUi } from '@/state/ui';
 import { seeAllGrid, seeAllTracks } from './pageStyles';
 
 function useLoadMore(onVisible: (() => void) | null) {
@@ -31,6 +33,8 @@ export default function LibraryPage() {
   const auth = useYtAuth();
   const signedIn = useSignedIn();
   const localPlaylists = useNuvxPlaylists();
+  const view = useUi((s) => s.libraryView);
+  const setView = useUi((s) => s.setLibraryView);
   const localGrid = section === 'playlists' ? localPlaylists.map((playlist) => ({
     kind: 'playlist' as const,
     id: playlist.id,
@@ -79,6 +83,22 @@ export default function LibraryPage() {
       <PageHeader title={title} />
       {!grid.length && !tracks.length && <EmptyState title="Nothing here yet" />}
       {grid.length > 0 && (
+        <div className="mx-(--body-gutter) mt-4 flex justify-end">
+          <button
+            className="grid size-8 place-items-center rounded-full text-secondary hover:bg-quinary hover:text-primary"
+            aria-label={view === 'grid' ? 'Show as list' : 'Show as grid'}
+            onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
+          >
+            {view === 'grid' ? <List size={17} /> : <LayoutGrid size={17} />}
+          </button>
+        </div>
+      )}
+      {grid.length > 0 && view === 'list' && (
+        <ul className="mx-(--body-gutter) mt-2 mb-10 flex flex-col">
+          {grid.map((item, i) => <li key={`${item.id}-${i}`}><RowLockup item={item} /></li>)}
+        </ul>
+      )}
+      {grid.length > 0 && view === 'grid' && (
         <ul className={seeAllGrid} data-wide={grid.every((i) => i.wide) || undefined}>
           {grid.map((item, i) => (
             <li key={`${item.id}-${i}`}>

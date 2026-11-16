@@ -123,6 +123,7 @@
     <string name="widget_preview_title">Tên bài hát</string>
     <string name="widget_preview_artist">Nghệ sĩ</string>
     <string name="widget_pill_label">Đang phát 4×1</string>
+    <string name="tile_playback_label">Phát/tạm dừng</string>
     <string name="widget_pill_description">Bản nhạc kèm Thích, trộn bài và điều khiển phát trên một hàng.</string>
     <string name="widget_preview_pill">Tên bài hát - Nghệ sĩ</string>
     <string name="download_quality">Chất lượng tải xuống</string>
@@ -187,6 +188,8 @@
     <string name="crossfade">Chuyển bài mượt (Crossfade)</string>
     <string name="crossfade_subtitle">Hòa quyện bài hát hiện tại vào bài tiếp theo</string>
     <string name="automix">Automix [BETA]</string>
+    <string name="advanced_automix">AutoMix nâng cao</string>
+    <string name="advanced_automix_subtitle">Chuyển bài khớp nhịp và theo câu nhạc. Tắt để dùng crossfade đơn giản.</string>
     <string name="automix_performance">Hiệu năng Automix</string>
     <string name="automix_performance_subtitle">Đặt mức sử dụng CPU cho phân tích nền</string>
     <string name="automix_performance_warning">Hiệu năng cao hơn phân tích nhanh hơn, nhưng có thể tốn pin hơn và làm máy ấm lên.</string>
@@ -310,6 +313,8 @@
     <string name="discord_token_rejected">Discord đã từ chối token đó.</string>
     <string name="discord_token_warning">Discord không cung cấp API cho phép ứng dụng đặt trạng thái của bạn, vì vậy tính năng này đăng nhập bằng tài khoản của bạn và sử dụng giao thức của Discord. Token của bạn được mã hóa trên thiết bị này và chỉ gửi đến Discord. Token cấp toàn quyền truy cập tài khoản của bạn, và việc tự động hóa tài khoản vi phạm điều khoản của Discord. Bạn chỉ nên sử dụng nếu chấp nhận rủi ro này.</string>
     <string name="dislike">Không thích</string>
+    <string name="disliked">Đã đánh dấu không thích</string>
+    <string name="undo">Hoàn tác</string>
     <string name="done">Xong</string>
     <string name="download">Tải xuống</string>
     <string name="download_quality_dialog_subtitle">Dành cho các tệp được lưu trên thiết bị này</string>
@@ -674,6 +679,8 @@
     <string name="prefer_usb_dac">Ưu tiên DAC USB</string>
     <string name="loudness_normalization">Chuẩn hóa âm lượng</string>
     <string name="loudness_normalization_subtitle">Cân bằng âm lượng giữa các bài hát</string>
+    <string name="loudness_target">Mục tiêu độ lớn</string>
+    <string name="loudness_target_subtitle">Thấp hơn thì nhỏ hơn và dư địa nhiều hơn. −14 LUFS khớp với YouTube.</string>
     <string name="loudness_off_on_speaker">Tắt trên loa điện thoại</string>
     <string name="loudness_gain_db">%1$s dB</string>
     <string name="loudness_lufs">%1$s LUFS</string>
@@ -1157,6 +1164,7 @@
     <string name="artist_signatures_unconfigured">Chưa được định cấu hình — nhấn để đặt URL API</string>
     <string name="artist_signatures_test_failed">Không thể kết nối tới API tại URL này</string>
     <string name="search_source_addons">Addon</string>
+    <string name="change_playlist_artwork">Đổi ảnh bìa danh sách phát</string>
     <string name="search_addons_none">Chưa bật addon nào. Hãy thêm một addon trong Cài đặt → Nguồn.</string>
     <string name="app_icon">Biểu tượng ứng dụng</string>
     <string name="app_icon_default">Mặc định</string>

@@ -121,6 +121,7 @@
     <string name="widget_preview_title">Şarkı adı</string>
     <string name="widget_preview_artist">Sanatçı</string>
     <string name="widget_pill_label">Şu an çalıyor 4×1</string>
+    <string name="tile_playback_label">Oynat/duraklat</string>
     <string name="widget_pill_description">Beğen, karışık çalma ve çalma kontrolleriyle parça, tek satırda.</string>
     <string name="widget_preview_pill">Şarkı adı - Sanatçı</string>
     <string name="download_quality">İndirme kalitesi</string>
@@ -181,6 +182,8 @@
     <string name="crossfade">Çapraz geçiş</string>
     <string name="crossfade_subtitle">Bir parçayı diğerine karıştırır</string>
     <string name="automix">Automix [BETA]</string>
+    <string name="advanced_automix">Gelişmiş AutoMix</string>
+    <string name="advanced_automix_subtitle">Ritme ve cümlelere uygun geçişler. Basit geçişler için kapatın.</string>
     <string name="automix_performance">Automix performansı</string>
     <string name="automix_performance_subtitle">Arka plan analizinin ne kadar CPU kullanabileceğini ayarlar</string>
     <string name="automix_performance_warning">Daha yüksek performans, parçaları daha hızlı analiz eder ancak daha fazla pil kullanabilir ve telefonu ısıtabilir.</string>
@@ -295,6 +298,8 @@
     <string name="discord_token_rejected">Discord bu belirteci reddetti.</string>
     <string name="discord_token_warning">Discord, uygulamaların varlığınızı ayarlamasına izin veren bir API sunmuyor, bu yüzden bu özellik hesabınız olarak giriş yapar ve Discord\'un protokolünü kullanır. Belirteciniz bu cihazda şifreli kalır ve yalnızca Discord\'a gönderilir. Tüm hesabınıza erişim sağlar ve hesap otomasyonu Discord\'un hizmet şartlarını ihlal eder. Yalnızca bu riski kabul ediyorsanız kullanın.</string>
     <string name="dislike">Beğenme</string>
+    <string name="disliked">Beğenilmedi olarak işaretlendi</string>
+    <string name="undo">Geri al</string>
     <string name="done">Tamam</string>
     <string name="download">İndir</string>
     <string name="download_quality_dialog_subtitle">Bu cihazda tutulan dosyalar için</string>
@@ -798,6 +803,8 @@
     <string name="prefer_usb_dac">USB DAC tercih et</string>
     <string name="loudness_normalization">Ses yüksekliği normalleştirme</string>
     <string name="loudness_normalization_subtitle">Her parçayı aynı ses yüksekliğine getirir</string>
+    <string name="loudness_target">Ses yüksekliği hedefi</string>
+    <string name="loudness_target_subtitle">Düşük değer daha sessiz ve daha fazla pay bırakır. −14 LUFS YouTube ile aynıdır.</string>
     <string name="loudness_off_on_speaker">Telefon hoparlöründe kapat</string>
     <string name="pipeline_loudness_gain">Kazanç</string>
     <string name="pipeline_loudness_measured">Ölçülen</string>
@@ -1203,6 +1210,7 @@
     <string name="artist_signatures_unconfigured">Yapılandırılmadı — API URL\'sini ayarlamak için dokunun</string>
     <string name="artist_signatures_test_failed">Bu URL\'de API\'ye ulaşılamadı</string>
     <string name="search_source_addons">Eklentiler</string>
+    <string name="change_playlist_artwork">Çalma listesi kapağını değiştir</string>
     <string name="search_addons_none">Etkin eklenti yok. Ayarlar → Kaynaklar bölümünden bir tane ekleyin.</string>
     <string name="app_icon">Uygulama simgesi</string>
     <string name="app_icon_default">Varsayılan</string>

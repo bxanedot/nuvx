@@ -139,6 +139,7 @@
     <string name="widget_preview_title">Titolo brano</string>
     <string name="widget_preview_artist">Artista</string>
     <string name="widget_pill_label">In riproduzione 4×1</string>
+    <string name="tile_playback_label">Riproduci/pausa</string>
     <string name="widget_pill_description">Il brano con Mi piace, Casuale e controlli di riproduzione, su una sola riga.</string>
     <string name="widget_preview_pill">Titolo brano - Artista</string>
     <string name="download_quality">Qualità download</string>
@@ -199,6 +200,8 @@
     <string name="crossfade">Dissolvenza incrociata</string>
     <string name="crossfade_subtitle">Sfuma un brano nel successivo</string>
     <string name="automix">Automix [BETA]</string>
+    <string name="advanced_automix">AutoMix avanzato</string>
+    <string name="advanced_automix_subtitle">Transizioni a tempo e attente alle frasi. Disattiva per dissolvenze semplici.</string>
     <string name="automix_performance">Prestazioni Automix</string>
     <string name="automix_performance_subtitle">Imposta quanta CPU può usare l\'analisi in background</string>
     <string name="automix_performance_warning">Prestazioni più elevate analizzano i brani più velocemente, ma possono usare più batteria e scaldare il telefono.</string>
@@ -313,6 +316,8 @@
     <string name="discord_token_rejected">Discord ha rifiutato quel token.</string>
     <string name="discord_token_warning">Discord non offre un\'API che permetta alle app di impostare la tua presenza, quindi questa funzione accede come il tuo account e usa il protocollo di Discord. Il tuo token resta cifrato su questo dispositivo e viene inviato solo a Discord. Concede accesso all\'intero account e l\'automazione dell\'account viola i termini di Discord. Usala solo se accetti questo rischio.</string>
     <string name="dislike">Non mi piace</string>
+    <string name="disliked">Contrassegnato come Non mi piace</string>
+    <string name="undo">Annulla</string>
     <string name="done">Fatto</string>
     <string name="download">Download</string>
     <string name="download_quality_dialog_subtitle">Per i file conservati su questo dispositivo</string>
@@ -816,6 +821,8 @@
     <string name="prefer_usb_dac">Preferisci DAC USB</string>
     <string name="loudness_normalization">Normalizzazione del volume</string>
     <string name="loudness_normalization_subtitle">Porta ogni brano alla stessa intensità sonora</string>
+    <string name="loudness_target">Obiettivo di loudness</string>
+    <string name="loudness_target_subtitle">Più basso è più morbido, con più margine. −14 LUFS corrisponde a YouTube.</string>
     <string name="loudness_off_on_speaker">Disattiva sull\'altoparlante del telefono</string>
     <string name="pipeline_loudness_gain">Guadagno</string>
     <string name="pipeline_loudness_measured">Misurata</string>
@@ -1176,6 +1183,7 @@
     <string name="artist_signatures_unconfigured">Non configurato — tocca per impostare l\'URL dell\'API</string>
     <string name="artist_signatures_test_failed">Impossibile raggiungere l\'API a questo URL</string>
     <string name="search_source_addons">Addon</string>
+    <string name="change_playlist_artwork">Cambia copertina della playlist</string>
     <string name="search_addons_none">Nessun addon attivo. Aggiungine uno in Impostazioni → Fonti.</string>
     <string name="app_icon">Icona dell’app</string>
     <string name="app_icon_default">Predefinita</string>

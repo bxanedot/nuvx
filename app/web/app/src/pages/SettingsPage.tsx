@@ -13,6 +13,7 @@ import { createPlaylistsLocally, setCreatePlaylistsLocally } from '@/data/music/
 import { Select } from '@/components/Select';
 import { AUTOMIX_BARS } from '@/playback/automix/choices';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
+import { LOUDNESS_TARGETS } from '@/state/playerSettings';
 import { useUi } from '@/state/ui';
 import { AppleMusicIntegration, AppleMusicToggles, CanvasToggle, LyricSourcesAccess, SpotifyIntegration, Toggle } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
@@ -58,13 +59,15 @@ export default function SettingsPage() {
   const crossfadeSec = usePlayer((s) => s.crossfadeSec);
   const automix = usePlayer((s) => s.automix);
   const automixBars = usePlayer((s) => s.automixBars);
+  const loudnessTarget = usePlayer((s) => s.loudnessTarget);
+  const sleepMinutes = usePlayer((s) => s.sleepMinutes);
   const showNerdStats = usePlayer((s) => s.showNerdStats);
   const settingsSaveError = usePlayer((s) => s.settingsSaveError);
   const shareHistory = useHistorySettings((s) => s.share);
   const setShareHistory = useHistorySettings((s) => s.setShare);
   const backgroundMotion = useUi((s) => s.backgroundMotion);
   const setBackgroundMotion = useUi((s) => s.setBackgroundMotion);
-  const { setAutoplay, setCrossfade, setAutomix, setAutomixBars, setShowNerdStats } = usePlayer.getState();
+  const { setAutoplay, setCrossfade, setAutomix, setAutomixBars, setShowNerdStats, setLoudnessTarget, setSleepTimer } = usePlayer.getState();
   const [lyrics, setLyrics] = useState(false);
   const [localPlaylistsOnly, setLocalPlaylistsOnly] = useState(createPlaylistsLocally);
   const present = extension.state === 'present';
@@ -204,6 +207,30 @@ export default function SettingsPage() {
               />
             </label>
           )}
+          <label className={settingsUi.controlRow}>
+            <span>Sleep Timer</span>
+            <Select<number | 'off'>
+              label="Sleep Timer"
+              value={sleepMinutes ?? 'off'}
+              options={[
+                { value: 'off', label: 'Off' },
+                ...[15, 30, 45, 60].map((minutes) => ({ value: minutes, label: `${minutes} minutes, then fade out` })),
+              ]}
+              onChange={(value) => setSleepTimer(value === 'off' ? null : value)}
+            />
+          </label>
+          <label className={settingsUi.controlRow}>
+            <span>Normalize Loudness</span>
+            <Select<number | 'off'>
+              label="Normalize Loudness"
+              value={loudnessTarget ?? 'off'}
+              options={[
+                { value: 'off', label: 'Off' },
+                ...LOUDNESS_TARGETS.map((lufs) => ({ value: lufs, label: lufs === -14 ? `${lufs} LUFS (standard)` : `${lufs} LUFS` })),
+              ]}
+              onChange={(value) => setLoudnessTarget(value === 'off' ? null : value)}
+            />
+          </label>
           <Toggle
             label="Show Stats for Nerds"
             detail="Codec, bitrate and sample rate under the artist in the full-screen player, and what Automix is doing."

@@ -15,10 +15,13 @@ interface UiState {
   setBackgroundMotion: (enabled: boolean) => void;
   installBannerDismissed: boolean;
   dismissInstallBanner: () => void;
+  libraryView: 'grid' | 'list';
+  setLibraryView: (view: 'grid' | 'list') => void;
 }
 
 const BANNER_KEY = 'nuvx:install-banner-dismissed';
 const BACKGROUND_MOTION_KEY = 'nuvx:background-motion';
+const LIBRARY_VIEW_KEY = 'nuvx:library-view';
 
 export const useUi = create<UiState>()((set) => ({
   sidePanel: null,
@@ -37,6 +40,11 @@ export const useUi = create<UiState>()((set) => ({
   dismissInstallBanner: () => {
     writeStorage('sessionStorage', BANNER_KEY, '1');
     set({ installBannerDismissed: true });
+  },
+  libraryView: readStorage('localStorage', LIBRARY_VIEW_KEY) === 'list' ? 'list' : 'grid',
+  setLibraryView: (libraryView) => {
+    writeStorage('localStorage', LIBRARY_VIEW_KEY, libraryView);
+    set({ libraryView });
   },
 }));
 

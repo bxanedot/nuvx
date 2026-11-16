@@ -122,6 +122,7 @@
     <string name="widget_preview_title">Название песни</string>
     <string name="widget_preview_artist">Исполнитель</string>
     <string name="widget_pill_label">Сейчас играет 4×1</string>
+    <string name="tile_playback_label">Воспроизвести/пауза</string>
     <string name="widget_pill_description">Трек с лайком, перемешиванием и управлением воспроизведением в одну строку.</string>
     <string name="widget_preview_pill">Название песни - Исполнитель</string>
     <string name="download_quality">Качество загрузки</string>
@@ -281,6 +282,8 @@
     <string name="discord_token_rejected">Discord отклонил этот токен.</string>
     <string name="discord_token_warning">Discord не предоставляет API, позволяющий приложениям задавать ваш статус, поэтому эта функция выполняет вход в ваш аккаунт и использует протокол Discord. Ваш токен хранится в зашифрованном виде на этом устройстве и отправляется только в Discord. Он даёт доступ ко всему вашему аккаунту, а автоматизация аккаунта нарушает условия использования Discord. Используйте эту функцию, только если принимаете этот риск.</string>
     <string name="dislike">Не нравится</string>
+    <string name="disliked">Отмечено как «Не нравится»</string>
+    <string name="undo">Отменить</string>
     <string name="done">Готово</string>
     <string name="download">Загрузить</string>
     <string name="download_quality_dialog_subtitle">Для файлов, хранящихся на этом устройстве</string>
@@ -765,6 +768,8 @@
     <string name="automix_mode_performance_subtitle">4 потока · самый быстрый анализ · выше нагрев и расход</string>
 
 
+    <string name="advanced_automix">Расширенный AutoMix</string>
+    <string name="advanced_automix_subtitle">Переходы в такт и по фразам. Отключите для простого кроссфейда.</string>
     <string name="automix_performance">Производительность Automix</string>
 
     <string name="automix_performance_subtitle">Определяет нагрузку на процессор при фоновом анализе</string>
@@ -841,6 +846,8 @@
     <string name="prefer_usb_dac">Предпочитать USB ЦАП</string>
     <string name="loudness_normalization">Нормализация громкости</string>
     <string name="loudness_normalization_subtitle">Выравнивает громкость всех треков</string>
+    <string name="loudness_target">Целевая громкость</string>
+    <string name="loudness_target_subtitle">Ниже — тише и с большим запасом. −14 LUFS соответствует YouTube.</string>
     <string name="loudness_off_on_speaker">Отключить на динамике телефона</string>
     <string name="pipeline_loudness_gain">Усиление</string>
     <string name="pipeline_loudness_measured">Измерено</string>
@@ -1264,6 +1271,7 @@
     <string name="artist_signatures_unconfigured">Не настроено — нажмите, чтобы задать URL API</string>
     <string name="artist_signatures_test_failed">Не удалось связаться с API по этому URL</string>
     <string name="search_source_addons">Аддоны</string>
+    <string name="change_playlist_artwork">Изменить обложку плейлиста</string>
     <string name="search_addons_none">Нет включённых аддонов. Добавьте аддон в Настройки → Источники.</string>
     <string name="app_icon">Значок приложения</string>
     <string name="app_icon_default">По умолчанию</string>
