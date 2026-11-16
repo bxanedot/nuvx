@@ -1429,4 +1429,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">חיבור פרטי</string>
+    <string name="privacy_connection_subtitle">שליחת התעבורה של nuvx דרך Tor</string>
+    <string name="privacy_connection_footer">מנתב את הבקשות והשמע של nuvx דרך רשת Tor באמצעות האפליקציה Orbot. ההגנה חלה על nuvx בלבד ואינה VPN לכל המערכת. שירותים שאליהם התחברת עדיין יכולים לזהות את החשבון שלך, ו-Tor איטי יותר, כך ששמע באיכות גבוהה עלול להיטען לאט. אם החיבור נופל, nuvx מפסיק לטעון במקום להתחבר ישירות.</string>
+    <string name="privacy_restart_needed">יש לסגור ולפתוח מחדש את nuvx כדי להחיל את השינוי.</string>
+    <string name="privacy_webview_uncovered">דפי ההתחברות במכשיר הזה אינם יכולים לעבור דרך Tor ומתחברים ישירות.</string>
+    <string name="privacy_mode_automatic">אוטומטי</string>
+    <string name="privacy_mode_embedded">Tor מובנה</string>
+    <string name="privacy_status">מצב</string>
+    <string name="privacy_status_disabled">מושבת</string>
+    <string name="privacy_status_connecting">מתחבר</string>
+    <string name="privacy_status_bootstrapping">מפעיל את Tor (%1$d%%)</string>
+    <string name="privacy_status_connected_orbot">מחובר דרך Orbot</string>
+    <string name="privacy_status_connected_embedded">מחובר דרך Tor + Snowflake</string>
+    <string name="privacy_status_switching">מחליף חיבור</string>
+    <string name="privacy_status_unavailable">החיבור אינו זמין</string>
+    <string name="privacy_test">בדיקת החיבור</string>
+    <string name="privacy_test_running">בודק…</string>
+    <string name="privacy_test_passed">עבר: הבקשה יצאה דרך Tor</string>
+    <string name="privacy_test_failed">נכשל: אין חיבור Tor פעיל</string>
+    <string name="privacy_retry">ניסיון חיבור חוזר</string>
+    <string name="privacy_open_orbot">פתיחת Orbot</string>
+    <string name="privacy_install_orbot">התקנת Orbot</string>
+    <string name="privacy_orbot_subtitle">Orbot צריך לפעול כש-Tor מחובר</string>
 </resources>

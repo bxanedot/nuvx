@@ -70,6 +70,11 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <queries>
+        <!-- Privacy Connection: see whether Orbot is installed and talk to its status broadcast. -->
+        <package android:name="org.torproject.android" />
+    </queries>
+
     <application
         android:name=".NuvxApplication"
         android:allowBackup="true"

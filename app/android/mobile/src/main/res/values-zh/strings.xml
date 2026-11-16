@@ -1404,4 +1404,27 @@
     <string name="discord_invite_body">Meet other Nuvx listeners, share feedback, and get app updates.</string>
     <string name="discord_invite_join">Join Server</string>
     <string name="discord_invite_not_now">Not Now</string>
+    <string name="privacy_connection">隐私连接</string>
+    <string name="privacy_connection_subtitle">通过 Tor 发送 nuvx 的流量</string>
+    <string name="privacy_connection_footer">借助 Orbot 应用，将 nuvx 自身的请求和音频通过 Tor 网络发送。它只保护 nuvx，并不是系统级 VPN。你已登录的服务仍可识别你的账号；Tor 速度较慢，高音质音频可能会缓冲。连接中断时，nuvx 会停止加载，而不会改为直接联网。</string>
+    <string name="privacy_restart_needed">关闭并重新打开 nuvx 以应用此更改。</string>
+    <string name="privacy_webview_uncovered">此设备上的登录页面无法通过 Tor，会直接连接。</string>
+    <string name="privacy_mode_automatic">自动</string>
+    <string name="privacy_mode_embedded">内置 Tor</string>
+    <string name="privacy_status">状态</string>
+    <string name="privacy_status_disabled">已停用</string>
+    <string name="privacy_status_connecting">正在连接</string>
+    <string name="privacy_status_bootstrapping">正在启动 Tor（%1$d%%）</string>
+    <string name="privacy_status_connected_orbot">已通过 Orbot 连接</string>
+    <string name="privacy_status_connected_embedded">已通过 Tor + Snowflake 连接</string>
+    <string name="privacy_status_switching">正在切换连接</string>
+    <string name="privacy_status_unavailable">连接不可用</string>
+    <string name="privacy_test">测试连接</string>
+    <string name="privacy_test_running">正在测试…</string>
+    <string name="privacy_test_passed">通过：请求已经由 Tor 发出</string>
+    <string name="privacy_test_failed">失败：没有可用的 Tor 连接</string>
+    <string name="privacy_retry">重试连接</string>
+    <string name="privacy_open_orbot">打开 Orbot</string>
+    <string name="privacy_install_orbot">安装 Orbot</string>
+    <string name="privacy_orbot_subtitle">Orbot 必须正在运行并已连接 Tor</string>
 </resources>
