@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { engineLoad, fetchRadio } = vi.hoisted(() => ({
   engineLoad: vi.fn(async (videoId: string) => ({
     videoId, title: videoId, author: '', durationSec: 180, thumbnails: [], client: 'WEB', format: 'Opus',
-    stream: { codec: 'opus', itag: '251', bitrateKbps: 128, sampleRateHz: 48000, channels: 2, mode: 'direct' }, loudnessDb: null,
+    stream: { codec: 'opus', itag: '251', bitrateKbps: 128, sampleRateHz: 48000, channels: 2, mode: 'direct' }, loudnessDb: null as number | null,
   })),
   fetchRadio: vi.fn(),
 }));
