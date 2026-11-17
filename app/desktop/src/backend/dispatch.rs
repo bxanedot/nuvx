@@ -194,10 +194,18 @@ impl Backend {
                     let failed = results.iter().filter(|r| r.is_err()).count();
                     Resp::DownloadedAll { name, done: results.len() - failed, failed }
                 }
-                Req::Play { video_id, generation, at, report, start_paused, song_of, song, track } => match self.start_playback(&video_id, song_of.as_ref(), song, track.as_ref(), generation, at, report, start_paused).await {
-                    Ok(()) => return Ok(None),
-                    Err(e) => Resp::PlayError { generation, msg: format!("{e:#}") },
-                },
+                Req::Play { video_id, generation, at, report, start_paused, song_of, song, track } => {
+                    let mut result = self.start_playback(&video_id, song_of.as_ref(), song.clone(), track.as_ref(), generation, at, report, start_paused).await;
+                    // One retry for a dropped connection, so a network blip doesn't skip the song.
+                    if result.as_ref().is_err_and(transient) && self.audio.status.wanted_gen.load(std::sync::atomic::Ordering::Relaxed) == generation {
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                        result = self.start_playback(&video_id, song_of.as_ref(), song, track.as_ref(), generation, at, report, start_paused).await;
+                    }
+                    match result {
+                        Ok(()) => return Ok(None),
+                        Err(e) => Resp::PlayError { generation, msg: format!("{e:#}") },
+                    }
+                }
                 Req::Prefetch { video_id, song_of, track } => {
                     self.prefetch(video_id, song_of, track).await?;
                     return Ok(None);
@@ -262,5 +270,25 @@ impl Backend {
             log::warn!("{what} failed: {e:#}");
             (!quiet).then(|| Resp::Error(format!("{what} failed: {e}")))
         })
+    }
+}
+
+/// A network failure worth one more try; anything else (unavailable, age-restricted, decode) is final.
+fn transient(e: &anyhow::Error) -> bool {
+    use std::io::ErrorKind::*;
+    e.chain().any(|cause| {
+        cause.downcast_ref::<reqwest::Error>().is_some_and(|r| r.is_timeout() || r.is_connect())
+            || cause.downcast_ref::<std::io::Error>().is_some_and(|io| matches!(io.kind(), TimedOut | ConnectionReset | ConnectionAborted | ConnectionRefused | UnexpectedEof))
+    })
+}
+
+#[cfg(test)]
+mod transient_tests {
+    #[test]
+    fn only_network_failures_are_retried() {
+        let reset = anyhow::Error::from(std::io::Error::from(std::io::ErrorKind::ConnectionReset)).context("opening the stream");
+        assert!(super::transient(&reset));
+        assert!(!super::transient(&anyhow::anyhow!("it's age-restricted")));
+        assert!(!super::transient(&anyhow::Error::from(std::io::Error::from(std::io::ErrorKind::NotFound))));
     }
 }
