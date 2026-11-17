@@ -123,12 +123,13 @@ internal fun TabIcon(tab: BottomTab, selected: Boolean, tint: Color, modifier: M
         seen = selected
     }
     val again = tabReselects[tab.label] ?: 0
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     TabSymbolIcon(
         symbol = symbol,
         tint = tint,
         contentDescription = tab.label,
         trigger = taps to again,
-        effect = TabBounce,
+        effect = if (reduceAnimation) null else TabBounce,
         modifier = modifier,
     )
 }
