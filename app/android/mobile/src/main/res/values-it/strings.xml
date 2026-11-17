@@ -1386,4 +1386,6 @@
     <string name="privacy_open_orbot">Apri Orbot</string>
     <string name="privacy_install_orbot">Installa Orbot</string>
     <string name="privacy_orbot_subtitle">Orbot deve essere in esecuzione con Tor connesso</string>
+    <string name="nightly_updates">Aggiornamenti nightly</string>
+    <string name="nightly_updates_subtitle">Ricevi le build di prova appena vengono pubblicate. Disattivato per impostazione predefinita; se disattivato, nuvx propone solo versioni stabili.</string>
 </resources>

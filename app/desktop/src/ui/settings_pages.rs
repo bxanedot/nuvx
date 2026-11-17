@@ -189,6 +189,12 @@ fn settings_window(app: &mut App, ui: &mut Ui) {
             toggle(ui, &mut app.close_to_tray, "Close to tray");
         });
         divider(ui);
+        setting_row(ui, "Nightly updates", Some("Get test builds as soon as they are published. Off by default; when off, nuvx only offers stable releases."), |ui| {
+            if toggle(ui, &mut app.nightly_updates, "Nightly updates").changed() {
+                app.update_checked = None;
+            }
+        });
+        divider(ui);
         setting_row(ui, "Collapse sidebar", Some("Show only icons in the sidebar, for narrow windows. The menu button at its top does the same."), |ui| {
             toggle(ui, &mut app.sidebar_collapsed, "Collapse sidebar");
         });

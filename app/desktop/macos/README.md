@@ -26,8 +26,8 @@ Do not disable Gatekeeper system-wide.
 
 The **Apple builds** workflow compiles/tests the Rust desktop on both Apple
 silicon and Intel GitHub runners, combines them into a universal app, then uploads
-a universal DMG artifact with SHA-256 checksums. Release assets are separate
-Apple silicon and Intel DMGs. It runs on relevant PRs and `main` pushes,
+a universal DMG artifact with SHA-256 checksums. The release
+asset is the same universal DMG. It runs on relevant PRs and `main` pushes,
 or manually from **Actions**. Download `macos-universal` from the completed
 run; artifacts expire after 14 days.
 

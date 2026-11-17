@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 const RELEASE_LIST: &str = "https://api.github.com/repos/lylicht/nuvx/releases?per_page=100";
@@ -23,6 +24,7 @@ pub struct Updater {
     dir: PathBuf,
     wake: Arc<dyn Fn() + Send + Sync>,
     notes: Notes,
+    nightly: Arc<AtomicBool>,
 }
 
 pub fn current_version() -> String {
@@ -57,14 +59,10 @@ fn asset_name(version: &str) -> String {
     asset_name_for(std::env::consts::OS, std::env::consts::ARCH, version)
 }
 
-fn asset_name_for(os: &str, arch: &str, version: &str) -> String {
+fn asset_name_for(os: &str, _arch: &str, version: &str) -> String {
     match os {
         "linux" => format!("nuvx-setup-{version}-linux-universal.tar.gz"),
-        "macos" => match arch {
-            "aarch64" => format!("nuvx-setup-{version}-macos-apple-silicon.dmg"),
-            "x86_64" => format!("nuvx-setup-{version}-macos-intel.dmg"),
-            _ => format!("nuvx-setup-{version}-macos-{arch}.dmg"),
-        },
+        "macos" => format!("nuvx-setup-{version}-macos-universal.dmg"),
         _ => format!("nuvx-setup-{version}.exe"),
     }
 }
@@ -104,9 +102,15 @@ pub fn newer(a: &str, b: &str) -> bool {
     false
 }
 
-fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time: &str, current_version: &str, current_tag: &str, current_time: &str) -> bool {
+/// Releases from before the licht line stay on GitHub as pre-releases named "old". They are other apps with
+/// other package IDs and higher version numbers, so no updater may ever offer them.
+fn is_old_build(name: Option<&str>, tag: &str, prerelease: bool) -> bool {
+    name.is_some_and(|n| n.split(|c: char| !c.is_alphanumeric()).any(|w| w.eq_ignore_ascii_case("old"))) || prerelease && !tag.starts_with("nightly.")
+}
+
+fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time: &str, current_version: &str, current_tag: &str, current_time: &str, allow_nightly: bool) -> bool {
     let (candidate, current) = (version_core(candidate_version), version_core(current_version));
-    if !current_tag.starts_with("nightly.") && candidate_tag.starts_with("nightly.") {
+    if candidate_tag.starts_with("nightly.") && !allow_nightly {
         return false;
     }
     if newer(candidate, current) {
@@ -121,7 +125,10 @@ fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time
                 .zip(nightly_build(current_tag))
                 .is_some_and(|(candidate, current)| candidate > current);
         }
-        return false;
+        // A nightly install with nightlies switched off still moves to the stable build of the same version.
+        let published = candidate_time.get(..19).unwrap_or(candidate_time);
+        let built = current_time.get(..19).unwrap_or(current_time);
+        return !allow_nightly && !built.is_empty() && published > built;
     }
     let published = candidate_time.get(..19).unwrap_or(candidate_time);
     let built = current_time.get(..19).unwrap_or(current_time);
@@ -168,7 +175,12 @@ fn compare_release_order(a_version: &str, a_tag: &str, a_time: &str, b_version: 
 
 impl Updater {
     pub fn new(data_dir: &Path, wake: impl Fn() + Send + Sync + 'static) -> Self {
-        Self { state: Arc::new(Mutex::new(State::Idle)), dir: data_dir.join("updates"), wake: Arc::new(wake), notes: Default::default() }
+        Self { state: Arc::new(Mutex::new(State::Idle)), dir: data_dir.join("updates"), wake: Arc::new(wake), notes: Default::default(), nightly: Default::default() }
+    }
+
+    /// Whether nightly builds may be offered. Off unless the user turns it on.
+    pub fn set_nightly(&self, on: bool) {
+        self.nightly.store(on, Ordering::Relaxed);
     }
 
     pub fn state(&self) -> State {
@@ -241,6 +253,7 @@ impl Updater {
         let current = current_version();
         let current_tag = current_release_tag();
         let current_time = current_build_time();
+        let nightly = self.nightly.load(Ordering::Relaxed);
         let candidate = releases
             .iter()
             .filter_map(|release| {
@@ -248,9 +261,12 @@ impl Updater {
                     return None;
                 }
                 let tag = release["tag_name"].as_str()?;
+                if is_old_build(release["name"].as_str(), tag, release["prerelease"].as_bool() == Some(true)) {
+                    return None;
+                }
                 let version = release["name"].as_str().and_then(|name| name.strip_prefix("nuvx ")).unwrap_or_else(|| tag.trim_start_matches('v'));
                 let published_at = release["published_at"].as_str()?;
-                if !release_is_newer(version, tag, published_at, &current, &current_tag, &current_time) {
+                if !release_is_newer(version, tag, published_at, &current, &current_tag, &current_time, nightly) {
                     return None;
                 }
                 let want = asset_name(tag.trim_start_matches('v'));
@@ -480,7 +496,11 @@ fn client() -> anyhow::Result<reqwest::Client> {
 
 #[cfg(test)]
 mod tests {
-    use super::{asset_name_for, compare_release_order, newer, release_is_newer};
+    use super::{asset_name_for, compare_release_order, is_old_build, newer};
+
+    fn release_is_newer(a: &str, b: &str, c: &str, d: &str, e: &str, f: &str) -> bool {
+        super::release_is_newer(a, b, c, d, e, f, e.starts_with("nightly."))
+    }
 
     #[test]
     fn installer_names_match_each_platform_variant() {
@@ -490,7 +510,7 @@ mod tests {
         );
         assert_eq!(
             asset_name_for("macos", "aarch64", "0.9.0"),
-            "nuvx-setup-0.9.0-macos-apple-silicon.dmg"
+            "nuvx-setup-0.9.0-macos-universal.dmg"
         );
         assert_eq!(
             asset_name_for("linux", "x86_64", "0.9.0"),
@@ -498,7 +518,7 @@ mod tests {
         );
         assert_eq!(
             asset_name_for("macos", "x86_64", "0.9.0"),
-            "nuvx-setup-0.9.0-macos-intel.dmg"
+            "nuvx-setup-0.9.0-macos-universal.dmg"
         );
         assert_eq!(
             asset_name_for("windows", "x86_64", "nightly.45.1"),
@@ -510,7 +530,7 @@ mod tests {
         );
         assert_eq!(
             asset_name_for("macos", "aarch64", "nightly.45.1"),
-            "nuvx-setup-nightly.45.1-macos-apple-silicon.dmg"
+            "nuvx-setup-nightly.45.1-macos-universal.dmg"
         );
     }
 
@@ -542,5 +562,32 @@ mod tests {
         assert!(release_is_newer("0.10.0", "v0.10.0", stable_time, "0.9.0", "v0.9.0", later_nightly_time));
         assert_eq!(compare_release_order("1.0.0", "v1.0.0", stable_time, "1.0.0-nightly.44.1", "nightly.44.1", later_nightly_time), std::cmp::Ordering::Greater);
         assert_eq!(compare_release_order("0.9.0-nightly.44.1", "nightly.44.1", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time), std::cmp::Ordering::Greater);
+    }
+
+    #[test]
+    fn nightlies_are_offered_only_when_switched_on() {
+        let built = "2026-11-17T10:00:00Z";
+        let published = "2026-11-17T12:00:00Z";
+        let rel = super::release_is_newer;
+        assert!(!rel("1.0.0-nightly.5.1", "nightly.5.1", published, "1.0.0", "v1.0.0", built, false));
+        assert!(rel("1.0.0-nightly.5.1", "nightly.5.1", published, "1.0.0", "v1.0.0", built, true));
+        assert!(!rel("1.0.0-nightly.6.1", "nightly.6.1", published, "1.0.0-nightly.5.1", "nightly.5.1", built, false));
+        assert!(rel("1.0.0-nightly.6.1", "nightly.6.1", published, "1.0.0-nightly.5.1", "nightly.5.1", built, true));
+        // A nightly install with nightlies off still moves to the stable build of the same version.
+        assert!(rel("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, false));
+        assert!(!rel("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, true));
+        assert!(!rel("1.0.0", "v1.0.0", "2026-11-17T09:00:00Z", "1.0.0-nightly.5.1", "nightly.5.1", built, false));
+    }
+
+    #[test]
+    fn old_builds_and_non_nightly_prereleases_are_never_offered() {
+        assert!(is_old_build(Some("nuvx 1.1.0 (old build)"), "v1.1.0", true));
+        assert!(is_old_build(Some("Old"), "v0.9.0", false));
+        assert!(is_old_build(Some("nuvx 1.1.0-nightly.170.1 (old build)"), "nightly.170.1", true));
+        assert!(is_old_build(Some("nuvx 1.2.0"), "v1.2.0", true));
+        assert!(!is_old_build(Some("nuvx 1.0.0"), "v1.0.0", false));
+        assert!(!is_old_build(Some("nuvx 1.0.0-nightly.7.1"), "nightly.7.1", true));
+        assert!(!is_old_build(Some("Golden hour"), "v1.0.1", false));
+        assert!(!is_old_build(None, "v1.0.0", false));
     }
 }

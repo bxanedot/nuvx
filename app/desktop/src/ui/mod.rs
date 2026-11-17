@@ -376,6 +376,7 @@ pub struct App {
     media_cover: Arc<std::sync::Mutex<Option<(String, String)>>>,
 
     close_to_tray: bool,
+    nightly_updates: bool,
     pub(super) classic_search: bool,
     pub(super) youtube_search: bool,
     // shortcut: ids of plain YouTube videos played from YouTube Search, kept for this run only; a restored queue plays them as audio until Track carries the flag.

@@ -128,6 +128,7 @@ impl App {
             output_devices: Vec::new(),
             updater: None,
             close_to_tray: !no_tray && get("close_to_tray").is_some_and(|v| v == "1"),
+            nightly_updates: get("nightly_updates").is_some_and(|v| v == "1"),
             classic_search: get("classic_search").is_some_and(|v| v == "1"),
             youtube_search: get("youtube_search").is_some_and(|v| v == "1"),
             search_youtube: false,

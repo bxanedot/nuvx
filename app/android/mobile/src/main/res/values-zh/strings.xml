@@ -1427,4 +1427,6 @@
     <string name="privacy_open_orbot">打开 Orbot</string>
     <string name="privacy_install_orbot">安装 Orbot</string>
     <string name="privacy_orbot_subtitle">Orbot 必须正在运行并已连接 Tor</string>
+    <string name="nightly_updates">夜间更新</string>
+    <string name="nightly_updates_subtitle">测试版一发布就获取。默认关闭；关闭时，nuvx 只提供稳定版本。</string>
 </resources>

@@ -55,18 +55,20 @@
 
 | Device | Requirements | Where to start |
 | --- | --- | --- |
-| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/nuvx-v1.0.0-universal.apk) |
+| **Android phone or tablet** | Android 8.0+ | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · one universal APK |
 | **Android Auto** | Compatible head unit + phone running nuvx | Install the phone app; its media service provides Android Auto playback controls |
-| **nuvx Auto** | Compatible Android head unit | [Standalone v1.0.0 APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/NuvxAuto-v1.0.0-universal.apk) · stereo widening starts off and loudness normalization stays enabled |
-| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · [v1.0.0 universal APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/NuvxTV-v1.0.0-universal.apk) |
-| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · [v1.0.0 Wear APK](https://github.com/lylicht/nuvx/releases/download/v1.0.0/NuvxWear-v1.0.0.apk) |
-| **iPhone** | iOS/iPadOS 18+; signing required | [Unsigned v1.0.0 IPA](https://github.com/lylicht/nuvx/releases/download/v1.0.0/nuvx-1.0.0-universal.ipa) · [install and update guide](app/ios/README.md) |
+| **nuvx Auto** | Compatible Android head unit | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · one standalone APK · stereo widening starts off and loudness normalization stays enabled |
+| **Android TV or Google TV** | Android 8.0+ | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · one universal APK |
+| **Wear OS** | Wear OS 3+ and a paired Android phone running nuvx | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · one Wear APK |
+| **iPhone** | iOS/iPadOS 18+; signing required | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · one unsigned IPA · [install and update guide](app/ios/README.md) |
 | **Windows** | Windows 10+, x64 or ARM64 | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · universal setup `.exe` |
-| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · separate Apple silicon and Intel `.dmg` files |
+| **macOS** | macOS 15+, Apple silicon or Intel | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · one universal `.dmg` |
 | **Linux** | x86-64 or ARM64 | [Latest release](https://github.com/lylicht/nuvx/releases/latest) · universal `.tar.gz` |
-| **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Firefox 1.0.0 add-on ZIP](https://github.com/lylicht/nuvx/releases/download/v1.0.0/nuvx-extension-firefox-1.0.0.zip) · [Extension setup](https://web.nuvx.lol/guide) |
+| **Web** | Chrome, Edge, Brave or Firefox on desktop, with the companion extension for full playback | [Web player](https://web.nuvx.lol) · [Firefox add-on ZIP](https://github.com/lylicht/nuvx/releases/latest) · [Extension setup](https://web.nuvx.lol/guide) |
 
-The stable v1.0.0 release is available on GitHub. The older v0.9.0 phone and TV APKs remain split into GMS and FOSS variants; v1.0.0 provides one shared universal APK for each app, plus a standalone nuvx Auto APK. Each phone, TV, and Auto APK includes armeabi-v7a, arm64-v8a, and x86_64. Cast and Wear features require Google Play Services. Phone and TV keep byte-identical `-gms` and `-foss` aliases for older updater compatibility; Auto has one canonical APK. Nightlies generated before v1.0.0 used version 0.9.0/code 9; the first post-release nightlies use 1.0.0/code 10 and later builds follow the current manifest version. Android Auto projection remains part of the phone app, and Wear OS ships as a separate APK. Windows and Linux installers include x64 and ARM64 builds; macOS provides separate Apple silicon and Intel `.dmg` files. Browser extensions share the main release tag. The v1.0.0 release includes an unsigned iOS IPA; Apple builds can attach future IPAs to an existing release when manually dispatched.
+Every device has exactly one download: a universal APK for Android phones and tablets, one for Android TV, a standalone one for nuvx Auto and one for Wear OS, an unsigned IPA for iPhone and iPad, one Windows installer and one Linux archive that each carry x64 and ARM64, and one macOS disk image for Apple silicon and Intel. Phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64. Cast and Wear features require Google Play Services. Android Auto projection is part of the phone app. Browser extensions share the main release tag.
+
+The first licht release is 1.0.0, with Android version code 1 and build 1 on every device, and new package IDs (`com.licht.nuvx`). It installs next to the old apps instead of updating them. Older releases stay on GitHub as pre-releases named "old build" and are never offered by an updater. Nightly builds are for testing: turn on **Nightly updates** in Settings to receive them, and leave it off, the default, to get only stable releases.
 
 ### Download troubleshooting
 

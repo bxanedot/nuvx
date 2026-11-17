@@ -22,6 +22,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -71,6 +73,8 @@ fun TvSettingsScreen(
     val excorFallback by AppSettings.excorFallback.collectAsState()
     val youtubeSearch by AppSettings.youtubeSearch.collectAsState()
     val createPlaylistsLocally by AppSettings.createPlaylistsLocally.collectAsState()
+    val nightlyUpdates by AppSettings.nightlyUpdates.collectAsState()
+    val updateScope = rememberCoroutineScope()
     val eqEnabled by AppSettings.equalizerEnabled.collectAsState()
     val spatial by AppSettings.spatialAudio.collectAsState()
     val loudness by AppSettings.loudnessNormalization.collectAsState()
@@ -361,6 +365,17 @@ fun TvSettingsScreen(
                         onClick = { sheet = SettingsSheet.Update },
                     )
                 }
+            }
+            item {
+                TvListRow(
+                    title = "Nightly Updates",
+                    value = onOff(nightlyUpdates),
+                    onFocused = { blurb = "Get test builds as soon as they are published. Off by default; when off, nuvx only offers stable releases." },
+                    onClick = {
+                        AppSettings.setNightlyUpdates(!nightlyUpdates)
+                        updateScope.launch { AppUpdateChecker.check() }
+                    },
+                )
             }
             item {
                 TvListRow(

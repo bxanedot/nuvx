@@ -123,7 +123,7 @@
   const downloadLabel = document.querySelector('#download-label');
   const hero = document.querySelector('#device-download');
   const nightly = document.querySelector('#nightly-download');
-  const downloads = { Windows: 'windows', Linux: 'linux', Android: 'android', 'Android TV': 'tv', 'Wear OS': 'wear' };
+  const downloads = { Windows: 'windows', macOS: 'mac', Linux: 'linux', Android: 'android', 'Android TV': 'tv', 'Wear OS': 'wear' };
   const setNightlyLink = (target) => {
     if (nightly) nightly.href = target ? `/api/download?channel=nightly&platform=${target}` : '#releases';
   };
@@ -138,28 +138,12 @@
     if (hero) hero.href = '/api/download?platform=ios';
     if (downloadLabel) downloadLabel.textContent = 'Check iOS availability';
     setNightlyLink(null);
-  } else if (device !== 'macOS') {
+  } else {
     setNightlyLink(null);
-  }
-  if (hero && device === 'macOS') {
-    if (downloadLabel) downloadLabel.textContent = 'Choose a macOS installer';
-    navigator.userAgentData?.getHighEntropyValues?.(['architecture'])
-      .then(({ architecture }) => {
-        if (architecture === 'x86' || architecture === 'x86_64') {
-          hero.href = '/api/download?platform=mac-intel';
-          setNightlyLink('mac-intel');
-        } else if (architecture === 'arm' || architecture === 'arm64') {
-          hero.href = '/api/download?platform=mac-arm';
-          setNightlyLink('mac-arm');
-        } else {
-          setNightlyLink(null);
-        }
-      }).catch(() => {});
   }
   const showNote = (version) => {
     if (device === 'iOS') note.textContent = 'The iOS app is not available in the current stable release. Check the package list for updates.';
     else if (downloads[device]) note.textContent = `The latest nuvx ${version} package for ${device} downloads directly.`;
-    else if (device === 'macOS') note.textContent = 'Choose the macOS installer that matches your Mac from the package list below.';
     else note.textContent = 'Choose a device package from the list below.';
   };
   showNote(document.querySelector('[data-version]')?.textContent.trim() ?? '');
