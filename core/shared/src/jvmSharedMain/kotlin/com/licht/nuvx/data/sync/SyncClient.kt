@@ -31,7 +31,19 @@ sealed interface SyncResult {
     data class RetryLater(val why: String) : SyncResult
     /** Retrying will not help (device revoked, space full, newer server, invalid op). Keep the outbox and tell the user. */
     data class Stop(val why: String) : SyncResult
+    /** This device now belongs to [spaceId]. Store [token] in secure storage; it is shown once. */
+    data class Joined(val spaceId: String, val deviceId: String, val token: String) : SyncResult
+    /** Show [code] as a QR on this device and keep [secret] private; poll [SyncClient.claim] until [expiresAtMs]. */
+    data class PairingStarted(val code: String, val secret: String, val expiresAtMs: Long) : SyncResult
+    /** The code is not approved yet; poll again shortly. */
+    data object Waiting : SyncResult
+    /** The code was approved for a device named [deviceName]; it joins on its next claim. */
+    data class Approved(val deviceName: String) : SyncResult
+    data class Devices(val devices: List<SyncDevice>, val you: String) : SyncResult
+    data object Done : SyncResult
 }
+
+data class SyncDevice(val id: String, val name: String, val createdMs: Long, val seenMs: Long)
 
 /** Bounded exponential backoff: 5 s, 10 s, 20 s … capped at 30 minutes. */
 fun retryDelayMs(attempt: Int): Long = (5_000L shl attempt.coerceIn(0, 20)).coerceAtMost(30 * 60_000L)
@@ -42,7 +54,8 @@ fun retryDelayMs(attempt: Int): Long = (5_000L shl attempt.coerceIn(0, 20)).coer
  */
 class SyncClient(
     private val baseUrl: String,
-    private val token: String,
+    /** Null before this device has joined a space (creating one or claiming a pairing). */
+    private val token: String?,
     private val client: OkHttpClient = Http.client,
 ) {
     /** Sends the oldest ops that fit in one request, in order. */
@@ -85,9 +98,49 @@ class SyncClient(
         SyncResult.Pulled(ops, ops.lastOrNull()?.seq ?: cursor, json["more"]?.jsonPrimitive?.booleanOrNull == true)
     }
 
+    /** Starts a new space with this device as its first member. */
+    fun createSpace(deviceName: String): SyncResult =
+        call(post("/v1/spaces", buildJsonObject { put("deviceName", deviceName) })) { joined(it) }
+
+    /** On the new device: ask for a pairing code to show as a QR. */
+    fun startPairing(deviceName: String): SyncResult =
+        call(post("/v1/pairings", buildJsonObject { put("deviceName", deviceName) })) {
+            SyncResult.PairingStarted(it.str("code"), it.str("secret"), it.getValue("expiresAtMs").jsonPrimitive.long)
+        }
+
+    /** On a trusted device, after the user confirmed the new device's name. */
+    fun approve(code: String): SyncResult =
+        call(post("/v1/pairings/${code.uppercase()}/approve", buildJsonObject {})) { SyncResult.Approved(it.str("deviceName")) }
+
+    /** On the new device: [SyncResult.Waiting] until approved, then [SyncResult.Joined] once. */
+    fun claim(code: String, secret: String): SyncResult =
+        call(post("/v1/pairings/$code/claim", buildJsonObject { put("secret", secret) })) {
+            if (it.containsKey("pending")) SyncResult.Waiting else joined(it)
+        }
+
+    fun devices(): SyncResult = call(Request.Builder().url("$baseUrl/v1/devices").get()) { json ->
+        SyncResult.Devices(
+            json.getValue("devices").jsonArray.map { it.jsonObject }.map {
+                SyncDevice(it.str("id"), it.str("name"), it.getValue("createdMs").jsonPrimitive.long, it.getValue("seenMs").jsonPrimitive.long)
+            },
+            json.str("you"),
+        )
+    }
+
+    /** Removes a device from the space; its token stops working at once. */
+    fun revoke(deviceId: String): SyncResult = call(Request.Builder().url("$baseUrl/v1/devices/$deviceId").delete()) { SyncResult.Done }
+
+    /** Deletes the whole space on the server: every device, every op. Local data stays. */
+    fun deleteSpace(): SyncResult = call(Request.Builder().url("$baseUrl/v1/space").delete()) { SyncResult.Done }
+
+    private fun post(path: String, body: JsonObject) = Request.Builder().url("$baseUrl$path").post(body.toString().toRequestBody(JSON))
+    private fun JsonObject.str(key: String) = getValue(key).jsonPrimitive.content
+    private fun joined(json: JsonObject) = SyncResult.Joined(json.str("spaceId"), json.str("deviceId"), json.str("token"))
+
     private inline fun call(request: Request.Builder, ok: (JsonObject) -> SyncResult): SyncResult {
+        token?.let { request.header("Authorization", "Bearer $it") }
         val response = try {
-            client.newCall(request.header("Authorization", "Bearer $token").build()).execute()
+            client.newCall(request.build()).execute()
         } catch (e: IOException) {
             return SyncResult.RetryLater("Network: ${e.javaClass.simpleName}")
         }
@@ -95,9 +148,9 @@ class SyncClient(
             val code = it.code
             val error = runCatching { Json.parseToJsonElement(it.body.string()).jsonObject }.getOrNull()
             return when {
-                code == 200 && error != null -> runCatching { ok(error) }.getOrElse { SyncResult.RetryLater("Unreadable reply") }
-                code == 401 -> SyncResult.Stop("This device was removed from sync.")
-                code == 413 || code == 422 -> SyncResult.Stop(error?.get("message")?.jsonPrimitive?.contentOrNull ?: "HTTP $code")
+                code in 200..202 && error != null -> runCatching { ok(error) }.getOrElse { SyncResult.RetryLater("Unreadable reply") }
+                code == 401 -> SyncResult.Stop(if (token == null) error?.get("message")?.jsonPrimitive?.contentOrNull ?: "Unauthorized" else "This device was removed from sync.")
+                code == 404 || code == 409 || code == 413 || code == 422 -> SyncResult.Stop(error?.get("message")?.jsonPrimitive?.contentOrNull ?: "HTTP $code")
                 else -> SyncResult.RetryLater("HTTP $code") // 429, 507 server_full, 5xx, proxies
             }
         }

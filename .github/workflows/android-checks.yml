@@ -11,6 +11,7 @@ on:
       - "core/shared/**"
       - "core/sharedUi/**"
       - "core/sync/fixtures/**"
+      - "core/sync/src/**"
       - "core/third_party/maven/**"
       - "gradle/**"
       - "build.gradle.kts"
@@ -42,6 +43,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - uses: actions/setup-node@v7 # the Sync contract test starts the real core/sync server
+        with:
+          node-version: 24
       - uses: android-actions/setup-android@v4.0.4
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;30.0.16248370" "cmake;3.22.1"
