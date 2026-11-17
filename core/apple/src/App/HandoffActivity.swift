@@ -16,7 +16,7 @@ struct PlaybackHandoffPayload: Codable, Equatable {
 
 
 
-    static let activityType = "com.bxane.nuvx.playback"
+    static let activityType = "com.licht.nuvx.playback"
 
 
     static let userInfoKey = "payload"

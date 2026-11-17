@@ -27,7 +27,7 @@ import NuvxShared
 
 
 enum AudioSessionManager {
-    private static let sessionQueue = DispatchQueue(label: "com.bxane.nuvx.audio-session")
+    private static let sessionQueue = DispatchQueue(label: "com.licht.nuvx.audio-session")
     private static let readiness = AudioSessionReadiness()
 
 

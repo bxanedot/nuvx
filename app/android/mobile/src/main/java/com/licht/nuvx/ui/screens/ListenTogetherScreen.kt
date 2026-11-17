@@ -1,0 +1,874 @@
+package com.licht.nuvx.ui.screens
+
+import com.licht.nuvx.data.model.artworkAt
+import com.licht.nuvx.ui.icons.SfIcons
+import android.content.Intent
+import android.text.format.DateFormat
+import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import com.licht.nuvx.ui.components.IosSwitch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import com.licht.nuvx.R
+import com.licht.nuvx.data.listentogether.JamInviteLink
+import com.licht.nuvx.data.listentogether.ListenTogether
+import com.licht.nuvx.data.listentogether.PartyActivity
+import com.licht.nuvx.data.listentogether.PartyMember
+import com.licht.nuvx.data.listentogether.ServerConnectionState
+import com.licht.nuvx.data.listentogether.ServerUrlError
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+internal fun ServerUrlError.toMessageRes(): Int = when (this) {
+    ServerUrlError.Whitespace -> R.string.listen_together_err_whitespace
+    ServerUrlError.InvalidScheme -> R.string.listen_together_invalid_server_url
+    ServerUrlError.InvalidHost -> R.string.listen_together_invalid_server_url
+    ServerUrlError.InvalidPort -> R.string.listen_together_err_invalid_port
+    ServerUrlError.InvalidPath -> R.string.listen_together_err_invalid_path
+    ServerUrlError.HasPath -> R.string.listen_together_err_no_path
+    ServerUrlError.HasQuery -> R.string.listen_together_err_no_query
+    ServerUrlError.HasFragment -> R.string.listen_together_err_no_fragment
+    ServerUrlError.Malformed -> R.string.listen_together_invalid_server_url
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ListenTogetherScreen(
+    signedIn: Boolean,
+    inviteCode: String? = null,
+    inviteServer: String? = null,
+    onInviteHandled: () -> Unit = {},
+    onSignIn: () -> Unit,
+    contentPadding: PaddingValues,
+    onEditServer: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+
+    val state by ListenTogether.state.collectAsStateWithLifecycle()
+    val customServer by ListenTogether.customServerUrl.collectAsStateWithLifecycle()
+    val connectionState by ListenTogether.serverConnectionState.collectAsStateWithLifecycle()
+    val activity by ListenTogether.activity.collectAsStateWithLifecycle()
+
+    var codeInput by remember(inviteCode) { mutableStateOf(inviteCode.orEmpty()) }
+    var busy by remember { mutableStateOf(false) }
+    var failure by remember { mutableStateOf<String?>(null) }
+    var nickname by remember { mutableStateOf(ListenTogether.nickname()) }
+    var maxMembers by remember { mutableIntStateOf(5) }
+    var pendingServerSwitchInvite by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var sheet by remember { mutableStateOf<PartySheet?>(null) }
+
+    val sheetState = rememberModalBottomSheetState()
+
+    val showInviteAfterCreate: suspend () -> Unit = {
+        runCatching { sheetState.hide() }
+        sheet = null
+        delay(INVITE_SHEET_DELAY_MS)
+        if (sheet == null) sheet = PartySheet.Invite
+    }
+
+    val inviteLinkFor: (String) -> String = { partyCode ->
+        val host = ListenTogether.activePartyServerBase()
+        if (host == null || host == ListenTogether.defaultServer) {
+            JamInviteLink.url(partyCode, null)
+        } else {
+            JamInviteLink.url(partyCode, host)
+        }
+    }
+
+    val shareInvite: () -> Unit = {
+        state.code?.let { partyCode ->
+            val message = inviteLinkFor(partyCode) +
+                System.lineSeparator() + System.lineSeparator() +
+                context.getString(R.string.listen_together_share_text, partyCode)
+            context.startActivity(
+                Intent.createChooser(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, message)
+                    },
+                    null,
+                ),
+            )
+        }
+    }
+
+    val openPartyPreview: (String, String?) -> Unit = { previewCode, previewServer ->
+        busy = true
+        failure = null
+        scope.launch {
+            ListenTogether.previewParty(previewCode, previewServer)
+                .onSuccess { sheet = PartySheet.Confirm(it, previewServer) }
+                .onFailure { failure = it.message }
+            busy = false
+        }
+    }
+
+    LaunchedEffect(Unit) { ListenTogether.ensureConnected() }
+    DisposableEffect(Unit) {
+        ListenTogether.setScreenActive(true)
+        onDispose {
+            ListenTogether.setScreenActive(false)
+        }
+    }
+
+    LaunchedEffect(inviteCode, inviteServer, signedIn) {
+        val code = inviteCode ?: return@LaunchedEffect
+        if (!signedIn || busy) return@LaunchedEffect
+
+        val activeServer = (ListenTogether.activePartyServerBase() ?: ListenTogether.effectiveIdleServerBase()).trim().trimEnd('/')
+        val targetServer = inviteServer?.trim()?.trimEnd('/')
+
+        if (!targetServer.isNullOrBlank()) {
+            if (!targetServer.equals(activeServer, ignoreCase = true)) {
+                pendingServerSwitchInvite = code to targetServer
+                return@LaunchedEffect
+            }
+        } else if (customServer.isNotBlank()) {
+            pendingServerSwitchInvite = code to ""
+            return@LaunchedEffect
+        }
+
+        if (state.code.equals(code, ignoreCase = true)) {
+            onInviteHandled()
+            return@LaunchedEffect
+        }
+
+        openPartyPreview(code, targetServer)
+        onInviteHandled()
+    }
+
+    pendingServerSwitchInvite?.let { (codeToJoin, serverToSet) ->
+        val isSwitchToOfficial = serverToSet.isBlank()
+        AlertDialog(
+            onDismissRequest = {
+                pendingServerSwitchInvite = null
+                onInviteHandled()
+            },
+            title = {
+                Text(
+                    stringResource(
+                        if (isSwitchToOfficial) {
+                            R.string.listen_together_official_server_dialog_title
+                        } else {
+                            R.string.listen_together_custom_server_dialog_title
+                        }
+                    ),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Text(
+                    if (isSwitchToOfficial) {
+                        stringResource(R.string.listen_together_official_server_dialog_message, codeToJoin)
+                    } else {
+                        stringResource(
+                            R.string.listen_together_custom_server_dialog_message,
+                            serverToSet,
+                            codeToJoin,
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val toJoin = codeToJoin
+                        val toSet = serverToSet
+                        pendingServerSwitchInvite = null
+                        openPartyPreview(toJoin, toSet.ifBlank { null })
+                        onInviteHandled()
+                    },
+                ) {
+                    Text(
+                        stringResource(R.string.listen_together_custom_server_switch_and_join),
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        pendingServerSwitchInvite = null
+                        onInviteHandled()
+                    },
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
+    }
+
+    sheet?.let { open ->
+        ModalBottomSheet(
+            onDismissRequest = {
+                sheet = null
+                failure = null
+            },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.background,
+        ) {
+            when (open) {
+                PartySheet.Create -> CreatePartySheet(
+                    avatarUrl = ListenTogether.myAvatarUrl(),
+                    nickname = nickname,
+                    onNicknameChange = {
+                        nickname = it.take(80)
+                        ListenTogether.setNickname(nickname)
+                    },
+                    maxMembers = maxMembers,
+                    onMaxMembersChange = { maxMembers = it.coerceIn(2, 10) },
+                    busy = busy,
+                    enabled = signedIn && ListenTogether.hasServer,
+                    error = failure,
+                    onCreate = {
+                        busy = true
+                        failure = null
+                        scope.launch {
+                            failure = ListenTogether.createParty(nickname, maxMembers)
+                                .exceptionOrNull()?.message
+                            busy = false
+                            if (failure == null) showInviteAfterCreate()
+                        }
+                    },
+                )
+
+                PartySheet.JoinCode -> JoinPartySheet(
+                    code = codeInput,
+                    onCodeChange = { typed ->
+                        codeInput = typed.filter(Char::isLetterOrDigit)
+                            .uppercase()
+                            .take(ListenTogether.CODE_LENGTH)
+                        failure = null
+                    },
+                    busy = busy,
+                    enabled = signedIn && ListenTogether.hasServer,
+                    error = failure,
+                    onSubmit = { openPartyPreview(codeInput, null) },
+                )
+
+                is PartySheet.Confirm -> JoinConfirmSheet(
+                    preview = open.preview,
+                    avatarUrl = ListenTogether.myAvatarUrl(),
+                    nickname = nickname,
+                    onNicknameChange = {
+                        nickname = it.take(80)
+                        ListenTogether.setNickname(nickname)
+                    },
+                    busy = busy,
+                    error = failure,
+                    onDismiss = {
+                        sheet = null
+                        failure = null
+                    },
+                    onJoin = {
+                        busy = true
+                        failure = null
+                        scope.launch {
+                            val problem = if (open.server != null || state.inParty) {
+                                val target = ListenTogether.resolveSwitchTarget(open.server, customServer)
+                                when (
+                                    val switched = ListenTogether.switchPartyWithRecovery(
+                                        target,
+                                        open.preview.code,
+                                        nickname,
+                                    )
+                                ) {
+                                    is ListenTogether.SwitchPartyResult.Success -> null
+                                    is ListenTogether.SwitchPartyResult.TargetFailedRecovered ->
+                                        switched.targetError
+                                    is ListenTogether.SwitchPartyResult.TargetFailedNoParty ->
+                                        switched.targetError
+                                }
+                            } else {
+                                ListenTogether.joinParty(open.preview.code, nickname)
+                                    .exceptionOrNull()?.message
+                            }
+                            failure = problem
+                            busy = false
+                            if (problem == null) {
+                                codeInput = ""
+                                sheet = null
+                            }
+                        }
+                    },
+                )
+
+                PartySheet.Invite -> InviteSheet(
+                    code = state.code.orEmpty(),
+                    link = inviteLinkFor(state.code.orEmpty()),
+                    onShareLink = {
+                        sheet = null
+                        shareInvite()
+                    },
+                    onCopyCode = {
+                        clipboard.setText(AnnotatedString(state.code.orEmpty()))
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.copy_code),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                )
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
+    ) {
+        SettingsPageTitle(stringResource(R.string.listen_together))
+
+        if (!signedIn) {
+            SettingsGroup(footer = stringResource(R.string.listen_together_sign_in_footer), topSpacing = 0.dp) {
+                SettingsRow(
+                    icon = SfIcons.Login,
+                    title = stringResource(R.string.sign_in),
+                    subtitle = stringResource(R.string.not_signed_in),
+                    onClick = onSignIn,
+                )
+            }
+        }
+
+        if (!state.inParty) {
+            PartyLanding(
+                avatarUrl = ListenTogether.myAvatarUrl(),
+                enabled = signedIn && ListenTogether.hasServer && !busy,
+                onCreate = {
+                    failure = null
+                    sheet = PartySheet.Create
+                },
+                onJoin = {
+                    failure = null
+                    sheet = PartySheet.JoinCode
+                },
+            )
+        } else {
+            InAParty(
+                state = state,
+                onCopy = { clipboard.setText(AnnotatedString(state.code.orEmpty())) },
+                onShare = { sheet = PartySheet.Invite },
+                onShareLink = shareInvite,
+                onLeave = { scope.launch { ListenTogether.leaveParty() } },
+                onSetCapacity = ListenTogether::setMaxMembers,
+                onSetHostOnlyControl = ListenTogether::setHostOnlyControl,
+                onKick = ListenTogether::kick,
+            )
+            PartyActivityList(activity)
+        }
+
+        if (sheet == null) {
+            (failure ?: state.error)?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(start = GROUP_INSET + 4.dp, end = GROUP_INSET + 4.dp, top = 12.dp),
+                )
+            }
+        }
+
+        SettingsGroup(
+            header = stringResource(R.string.listen_together_custom_server),
+            footer = stringResource(R.string.listen_together_custom_server_footer),
+        ) {
+            SettingsRow(
+                icon = SfIcons.Dns,
+                title = stringResource(R.string.listen_together_custom_server),
+                subtitleContent = {
+                    Text(
+                        text = customServer.ifBlank {
+                            stringResource(R.string.listen_together_using_default)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (customServer.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        ServerConnectionLine(connectionState)
+                    }
+                },
+                enabled = !state.inParty && !busy,
+                onClick = onEditServer,
+                trailing = if (busy) ({ Spinner() }) else null,
+            )
+        }
+
+        Spacer(Modifier.height(32.dp))
+    }
+}
+
+@Composable
+private fun ServerConnectionLine(connection: ServerConnectionState) {
+    val (icon, tint, label) = when (connection) {
+        ServerConnectionState.Checking -> Triple(
+            null,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            stringResource(R.string.listen_together_server_checking),
+        )
+        is ServerConnectionState.CustomOnline -> Triple(
+            SfIcons.CloudDone,
+            MaterialTheme.colorScheme.primary,
+            stringResource(R.string.listen_together_status_custom_online, connection.latencyMs),
+        )
+        is ServerConnectionState.CustomFallback -> Triple(
+            SfIcons.CloudOff,
+            MaterialTheme.colorScheme.error,
+            stringResource(R.string.listen_together_status_custom_fallback, connection.latencyMs),
+        )
+        ServerConnectionState.Offline -> Triple(
+            SfIcons.CloudOff,
+            MaterialTheme.colorScheme.error,
+            stringResource(R.string.listen_together_status_all_offline),
+        )
+        is ServerConnectionState.DefaultOnline -> return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (icon == null) {
+            Spinner(modifier = Modifier.size(14.dp))
+        } else {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = tint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private const val INVITE_SHEET_DELAY_MS = 1_000L
+
+internal val CODE_CELL_SHAPE = RoundedCornerShape(12.dp)
+
+@Composable
+internal fun PartyCodeField(
+    code: String,
+    onCodeChange: (String) -> Unit,
+    enabled: Boolean,
+    onSubmit: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val field = remember(code) { TextFieldValue(code, TextRange(code.length)) }
+
+    Box(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            repeat(ListenTogether.CODE_LENGTH) { index ->
+                CodeCell(
+                    char = code.getOrNull(index),
+                    active = focused && index == code.length.coerceAtMost(ListenTogether.CODE_LENGTH - 1),
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        BasicTextField(
+            value = field,
+            onValueChange = { onCodeChange(it.text) },
+            enabled = enabled,
+            singleLine = true,
+            textStyle = TextStyle(color = Color.Transparent),
+            cursorBrush = SolidColor(Color.Transparent),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Characters,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { if (code.length == ListenTogether.CODE_LENGTH) onSubmit() },
+            ),
+            modifier = Modifier
+                .matchParentSize()
+                .onFocusChanged { focused = it.isFocused },
+        )
+    }
+}
+
+@Composable
+private fun CodeCell(
+    char: Char?,
+    active: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val ring by animateColorAsState(
+        targetValue = when {
+            !enabled -> MaterialTheme.colorScheme.outline
+            active -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.outline
+        },
+        label = "party code cell ring",
+    )
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, CODE_CELL_SHAPE)
+            .border(1.5.dp, ring, CODE_CELL_SHAPE),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (char != null) {
+            Text(
+                text = char.toString(),
+                style = MaterialTheme.typography.titleLarge,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onBackground
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        } else if (active) {
+            val blink = rememberInfiniteTransition(label = "party code caret")
+            val alpha by blink.animateFloat(
+                initialValue = 1f,
+                targetValue = 0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 600, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "party code caret alpha",
+            )
+            Box(
+                Modifier
+                    .size(width = 2.dp, height = 22.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                        RoundedCornerShape(1.dp),
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun InAParty(
+    state: ListenTogether.State,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onShareLink: () -> Unit,
+    onLeave: () -> Unit,
+    onSetCapacity: (Int) -> Unit,
+    onSetHostOnlyControl: (Boolean) -> Unit,
+    onKick: (String) -> Unit,
+) {
+    SettingsGroup(
+        header = stringResource(R.string.listen_together_code),
+        footer = stringResource(R.string.listen_together_code_footer),
+    ) {
+        Text(
+            text = state.code.orEmpty(),
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+            letterSpacing = 8.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 18.dp, bottom = 14.dp),
+        )
+        RowDivider()
+        SettingsRow(
+            icon = SfIcons.ContentCopy,
+            title = stringResource(R.string.copy_code),
+            onClick = onCopy,
+        )
+        RowDivider()
+        SettingsRow(
+            icon = SfIcons.Share,
+            title = stringResource(R.string.share),
+            onClick = onShare,
+        )
+    }
+
+    NowPlayingInTheParty(state)
+
+    SettingsGroup(
+        header = stringResource(
+            R.string.listen_together_listening,
+            state.members.size,
+            state.maxMembers,
+        ),
+        footer = stringResource(R.string.listen_together_members_footer, state.maxMembers),
+    ) {
+        if (state.you?.isHost == true) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = ROW_INSET, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.listen_together_party_size),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(stringResource(R.string.listen_together_host_controls), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TextButton(onClick = { onSetCapacity(state.maxMembers - 1) }, enabled = state.maxMembers > maxOf(2, state.members.size)) { Text("−", color = MaterialTheme.colorScheme.onSurface) }
+                Text("${state.maxMembers}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
+                TextButton(onClick = { onSetCapacity(state.maxMembers + 1) }, enabled = state.maxMembers < 10) { Text("+", color = MaterialTheme.colorScheme.onSurface) }
+            }
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.Lock,
+                title = stringResource(R.string.listen_together_host_only),
+                subtitle = stringResource(R.string.listen_together_host_only_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = state.hostOnlyControl,
+                        onCheckedChange = onSetHostOnlyControl,
+                    )
+                },
+                onClick = { onSetHostOnlyControl(!state.hostOnlyControl) },
+            )
+            RowDivider()
+        }
+        state.members.forEachIndexed { index, member ->
+            if (index > 0) RowDivider()
+            MemberRow(member = member, isYou = member.memberId == state.you?.memberId, canKick = state.you?.isHost == true && !member.isHost, onKick = { onKick(member.memberId) })
+        }
+    }
+
+    SettingsGroup {
+        SettingsRow(
+            icon = SfIcons.Logout,
+            title = stringResource(R.string.listen_together_leave),
+            subtitle = stringResource(R.string.listen_together_leave_subtitle),
+            onClick = onLeave,
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingInTheParty(state: ListenTogether.State) {
+    val track = state.playback.track
+    var positionMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(state.playback.seq, state.playback.isPlaying) {
+        while (true) {
+            positionMs = ListenTogether.partyPositionMs() ?: 0L
+            delay(250)
+        }
+    }
+
+    val connection = connectionLine(state)
+    val nothingPlaying = stringResource(R.string.listen_together_nothing_playing)
+
+    SettingsGroup(header = stringResource(R.string.listen_together_now_playing)) {
+        SettingsRow(
+            icon = SfIcons.MusicNote,
+            title = track?.title?.takeIf { it.isNotBlank() } ?: nothingPlaying,
+            subtitle = if (track == null) {
+                connection
+            } else {
+                buildString {
+                    if (track.artist.isNotBlank()) {
+                        append(track.artist)
+                        append(" · ")
+                    }
+                    append(elapsed(positionMs))
+                    track.durationMs?.let {
+                        append(" / ")
+                        append(elapsed(it))
+                    }
+                    append("\n")
+                    append(connection)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun connectionLine(state: ListenTogether.State): String = when {
+    state.connection != ListenTogether.Connection.LIVE ->
+        stringResource(R.string.listen_together_reconnecting)
+    !state.clockSynced -> stringResource(R.string.listen_together_syncing_clock)
+    else -> stringResource(R.string.listen_together_in_sync, state.roundTripMs)
+}
+
+@Composable
+private fun MemberRow(member: PartyMember, isYou: Boolean, canKick: Boolean = false, onKick: () -> Unit = {}) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .padding(horizontal = ROW_INSET, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (member.avatarUrl != null) {
+                AsyncImage(
+                    model = member.avatarUrl.artworkAt(512),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp).clip(CircleShape),
+                )
+            } else {
+                Text(
+                    text = member.displayName.take(1).uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = member.displayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (isYou) {
+                    Spacer(Modifier.width(8.dp))
+                    Badge(stringResource(R.string.listen_together_you))
+                }
+            }
+            if (!member.connected) {
+                Text(
+                    text = stringResource(R.string.listen_together_away),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (member.isHost) {
+            Spacer(Modifier.width(8.dp))
+            Badge(stringResource(R.string.listen_together_host))
+        } else if (canKick) {
+            TextButton(onClick = onKick) { Text(stringResource(R.string.listen_together_remove)) }
+        }
+    }
+}
+
+@Composable
+private fun PartyActivityList(entries: List<PartyActivity>) {
+    if (entries.isEmpty()) return
+    SettingsGroup(
+        header = stringResource(R.string.listen_together_activity),
+        footer = stringResource(R.string.listen_together_activity_footer),
+    ) {
+        val logScroll = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(156.dp)
+                .background(MaterialTheme.colorScheme.surface)
+                .verticalScroll(logScroll)
+                .padding(horizontal = ROW_INSET, vertical = 8.dp),
+        ) {
+            entries.forEach { entry ->
+                val timestamp = DateFormat.format("HH:mm:ss", entry.atMs)
+                Text(
+                    text = "[$timestamp] ${entry.by}: ${entry.detail.ifBlank { entry.action }}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Spinner(modifier: Modifier = Modifier.size(18.dp)) {
+    CircularProgressIndicator(
+        strokeWidth = 2.dp,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier,
+    )
+}
+
+private fun elapsed(ms: Long): String {
+    val total = (ms / 1000).coerceAtLeast(0)
+    val minutes = total / 60
+    val seconds = total % 60
+    return "%d:%02d".format(minutes, seconds)
+}

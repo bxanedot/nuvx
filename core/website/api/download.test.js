@@ -41,16 +41,15 @@ async function request(platform, assets, version = '1.0.0') {
   return result;
 }
 
-test('release downloads select universal platform packages', async (t) => {
+test('release downloads select one package for each Android device', async (t) => {
   const routes = [
     ['windows', 'nuvx-setup-1.0.0.exe'],
-    ['android', 'nuvx-v1.0.0-universal.apk'],
-    ['android-auto', 'nuvx-v1.0.0-universal.apk'],
-    ['tv', 'NuvxTV-v1.0.0-universal.apk'],
-    ['auto', 'NuvxAuto-v1.0.0-universal.apk'],
-    ['car', 'NuvxAuto-v1.0.0-universal.apk'],
+    ['android', 'nuvx-v1.0.0.apk'],
+    ['android-auto', 'nuvx-v1.0.0.apk'],
+    ['tv', 'NuvxTV-v1.0.0.apk'],
+    ['auto', 'NuvxAuto-v1.0.0.apk'],
+    ['car', 'NuvxAuto-v1.0.0.apk'],
     ['wear', 'NuvxWear-v1.0.0.apk'],
-    ['ios', 'nuvx-1.0.0-universal.ipa'],
     ['mac-intel', 'nuvx-setup-1.0.0-macos-intel.dmg'],
     ['mac-arm', 'nuvx-setup-1.0.0-macos-apple-silicon.dmg'],
     ['linux', 'nuvx-setup-1.0.0-linux-universal.tar.gz'],
@@ -60,7 +59,7 @@ test('release downloads select universal platform packages', async (t) => {
 
   for (const [platform, asset] of routes) {
     await t.test(platform, async () => {
-      const result = await request(platform, new Set([asset]));
+      const result = await request(platform, new Set([asset]), '1.0.0');
       assert.equal(result.status, 302);
       assert.ok(result.headers.Location.endsWith(`/${asset}`));
     });
@@ -126,9 +125,9 @@ test('nightly downloads select the matching device artifact directly', async (t)
     ['linux', 'nuvx-setup-nightly.170.1-linux-universal.tar.gz'],
     ['mac-arm', 'nuvx-setup-nightly.170.1-macos-apple-silicon.dmg'],
     ['mac-intel', 'nuvx-setup-nightly.170.1-macos-intel.dmg'],
-    ['android', 'nuvx-v0.9.0-nightly.170.1-universal.apk'],
-    ['tv', 'NuvxTV-v0.9.0-nightly.170.1-universal.apk'],
-    ['auto', 'NuvxAuto-v0.9.0-nightly.170.1-universal.apk'],
+    ['android', 'nuvx-v0.9.0-nightly.170.1.apk'],
+    ['tv', 'NuvxTV-v0.9.0-nightly.170.1.apk'],
+    ['auto', 'NuvxAuto-v0.9.0-nightly.170.1.apk'],
     ['wear', 'NuvxWear-v0.9.0-nightly.170.1.apk'],
     ['chrome', 'nuvx-extension-chrome-nightly.170.1.zip'],
     ['firefox', 'nuvx-extension-firefox-nightly.170.1.zip'],
@@ -144,7 +143,7 @@ test('nightly downloads select the matching device artifact directly', async (t)
 });
 
 test('unavailable nightly packages return to the on-site package list', async () => {
-  const result = await requestNightly('ios', ['nuvx-v0.9.0-nightly.170.1-universal.apk']);
+  const result = await requestNightly('ios', ['nuvx-v0.9.0-nightly.170.1.apk']);
   assert.equal(result.headers.Location, downloadsPage);
 });
 

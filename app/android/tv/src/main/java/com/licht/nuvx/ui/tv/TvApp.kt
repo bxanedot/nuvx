@@ -1,0 +1,633 @@
+package com.licht.nuvx.ui.tv
+
+import com.licht.nuvx.ui.icons.SfIcons
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.media3.session.MediaController
+import com.licht.nuvx.R
+import com.licht.nuvx.data.model.BrowseType
+import com.licht.nuvx.data.settings.TvSettings
+import com.licht.nuvx.playback.PlayerState
+import com.licht.nuvx.ui.MainViewModel
+import com.licht.nuvx.ui.tv.components.LocalTvChrome
+import com.licht.nuvx.ui.tv.components.TvArtwork
+import com.licht.nuvx.ui.tv.components.TvChrome
+import com.licht.nuvx.ui.tv.components.TvTabIcon
+import com.licht.nuvx.ui.tv.components.TvTabPill
+import com.licht.nuvx.ui.tv.components.rememberDominantCardColor
+import com.licht.nuvx.ui.tv.components.tvClick
+import com.licht.nuvx.ui.tv.components.tvLift
+import com.licht.nuvx.ui.tv.dialogs.TvAccountDialog
+import com.licht.nuvx.ui.tv.dialogs.TvUpdateDialog
+import com.licht.nuvx.ui.tv.player.TvNowPlayingScreen
+import com.licht.nuvx.ui.tv.screens.TvDetailScreen
+import com.licht.nuvx.ui.tv.screens.TvExploreScreen
+import com.licht.nuvx.ui.tv.screens.TvHomeScreen
+import com.licht.nuvx.ui.tv.screens.TvLibraryScreen
+import com.licht.nuvx.ui.tv.screens.TvSearchScreen
+import com.licht.nuvx.ui.tv.screens.TvSettingsScreen
+import com.licht.nuvx.ui.tv.theme.TvGlass
+import com.licht.nuvx.ui.tv.theme.TvThemeColors
+import kotlinx.coroutines.delay
+
+enum class TvDestination(val label: String) {
+    HOME("Home"),
+    EXPLORE("Explore"),
+    LIBRARY("Library"),
+    SEARCH("Search"),
+    SETTINGS("Settings"),
+}
+
+data class TvDetailRoute(
+    val browseId: String,
+    val title: String,
+    val subtitle: String,
+    val thumbnailUrl: String?,
+    val type: BrowseType,
+)
+
+typealias TvOpenDetail = (browseId: String, title: String, subtitle: String, thumbnailUrl: String?, type: BrowseType) -> Unit
+
+@Composable
+fun TvApp(
+    viewModel: MainViewModel,
+    mediaController: MediaController?,
+    playerState: PlayerState,
+    modifier: Modifier = Modifier,
+) {
+    val setupVersionCompleted by TvSettings.tvSetupVersionCompleted.collectAsState()
+    var isRunningSetup by remember(setupVersionCompleted) { mutableStateOf(setupVersionCompleted == 0) }
+    var isNowPlayingOpen by remember { mutableStateOf(false) }
+    val googleAccounts by viewModel.googleAccounts.collectAsState()
+    val activeAccountId by viewModel.activeAccountId.collectAsState()
+    val activeProfileId by viewModel.activeProfileId.collectAsState()
+
+    val initialProfileLocked = remember {
+        val profId = viewModel.activeProfileId.value
+            ?: viewModel.googleAccounts.value.firstOrNull { it.accountId == viewModel.activeAccountId.value }
+                ?.let { acc ->
+                    if (acc.profiles.isNotEmpty()) {
+                        acc.profiles.firstOrNull { !it.isBrandAccount }?.profileId
+                            ?: acc.profiles.firstOrNull()?.profileId
+                    } else {
+                        "default:${acc.accountId}"
+                    }
+                }
+            ?: viewModel.googleAccounts.value.firstOrNull()?.let { acc ->
+                if (acc.profiles.isNotEmpty()) {
+                    acc.profiles.firstOrNull { !it.isBrandAccount }?.profileId
+                        ?: acc.profiles.firstOrNull()?.profileId
+                } else {
+                    "default:${acc.accountId}"
+                }
+            }
+        profId != null && TvSettings.isProfileLocked(profId)
+    }
+
+    var sessionAuthenticated by remember { mutableStateOf(!initialProfileLocked) }
+    var showAccountDialog by remember { mutableStateOf(initialProfileLocked) }
+
+    val currentActiveProfileId = remember(googleAccounts, activeAccountId, activeProfileId) {
+        if (activeProfileId != null) {
+            activeProfileId
+        } else {
+            val account = googleAccounts.firstOrNull { it.accountId == activeAccountId }
+                ?: googleAccounts.firstOrNull()
+            if (account != null) {
+                if (account.profiles.isNotEmpty()) {
+                    account.profiles.firstOrNull { !it.isBrandAccount }?.profileId
+                        ?: account.profiles.firstOrNull()?.profileId
+                } else {
+                    "default:${account.accountId}"
+                }
+            } else {
+                null
+            }
+        }
+    }
+    val isCurrentProfileLocked = currentActiveProfileId != null && TvSettings.isProfileLocked(currentActiveProfileId)
+
+    LaunchedEffect(isCurrentProfileLocked) {
+        if (isCurrentProfileLocked && !sessionAuthenticated) {
+            showAccountDialog = true
+        }
+    }
+
+    val update by viewModel.updateAvailable.collectAsState()
+    var updateDismissed by remember { mutableStateOf(false) }
+
+    val signedIn by viewModel.signedIn.collectAsState()
+    LaunchedEffect(signedIn) {
+        if (!signedIn) {
+            TvSettings.wipeAllPins()
+        }
+    }
+
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .tvCanvas(playerState.song?.thumbnailUrl),
+    ) {
+        AnimatedContent(
+            targetState = isRunningSetup,
+            transitionSpec = { fadeIn(tween(220)).togetherWith(fadeOut(tween(160))) },
+            label = "tvAppView",
+            modifier = Modifier.fillMaxSize(),
+        ) { setup ->
+            if (setup) {
+                com.licht.nuvx.ui.tv.onboarding.TvSetupScreen(
+                    viewModel = viewModel,
+                    onComplete = { isRunningSetup = false },
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    TvMainShell(
+                        viewModel = viewModel,
+                        mediaController = mediaController,
+                        playerState = playerState,
+                        covered = isNowPlayingOpen,
+                        onOpenNowPlaying = { isNowPlayingOpen = true },
+                        onOpenAccount = {
+                            sessionAuthenticated = false
+                            showAccountDialog = true
+                        },
+                        onRunSetupAgain = { isRunningSetup = true },
+                    )
+                    AnimatedVisibility(
+                        visible = isNowPlayingOpen,
+                        enter = scaleIn(initialScale = 0.94f, animationSpec = tween(260)) + fadeIn(tween(220)),
+                        exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.97f, animationSpec = tween(180)),
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize().focusGroup()) {
+                            TvNowPlayingScreen(
+                                viewModel = viewModel,
+                                mediaController = mediaController,
+                                playerState = playerState,
+                                onBack = { isNowPlayingOpen = false },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showAccountDialog && !isRunningSetup) {
+            TvAccountDialog(
+                viewModel = viewModel,
+                onDismiss = {
+                    sessionAuthenticated = true
+                    showAccountDialog = false
+                },
+                allowPhoneSignIn = false,
+            )
+        }
+
+        val pendingUpdate = update
+        if (pendingUpdate != null && !updateDismissed && !isRunningSetup && !showAccountDialog) {
+            TvUpdateDialog(update = pendingUpdate, onDismiss = { updateDismissed = true })
+        }
+    }
+}
+
+@Composable
+private fun Modifier.tvCanvas(artworkUrl: String?): Modifier {
+    val palette = TvThemeColors.current
+    val tintSource = rememberDominantCardColor(
+        artworkUrl = if (palette.tintsCanvas) artworkUrl else null,
+        defaultColor = palette.canvasTop,
+    )
+    val tint = animateColorAsState(tintSource, tween(900), label = "canvasTint")
+    val top = palette.canvasTop
+    val bottom = palette.canvasBottom
+    return drawBehind {
+        drawRect(Brush.verticalGradient(listOf(top, bottom)))
+        if (palette.tintsCanvas) {
+            drawRect(
+                Brush.radialGradient(
+                    colors = listOf(tint.value.copy(alpha = 0.55f), Color.Transparent),
+                    center = Offset(size.width * 0.5f, -size.height * 0.15f),
+                    radius = size.width * 0.75f,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvMainShell(
+    viewModel: MainViewModel,
+    mediaController: MediaController?,
+    playerState: PlayerState,
+    covered: Boolean,
+    onOpenNowPlaying: () -> Unit,
+    onOpenAccount: () -> Unit,
+    onRunSetupAgain: () -> Unit,
+) {
+    val chrome = remember { TvChrome() }
+    var focusBeforePlayer by remember { mutableStateOf<FocusRequester?>(null) }
+    val openNowPlaying: () -> Unit = {
+        focusBeforePlayer = chrome.lastFocused
+        onOpenNowPlaying()
+    }
+    val stateHolder = rememberSaveableStateHolder()
+    var destination by remember { mutableStateOf(TvDestination.HOME) }
+    val detailStack = remember { mutableStateListOf<TvDetailRoute>() }
+    val tabFocus = remember { FocusRequester() }
+    var barHasFocus by remember { mutableStateOf(false) }
+    val returnFocus = remember { mutableListOf<FocusRequester?>() }
+
+    val signedIn by viewModel.signedIn.collectAsState()
+    val activeProfileId by viewModel.activeProfileId.collectAsState()
+    LaunchedEffect(signedIn, activeProfileId) {
+        if (!signedIn) {
+            if (detailStack.isNotEmpty()) {
+                detailStack.clear()
+                returnFocus.clear()
+                viewModel.clearDetail()
+            }
+            chrome.contentScrolled = false
+            destination = TvDestination.HOME
+        } else if (detailStack.isNotEmpty()) {
+            detailStack.clear()
+            returnFocus.clear()
+            viewModel.clearDetail()
+        }
+    }
+
+    val select: (TvDestination) -> Unit = { next ->
+        if (detailStack.isNotEmpty()) {
+            detailStack.clear()
+            returnFocus.clear()
+            viewModel.clearDetail()
+        }
+        if (next != destination) {
+            chrome.contentScrolled = false
+            destination = next
+        }
+    }
+    val openDetail: TvOpenDetail = { browseId, title, subtitle, thumb, type ->
+        returnFocus.add(chrome.lastFocused)
+        detailStack.add(TvDetailRoute(browseId, title, subtitle, thumb, type))
+    }
+    val activeDetail = detailStack.lastOrNull()
+    val contentFocus = remember { FocusRequester() }
+    val detailFocus = remember { FocusRequester() }
+    var pendingReturn by remember { mutableStateOf<FocusRequester?>(null) }
+    val popDetail: () -> Unit = {
+        detailStack.removeAt(detailStack.lastIndex)
+        pendingReturn = returnFocus.removeLastOrNull()
+        chrome.epoch++
+        viewModel.closeDetail()
+    }
+    var hadDetail by remember { mutableStateOf(false) }
+    LaunchedEffect(activeDetail == null) {
+        if (activeDetail != null) {
+            hadDetail = true
+            barHasFocus = false
+        } else if (hadDetail) {
+            hadDetail = false
+            delay(16)
+            val back = pendingReturn
+            pendingReturn = null
+            if (back == null || !runCatching { back.requestFocus() }.getOrDefault(false)) {
+                runCatching { contentFocus.requestFocus() }
+            }
+        }
+    }
+
+    BackHandler(enabled = !covered && (activeDetail != null || !barHasFocus || destination != TvDestination.HOME)) {
+        when {
+            activeDetail != null -> popDetail()
+            !barHasFocus -> {
+                chrome.scrollToTopRequests++
+                runCatching { tabFocus.requestFocus() }
+            }
+            else -> select(TvDestination.HOME)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        delay(60)
+        runCatching { tabFocus.requestFocus() }
+    }
+    LaunchedEffect(barHasFocus) {
+        if (barHasFocus) chrome.scrollToTopRequests++
+    }
+    var wasCovered by remember { mutableStateOf(false) }
+    LaunchedEffect(covered) {
+        if (covered) {
+            wasCovered = true
+        } else if (wasCovered) {
+            wasCovered = false
+            delay(40)
+            val back = focusBeforePlayer
+            focusBeforePlayer = null
+            if (back == null || !runCatching { back.requestFocus() }.getOrDefault(false)) {
+                runCatching { tabFocus.requestFocus() }
+            }
+        }
+    }
+
+    val barVisible = !chrome.contentScrolled || barHasFocus
+    val barProgress by animateFloatAsState(if (barVisible) 1f else 0f, tween(260), label = "barProgress")
+
+    CompositionLocalProvider(LocalTvChrome provides chrome) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = if (covered) 0f else 1f }
+                .focusProperties { onEnter = { if (covered) cancelFocusChange() } }
+                .focusGroup(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = if (activeDetail == null) 1f else 0f }
+                    .focusProperties { onEnter = { if (detailStack.isNotEmpty()) cancelFocusChange() } }
+                    .focusGroup(),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .focusRequester(contentFocus)
+                        .focusGroup(),
+                ) {
+                    stateHolder.SaveableStateProvider(destination.name) {
+                        when (destination) {
+                            TvDestination.HOME -> TvHomeScreen(
+                                viewModel = viewModel,
+                                mediaController = mediaController,
+                                onNavigateToDetail = openDetail,
+                                onNavigateToNowPlaying = openNowPlaying,
+                            )
+                            TvDestination.EXPLORE -> TvExploreScreen(
+                                viewModel = viewModel,
+                                mediaController = mediaController,
+                                onNavigateToDetail = openDetail,
+                                onNavigateToNowPlaying = openNowPlaying,
+                            )
+                            TvDestination.LIBRARY -> TvLibraryScreen(
+                                viewModel = viewModel,
+                                mediaController = mediaController,
+                                playerState = playerState,
+                                onNavigateToDetail = openDetail,
+                                onNavigateToNowPlaying = openNowPlaying,
+                                onOpenAccount = onOpenAccount,
+                            )
+                            TvDestination.SEARCH -> TvSearchScreen(
+                                viewModel = viewModel,
+                                mediaController = mediaController,
+                                onNavigateToDetail = openDetail,
+                                onNavigateToNowPlaying = openNowPlaying,
+                            )
+                            TvDestination.SETTINGS -> TvSettingsScreen(
+                                viewModel = viewModel,
+                                onOpenAccount = onOpenAccount,
+                                onRunSetupAgain = onRunSetupAgain,
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (activeDetail != null) {
+                androidx.compose.runtime.key(activeDetail) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .focusRequester(detailFocus)
+                            .focusGroup(),
+                    ) {
+                    TvDetailScreen(
+                        browseId = activeDetail.browseId,
+                        initialTitle = activeDetail.title,
+                        initialSubtitle = activeDetail.subtitle,
+                        initialThumbnailUrl = activeDetail.thumbnailUrl,
+                        type = activeDetail.type,
+                        viewModel = viewModel,
+                        mediaController = mediaController,
+                        playerState = playerState,
+                        onNavigateToDetail = openDetail,
+                        onNavigateToNowPlaying = openNowPlaying,
+                        onBack = popDetail,
+                    )
+                    }
+                }
+            }
+
+            TvTopBar(
+                destination = destination,
+                viewModel = viewModel,
+                tabFocus = tabFocus,
+                contentFocus = if (activeDetail != null) detailFocus else contentFocus,
+                onSelect = select,
+                onOpenNowPlaying = openNowPlaying,
+                onOpenAccount = onOpenAccount,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(10f)
+                    .graphicsLayer {
+                        alpha = barProgress
+                        translationY = -(1f - barProgress) * 72.dp.toPx()
+                    }
+                    .onFocusChanged { barHasFocus = it.hasFocus },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvTopBar(
+    destination: TvDestination,
+    viewModel: MainViewModel,
+    tabFocus: FocusRequester,
+    contentFocus: FocusRequester,
+    onSelect: (TvDestination) -> Unit,
+    onOpenNowPlaying: () -> Unit,
+    onOpenAccount: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val googleAccounts by viewModel.googleAccounts.collectAsState()
+    val activeAccountId by viewModel.activeAccountId.collectAsState()
+    val activeProfileId by viewModel.activeProfileId.collectAsState()
+    val account by viewModel.account.collectAsState()
+    val signedIn by viewModel.signedIn.collectAsState()
+
+    val avatarUrl = remember(googleAccounts, activeAccountId, activeProfileId, account) {
+        googleAccounts.firstOrNull { it.accountId == activeAccountId }
+            ?.profiles?.firstOrNull { it.profileId == activeProfileId }
+            ?.avatar
+            ?: account?.thumbnailUrl
+    }
+
+    val downToContent = Modifier.focusProperties { down = contentFocus }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 18.dp, start = 38.dp, end = 38.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_logo),
+            contentDescription = "nuvx",
+            tint = TvGlass.TextPrimary,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .height(21.dp)
+                .aspectRatio(880f / 360f),
+        )
+        TvAvatarButton(
+            imageUrl = if (signedIn) avatarUrl else null,
+            onClick = onOpenAccount,
+            modifier = Modifier.align(Alignment.CenterEnd).then(downToContent),
+        )
+        Row(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .clip(CircleShape)
+                .background(TvGlass.Bar)
+                .padding(4.dp)
+                .focusRestorer(tabFocus)
+                .focusGroup(),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            listOf(TvDestination.HOME, TvDestination.EXPLORE, TvDestination.LIBRARY).forEach { tab ->
+                val interaction = remember { MutableInteractionSource() }
+                val focused by interaction.collectIsFocusedAsState()
+                LaunchedEffect(focused) {
+                    if (focused && destination != tab) {
+                        delay(140)
+                        onSelect(tab)
+                    }
+                }
+                TvTabPill(
+                    label = tab.label,
+                    selected = destination == tab,
+                    interactionSource = interaction,
+                    onClick = { onSelect(tab) },
+                    modifier = downToContent.then(if (destination == tab) Modifier.focusRequester(tabFocus) else Modifier),
+                )
+            }
+            TvTabPill(
+                label = "Now Playing",
+                selected = false,
+                modifier = downToContent,
+                onClick = onOpenNowPlaying,
+            )
+            TvTabIcon(
+                icon = SfIcons.Search,
+                contentDescription = "Search",
+                selected = destination == TvDestination.SEARCH,
+                onClick = { onSelect(TvDestination.SEARCH) },
+                modifier = downToContent.then(if (destination == TvDestination.SEARCH) Modifier.focusRequester(tabFocus) else Modifier),
+            )
+            TvTabIcon(
+                icon = SfIcons.Settings,
+                contentDescription = "Settings",
+                selected = destination == TvDestination.SETTINGS,
+                onClick = { onSelect(TvDestination.SETTINGS) },
+                modifier = downToContent.then(if (destination == TvDestination.SETTINGS) Modifier.focusRequester(tabFocus) else Modifier),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvAvatarButton(
+    imageUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .size(32.dp)
+            .tvLift(interaction, CircleShape, focusedScale = 1.15f, elevation = 8.dp)
+            .tvClick(interaction, onClick = onClick)
+            .background(TvGlass.Fill),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (imageUrl.isNullOrBlank()) {
+            Icon(
+                imageVector = SfIcons.Person,
+                contentDescription = "Account",
+                tint = TvGlass.TextSecondary,
+                modifier = Modifier.size(18.dp),
+            )
+        } else {
+            TvArtwork(url = imageUrl, px = 256, shape = CircleShape, modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+@Composable
+fun TvAppMark(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 96.dp) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(size * 0.225f))
+            .background(
+                Brush.linearGradient(listOf(Color(0xFFFF5468), Color(0xFFE3173A))),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_logo),
+            contentDescription = "nuvx",
+            tint = Color.White,
+            modifier = Modifier.size(size * 0.52f),
+        )
+    }
+}

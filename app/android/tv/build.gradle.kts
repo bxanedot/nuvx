@@ -43,11 +43,11 @@ val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
     .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
-    namespace = "com.bxane.nuvx"
+    namespace = "com.licht.nuvx"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bxane.nuvx"
+        applicationId = "com.licht.nuvx"
         minSdk = 26
         targetSdk = 36
         versionCode = androidVersionCode
@@ -63,7 +63,7 @@ android {
             "\"${listenTogetherServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
         buildConfigField("String", "ADDON_AUTH_URL", "\"\"")
-        buildConfigField("String", "NUVX_DISTRIBUTION", "\"universal\"")
+        buildConfigField("String", "NUVX_DISTRIBUTION", "\"single\"")
         buildConfigField("String", "NUVX_RELEASE_TAG", "\"$releaseTag\"")
         buildConfigField("String", "NUVX_BUILD_TIME", "\"$buildTime\"")
     }
@@ -71,7 +71,7 @@ android {
     sourceSets {
         getByName("main") {
             java.srcDir("../mobile/src/main/java")
-            java.srcDir("../mobile/src/gms/java/com/bxane/nuvx/playback")
+            java.srcDir("../mobile/src/gms/java/com/licht/nuvx/playback")
             res.srcDir("../mobile/src/main/res")
             assets.srcDir("../../web/app/public/models")
             assets.srcDir(rootProject.file("app/android/legal-assets"))
@@ -292,10 +292,10 @@ val verifyDevInstall = tasks.register("verifyDevInstall") {
             .drop(1)
             .mapNotNull { line -> line.split('\t').takeIf { it.size == 2 && it[1] == "device" }?.get(0) }
         serials.forEach { serial ->
-            logger.lifecycle("verifyDevInstall: compiling com.bxane.nuvx.dev.tv on $serial")
+            logger.lifecycle("verifyDevInstall: compiling com.licht.nuvx.dev.tv on $serial")
             ProcessBuilder(
                 adbPath, "-s", serial, "shell", "cmd", "package", "compile",
-                "-m", "verify", "-f", "com.bxane.nuvx.dev.tv",
+                "-m", "verify", "-f", "com.licht.nuvx.dev.tv",
             ).inheritIO().start().waitFor()
         }
     }

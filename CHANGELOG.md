@@ -2,7 +2,14 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
-## 1.1.0 (Unreleased)
+## 1.0.0 (Unreleased)
+
+### Android release
+
+- Rename the Android app identity to `com.licht.nuvx` and sign the phone, TV, Auto, and Wear packages with the `licht` certificate.
+- Publish one APK for each Android target, with no separate GMS or FOSS assets. Set Android version code to `1` on every target.
+- Use plain APK filenames and keep the update checker compatible with older release assets.
+- Archive the original version-code-10 release as old Nuvx while retaining its tag target and downloads.
 
 ### Fixes
 
@@ -29,7 +36,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 - Change the default Discord activity action to **Listen on nuvx** and send it to `https://nuvx.lol/open`, which attempts to open the installed app and keeps a website fallback available.
 
-## 1.0.0
+## 1.0.0 (Previous app identity)
 
 This section records every change since the v0.9.0 stable release.
 

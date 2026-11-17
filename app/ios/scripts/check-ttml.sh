@@ -14,8 +14,8 @@ repo="$(cd "$(dirname "$0")/.." && pwd)"
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
-main="$repo/shared/src/commonMain/kotlin/com/bxane/nuvx/data/lyrics"
-tests="$repo/shared/src/commonTest/kotlin/com/bxane/nuvx/data/lyrics"
+main="$repo/shared/src/commonMain/kotlin/com/licht/nuvx/data/lyrics"
+tests="$repo/shared/src/commonTest/kotlin/com/licht/nuvx/data/lyrics"
 classpath="$KOTLIN_HOME/lib/kotlin-test.jar:$KOTLIN_HOME/lib/kotlin-test-junit.jar:$TTML_TEST_CLASSPATH"
 "$KOTLIN_HOME/bin/kotlinc" \
   "$main/TtmlLyrics.kt" "$main/LyricLine.kt" "$main/LyricAlignments.kt" \
@@ -25,5 +25,5 @@ classpath="$KOTLIN_HOME/lib/kotlin-test.jar:$KOTLIN_HOME/lib/kotlin-test-junit.j
   -cp "$classpath" -d "$scratch/tests.jar"
 java -cp "$scratch/tests.jar:$KOTLIN_HOME/lib/kotlin-stdlib.jar:$classpath" \
   org.junit.runner.JUnitCore \
-  com.bxane.nuvx.data.lyrics.TtmlDuetTest \
-  com.bxane.nuvx.data.lyrics.TtmlMarkupTest
+  com.licht.nuvx.data.lyrics.TtmlDuetTest \
+  com.licht.nuvx.data.lyrics.TtmlMarkupTest

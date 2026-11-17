@@ -6,7 +6,7 @@ import CoreAudio
 
 final class MacAudioRoutes: NSObject, @unchecked Sendable {
     struct Snapshot { let device: AudioDeviceID; let name: String; let kind: String }
-    private let queue = DispatchQueue(label: "com.bxane.nuvx.audio-route")
+    private let queue = DispatchQueue(label: "com.licht.nuvx.audio-route")
     private var previousDevice: AudioDeviceID
     private var listener: AudioObjectPropertyListenerBlock?
     private let changed: () -> Void

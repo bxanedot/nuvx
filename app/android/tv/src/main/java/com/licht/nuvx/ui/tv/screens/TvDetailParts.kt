@@ -1,0 +1,102 @@
+package com.licht.nuvx.ui.tv.screens
+
+import com.licht.nuvx.ui.icons.SfIcons
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.licht.nuvx.ui.tv.components.tvClick
+import com.licht.nuvx.ui.tv.components.tvInitialFocus
+import com.licht.nuvx.ui.tv.components.tvLift
+import com.licht.nuvx.ui.tv.components.tvPlatter
+import com.licht.nuvx.ui.tv.theme.TvGlass
+
+@Composable
+internal fun TvActionRow(
+    canPlay: Boolean,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+    modifier: Modifier = Modifier,
+    playColor: Color? = null,
+    subscribed: Boolean? = null,
+    onToggleSubscription: () -> Unit = {},
+    onFocused: () -> Unit = {},
+) {
+    Row(
+        modifier = modifier.onFocusChanged { if (it.hasFocus) onFocused() },
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TvCircleAction(
+            icon = SfIcons.Shuffle,
+            contentDescription = "Shuffle",
+            size = 43.dp,
+            enabled = canPlay,
+            onClick = onShuffle,
+        )
+        TvCircleAction(
+            icon = SfIcons.PlayArrow,
+            contentDescription = "Play",
+            size = 58.dp,
+            iconScale = 0.5f,
+            resting = playColor ?: TvGlass.AppleRed,
+            enabled = canPlay,
+            onClick = onPlay,
+            modifier = Modifier.tvInitialFocus(canPlay),
+        )
+        if (subscribed != null) {
+            TvCircleAction(
+                icon = if (subscribed) SfIcons.StarFill else SfIcons.Star,
+                contentDescription = if (subscribed) "Unsubscribe" else "Subscribe",
+                size = 43.dp,
+                onClick = onToggleSubscription,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvCircleAction(
+    icon: ImageVector,
+    contentDescription: String,
+    size: Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    resting: Color = Color.White.copy(alpha = 0.16f),
+    iconScale: Float = 0.44f,
+    enabled: Boolean = true,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    Box(
+        modifier = modifier
+            .size(size)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.4f }
+            .tvLift(interaction, CircleShape, focusedScale = 1.12f, elevation = 13.dp)
+            .tvPlatter(interaction, resting = resting)
+            .tvClick(interaction, enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (focused) TvGlass.OnPlatter else Color.White,
+            modifier = Modifier.size(size * iconScale),
+        )
+    }
+}

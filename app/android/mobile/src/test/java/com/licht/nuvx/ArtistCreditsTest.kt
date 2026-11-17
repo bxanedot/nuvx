@@ -1,0 +1,213 @@
+package com.licht.nuvx
+
+import com.licht.nuvx.data.model.ArtistCredit
+import com.licht.nuvx.data.model.ArtistNameIndex
+import com.licht.nuvx.data.model.ArtistRef
+import com.licht.nuvx.data.model.completeArtistCredits
+import com.licht.nuvx.data.model.creditSegments
+import com.licht.nuvx.data.scrobbling.primaryArtist
+import com.licht.nuvx.ui.player.artistCredits
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ArtistCreditsTest {
+    @Before
+    fun forgetWhatOtherTestsLearned() = ArtistNameIndex.forget()
+
+    private fun stated(vararg refs: ArtistRef) =
+        artistCredits(artist = "", artists = refs.toList(), primaryArtistId = null)
+
+    private fun statedNames(vararg names: String) =
+        artistCredits("", names.map { name -> ArtistRef(name) }, null).map { it.name }
+
+    private fun split(line: String, primaryId: String? = null) =
+        artistCredits(artist = line, artists = emptyList(), primaryArtistId = primaryId)
+
+    @Test
+    fun `every stated artist keeps its own page`() {
+        val credits = stated(
+            ArtistRef("BedeoSa", "UC_bedeosa"),
+            ArtistRef("2115", "UC_2115"),
+            ArtistRef("Flexxy", "UC_flexxy"),
+        )
+        assertEquals(listOf("BedeoSa", "2115", "Flexxy"), credits.map { it.name })
+        assertEquals(
+            listOf("UC_bedeosa", "UC_2115", "UC_flexxy"),
+            credits.map { it.browseId },
+        )
+    }
+
+    @Test
+    fun `a name stated without a channel is kept but has nothing to open`() {
+        val credits = stated(
+            ArtistRef("BedeoSa", "UC_a"),
+            ArtistRef("2115"),
+        )
+        assertEquals(listOf("BedeoSa", "2115"), credits.map { it.name })
+        assertNull("a channelless name must not invent one", credits[1].browseId)
+    }
+
+    @Test
+    fun `a blank stated name is dropped rather than drawn`() {
+        assertEquals(
+            listOf("BedeoSa", "2115"),
+            statedNames("BedeoSa", "   ", "2115"),
+        )
+    }
+
+    @Test
+    fun `stated credits are used even when the credit line says something else`() {
+        val credits = artistCredits(
+            artist = "BedeoSa, 2115, Flexxy",
+            artists = listOf(ArtistRef("BedeoSa", "UC_a"), ArtistRef("2115", "UC_b")),
+            primaryArtistId = "UC_stale",
+        )
+        assertEquals(listOf("BedeoSa", "2115"), credits.map { it.name })
+        assertEquals(listOf("UC_a", "UC_b"), credits.map { it.browseId })
+    }
+
+    @Test
+    fun `the lead credit of a split is the same name primaryArtist picks`() {
+        for (line in listOf(
+            "Anitta & Shakira",
+            "Anitta, Shakira",
+            "Drake ＆ 21 Savage",
+            "Beyoncé, Jay-Z & Kanye West",
+            "AC/DC",
+            "Florence and the Machine",
+            "Simon & Garfunkel",
+            "Tyler, The Creator",
+            "  spaced  &  out  ",
+        )) {
+            val credits = split(line)
+            assertTrue("no credits parsed from: $line", credits.isNotEmpty())
+            assertEquals(
+                "lead credit disagrees with primaryArtist for: $line",
+                line.primaryArtist(),
+                credits.first().name,
+            )
+        }
+    }
+
+    @Test
+    fun `a split hands the track's own id to the lead and to nobody else`() {
+        val credits = split("Anitta & Shakira", primaryId = "UC_anitta")
+        assertEquals(listOf("Anitta", "Shakira"), credits.map { it.name })
+        assertEquals("UC_anitta", credits[0].browseId)
+        assertNull(
+            "the lead's id must not be handed to a different name",
+            credits[1].browseId,
+        )
+    }
+
+    @Test
+    fun `a name the project rule leaves whole is left whole here`() {
+        assertEquals(listOf("AC/DC"), split("AC/DC").map { it.name })
+        assertEquals(listOf("Florence and the Machine"), split("Florence and the Machine").map { it.name })
+    }
+
+    @Test
+    fun `a blank line is no credits rather than one empty one`() {
+        assertEquals(emptyList<String>(), split("").map { it.name })
+        assertEquals(emptyList<String>(), split("   ").map { it.name })
+    }
+
+    @Test
+    fun `a dangling separator does not produce an empty credit`() {
+        for (line in listOf("Anitta &", "Anitta,", "& Shakira", ", ,")) {
+            assertTrue(
+                "empty credit in: '$line' -> ${split(line).map { it.name }}",
+                split(line).none { it.name.isBlank() },
+            )
+        }
+    }
+
+    @Test
+    fun `the stretches redraw the credit line character for character`() {
+        for (line in listOf(
+            "2115, Bedoes 2115, White 2115",
+            "Bedoes 2115 and Lanek",
+            "White 2115, VVSimon, Palar and PMBTZ",
+            "Anitta & Shakira",
+            "BedeoSa",
+        )) {
+            val segments = creditSegments(line, split(line))
+            assertEquals("stretches redrew the line differently for: $line", line, segments.joinToString("") { it.text })
+        }
+    }
+
+    @Test
+    fun `a live collaboration names every credit and every one is a link`() {
+        val credits = listOf(
+            ArtistCredit("2115", "UCeL9Nc_StEiSMV9HVYhkMMA"),
+            ArtistCredit("Bedoes 2115", "UCLLUIzfV9aOdnZN9ViIfSDQ"),
+            ArtistCredit("White 2115", "UC8Yuo0-S4BMCXWzYajCbMug"),
+        )
+        val segments = creditSegments("2115, Bedoes 2115, White 2115", credits)
+
+        assertEquals(
+            listOf("2115", ", ", "Bedoes 2115", ", ", "White 2115"),
+            segments.map { it.text },
+        )
+        assertEquals(
+            listOf("UCeL9Nc_StEiSMV9HVYhkMMA", "UCLLUIzfV9aOdnZN9ViIfSDQ", "UC8Yuo0-S4BMCXWzYajCbMug"),
+            segments.filter { it.credit != null }.map { it.credit?.browseId },
+        )
+    }
+
+    @Test
+    fun `a longer name wins over a shorter one that starts inside it`() {
+        val credits = listOf(ArtistCredit("2115", "UC_a"), ArtistCredit("Bedoes 2115", "UC_b"))
+        val segments = creditSegments("2115 i Bedoes 2115", credits)
+        assertEquals(listOf("2115", " i ", "Bedoes 2115"), segments.map { it.text })
+    }
+
+    @Test
+    fun `the punctuation between credits is drawn but is not tappable`() {
+        val segments = creditSegments(
+            "White 2115, PMBTZ",
+            listOf(ArtistCredit("White 2115", "UC_w"), ArtistCredit("PMBTZ", "UC_p")),
+        )
+        val separator = segments.single { it.text == ", " }
+        assertNull("a comma has no page behind it", separator.credit)
+    }
+
+    @Test
+    fun `a name the line spells differently is drawn as the line spells it`() {
+        val segments = creditSegments(
+            "Bedeosa, 2115",
+            listOf(ArtistCredit("BedeoSa", "UC_a"), ArtistCredit("2115", "UC_b")),
+        )
+        assertEquals("Bedeosa, 2115", segments.joinToString("") { it.text })
+        assertEquals(
+            listOf("UC_a", "UC_b"),
+            segments.filter { it.credit != null }.map { it.credit?.browseId },
+        )
+    }
+
+    @Test
+    fun `a credit with no channel is drawn but carries no link`() {
+        val segments = creditSegments(
+            "Anitta & Shakira",
+            split("Anitta & Shakira", primaryId = "UC_anitta"),
+        )
+        assertEquals(listOf("Anitta", " & ", "Shakira"), segments.map { it.text })
+        assertEquals("UC_anitta", segments[0].credit?.browseId)
+        assertNull(segments[2].credit?.browseId)
+    }
+
+    @Test
+    fun `a line with nothing credited is one plain stretch`() {
+        val segments = creditSegments("BedeoSa, 2115", emptyList())
+        assertEquals(listOf("BedeoSa, 2115"), segments.map { it.text })
+        assertTrue("nothing on the line can be tapped", segments.none { it.credit != null })
+    }
+
+    @Test
+    fun `an empty line is no stretches at all`() {
+        assertEquals(emptyList<String>(), creditSegments("", split("")).map { it.text })
+    }
+}

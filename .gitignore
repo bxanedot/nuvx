@@ -62,3 +62,6 @@ keystore.properties
 
 # Desktop app (Rust)
 /app/desktop/target/
+
+# Local release/emulator scratch (signing keys, AVDs, logs)
+/work/
