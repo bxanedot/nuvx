@@ -77,6 +77,28 @@ test("pairing: needs approval and the secret, works once, and expires", () => {
   assert.equal(a.call("POST", `/v1/pairings/${late.code}/approve`, phone.token).status, 404, "expired");
 });
 
+test("pairing: the first approval wins, so a second space cannot take an approved device", () => {
+  const a = app();
+  const owner = newSpace(a), stranger = newSpace(a, "Stranger");
+  const started = a.call("POST", "/v1/pairings", undefined, { deviceName: "TV" }).body;
+  assert.equal(a.call("POST", `/v1/pairings/${started.code}/approve`, owner.token).status, 200);
+  assert.equal(a.call("POST", `/v1/pairings/${started.code}/approve`, stranger.token).status, 409);
+  const tv = a.call("POST", `/v1/pairings/${started.code}/claim`, undefined, { secret: started.secret }).body;
+  assert.equal(tv.spaceId, owner.spaceId);
+});
+
+test("pairing: the device cap also holds when several approved codes are claimed", () => {
+  const a = app();
+  const phone = newSpace(a);
+  for (let i = 1; i < 19; i++) pair(a, phone.token, `D${i}`); // 19 devices
+  const starts = [0, 1].map((i) => a.call("POST", "/v1/pairings", undefined, { deviceName: `Late${i}` }).body);
+  for (const s of starts) assert.equal(a.call("POST", `/v1/pairings/${s.code}/approve`, phone.token).status, 200);
+  const claim = (s: { code: string; secret: string }) => a.call("POST", `/v1/pairings/${s.code}/claim`, undefined, { secret: s.secret }).status;
+  assert.equal(claim(starts[0]), 200);
+  assert.equal(claim(starts[1]), 409);
+  assert.equal(a.call("GET", "/v1/devices", phone.token).body.devices.length, 20);
+});
+
 test("a revoked device loses access at once; others keep theirs", () => {
   const a = app();
   const phone = newSpace(a);

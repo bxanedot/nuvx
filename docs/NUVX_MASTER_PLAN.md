@@ -52,13 +52,19 @@ The one handoff document for this programme. Update it in the same pull request 
 | 310 | Desktop retries a song once on a network blip |
 | 311 | Android refuses to download with under 500 MB free |
 | 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android, the same morph on iOS and web; per-device equalizer; undo after deleting a nuvx playlist; redacted diagnostics on Android, iOS and desktop |
+| 315 | Android, shared Kotlin and web tests run on pull requests (risk 1) |
 | 313 | Icon render and animation-state tests; web signature code in an isolated worker; JitPack limited to `com.github.*`; shared sync replay rules with a fixture; crossfade timing tests; Android playlist export as M3U; security, platform, testing, release and decision docs |
 
 ## Open
 
-- **PR checks for Android and web** (branch `claude/pr-checks-android-web`): runs Android, shared and web tests on every pull request that touches them.
+- **Desktop tests on Linux and Windows** (PR 316, branch `claude/desktop-checks-win-linux`): next item 0.
+- **Sync pairing hardening** (branch `claude/sync-pairing-first-approval`): the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. 11 Sync tests pass.
 - **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
 - Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
+
+## Checked and found healthy (2026-11-17, second session)
+
+- Desktop WebView reuse (reference audit, Metrolist PR 4615): the lyrics check and sign-in windows run in a child process that exits, so their WebViews cannot pile up.
 
 ## Waiting on the owner
 

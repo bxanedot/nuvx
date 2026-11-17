@@ -118,17 +118,22 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now) {
       const row = db.prepare("SELECT code, secret_hash, name, space_id FROM pairings WHERE code = ? AND expires_ms >= ?")
         .get(pairing[1], now()) as { code: string; secret_hash: string; name: string; space_id: string | null } | undefined;
       if (!row) return fail(404, "no_such_pairing", "That pairing code is unknown or has expired.");
+      const full = (spaceId: string) =>
+        (db.prepare("SELECT COUNT(*) AS n FROM devices WHERE space_id = ?").get(spaceId) as { n: number }).n >= MAX_DEVICES;
+      const tooMany = () => fail(409, "too_many_devices", `A space holds at most ${MAX_DEVICES} devices.`);
       if (pairing[2] === "approve") {
         const device = auth(authHeader);
         if (!device) return fail(401, "unauthorized", "Missing or unknown device token.");
-        const count = (db.prepare("SELECT COUNT(*) AS n FROM devices WHERE space_id = ?").get(device.space_id) as { n: number }).n;
-        if (count >= MAX_DEVICES) return fail(409, "too_many_devices", `A space holds at most ${MAX_DEVICES} devices.`);
-        db.prepare("UPDATE pairings SET space_id = ? WHERE code = ?").run(device.space_id, row.code);
+        if (full(device.space_id)) return tooMany();
+        // First approval wins: anyone else who saw the QR must not move the device into their own space.
+        if (row.space_id !== null && row.space_id !== device.space_id) return fail(409, "already_approved", "Another space already approved this code.");
+        db.prepare("UPDATE pairings SET space_id = ? WHERE code = ? AND space_id IS NULL").run(device.space_id, row.code);
         return { status: 200, body: { ok: true, deviceName: row.name } };
       }
       const offered = Buffer.from(hash(str(body.secret, 200) ?? ""), "hex"), stored = Buffer.from(row.secret_hash, "hex");
       if (!timingSafeEqual(offered, stored)) return fail(401, "bad_secret", "Wrong pairing secret.");
       if (!row.space_id) return { status: 202, body: { pending: true } };
+      if (full(row.space_id)) return tooMany(); // several codes approved at once must not pass the cap together
       db.prepare("DELETE FROM pairings WHERE code = ?").run(row.code); // single use
       return { status: 200, body: addDevice(row.space_id, row.name) };
     }
