@@ -445,7 +445,7 @@ internal fun NuvxApp(
         }
     }
     var exportTarget by remember { mutableStateOf<UserPlaylist?>(null) }
-    val playlistExportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/x-mpegurl")) { uri ->
+    val writePlaylistExport = { uri: android.net.Uri?, render: (String, List<com.licht.nuvx.data.model.Song>) -> String ->
         val p = exportTarget
         exportTarget = null
         if (uri != null && p != null) {
@@ -454,7 +454,7 @@ internal fun NuvxApp(
                     val ok = withContext(Dispatchers.IO) {
                         songs.mapCatching { list ->
                             context.contentResolver.openOutputStream(uri, "wt")
-                                ?.use { it.write(com.licht.nuvx.data.PlaylistExport.m3u(p.title, list).toByteArray()) }
+                                ?.use { it.write(render(p.title, list).toByteArray()) }
                                 ?: error("Couldn't open that file for writing")
                         }
                     }.isSuccess
@@ -462,6 +462,12 @@ internal fun NuvxApp(
                 }
             }
         }
+    }
+    val playlistExportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/x-mpegurl")) { uri ->
+        writePlaylistExport(uri, com.licht.nuvx.data.PlaylistExport::m3u)
+    }
+    val playlistCsvExportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        writePlaylistExport(uri) { _, list -> com.licht.nuvx.data.PlaylistExport.csv(list) }
     }
     var browseMenuOrigin by remember { mutableStateOf<HeldItem?>(null) }
     var browseMenuAnchor by remember { mutableStateOf<Rect?>(null) }
@@ -3351,6 +3357,13 @@ internal fun NuvxApp(
                         browseActions = null
                         exportTarget = p
                         playlistExportPicker.launch("${p.title}.m3u")
+                    }
+                },
+                onExportCsv = playlist?.let { p ->
+                    {
+                        browseActions = null
+                        exportTarget = p
+                        playlistCsvExportPicker.launch("${p.title}.csv")
                     }
                 },
                 onDelete = playlist?.let { p ->
