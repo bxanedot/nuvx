@@ -1765,6 +1765,7 @@ private struct PlayCircle: View {
             ZStack {
                 Circle().fill(color)
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .nuvxSymbolReplace()
                     .resizable()
                     .scaledToFit()
                     .frame(width: size * 0.56 * 0.6, height: size * 0.56 * 0.6)
@@ -1795,6 +1796,7 @@ private struct PlayPill: View {
                         .fill(Color.white)
                         .overlay {
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                .nuvxSymbolReplace()
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: size * 0.40, height: size * 0.40)
@@ -1805,6 +1807,7 @@ private struct PlayPill: View {
                 } else {
                     HStack(spacing: 8) {
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .nuvxSymbolReplace()
                             .font(.body.weight(.bold))
                             .foregroundStyle(Color.black)
                         Text(isPlaying ? "Pause" : "Play")

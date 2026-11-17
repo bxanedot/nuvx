@@ -369,11 +369,11 @@ private fun GlassNowPlaying(
                     },
                     modifier = Modifier.size(glyphSlot),
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) SfIcons.Pause else SfIcons.PlayArrow,
+                    com.licht.nuvx.ui.icons.NuvxSymbol(
+                        glyph = if (isPlaying) com.licht.nuvx.ui.icons.NuvxGlyph.Pause else com.licht.nuvx.ui.icons.NuvxGlyph.Play,
                         contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
                         tint = contentColor,
-                        modifier = Modifier.size(glyphSize),
+                        size = glyphSize,
                     )
                 }
             }

@@ -84,4 +84,4 @@ fun RevealIcon(symbol: SfSymbol, tint: Color, size: Dp) {
     }
 }
 
-private const val REVEAL_SYMBOL_SCALE = 22f / 28f
+internal const val REVEAL_SYMBOL_SCALE = 22f / 28f
