@@ -1454,4 +1454,25 @@
     <string name="export_playlist_csv">प्लेलिस्ट एक्सपोर्ट करें (CSV)</string>
     <string name="network">नेटवर्क</string>
     <string name="restart_now">अभी रीस्टार्ट करें</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">जब तक आप इसे चालू न करें, बंद रहता है। सिर्फ़ आपकी nuvx प्लेलिस्ट, आपके चुने Nuvx Sync सर्वर से सिंक होती हैं। आपका YouTube Music साइन-इन और लाइब्रेरी इस डिवाइस से बाहर नहीं जाते।</string>
+    <string name="nuvx_sync_syncing">सिंक हो रहा है…</string>
+    <string name="nuvx_sync_last">पिछला सिंक %1$s</string>
+    <string name="nuvx_sync_server">सिंक सर्वर</string>
+    <string name="nuvx_sync_server_https">https:// पता इस्तेमाल करें</string>
+    <string name="nuvx_sync_consent">इस डिवाइस की आपकी %1$d nuvx प्लेलिस्ट इस सर्वर पर कॉपी होंगी और आपके दूसरे डिवाइसों से सिंक रहेंगी। आप उन्हें कभी भी सर्वर से हटा सकते हैं।</string>
+    <string name="nuvx_sync_start_new">नई शुरुआत</string>
+    <string name="nuvx_sync_join">मेरे डिवाइसों से जुड़ें</string>
+    <string name="nuvx_sync_join_steps">जो डिवाइस पहले से सिंक करता है, उस पर सेटिंग्स → Nuvx Sync → डिवाइस जोड़ें खोलें और यह कोड डालें। यह एक बार चलता है और दो मिनट में खत्म हो जाता है।</string>
+    <string name="nuvx_sync_code_expired">यह कोड खत्म हो गया। नया कोड पाने के लिए फिर से शुरू करें।</string>
+    <string name="nuvx_sync_add_device">डिवाइस जोड़ें</string>
+    <string name="nuvx_sync_add_device_steps">आपके दूसरे डिवाइस पर दिख रहा 8 अक्षरों का कोड डालें। सिर्फ़ वही कोड मंज़ूर करें जो आपके अपने डिवाइस पर दिखे।</string>
+    <string name="nuvx_sync_code">कोड</string>
+    <string name="nuvx_sync_approve">मंज़ूर करें</string>
+    <string name="nuvx_sync_added">“%1$s” जोड़ा गया। अगर यह आपका डिवाइस नहीं है, तो डिवाइस में जाकर हटाएं।</string>
+    <string name="nuvx_sync_devices">डिवाइस</string>
+    <string name="nuvx_sync_this_device">यह डिवाइस</string>
+    <string name="nuvx_sync_turn_off">सिंक बंद करें</string>
+    <string name="nuvx_sync_turn_off_body">यह डिवाइस सिंक करना बंद कर देगा। आपकी प्लेलिस्ट इसी डिवाइस पर रहेंगी।</string>
+    <string name="nuvx_sync_delete_server">सर्वर पर सब कुछ भी हटाएं, सभी डिवाइसों के लिए</string>
 </resources>

@@ -1411,4 +1411,25 @@
     <string name="export_playlist_csv">Çalma listesini dışa aktar (CSV)</string>
     <string name="network">Ağ</string>
     <string name="restart_now">Şimdi yeniden başlat</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">Siz açana kadar kapalı. Yalnızca nuvx çalma listelerinizi, seçtiğiniz bir Nuvx Sync sunucusu üzerinden eşitler. YouTube Music girişiniz ve kitaplığınız bu cihazdan hiç çıkmaz.</string>
+    <string name="nuvx_sync_syncing">Eşitleniyor…</string>
+    <string name="nuvx_sync_last">Son eşitleme %1$s</string>
+    <string name="nuvx_sync_server">Eşitleme sunucusu</string>
+    <string name="nuvx_sync_server_https">https:// adresi kullanın</string>
+    <string name="nuvx_sync_consent">Bu cihazdaki %1$d nuvx çalma listeniz bu sunucuya kopyalanacak ve diğer cihazlarınızla eşitlenecek. Bunları istediğiniz zaman sunucudan silebilirsiniz.</string>
+    <string name="nuvx_sync_start_new">Yeni başlat</string>
+    <string name="nuvx_sync_join">Cihazlarıma katıl</string>
+    <string name="nuvx_sync_join_steps">Zaten eşitleme yapan bir cihazda Ayarlar → Nuvx Sync → Cihaz ekle’yi açın ve bu kodu girin. Kod bir kez çalışır ve iki dakikada sona erer.</string>
+    <string name="nuvx_sync_code_expired">Bu kodun süresi doldu. Yeni bir kod için yeniden başlayın.</string>
+    <string name="nuvx_sync_add_device">Cihaz ekle</string>
+    <string name="nuvx_sync_add_device_steps">Diğer cihazınızda görünen 8 karakterlik kodu girin. Yalnızca kendi cihazınızda gördüğünüz bir kodu onaylayın.</string>
+    <string name="nuvx_sync_code">Kod</string>
+    <string name="nuvx_sync_approve">Onayla</string>
+    <string name="nuvx_sync_added">“%1$s” eklendi. Sizin cihazınız değilse Cihazlar’dan kaldırın.</string>
+    <string name="nuvx_sync_devices">Cihazlar</string>
+    <string name="nuvx_sync_this_device">bu cihaz</string>
+    <string name="nuvx_sync_turn_off">Eşitlemeyi kapat</string>
+    <string name="nuvx_sync_turn_off_body">Bu cihaz eşitlemeyi bırakır. Çalma listeleriniz bu cihazda kalır.</string>
+    <string name="nuvx_sync_delete_server">Tüm cihazlar için sunucudaki her şeyi de sil</string>
 </resources>

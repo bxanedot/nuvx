@@ -1459,4 +1459,25 @@
     <string name="export_playlist_csv">ייצוא פלייליסט (CSV)</string>
     <string name="network">רשת</string>
     <string name="restart_now">הפעלה מחדש עכשיו</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">כבוי עד שתפעילו. מסנכרן רק את פלייליסטי nuvx שלכם, דרך שרת Nuvx Sync שתבחרו. ההתחברות והספרייה של YouTube Music לא יוצאות מהמכשיר.</string>
+    <string name="nuvx_sync_syncing">מסנכרן…</string>
+    <string name="nuvx_sync_last">סונכרן לאחרונה %1$s</string>
+    <string name="nuvx_sync_server">שרת סנכרון</string>
+    <string name="nuvx_sync_server_https">יש להשתמש בכתובת https://</string>
+    <string name="nuvx_sync_consent">%1$d פלייליסטי nuvx במכשיר הזה יועתקו לשרת ויסונכרנו עם המכשירים האחרים שלכם. אפשר למחוק אותם מהשרת בכל עת.</string>
+    <string name="nuvx_sync_start_new">התחלה חדשה</string>
+    <string name="nuvx_sync_join">הצטרפות למכשירים שלי</string>
+    <string name="nuvx_sync_join_steps">במכשיר שכבר מסנכרן, פתחו הגדרות ← Nuvx Sync ← הוספת מכשיר והזינו את הקוד הזה. הוא עובד פעם אחת ופג תוקף אחרי שתי דקות.</string>
+    <string name="nuvx_sync_code_expired">תוקף הקוד פג. התחילו שוב לקבלת קוד חדש.</string>
+    <string name="nuvx_sync_add_device">הוספת מכשיר</string>
+    <string name="nuvx_sync_add_device_steps">הזינו את הקוד בן 8 התווים שמוצג במכשיר האחר. אשרו רק קוד שאתם רואים במכשיר שלכם.</string>
+    <string name="nuvx_sync_code">קוד</string>
+    <string name="nuvx_sync_approve">אישור</string>
+    <string name="nuvx_sync_added">נוסף ״%1$s״. אם זה לא המכשיר שלכם, הסירו אותו בתפריט מכשירים.</string>
+    <string name="nuvx_sync_devices">מכשירים</string>
+    <string name="nuvx_sync_this_device">המכשיר הזה</string>
+    <string name="nuvx_sync_turn_off">כיבוי סנכרון</string>
+    <string name="nuvx_sync_turn_off_body">המכשיר הזה מפסיק לסנכרן. הפלייליסטים נשארים במכשיר.</string>
+    <string name="nuvx_sync_delete_server">למחוק גם את כל המידע בשרת, לכל המכשירים</string>
 </resources>

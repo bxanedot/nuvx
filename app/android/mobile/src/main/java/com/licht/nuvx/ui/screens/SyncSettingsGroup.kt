@@ -70,11 +70,11 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                 icon = if (status.enabled) SfIcons.CloudDone else SfIcons.CloudOff,
                 title = title,
                 subtitle = when {
-                    !status.enabled -> stringResource(R.string.nuvx_sync_off)
+                    !status.enabled -> stringResource(R.string.off)
                     status.syncing -> stringResource(R.string.nuvx_sync_syncing)
                     status.error != null -> status.error
                     status.lastSyncMs > 0 -> stringResource(R.string.nuvx_sync_last, DateUtils.getRelativeTimeSpanString(status.lastSyncMs).toString())
-                    else -> stringResource(R.string.nuvx_sync_waiting)
+                    else -> stringResource(R.string.nuvx_sync_syncing)
                 },
                 onClick = { if (status.enabled) NuvxSync.requestSync() else dialog = SyncDialog.Setup },
             )
@@ -82,7 +82,7 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
         if (status.enabled) {
             val approveTitle = stringResource(R.string.nuvx_sync_add_device)
             row(approveTitle, "pair", "qr", "code", "device") {
-                SettingsRow(icon = SfIcons.Add, title = approveTitle, subtitle = stringResource(R.string.nuvx_sync_add_device_subtitle), onClick = { dialog = SyncDialog.Approve })
+                SettingsRow(icon = SfIcons.Add, title = approveTitle, onClick = { dialog = SyncDialog.Approve })
             }
             val devicesTitle = stringResource(R.string.nuvx_sync_devices)
             row(devicesTitle, "devices", "revoke", "remove") {
@@ -244,7 +244,7 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                                             else -> message = r.problem()
                                         }
                                     }
-                                }) { Text(stringResource(R.string.nuvx_sync_remove)) }
+                                }) { Text(stringResource(R.string.remove)) }
                             }
                         }
                     }

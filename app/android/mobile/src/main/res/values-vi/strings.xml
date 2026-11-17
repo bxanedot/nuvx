@@ -1374,4 +1374,25 @@
     <string name="export_playlist_csv">Xuất danh sách phát (CSV)</string>
     <string name="network">Mạng</string>
     <string name="restart_now">Khởi động lại ngay</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">Tắt cho đến khi bạn bật. Chỉ đồng bộ danh sách phát nuvx của bạn qua máy chủ Nuvx Sync bạn chọn. Thông tin đăng nhập và thư viện YouTube Music không bao giờ rời khỏi thiết bị này.</string>
+    <string name="nuvx_sync_syncing">Đang đồng bộ…</string>
+    <string name="nuvx_sync_last">Đồng bộ lần cuối %1$s</string>
+    <string name="nuvx_sync_server">Máy chủ đồng bộ</string>
+    <string name="nuvx_sync_server_https">Dùng địa chỉ https://</string>
+    <string name="nuvx_sync_consent">%1$d danh sách phát nuvx trên thiết bị này sẽ được sao chép lên máy chủ này và đồng bộ với các thiết bị khác của bạn. Bạn có thể xóa chúng khỏi máy chủ bất cứ lúc nào.</string>
+    <string name="nuvx_sync_start_new">Bắt đầu mới</string>
+    <string name="nuvx_sync_join">Tham gia thiết bị của tôi</string>
+    <string name="nuvx_sync_join_steps">Trên thiết bị đã đồng bộ, mở Cài đặt → Nuvx Sync → Thêm thiết bị và nhập mã này. Mã dùng một lần và hết hạn sau hai phút.</string>
+    <string name="nuvx_sync_code_expired">Mã này đã hết hạn. Bắt đầu lại để nhận mã mới.</string>
+    <string name="nuvx_sync_add_device">Thêm thiết bị</string>
+    <string name="nuvx_sync_add_device_steps">Nhập mã 8 ký tự hiển thị trên thiết bị kia. Chỉ phê duyệt mã bạn thấy trên thiết bị của chính mình.</string>
+    <string name="nuvx_sync_code">Mã</string>
+    <string name="nuvx_sync_approve">Phê duyệt</string>
+    <string name="nuvx_sync_added">Đã thêm “%1$s”. Nếu đó không phải thiết bị của bạn, hãy xóa trong Thiết bị.</string>
+    <string name="nuvx_sync_devices">Thiết bị</string>
+    <string name="nuvx_sync_this_device">thiết bị này</string>
+    <string name="nuvx_sync_turn_off">Tắt đồng bộ</string>
+    <string name="nuvx_sync_turn_off_body">Thiết bị này ngừng đồng bộ. Danh sách phát vẫn ở trên thiết bị này.</string>
+    <string name="nuvx_sync_delete_server">Xóa luôn mọi thứ trên máy chủ, cho tất cả thiết bị</string>
 </resources>
