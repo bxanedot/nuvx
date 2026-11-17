@@ -9,7 +9,7 @@ nuvx draws its symbols with GlyphStudio (`com.github.bxanedot.GlyphStudio:sfsymb
 
 | Meaning | Symbol | Motion | Where |
 |---|---|---|---|
-| Play / pause | `play.fill` / `pause.fill` | Replace transition on toggle | Android mini player and floating bar; iOS Now Playing, pill, theater and detail buttons (`.playPauseMorph()`) |
+| Play / pause | `play.fill` / `pause.fill` | Replace transition on toggle | Android Now Playing (phone and TV share it), mini player and floating bar; iOS Now Playing, pill, theater and detail buttons (`.playPauseMorph()`) |
 | Downloading / downloaded / failed | `arrow.down` / `arrow.down.circle.fill` / `exclamationmark.circle` | Replace transition when the state changes | Android download status pill |
 | Device / connected | `airplay.video` / `airplay.video.circle.fill` | Replace transition on connect and disconnect | Android cast device list |
 | Tab reselect | the tab's symbol | Bounce, by layer | Android floating tab bar |

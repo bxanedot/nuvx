@@ -179,7 +179,8 @@ internal fun TransportRow(
             }
         } else {
             TransportGlyph(
-                icon = if (isPlaying) Res.drawable.ic_player_pause else Res.drawable.ic_player_play,
+                icon = null,
+                glyph = if (isPlaying) com.licht.nuvx.ui.icons.NuvxGlyph.Pause else com.licht.nuvx.ui.icons.NuvxGlyph.Play,
                 contentDescription = stringResource(if (isPlaying) Res.string.pause else Res.string.play),
                 size = playSize,
                 touchSize = playTouch,
@@ -297,7 +298,7 @@ internal fun CircleGlyph(
 
 @Composable
 private fun TransportGlyph(
-    icon: DrawableResource,
+    icon: DrawableResource?,
     contentDescription: String,
     size: androidx.compose.ui.unit.Dp,
     touchSize: androidx.compose.ui.unit.Dp = size,
@@ -305,6 +306,7 @@ private fun TransportGlyph(
     enabled: Boolean = true,
     haptic: Haptic = Haptic.Tap,
     heightScale: Float = 1f,
+    glyph: com.licht.nuvx.ui.icons.NuvxGlyph? = null,
 ) {
     val haptics = rememberHaptics()
     val alpha by animateFloatAsState(
@@ -324,14 +326,18 @@ private fun TransportGlyph(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = contentDescription,
-            tint = Color.White.copy(alpha = alpha),
-            modifier = Modifier
-                .size(size)
-                .then(if (heightScale != 1f) Modifier.graphicsLayer { scaleY = heightScale } else Modifier),
-        )
+        if (glyph != null) {
+            com.licht.nuvx.ui.icons.NuvxSymbol(glyph, contentDescription, Color.White.copy(alpha = alpha), size)
+        } else if (icon != null) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = contentDescription,
+                tint = Color.White.copy(alpha = alpha),
+                modifier = Modifier
+                    .size(size)
+                    .then(if (heightScale != 1f) Modifier.graphicsLayer { scaleY = heightScale } else Modifier),
+            )
+        }
     }
 }
 
