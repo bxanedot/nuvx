@@ -74,8 +74,8 @@ export function AppShell() {
   } else if (extension.state === 'missing' && !bannerDismissed) {
     banner = (
       <Banner
-        title="Play YouTube Music with the nuvx extension."
-        detail="Playback, YouTube Music sign-in, Spotify and Discord need the extension. Addons and lyrics work without it."
+        title="Nuvx works best with its extension."
+        detail="Connect the extension for playback, Spotify and Discord presence. Addons and lyrics work without it."
         action={
           browserDownload?.href && BrowserDownloadIcon ? (
             <a
