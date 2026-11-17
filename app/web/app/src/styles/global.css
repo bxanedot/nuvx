@@ -293,6 +293,7 @@
 
   body {
     position: relative;
+    z-index: 1;
     isolation: isolate;
     font: var(--body);
     color: var(--systemPrimary);
@@ -304,46 +305,48 @@
   }
 
   html {
+    position: relative;
+    isolation: isolate;
     background-color: var(--pageBG);
-    --flow-a: rgb(64 64 64 / 18%);
-    --flow-b: rgb(112 112 112 / 13%);
-    --flow-c: rgb(64 64 64 / 9%);
+    --flow-a: rgb(32 32 32 / 18%);
+    --flow-b: rgb(80 80 80 / 14%);
+    --flow-c: rgb(24 24 24 / 9%);
   }
 
   @media (prefers-color-scheme: dark) {
     html {
-      --flow-a: rgb(240 240 240 / 18%);
-      --flow-b: rgb(190 190 190 / 13%);
-      --flow-c: rgb(240 240 240 / 9%);
+      --flow-a: rgb(255 255 255 / 20%);
+      --flow-b: rgb(190 190 190 / 15%);
+      --flow-c: rgb(255 255 255 / 10%);
     }
   }
 
-  body::before,
-  body::after {
+  html::before,
+  html::after {
     content: '';
     position: fixed;
     inset: -16%;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
     border-radius: 50%;
     will-change: transform;
   }
 
-  body::before {
+  html::before {
     background:
       radial-gradient(ellipse 43% 36% at 22% 34%, var(--flow-a), transparent 72%),
       radial-gradient(ellipse 35% 32% at 78% 26%, var(--flow-b), transparent 70%),
       radial-gradient(ellipse 42% 38% at 61% 78%, var(--flow-c), transparent 72%);
-    filter: blur(38px);
+    filter: blur(34px);
     opacity: 1;
     animation: nuvx-flow-a 18s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
   }
 
-  body::after {
+  html::after {
     background:
       radial-gradient(ellipse 34% 31% at 72% 52%, var(--flow-a), transparent 72%),
       radial-gradient(ellipse 39% 34% at 26% 76%, var(--flow-b), transparent 73%);
-    filter: blur(54px);
+    filter: blur(44px);
     opacity: 0.85;
     animation: nuvx-flow-b 26s cubic-bezier(0.42, 0, 0.58, 1) infinite alternate;
   }
@@ -361,13 +364,13 @@
   }
 
   @media (max-width: 620px) {
-    body::before { inset: -12%; filter: blur(26px); opacity: 1; animation-duration: 18s; }
-    body::after { inset: -12%; filter: blur(36px); opacity: 0.8; animation-duration: 24s; }
+    html::before { inset: -8%; filter: blur(24px); opacity: 1; animation-duration: 18s; }
+    html::after { inset: -8%; filter: blur(32px); opacity: 0.9; animation-duration: 24s; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    body::before,
-    body::after { animation: none; will-change: auto; }
+    html::before,
+    html::after { animation: none; will-change: auto; }
   }
 
   .app-licht-signature {
