@@ -114,11 +114,11 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                         gapSize = 0.dp,
                     )
                 }
-                Icon(
-                    imageVector = when {
-                        failed -> SfIcons.ErrorOutline
-                        session.busy -> SfIcons.ArrowDownward
-                        else -> SfIcons.DownloadDone
+                com.licht.nuvx.ui.icons.NuvxSymbol(
+                    glyph = when {
+                        failed -> com.licht.nuvx.ui.icons.NuvxGlyph.DownloadFailed
+                        session.busy -> com.licht.nuvx.ui.icons.NuvxGlyph.Downloading
+                        else -> com.licht.nuvx.ui.icons.NuvxGlyph.Downloaded
                     },
                     contentDescription = when {
                         session.busy -> stringResource(
@@ -133,7 +133,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                         else -> stringResource(R.string.downloads_finished)
                     },
                     tint = tint,
-                    modifier = Modifier.size(if (session.busy) GLYPH_IN_RING else GLYPH_SIZE),
+                    size = if (session.busy) GLYPH_IN_RING else GLYPH_SIZE,
                 )
             }
         }

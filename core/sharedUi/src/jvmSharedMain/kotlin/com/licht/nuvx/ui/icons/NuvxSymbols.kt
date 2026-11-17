@@ -24,6 +24,9 @@ import com.licht.nuvx.ui.player.PlayerSettings
 enum class NuvxGlyph(val sfName: String) {
     Play("play.fill"),
     Pause("pause.fill"),
+    Downloading("arrow.down"),
+    Downloaded("arrow.down.circle.fill"),
+    DownloadFailed("exclamationmark.circle"),
     ;
 
     val symbol: SfSymbol get() = requireNotNull(SfSymbol[sfName]) { "GlyphStudio has no symbol $sfName" }
