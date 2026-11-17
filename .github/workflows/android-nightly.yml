@@ -223,9 +223,11 @@ jobs:
           stage() {
             local source=$1 prefix=$2 package=$3 metadata
             metadata=$("$tools/aapt2" dump badging "$source")
-            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
-            "$tools/apksigner" verify --print-certs "$source" |
-              grep -F 'certificate SHA-256 digest: 833677fbdff79698cae61cca10e09622e3732cc452d4800262cc118230e0fb9c'
+            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]] ||
+              { echo "$source: expected $package $version_name ($code), got: $(grep '^package:' <<<"$metadata")" >&2; exit 1; }
+            certs=$("$tools/apksigner" verify --print-certs "$source")
+            grep -qF 'certificate SHA-256 digest: 833677fbdff79698cae61cca10e09622e3732cc452d4800262cc118230e0fb9c' <<<"$certs" ||
+              { echo "$source is not signed with the licht key; it has: $(grep 'SHA-256 digest' <<<"$certs")" >&2; exit 1; }
             assert_android_legal_assets "$source"
             cp "$source" "nightly/$prefix-v$version${suffix:+-$suffix}.apk"
           }
@@ -255,9 +257,11 @@ jobs:
             source=$(find "$dir" -type f -path "*/$variant/release/*.apk" -print -quit)
             [[ -n "$source" && -s "$source" ]]
             metadata=$("$tools/aapt2" dump badging "$source")
-            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
-            "$tools/apksigner" verify --print-certs "$source" |
-              grep -F 'certificate SHA-256 digest: 833677fbdff79698cae61cca10e09622e3732cc452d4800262cc118230e0fb9c'
+            [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]] ||
+              { echo "$source: expected $package $version_name ($code), got: $(grep '^package:' <<<"$metadata")" >&2; exit 1; }
+            certs=$("$tools/apksigner" verify --print-certs "$source")
+            grep -qF 'certificate SHA-256 digest: 833677fbdff79698cae61cca10e09622e3732cc452d4800262cc118230e0fb9c' <<<"$certs" ||
+              { echo "$source is not signed with the licht key; it has: $(grep 'SHA-256 digest' <<<"$certs")" >&2; exit 1; }
             assert_android_legal_assets "$source"
             for abi in armeabi-v7a arm64-v8a x86_64; do
               unzip -l "$source" | grep -F "lib/$abi/libonnxruntime.so"
