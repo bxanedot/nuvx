@@ -29,6 +29,5 @@ The Android key lives in four repository secrets: `NUVX_KEYSTORE_BASE64`, `NUVX_
 
 ## Before the next release
 
-- Merge PR 312.
 - Redeploy the Worker if `core/worker` changed.
 - Write the CHANGELOG section `## X.Y.Z`.
