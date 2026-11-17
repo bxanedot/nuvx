@@ -200,7 +200,7 @@ jobs:
             metadata=$("$tools/aapt2" dump badging "$source")
             [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             "$tools/apksigner" verify --print-certs "$source" |
-              grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+              grep -F 'certificate SHA-256 digest: fa873addb9a2791c0aea91c74e6e37fe020fae6d3543b0629a3c392e1267dd24'
             assert_android_legal_assets "$source"
             cp "$source" "nightly/$prefix-v$version${suffix:+-$suffix}.apk"
           }
@@ -232,7 +232,7 @@ jobs:
             metadata=$("$tools/aapt2" dump badging "$source")
             [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             "$tools/apksigner" verify --print-certs "$source" |
-              grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+              grep -F 'certificate SHA-256 digest: fa873addb9a2791c0aea91c74e6e37fe020fae6d3543b0629a3c392e1267dd24'
             assert_android_legal_assets "$source"
             for abi in armeabi-v7a arm64-v8a x86_64; do
               unzip -l "$source" | grep -F "lib/$abi/libonnxruntime.so"
