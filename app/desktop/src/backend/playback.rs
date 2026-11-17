@@ -88,6 +88,7 @@ impl Backend {
             Ok(decoder) => {
                 log::debug!("play gen {generation}: decoder ready at {at:?} in {:?}", t0.elapsed());
                 if let Some(mut info) = shared2.info.clone() {
+                    info.verify(&shared2.head(4096));
                     info.sample_rate = Some(rodio::Source::sample_rate(&decoder).get());
                     info.channels = Some(rodio::Source::channels(&decoder).get() as u8);
                     let _ = tx.send(Resp::AudioInfo { generation, info });

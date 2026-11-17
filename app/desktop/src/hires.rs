@@ -13,7 +13,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const STREAM_TRIES: usize = 3;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Info {
     pub source: String,
     pub host: String,
@@ -29,8 +29,33 @@ pub struct Info {
 }
 
 impl Info {
+    // Only the codec counts, never the provider's quality label; `verify` sets the codec from the file itself.
     pub fn lossless(&self) -> bool {
-        matches!(self.codec.to_ascii_lowercase().as_str(), "flac" | "alac" | "wav" | "aiff") || has_lossless_word(&self.quality)
+        matches!(self.codec.to_ascii_lowercase().as_str(), "flac" | "alac" | "wav" | "aiff")
+    }
+
+    /// Replaces the provider's codec and bit-depth claims with what the file's first bytes show.
+    pub fn verify(&mut self, head: &[u8]) {
+        let has = |tag: &[u8]| head.windows(tag.len()).any(|w| w == tag);
+        let (codec, bits) = if head.starts_with(b"fLaC") && head.len() >= 22 {
+            ("FLAC", Some((((head[20] as u32 & 1) << 4) | (head[21] as u32 >> 4)) + 1))
+        } else if head.starts_with(b"RIFF") && head.get(8..12) == Some(b"WAVE") && head.get(12..16) == Some(b"fmt ") && head.len() >= 36 {
+            ("WAV", Some(u16::from_le_bytes([head[34], head[35]]) as u32))
+        } else if head.starts_with(b"ID3") || (head.len() > 1 && head[0] == 0xFF && head[1] & 0xE0 == 0xE0) {
+            ("MP3", None)
+        } else if head.starts_with(b"OggS") {
+            (if has(b"OpusHead") { "OPUS" } else { "VORBIS" }, None)
+        } else if has(b"alac") {
+            ("ALAC", None)
+        } else if has(b"mp4a") {
+            ("AAC", None)
+        } else {
+            // shortcut: an MP4 whose sample description sits past the head keeps the provider's codec; read further if that shows up.
+            self.bit_depth = None;
+            return;
+        };
+        self.codec = codec.to_owned();
+        self.bit_depth = bits;
     }
 
     pub fn hires(&self) -> bool {
@@ -577,5 +602,34 @@ mod tests {
         assert!(row(serde_json::json!({"audioModes": ["STEREO", "DOLBY_ATMOS"]})));
         assert!(row(serde_json::json!({"quality": "E-AC-3 JOC"})));
         assert!(!row(serde_json::json!({"audioMode": "STEREO", "format": "FLAC"})));
+    }
+}
+
+#[cfg(test)]
+mod verify_tests {
+    use super::Info;
+
+    fn claimed(codec: &str, quality: &str, bits: Option<u32>) -> Info {
+        Info { codec: codec.into(), quality: quality.into(), bit_depth: bits, ..Default::default() }
+    }
+
+    #[test]
+    fn the_file_decides_codec_and_bit_depth_not_the_provider() {
+        // A FLAC STREAMINFO for 44.1 kHz, stereo, 16-bit.
+        let mut flac = b"fLaC\x00\x00\x00\x22".to_vec();
+        flac.extend_from_slice(&[0x10, 0x00, 0x10, 0x00, 0, 0, 0, 0, 0, 0, 0x0A, 0xC4, 0x42, 0xF0]);
+        let mut info = claimed("FLAC", "Hi-Res 24bit", Some(24));
+        info.verify(&flac);
+        assert_eq!((info.codec.as_str(), info.bit_depth), ("FLAC", Some(16)));
+        assert!(info.lossless() && !info.hires());
+
+        let mut mp3 = claimed("FLAC", "Lossless", Some(24));
+        mp3.verify(b"ID3\x04\x00\x00\x00\x00\x00\x00");
+        assert_eq!(mp3.codec, "MP3");
+        assert!(!mp3.lossless(), "a lossless label on an MP3 is not lossless");
+
+        let mut unknown = claimed("AAC", "Lossless master", Some(24));
+        unknown.verify(b"????");
+        assert!(!unknown.lossless() && unknown.bit_depth.is_none());
     }
 }
