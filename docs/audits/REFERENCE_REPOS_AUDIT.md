@@ -24,7 +24,7 @@ Priority: P0 security or data loss, P1 wrong behavior users hit, P2 reliability 
 | Vivi PR 772, double unbind crash | Open | `unbindService` twice on exit | **No** | No `unbindService` call in the phone app | n/a | Reject | grep |
 | Vivi PR 938, SAF downloads | Open, stale | Download to a user folder | n/a | Feature idea | P3 | Candidate for Smart Offline | n/a |
 | Metrolist issue 4763, offload deadlock | Closed, reporter says not fixed | Sink sleeps for offload and never wakes | **No** | No audio offload use in `playback/` | n/a | Reject | grep |
-| Metrolist PR 4814, gapless | Open, review findings unresolved | Second player leaves a gap | Not checked | nuvx uses two players for crossfade; gapless path unread | P1 | Investigate | Gap measurement test |
+| Metrolist PR 4814, gapless | Open, review findings unresolved | Second player leaves a gap | **No** | With crossfade and Smart Fade off, `CrossfadeTransitionPlanner.planAutoTransition` returns before any second player, so ExoPlayer's own playlist (gapless) advances | n/a | None | A measured gap test on a device would still be good |
 | Metrolist PR 4615, WebView leak | Merged | New hidden WebView per token reset, 300 MB each on Linux | Possible | Desktop builds WebViews in `turnstile.rs` and `login.rs`; reuse unread | P2 | Investigate | Process count across resets |
 
 ## The older BitChord feature list
