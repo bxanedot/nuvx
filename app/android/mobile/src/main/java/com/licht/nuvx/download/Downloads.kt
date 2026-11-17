@@ -222,6 +222,8 @@ object Downloads {
             return
         }
         val route = plan.route ?: error("Nothing to download")
+        // Never fill the phone: a full disk breaks other apps and Android itself.
+        if (DownloadStore.freeBytes(context) < MIN_FREE_BYTES) error(LOW_STORAGE_REFUSAL)
 
         var pending: DownloadStore.Pending? = null
         var lyrics: Deferred<LyricsTag.Embeddable?>? = null
@@ -350,6 +352,10 @@ object Downloads {
     private val LOSSLESS_EXTENSIONS = listOf("flac", "wav")
 
     internal const val WIFI_ONLY_REFUSAL = "Downloads are set to Wi-Fi only"
+
+    internal const val LOW_STORAGE_REFUSAL = "Less than 500 MB of storage is free"
+
+    private const val MIN_FREE_BYTES = 500L * 1024 * 1024
 
     fun dismissFailure(videoId: String) {
         if (_active.value[videoId] is DownloadState.Failed) clear(videoId)
