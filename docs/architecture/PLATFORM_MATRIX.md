@@ -7,7 +7,7 @@ What each platform has, as of 2026-11-17 (nuvx 1.0.0). The terms:
 
 | Platform | Technology | Status | Evidence |
 |---|---|---|---|
-| Android phone and tablet | Kotlin, Jetpack Compose, Media3 | Released (`nuvx-v1.0.0.apk`) | 1,364 unit tests; emulator smoke test (Android 16) of the 1.0.0 candidate |
+| Android phone and tablet | Kotlin, Jetpack Compose, Media3 | Released (`nuvx-v1.0.0.apk`) | 1,370 unit tests; emulator smoke test (Android 16) of the 1.0.0 candidate |
 | Android TV / Google TV | Kotlin, Compose for TV | Released (`NuvxTV-v1.0.0.apk`) | Compiles; no device test recorded |
 | Wear OS | Kotlin, Compose for Wear | Released (`NuvxWear-v1.0.0.apk`) | Compiles; no device test recorded |
 | Android Auto (projection) | Media3 media library in the phone app | Released with the phone app | `AndroidAutoMediaLibraryTest` (instrumented) exists; not run here |
