@@ -42,7 +42,7 @@ The one handoff document for this programme. Update it in the same pull request 
 
 ## Next, in order
 
-1. Merge 312 once the iOS build passes.
+1. Merge 313 (render tests, isolated web decipher, JitPack scope, sync replay rules, crossfade characterization, playlist export).
 2. **Remaining audit:**
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
@@ -53,7 +53,7 @@ The one handoff document for this programme. Update it in the same pull request 
    - left: a user-set quota and auto-download of chosen playlists.
 6. **Remaining features:**
    - Privacy & Data Center (devices and sessions once Sync exists);
-   - M3U/CSV/JSON playlist export;
+   - playlist export: done on Android as M3U (playlist menu → Export playlist); the full backup is JSON. CSV not done;
    - diagnostics export.
 7. **Visual regression tests** (Roborazzi or Paparazzi) for the icon registry and the main screens.
 

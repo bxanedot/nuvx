@@ -1430,4 +1430,5 @@
     <string name="nightly_updates">Pembaruan nightly</string>
     <string name="nightly_updates_subtitle">Dapatkan build uji begitu dirilis. Nonaktif secara default; jika nonaktif, nuvx hanya menawarkan rilis stabil.</string>
     <string name="playlist_deleted">“%1$s” dihapus</string>
+    <string name="export_playlist">Ekspor playlist</string>
 </resources>

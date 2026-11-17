@@ -50,6 +50,7 @@ fun BrowseActionsMenu(
     onRename: ((String) -> Unit)? = null,
     onSetArtwork: (() -> Unit)? = null,
     onReorder: (() -> Unit)? = null,
+    onExport: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     onDeleteDownload: (() -> Unit)? = null,
     onRenameInSheet: (() -> Unit)? = null,
@@ -146,6 +147,9 @@ fun BrowseActionsMenu(
             }
             onReorder?.let {
                 ActionRow(SfIcons.Reorder, stringResource(R.string.reorder_songs), onClick = it)
+            }
+            onExport?.let {
+                ActionRow(SfIcons.Share, stringResource(R.string.export_playlist), onClick = it)
             }
             if (onDelete != null) {
                 if (confirmingDelete) {
