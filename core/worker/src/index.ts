@@ -26,6 +26,7 @@ const PRESENCE_WINDOW_MS = (PRESENCE_INTERVAL_SEC + 90) * 1000;
 const MAX_PRESENCE_PER_SOURCE = 5;
 const LISTENER_WINDOW_MS = 60_000;
 const COMMUNITY_FRESH_MS = 5 * 60_000;
+const COUNTS_CACHE_MS = 5_000;
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
 type Reply = { status: number; body: unknown };
@@ -216,6 +217,7 @@ function badge(online: number): string {
 }
 
 type Attachment = { memberId: string };
+type Counts = { online: number; android: number; pc: number; browser: number; updatedAt: number; listening: number };
 
 export class Party extends DurableObject<Env> {
   private buckets = new Map<string, ReturnType<typeof P.freshBuckets>>();
@@ -428,6 +430,9 @@ export class Party extends DurableObject<Env> {
 
 export class Presence extends DurableObject<Env> {
   private downloadRefresh?: Promise<number>;
+  // The stats routes have no rate limit and the README badge is never cached, so a request loop
+  // would run two DELETEs per hit on this one object. Reuse the answer briefly; writes clear it.
+  private countsCache?: { at: number; value: Counts };
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -442,6 +447,7 @@ export class Presence extends DurableObject<Env> {
   }
 
   async ping(id: string, platform: string, open: boolean, sourceHash: string) {
+    this.countsCache = undefined;
     const sql = this.ctx.storage.sql;
     const now = Date.now();
     if (open) {
@@ -454,6 +460,7 @@ export class Presence extends DurableObject<Env> {
   }
 
   async setPartyListeners(code: string, count: number, expiresAt: number) {
+    this.countsCache = undefined;
     const sql = this.ctx.storage.sql;
     if (count === 0) sql.exec("DELETE FROM playing_parties WHERE code = ?", code);
     else sql.exec("INSERT INTO playing_parties (code, listeners, expires_ms) VALUES (?, ?, ?) ON CONFLICT(code) DO UPDATE SET listeners = excluded.listeners, expires_ms = excluded.expires_ms", code, count, expiresAt);
@@ -489,16 +496,18 @@ export class Presence extends DurableObject<Env> {
     await this.ctx.storage.put("discord-community", snapshot);
   }
 
-  async counts() {
+  async counts(): Promise<Counts> {
     const now = Date.now();
+    if (this.countsCache && now - this.countsCache.at < COUNTS_CACHE_MS) return this.countsCache.value;
     this.ctx.storage.sql.exec("DELETE FROM installs WHERE last_ms < ?", now - PRESENCE_WINDOW_MS);
     this.ctx.storage.sql.exec("DELETE FROM playing_parties WHERE expires_ms <= ?", now);
     const { listening } = this.ctx.storage.sql.exec<{ listening: number }>("SELECT COALESCE(SUM(listeners), 0) AS listening FROM playing_parties").one();
-    const c = { online: 0, android: 0, pc: 0, browser: 0, updatedAt: now, listening };
+    const c: Counts = { online: 0, android: 0, pc: 0, browser: 0, updatedAt: now, listening };
     for (const row of this.ctx.storage.sql.exec<{ platform: "android" | "pc" | "browser"; n: number }>("SELECT platform, COUNT(*) AS n FROM installs GROUP BY platform")) {
       c[row.platform] = row.n;
       c.online += row.n;
     }
+    this.countsCache = { at: now, value: c };
     return c;
   }
 }

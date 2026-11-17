@@ -30,7 +30,7 @@ The one handoff document for this programme. The owner's standing instructions a
 ### Top measured risks
 
 1. **Most tests did not run on pull requests.** The 1,378 Android unit tests ran only after merge, inside the release build. The 247 web tests and the web type-check never ran in CI. *Addressed by the "Android checks" and "Web checks" workflows (PR in "Open").*
-2. **Desktop tests run in CI only on macOS.** Windows- and Linux-only code paths (audio output, tray, updater, installer) compile in the release but are never unit-tested in CI.
+2. **Desktop tests run in CI only on macOS.** Windows- and Linux-only code paths (audio output, tray, updater, installer) compile in the release but were never unit-tested in CI, including the Windows and Linux saved-login vault tests. *Addressed by "Desktop checks" (PR in "Open").*
 3. **No device or emulator tests.** TV, Wear, nuvx Auto and Android Auto are compile-only; `androidTest` needs an emulator.
 4. **Server fixes may not be live.** The Listen Together workflow only tests; it does not deploy. Whether the Worker was redeployed after PRs 283, 288 and 305 was not verified (owner item 3).
 5. **Licensing:** the desktop still bundles Apple's SF Pro Display fonts (owner item 5).
@@ -52,15 +52,33 @@ The one handoff document for this programme. The owner's standing instructions a
 | 310 | Desktop retries a song once on a network blip |
 | 311 | Android refuses to download with under 500 MB free |
 | 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android, the same morph on iOS and web; per-device equalizer; undo after deleting a nuvx playlist; redacted diagnostics on Android, iOS and desktop |
-| 315 | Android, shared Kotlin and web tests run on pull requests (risk 1) |
+| 315 | Android, shared Kotlin and web tests run on every pull request that touches them |
+| 316 | Desktop tests run on Linux and Windows for every pull request that touches `app/desktop` |
+| 318 | yt-dlp on Windows with a bad PATH folder: a PATH folder Windows cannot resolve no longer skips every song that needs yt-dlp (BitChord-PC PR 13 equivalent). |
+| 319 | Sync: a 10 GB whole-server cap (`507 server_full`) so free space creation cannot fill the VM disk; last-seen written at most once a minute. |
+| 320 | Worker: `counts()` reuses its answer for 5 s (cleared on every ping and party update), so a stats or badge request loop no longer runs DELETEs on the one Presence object. Needs a Worker redeploy (owner item 3). |
+| 321 | Sync transport client (`core/shared/.../data/sync/SyncClient.kt`): push batches under server limits, pull pages, retry-or-stop results, bounded backoff. Not wired into any app yet. |
+| 322 | Android: export a nuvx playlist as CSV (formula-safe), label in all 20 locales. |
 | 313 | Icon render and animation-state tests; web signature code in an isolated worker; JitPack limited to `com.github.*`; shared sync replay rules with a fixture; crossfade timing tests; Android playlist export as M3U; security, platform, testing, release and decision docs |
 
 ## Open
 
-- **Desktop tests on Linux and Windows** (PR 316, branch `claude/desktop-checks-win-linux`): next item 0.
-- **Sync pairing hardening** (branch `claude/sync-pairing-first-approval`): the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. 11 Sync tests pass.
+- **Sync pairing hardening** (PR 317): the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. 11 Sync tests pass.
 - **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
 - Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
+- **Dependabot alert 1 (high, `picomatch` ReDoS, `app/web`)**: comes only from build and test tools (vite, vitest, wxt, unimport, tinyglobby), not the shipped web app or extension. No patched version yet; update when one exists.
+
+### Session queue (2026-11-17, second session), from the master prompt §10 and §12
+
+| # | Phase | Item | Result |
+|---|---|---|---|
+| 1 | 1 Stabilize | yt-dlp PATH on Windows | PR 318 |
+| 2 | 1 Stabilize | Android gapless (Metrolist PR 4814 row) | Not affected: with crossfade and Smart Fade off, `planAutoTransition` returns at `configuredFadeMs() <= 0`, so ExoPlayer advances inside its own playlist (its gapless path). No second player is involved. |
+| 3 | 2 Simplify | Ponytail audit of `core/sync` and `core/worker` | 4 findings; 1 and 2 fixed (PRs 319, 320). Left: per-push quota scan reads the whole space (running totals on `spaces` later); Presence object has no unit-test harness. |
+| 4 | 4 Ecosystem | Sync transport client | PR 321 |
+| 5 | 5 Features | Playlist CSV export | PR 322 |
+
+Next session, in order: wire `SyncClient` into Android behind an off-by-default switch with a persisted outbox (needs owner item 1 for an end-to-end test); then the emulator smoke test (risk 3); then the remaining audit rows (Convx 153 stale local library, Automix loop timeouts).
 
 ## Checked and found healthy (2026-11-17, second session)
 
@@ -79,18 +97,18 @@ The one handoff document for this programme. The owner's standing instructions a
 
 ## Next, in order
 
-0. **Desktop tests on Linux and Windows in CI** (risk 2), then a scheduled emulator smoke test for the phone app (risk 3).
+0. A scheduled emulator smoke test for the phone app (risk 3).
 1. **Remaining audit:**
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
-2. **First Sync client**, off by default. Done: the operation kinds and replay rules (`SyncReplay.kt`) and the fixture every client must reproduce (`core/sync/fixtures/replay-v1.json`). Left: the outbox and transport. It needs the Oracle server (owner item 1) to test end to end.
+2. **First Sync client**, off by default. Done: the operation kinds and replay rules (`SyncReplay.kt`), the fixture every client must reproduce (`core/sync/fixtures/replay-v1.json`), and the transport (PR 321). Left: the persisted outbox and the settings switch on Android. It needs the Oracle server (owner item 1) to test end to end.
 3. **Nuvx Connect** on top of QR pairing: one playback owner, remote control, handoff.
 4. **Smart Offline:**
    - done: resume after a kill, a 500 MB floor;
    - left: a user-set quota and auto-download of chosen playlists.
 5. **Remaining features:**
    - Privacy & Data Center (devices and sessions once Sync exists);
-   - playlist export: done on Android as M3U (playlist menu → Export playlist); the full backup is JSON. CSV not done;
+   - playlist export: done on Android as M3U and CSV (playlist menu); the full backup is JSON;
    - diagnostics export.
 6. **Visual regression tests** (Roborazzi or Paparazzi) for the icon registry and the main screens.
 

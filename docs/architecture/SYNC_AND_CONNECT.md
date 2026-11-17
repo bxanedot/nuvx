@@ -28,6 +28,8 @@ All bodies are JSON. Errors are `{ "error": code, "message": text }`.
 | `GET /v1/export` | device | every operation in the space |
 | `DELETE /v1/space` | device | deletes the space, its devices and its data |
 
+Limits: a space holds 20 devices and 20 MB or 200,000 operations (`413 space_full`). The whole server stops taking new spaces and pushes at 10 GB of data (`507 server_full`); reads, export and deletion keep working, so a client should keep its outbox and retry later.
+
 ## QR pairing
 
 1. The new device (a TV, say) calls `POST /v1/pairings`. It shows `code` as a QR and keeps `secret` to itself.
@@ -48,7 +50,7 @@ The code expires after two minutes and works once. The code alone grants nothing
 
 ## Not built yet
 
-Client integration on every platform, operation kinds and payload schemas for playlists, favorites and settings, conformance tests shared across clients, Nuvx Connect (remote control and handoff), and history compaction once a space nears its limit.
+Client transport for Android and JVM exists (`core/shared/.../data/sync/SyncClient.kt`: one push batch or one pull page per call, retry-or-stop results, bounded backoff; the caller owns the outbox and cursor) but nothing calls it yet. Still to do: client integration on every platform (the outbox store and settings switch), operation kinds and payload schemas for playlists, favorites and settings, conformance tests shared across clients, Nuvx Connect (remote control and handoff), and history compaction once a space nears its limit.
 
 ## Operation kinds (v1)
 

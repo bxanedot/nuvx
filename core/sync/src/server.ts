@@ -11,6 +11,8 @@ const MAX_OP_BYTES = 32 * 1024;
 const MAX_OPS_PER_SPACE = 200_000;
 const MAX_BYTES_PER_SPACE = 20 * 1024 * 1024;
 const MAX_DEVICES = 20;
+// Whole-server cap: spaces are free to create, so without it one client could fill the VM's disk.
+const MAX_DB_BYTES = 10 * 1024 ** 3;
 const PULL_LIMIT = 500;
 const PAIRING_TTL_MS = 2 * 60_000;
 const RATE_PER_MIN = 120;
@@ -61,7 +63,7 @@ function pairCode(): string {
   return out;
 }
 
-export function createApp(db: DatabaseSync, now: () => number = Date.now) {
+export function createApp(db: DatabaseSync, now: () => number = Date.now, maxDbBytes = MAX_DB_BYTES) {
   const buckets = new Map<string, { tokens: number; at: number }>();
 
   function allowed(ip: string): boolean {
@@ -76,11 +78,16 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now) {
     return true;
   }
 
+  const pages = db.prepare("SELECT page_count * page_size AS n FROM pragma_page_count(), pragma_page_size()");
+  const serverFull = () => (pages.get() as { n: number }).n >= maxDbBytes;
+  const FULL = fail(507, "server_full", "This sync server is out of space. Try again later.");
+
   function auth(header: string | undefined): Device | null {
     const bearer = header?.match(/^bearer\s+(.+)$/i)?.[1].trim();
     if (!bearer) return null;
     const device = db.prepare("SELECT id, space_id FROM devices WHERE token_hash = ?").get(hash(bearer)) as Device | undefined;
-    if (device) db.prepare("UPDATE devices SET seen_ms = ? WHERE id = ?").run(now(), device.id);
+    // At most one write a minute per device, so reads stay reads.
+    if (device) db.prepare("UPDATE devices SET seen_ms = ? WHERE id = ? AND seen_ms < ?").run(now(), device.id, now() - 60_000);
     return device ?? null;
   }
 
@@ -98,6 +105,7 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now) {
     if (route === "POST /v1/spaces") {
       const name = str(body.deviceName, 80);
       if (!name) return fail(422, "invalid_name", "deviceName must be 1 to 80 characters.");
+      if (serverFull()) return FULL;
       const spaceId = id();
       db.prepare("INSERT INTO spaces (id, created_ms) VALUES (?, ?)").run(spaceId, now());
       return { status: 201, body: addDevice(spaceId, name) };
@@ -163,6 +171,7 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now) {
         if (!opId || !kind || !entity || payload.length > MAX_OP_BYTES) return fail(422, "invalid_op", "Each op needs id, kind, entity and a payload under 32 KB.");
         rows.push({ opId, kind, entity, payload, clientMs: typeof raw.clientMs === "number" && Number.isFinite(raw.clientMs) ? Math.trunc(raw.clientMs) : now() });
       }
+      if (serverFull()) return FULL;
       const stored = db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(length(payload)), 0) AS bytes FROM ops WHERE space_id = ?").get(space) as { n: number; bytes: number };
       const adding = rows.reduce((sum, r) => sum + r.payload.length, 0);
       if (stored.n + rows.length > MAX_OPS_PER_SPACE || stored.bytes + adding > MAX_BYTES_PER_SPACE) {

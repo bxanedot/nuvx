@@ -13,5 +13,20 @@ object PlaylistExport {
         }
     }
 
+    // RFC 4180 CSV for spreadsheets and importers that take title/artist columns.
+    fun csv(songs: List<Song>): String = buildString {
+        append("title,artist,videoId,url\r\n")
+        songs.forEach { song ->
+            listOf(song.title, song.artist, song.videoId, "https://music.youtube.com/watch?v=${song.videoId}")
+                .joinTo(this, ",", postfix = "\r\n", transform = ::csvField)
+        }
+    }
+
+    // Titles come from YouTube, so a leading = + - @ must not run as a spreadsheet formula.
+    private fun csvField(text: String): String {
+        val safe = if (text.firstOrNull()?.let { it in "=+-@\t\r" } == true) "'$text" else text
+        return if (safe.any { it in ",\"\r\n" }) "\"" + safe.replace("\"", "\"\"") + "\"" else safe
+    }
+
     private fun oneLine(text: String) = text.replace(Regex("[\\r\\n]+"), " ").trim()
 }
