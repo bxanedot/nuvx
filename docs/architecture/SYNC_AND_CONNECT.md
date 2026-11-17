@@ -28,6 +28,8 @@ All bodies are JSON. Errors are `{ "error": code, "message": text }`.
 | `GET /v1/export` | device | every operation in the space |
 | `DELETE /v1/space` | device | deletes the space, its devices and its data |
 
+Limits: a space holds 20 devices and 20 MB or 200,000 operations (`413 space_full`). The whole server stops taking new spaces and pushes at 10 GB of data (`507 server_full`); reads, export and deletion keep working, so a client should keep its outbox and retry later.
+
 ## QR pairing
 
 1. The new device (a TV, say) calls `POST /v1/pairings`. It shows `code` as a QR and keeps `secret` to itself.

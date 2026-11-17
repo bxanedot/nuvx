@@ -6,9 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp, openDb } from "../src/server.ts";
 
-function app(start = 1_000_000) {
+function app(start = 1_000_000, maxDbBytes?: number) {
   let t = start;
-  const a = createApp(openDb(":memory:"), () => t);
+  const a = createApp(openDb(":memory:"), () => t, maxDbBytes);
   const call = (method: string, path: string, token?: string, body: Record<string, unknown> = {}) => {
     const url = new URL(path, "http://local");
     return a.handle(method, url.pathname, url.searchParams, token && `Bearer ${token}`, body) as { status: number; body: any };
@@ -134,4 +134,16 @@ test("reopening a database keeps its data and does not rerun migrations", () => 
   db = openDb(path);
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM spaces").get() as { n: number }).n, 1);
   db.close();
+});
+
+test("a full server refuses new spaces and pushes, but still serves reads", () => {
+  const a = app(1_000_000, 1);
+  assert.equal(a.call("POST", "/v1/spaces", undefined, { deviceName: "Phone" }).status, 507);
+  const roomy = app(1_000_000, 300_000);
+  const me = newSpace(roomy);
+  let status = 200;
+  for (let i = 0; status === 200 && i < 20; i++) status = roomy.call("POST", "/v1/ops", me.token, { ops: [op(`o${i}`, "x".repeat(30_000))] }).status;
+  assert.equal(status, 507);
+  assert.equal(roomy.call("GET", "/v1/ops", me.token).status, 200);
+  assert.equal(roomy.call("POST", "/v1/spaces", undefined, { deviceName: "Laptop" }).status, 507);
 });
