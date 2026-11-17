@@ -14,8 +14,8 @@ on:
         description: 'When apply is true, type: mark old releases'
         type: string
         default: ""
-      free_v1_0_0_tag:
-        description: "true also moves the old v1.0.0 release to the tag old-v1.0.0 and deletes the tag v1.0.0, so the new 1.0.0 can use it. Old v1.0.0 download links stop working."
+      rename_v1_0_0_to_old:
+        description: "true also moves the old v1.0.0 release to the tag old-nuvx-v1.0.0 and deletes the tag v1.0.0, so the new 1.0.0 can use it. Old v1.0.0 download links stop working."
         type: boolean
         default: false
 
@@ -33,7 +33,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       APPLY: ${{ inputs.apply }}
-      FREE_TAG: ${{ inputs.free_v1_0_0_tag }}
+      RENAME_TAG: ${{ inputs.rename_v1_0_0_to_old }}
     steps:
       - name: Check the confirmation
         if: inputs.apply
@@ -61,16 +61,16 @@ jobs:
               gh api -X PATCH "repos/$GH_REPO/releases/$id" -f name="$new" -F prerelease=true -f make_latest=false > /dev/null
             fi
           done < releases.tsv
-      - name: Free the v1.0.0 tag
-        if: inputs.free_v1_0_0_tag
+      - name: Rename the v1.0.0 tag to old-nuvx-v1.0.0
+        if: inputs.rename_v1_0_0_to_old
         run: |
           id=$(gh api "repos/$GH_REPO/releases/tags/v1.0.0" --jq .id 2>/dev/null || true)
           if [[ -z "$id" ]]; then echo "no v1.0.0 release, nothing to move"; exit 0; fi
           sha=$(git rev-list -n 1 v1.0.0)
-          echo "release $id, tag v1.0.0 -> old-v1.0.0 at $sha"
+          echo "release $id, tag v1.0.0 -> old-nuvx-v1.0.0 at $sha"
           if [[ "$APPLY" != true ]]; then echo "dry run: nothing changed"; exit 0; fi
-          gh api "repos/$GH_REPO/git/ref/tags/old-v1.0.0" > /dev/null 2>&1 && { echo "old-v1.0.0 already exists" >&2; exit 1; }
-          gh api -X POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/old-v1.0.0 -f sha="$sha" > /dev/null
-          gh api -X PATCH "repos/$GH_REPO/releases/$id" -f tag_name=old-v1.0.0 > /dev/null
+          gh api "repos/$GH_REPO/git/ref/tags/old-nuvx-v1.0.0" > /dev/null 2>&1 && { echo "old-nuvx-v1.0.0 already exists" >&2; exit 1; }
+          gh api -X POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/old-nuvx-v1.0.0 -f sha="$sha" > /dev/null
+          gh api -X PATCH "repos/$GH_REPO/releases/$id" -f tag_name=old-nuvx-v1.0.0 > /dev/null
           gh api -X DELETE "repos/$GH_REPO/git/refs/tags/v1.0.0"
           echo "moved"
