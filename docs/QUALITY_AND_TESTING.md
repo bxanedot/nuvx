@@ -4,7 +4,7 @@ How to run every test suite, and what passed on 2026-11-17. Run each command fro
 
 | Suite | Command | Result |
 |---|---|---|
-| Android phone (JVM unit) | `ANDROID_HOME=… sh gradlew :app:testDevDebugUnitTest` | 1,364 passed, 1 skipped |
+| Android phone (JVM unit) | `ANDROID_HOME=… sh gradlew :app:testDevDebugUnitTest` | 1,369 passed, 1 skipped |
 | Android TV, Wear (compile) | `sh gradlew :tv:compileProdTvDebugKotlin :wearos:compileDevDebugKotlin` | Compile |
 | Shared UI (JVM, includes icon render tests) | `sh gradlew :sharedUi:jvmTest` | 53 passed |
 | Desktop | `cd app/desktop && cargo test --locked` | 230 passed, 27 ignored (they need YouTube) |
@@ -24,6 +24,6 @@ How to run every test suite, and what passed on 2026-11-17. Run each command fro
 ## Known gaps
 
 - No on-device tests. `androidTest` exists but needs an emulator.
-- `CrossfadeController` has no unit tests.
+- `CrossfadeController` drives ExoPlayer and has no unit tests; its timing math (`CrossfadeGeometry`) is pinned by characterization tests.
 - No pixel-golden screenshots. The icon registry is covered by render and animation-state tests instead.
 - The live YouTube stream tests (`opus_stream_live` and others) are `#[ignore]` and need network access.
