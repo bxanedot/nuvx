@@ -148,6 +148,11 @@ object DownloadStore {
         }
     }
 
+    /** Free space on the volume downloads go to. */
+    @Suppress("DEPRECATION")
+    fun freeBytes(context: Context): Long =
+        (if (AppSettings.exportDownloads.value) Environment.getExternalStorageDirectory() else context.filesDir).usableSpace
+
     fun begin(context: Context, name: String, mimeType: String): Pending {
         if (!AppSettings.exportDownloads.value) {
             val target = privateFile(context, name)
