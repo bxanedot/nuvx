@@ -1,0 +1,17 @@
+[Unit]
+Description=Nuvx Sync API
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/nuvx-sync/current
+Environment=NUVX_SYNC_DB=%h/nuvx-sync/data/nuvx-sync.db
+Environment=NUVX_SYNC_PORT=8787
+Environment=NODE_OPTIONS=--max-old-space-size=128
+ExecStart=%h/nuvx-sync/current/node/bin/node --disable-warning=ExperimentalWarning src/server.ts
+Restart=on-failure
+RestartSec=5
+MemoryMax=256M
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

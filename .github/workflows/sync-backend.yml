@@ -1,0 +1,24 @@
+name: Sync backend
+
+on:
+  push:
+    paths: ["core/sync/**", ".github/workflows/sync-backend.yml"]
+  pull_request:
+    paths: ["core/sync/**", ".github/workflows/sync-backend.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core/sync
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm test
+      - run: bash -n deploy/remote.sh
