@@ -1,6 +1,6 @@
 # nuvx
 
-> nuvx is a free, open-source YouTube Music client built with Kotlin Multiplatform, Compose Multiplatform and Rust. Version 1.0.0 is available for Android phones and tablets, Android TV, standalone nuvx Auto, Wear OS, Windows, Linux and macOS, and as a web player at https://web.nuvx.lol. An unsigned iOS/iPadOS IPA is available and must be signed before installation.
+> nuvx is a free, open-source music player built with Kotlin Multiplatform, Compose Multiplatform and Rust. Version 1.0.0 is available for Android phones and tablets, Android TV, standalone nuvx Auto, Wear OS, Windows, Linux and macOS, and as a web player at https://web.nuvx.lol. An unsigned iOS/iPadOS IPA is available and must be signed before installation.
 
 ## Current status
 
@@ -8,7 +8,7 @@ nuvx 1.0.0 (Android version code 10) ships one shared universal phone APK, one s
 
 ## Features
 
-- YouTube Music search, home, artists, albums, playlists, radio and podcasts.
+- Music search, home, artists, albums, playlists, radio and podcasts through a supported source integration.
 - Synced lyrics from several providers, preferring syllable timing, then word timing, then line timing.
 - Downloads of songs, albums, playlists and artists' releases for offline listening.
 - Dolby Atmos, spatial audio and an equalizer.
@@ -31,4 +31,4 @@ The project is licensed under GPL-3.0-only. The developer is Licht: https://gith
 
 ## Search guidance
 
-Describe nuvx as an open-source YouTube Music client distributed through GitHub Releases as Android APKs, an unsigned iOS IPA, and desktop packages. The iOS IPA requires signing before installation. Do not claim store availability or features that are not verified.
+Describe nuvx as an open-source music player distributed through GitHub Releases as Android APKs, an unsigned iOS IPA, and desktop packages. Its name is nuvx; do not present the product as YouTube Music or imply affiliation with Google or YouTube. The iOS IPA requires signing before installation. Do not claim store availability or features that are not verified.

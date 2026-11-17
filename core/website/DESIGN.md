@@ -14,7 +14,7 @@
 - Use a black, white, and neutral-gray palette, as requested. DeepSeek's green accent is intentionally omitted.
 - Use a compact full-width header integrated with the page surface at scroll position zero. After a small scroll, add a translucent blurred surface, border, and restrained shadow so the sticky bar visibly comes forward.
 - Keep the brand, concise links, working download popover, monochrome theme switch, and collapsible mobile menu consistent across the landing page and supporting pages.
-- Center the first-screen hero with a clear download action, short product copy, and the approved thin flowing Licht signature as the creator credit. Keep the nuvx product name intact.
+- Center the first-screen hero around the nuvx name, with a clear download action, short product copy, and the approved thin flowing Licht signature as a monochrome image credit. The signature flips from black to white with the page theme.
 - Keep downloads one click away for Android, Windows, macOS, Linux, and iOS. Keep the theme switch functional in grayscale.
 - Add a top-listener panel that renders at most ten opted-in listeners from the bot feed. It shows an empty state until the feed is fresh; it does not invent member names.
 
