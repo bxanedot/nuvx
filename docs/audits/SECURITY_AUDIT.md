@@ -35,6 +35,6 @@ Status of every security finding, 2026-11-17. "Live" means running for users. Th
 - **Worker deploy:** the four Worker fixes above are not live until the Worker is redeployed (owner).
 - **Canvas passcode:** it is shared and short, so anyone who has it can add canvases. Uploads also grow the code repository; a separate canvas repository fixes that (owner).
 - **Licensing:**
-  - GlyphStudio's glyphs are Apple's SF Symbols, used on every platform by the owner's decision.
+  - SFStudio's glyphs are Apple's SF Symbols, used on every platform by the owner's decision.
   - The desktop also bundles Apple's SF Pro Display font files, which Apple's font license does not allow redistributing. Not decided.
 - **Not audited yet:** native C/C++ code. Gradle: repositories checked (above); `FAIL_ON_PROJECT_REPOS` keeps modules from adding their own. The web app was checked for raw HTML and code injection: only the bundled logo SVG uses `dangerouslySetInnerHTML`, which is safe.

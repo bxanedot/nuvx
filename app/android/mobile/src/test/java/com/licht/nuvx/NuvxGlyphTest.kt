@@ -8,7 +8,7 @@ import org.junit.Test
 class NuvxGlyphTest {
 
     @Test
-    fun everyNuvxGlyphExistsInGlyphStudio() {
+    fun everyNuvxGlyphExistsInSfStudio() {
         NuvxGlyph.entries.forEach { glyph -> assertNotNull("${glyph.name} -> ${glyph.sfName}", SfSymbol[glyph.sfName]) }
     }
 }

@@ -2,10 +2,10 @@
 
 Short records of decisions taken, newest first. Each says what was decided, why, and what would change it.
 
-## 2026-11-17: GlyphStudio SF Symbols on every platform
+## 2026-11-17: SFStudio SF Symbols on every platform
 
-- **Decision:** Compose surfaces (Android phone, TV, Wear, Auto) draw symbols with GlyphStudio v2 through one registry (`NuvxGlyph`/`NuvxSymbol`). iOS uses Apple's own SF Symbols with the matching SwiftUI transition. The desktop and web keep their own vector glyphs with the same meanings and motion.
-- **Why:** owner's decision, for one icon language. GlyphStudio has no Rust or web API, so those use equivalents.
+- **Decision:** Compose surfaces (Android phone, TV, Wear, Auto) draw symbols with SFStudio v2 through one registry (`NuvxGlyph`/`NuvxSymbol`). iOS uses Apple's own SF Symbols with the matching SwiftUI transition. The desktop and web keep their own vector glyphs with the same meanings and motion.
+- **Why:** owner's decision, for one icon language. SFStudio has no Rust or web API, so those use equivalents.
 - **Risk accepted by the owner:** Apple licenses SF Symbols for Apple platforms.
 - **Revisit if:** Apple objects, or a store requires it. The registry makes a swap to another icon set a contained change.
 

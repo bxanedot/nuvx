@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn variable_color_matches_glyphstudio() {
+    fn variable_color_matches_sfstudio() {
         let order = parse(RADIO).unwrap().variable;
         assert_eq!(order, [3, 2, 1, 0]);
         let samples = [(0.0, [0.3, 0.3, 0.3, 0.3]), (0.167, [0.3, 0.3, 0.3, 0.65]), (0.5, [0.3, 0.3, 0.65, 0.65]), (1.0, [0.3, 1.0, 0.3, 0.3]), (1.125, [0.522, 0.778, 0.3, 0.3])];
