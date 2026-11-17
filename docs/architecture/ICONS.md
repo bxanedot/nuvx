@@ -15,6 +15,10 @@ nuvx draws its symbols with GlyphStudio (`com.github.bxanedot.GlyphStudio:sfsymb
 | Tab reselect | the tab's symbol | Bounce, by layer | Android floating tab bar |
 | Reveal | the item's symbol | Bounce, by layer, when fully shown | `RevealIcon` |
 
+## Desktop and web
+
+GlyphStudio is Compose-only, so the Rust desktop uses equivalents with the same meanings: its own SVG glyphs (`app/desktop/src/ui/glyphs.rs`). Play/pause cross-morph and the favorite star pops, both turned off by its "Reduce animation" setting (test `reduced_motion_disables_glyph_animation`). The web player is not yet checked.
+
 ## Rules
 
 - **Event-triggered only:** motion runs when the state changes, never as a continuous loop. The Radio screen's indicator is the one continuous effect, and it is gated.
@@ -27,5 +31,7 @@ nuvx draws its symbols with GlyphStudio (`com.github.bxanedot.GlyphStudio:sfsymb
 - **Missing:** visual regression tests. The repository has no screenshot tooling yet; adding Roborazzi or Paparazzi is the next step.
 
 ## Licensing
+
+- The desktop bundles Apple's SF Pro Display font files (`app/desktop/assets/fonts/SFProDisplay-*.otf`, the "SF Pro Display" font preset). Apple's font license limits SF Pro to Apple platforms and forbids redistributing the files, so shipping them in the Windows and Linux installers is a separate, clearer risk than the symbols. Owner decision pending.
 
 GlyphStudio's glyphs are Apple's SF Symbols. Apple licenses them for Apple platforms. Using them on Android, desktop and the web is the owner's decision, taken knowingly on 2026-11-17.
