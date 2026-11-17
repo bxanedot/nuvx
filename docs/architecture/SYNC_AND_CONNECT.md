@@ -50,7 +50,7 @@ The code expires after two minutes and works once. The code alone grants nothing
 
 ## Not built yet
 
-Client transport for Android and JVM exists (`core/shared/.../data/sync/SyncClient.kt`: one push batch or one pull page per call, retry-or-stop results, bounded backoff; the caller owns the outbox and cursor) but nothing calls it yet. Still to do: client integration on every platform (the outbox store and settings switch), operation kinds and payload schemas for playlists, favorites and settings, conformance tests shared across clients, Nuvx Connect (remote control and handoff), and history compaction once a space nears its limit.
+**Android** syncs nuvx playlists (opt-in, Settings → Your data → Nuvx Sync): `SyncEngine` (`core/shared/.../data/sync/SyncEngine.kt`) finds local changes by comparing with the last synced snapshot, keeps them in an outbox until the server stores them, replays the whole log, and the app applies the result only if the playlists were not edited meanwhile. HTTPS servers only. Pairing shows a QR and an 8-character code; the other device types the code (no camera scanner yet). Still to do: iOS, desktop and web clients, favorites and settings, operation kinds and payload schemas for playlists, favorites and settings, conformance tests shared across clients, Nuvx Connect (remote control and handoff), and history compaction once a space nears its limit.
 
 ## Operation kinds (v1)
 

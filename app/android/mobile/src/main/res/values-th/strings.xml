@@ -1440,4 +1440,25 @@
     <string name="export_playlist_csv">ส่งออกเพลย์ลิสต์ (CSV)</string>
     <string name="network">เครือข่าย</string>
     <string name="restart_now">รีสตาร์ทเลย</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">ปิดอยู่จนกว่าคุณจะเปิด ซิงค์เฉพาะเพลย์ลิสต์ nuvx ผ่านเซิร์ฟเวอร์ Nuvx Sync ที่คุณเลือก การลงชื่อเข้าใช้และคลังเพลงของ YouTube Music จะไม่ออกจากอุปกรณ์นี้</string>
+    <string name="nuvx_sync_syncing">กำลังซิงค์…</string>
+    <string name="nuvx_sync_last">ซิงค์ล่าสุด %1$s</string>
+    <string name="nuvx_sync_server">เซิร์ฟเวอร์ซิงค์</string>
+    <string name="nuvx_sync_server_https">ใช้ที่อยู่ https://</string>
+    <string name="nuvx_sync_consent">เพลย์ลิสต์ nuvx %1$d รายการในอุปกรณ์นี้จะถูกคัดลอกไปยังเซิร์ฟเวอร์นี้และซิงค์กับอุปกรณ์อื่นของคุณ คุณลบออกจากเซิร์ฟเวอร์ได้ทุกเมื่อ</string>
+    <string name="nuvx_sync_start_new">เริ่มใหม่</string>
+    <string name="nuvx_sync_join">เข้าร่วมอุปกรณ์ของฉัน</string>
+    <string name="nuvx_sync_join_steps">บนอุปกรณ์ที่ซิงค์อยู่แล้ว เปิด การตั้งค่า → Nuvx Sync → เพิ่มอุปกรณ์ แล้วใส่รหัสนี้ ใช้ได้ครั้งเดียวและหมดอายุใน 2 นาที</string>
+    <string name="nuvx_sync_code_expired">รหัสนี้หมดอายุแล้ว เริ่มใหม่เพื่อรับรหัสใหม่</string>
+    <string name="nuvx_sync_add_device">เพิ่มอุปกรณ์</string>
+    <string name="nuvx_sync_add_device_steps">ใส่รหัส 8 ตัวที่แสดงบนอุปกรณ์อีกเครื่อง อนุมัติเฉพาะรหัสที่คุณเห็นบนอุปกรณ์ของคุณเอง</string>
+    <string name="nuvx_sync_code">รหัส</string>
+    <string name="nuvx_sync_approve">อนุมัติ</string>
+    <string name="nuvx_sync_added">เพิ่ม “%1$s” แล้ว หากไม่ใช่อุปกรณ์ของคุณ ให้ลบในอุปกรณ์</string>
+    <string name="nuvx_sync_devices">อุปกรณ์</string>
+    <string name="nuvx_sync_this_device">อุปกรณ์นี้</string>
+    <string name="nuvx_sync_turn_off">ปิดการซิงค์</string>
+    <string name="nuvx_sync_turn_off_body">อุปกรณ์นี้จะหยุดซิงค์ เพลย์ลิสต์ยังอยู่ในอุปกรณ์นี้</string>
+    <string name="nuvx_sync_delete_server">ลบทุกอย่างบนเซิร์ฟเวอร์ด้วย สำหรับทุกอุปกรณ์</string>
 </resources>

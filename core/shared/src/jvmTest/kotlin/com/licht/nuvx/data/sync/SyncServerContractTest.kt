@@ -3,8 +3,6 @@ package com.licht.nuvx.data.sync
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
-import java.io.File
-import java.util.concurrent.TimeUnit
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -17,26 +15,15 @@ import kotlin.test.assertTrue
  * in-memory database), so the two sides of the protocol cannot drift apart unnoticed. Needs Node 22.18+ on PATH.
  */
 class SyncServerContractTest {
-    private lateinit var server: Process
-    private lateinit var base: String
+    private lateinit var server: SyncTestServer
+    private val base get() = server.url
     private val http = OkHttpClient()
 
     @BeforeTest
-    fun start() {
-        server = ProcessBuilder("node", "src/server.ts")
-            .directory(File("../sync"))
-            .redirectErrorStream(true)
-            .apply { environment().putAll(mapOf("NUVX_SYNC_DB" to ":memory:", "NUVX_SYNC_PORT" to "0")) }
-            .start()
-        val line = server.inputStream.bufferedReader().readLine() ?: error("sync server exited before listening")
-        base = "http://" + (Regex("listening on (\\S+)").find(line)?.groupValues?.get(1) ?: error("unexpected server output: $line"))
-    }
+    fun start() { server = SyncTestServer() }
 
     @AfterTest
-    fun stop() {
-        server.destroy()
-        server.waitFor(5, TimeUnit.SECONDS)
-    }
+    fun stop() = server.close()
 
     private fun client(token: String? = null) = SyncClient(base, token, http)
     private fun op(id: String, kind: String, entity: String, vararg kv: Pair<String, String?>) =

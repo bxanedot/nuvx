@@ -1455,4 +1455,25 @@
     <string name="export_playlist_csv">Exporter la playlist (CSV)</string>
     <string name="network">Réseau</string>
     <string name="restart_now">Redémarrer maintenant</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">Désactivé tant que vous ne l’activez pas. Synchronise uniquement vos playlists nuvx via un serveur Nuvx Sync de votre choix. Votre connexion et votre bibliothèque YouTube Music ne quittent jamais cet appareil.</string>
+    <string name="nuvx_sync_syncing">Synchronisation…</string>
+    <string name="nuvx_sync_last">Dernière synchro %1$s</string>
+    <string name="nuvx_sync_server">Serveur de synchro</string>
+    <string name="nuvx_sync_server_https">Utilisez une adresse https://</string>
+    <string name="nuvx_sync_consent">Vos %1$d playlists nuvx de cet appareil seront copiées sur ce serveur et synchronisées avec vos autres appareils. Vous pouvez les supprimer du serveur à tout moment.</string>
+    <string name="nuvx_sync_start_new">Nouveau départ</string>
+    <string name="nuvx_sync_join">Rejoindre mes appareils</string>
+    <string name="nuvx_sync_join_steps">Sur un appareil déjà synchronisé, ouvrez Paramètres → Nuvx Sync → Ajouter un appareil et saisissez ce code. Il sert une fois et expire dans deux minutes.</string>
+    <string name="nuvx_sync_code_expired">Ce code a expiré. Recommencez pour en obtenir un nouveau.</string>
+    <string name="nuvx_sync_add_device">Ajouter un appareil</string>
+    <string name="nuvx_sync_add_device_steps">Saisissez le code de 8 caractères affiché par votre autre appareil. N’approuvez qu’un code que vous voyez sur votre propre appareil.</string>
+    <string name="nuvx_sync_code">Code</string>
+    <string name="nuvx_sync_approve">Approuver</string>
+    <string name="nuvx_sync_added">« %1$s » ajouté. Si ce n’est pas votre appareil, retirez-le dans Appareils.</string>
+    <string name="nuvx_sync_devices">Appareils</string>
+    <string name="nuvx_sync_this_device">cet appareil</string>
+    <string name="nuvx_sync_turn_off">Désactiver la synchro</string>
+    <string name="nuvx_sync_turn_off_body">Cet appareil arrête de synchroniser. Vos playlists restent sur cet appareil.</string>
+    <string name="nuvx_sync_delete_server">Supprimer aussi tout sur le serveur, pour tous les appareils</string>
 </resources>

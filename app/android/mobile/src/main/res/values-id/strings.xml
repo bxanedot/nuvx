@@ -1434,4 +1434,25 @@
     <string name="export_playlist_csv">Ekspor playlist (CSV)</string>
     <string name="network">Jaringan</string>
     <string name="restart_now">Mulai ulang sekarang</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">Mati sampai Anda menyalakannya. Hanya menyinkronkan playlist nuvx Anda, lewat server Nuvx Sync pilihan Anda. Login dan koleksi YouTube Music Anda tidak pernah keluar dari perangkat ini.</string>
+    <string name="nuvx_sync_syncing">Menyinkronkan…</string>
+    <string name="nuvx_sync_last">Terakhir disinkronkan %1$s</string>
+    <string name="nuvx_sync_server">Server sinkronisasi</string>
+    <string name="nuvx_sync_server_https">Gunakan alamat https://</string>
+    <string name="nuvx_sync_consent">%1$d playlist nuvx di perangkat ini akan disalin ke server ini dan disinkronkan dengan perangkat Anda yang lain. Anda bisa menghapusnya dari server kapan saja.</string>
+    <string name="nuvx_sync_start_new">Mulai baru</string>
+    <string name="nuvx_sync_join">Gabung ke perangkat saya</string>
+    <string name="nuvx_sync_join_steps">Di perangkat yang sudah sinkron, buka Setelan → Nuvx Sync → Tambah perangkat lalu masukkan kode ini. Kode berlaku sekali dan kedaluwarsa dalam dua menit.</string>
+    <string name="nuvx_sync_code_expired">Kode ini sudah kedaluwarsa. Mulai lagi untuk kode baru.</string>
+    <string name="nuvx_sync_add_device">Tambah perangkat</string>
+    <string name="nuvx_sync_add_device_steps">Masukkan kode 8 karakter yang tampil di perangkat Anda yang lain. Setujui hanya kode yang Anda lihat di perangkat sendiri.</string>
+    <string name="nuvx_sync_code">Kode</string>
+    <string name="nuvx_sync_approve">Setujui</string>
+    <string name="nuvx_sync_added">“%1$s” ditambahkan. Jika itu bukan perangkat Anda, hapus di Perangkat.</string>
+    <string name="nuvx_sync_devices">Perangkat</string>
+    <string name="nuvx_sync_this_device">perangkat ini</string>
+    <string name="nuvx_sync_turn_off">Matikan sinkronisasi</string>
+    <string name="nuvx_sync_turn_off_body">Perangkat ini berhenti sinkron. Playlist Anda tetap ada di perangkat ini.</string>
+    <string name="nuvx_sync_delete_server">Hapus juga semua data di server, untuk semua perangkat</string>
 </resources>

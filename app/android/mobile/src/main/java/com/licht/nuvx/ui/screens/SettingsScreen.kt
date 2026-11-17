@@ -622,6 +622,8 @@ fun SettingsScreen(
             onImport = { confirmImport = true },
         )
 
+        if (shows(SettingsCategory.YOUR_DATA)) SyncSettingsGroup(search = search)
+
         if (shows(SettingsCategory.NETWORK)) PrivacyConnectionSettingsGroup(search = search)
 
         if (shows(SettingsCategory.MISCELLANEOUS)) MiscellaneousSettingsGroup(

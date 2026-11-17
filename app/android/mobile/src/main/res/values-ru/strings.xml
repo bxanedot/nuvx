@@ -1481,4 +1481,25 @@
     <string name="export_playlist_csv">Экспортировать плейлист (CSV)</string>
     <string name="network">Сеть</string>
     <string name="restart_now">Перезапустить</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">Выключено, пока вы не включите. Синхронизирует только ваши плейлисты nuvx через выбранный вами сервер Nuvx Sync. Вход и библиотека YouTube Music никогда не покидают это устройство.</string>
+    <string name="nuvx_sync_syncing">Синхронизация…</string>
+    <string name="nuvx_sync_last">Последняя синхронизация %1$s</string>
+    <string name="nuvx_sync_server">Сервер синхронизации</string>
+    <string name="nuvx_sync_server_https">Используйте адрес https://</string>
+    <string name="nuvx_sync_consent">Ваши плейлисты nuvx на этом устройстве (%1$d) будут скопированы на этот сервер и синхронизированы с другими устройствами. Их можно удалить с сервера в любой момент.</string>
+    <string name="nuvx_sync_start_new">Начать заново</string>
+    <string name="nuvx_sync_join">Подключиться к моим устройствам</string>
+    <string name="nuvx_sync_join_steps">На устройстве, которое уже синхронизируется, откройте Настройки → Nuvx Sync → Добавить устройство и введите этот код. Он действует один раз и истекает через две минуты.</string>
+    <string name="nuvx_sync_code_expired">Срок действия кода истёк. Начните заново, чтобы получить новый.</string>
+    <string name="nuvx_sync_add_device">Добавить устройство</string>
+    <string name="nuvx_sync_add_device_steps">Введите 8-символьный код, показанный на другом устройстве. Подтверждайте только код, который видите на своём устройстве.</string>
+    <string name="nuvx_sync_code">Код</string>
+    <string name="nuvx_sync_approve">Подтвердить</string>
+    <string name="nuvx_sync_added">Добавлено «%1$s». Если это не ваше устройство, удалите его в разделе «Устройства».</string>
+    <string name="nuvx_sync_devices">Устройства</string>
+    <string name="nuvx_sync_this_device">это устройство</string>
+    <string name="nuvx_sync_turn_off">Выключить синхронизацию</string>
+    <string name="nuvx_sync_turn_off_body">Это устройство перестанет синхронизироваться. Плейлисты останутся на этом устройстве.</string>
+    <string name="nuvx_sync_delete_server">Также удалить всё на сервере для всех устройств</string>
 </resources>

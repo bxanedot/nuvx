@@ -1417,4 +1417,25 @@
     <string name="export_playlist_csv">匯出播放清單 (CSV)</string>
     <string name="network">網絡</string>
     <string name="restart_now">立即重新啟動</string>
+    <string name="nuvx_sync">Nuvx Sync</string>
+    <string name="nuvx_sync_footer">預設關閉，需由你手動開啟。只透過你選擇的 Nuvx Sync 伺服器同步你的 nuvx 播放清單。你的 YouTube Music 登入資訊與音樂庫不會離開這部裝置。</string>
+    <string name="nuvx_sync_syncing">同步中…</string>
+    <string name="nuvx_sync_last">上次同步 %1$s</string>
+    <string name="nuvx_sync_server">同步伺服器</string>
+    <string name="nuvx_sync_server_https">請使用 https:// 位址</string>
+    <string name="nuvx_sync_consent">這部裝置上的 %1$d 個 nuvx 播放清單會複製到此伺服器，並與你的其他裝置保持同步。你可以隨時從伺服器刪除。</string>
+    <string name="nuvx_sync_start_new">全新開始</string>
+    <string name="nuvx_sync_join">加入我的裝置</string>
+    <string name="nuvx_sync_join_steps">在已同步的裝置上開啟 設定 → Nuvx Sync → 新增裝置，並輸入此代碼。代碼只能使用一次，兩分鐘後失效。</string>
+    <string name="nuvx_sync_code_expired">此代碼已失效。請重新開始以取得新代碼。</string>
+    <string name="nuvx_sync_add_device">新增裝置</string>
+    <string name="nuvx_sync_add_device_steps">輸入另一部裝置上顯示的 8 碼代碼。只核准你在自己裝置上看到的代碼。</string>
+    <string name="nuvx_sync_code">代碼</string>
+    <string name="nuvx_sync_approve">核准</string>
+    <string name="nuvx_sync_added">已新增「%1$s」。如果不是你的裝置，請在「裝置」中移除。</string>
+    <string name="nuvx_sync_devices">裝置</string>
+    <string name="nuvx_sync_this_device">這部裝置</string>
+    <string name="nuvx_sync_turn_off">關閉同步</string>
+    <string name="nuvx_sync_turn_off_body">這部裝置將停止同步。你的播放清單仍會保留在這部裝置上。</string>
+    <string name="nuvx_sync_delete_server">同時刪除伺服器上所有裝置的全部資料</string>
 </resources>
