@@ -121,6 +121,11 @@ fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Res
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
+        if let Some(path) = std::env::var_os("PATH") {
+            if let Some(path) = usable_path(&path, |d| std::fs::canonicalize(d).is_ok()) {
+                cmd.env("PATH", path);
+            }
+        }
     }
     #[cfg(unix)]
     {
@@ -179,13 +184,37 @@ fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Res
     })
 }
 
+/// yt-dlp looks for Node by calling Python's `os.path.realpath` on every PATH folder, and one
+/// folder Windows refuses to resolve (WinError 448, an untrusted mount point) fails the whole
+/// song. Keep only the folders that resolve, in order and spelled as before. `None` keeps PATH as is.
+#[cfg(any(windows, test))]
+fn usable_path(path: &std::ffi::OsStr, resolves: impl Fn(&Path) -> bool) -> Option<std::ffi::OsString> {
+    std::env::join_paths(std::env::split_paths(path).filter(|d| !d.as_os_str().is_empty() && resolves(d))).ok()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{LINUX_ARM64_URL, LINUX_X64_URL, linux_url_for_arch};
+    use super::{LINUX_ARM64_URL, LINUX_X64_URL, linux_url_for_arch, usable_path};
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn aarch64_uses_native_binary() {
         assert_eq!(linux_url_for_arch("aarch64"), LINUX_ARM64_URL);
         assert_eq!(linux_url_for_arch("x86_64"), LINUX_X64_URL);
+    }
+
+    #[test]
+    fn unresolvable_path_folders_are_dropped_in_order() {
+        let (sys, bad, node) = (PathBuf::from("sys"), PathBuf::from("bad"), PathBuf::from("node"));
+        let path = std::env::join_paths([&sys, Path::new(""), &bad, &node]).unwrap();
+        let out = usable_path(&path, |d| d != bad).unwrap();
+        assert_eq!(std::env::split_paths(&out).collect::<Vec<_>>(), [sys, node]);
+    }
+
+    #[test]
+    fn real_folders_keep_their_spelling() {
+        let here = std::env::current_dir().unwrap();
+        let out = usable_path(here.as_os_str(), |d| std::fs::canonicalize(d).is_ok()).unwrap();
+        assert_eq!(out, here.as_os_str());
     }
 }

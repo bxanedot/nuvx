@@ -60,6 +60,7 @@ The one handoff document for this programme. Update it in the same pull request 
 - **Desktop checks on Linux and Windows** (branch `claude/desktop-checks-win-linux`): desktop tests on every pull request that touches `app/desktop`.
 - **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
 - Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
+- **yt-dlp on Windows with a bad PATH folder** (branch `claude/ytdlp-windows-path`): a PATH folder Windows cannot resolve no longer skips every song that needs yt-dlp. BitChord-PC PR 13 equivalent.
 
 ## Waiting on the owner
 
