@@ -48,7 +48,7 @@ function CategoryTile({ category }: { category: Category }) {
   } as React.CSSProperties;
   return (
     <li ref={ref}>
-      <PrefetchLink to={browseHref(category.link)} className={tile} style={{ '--tile-color': category.color } as React.CSSProperties}>
+      <PrefetchLink to={browseHref(category.link)} className={tile} style={{ '--tile-color': '#777777' } as React.CSSProperties}>
         {artwork && (
           <>
             <img
@@ -59,18 +59,8 @@ function CategoryTile({ category }: { category: Category }) {
               decoding="async"
               draggable={false}
               onLoad={() => setLoaded(true)}
-              className="absolute inset-0 size-full object-cover grayscale contrast-[1.05]"
+              className="absolute inset-0 size-full object-cover"
               style={{ ...fade, objectPosition: '50% 25%' }}
-            />
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 mix-blend-multiply"
-              style={{ ...fade, background: 'color-mix(in srgb, var(--tile-color) 68%, #fff)' }}
-            />
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 mix-blend-screen"
-              style={{ ...fade, background: 'color-mix(in srgb, var(--tile-color) 32%, #000)' }}
             />
             <span
               aria-hidden="true"
