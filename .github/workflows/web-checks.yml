@@ -42,3 +42,6 @@ jobs:
       - name: Type-check the web app
         working-directory: app/web/app
         run: pnpm exec tsc --noEmit -p .
+      # Same build Vercel runs for production; Vercel previews are off for claude/** branches.
+      - name: Build the site and extension
+        run: pnpm build:site

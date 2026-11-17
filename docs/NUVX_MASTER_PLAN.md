@@ -1,6 +1,6 @@
 # Nuvx master plan
 
-The one handoff document for this programme. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md). The repository audit lives in [`audits/FULL_REFACTOR_AUDIT.md`](audits/FULL_REFACTOR_AUDIT.md), security in [`audits/SECURITY_AUDIT.md`](audits/SECURITY_AUDIT.md). Platform support: [`architecture/PLATFORM_AND_UX_MATRIX.md`](architecture/PLATFORM_AND_UX_MATRIX.md). Decisions: [`architecture/TECHNOLOGY_DECISIONS.md`](architecture/TECHNOLOGY_DECISIONS.md). Tests: [`QUALITY_AND_TESTING.md`](QUALITY_AND_TESTING.md). Releases: [`RELEASE_READINESS.md`](RELEASE_READINESS.md).
+The one handoff document for this programme. The owner's standing instructions are in [`NUVX_MASTER_PROMPT.md`](NUVX_MASTER_PROMPT.md); every session follows them. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md). The repository audit lives in [`audits/FULL_REFACTOR_AUDIT.md`](audits/FULL_REFACTOR_AUDIT.md), security in [`audits/SECURITY_AUDIT.md`](audits/SECURITY_AUDIT.md). Platform support: [`architecture/PLATFORM_AND_UX_MATRIX.md`](architecture/PLATFORM_AND_UX_MATRIX.md). Decisions: [`architecture/TECHNOLOGY_DECISIONS.md`](architecture/TECHNOLOGY_DECISIONS.md). Tests: [`QUALITY_AND_TESTING.md`](QUALITY_AND_TESTING.md). Releases: [`RELEASE_READINESS.md`](RELEASE_READINESS.md).
 
 ## Released
 
@@ -53,18 +53,19 @@ The one handoff document for this programme. Update it in the same pull request 
 | 311 | Android refuses to download with under 500 MB free |
 | 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android, the same morph on iOS and web; per-device equalizer; undo after deleting a nuvx playlist; redacted diagnostics on Android, iOS and desktop |
 | 315 | Android, shared Kotlin and web tests run on every pull request that touches them |
+| 316 | Desktop tests run on Linux and Windows for every pull request that touches `app/desktop` |
+| 318 | yt-dlp on Windows with a bad PATH folder: a PATH folder Windows cannot resolve no longer skips every song that needs yt-dlp (BitChord-PC PR 13 equivalent). |
+| 319 | Sync: a 10 GB whole-server cap (`507 server_full`) so free space creation cannot fill the VM disk; last-seen written at most once a minute. |
+| 320 | Worker: `counts()` reuses its answer for 5 s (cleared on every ping and party update), so a stats or badge request loop no longer runs DELETEs on the one Presence object. Needs a Worker redeploy (owner item 3). |
+| 321 | Sync transport client (`core/shared/.../data/sync/SyncClient.kt`): push batches under server limits, pull pages, retry-or-stop results, bounded backoff. Not wired into any app yet. |
+| 322 | Android: export a nuvx playlist as CSV (formula-safe), label in all 20 locales. |
 | 313 | Icon render and animation-state tests; web signature code in an isolated worker; JitPack limited to `com.github.*`; shared sync replay rules with a fixture; crossfade timing tests; Android playlist export as M3U; security, platform, testing, release and decision docs |
 
 ## Open
 
-- **Desktop checks on Linux and Windows** (branch `claude/desktop-checks-win-linux`): desktop tests on every pull request that touches `app/desktop`.
+- **Sync pairing hardening** (PR 317): the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. 11 Sync tests pass.
 - **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
 - Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
-- **PR 318** yt-dlp on Windows with a bad PATH folder: a PATH folder Windows cannot resolve no longer skips every song that needs yt-dlp (BitChord-PC PR 13 equivalent). Also carries this plan update.
-- **PR 319** Sync: a 10 GB whole-server cap (`507 server_full`) so free space creation cannot fill the VM disk; last-seen written at most once a minute.
-- **PR 320** Worker: `counts()` reuses its answer for 5 s (cleared on every ping and party update), so a stats or badge request loop no longer runs DELETEs on the one Presence object. Needs a Worker redeploy (owner item 3).
-- **PR 321** Sync transport client (`core/shared/.../data/sync/SyncClient.kt`): push batches under server limits, pull pages, retry-or-stop results, bounded backoff. Not wired into any app yet.
-- **PR 322** Android: export a nuvx playlist as CSV (formula-safe), label in all 20 locales.
 - **Dependabot alert 1 (high, `picomatch` ReDoS, `app/web`)**: comes only from build and test tools (vite, vitest, wxt, unimport, tinyglobby), not the shipped web app or extension. No patched version yet; update when one exists.
 
 ### Session queue (2026-11-17, second session), from the master prompt §10 and §12
@@ -78,6 +79,10 @@ The one handoff document for this programme. Update it in the same pull request 
 | 5 | 5 Features | Playlist CSV export | PR 322 |
 
 Next session, in order: wire `SyncClient` into Android behind an off-by-default switch with a persisted outbox (needs owner item 1 for an end-to-end test); then the emulator smoke test (risk 3); then the remaining audit rows (Convx 153 stale local library, Automix loop timeouts).
+
+## Checked and found healthy (2026-11-17, second session)
+
+- Desktop WebView reuse (reference audit, Metrolist PR 4615): the lyrics check and sign-in windows run in a child process that exits, so their WebViews cannot pile up.
 
 ## Waiting on the owner
 

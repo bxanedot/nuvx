@@ -36,6 +36,8 @@ Limits: a space holds 20 devices and 20 MB or 200,000 operations (`413 space_ful
 2. A trusted device scans the code, shows the user the new device's name, and on confirmation calls `approve`.
 3. The new device polls `claim` with its secret and receives its own token.
 
+The first approval wins: a second space that approves the same code gets `409 already_approved`, so someone who saw the QR cannot pull the new device into their own space. The 20-device cap is checked again at `claim`. Before uploading anything, the new device should list `GET /v1/devices` and ask the user to confirm that these are their devices.
+
 The code expires after two minutes and works once. The code alone grants nothing, because `claim` needs the secret that never left the new device. No account credential is ever in the QR.
 
 ## Sync rules for clients
