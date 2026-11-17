@@ -26,6 +26,17 @@ Ponytail audit, run 2026-11-17 on `main` at `f1e655b1` (licht 1.0.0). Assumed lo
 | 6 | Download counter skipped nuvx Auto and browser-extension packages | Pattern includes them | Fixed |
 | 7 | `mark-old-releases` workflow: its tag step cannot work with the workflow token, and a rerun would mark the new 1.0.0 as old | Workflow deleted; its job is done | Fixed |
 
+## Android downloads and playback (read 2026-11-17)
+
+| Area | Result |
+|---|---|
+| Range download (`Downloader.kt`) | Healthy: checks every Content-Range, total size and short reads; re-resolves once on 403/404/410 |
+| Failure cleanup (`DownloadStore.kt`) | Healthy on errors: a pending MediaStore row or `.part` file is aborted. **Fixed:** a download killed with the app left its hidden `.part` file forever; the next download now removes `.part` files untouched for an hour |
+| Queue durability | **Gap:** the queue lives in memory (`DownloadSession`, `START_NOT_STICKY`); if Android kills the app, queued songs must be requested again. Belongs to Smart Offline (persist the queue, resume at start) |
+| Audio offload | Not enabled, so the offload freeze seen in Metrolist #4763 cannot happen |
+| Skip silence | Off by default; uses Media3's default threshold. Whether it trims quiet intros (vivi #1055) needs listening on a device |
+| Desktop quality badge | **Fixed:** Lossless and Hi-Res came from the addon's label; codec and bit depth now come from the file's first bytes |
+
 ## Not read yet
 
-Android playback and download services, the iOS app, the desktop audio engine and UI, the web player, the Discord bot, native C/C++ and Gradle build scripts. These hold most of the code; playback and download reliability need device testing. Next audits go one subsystem at a time, in that order.
+Android playback service internals (crossfade, focus, output routing), the iOS app, the desktop audio engine and UI, the web player, the Discord bot, native C/C++ and Gradle build scripts. These hold most of the code; playback and download reliability need device testing. Next audits go one subsystem at a time, in that order.

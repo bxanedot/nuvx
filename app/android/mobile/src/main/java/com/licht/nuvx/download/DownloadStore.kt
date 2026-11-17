@@ -179,10 +179,18 @@ object DownloadStore {
         return Pending(context, Uri.fromFile(target), name, part = part, target = target)
     }
 
-    private fun newPartFile(folder: File, name: String): File =
-        File(folder, ".$name.${UUID.randomUUID()}.part").also {
+    private fun newPartFile(folder: File, name: String): File {
+        sweepStaleParts(folder, System.currentTimeMillis())
+        return File(folder, ".$name.${UUID.randomUUID()}.part").also {
             if (!it.createNewFile()) error("Could not reserve a temporary file for $name")
         }
+    }
+
+    // A download killed with the app leaves its hidden .part file behind; a running one keeps its timestamp fresh.
+    internal fun sweepStaleParts(folder: File, now: Long, maxAgeMs: Long = 60 * 60 * 1000L) {
+        folder.listFiles { f -> f.isFile && f.name.startsWith(".") && f.name.endsWith(".part") && now - f.lastModified() > maxAgeMs }
+            ?.forEach { it.delete() }
+    }
 
     @Suppress("DEPRECATION")
     private fun legacyFile(name: String) = File(
