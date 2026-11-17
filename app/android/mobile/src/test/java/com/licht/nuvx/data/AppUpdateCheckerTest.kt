@@ -178,4 +178,34 @@ class AppUpdateCheckerTest {
             isNewerRelease("0.10.0", "v0.10.0", "2026-11-13T11:00:00Z", "0.9.0", "v0.9.0", "2026-11-13T12:00:00Z"),
         )
     }
+
+    @Test
+    fun `nightlies are offered only when nightly updates are switched on`() {
+        val built = "2026-11-17T10:00:00Z"
+        val published = "2026-11-17T12:00:00Z"
+        assertFalse(isNewerRelease("1.0.0-nightly.5.1", "nightly.5.1", published, "1.0.0", "v1.0.0", built, allowNightly = false))
+        assertTrue(isNewerRelease("1.0.0-nightly.5.1", "nightly.5.1", published, "1.0.0", "v1.0.0", built, allowNightly = true))
+        assertFalse(isNewerRelease("1.0.0-nightly.6.1", "nightly.6.1", published, "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = false))
+        assertTrue(isNewerRelease("1.0.0-nightly.6.1", "nightly.6.1", published, "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = true))
+    }
+
+    @Test
+    fun `a nightly install with nightlies off still moves to the stable build`() {
+        val built = "2026-11-17T10:00:00Z"
+        val published = "2026-11-17T12:00:00Z"
+        assertTrue(isNewerRelease("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = false))
+        assertFalse(isNewerRelease("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = true))
+        assertFalse(isNewerRelease("1.0.0", "v1.0.0", "2026-11-17T09:00:00Z", "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = false))
+    }
+
+    @Test
+    fun `old builds and non-nightly pre-releases are never offered`() {
+        assertTrue(isOldBuild("nuvx 1.1.0 (old build)", "v1.1.0", prerelease = true))
+        assertTrue(isOldBuild("Old", "v0.9.0", prerelease = false))
+        assertTrue(isOldBuild("nuvx 1.1.0-nightly.170.1 (old build)", "nightly.170.1", prerelease = true))
+        assertTrue(isOldBuild("nuvx 1.2.0", "v1.2.0", prerelease = true))
+        assertFalse(isOldBuild("nuvx 1.0.0", "v1.0.0", prerelease = false))
+        assertFalse(isOldBuild("nuvx 1.0.0-nightly.7.1", "nightly.7.1", prerelease = true))
+        assertFalse(isOldBuild("Golden hour", "v1.0.1", prerelease = false))
+    }
 }

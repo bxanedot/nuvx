@@ -584,16 +584,14 @@ jobs:
           mkdir -p universal
           asset_version="$DESKTOP_VERSION"
           [[ "$IS_STABLE" == true ]] || asset_version="$RELEASE_TAG"
-          for arch in x86_64 aarch64; do
-            variant=intel
-            [[ "$arch" == aarch64 ]] && variant=apple-silicon
-            folder="dmg-$variant"
-            sh macos/bundle.sh "universal/$arch/nuvx" "$DESKTOP_VERSION" "$folder"
-            ln -s /Applications "$folder/Applications"
-            installer="nuvx-setup-$asset_version-macos-$variant.dmg"
-            hdiutil create -volname "nuvx $variant" -srcfolder "$folder" -format UDZO "$installer"
-            gh release upload "$RELEASE_TAG" "$installer" --clobber
-          done
+          lipo -create universal/aarch64/nuvx universal/x86_64/nuvx -output universal/nuvx
+          lipo universal/nuvx -verify_arch x86_64 arm64
+          folder=dmg-universal
+          sh macos/bundle.sh universal/nuvx "$DESKTOP_VERSION" "$folder"
+          ln -s /Applications "$folder/Applications"
+          installer="nuvx-setup-$asset_version-macos-universal.dmg"
+          hdiutil create -volname nuvx -srcfolder "$folder" -format UDZO "$installer"
+          gh release upload "$RELEASE_TAG" "$installer" --clobber
 
   extensions:
     needs: prepare

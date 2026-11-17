@@ -17,6 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.licht.nuvx.data.AppUpdateChecker
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,6 +72,22 @@ internal fun MiscellaneousSettingsGroup(
     nerdStats: Boolean,
 ) {
     SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
+        val nightlyUpdates by AppSettings.nightlyUpdates.collectAsStateWithLifecycle()
+        val updateScope = rememberCoroutineScope()
+        val setNightly: (Boolean) -> Unit = { on ->
+            AppSettings.setNightlyUpdates(on)
+            updateScope.launch { AppUpdateChecker.check() }
+        }
+        val nightlyUpdatesTitle = stringResource(R.string.nightly_updates)
+        row(nightlyUpdatesTitle, "update", "nightly", "beta", "test builds", "pre-release") {
+            SettingsRow(
+                icon = SfIcons.Download,
+                title = nightlyUpdatesTitle,
+                subtitle = stringResource(R.string.nightly_updates_subtitle),
+                trailing = { IosSwitch(checked = nightlyUpdates, onCheckedChange = setNightly) },
+                onClick = { setNightly(!nightlyUpdates) },
+            )
+        }
         val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
         row(hideVolumeBarTitle, "volume", "player") {
             SettingsRow(

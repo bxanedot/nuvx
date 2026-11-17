@@ -47,6 +47,7 @@ function loadPage(userAgentData, device = {}) {
       createElement: () => ({ setAttribute() {} }),
       querySelector: (selector) => elements[selector] ?? null,
       querySelectorAll: () => [],
+      addEventListener() {},
     },
     navigator: {
       userAgent: device.userAgent ?? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
@@ -56,41 +57,17 @@ function loadPage(userAgentData, device = {}) {
     },
     matchMedia: () => ({ matches: true, addEventListener() {} }),
     fetch: () => Promise.resolve({ ok: false }),
-    window: {},
+    window: { addEventListener() {}, scrollY: 0 },
   };
   runInNewContext(source, context);
   return { hero, nightly, note, label: elements['#download-label'], flush: () => new Promise(setImmediate) };
 }
 
-test('macOS uses the package list when its architecture cannot be read', async () => {
-  const page = loadPage();
-  await page.flush();
-  assert.equal(page.hero.href, packageList);
-  assert.equal(page.nightly.href, packageList);
-});
-
-test('macOS download uses a supported architecture hint', async (t) => {
-  const routes = [
-    ['Intel x86', 'x86', '/api/download?platform=mac-intel'],
-    ['Intel x86_64', 'x86_64', '/api/download?platform=mac-intel'],
-    ['Apple silicon arm', 'arm', '/api/download?platform=mac-arm'],
-    ['Apple silicon arm64', 'arm64', '/api/download?platform=mac-arm'],
-    ['unknown architecture', 'unknown', packageList],
-  ];
-
-  for (const [name, architecture, expected] of routes) {
-    await t.test(name, async () => {
-      const page = loadPage({ getHighEntropyValues: () => Promise.resolve({ architecture }) });
-      await page.flush();
-      assert.equal(page.hero.href, expected);
-    });
-  }
-});
-
-test('macOS download keeps the on-site package list when architecture detection fails', async () => {
+test('macOS links straight to the one universal package', async () => {
   const page = loadPage({ getHighEntropyValues: () => Promise.reject(new Error('unavailable')) });
   await page.flush();
-  assert.equal(page.hero.href, packageList);
+  assert.equal(page.hero.href, '/api/download?platform=mac');
+  assert.equal(page.nightly.href, '/api/download?channel=nightly&platform=mac');
 });
 
 test('detected devices link directly to their stable and nightly packages', async (t) => {

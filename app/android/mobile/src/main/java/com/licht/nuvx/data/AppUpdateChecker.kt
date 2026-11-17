@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.licht.nuvx.BuildConfig
+import com.licht.nuvx.data.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,6 +71,7 @@ object AppUpdateChecker {
                         BuildConfig.VERSION_NAME,
                         BuildConfig.NUVX_RELEASE_TAG,
                         BuildConfig.NUVX_BUILD_TIME,
+                        allowNightly = AppSettings.nightlyUpdates.value,
                     )
                 }
                 .maxWithOrNull(compareBy<ReleaseCandidate> { it.tag.startsWith("v") }.thenBy { it.publishedAt })
@@ -91,6 +93,7 @@ object AppUpdateChecker {
         val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull ?: return null
         val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return null
         val title = release["name"]?.jsonPrimitive?.contentOrNull
+        if (isOldBuild(title, tag, release["prerelease"]?.jsonPrimitive?.booleanOrNull == true)) return null
         val apk = apkAsset(release) ?: return null
         val version = if (tag.startsWith("nightly.")) {
             versionFromApkAsset(apk.first, BuildConfig.UPDATE_APK_PREFIX)
@@ -207,6 +210,12 @@ object AppUpdateChecker {
 
 }
 
+// Releases from before the licht line stay on GitHub as pre-releases named "old". They are other apps
+// with other package IDs and higher version numbers, so no updater may ever offer them.
+internal fun isOldBuild(name: String?, tag: String, prerelease: Boolean): Boolean =
+    name?.contains(Regex("\\bold\\b", RegexOption.IGNORE_CASE)) == true ||
+        prerelease && !tag.startsWith("nightly.")
+
 internal fun isNewerRelease(
     candidateVersion: String,
     candidateTag: String,
@@ -214,8 +223,9 @@ internal fun isNewerRelease(
     currentVersion: String,
     currentTag: String,
     currentBuildTime: String,
+    allowNightly: Boolean = currentTag.startsWith("nightly."),
 ): Boolean {
-    if (!currentTag.startsWith("nightly.") && candidateTag.startsWith("nightly.")) return false
+    if (candidateTag.startsWith("nightly.") && !allowNightly) return false
     val candidateParts = candidateVersion.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
     val currentParts = currentVersion.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
     for (index in 0 until maxOf(candidateParts.size, currentParts.size)) {
@@ -224,7 +234,8 @@ internal fun isNewerRelease(
         if (candidate != current) return candidate > current
     }
     if (currentTag.startsWith("nightly.")) {
-        if (!candidateTag.startsWith("nightly.")) return false
+        // A nightly install with nightlies switched off still moves to the stable build of the same version.
+        if (!candidateTag.startsWith("nightly.")) return !allowNightly && currentBuildTime.isNotEmpty() && candidatePublishedAt > currentBuildTime
         val candidateBuild = nightlyBuild(candidateTag) ?: return false
         val currentBuild = nightlyBuild(currentTag) ?: return false
         return candidateBuild.first > currentBuild.first ||

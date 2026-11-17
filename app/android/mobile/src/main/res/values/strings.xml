@@ -1298,4 +1298,6 @@
     <string name="classic_search_subtitle">A plain search page instead of the colour category tiles</string>
     <string name="enable_youtube_search">Enable YouTube Search</string>
     <string name="enable_youtube_search_subtitle">Adds a YouTube filter for videos beyond YouTube Music</string>
+    <string name="nightly_updates">Nightly updates</string>
+    <string name="nightly_updates_subtitle">Get test builds as soon as they are published. Off by default; when off, nuvx only offers stable releases.</string>
 </resources>

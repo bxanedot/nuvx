@@ -3,8 +3,7 @@ const downloadsPage = 'https://www.nuvx.lol/#releases';
 const files = {
   windows: 'nuvx-setup-{v}.exe',
   linux: 'nuvx-setup-{v}-linux-universal.tar.gz',
-  'mac-arm': 'nuvx-setup-{v}-macos-apple-silicon.dmg',
-  'mac-intel': 'nuvx-setup-{v}-macos-intel.dmg',
+  mac: 'nuvx-setup-{v}-macos-universal.dmg',
   android: 'nuvx-v{v}.apk',
   tv: 'NuvxTV-v{v}.apk',
   auto: 'NuvxAuto-v{v}.apk',
@@ -17,8 +16,7 @@ const files = {
 const nightlyNames = {
   windows: ['nuvx-setup-', '.exe'],
   linux: ['nuvx-setup-', '-linux-universal.tar.gz'],
-  'mac-arm': ['nuvx-setup-', '-macos-apple-silicon.dmg'],
-  'mac-intel': ['nuvx-setup-', '-macos-intel.dmg'],
+  mac: ['nuvx-setup-', '-macos-universal.dmg'],
   android: ['nuvx-v', '.apk'],
   tv: ['NuvxTV-v', '.apk'],
   auto: ['NuvxAuto-v', '.apk'],
@@ -39,8 +37,9 @@ function candidatesFor(platform, version, requestedPlatform) {
   if (platform === 'auto') return [primary, `NuvxAuto-v${version}-universal.apk`];
   if (platform === 'wear') return [primary, `NuvxWear-v${version}.apk`];
   if (platform === 'linux') return [primary, `nuvx-${version}-linux-x86_64.tar.gz`];
-  if (platform === 'mac-arm') return [primary, `nuvx-setup-${version}-macos-aarch64.dmg`];
-  if (platform === 'mac-intel') return [primary, `nuvx-setup-${version}-macos-x86_64.dmg`];
+  // Older releases shipped one disk image per architecture.
+  if (requestedPlatform === 'mac-intel') return [primary, `nuvx-setup-${version}-macos-intel.dmg`, `nuvx-setup-${version}-macos-x86_64.dmg`];
+  if (platform === 'mac') return [primary, `nuvx-setup-${version}-macos-apple-silicon.dmg`, `nuvx-setup-${version}-macos-aarch64.dmg`];
   return [primary];
 }
 
@@ -51,7 +50,8 @@ module.exports = async (req, res) => {
     const requestedPlatform = params.get('platform');
     const platform = requestedPlatform === 'android-foss' || requestedPlatform === 'android-auto' ? 'android'
       : requestedPlatform === 'tv-foss' ? 'tv'
-        : requestedPlatform === 'car' ? 'auto' : requestedPlatform;
+        : requestedPlatform === 'car' ? 'auto'
+          : requestedPlatform === 'mac-arm' || requestedPlatform === 'mac-intel' ? 'mac' : requestedPlatform;
     const match = nightlyNames[platform];
     try {
       const response = await fetch('https://api.github.com/repos/lylicht/nuvx/releases?per_page=30', {
@@ -79,7 +79,8 @@ module.exports = async (req, res) => {
   const requestedPlatform = params.get('platform');
   const platform = requestedPlatform === 'android-foss' || requestedPlatform === 'android-auto' ? 'android'
     : requestedPlatform === 'tv-foss' ? 'tv'
-      : requestedPlatform === 'car' ? 'auto' : requestedPlatform;
+      : requestedPlatform === 'car' ? 'auto'
+        : requestedPlatform === 'mac-arm' || requestedPlatform === 'mac-intel' ? 'mac' : requestedPlatform;
   let target = downloadsPage;
   if (Object.hasOwn(files, platform)) {
     try {

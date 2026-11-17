@@ -218,6 +218,7 @@ object AppSettings {
     val hideSongStatus = MutableStateFlow(false)
 
     val showQueueHistory = MutableStateFlow(false)
+    val nightlyUpdates = MutableStateFlow(false)
 
     val swipeToPlayNext = MutableStateFlow(false)
 
@@ -457,6 +458,7 @@ object AppSettings {
         hideStatusBarInPlayer.value = prefs.getBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, false)
         hideSongStatus.value = prefs.getBoolean(KEY_HIDE_SONG_STATUS, false)
         showQueueHistory.value = prefs.getBoolean(KEY_SHOW_QUEUE_HISTORY, false)
+        nightlyUpdates.value = prefs.getBoolean(KEY_NIGHTLY_UPDATES, false)
         swipeToPlayNext.value = prefs.getBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
@@ -637,6 +639,11 @@ object AppSettings {
     fun setHideSongStatus(value: Boolean) {
         hideSongStatus.value = value
         prefs.edit().putBoolean(KEY_HIDE_SONG_STATUS, value).apply()
+    }
+
+    fun setNightlyUpdates(value: Boolean) {
+        nightlyUpdates.value = value
+        prefs.edit().putBoolean(KEY_NIGHTLY_UPDATES, value).apply()
     }
 
     fun setShowQueueHistory(value: Boolean) {
@@ -927,6 +934,7 @@ object AppSettings {
 
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_AUTOPLAY = "autoplay"
+    private const val KEY_NIGHTLY_UPDATES = "nightly_updates"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"
     private const val KEY_NERD_STATS = "show_nerd_stats"
