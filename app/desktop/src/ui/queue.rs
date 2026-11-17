@@ -257,6 +257,34 @@ mod tests {
     }
 
     #[test]
+    fn edits_around_the_current_song_keep_it_playing() {
+        // Duplicates: the current song is the second "a", so ids alone can't track it.
+        let mut q = queue(&["a", "b", "a", "c"], 2, Repeat::Off);
+        q.remove(0); // before current shifts the index down
+        assert_eq!((ids(&q), q.index), (vec!["b", "a", "c"], Some(1)));
+        q.remove(1); // the current song itself is never removed
+        assert_eq!((ids(&q), q.index), (vec!["b", "a", "c"], Some(1)));
+        q.remove(2); // after current leaves the index alone
+        assert_eq!((ids(&q), q.index), (vec!["b", "a"], Some(1)));
+        assert!(q.at_end());
+        q.remove(2); // past the end is ignored
+        assert!(!q.play_next(track("a"))); // inserted right after the current song, duplicate or not
+        assert_eq!((ids(&q), q.index), (vec!["b", "a", "a"], Some(1)));
+        assert_eq!(q.upcoming().unwrap().id, "a");
+        q.index = Some(0);
+        assert!(!q.play_next(track("x"))); // at the first song
+        assert_eq!((ids(&q), q.index), (vec!["b", "x", "a", "a"], Some(0)));
+        q.remove(0); // current at index 0 stays
+        assert_eq!(ids(&q), ["b", "x", "a", "a"]);
+
+        let mut empty = Queue::new(Repeat::Off);
+        empty.remove(0);
+        assert!(!empty.advance() && !empty.back() && empty.upcoming().is_none());
+        assert!(empty.enqueue(track("z")));
+        assert_eq!((ids(&empty), empty.index), (vec!["z"], Some(0)));
+    }
+
+    #[test]
     fn radio_adds_only_new_songs() {
         let mut q = queue(&["seed", "a"], 1, Repeat::Off);
         assert!(q.add_radio("seed", vec![track("seed"), track("a"), track("b"), track("c")]));
