@@ -48,9 +48,14 @@ internal class PlaybackQueuePersistenceController(
     fun savePlaybackState(player: ExoPlayer) {
         if (player.mediaItemCount == 0) return
         boundedQueue.savePlaybackState(player)
-        LastPlayed.savePlaybackState(
-            index = player.currentMediaItemIndex - queueStart(),
-            positionMs = player.currentPosition,
+        setQueueStart(
+            LastPlayed.savePlaybackState(
+                size = player.mediaItemCount,
+                index = player.currentMediaItemIndex,
+                savedStart = queueStart(),
+                positionMs = player.currentPosition,
+                inParty = ListenTogether.state.value.inParty,
+            ) { player.getMediaItemAt(it).toSong() },
         )
     }
 

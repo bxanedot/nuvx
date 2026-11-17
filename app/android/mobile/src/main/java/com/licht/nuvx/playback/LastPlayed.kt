@@ -17,6 +17,10 @@ object LastPlayed {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
+    internal fun initForTesting(testPrefs: SharedPreferences) {
+        prefs = testPrefs
+    }
+
     internal fun window(size: Int, index: Int): IntRange {
         if (size <= 0) return IntRange.EMPTY
         val safeIndex = index.coerceIn(0, size - 1)
@@ -61,6 +65,31 @@ object LastPlayed {
             .putInt(KEY_INDEX, safeIndex - bounds.first)
             .putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
             .commit()
+    }
+
+    /**
+     * Saves the position of [index] in a live queue of [size] items whose stored window starts at
+     * [savedStart]. Once the current track leaves that window the stored queue is rewritten, so a
+     * killed process restores the track that was playing. Returns the new window start.
+     * A party queue is not the user's own, so it never touches the stored queue.
+     */
+    internal fun savePlaybackState(
+        size: Int,
+        index: Int,
+        savedStart: Int,
+        positionMs: Long,
+        inParty: Boolean,
+        songAt: (Int) -> Song,
+    ): Int {
+        if (inParty) return savedStart
+        val range = window(size, index)
+        var start = savedStart
+        if (!range.isEmpty() && range.first != savedStart) {
+            saveQueue(range.map(songAt), index - range.first)
+            start = range.first
+        }
+        savePlaybackState(index - start, positionMs)
+        return start
     }
 
     fun savePlaybackState(index: Int, positionMs: Long) {
