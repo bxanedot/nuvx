@@ -6,6 +6,35 @@ The one handoff document for this programme. Update it in the same pull request 
 
 **nuvx 1.0.0** (licht line), published 2026-11-17 from `6d3126e6`. It ships 12 files: phone, TV, Auto and Wear APKs signed with the `CN=licht` key (SHA-256 `833677fb…`), the Windows installer, the Linux `.tar.gz`, one universal macOS `.dmg`, the Chrome and Firefox extensions, and `SHA256SUMS`. The website's download routes, old `mac-arm`, `mac-intel` and `foss` links included, resolve to these files; this was checked by running `core/website/api/download.js` against the published asset list. All older releases are pre-releases named "old nuvx build …", and the old 1.0.0 is at `old-nuvx-v1.0.0`.
 
+**nuvx 1.0.1** is being built: tag `v1.0.1` on `9abbddba` (PR 314), draft release, "Nuvx releases" run 44139030811. Apple builds follow it.
+
+## Session handoff (2026-11-17, Phase 0 baseline)
+
+- **Repository:** `bxanedot/nuvx` and `bxanedot/GlyphStudio` now redirect to `lylicht/nuvx` and `lylicht/GlyphStudio`. They are the same repositories.
+- **Local checkouts:** the shared object store under `Codex/2026-11-15/hi-2/work/nuvx/.git` is corrupt (missing objects, so `git fetch` and `git log` fail). Work from a fresh clone instead (this session used `Codex/nuvx-phase0/nuvx`).
+- **Already in place, so not redone:** the Oracle deploy workflow (`sync-deploy.yml`, manual only, never run against the server), the Sync server (`core/sync`), the GlyphStudio v2 icon registry, and the Ponytail plugin.
+
+### Test baseline on the owner's Windows machine, 2026-11-17, `main` at `9abbddba`
+
+| Suite | Result |
+|---|---|
+| Listen Together Worker (`npm test`, `tsc`) | 29 passed, type-check clean |
+| Sync server | 9 passed |
+| Website | 62 passed |
+| Web app + extension (`pnpm -r test`), web type-check | 245 + 2 passed, type-check clean |
+| Shared Kotlin (`:shared:jvmTest :sharedUi:jvmTest`) | 139 + 53 passed |
+| Android phone unit tests | Not run here: no Android platform or build-tools in the local SDK. Run by the new Android check in CI. |
+| Desktop (`cargo test`) | Not run here: the local Rust toolchain does not start (`rustc` exits with STATUS_DLL_NOT_FOUND). It runs in CI on macOS. |
+| iOS / Swift | Not run: needs macOS (CI "Apple builds") |
+
+### Top measured risks
+
+1. **Most tests did not run on pull requests.** The 1,378 Android unit tests ran only after merge, inside the release build. The 247 web tests and the web type-check never ran in CI. *Addressed by the "Android checks" and "Web checks" workflows (PR in "Open").*
+2. **Desktop tests run in CI only on macOS.** Windows- and Linux-only code paths (audio output, tray, updater, installer) compile in the release but are never unit-tested in CI.
+3. **No device or emulator tests.** TV, Wear, nuvx Auto and Android Auto are compile-only; `androidTest` needs an emulator.
+4. **Server fixes may not be live.** The Listen Together workflow only tests; it does not deploy. Whether the Worker was redeployed after PRs 283, 288 and 305 was not verified (owner item 3).
+5. **Licensing:** the desktop still bundles Apple's SF Pro Display fonts (owner item 5).
+
 ## Merged on 2026-11-17
 
 | PR | What |
@@ -27,7 +56,9 @@ The one handoff document for this programme. Update it in the same pull request 
 
 ## Open
 
-None.
+- **PR checks for Android and web** (branch `claude/pr-checks-android-web`): runs Android, shared and web tests on every pull request that touches them.
+- **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
+- Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
 
 ## Waiting on the owner
 
@@ -42,6 +73,7 @@ None.
 
 ## Next, in order
 
+0. **Desktop tests on Linux and Windows in CI** (risk 2), then a scheduled emulator smoke test for the phone app (risk 3).
 1. **Remaining audit:**
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
