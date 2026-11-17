@@ -1765,8 +1765,8 @@ private struct PlayCircle: View {
             ZStack {
                 Circle().fill(color)
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .playPauseMorph()
                     .resizable()
+                    .playPauseMorph()
                     .scaledToFit()
                     .frame(width: size * 0.56 * 0.6, height: size * 0.56 * 0.6)
                     .offset(x: isPlaying ? 0 : size * 0.03)
@@ -1796,8 +1796,8 @@ private struct PlayPill: View {
                         .fill(Color.white)
                         .overlay {
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                .playPauseMorph()
                                 .resizable()
+                                .playPauseMorph()
                                 .scaledToFit()
                                 .frame(width: size * 0.40, height: size * 0.40)
                                 .offset(x: isPlaying ? 0 : 1.5)

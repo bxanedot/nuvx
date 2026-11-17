@@ -1,4 +1,5 @@
 import SwiftUI
+import NuvxShared
 
 /// Play and pause morph into each other, the same motion as the Android app's GlyphStudio Replace
 /// transition. Still when nuvx's "reduce animation" or the system's Reduce Motion is on.
