@@ -1,0 +1,46 @@
+{
+  "about": "Shared Nuvx Sync fixture: every client must replay these ops (in seq order) to exactly this state. Scenario: a playlist is edited on Android while offline and on Windows at the same time; both sync afterwards.",
+  "ops": [
+    { "seq": 1, "kind": "playlist.create", "entity": "playlist:road", "payload": { "title": "Road trip" } },
+    { "seq": 2, "kind": "playlist.addTrack", "entity": "playlist:road", "payload": { "videoId": "a" } },
+    { "seq": 3, "kind": "playlist.addTrack", "entity": "playlist:road", "payload": { "videoId": "b" } },
+    { "seq": 4, "kind": "playlist.addTrack", "entity": "playlist:road", "payload": { "videoId": "c" } },
+
+    { "seq": 5, "kind": "playlist.addTrack", "entity": "playlist:road", "payload": { "videoId": "w1", "after": "b" }, "from": "windows" },
+    { "seq": 6, "kind": "playlist.rename", "entity": "playlist:road", "payload": { "title": "Road trip 2026" }, "from": "windows" },
+    { "seq": 7, "kind": "playlist.removeTrack", "entity": "playlist:road", "payload": { "videoId": "c" }, "from": "windows" },
+
+    { "seq": 8, "kind": "playlist.addTrack", "entity": "playlist:road", "payload": { "videoId": "x1", "after": "a" }, "from": "android-offline" },
+    { "seq": 9, "kind": "playlist.addTrack", "entity": "playlist:road", "payload": { "videoId": "x2", "after": "c" }, "from": "android-offline, anchor removed by windows" },
+    { "seq": 10, "kind": "playlist.addTrack", "entity": "playlist:road", "payload": { "videoId": "b" }, "from": "android-offline, duplicate" },
+    { "seq": 11, "kind": "playlist.rename", "entity": "playlist:road", "payload": { "title": "Roadtrip" }, "from": "android-offline, later in server order so it wins" },
+    { "seq": 12, "kind": "playlist.moveTrack", "entity": "playlist:road", "payload": { "videoId": "w1", "after": null }, "from": "android" },
+
+    { "seq": 13, "kind": "playlist.create", "entity": "playlist:old", "payload": { "title": "Old" } },
+    { "seq": 14, "kind": "playlist.delete", "entity": "playlist:old", "payload": {} },
+    { "seq": 15, "kind": "playlist.addTrack", "entity": "playlist:old", "payload": { "videoId": "z" }, "from": "stale offline edit must not revive it" },
+    { "seq": 16, "kind": "playlist.create", "entity": "playlist:old", "payload": { "title": "Old again" }, "from": "a deleted id is never reused" },
+
+    { "seq": 17, "kind": "favorite.set", "entity": "favorite:a", "payload": { "on": true } },
+    { "seq": 18, "kind": "favorite.set", "entity": "favorite:b", "payload": { "on": true } },
+    { "seq": 19, "kind": "favorite.set", "entity": "favorite:a", "payload": { "on": false } },
+
+    { "seq": 20, "kind": "setting.set", "entity": "setting:crossfade", "payload": { "value": 4 } },
+    { "seq": 21, "kind": "setting.set", "entity": "setting:crossfade", "payload": { "value": 6 } },
+    { "seq": 22, "kind": "future.kind", "entity": "playlist:road", "payload": { "anything": true }, "from": "a newer client; older clients skip it" }
+  ],
+  "expected": {
+    "playlists": {
+      "road": { "title": "Roadtrip", "tracks": ["w1", "a", "x1", "b", "x2"] }
+    },
+    "favorites": ["b"],
+    "settings": { "crossfade": 6 }
+  },
+  "expectedUpTo": {
+    "seq": 7,
+    "playlists": {
+      "road": { "title": "Road trip 2026", "tracks": ["a", "b", "w1"] },
+      "old": null
+    }
+  }
+}
