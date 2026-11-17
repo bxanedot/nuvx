@@ -179,3 +179,14 @@ html{scroll-padding-top:88px}
 .project-stat strong{min-width:2ch;color:var(--text);font:600 11px/1 var(--mono);text-align:right}
 .project-stat:hover{border-color:var(--text);background:var(--surface);color:var(--text)}
 @media(max-width:620px){.project-stats .wrap{gap:7px}.project-stat{min-height:38px;gap:9px;padding-inline:11px;font-size:10px}.project-stat strong{font-size:10px}}
+
+/* CSS-only ambient flow: two soft monochrome fields drift behind every page. */
+:root{--flow-a:rgba(0,0,0,.045);--flow-b:rgba(80,80,80,.03);--flow-c:rgba(0,0,0,.025)}
+:root[data-theme=dark]{--flow-a:rgba(255,255,255,.065);--flow-b:rgba(190,190,190,.045);--flow-c:rgba(255,255,255,.025)}
+body::before,body::after{content:"";position:fixed;inset:-16%;z-index:-1;pointer-events:none;border-radius:50%;will-change:transform;}
+body::before{background:radial-gradient(ellipse 43% 36% at 22% 34%,var(--flow-a),transparent 72%),radial-gradient(ellipse 35% 32% at 78% 26%,var(--flow-b),transparent 70%),radial-gradient(ellipse 42% 38% at 61% 78%,var(--flow-c),transparent 72%);filter:blur(48px);opacity:.85;animation:nuvx-flow-a 26s cubic-bezier(.45,0,.55,1) infinite alternate}
+body::after{background:radial-gradient(ellipse 34% 31% at 72% 52%,var(--flow-a),transparent 72%),radial-gradient(ellipse 39% 34% at 26% 76%,var(--flow-b),transparent 73%);filter:blur(68px);opacity:.55;animation:nuvx-flow-b 34s cubic-bezier(.42,0,.58,1) infinite alternate}
+@keyframes nuvx-flow-a{0%{transform:translate3d(-2.5%,-1.5%,0) scale(.98) rotate(-3deg)}50%{transform:translate3d(1.5%,2%,0) scale(1.05) rotate(3deg)}100%{transform:translate3d(-1%,1%,0) scale(1.02) rotate(-2deg)}}
+@keyframes nuvx-flow-b{0%{transform:translate3d(2%,1%,0) scale(1.02) rotate(2deg)}50%{transform:translate3d(-1.5%,-2%,0) scale(.98) rotate(-3deg)}100%{transform:translate3d(1%,1.5%,0) scale(1.04) rotate(2deg)}}
+@media(max-width:620px){body::before{inset:-12%;filter:blur(34px);opacity:.68;animation-duration:32s}body::after{inset:-12%;filter:blur(46px);opacity:.4;animation-duration:40s}}
+@media(prefers-reduced-motion:reduce){body::before,body::after{animation:none;will-change:auto}}

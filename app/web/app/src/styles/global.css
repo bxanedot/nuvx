@@ -292,6 +292,8 @@
   }
 
   body {
+    position: relative;
+    isolation: isolate;
     font: var(--body);
     color: var(--systemPrimary);
     background-color: var(--pageBG);
@@ -299,6 +301,58 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     overscroll-behavior: none;
+  }
+
+  body::before,
+  body::after {
+    content: '';
+    position: fixed;
+    inset: -16%;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: 50%;
+    will-change: transform;
+  }
+
+  body::before {
+    background:
+      radial-gradient(ellipse 43% 36% at 22% 34%, rgb(127 127 127 / 8%), transparent 72%),
+      radial-gradient(ellipse 35% 32% at 78% 26%, rgb(127 127 127 / 6%), transparent 70%),
+      radial-gradient(ellipse 42% 38% at 61% 78%, rgb(127 127 127 / 4%), transparent 72%);
+    filter: blur(48px);
+    opacity: 0.85;
+    animation: nuvx-flow-a 26s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  }
+
+  body::after {
+    background:
+      radial-gradient(ellipse 34% 31% at 72% 52%, rgb(127 127 127 / 8%), transparent 72%),
+      radial-gradient(ellipse 39% 34% at 26% 76%, rgb(127 127 127 / 6%), transparent 73%);
+    filter: blur(68px);
+    opacity: 0.55;
+    animation: nuvx-flow-b 34s cubic-bezier(0.42, 0, 0.58, 1) infinite alternate;
+  }
+
+  @keyframes nuvx-flow-a {
+    0% { transform: translate3d(-2.5%, -1.5%, 0) scale(0.98) rotate(-3deg); }
+    50% { transform: translate3d(1.5%, 2%, 0) scale(1.05) rotate(3deg); }
+    100% { transform: translate3d(-1%, 1%, 0) scale(1.02) rotate(-2deg); }
+  }
+
+  @keyframes nuvx-flow-b {
+    0% { transform: translate3d(2%, 1%, 0) scale(1.02) rotate(2deg); }
+    50% { transform: translate3d(-1.5%, -2%, 0) scale(0.98) rotate(-3deg); }
+    100% { transform: translate3d(1%, 1.5%, 0) scale(1.04) rotate(2deg); }
+  }
+
+  @media (max-width: 620px) {
+    body::before { inset: -12%; filter: blur(34px); opacity: 0.68; animation-duration: 32s; }
+    body::after { inset: -12%; filter: blur(46px); opacity: 0.4; animation-duration: 40s; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::before,
+    body::after { animation: none; will-change: auto; }
   }
 
   .app-licht-signature {
