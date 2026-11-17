@@ -38,7 +38,8 @@ internal class PlaybackPlayerFactory(
         .setLoadControl(farBufferingLoadControl())
         .setAudioAttributes(AUDIO_ATTRIBUTES, ownsSession)
         .setHandleAudioBecomingNoisy(ownsSession)
-        .setWakeMode(C.WAKE_MODE_LOCAL)
+        // Holds a Wi-Fi lock while playing: the buffer refills from the network in the background, and a dozing radio stalls it.
+        .setWakeMode(C.WAKE_MODE_NETWORK)
         .setMaxSeekToPreviousPositionMs(BACK_RESTARTS_AFTER_MS)
         .build()
 
