@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         PlayerDeepLink.consume(intent)
         JamInviteLink.consume(intent)
         MusicLink.consume(intent)
+        com.licht.nuvx.download.Downloads.resumeSaved(this)
         val playIntro = savedInstanceState == null && intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
         setContent {
             var showIntro by rememberSaveable { mutableStateOf(playIntro) }
