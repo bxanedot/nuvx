@@ -57,8 +57,7 @@ export default function ListenTogetherPage() {
 function SignInFirst() {
   return (
     <p className={`${settingsUi.footer} mb-4`}>
-      Listen Together uses your YouTube Music account for your name and picture in the party. Sign in on music.youtube.com,
-      then come back.
+      Sign in to your music account in nuvx, then return here to listen together. Your party name starts as Licht.
     </p>
   );
 }
@@ -121,7 +120,7 @@ function StartOrJoin({ signedIn }: { signedIn: boolean }) {
           <span>Name in parties</span>
           <input
             className={settingsUi.input}
-            placeholder="Your YouTube name"
+            placeholder="Licht"
             value={settings.nickname}
             maxLength={80}
             onChange={(e) => update({ nickname: e.currentTarget.value })}

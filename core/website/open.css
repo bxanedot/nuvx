@@ -1,8 +1,8 @@
 :root {
-  color-scheme: dark light;
+  color-scheme: dark;
   font: 16px/1.5 system-ui, sans-serif;
-  background: #101012;
-  color: #f6f4f1;
+  background: #101010;
+  color: #f4f4f4;
 }
 
 body {
@@ -21,14 +21,31 @@ main {
   text-align: center;
 }
 
+main > img { filter: grayscale(1) brightness(0) invert(1); }
 h1, p { margin: 0; }
-p { color: #b7b3ae; }
-a { color: #e9c79a; }
+p { color: #aaa; }
+a { color: #ddd; }
 .primary {
   padding: .75rem 1.1rem;
+  border: 1px solid #555;
   border-radius: 999px;
-  background: #e9c79a;
-  color: #201911;
+  background: #f4f4f4;
+  color: #101010;
   font-weight: 650;
   text-decoration: none;
+}
+.licht-credit {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  color: #aaa;
+  font-size: .8rem;
+  text-decoration: none;
+}
+.licht-credit img {
+  display: block;
+  width: 84px;
+  height: 28px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
 }

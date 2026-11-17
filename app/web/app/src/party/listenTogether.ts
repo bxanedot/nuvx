@@ -21,7 +21,7 @@ import {
   type PartyTrack,
 } from './models';
 
-export const DEFAULT_SERVER = sanitizeServerUrl(config.partyServerUrl) ?? '';
+export const DEFAULT_SERVER = sanitizeServerUrl(config.partyServerUrl) ?? 'https://nuvx-listen.lylicht.workers.dev';
 export const MAX_UPCOMING = 25;
 const PING_INTERVAL_MS = 15_000;
 const REPORT_INTERVAL_MS = 10_000;
@@ -90,9 +90,15 @@ interface Settings {
 
 export function partySettings(): Settings {
   try {
-    return { customServer: '', nickname: '', ...(JSON.parse(readStorage('localStorage', SETTINGS_KEY) ?? '{}') as Partial<Settings>) };
+    const saved = JSON.parse(readStorage('localStorage', SETTINGS_KEY) ?? '{}') as Partial<Settings> | null;
+    const savedNickname = typeof saved?.nickname === 'string' ? saved.nickname.trim() : '';
+    const nickname = !savedNickname || savedNickname.toLowerCase() === 'bxane' ? 'Licht' : savedNickname;
+    return {
+      customServer: typeof saved?.customServer === 'string' ? saved.customServer : '',
+      nickname,
+    };
   } catch {
-    return { customServer: '', nickname: '' };
+    return { customServer: '', nickname: 'Licht' };
   }
 }
 
@@ -126,8 +132,8 @@ async function sha256(value: string): Promise<string> {
 async function identity(): Promise<Omit<JoinRequest, 'maxMembers' | 'autoplayEnabled'>> {
   const auth = ytAuthSnapshot();
   const active = auth.signedIn ? auth.active : null;
-  if (!active) throw new PartyError('not_signed_in', 'Sign in to YouTube Music to listen together.');
-  const name = partySettings().nickname.trim() || active.name;
+  if (!active) throw new PartyError('not_signed_in', 'Sign in to nuvx to listen together.');
+  const name = partySettings().nickname.trim() || 'Licht';
   return {
     userId: (await sha256(`${active.authUser}:${active.id}`)).slice(0, 32),
     deviceId: deviceId(),
