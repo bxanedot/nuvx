@@ -84,7 +84,7 @@ module.exports = async (req, res) => {
     try {
       const latest = await fetch(releases + '/latest', { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(4000) });
       const tag = new URL(latest.headers.get('location'), releases + '/latest');
-      const version = /^\/lichtdot\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
+      const version = /^\/lylicht\/nuvx\/releases\/tag\/v(\d+\.\d+\.\d+)$/.exec(tag.pathname)?.[1];
       if (latest.status === 302 && tag.origin === 'https://github.com' && version) {
         for (const candidate of candidatesFor(platform, version, requestedPlatform)) {
           const asset = releases + '/download/v' + version + '/' + candidate;
