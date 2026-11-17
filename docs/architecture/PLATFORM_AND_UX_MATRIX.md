@@ -32,6 +32,6 @@ What each platform has, as of 2026-11-17 (nuvx 1.0.0). The terms:
 | Playlists in backups | Yes | No | No | No |
 | Playlist export (M3U) | Yes | No | No | No |
 | Downloads resume after a kill | Yes | — | — | — |
-| Animated play/pause | GlyphStudio | SF Symbols `.replace` | Own morph | CSS morph |
+| Animated play/pause | SFStudio | SF Symbols `.replace` | Own morph | CSS morph |
 | Redacted diagnostics | Yes | Yes | Yes (log file) | — |
 | Nuvx Sync / Connect | Server only, not deployed | — | — | — |

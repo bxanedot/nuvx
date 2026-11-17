@@ -3,7 +3,7 @@
 A native YouTube Music client for Windows, Linux and macOS, written in Rust (egui).
 
 - Apple Music–style look: sidebar, liquid-glass player bar, full-screen now playing with synced lyrics
-- SF Symbols from GlyphStudio, drawn as vectors, with their bounce animation
+- SF Symbols from SFStudio, drawn as vectors, with their bounce animation
 - Listen Together through the nuvx party server (`nuvx.lol/invite/CODE`, `nuvx://party/CODE`)
 - Downloads, Discord presence, Last.fm, Spotify playlist transfer, tray and mini player
 

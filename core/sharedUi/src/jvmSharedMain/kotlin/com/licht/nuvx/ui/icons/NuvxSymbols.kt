@@ -16,7 +16,7 @@ import com.licht.nuvx.ui.components.REVEAL_SYMBOL_SCALE
 import com.licht.nuvx.ui.player.PlayerSettings
 
 /**
- * nuvx's animated symbols: one entry per meaning, drawn by GlyphStudio. Every Compose surface uses
+ * nuvx's animated symbols: one entry per meaning, drawn by SFStudio. Every Compose surface uses
  * these, so a meaning has the same symbol, weight and motion everywhere. Add an entry when a screen
  * needs a new animated state.
  */
@@ -30,11 +30,11 @@ enum class NuvxGlyph(val sfName: String) {
     DeviceConnected("airplay.video.circle.fill"),
     ;
 
-    val symbol: SfSymbol get() = requireNotNull(SfSymbol[sfName]) { "GlyphStudio has no symbol $sfName" }
+    val symbol: SfSymbol get() = requireNotNull(SfSymbol[sfName]) { "SFStudio has no symbol $sfName" }
 }
 
 /**
- * Draws [glyph]. When the glyph changes (play to pause), GlyphStudio's Replace transition morphs it.
+ * Draws [glyph]. When the glyph changes (play to pause), SFStudio's Replace transition morphs it.
  * Motion only happens on that change, never continuously, and not at all with "reduce animation" on.
  */
 @Composable
