@@ -12,7 +12,7 @@
 
 - Keep nuvx's existing Bricolage Grotesque display face and system body stack.
 - Use a black, white, and neutral-gray palette, as requested. DeepSeek's green accent is intentionally omitted.
-- Use a compact full-width sticky header: nuvx mark, four in-page links, a working download popover, a monochrome theme switch, and a collapsible mobile menu.
+- Use a compact full-width sticky header: nuvx mark, in-page links, direct Listen Together and Canvas links, a working download popover, a monochrome theme switch, and a collapsible mobile menu.
 - Keep downloads one click away for Android, Windows, macOS, Linux, and iOS. Keep the theme switch functional in grayscale.
 - Add a top-listener panel that renders at most ten opted-in listeners from the bot feed. It shows an empty state until the feed is fresh; it does not invent member names.
 
