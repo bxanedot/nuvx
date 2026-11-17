@@ -70,6 +70,8 @@ internal fun MiscellaneousSettingsGroup(
     showQueueHistory: Boolean,
     hideSongStatus: Boolean,
     nerdStats: Boolean,
+    hideRadioTab: Boolean,
+    hidePodcastsTab: Boolean,
 ) {
     SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
         val nightlyUpdates by AppSettings.nightlyUpdates.collectAsStateWithLifecycle()
@@ -176,6 +178,36 @@ internal fun MiscellaneousSettingsGroup(
                     )
                 },
                 onClick = { AppSettings.setShowNerdStats(!nerdStats) },
+            )
+        }
+        val hideRadioTabTitle = stringResource(R.string.hide_radio_tab)
+        row(hideRadioTabTitle, "radio", "tab", "stations", "nav") {
+            SettingsRow(
+                icon = SfIcons.Radio,
+                title = hideRadioTabTitle,
+                subtitle = stringResource(R.string.hide_radio_tab_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = hideRadioTab,
+                        onCheckedChange = AppSettings::setHideRadioTab,
+                    )
+                },
+                onClick = { AppSettings.setHideRadioTab(!hideRadioTab) },
+            )
+        }
+        val hidePodcastsTabTitle = stringResource(R.string.hide_podcasts_tab)
+        row(hidePodcastsTabTitle, "podcasts", "podcast", "episodes", "tab", "nav") {
+            SettingsRow(
+                iconContent = { HidePodcastsTabIcon() },
+                title = hidePodcastsTabTitle,
+                subtitle = stringResource(R.string.hide_podcasts_tab_subtitle),
+                trailing = {
+                    IosSwitch(
+                        checked = hidePodcastsTab,
+                        onCheckedChange = AppSettings::setHidePodcastsTab,
+                    )
+                },
+                onClick = { AppSettings.setHidePodcastsTab(!hidePodcastsTab) },
             )
         }
         val appIconTitle = stringResource(R.string.app_icon)

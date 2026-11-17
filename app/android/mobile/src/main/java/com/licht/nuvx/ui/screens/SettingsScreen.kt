@@ -540,8 +540,6 @@ fun SettingsScreen(
                 hideHomeMoods = hideHomeMoods,
                 squareVideoThumbnails = squareVideoThumbnails,
                 classicSearch = classicSearch,
-                hideRadioTab = hideRadioTab,
-                hidePodcastsTab = hidePodcastsTab,
             )
         }
 
@@ -635,6 +633,8 @@ fun SettingsScreen(
             showQueueHistory = showQueueHistory,
             hideSongStatus = hideSongStatus,
             nerdStats = nerdStats,
+            hideRadioTab = hideRadioTab,
+            hidePodcastsTab = hidePodcastsTab,
         )
 
         if (shows(SettingsCategory.LANGUAGE)) LanguageSettingsGroup(

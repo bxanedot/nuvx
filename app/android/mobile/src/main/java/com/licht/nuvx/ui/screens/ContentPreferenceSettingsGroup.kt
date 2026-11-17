@@ -19,8 +19,6 @@ internal fun ContentPreferenceSettingsGroup(
     hideHomeMoods: Boolean,
     squareVideoThumbnails: Boolean,
     classicSearch: Boolean,
-    hideRadioTab: Boolean,
-    hidePodcastsTab: Boolean,
 ) {
     SearchableSettingsGroup(search, header = stringResource(R.string.content_preferences)) {
         val preferMusicOnlyTitle = stringResource(R.string.prefer_music_only)
@@ -152,36 +150,6 @@ internal fun ContentPreferenceSettingsGroup(
                     )
                 },
                 onClick = { AppSettings.setClassicSearch(!classicSearch) },
-            )
-        }
-        val hideRadioTabTitle = stringResource(R.string.hide_radio_tab)
-        row(hideRadioTabTitle, "radio", "tab", "stations", "nav") {
-            SettingsRow(
-                icon = SfIcons.Radio,
-                title = hideRadioTabTitle,
-                subtitle = stringResource(R.string.hide_radio_tab_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = hideRadioTab,
-                        onCheckedChange = AppSettings::setHideRadioTab,
-                    )
-                },
-                onClick = { AppSettings.setHideRadioTab(!hideRadioTab) },
-            )
-        }
-        val hidePodcastsTabTitle = stringResource(R.string.hide_podcasts_tab)
-        row(hidePodcastsTabTitle, "podcasts", "podcast", "episodes", "tab", "nav") {
-            SettingsRow(
-                iconContent = { HidePodcastsTabIcon() },
-                title = hidePodcastsTabTitle,
-                subtitle = stringResource(R.string.hide_podcasts_tab_subtitle),
-                trailing = {
-                    IosSwitch(
-                        checked = hidePodcastsTab,
-                        onCheckedChange = AppSettings::setHidePodcastsTab,
-                    )
-                },
-                onClick = { AppSettings.setHidePodcastsTab(!hidePodcastsTab) },
             )
         }
     }
