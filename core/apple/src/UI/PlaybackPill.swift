@@ -622,7 +622,7 @@ struct PlaybackPill: View {
                     ProgressView().controlSize(.small).frame(width: 22, height: 22)
                 } else {
                     Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
-                        .nuvxSymbolReplace()
+                        .playPauseMorph()
                         .scaledFont(size: 20, weight: .semibold)
                 }
             }
@@ -679,7 +679,7 @@ struct PlaybackPill: View {
                     controller.togglePlayPause()
                 } label: {
                     Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
-                        .nuvxSymbolReplace()
+                        .playPauseMorph()
                         .scaledFont(size: 18, weight: .semibold)
                         .frame(width: 34, height: 34)
                         .contentShape(.rect)

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Play and pause morph into each other, the same motion as the Android app's GlyphStudio Replace
 /// transition. Still when nuvx's "reduce animation" or the system's Reduce Motion is on.
-struct NuvxSymbolReplace: ViewModifier {
+struct PlayPauseMorph: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
@@ -12,5 +12,5 @@ struct NuvxSymbolReplace: ViewModifier {
 }
 
 extension View {
-    func nuvxSymbolReplace() -> some View { modifier(NuvxSymbolReplace()) }
+    func playPauseMorph() -> some View { modifier(PlayPauseMorph()) }
 }

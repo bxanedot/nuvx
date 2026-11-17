@@ -74,7 +74,7 @@ struct VideoTheaterView: View {
                                 revealControls()
                             } label: {
                                 Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
-                                    .nuvxSymbolReplace()
+                                    .playPauseMorph()
                                     .font(.title2)
                                     .frame(width: 48, height: 48)
                                     .background(.ultraThinMaterial, in: Circle())
