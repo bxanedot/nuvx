@@ -299,6 +299,22 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     overscroll-behavior: none;
+    filter: grayscale(1);
+  }
+
+  .app-licht-signature {
+    display: block;
+    width: 92px;
+    height: 30px;
+    object-fit: contain;
+    filter: brightness(0);
+    opacity: 0.82;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .app-licht-signature {
+      filter: brightness(0) invert(1);
+    }
   }
 
   #root {

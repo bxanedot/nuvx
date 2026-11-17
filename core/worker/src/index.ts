@@ -17,7 +17,7 @@ export interface Env {
   BOT_STATS_TOKEN?: string;
 }
 
-export const ALLOWED_ORIGINS = new Set(["https://web.nuvx.lol", "https://nuvx.pages.dev", "http://localhost:5173"]);
+export const ALLOWED_ORIGINS = new Set(["https://web.nuvx.lol", "https://www.nuvx.lol", "https://nuvx.lol", "https://nuvx.pages.dev", "http://localhost:5173"]);
 const SOCKET_PROTOCOL = "nuvx.v1";
 const SOCKET_TOKEN_PREFIX = "nuvx.token.";
 const PRESENCE_INTERVAL_SEC = 300;

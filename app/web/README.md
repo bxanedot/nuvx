@@ -64,7 +64,7 @@ Then open `http://localhost:5173/extension`. It shows "Installed", with the vers
 | `NUVX_STORE_BUILD=1` | extension build | Leaves out the dev `key` for a Chrome Web Store upload |
 | `VITE_EXTENSION_ID_CHROMIUM` | app (`app/.env.local`) | The pinned dev id. Set it for a store-built extension |
 | `VITE_ANDROID_APP_URL` | app | `https://www.nuvx.lol/api/download?platform=android` |
-| `VITE_PARTY_SERVER_URL` | app (`app/.env.local`, Pages env) | None. The Listen Together server; `vite build` fails without it |
+| `VITE_PARTY_SERVER_URL` | app (`app/.env.local`, Pages or Vercel env) | `https://nuvx-listen.lylicht.workers.dev` |
 
 ## Deploy (Vercel)
 
@@ -72,7 +72,7 @@ Live at **https://web.nuvx.lol**. The `nuvx-web` Vercel project deploys every pu
 
 | Project environment variable | Value |
 | --- | --- |
-| `VITE_PARTY_SERVER_URL` | `https://nuvx-listen.lylicht.workers.dev` |
+| `VITE_PARTY_SERVER_URL` | Optional override; defaults to `https://nuvx-listen.lylicht.workers.dev` |
 
 `build:site` packages the extension first, so each deploy publishes the zips and `downloads/extension.json` with the version from `app/web/extension/package.json`. The Extension page polls that file and offers the update when it's newer than the installed one. Bump that version to make an update show.
 

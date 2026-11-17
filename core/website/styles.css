@@ -172,3 +172,12 @@ html{scroll-padding-top:88px}
 @media(max-width:620px){.landing .hero{min-height:min(740px,calc(100svh - 66px));padding:68px 0 62px}.hero-title{font-size:clamp(48px,12vw,78px);line-height:1}.hero .lede{font-size:16px}.hero .actions{gap:9px}.landing .hero .actions .button{width:auto;max-width:none;min-height:48px;padding-inline:19px}.hero-credit{margin-top:26px}.hero-credit .licht-signature{height:44px}}
 @media(max-width:380px){.topbar{padding-inline:14px}.topbar-actions{gap:5px}.topbar .theme-toggle,.menu-toggle{width:34px;height:34px}.landing .hero .actions{flex-direction:column;align-items:center;justify-content:center}.landing .hero .actions .button{justify-content:center;width:min(100%,250px)}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.topbar,.topbar nav a::after,.hero .button,.signature-arrow{transition:none}}
+
+/* Keep every product image, community mark and video within the monochrome palette. */
+body img:not(.licht-signature),body video{filter:grayscale(1)}
+.project-stats{border-block:1px solid var(--line);background:var(--bg)}
+.project-stats .wrap{min-height:78px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;padding-block:14px}
+.project-stat{min-height:40px;display:inline-flex;align-items:center;justify-content:space-between;gap:13px;padding:8px 13px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:11px;line-height:1;text-decoration:none;transition:background-color .2s ease,border-color .2s ease,color .2s ease}
+.project-stat strong{min-width:2ch;color:var(--text);font:600 11px/1 var(--mono);text-align:right}
+.project-stat:hover{border-color:var(--text);background:var(--surface);color:var(--text)}
+@media(max-width:620px){.project-stats .wrap{gap:7px}.project-stat{min-height:38px;gap:9px;padding-inline:11px;font-size:10px}.project-stat strong{font-size:10px}}
