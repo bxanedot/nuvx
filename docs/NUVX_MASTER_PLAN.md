@@ -1,6 +1,6 @@
 # Nuvx master plan
 
-The one handoff document for this programme. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md). The repository audit lives in [`audits/FULL_REFACTOR_AUDIT.md`](audits/FULL_REFACTOR_AUDIT.md).
+The one handoff document for this programme. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md). The repository audit lives in [`audits/FULL_REFACTOR_AUDIT.md`](audits/FULL_REFACTOR_AUDIT.md), security in [`audits/SECURITY_AUDIT.md`](audits/SECURITY_AUDIT.md). Platform support: [`architecture/PLATFORM_AND_UX_MATRIX.md`](architecture/PLATFORM_AND_UX_MATRIX.md). Decisions: [`architecture/TECHNOLOGY_DECISIONS.md`](architecture/TECHNOLOGY_DECISIONS.md). Tests: [`QUALITY_AND_TESTING.md`](QUALITY_AND_TESTING.md). Releases: [`RELEASE_READINESS.md`](RELEASE_READINESS.md).
 
 ## Released
 
@@ -22,12 +22,12 @@ The one handoff document for this programme. Update it in the same pull request 
 | 309 | Android backups include nuvx playlists |
 | 310 | Desktop retries a song once on a network blip |
 | 311 | Android refuses to download with under 500 MB free |
+| 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android, the same morph on iOS and web; per-device equalizer; undo after deleting a nuvx playlist; redacted diagnostics on Android, iOS and desktop |
+| 313 | Icon render and animation-state tests; web signature code in an isolated worker; JitPack limited to `com.github.*`; shared sync replay rules with a fixture; crossfade timing tests; Android playlist export as M3U; security, platform, testing, release and decision docs |
 
 ## Open
 
-| PR | What | State |
-|---|---|---|
-| 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android; the same morph on iOS and web; per-device equalizer on Android; undo after deleting a nuvx playlist | Android 1,361 tests and web 241 pass; the iOS build is re-running after a fix |
+None.
 
 ## Waiting on the owner
 
@@ -42,20 +42,19 @@ The one handoff document for this programme. Update it in the same pull request 
 
 ## Next, in order
 
-1. Merge 313 (render tests, isolated web decipher, JitPack scope, sync replay rules, crossfade characterization, playlist export).
-2. **Remaining audit:**
+1. **Remaining audit:**
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
-3. **First Sync client**, off by default: operation kinds for playlists, favorites and settings, one fixture every client replays. It needs the Oracle server (item 1 above) to test end to end.
-4. **Nuvx Connect** on top of QR pairing: one playback owner, remote control, handoff.
-5. **Smart Offline:**
+2. **First Sync client**, off by default. Done: the operation kinds and replay rules (`SyncReplay.kt`) and the fixture every client must reproduce (`core/sync/fixtures/replay-v1.json`). Left: the outbox and transport. It needs the Oracle server (owner item 1) to test end to end.
+3. **Nuvx Connect** on top of QR pairing: one playback owner, remote control, handoff.
+4. **Smart Offline:**
    - done: resume after a kill, a 500 MB floor;
    - left: a user-set quota and auto-download of chosen playlists.
-6. **Remaining features:**
+5. **Remaining features:**
    - Privacy & Data Center (devices and sessions once Sync exists);
    - playlist export: done on Android as M3U (playlist menu → Export playlist); the full backup is JSON. CSV not done;
    - diagnostics export.
-7. **Visual regression tests** (Roborazzi or Paparazzi) for the icon registry and the main screens.
+6. **Visual regression tests** (Roborazzi or Paparazzi) for the icon registry and the main screens.
 
 ## Decisions that need evidence and approval first
 

@@ -1,4 +1,4 @@
-# Platform matrix
+# Platform and UX matrix
 
 What each platform has, as of 2026-11-17 (nuvx 1.0.0). The terms:
 - **Released:** in the 1.0.0 GitHub release.

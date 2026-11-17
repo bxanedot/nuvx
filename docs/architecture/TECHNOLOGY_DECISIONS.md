@@ -1,4 +1,4 @@
-# Architecture decisions
+# Technology decisions
 
 Short records of decisions taken, newest first. Each says what was decided, why, and what would change it.
 
