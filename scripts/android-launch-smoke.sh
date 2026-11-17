@@ -32,4 +32,6 @@ fi
 focus="$(adb shell dumpsys window | grep -m1 mCurrentFocus || true)"
 echo "Focused window: $focus"
 echo "$focus" | grep -q "$pkg" || { echo "::error::$pkg is running but not in the foreground"; exit 1; }
+# Leave the device clean: Gradle's instrumented-test install fails on a differently signed copy.
+adb uninstall "$pkg" >/dev/null
 echo "Launch smoke test passed"
