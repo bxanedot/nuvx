@@ -4,7 +4,10 @@ import android.content.Context
 import android.net.Uri
 import com.licht.nuvx.BuildConfig
 import com.licht.nuvx.data.settings.AppSettings
+import com.licht.nuvx.data.model.Song
 import com.licht.nuvx.data.settings.SearchHistory
+import com.licht.nuvx.data.spotify.LocalPlaylist
+import com.licht.nuvx.data.spotify.LocalPlaylistStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -36,6 +39,7 @@ object Backup {
                     PrefValue.of(value)?.let { key to it }
                 }.toMap(),
                 listening = buckets,
+                playlists = LocalPlaylistStore.playlists.value.map(BackupPlaylist::of),
             )
             val text = json.encodeToString(BackupFile.serializer(), file)
             context.contentResolver.openOutputStream(target, "wt")
@@ -60,6 +64,7 @@ object Backup {
             ListeningStats.importAll(file.listening)
             AppSettings.importPrefs(file.settings.mapValues { it.value.decoded() })
             SearchHistory.reload()
+            LocalPlaylistStore.mergeIn(file.playlists.map(BackupPlaylist::toLocal))
             Summary(
                 months = file.listening.size,
                 settings = file.settings.size,
@@ -88,7 +93,37 @@ object Backup {
         val exportedAt: String = "",
         val settings: Map<String, PrefValue> = emptyMap(),
         val listening: List<StoredBucket> = emptyList(),
+        // Added without a version bump: older apps ignore it and still restore settings and listening.
+        val playlists: List<BackupPlaylist> = emptyList(),
     )
+
+    @Serializable
+    data class BackupPlaylist(val id: String, val title: String, val songs: List<BackupSong> = emptyList()) {
+        fun toLocal() = LocalPlaylist(id, title, songs.map(BackupSong::toSong))
+
+        companion object {
+            fun of(p: LocalPlaylist) = BackupPlaylist(p.id, p.title, p.songs.map(BackupSong::of))
+        }
+    }
+
+    @Serializable
+    data class BackupSong(
+        val videoId: String,
+        val title: String = "",
+        val artist: String = "",
+        val thumbnailUrl: String? = null,
+        val durationText: String? = null,
+        val artistId: String? = null,
+        val albumId: String? = null,
+        val albumName: String? = null,
+        val isVideo: Boolean = false,
+    ) {
+        fun toSong() = Song(videoId, title, artist, thumbnailUrl, durationText, artistId = artistId, albumId = albumId, albumName = albumName, isVideo = isVideo)
+
+        companion object {
+            fun of(s: Song) = BackupSong(s.videoId, s.title, s.artist, s.thumbnailUrl, s.durationText, s.artistId, s.albumId, s.albumName, s.isVideo)
+        }
+    }
 
     @Serializable
     data class PrefValue(
