@@ -1485,4 +1485,6 @@
     <string name="privacy_open_orbot">Otwórz Orbot</string>
     <string name="privacy_install_orbot">Zainstaluj Orbot</string>
     <string name="privacy_orbot_subtitle">Orbot musi być uruchomiony i połączony z Torem</string>
+    <string name="nightly_updates">Aktualizacje nightly</string>
+    <string name="nightly_updates_subtitle">Otrzymuj wersje testowe zaraz po publikacji. Domyślnie wyłączone; gdy wyłączone, nuvx proponuje tylko wersje stabilne.</string>
 </resources>

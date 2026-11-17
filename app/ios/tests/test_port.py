@@ -156,7 +156,7 @@ class PortIdentityTests(unittest.TestCase):
     @staticmethod
     def plist(**overrides):
         return {
-            "CFBundleIdentifier": "com.bxane.nuvx",
+            "CFBundleIdentifier": "com.licht.nuvx",
             "CFBundleShortVersionString": "0.8.0",
             "CFBundleVersion": "1",
             "NuvxRevision": "123456789abc",

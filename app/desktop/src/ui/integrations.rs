@@ -122,6 +122,7 @@ impl App {
             self.updater = Some(Updater::new(self.backend.data_dir(), move || c.request_repaint()));
         }
         let Some(u) = self.updater.clone() else { return };
+        u.set_nightly(self.nightly_updates);
         let due = match self.update_checked {
             None => now > 8.0,
             Some(t) => now - t > 6.0 * 3600.0 && !matches!(u.state(), State::Ready { .. }),

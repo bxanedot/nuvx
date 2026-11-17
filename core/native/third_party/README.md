@@ -21,7 +21,7 @@ The Android APKs carry the Apache-2.0 and LGPL-2.1-or-later texts and these nati
 ## Adapted code
 
 The bit-perfect output (`app/android/mobile/src/main/cpp/bitperfect/`,
-`app/android/mobile/src/main/java/com/bxane/nuvx/playback/audio/bitperfect/`) adapts
+`app/android/mobile/src/main/java/com/licht/nuvx/playback/audio/bitperfect/`) adapts
 parts of [Mornye](https://github.com/mornyeapp/Mornye), Copyright 2026 zarzet,
 licensed LGPL-3.0-only. Each adapted file carries an `LGPL-3.0-only` SPDX
 line. The direct USB driver's realtime arithmetic has host tests in

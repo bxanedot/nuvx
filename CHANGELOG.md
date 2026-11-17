@@ -2,7 +2,20 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
-## 1.1.0 (Unreleased)
+## 1.0.0
+
+### Android release
+
+- Rename the Android app identity to `com.licht.nuvx` and sign the phone, TV, Auto, and Wear packages with the `licht` certificate.
+- Publish one APK for each Android target, with no separate GMS or FOSS assets. Set Android version code to `1` on every target.
+- Use plain APK filenames and keep the update checker compatible with older release assets.
+- Archive the original version-code-10 release as old Nuvx while retaining its tag target and downloads.
+- macOS ships one universal disk image for Apple silicon and Intel in place of two. Old macOS download links still work.
+
+### Updates
+
+- Add **Nightly updates** to Android phone and TV and to desktop. It is off by default: while it is off nuvx only offers stable releases, and while it is on it also offers nightly test builds. A nightly install with the switch off moves to the stable build of the same version. iPhone, iPad and Mac only ever offer stable releases and have no switch.
+- The updaters skip any release named "old" and any pre-release that is not a nightly, so an old build with a higher number is never offered to the new line.
 
 ### Fixes
 
@@ -29,7 +42,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 - Change the default Discord activity action to **Listen on nuvx** and send it to `https://nuvx.lol/open`, which attempts to open the installed app and keeps a website fallback available.
 
-## 1.0.0
+## 1.0.0 (Previous app identity)
 
 This section records every change since the v0.9.0 stable release.
 
@@ -90,7 +103,7 @@ This section records every change since the v0.9.0 stable release.
 - Add **Create Playlists in Nuvx Only** across Android phone/TV/Auto, iOS/macOS, desktop and web. It is off by default; when enabled, new playlists are stored on the current device or browser without creating or changing YouTube Music playlists. Android, Apple and web Spotify-import flows also honor the setting.
 - Keep local playlists available after restart, playable and available in add-to-playlist pickers. Local playlists are device-specific and do not sync across nuvx installs.
 
-## 0.9.0
+## Old build 0.9.0
 
 ### Desktop
 
@@ -112,7 +125,7 @@ This section records every change since the v0.9.0 stable release.
 - Set the next release version to 0.9.0, with Android version code 9.
 - Build one multi-architecture Windows installer and Linux package, separate Intel and Apple silicon macOS DMGs, universal GMS and FOSS phone and TV APKs, a Wear OS APK, and both browser extensions in the same release.
 
-## 0.8.0
+## Old build 0.8.0
 
 ### Android
 
@@ -159,7 +172,7 @@ This section records every change since the v0.9.0 stable release.
 - Extract shared lyrics, Listen Together, party synchronization, and YT Music home feed, version matching, search, playlist, and history handling into dedicated modules.
 - Split Innertube account, playback, search, browse-header, artist-header, and library-state parsing into dedicated modules.
 
-## 0.7.0
+## Old build 0.7.0
 
 ### Desktop
 - Music videos play in Now playing: the picture in a 16:9 frame, in step with the song, through seeks and pauses (Windows).
@@ -171,7 +184,7 @@ This section records every change since the v0.9.0 stable release.
 - Animated artwork for single songs as well as albums, from Apple Music and now Tidal, with a setting to turn it off.
 - Last.fm: Send now playing and Primary artist only.
 
-## 0.6.0
+## Old build 0.6.0
 
 ### Downloads on desktop
 
@@ -194,7 +207,7 @@ The new defaults apply to fresh installs. If you already chose window buttons or
 
 Song recognition has a new waveform-and-microphone icon.
 
-## 0.5.0
+## Old build 0.5.0
 
 ### Podcasts
 
@@ -226,7 +239,7 @@ Turn on **Enable YouTube Search** in Settings to add a YouTube switch over your 
 
 nuvx.lol has this changelog at [nuvx.lol/changelog](https://nuvx.lol/changelog). nuvx.lol and the web player now wear burgundy.
 
-## 0.4.0
+## Old build 0.4.0
 
 ### Radio
 
@@ -247,13 +260,13 @@ Dead code, unused theme thumbnails and deprecated calls are gone from the deskto
   <img src="https://github.com/lylicht/nuvx/raw/7e852a9/docs/nuvx-banner-desktop-lyrics.png" width="49%" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics.">
 </p>
 
-## 0.3.0
+## Old build 0.3.0
 
 ### Moods and genres in pictures
 
 On desktop, the Moods and genres tiles on Search and Explore now carry cover art from the playlists they open, in the same duotone style as Android. The tiles appear at once and their pictures fill in a few seconds later.
 
-## 0.2.0
+## Old build 0.2.0
 
 <img width="1672" height="941" alt="nuvx desktop with synced lyrics" src="https://github.com/user-attachments/assets/df21ea8e-6f5c-406a-af7d-db949dfe958a" />
 
@@ -265,7 +278,7 @@ The desktop app keeps playback controls at the top and gives Up Next and Lyrics 
 
 This release also includes hotfixes for Android phones, tablets and TVs.
 
-## 0.1.0
+## Old build 0.1.0
 
 <img width="1672" height="941" alt="nuvx Now Playing" src="https://github.com/user-attachments/assets/bfd50b52-0543-467f-a501-edb4214073b4" />
 

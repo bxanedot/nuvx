@@ -25,7 +25,7 @@ kotlin {
         val jvmSharedMain by creating {
             dependsOn(commonMain.get())
             dependencies {
-                compileOnly("com.microsoft.onnxruntime:onnxruntime:1.31.1")
+                compileOnly("com.microsoft.onnxruntime:onnxruntime:1.32.0")
                 api("io.ktor:ktor-client-core:3.6.1")
                 api("io.ktor:ktor-client-okhttp:3.6.1")
                 api("io.ktor:ktor-client-websockets:3.6.1")
@@ -55,6 +55,6 @@ kotlin {
 }
 
 android {
-    namespace = "com.bxane.nuvx.shared"
+    namespace = "com.licht.nuvx.shared"
     compileSdk = 37
 }

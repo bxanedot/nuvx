@@ -50,11 +50,11 @@ val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
     .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
-    namespace = "com.bxane.nuvx"
+    namespace = "com.licht.nuvx"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bxane.nuvx"
+        applicationId = "com.licht.nuvx"
         minSdk = 26
         targetSdk = 36
         versionCode = androidVersionCode
@@ -75,7 +75,7 @@ android {
             "\"${addonAuthServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"nuvx-v\"")
-        buildConfigField("String", "NUVX_DISTRIBUTION", "\"universal\"")
+        buildConfigField("String", "NUVX_DISTRIBUTION", "\"single\"")
         buildConfigField("String", "NUVX_RELEASE_TAG", "\"$releaseTag\"")
         buildConfigField("String", "NUVX_BUILD_TIME", "\"$buildTime\"")
     }
@@ -100,7 +100,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            applicationId = "com.bxane.nuvx.dev"
+            applicationId = "com.licht.nuvx.dev"
             resValue("string", "app_name", "nuvx Dev")
         }
         create("prod") {
@@ -258,7 +258,7 @@ dependencies {
 
     val customOnnxRuntime = rootProject.file("app/android/onnxruntime/onnxruntime-android-1.31.1-custom.aar")
     if (customOnnxRuntime.isFile) implementation(files(customOnnxRuntime))
-    else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
+    else implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
 
     implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
@@ -288,10 +288,10 @@ val verifyDevInstall = tasks.register("verifyDevInstall") {
             .drop(1)
             .mapNotNull { line -> line.split('\t').takeIf { it.size == 2 && it[1] == "device" }?.get(0) }
         serials.forEach { serial ->
-            logger.lifecycle("verifyDevInstall: compiling com.bxane.nuvx.dev on $serial")
+            logger.lifecycle("verifyDevInstall: compiling com.licht.nuvx.dev on $serial")
             ProcessBuilder(
                 adbPath, "-s", serial, "shell", "cmd", "package", "compile",
-                "-m", "verify", "-f", "com.bxane.nuvx.dev",
+                "-m", "verify", "-f", "com.licht.nuvx.dev",
             ).inheritIO().start().waitFor()
         }
     }

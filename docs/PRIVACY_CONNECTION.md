@@ -45,7 +45,7 @@ Tests (`cargo test`, `proxy::tests`): fail-closed resolution, port probing, save
 
 ## How it works
 
-`app/android/mobile/src/main/java/com/bxane/nuvx/net/privacy/`
+`app/android/mobile/src/main/java/com/licht/nuvx/net/privacy/`
 
 - `PrivacyConnection.kt`: `ConnectionManager` (modes, verified connect, failover with hysteresis, bounded retries with backoff) and `PrivacyProxySelector`.
 - `OrbotBackend.kt`: finds Orbot, asks its status over Orbot's public broadcast interface, uses the SOCKS port Orbot reports (9050 only as an unverified candidate), and accepts the port only after a real request to `check.torproject.org` reports `IsTor: true`.

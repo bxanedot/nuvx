@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import zipfile
 
-BUNDLE_ID = 'com.bxane.nuvx'
+BUNDLE_ID = 'com.licht.nuvx'
 
 
 def identity(plist):

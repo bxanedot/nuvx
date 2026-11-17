@@ -1,0 +1,76 @@
+name: Mark old releases
+
+# Manual only. Marks every release that exists when this runs as an old build: it becomes a pre-release and its
+# name gets " (old build)". The updaters skip anything named old, so run it before publishing the first licht release.
+# It does a dry run unless you set apply, and it never touches drafts.
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "false lists what would change. true changes the releases."
+        type: boolean
+        default: false
+      confirm:
+        description: 'When apply is true, type: mark old releases'
+        type: string
+        default: ""
+      rename_v1_0_0_to_old:
+        description: "true also moves the old v1.0.0 release to the tag old-nuvx-v1.0.0 and deletes the tag v1.0.0, so the new 1.0.0 can use it. Old v1.0.0 download links stop working."
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mark-old-releases
+  cancel-in-progress: false
+
+jobs:
+  mark:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      APPLY: ${{ inputs.apply }}
+      RENAME_TAG: ${{ inputs.rename_v1_0_0_to_old }}
+    steps:
+      - name: Check the confirmation
+        if: inputs.apply
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: '[[ "$CONFIRM" == "mark old releases" ]] || { echo "Type exactly: mark old releases" >&2; exit 1; }'
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: List and mark
+        run: |
+          gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq '.[] | select(.draft == false) | [.id, .tag_name, (if (.name // "") == "" then .tag_name else .name end), .prerelease] | @tsv' > releases.tsv
+          echo "$(wc -l < releases.tsv) published releases"
+          while IFS=$'\t' read -r id tag name pre; do
+            new="$name"
+            grep -qiw old <<<"$name" || new="$name (old build)"
+            if [[ "$pre" == true && "$new" == "$name" ]]; then
+              echo "ok      $tag: already a pre-release named old"
+              continue
+            fi
+            echo "change  $tag: \"$name\" -> \"$new\", pre-release"
+            if [[ "$APPLY" == true ]]; then
+              gh api -X PATCH "repos/$GH_REPO/releases/$id" -f name="$new" -F prerelease=true -f make_latest=false > /dev/null
+            fi
+          done < releases.tsv
+      - name: Rename the v1.0.0 tag to old-nuvx-v1.0.0
+        if: inputs.rename_v1_0_0_to_old
+        run: |
+          id=$(gh api "repos/$GH_REPO/releases/tags/v1.0.0" --jq .id 2>/dev/null || true)
+          if [[ -z "$id" ]]; then echo "no v1.0.0 release, nothing to move"; exit 0; fi
+          sha=$(git rev-list -n 1 v1.0.0)
+          echo "release $id, tag v1.0.0 -> old-nuvx-v1.0.0 at $sha"
+          if [[ "$APPLY" != true ]]; then echo "dry run: nothing changed"; exit 0; fi
+          gh api "repos/$GH_REPO/git/ref/tags/old-nuvx-v1.0.0" > /dev/null 2>&1 && { echo "old-nuvx-v1.0.0 already exists" >&2; exit 1; }
+          gh api -X POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/old-nuvx-v1.0.0 -f sha="$sha" > /dev/null
+          gh api -X PATCH "repos/$GH_REPO/releases/$id" -f tag_name=old-nuvx-v1.0.0 > /dev/null
+          gh api -X DELETE "repos/$GH_REPO/git/refs/tags/v1.0.0"
+          echo "moved"

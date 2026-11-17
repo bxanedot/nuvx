@@ -1,0 +1,210 @@
+package com.licht.nuvx
+
+import android.app.Application
+import androidx.annotation.OptIn
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.media3.common.util.UnstableApi
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.intercept.Interceptor
+import coil3.request.ErrorResult
+import com.licht.nuvx.data.model.youTubeThumbnailFallback
+import coil3.disk.directory
+import coil3.memory.MemoryCache
+import coil3.request.allowHardware
+import coil3.request.crossfade
+import coil3.svg.SvgDecoder
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import okhttp3.OkHttpClient
+import com.licht.nuvx.auth.AuthStore
+import com.licht.nuvx.data.DebugLog
+import com.licht.nuvx.data.lyrics.LyricsTranslation
+import androidx.appcompat.app.AppCompatDelegate
+import com.licht.nuvx.ui.player.AndroidPlayerHost
+import com.licht.nuvx.ui.player.PlayerPlatform
+import com.licht.nuvx.data.canvas.CanvasCache
+import com.licht.nuvx.data.smb.SmbCoverFetcher
+import com.licht.nuvx.data.webdav.WebDavCoilAuth
+import com.licht.nuvx.data.canvas.SpotifyToken
+import com.licht.nuvx.data.spotify.SpotifyLibrary
+import com.licht.nuvx.playback.AudioCache
+import com.licht.nuvx.playback.LastPlayed
+import com.licht.nuvx.playback.BoundedContextPersistence
+import com.licht.nuvx.playback.OriginalVersion
+import com.licht.nuvx.data.innertube.Innertube
+import com.licht.nuvx.data.innertube.AndroidStreamHooks
+import com.licht.nuvx.data.listentogether.ListenTogether
+import com.licht.nuvx.data.scrobbling.LastFM
+import com.licht.nuvx.data.settings.AppSettings
+import com.licht.nuvx.data.settings.SearchHistory
+import com.licht.nuvx.data.sources.SourceRegistry
+import com.licht.nuvx.data.stats.ArtistFacts
+import com.licht.nuvx.data.stats.ListeningStats
+import com.licht.nuvx.download.Downloads
+import com.licht.nuvx.download.PlaylistSync
+import androidx.work.Configuration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlin.concurrent.thread
+
+class NuvxApplication : Application(), SingletonImageLoader.Factory, Configuration.Provider {
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().build()
+
+    @OptIn(UnstableApi::class)
+    @kotlin.OptIn(ExperimentalComposeUiApi::class)
+    override fun onCreate() {
+        super.onCreate()
+        // Before any network client exists, so all of them route through the Privacy Connection when it is on.
+        com.licht.nuvx.net.privacy.PrivacyNetwork.install(this)
+        AndroidStreamHooks.installEarly()
+        PlayerPlatform.install(AndroidPlayerHost(this))
+        com.licht.nuvx.ui.AppUi.install(com.licht.nuvx.ui.AndroidAppUiHost)
+        if (BuildConfig.DEBUG) {
+            DebugLog.sink = DebugLog.Sink { level, tag, message, error ->
+                when (level) {
+                    'D' -> android.util.Log.d(tag, message, error)
+                    'I' -> android.util.Log.i(tag, message, error)
+                    'W' -> android.util.Log.w(tag, message, error)
+                    else -> android.util.Log.e(tag, message, error)
+                }
+            }
+        } else {
+            androidx.media3.common.util.Log.setLogLevel(androidx.media3.common.util.Log.LOG_LEVEL_OFF)
+            java.util.logging.LogManager.getLogManager().reset()
+            java.util.logging.Logger.getLogger("").level = java.util.logging.Level.OFF
+        }
+        SpotifyLibrary.auth = SpotifyLibrary.Auth {
+            SpotifyToken.accessToken()?.let { SpotifyLibrary.Tokens(it, SpotifyToken.clientToken()) }
+        }
+        Innertube.appLanguage = { AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag() }
+        migrateScriptOnlyAppLocale()
+        LyricsTranslation.cacheDir = cacheDir
+        authStore = AuthStore(this)
+        val backgroundInit = thread(name = "startup-init") {
+            SourceRegistry.init(this)
+            AndroidStreamHooks.initInnerTubeX(this)
+            CanvasCache.init(this)
+        }
+        val restoredSession = authStore.activeSession
+        if (restoredSession != null && authStore.activeAccountId == null) {
+            authStore.select(restoredSession.accountId, restoredSession.activeProfileId)
+        }
+        authStore.cookie = restoredSession?.cookie
+        Innertube.cookie = restoredSession?.cookie
+        if (restoredSession != null) {
+            restoredSession.profiles.firstOrNull { it.profileId == restoredSession.activeProfileId }
+                ?.let { Innertube.selectChannel(it.pageId, it.dataSyncId, it.authUser) }
+            CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
+        }
+        AppSettings.init(this, authStore)
+        com.licht.nuvx.data.sources.addon.AddonAuth.init(this)
+        com.licht.nuvx.playback.audio.LosslessOutput.init(this)
+        ListenTogether.init(this)
+        SearchHistory.init(this)
+        LastPlayed.init(this)
+        BoundedContextPersistence.init(this)
+        com.licht.nuvx.playback.PartyPersonalQueueStash.init(this)
+        OriginalVersion.init(this)
+        Downloads.init(this)
+        PlaylistSync.init(this)
+        ListeningStats.init(this)
+        ArtistFacts.init(this)
+        AudioCache.init(this)
+        SpotifyToken.init(this)
+        if (AppSettings.consumeVersionUpdate(BuildConfig.VERSION_CODE)) {
+            SingletonImageLoader.get(this).let { loader ->
+                loader.memoryCache?.clear()
+                loader.diskCache?.clear()
+            }
+        }
+        initLastfm()
+        com.licht.nuvx.data.presence.AndroidPresence.install(this)
+        backgroundInit.join()
+    }
+
+    private val coilHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header(
+                            "User-Agent",
+                            "nuvx/${BuildConfig.VERSION_NAME} (Android; +https://github.com/lylicht/nuvx)",
+                        )
+                        .build(),
+                )
+            }
+            .build()
+    }
+
+    override fun newImageLoader(context: PlatformContext): ImageLoader =
+        ImageLoader.Builder(context)
+            .components {
+                add(WebDavCoilAuth())
+                add(Interceptor { chain ->
+                    val result = chain.proceed()
+                    val fallback = chain.request.data.toString().youTubeThumbnailFallback()
+                    if (result !is ErrorResult || fallback == null) result
+                    else chain.withRequest(chain.request.newBuilder().data(fallback).build()).proceed()
+                })
+                add(SmbCoverFetcher.Factory())
+                add(SvgDecoder.Factory())
+                add(OkHttpNetworkFetcherFactory(callFactory = { coilHttpClient }))
+            }
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.20)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(100L * 1024 * 1024)
+                    .build()
+            }
+            .crossfade(200)
+            .allowHardware(!emulatedGpu)
+            .build()
+
+    private val emulatedGpu: Boolean by lazy {
+        listOf("/vendor/lib64", "/vendor/lib", "/system/lib64", "/system/lib")
+            .any { java.io.File("$it/egl/libEGL_emulation.so").exists() }
+    }
+
+    private fun initLastfm() {
+        val sessionKey = AppSettings.lastfmSessionKey.value
+        if (sessionKey.isBlank()) return
+        val endpoint = AppSettings.lastfmEndpoint.value.ifBlank { LastFM.DEFAULT_API_ENDPOINT }
+        val apiKey = AppSettings.lastfmApiKey.value.trim()
+        val secret = AppSettings.lastfmSecret.value.trim()
+        if (apiKey.isBlank() || secret.isBlank()) return
+        LastFM.configure(
+            endpoint = endpoint,
+            apiKey = apiKey,
+            secret = secret,
+            sessionKey = sessionKey,
+        )
+    }
+
+    companion object {
+        lateinit var authStore: AuthStore
+            private set
+
+        private fun migrateScriptOnlyAppLocale() {
+            val current = AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
+            val replacement = when (current) {
+                "zh-Hant" -> "zh-TW"
+                "zh-Hans" -> "zh-CN"
+                else -> return
+            }
+            AppCompatDelegate.setApplicationLocales(
+                androidx.core.os.LocaleListCompat.forLanguageTags(replacement),
+            )
+        }
+    }
+}

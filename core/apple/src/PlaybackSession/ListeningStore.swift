@@ -92,7 +92,7 @@ final class ListeningStore {
 
 
     private let persistQueue = DispatchQueue(
-        label: "com.bxane.nuvx.listening-persist",
+        label: "com.licht.nuvx.listening-persist",
         qos: .utility
     )
 

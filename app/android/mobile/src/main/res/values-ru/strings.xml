@@ -1474,4 +1474,6 @@
     <string name="privacy_open_orbot">Открыть Orbot</string>
     <string name="privacy_install_orbot">Установить Orbot</string>
     <string name="privacy_orbot_subtitle">Orbot должен быть запущен и подключён к Tor</string>
+    <string name="nightly_updates">Ночные обновления</string>
+    <string name="nightly_updates_subtitle">Получайте тестовые сборки сразу после публикации. По умолчанию выключено; когда выключено, nuvx предлагает только стабильные версии.</string>
 </resources>

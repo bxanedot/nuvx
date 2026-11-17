@@ -36,7 +36,7 @@ xcrun swiftc \
 status=0
 "$CHECK_DIR/check" || status=1
 
-if grep -q -- "- com.bxane.nuvx.playback" "$ROOT/mobile/project.yml"; then
+if grep -q -- "- com.licht.nuvx.playback" "$ROOT/mobile/project.yml"; then
   echo "  ok   the activity type is declared in NSUserActivityTypes"
 else
   echo "  FAIL the activity type is not declared in mobile/project.yml"

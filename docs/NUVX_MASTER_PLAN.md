@@ -1,22 +1,16 @@
 # Nuvx master plan
 
-The one handoff document for this programme. Update it in the same pull request as the work it describes. Last updated 2026-11-16. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md).
+The one handoff document for this programme. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md).
 
 ## Open pull requests
 
-None is merged. CI is what GitHub ran; "local" is what was run in the cloud container.
+Merged on 2026-11-17: 283, 284, 285, 286, 288, 289, 301, 303, and the web and Worker dependency updates 291, 296, 299.
 
-| PR | What | Evidence |
+| Branch | What | Evidence |
 |---|---|---|
-| 283 | Listen Together: a rejoin needs the seat's token (closes seat and host takeover) | CI green incl. worker e2e and Apple builds; 28 worker tests |
-| 288 | Listen Together: only YouTube image hosts are relayed as thumbnails (closes member-to-member IP disclosure) | local: 28 tests, e2e |
-| 284 | Nuvx Sync API and manual Oracle deployment workflow | CI green; 8 tests; deploy script run locally against stubs |
-| 285 | Android: external shuffle commands reach nuvx's own shuffle | local: 1,343 Android tests; no CI workflow covers it |
-| 286 | This document and the audit matrix | docs only |
-| 287 | Rename `bxane` to `licht`, including app IDs | worker CI green; local: Android, TV, Wear compile, desktop, web, worker |
-| 289 | Android: symbol animations honor "reduce animation" | local: compile, 1,343 Android tests |
+| `claude/brave-bohr-qzzh9m` | Licht 1.0.0: the candidate branch, current `main`, the Nightly updates switch and update chain (from 302), one universal macOS image, the contact email, the launch-crash fix and the desktop/Android dependency updates (from 304). Held: merging to `main` starts a release. | see the PR description |
 
-**Merge order.** 287 touches 1,191 files. Merge the others first, then 287, and ask for a rebase: the rename is mechanical (move the `com/bxane` directories, rewrite the strings, leave the live addresses listed in its description) and can be redone on the newest `main`.
+PRs 287, 302 and 304 are folded into that branch.
 
 ## Baseline on `main` at `e1cafdb`
 
@@ -32,7 +26,7 @@ Desktop 219 pass, 27 ignored. Android phone 1,343 pass, 1 skipped. Web 240 and 2
 
 ## GlyphStudio (read 2026-11-16)
 
-- The repository is now `lylicht/GlyphStudio`, Apache-2.0, with a Compose Multiplatform library (`com.composables.sfsymbols`) for Android, desktop, iOS and web. Latest release is `v2.0.0`. Nuvx pins `v1.0.0` in `core/sharedUi/build.gradle.kts` under the JitPack group `com.github.bxanedot`. Whether JitPack serves the group under the new owner name is unchecked.
+- The repository is now `lylicht/GlyphStudio`, Apache-2.0, with a Compose Multiplatform library (`com.composables.sfsymbols`) for Android, desktop, iOS and web. Latest release is `v2.0.0`. Nuvx pins `v1.0.0` in `core/sharedUi/build.gradle.kts` under the repository's old JitPack group. Whether JitPack serves the group under the new owner name is unchecked.
 - The library has no reduced-motion handling, so every call site must gate itself. Nuvx has three animated call sites on Android: tab icon bounce, reveal bounce (already gated), and the two Radio screen indicators. The tab bounce and the Radio indicators were not gated; the next PR fixes that.
 - **Legal question for the maintainer, not decided:** the library states that SF Symbols are Apple's property, to be used under Apple's terms and not in app icons or logos. Android and desktop builds ship those glyphs. Apple's current terms need a read to confirm that is permitted, or those platforms need a different icon set.
 - Not started: the central icon registry, other-platform adapters, visual and animation-state tests.

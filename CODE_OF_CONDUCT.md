@@ -25,7 +25,7 @@ This applies in every nuvx space: the repository, issues, pull requests and the 
 
 ## Enforcement
 
-Report unacceptable behavior through [Licht on Guns.lol](https://guns.lol/lylicht). Every report will be reviewed promptly and fairly, and the reporter's privacy respected. Maintainers may remove content or warn, temporarily ban or permanently ban anyone who breaks this code.
+Report unacceptable behavior to [loveylicht@gmail.com](mailto:loveylicht@gmail.com). Every report will be reviewed promptly and fairly, and the reporter's privacy respected. Maintainers may remove content or warn, temporarily ban or permanently ban anyone who breaks this code.
 
 ## Attribution
 

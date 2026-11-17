@@ -237,7 +237,7 @@ final class ArtworkCache: @unchecked Sendable {
 
 
     private let readQueue = DispatchQueue(
-        label: "com.bxane.nuvx.artwork-disk",
+        label: "com.licht.nuvx.artwork-disk",
         qos: .userInitiated
     )
 

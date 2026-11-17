@@ -305,6 +305,7 @@ impl eframe::App for App {
             self.good_window = Some(w);
         }
         storage.set_string("close_to_tray", b(self.close_to_tray));
+        storage.set_string("nightly_updates", b(self.nightly_updates));
         storage.set_string("classic_search", b(self.classic_search));
         storage.set_string("youtube_search", b(self.youtube_search));
         storage.set_string("hide_radio_tab", b(self.hide_radio));

@@ -18,11 +18,11 @@ val androidVersionName = providers.gradleProperty("nuvx.androidVersionName")
     .getOrElse(rootProject.extra["nuvxVersionName"] as String)
 
 android {
-    namespace = "com.bxane.nuvx.wear"
+    namespace = "com.licht.nuvx.wear"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bxane.nuvx"
+        applicationId = "com.licht.nuvx"
         minSdk = 30
         targetSdk = 36
         versionCode = androidVersionCode
@@ -32,7 +32,7 @@ android {
     sourceSets {
         getByName("main") {
             java.srcDir("protocol")
-            java.srcDir("../mobile/src/main/java/com/bxane/nuvx/ui/intro")
+            java.srcDir("../mobile/src/main/java/com/licht/nuvx/ui/intro")
             assets.srcDir(rootProject.file("app/android/legal-assets"))
         }
     }
@@ -41,7 +41,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            applicationId = "com.bxane.nuvx.dev"
+            applicationId = "com.licht.nuvx.dev"
             resValue("string", "app_name", "nuvx Dev")
         }
         create("prod") {

@@ -36,7 +36,7 @@ defaults:
 
 jobs:
   prepare:
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     outputs:
       release_tag: ${{ steps.metadata.outputs.release_tag }}
@@ -72,7 +72,7 @@ jobs:
             is_stable=true
             [[ $release_tag == "v$version" ]]
             [[ $version != 0.9.0 || $code == 9 ]]
-            [[ $version != 1.0.0 || $code == 10 ]]
+            [[ $version != 1.0.0 || $code == 1 ]]
             android_version="$version"
             android_code="$code"
           else
@@ -97,7 +97,7 @@ jobs:
           if [[ $is_stable == false ]]; then
             if [[ $stable_v1 == v1.0.0 ]]; then
               major=${version%%.*}
-              [[ $major =~ ^[0-9]+$ && $major -ge 1 && $code -ge 10 &&
+              [[ $major =~ ^[0-9]+$ && $major -ge 1 &&
                 $android_version == "$version" && $android_code == "$code" &&
                 $desktop_version == "$version" && $extension_version == "$version" ]] ||
                 { echo "Nightly version policy mismatch after stable v1.0.0" >&2; exit 1; }
@@ -137,7 +137,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $ANDROID_VERSION-$RELEASE_TAG" \
-            --notes "Signed universal desktop installers for Windows, Linux and macOS, plus shared universal APKs for Android phones, TV and nuvx Auto, and a separate Wear OS APK. Before stable v1.0.0, desktop and Android nightlies use 0.9.0 (Android version code 9); browser extensions use 0.9.0 with an increasing build component. After v1.0.0 is released, nightlies move to 1.0.0 (Android version code 10). Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64."
+            --notes "Signed desktop installers for Windows, Linux and macOS, plus one APK for each Android phone, TV, Auto and Wear target. Before stable v1.0.0, desktop and Android nightlies use 0.9.0 (Android version code 9); browser extensions use 0.9.0 with an increasing build component. Android release code is 1 for the licht app identity. Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64."
       - name: Create stable release draft
         if: steps.metadata.outputs.is_stable == 'true'
         env:
@@ -225,7 +225,7 @@ jobs:
             metadata=$("$tools/aapt2" dump badging "$source")
             [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             "$tools/apksigner" verify --print-certs "$source" |
-              grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+              grep -F 'certificate SHA-256 digest: 833677fbdff79698cae61cca10e09622e3732cc452d4800262cc118230e0fb9c'
             assert_android_legal_assets "$source"
             cp "$source" "nightly/$prefix-v$version${suffix:+-$suffix}.apk"
           }
@@ -250,32 +250,26 @@ jobs:
               }
             done
           }
-          stage_shared_universal() {
-            local dir=$1 variant=$2 prefix=$3 package=$4 aliases=${5:-false} source metadata asset
+          stage_android() {
+            local dir=$1 variant=$2 prefix=$3 package=$4 source metadata asset
             source=$(find "$dir" -type f -path "*/$variant/release/*.apk" -print -quit)
             [[ -n "$source" && -s "$source" ]]
             metadata=$("$tools/aapt2" dump badging "$source")
             [[ $metadata == *"package: name='$package' versionCode='$code' versionName='$version_name'"* ]]
             "$tools/apksigner" verify --print-certs "$source" |
-              grep -F 'certificate SHA-256 digest: 6b534d42c372b4250467d1cb16f29cf3694d7224ab56d3d2cdefb6275eeb1095'
+              grep -F 'certificate SHA-256 digest: 833677fbdff79698cae61cca10e09622e3732cc452d4800262cc118230e0fb9c'
             assert_android_legal_assets "$source"
             for abi in armeabi-v7a arm64-v8a x86_64; do
               unzip -l "$source" | grep -F "lib/$abi/libonnxruntime.so"
             done
             asset="${prefix}-v${version}${suffix:+-$suffix}"
-            cp "$source" "nightly/${asset}-universal.apk"
-            if [[ $aliases == true ]]; then
-              for distribution in gms foss; do
-                cp "$source" "nightly/${asset}-${distribution}.apk"
-                cmp "$source" "nightly/${asset}-${distribution}.apk"
-              done
-            fi
+            cp "$source" "nightly/${asset}.apk"
           }
-          stage_shared_universal app/android/mobile/build/outputs/apk prod nuvx com.bxane.nuvx true
-          stage_shared_universal app/android/tv/build/outputs/apk prodTv NuvxTV com.bxane.nuvx.tv true
-          stage_shared_universal app/android/tv/build/outputs/apk prodAuto NuvxAuto com.bxane.nuvx.auto
-          stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.bxane.nuvx
-          [[ $(find nightly -maxdepth 1 -name '*.apk' | wc -l) -eq 8 ]]
+          stage_android app/android/mobile/build/outputs/apk prod nuvx com.licht.nuvx
+          stage_android app/android/tv/build/outputs/apk prodTv NuvxTV com.licht.nuvx.tv
+          stage_android app/android/tv/build/outputs/apk prodAuto NuvxAuto com.licht.nuvx.auto
+          stage app/android/wearos/build/outputs/apk/prod/release/NuvxWear-prod-release.apk NuvxWear com.licht.nuvx
+          [[ $(find nightly -maxdepth 1 -name '*.apk' | wc -l) -eq 4 ]]
           (cd nightly && sha256sum ./*.apk | sed 's|  ./|  |' > SHA256SUMS)
           gh release upload "$RELEASE_TAG" nightly/*.apk nightly/SHA256SUMS --clobber
 
@@ -590,16 +584,14 @@ jobs:
           mkdir -p universal
           asset_version="$DESKTOP_VERSION"
           [[ "$IS_STABLE" == true ]] || asset_version="$RELEASE_TAG"
-          for arch in x86_64 aarch64; do
-            variant=intel
-            [[ "$arch" == aarch64 ]] && variant=apple-silicon
-            folder="dmg-$variant"
-            sh macos/bundle.sh "universal/$arch/nuvx" "$DESKTOP_VERSION" "$folder"
-            ln -s /Applications "$folder/Applications"
-            installer="nuvx-setup-$asset_version-macos-$variant.dmg"
-            hdiutil create -volname "nuvx $variant" -srcfolder "$folder" -format UDZO "$installer"
-            gh release upload "$RELEASE_TAG" "$installer" --clobber
-          done
+          lipo -create universal/aarch64/nuvx universal/x86_64/nuvx -output universal/nuvx
+          lipo universal/nuvx -verify_arch x86_64 arm64
+          folder=dmg-universal
+          sh macos/bundle.sh universal/nuvx "$DESKTOP_VERSION" "$folder"
+          ln -s /Applications "$folder/Applications"
+          installer="nuvx-setup-$asset_version-macos-universal.dmg"
+          hdiutil create -volname nuvx -srcfolder "$folder" -format UDZO "$installer"
+          gh release upload "$RELEASE_TAG" "$installer" --clobber
 
   extensions:
     needs: prepare
@@ -617,7 +609,7 @@ jobs:
       - uses: pnpm/action-setup@v6
         with:
           version: 12.11.2
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm

@@ -4,7 +4,7 @@ import Foundation
 
 
 final class PlaybackLoadSubmissionGate: @unchecked Sendable {
-    private let queue = DispatchQueue(label: "com.bxane.nuvx.playback-submission")
+    private let queue = DispatchQueue(label: "com.licht.nuvx.playback-submission")
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var revision: UInt64 = 0

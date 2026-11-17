@@ -1447,4 +1447,6 @@
     <string name="privacy_open_orbot">Orbot öffnen</string>
     <string name="privacy_install_orbot">Orbot installieren</string>
     <string name="privacy_orbot_subtitle">Orbot muss laufen und mit Tor verbunden sein</string>
+    <string name="nightly_updates">Nightly-Updates</string>
+    <string name="nightly_updates_subtitle">Testversionen erhalten, sobald sie veröffentlicht werden. Standardmäßig aus; wenn aus, bietet nuvx nur stabile Versionen an.</string>
 </resources>

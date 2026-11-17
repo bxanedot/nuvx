@@ -210,13 +210,11 @@ jobs:
       - run: |
           test -s assets/licenses/cargo-notices.txt
           v=${TAG#v}
-          for arch in x86_64 aarch64; do
-            variant=intel
-            [[ "$arch" == aarch64 ]] && variant=apple-silicon
-            folder="dmg-$variant"
-            sh macos/bundle.sh "universal/$arch/nuvx" "$v" "$folder"
-            ln -s /Applications "$folder/Applications"
-            installer="nuvx-setup-$v-macos-$variant.dmg"
-            hdiutil create -volname "nuvx $variant" -srcfolder "$folder" -format UDZO "$installer"
-            gh release upload "$TAG" "$installer" --clobber
-          done
+          lipo -create universal/aarch64/nuvx universal/x86_64/nuvx -output universal/nuvx
+          lipo universal/nuvx -verify_arch x86_64 arm64
+          folder=dmg-universal
+          sh macos/bundle.sh universal/nuvx "$v" "$folder"
+          ln -s /Applications "$folder/Applications"
+          installer="nuvx-setup-$v-macos-universal.dmg"
+          hdiutil create -volname nuvx -srcfolder "$folder" -format UDZO "$installer"
+          gh release upload "$TAG" "$installer" --clobber

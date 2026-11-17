@@ -92,7 +92,7 @@ export function partySettings(): Settings {
   try {
     const saved = JSON.parse(readStorage('localStorage', SETTINGS_KEY) ?? '{}') as Partial<Settings> | null;
     const savedNickname = typeof saved?.nickname === 'string' ? saved.nickname.trim() : '';
-    const nickname = !savedNickname || savedNickname.toLowerCase() === 'bxane' ? 'Licht' : savedNickname;
+    const nickname = !savedNickname || savedNickname.toLowerCase() === 'licht' ? 'Licht' : savedNickname;
     return {
       customServer: typeof saved?.customServer === 'string' ? saved.customServer : '',
       nickname,
