@@ -18,4 +18,18 @@ class PlaylistExportTest {
             PlaylistExport.m3u("Road", songs),
         )
     }
+
+    @Test
+    fun writesCsvThatSpreadsheetsCannotRunAsFormulas() {
+        val songs = listOf(
+            Song(videoId = "abc", title = "Hello, \"World\"", artist = "A", thumbnailUrl = null),
+            Song(videoId = "def", title = "=HYPERLINK(\"x\")", artist = "-B", thumbnailUrl = null),
+        )
+        assertEquals(
+            "title,artist,videoId,url\r\n" +
+                "\"Hello, \"\"World\"\"\",A,abc,https://music.youtube.com/watch?v=abc\r\n" +
+                "\"'=HYPERLINK(\"\"x\"\")\",'-B,def,https://music.youtube.com/watch?v=def\r\n",
+            PlaylistExport.csv(songs),
+        )
+    }
 }

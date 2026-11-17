@@ -1478,6 +1478,7 @@
     <string name="nightly_updates_subtitle">Получайте тестовые сборки сразу после публикации. По умолчанию выключено; когда выключено, nuvx предлагает только стабильные версии.</string>
     <string name="playlist_deleted">«%1$s» удалён</string>
     <string name="export_playlist">Экспортировать плейлист</string>
+    <string name="export_playlist_csv">Экспортировать плейлист (CSV)</string>
     <string name="network">Сеть</string>
     <string name="restart_now">Перезапустить</string>
 </resources>

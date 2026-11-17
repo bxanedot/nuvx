@@ -1451,6 +1451,7 @@
     <string name="nightly_updates_subtitle">Testversionen erhalten, sobald sie veröffentlicht werden. Standardmäßig aus; wenn aus, bietet nuvx nur stabile Versionen an.</string>
     <string name="playlist_deleted">„%1$s“ gelöscht</string>
     <string name="export_playlist">Playlist exportieren</string>
+    <string name="export_playlist_csv">Playlist exportieren (CSV)</string>
     <string name="network">Netzwerk</string>
     <string name="restart_now">Jetzt neu starten</string>
 </resources>
