@@ -18,7 +18,7 @@ How to run every test suite, and what passed on 2026-11-17. Run each command fro
 
 ## Where tests run
 
-- **CI on every pull request** (each only when its folders change): Worker, Sync, Apple builds (iOS, macOS, and the desktop tests on macOS), Android checks (phone unit tests, `:shared:jvmTest`, `:sharedUi:jvmTest`), Web checks (web app and extension tests, web type-check), Vercel preview. The desktop tests do not yet run on Linux or Windows in CI.
+- **CI on every pull request** (each only when its folders change): Worker, Sync, Apple builds (iOS, macOS, and the desktop tests on macOS), Android checks (phone unit tests, `:shared:jvmTest`, `:sharedUi:jvmTest`), Web checks (web app and extension tests, web type-check), Desktop checks (desktop tests on Linux and Windows), Vercel preview.
 - **Release workflow:** builds every platform, verifies the APK package, version and signing certificate, and publishes only if every build passes. A failed stable build deletes its draft.
 
 ## Known gaps
