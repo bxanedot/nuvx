@@ -186,6 +186,7 @@ html{scroll-padding-top:88px}
 html::before,html::after{content:"";position:fixed;inset:-12%;z-index:0;pointer-events:none;border-radius:50%;will-change:transform;}
 html::before{background:radial-gradient(ellipse 43% 36% at 22% 34%,var(--flow-a),transparent 72%),radial-gradient(ellipse 35% 32% at 78% 26%,var(--flow-b),transparent 70%),radial-gradient(ellipse 42% 38% at 61% 78%,var(--flow-c),transparent 72%);filter:blur(34px);opacity:1;animation:nuvx-flow-a 18s cubic-bezier(.45,0,.55,1) infinite alternate}
 html::after{background:radial-gradient(ellipse 34% 31% at 72% 52%,var(--flow-a),transparent 72%),radial-gradient(ellipse 39% 34% at 26% 76%,var(--flow-b),transparent 73%);filter:blur(44px);opacity:.9;animation:nuvx-flow-b 26s cubic-bezier(.42,0,.58,1) infinite alternate}
+:root[data-motion-paused]::before,:root[data-motion-paused]::after{animation-play-state:paused}
 @keyframes nuvx-flow-a{0%{transform:translate3d(-7%,-4%,0) scale(.94) rotate(-6deg)}50%{transform:translate3d(6%,5%,0) scale(1.08) rotate(7deg)}100%{transform:translate3d(-4%,6%,0) scale(1.02) rotate(-5deg)}}
 @keyframes nuvx-flow-b{0%{transform:translate3d(6%,4%,0) scale(1.04) rotate(5deg)}50%{transform:translate3d(-7%,-5%,0) scale(.95) rotate(-7deg)}100%{transform:translate3d(5%,5%,0) scale(1.08) rotate(6deg)}}
 @media(max-width:620px){html::before{inset:-8%;filter:blur(24px);opacity:1;animation-duration:18s}html::after{inset:-8%;filter:blur(32px);opacity:.9;animation-duration:24s}}

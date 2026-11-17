@@ -1,0 +1,88 @@
+/* Shared CSS-only grayscale motion for standalone nuvx pages. */
+:root {
+  --ambient-a: rgb(255 255 255 / 18%);
+  --ambient-b: rgb(190 190 190 / 13%);
+  --ambient-c: rgb(255 255 255 / 8%);
+}
+
+:root[data-theme="light"] {
+  --ambient-a: rgb(20 20 20 / 14%);
+  --ambient-b: rgb(70 70 70 / 11%);
+  --ambient-c: rgb(20 20 20 / 7%);
+}
+
+.nuvx-ambient {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nuvx-ambient::before,
+.nuvx-ambient::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.nuvx-ambient::before {
+  background:
+    radial-gradient(ellipse 43% 36% at 22% 34%, var(--ambient-a), transparent 72%),
+    radial-gradient(ellipse 35% 32% at 78% 26%, var(--ambient-b), transparent 70%),
+    radial-gradient(ellipse 42% 38% at 61% 78%, var(--ambient-c), transparent 72%);
+  filter: blur(34px);
+  animation: nuvx-flow-a 18s cubic-bezier(.45, 0, .55, 1) infinite alternate;
+}
+
+.nuvx-ambient::after {
+  background:
+    radial-gradient(ellipse 34% 31% at 72% 52%, var(--ambient-a), transparent 72%),
+    radial-gradient(ellipse 39% 34% at 26% 76%, var(--ambient-b), transparent 73%);
+  filter: blur(44px);
+  animation: nuvx-flow-b 26s cubic-bezier(.42, 0, .58, 1) infinite alternate;
+}
+
+.nuvx-ambient[data-motion-paused]::before,
+.nuvx-ambient[data-motion-paused]::after {
+  animation-play-state: paused;
+}
+
+.ambient-pause {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--dim, #aaa);
+  font-size: 13px;
+}
+
+.ambient-pause input {
+  accent-color: var(--accent, #fff);
+}
+
+@keyframes nuvx-flow-a {
+  0% { transform: translate3d(-7%, -4%, 0) scale(.94) rotate(-6deg); }
+  50% { transform: translate3d(6%, 5%, 0) scale(1.08) rotate(7deg); }
+  100% { transform: translate3d(-4%, 6%, 0) scale(1.02) rotate(-5deg); }
+}
+
+@keyframes nuvx-flow-b {
+  0% { transform: translate3d(6%, 4%, 0) scale(1.04) rotate(5deg); }
+  50% { transform: translate3d(-7%, -5%, 0) scale(.95) rotate(-7deg); }
+  100% { transform: translate3d(5%, 5%, 0) scale(1.08) rotate(6deg); }
+}
+
+@media (max-width: 620px) {
+  .nuvx-ambient::before { inset: -8%; filter: blur(24px); }
+  .nuvx-ambient::after { inset: -8%; filter: blur(32px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nuvx-ambient::before,
+  .nuvx-ambient::after { animation: none; will-change: auto; }
+}
