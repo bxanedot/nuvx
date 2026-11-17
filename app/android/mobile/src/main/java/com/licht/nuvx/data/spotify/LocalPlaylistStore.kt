@@ -122,6 +122,17 @@ object LocalPlaylistStore {
         persist(updated)
     }
 
+    /** Adds restored playlists; one whose id already exists is skipped, never overwritten. Returns how many were added. */
+    fun mergeIn(incoming: List<LocalPlaylist>): Int {
+        val have = _playlists.value.mapTo(HashSet()) { it.id }
+        val added = incoming.filter { it.id.isNotBlank() && have.add(it.id) }
+        if (added.isEmpty()) return 0
+        val updated = _playlists.value + added
+        _playlists.value = updated
+        persist(updated)
+        return added.size
+    }
+
     fun getPlaylist(id: String): LocalPlaylist? {
         val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
         return _playlists.value.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }
