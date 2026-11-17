@@ -16,6 +16,9 @@
 
   const topbar = document.querySelector('.topbar');
   const menuToggle = document.querySelector('#menu-toggle');
+  const updateTopbar = () => topbar?.classList.toggle('is-forward', window.scrollY > 12);
+  updateTopbar();
+  window.addEventListener('scroll', updateTopbar, { passive: true });
   const closeMenu = () => {
     topbar?.classList.remove('is-menu-open');
     menuToggle?.setAttribute('aria-expanded', 'false');
