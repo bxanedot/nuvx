@@ -78,7 +78,7 @@ then `activity`, to everyone.
 
 ## Hosts
 
-- Worker: `https://nuvx-listen.bxane.workers.dev` (later `listen.nuvx.lol`). Apps' `LISTEN_TOGETHER_SERVER` default and
+- Worker: `https://nuvx-listen.lylicht.workers.dev` (later `listen.nuvx.lol`). Apps' `LISTEN_TOGETHER_SERVER` default and
   `Presence.ENDPOINT` point here.
 - Website (static, Vercel): `https://nuvx.lol`. `vercel.json` rewrites `/invite/:code` to the Worker's landing page, so
   shared links `https://nuvx.lol/invite/<CODE>` keep working; Android App Links for `nuvx.lol` need
@@ -149,7 +149,7 @@ These override anything above that disagrees.
 - **wrangler.toml.** Bindings `PARTIES → Party`, `PRESENCE → Presence`; migration `v2`: `deleted_classes = ["Room"]`,
   `new_sqlite_classes = ["Party", "Presence"]`; rate limits above.
 - **Clients.** `LISTEN_TOGETHER_SERVER` already defaults to the Worker. `Presence.ENDPOINT` (shared
-  `data/presence/Presence.kt`) becomes `https://nuvx-listen.bxane.workers.dev/api/presence`. The web player reads
+  `data/presence/Presence.kt`) becomes `https://nuvx-listen.lylicht.workers.dev/api/presence`. The web player reads
   `VITE_PARTY_SERVER_URL`; its `.env.example` documents the Worker URL. Website `vercel.json` rewrites
   `/invite/:code` to the Worker.
 

@@ -127,7 +127,7 @@ def check(root=ROOT):
             failures.append(f"Missing build/license input: {path}")
     for manifest in (root / "shared/build.gradle.kts",):
         text = manifest.read_text(encoding="utf-8")
-        if "https://nuvx-listen.bxane.workers.dev" not in text:
+        if "https://nuvx-listen.lylicht.workers.dev" not in text:
             failures.append("Official Listen Together default is missing")
     return files, failures
 

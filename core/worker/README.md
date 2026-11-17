@@ -1,6 +1,6 @@
 # nuvx Listen Together worker
 
-**Live:** https://nuvx-listen.bxane.workers.dev, running the party protocol in this folder.
+**Live:** https://nuvx-listen.lylicht.workers.dev, running the party protocol in this folder.
 
 A Cloudflare Worker that serves:
 
