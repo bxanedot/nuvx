@@ -282,3 +282,22 @@ use super::*;
         audio.set_log_volume(false);
         assert!((audio.volume() - 0.125).abs() < 1e-6);
     }
+
+    #[test]
+    fn seek_during_rapid_skips_lands_only_on_the_latest_load() {
+        use super::engine::pending_seek_for;
+        let pos = |c: Option<AudioCmd>| match c {
+            Some(AudioCmd::Seek(p)) => Some(p),
+            None => None,
+            _ => panic!("expected a plain seek"),
+        };
+        // Seek while gen 2 loads: applied once when gen 2 starts, then gone.
+        let mut pending = Some((2, AudioCmd::Seek(Duration::from_secs(40))));
+        assert_eq!(pos(pending_seek_for(&mut pending, 2)), Some(Duration::from_secs(40)));
+        assert_eq!(pos(pending_seek_for(&mut pending, 2)), None);
+        // Seek while gen 3 loads, then a skip to gen 4 starts first (gen 3's late Start is dropped
+        // by the wanted_gen check): gen 4 must not inherit the old track's seek.
+        let mut pending = Some((3, AudioCmd::Seek(Duration::from_secs(90))));
+        assert_eq!(pos(pending_seek_for(&mut pending, 4)), None);
+        assert!(pending.is_none());
+    }

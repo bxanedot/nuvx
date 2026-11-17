@@ -28,10 +28,16 @@ pub(super) fn run(
     let mut seek_seq: u64 = 0;
     let seek_job: Arc<std::sync::Mutex<Option<SeekJob>>> = Default::default();
     let seek_busy = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let mut pending_seek: Option<(u64, AudioCmd)> = None;
+    let mut replay: Option<AudioCmd> = None;
     let mut dev_lost = std::env::var("NUVX_DEVICE_LOST").ok().and_then(|v| v.parse::<f32>().ok()).map(Duration::from_secs_f32);
     loop {
         let timeout = if (current != 0 || !fading.is_empty()) && !player.is_paused() { Duration::from_millis(100) } else { Duration::from_secs(3600) };
-        match rx.recv_timeout(timeout) {
+        let msg = match replay.take() {
+            Some(cmd) => Ok(cmd),
+            None => rx.recv_timeout(timeout),
+        };
+        match msg {
             Ok(AudioCmd::Start { generation, decoder, shared: s, at, start_paused }) => {
                 if generation != status.wanted_gen.load(Ordering::Relaxed) {
                     log::debug!("audio: dropping stale generation {generation}");
@@ -79,6 +85,8 @@ pub(super) fn run(
                 status.set_position(at.as_millis() as u64);
                 status.playing.store(!start_paused, Ordering::Relaxed);
                 status.release_position();
+                // Handled before any queued command, so a later skip can't receive this seek.
+                replay = pending_seek_for(&mut pending_seek, generation);
             }
             Ok(AudioCmd::Replace { generation, seek, decoder, at, seekable: s }) => {
                 if generation != current || seek != seek_seq {
@@ -165,6 +173,8 @@ pub(super) fn run(
                 };
                 seek_seq += 1;
                 if current == 0 {
+                    // Track still loading: keep the latest seek for the generation the UI now wants.
+                    pending_seek = Some((status.wanted_gen.load(Ordering::Relaxed), cmd));
                     continue;
                 }
                 for f in &fading {
@@ -286,4 +296,9 @@ pub(super) fn run(
             }
         }
     }
+}
+
+/// The seek made while `generation` was loading, if any; seeks meant for an older load are dropped.
+pub(super) fn pending_seek_for(pending: &mut Option<(u64, AudioCmd)>, generation: u64) -> Option<AudioCmd> {
+    pending.take().filter(|(g, _)| *g == generation).map(|(_, cmd)| cmd)
 }
