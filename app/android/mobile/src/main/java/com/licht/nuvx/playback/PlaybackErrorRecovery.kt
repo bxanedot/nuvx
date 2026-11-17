@@ -75,7 +75,7 @@ internal class PlaybackErrorRecovery(
         }
         if (fallbackFailedAlternativeToYouTube(item, uri, position, error)) return
         val verdict = permanentReason(error)
-        val givingUp = verdict != null || attempts > MAX_RECOVERIES
+        val givingUp = RecoveryPolicy.givesUp(attempts, verdict)
         val neverStarted = audibleMediaId != mediaId
         if (verdict != null) {
             TrackLog.w("nuvx", "$mediaId cannot be played: $verdict", about = mediaId)
@@ -103,7 +103,7 @@ internal class PlaybackErrorRecovery(
         uri?.getQueryParameter("v")?.let(StreamChoice::forget)
         val networkFault = isNetworkFault(error)
         scope.launch(TrackLog.about(mediaId)) {
-            delay(RECOVERY_DELAY_MS)
+            delay(if (givingUp) RECOVERY_DELAY_MS else RecoveryPolicy.retryDelayMs(attempts))
             uri?.let { withContext(Dispatchers.IO) { AudioCache.discard(it, keepComplete = networkFault) } }
             if (givingUp) {
                 skipReason(verdict, error, neverStarted, attempts)?.let { reason ->
@@ -257,18 +257,16 @@ internal class PlaybackErrorRecovery(
         neverStarted: Boolean,
         attempts: Int,
     ): String? {
-        if (verdict != null) return verdict
-        if (!neverStarted) return null
-        if (consecutiveErrorSkips >= MAX_CONSECUTIVE_SKIPS) {
+        val reason = RecoveryPolicy.skipReason(verdict, error.errorCodeName, neverStarted, attempts, consecutiveErrorSkips)
+        if (reason == null && verdict == null && neverStarted) {
             TrackLog.w(
                 "nuvx",
-                "$MAX_CONSECUTIVE_SKIPS tracks in a row failed to start; " +
+                "${RecoveryPolicy.MAX_CONSECUTIVE_SKIPS} tracks in a row failed to start; " +
                     "this is the queue or the connection, not the track — stopping here",
             )
-            return null
         }
-        consecutiveErrorSkips++
-        return "failed to start after $attempts attempts (${error.errorCodeName})"
+        if (reason != null && verdict == null) consecutiveErrorSkips++
+        return reason
     }
 
     private fun skipPastUnplayable(mediaId: String, reason: String) {
@@ -296,11 +294,26 @@ internal class PlaybackErrorRecovery(
     }
 
     private companion object {
-        const val MAX_RECOVERIES = 2
-
-        const val MAX_CONSECUTIVE_SKIPS = 4
-
         const val PERMANENT_CAUSE_DEPTH = 8
+    }
+}
+
+/** When playback gives up on a track, how long it waits, and when it stops skipping. Pure, so it is unit-tested. */
+internal object RecoveryPolicy {
+    const val MAX_RECOVERIES = 2
+    const val MAX_CONSECUTIVE_SKIPS = 4
+
+    fun givesUp(attempts: Int, permanent: String?): Boolean = permanent != null || attempts > MAX_RECOVERIES
+
+    /** Doubles per attempt: 350 ms, 700 ms, so a brief network drop has time to recover. */
+    fun retryDelayMs(attempts: Int): Long = RECOVERY_DELAY_MS shl (attempts - 1).coerceIn(0, MAX_RECOVERIES)
+
+    /** Null means stay on the track: it played before (a mid-song failure), or too many tracks in a row failed. */
+    fun skipReason(permanent: String?, errorName: String, neverStarted: Boolean, attempts: Int, skipsInARow: Int): String? = when {
+        permanent != null -> permanent
+        !neverStarted -> null
+        skipsInARow >= MAX_CONSECUTIVE_SKIPS -> null
+        else -> "failed to start after $attempts attempts ($errorName)"
     }
 }
 

@@ -1432,4 +1432,6 @@
     <string name="nightly_updates_subtitle">テストビルドを公開と同時に受け取ります。初期設定ではオフで、オフの間は安定版のみを案内します。</string>
     <string name="playlist_deleted">「%1$s」を削除しました</string>
     <string name="export_playlist">プレイリストを書き出す</string>
+    <string name="network">ネットワーク</string>
+    <string name="restart_now">今すぐ再起動</string>
 </resources>

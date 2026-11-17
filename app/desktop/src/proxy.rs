@@ -45,15 +45,37 @@ static TOR: std::sync::RwLock<Option<Option<u16>>> = std::sync::RwLock::new(None
 /// The local SOCKS port of a running Tor, probing on first use.
 /// Tor Browser listens on 9150, a system tor or Orbot-alike on 9050.
 pub fn tor_port() -> Option<u16> {
-    if let Some(known) = *TOR.read().unwrap() {
-        return known;
+    match *TOR.read().unwrap() {
+        Some(Some(port)) => return Some(port),
+        // No Tor last time: Tor Browser is often started after nuvx, so look again in the background
+        // (a closed port on Windows takes the whole probe timeout, too slow for the UI thread).
+        Some(None) => {
+            recheck_soon();
+            return None;
+        }
+        None => {}
     }
     detect_tor()
+}
+
+static RECHECKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static LAST_CHECK: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+
+fn recheck_soon() {
+    use std::sync::atomic::Ordering::SeqCst;
+    let due = LAST_CHECK.lock().unwrap().is_none_or(|t| t.elapsed() >= Duration::from_secs(3));
+    if due && RECHECKING.compare_exchange(false, true, SeqCst, SeqCst).is_ok() {
+        std::thread::spawn(|| {
+            detect_tor();
+            RECHECKING.store(false, SeqCst);
+        });
+    }
 }
 
 /// Re-probe for a running Tor (the UI's retry), and rebuild the shared client if the port changed.
 pub fn detect_tor() -> Option<u16> {
     let found = [9150u16, 9050].into_iter().find(|p| probe(*p));
+    *LAST_CHECK.lock().unwrap() = Some(Instant::now());
     let before = *TOR.read().unwrap();
     *TOR.write().unwrap() = Some(found);
     if before.is_some() && before != Some(found) && matches!(active(), Setting::Tor) {
@@ -448,7 +470,7 @@ pub async fn test(s: &Setting) -> anyhow::Result<Duration> {
             .text()
             .await
             .unwrap_or_default();
-        anyhow::ensure!(body.contains("\"IsTor\":true"), "the proxy on port {} answered, but it isn't Tor. nuvx won't treat it as a Privacy Connection.", tor_port().unwrap_or(FAIL_CLOSED_PORT));
+        anyhow::ensure!(body.split_whitespace().collect::<String>().contains("\"IsTor\":true"), "the proxy on port {} answered, but it isn't Tor. nuvx won't treat it as a Privacy Connection.", tor_port().unwrap_or(FAIL_CLOSED_PORT));
     }
     let t0 = Instant::now();
     if let Err(e) = http.get("https://music.youtube.com/generate_204").send().await.and_then(|r| r.error_for_status()) {

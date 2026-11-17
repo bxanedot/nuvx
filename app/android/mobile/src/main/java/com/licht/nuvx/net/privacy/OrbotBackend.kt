@@ -6,9 +6,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
@@ -47,48 +47,27 @@ class OrbotBackend(private val context: Context) : ConnectionBackend {
 
     override suspend fun connect(onProgress: (Int) -> Unit): Int? {
         if (!isInstalled(context)) return null
-        var status = queryStatus()
-        if (status?.on != true) {
-            // Orbot decides whether a background start is allowed; if it stays off the user starts it from the settings row.
-            context.sendBroadcast(Intent(ACTION_START).setPackage(PACKAGE).putExtra(EXTRA_PACKAGE_NAME, context.packageName))
-            status = withTimeoutOrNull(START_WAIT_MS) {
-                var latest = queryStatus()
-                while (latest?.on != true) {
-                    delay(2_000)
-                    latest = queryStatus()
-                }
-                latest
+        // Orbot answers ACTION_START with its current status and port, then broadcasts every change.
+        // Nothing in Orbot answers a status request on its own, so START is also how we ask.
+        val statuses = Channel<OrbotStatus>(Channel.UNLIMITED)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                val port = intent.getIntExtra(EXTRA_SOCKS_PORT, -1).takeIf { it in 1..65535 }
+                statuses.trySend(OrbotStatus(intent.getStringExtra(EXTRA_STATUS) == STATUS_ON, port))
             }
         }
-        if (status?.on != true) return null
-        onProgress(100)
-        // Orbot reports its port; 9050 is only a candidate when it didn't, and either way the port must pass the check.
-        val port = status.socksPort ?: DEFAULT_SOCKS_PORT
-        return port.takeIf { TorCheck.passes(it) }
+        ContextCompat.registerReceiver(context, receiver, IntentFilter(ACTION_STATUS), ContextCompat.RECEIVER_EXPORTED)
+        return try {
+            context.sendBroadcast(Intent(ACTION_START).setPackage(PACKAGE).putExtra(EXTRA_PACKAGE_NAME, context.packageName))
+            awaitOrbot(statuses, STATUS_WAIT_MS, START_WAIT_MS, onProgress, TorCheck::passes)
+        } finally {
+            runCatching { context.unregisterReceiver(receiver) }
+        }
     }
 
     override suspend fun verify(socksPort: Int): Boolean = TorCheck.passes(socksPort)
 
     override suspend fun stop() = Unit
-
-    private class Status(val on: Boolean, val socksPort: Int?)
-
-    private suspend fun queryStatus(): Status? {
-        val reply = CompletableDeferred<Status>()
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context, intent: Intent) {
-                val port = intent.getIntExtra(EXTRA_SOCKS_PORT, -1).takeIf { it in 1..65535 }
-                reply.complete(Status(intent.getStringExtra(EXTRA_STATUS) == STATUS_ON, port))
-            }
-        }
-        ContextCompat.registerReceiver(context, receiver, IntentFilter(ACTION_STATUS), ContextCompat.RECEIVER_EXPORTED)
-        return try {
-            context.sendBroadcast(Intent(ACTION_STATUS).setPackage(PACKAGE).putExtra(EXTRA_PACKAGE_NAME, context.packageName))
-            withTimeoutOrNull(STATUS_WAIT_MS) { reply.await() }
-        } finally {
-            runCatching { context.unregisterReceiver(receiver) }
-        }
-    }
 
     companion object {
         const val PACKAGE = "org.torproject.android"
@@ -98,7 +77,7 @@ class OrbotBackend(private val context: Context) : ConnectionBackend {
         private const val EXTRA_STATUS = "org.torproject.android.intent.extra.STATUS"
         private const val EXTRA_SOCKS_PORT = "org.torproject.android.intent.extra.SOCKS_PROXY_PORT"
         private const val STATUS_ON = "ON"
-        private const val DEFAULT_SOCKS_PORT = 9050
+        const val DEFAULT_SOCKS_PORT = 9050
         private const val STATUS_WAIT_MS = 4_000L
         private const val START_WAIT_MS = 45_000L
 
@@ -112,4 +91,30 @@ class OrbotBackend(private val context: Context) : ConnectionBackend {
             runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         }
     }
+}
+
+internal class OrbotStatus(val on: Boolean, val socksPort: Int?)
+
+/**
+ * The port to use once Orbot says Tor is on and a real request went through it. If Orbot does not answer at all
+ * (its "allow background starts" is off) Tor may still be running, so its default port is tried directly.
+ */
+internal suspend fun awaitOrbot(
+    statuses: ReceiveChannel<OrbotStatus>,
+    replyWaitMs: Long,
+    startWaitMs: Long,
+    onProgress: (Int) -> Unit,
+    passes: suspend (Int) -> Boolean,
+): Int? {
+    val first = withTimeoutOrNull(replyWaitMs) { statuses.receive() }
+        ?: return OrbotBackend.DEFAULT_SOCKS_PORT.takeIf { passes(it) }
+    val on = if (first.on) first else withTimeoutOrNull(startWaitMs) {
+        var latest = statuses.receive()
+        while (!latest.on) latest = statuses.receive()
+        latest
+    } ?: return null
+    onProgress(100)
+    // A status change may omit the port; the first reply carries it.
+    val port = on.socksPort ?: first.socksPort ?: OrbotBackend.DEFAULT_SOCKS_PORT
+    return port.takeIf { passes(it) }
 }
