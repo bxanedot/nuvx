@@ -650,6 +650,7 @@ class PlaybackService : MediaLibraryService() {
         deferPlayToParty = { partySync?.shouldDeferPlay() == true },
         lockedTransport = { playing -> partySync?.onLockedTransport(playing) == true },
         cast = speakers,
+        onShuffleToggle = ::toggleShuffleFromSession,
     ) { lyricsController.subtitle }
 
     private fun createCrossfadeController() = CrossfadeController(

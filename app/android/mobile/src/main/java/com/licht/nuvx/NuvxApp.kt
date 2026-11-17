@@ -3186,9 +3186,12 @@ internal fun NuvxApp(
                 viewModel.resolvePlaylistOwnership(target.browseId)
             }
             val ownedPlaylists by viewModel.playlistOwned.collectAsStateWithLifecycle()
-            val playlist = target.browseId
-                ?.takeIf { signedIn && ownedPlaylists[it] == true }
-                ?.let { id -> playlists.firstOrNull { it.browseId == id } }
+            // A Nuvx-only playlist lives on the device: it is editable signed out and after a restart.
+            val playlist = target.browseId?.let { id ->
+                if (id.startsWith("local:playlist:")) viewModel.editablePlaylist(id)
+                else id.takeIf { signedIn && ownedPlaylists[it] == true }
+                    ?.let { playlists.firstOrNull { p -> p.browseId == id } }
+            }
             val remote = target.browseId?.startsWith("local:") == false
             val downloadable = remote ||
                 target.browseId?.startsWith("local:playlist:sp_local_") == true

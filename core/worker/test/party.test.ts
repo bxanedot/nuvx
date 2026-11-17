@@ -23,6 +23,15 @@ test("codes: alphabet, length, normalisation", () => {
   assert.ok(!P.isValidCode("ABCDEI"));
 });
 
+test("thumbnails are only relayed from YouTube image hosts", () => {
+  const thumb = (thumbnailUrl: string) => P.trackFromWire({ videoId: "abcdefghijk", thumbnailUrl })?.thumbnailUrl;
+  for (const ok of ["https://i.ytimg.com/vi/abc/hqdefault.jpg", "https://i9.ytimg.com/vi_webp/abc/sddefault.webp?sqp=x",
+    "https://yt3.googleusercontent.com/a=s88", "https://lh3.googleusercontent.com/a", "https://yt3.ggpht.com/a"]) assert.equal(thumb(ok), ok);
+  for (const bad of ["https://evil.example/pixel.gif", "http://i.ytimg.com/vi/abc.jpg", "https://i.ytimg.com.evil.example/x",
+    "https://evil.example/i.ytimg.com", "https://i.ytimg.com@evil.example/x", "https://notggpht.com/x", "https://i.ytimg.com:8443/x",
+    "//i.ytimg.com/x", "javascript:alert(1)", "data:image/png;base64,AA=="]) assert.equal(thumb(bad), undefined, bad);
+});
+
 test("join request validation", () => {
   assert.equal((P.validateJoin(null) as P.Fail).error, "invalid_json");
   assert.equal((P.validateJoin({ userId: "", deviceId: "d", displayName: "n" }) as P.Fail).status, 422);
@@ -42,13 +51,26 @@ test("join: first is host, rejoin rotates token, full party refused", () => {
   const { p, host, guest } = party();
   assert.ok(host.isHost && !guest.isHost);
   const old = guest.token;
-  const again = P.join(p, req("g", { displayName: "New" }), random, 2000) as P.Member;
+  const again = P.join(p, req("g", { displayName: "New" }), random, 2000, old) as P.Member;
   assert.equal(again.memberId, guest.memberId);
   assert.notEqual(again.token, old);
   assert.equal(P.authenticate(p, old), null);
   assert.equal(P.authenticate(p, again.token)?.memberId, guest.memberId);
   p.maxMembers = 2;
   assert.equal((P.join(p, req("x"), random, 3000) as P.Fail).error, "party_full");
+});
+
+test("join: a known deviceId without its token cannot take over the membership", () => {
+  const { p, host, guest } = party();
+  const hostToken = host.token;
+  for (const token of ["", "wrong", guest.token]) {
+    const intruder = P.join(p, req("h"), random, 2000, token) as P.Member;
+    assert.notEqual(intruder.memberId, host.memberId);
+    assert.ok(!intruder.isHost);
+    P.remove(p, intruder.memberId);
+  }
+  assert.equal(P.authenticate(p, hostToken)?.memberId, host.memberId);
+  assert.ok(host.isHost);
 });
 
 test("remove hands host to the longest-present member", () => {

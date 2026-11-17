@@ -28,7 +28,7 @@ export function invitePage(info: InviteInfo, origin: string): string {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{--accent:#f4f4f4;isolation:isolate;color-scheme:dark;accent-color:var(--accent);background:#000;color:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-main{max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a;border-radius:24px;padding:32px 24px;background:#0c0c0c}
+main{position:relative;z-index:1;max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a;border-radius:24px;padding:32px 24px;background:#0c0c0c}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#bbb;border:1px solid #2a2a2a;border-radius:99px;padding:6px 12px;margin-bottom:20px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}.dot.off{background:#777}
 h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
@@ -41,10 +41,25 @@ h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .note{margin-top:14px;font-size:13px;color:#888}.note a{color:var(--accent)}
 .ambient-pause{margin-top:12px;color:#bbb}
-.licht-signature-corner{position:fixed;top:20px;right:24px;color:#aaa;font:italic 600 15px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.04em;text-decoration:none}
+.licht-signature-corner{position:fixed;z-index:2;top:20px;right:24px;color:#aaa;font:italic 600 15px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.04em;text-decoration:none}
 .licht-signature-corner:hover{color:#fff}
 </style></head><body><a class="licht-signature-corner" href="https://guns.lol/lylicht" target="_blank" rel="noopener noreferrer" aria-label="Licht on Guns.lol">Licht</a><div class="nuvx-ambient" aria-hidden="true"></div><main>
 ${body}
 <label class="ambient-pause"><input id="ambient-pause" type="checkbox"> Pause background motion</label>
-</main></body></html>`;
+</main>
+<script>
+(() => {
+  const root = document.documentElement;
+  const ambient = document.querySelector('.nuvx-ambient');
+  const pause = document.querySelector('#ambient-pause');
+  try { pause.checked = localStorage.getItem('nuvx-motion') === 'paused'; } catch {}
+  root.toggleAttribute('data-motion-paused', pause.checked);
+  pause.addEventListener('change', () => {
+    root.toggleAttribute('data-motion-paused', pause.checked);
+    try { localStorage.setItem('nuvx-motion', pause.checked ? 'paused' : 'on'); } catch {}
+  });
+  ambient?.toggleAttribute('data-motion-paused', pause.checked);
+})();
+</script>
+</body></html>`;
 }

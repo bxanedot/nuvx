@@ -1,0 +1,121 @@
+name: Sync backend deploy (Oracle)
+
+# Manual only. Every job that touches the server runs in the protected
+# oracle-production environment, so it waits for that environment's approval rules.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "check = read-only server preflight; deploy = ship this commit; rollback = previous release; backup = encrypted off-server copy"
+        type: choice
+        options: [check, deploy, rollback, backup]
+        default: check
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oracle-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: inputs.action == 'deploy'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Test
+        working-directory: core/sync
+        run: npm test
+      - name: Package the service with its Node runtime
+        run: |
+          mkdir -p release/node/bin
+          cp -r core/sync/src core/sync/deploy core/sync/package.json release/
+          cp "$(command -v node)" release/node/bin/node
+          { echo "commit=$GITHUB_SHA"; echo "node=$(node --version)"; } > release/MANIFEST
+          release/node/bin/node --disable-warning=ExperimentalWarning -e 'require("node:sqlite")'
+          tar -czf nuvx-sync.tar.gz -C release .
+          sha256sum nuvx-sync.tar.gz > nuvx-sync.tar.gz.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuvx-sync
+          path: |
+            nuvx-sync.tar.gz
+            nuvx-sync.tar.gz.sha256
+          retention-days: 14
+
+  server:
+    needs: build
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: oracle-production
+    env:
+      HOST: ${{ secrets.ORACLE_HOST }}
+      SSH_USER: ${{ secrets.ORACLE_USER }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up SSH with the pinned host key
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<CONF
+          Host oracle
+            HostName $HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            BatchMode yes
+            ConnectTimeout 15
+          CONF
+
+      - name: Preflight (read-only)
+        if: inputs.action == 'check'
+        run: ssh oracle 'bash -s check' < core/sync/deploy/remote.sh
+
+      - uses: actions/download-artifact@v8
+        if: inputs.action == 'deploy'
+        with:
+          name: nuvx-sync
+      - name: Deploy
+        if: inputs.action == 'deploy'
+        run: |
+          sha256sum -c nuvx-sync.tar.gz.sha256
+          ssh oracle "mkdir -p ~/nuvx-sync/releases/$GITHUB_SHA"
+          scp nuvx-sync.tar.gz oracle:nuvx-sync/releases/$GITHUB_SHA/release.tar.gz
+          ssh oracle "cd ~/nuvx-sync/releases/$GITHUB_SHA && tar -xzf release.tar.gz && rm release.tar.gz && bash deploy/remote.sh deploy $GITHUB_SHA"
+
+      - name: Roll back to the previous release
+        if: inputs.action == 'rollback'
+        run: ssh oracle 'bash ~/nuvx-sync/current/deploy/remote.sh rollback'
+
+      - name: Encrypted off-server backup
+        if: inputs.action == 'backup'
+        env:
+          PASSPHRASE: ${{ secrets.NUVX_BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$PASSPHRASE" || { echo "Add the NUVX_BACKUP_PASSPHRASE secret to the oracle-production environment first."; exit 1; }
+          remote=$(ssh oracle 'bash ~/nuvx-sync/current/deploy/remote.sh backup' | tail -1)
+          case "$remote" in /*.db) ;; *) echo "No database to back up yet."; exit 0 ;; esac
+          scp "oracle:$remote" backup.db
+          gpg --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" --symmetric --cipher-algo AES256 -o nuvx-sync-backup.db.gpg backup.db
+          shred -u backup.db
+      - uses: actions/upload-artifact@v7
+        if: inputs.action == 'backup' && hashFiles('nuvx-sync-backup.db.gpg') != ''
+        with:
+          name: nuvx-sync-backup-${{ github.run_id }}
+          path: nuvx-sync-backup.db.gpg
+          retention-days: 30
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

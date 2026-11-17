@@ -157,9 +157,12 @@ impl Conn {
         } else {
             format!("{}/api/parties/{code}/join", Self::base())
         };
-        let resp = http
-            .post(url)
-            .json(&body)
+        // A reconnect proves the earlier membership with its token; the server no longer trusts deviceId alone.
+        let mut post = http.post(url).json(&body);
+        if !self.create && !self.token.is_empty() {
+            post = post.bearer_auth(&self.token);
+        }
+        let resp = post
             .send()
             .await
             .map_err(|e| End::Dropped(e.to_string()))?;
