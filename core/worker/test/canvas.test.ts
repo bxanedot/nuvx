@@ -45,7 +45,7 @@ test("passcodes must match exactly and an unset passcode never matches", () => {
   assert.equal(samePasscode("", ""), false);
 });
 
-test("commit creates a new file, and replaces an existing one with its sha", async () => {
+test("commit creates a new file and never replaces an existing one", async () => {
   const calls: { method: string; body?: any }[] = [];
   const fake = (exists: boolean) => (async (_url: string, init?: RequestInit) => {
     calls.push({ method: init?.method ?? "GET", body: init?.body ? JSON.parse(init.body as string) : undefined });
@@ -56,8 +56,8 @@ test("commit creates a new file, and replaces an existing one with its sha", asy
   assert.deepEqual(await commitCanvas(ID, bytes, "t", fake(false)), { status: 201 });
   assert.equal(calls[1].body.sha, undefined);
   assert.equal(calls[1].body.content, "AQID");
-  assert.deepEqual(await commitCanvas(ID, bytes, "t", fake(true)), { status: 200 });
-  assert.equal(calls[3].body.sha, "abc");
+  assert.deepEqual(await commitCanvas(ID, bytes, "t", fake(true)), { status: 409 });
+  assert.equal(calls.length, 3, "no PUT when the canvas exists");
 });
 
 test("canvas keys normalize title and Topic artist names", () => {

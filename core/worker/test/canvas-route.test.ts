@@ -106,7 +106,7 @@ test("upload route commits a valid MP4 and updates the shared index", async () =
 
   const response = await handleCanvasUpload(request(), env("correct", "token"), fetcher);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true, id: ID, replaced: false, shared: true });
+  assert.deepEqual(await response.json(), { ok: true, id: ID, shared: true });
   assert.equal(calls.length, 5);
   assert.ok(calls[0].endsWith(`/canvas/${ID}.mp4`));
   assert.ok(calls[1].endsWith(`/canvas/${ID}.mp4`));

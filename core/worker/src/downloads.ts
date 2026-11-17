@@ -1,5 +1,5 @@
 const RELEASES_URL = "https://api.github.com/repos/lylicht/nuvx/releases";
-const APP_PACKAGE = /^nuvx(?:tv|wear)?-(?:(?:setup|portable)-)?v?\d.*\.(?:apk|exe|dmg|zip|tar\.gz)$/i;
+const APP_PACKAGE = /^nuvx(?:tv|wear|auto)?-(?:(?:setup|portable|extension-(?:chrome|firefox))-)?v?\d.*\.(?:apk|exe|dmg|zip|tar\.gz)$/i;
 const PAGE_SIZE = 100;
 
 type Release = { draft: boolean; assets: { name: string; download_count: number }[] };

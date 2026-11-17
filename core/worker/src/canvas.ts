@@ -71,12 +71,13 @@ function base64(bytes: Uint8Array): string {
 
 export async function commitCanvas(id: string, bytes: Uint8Array, token: string, fetchFn: typeof fetch = fetch): Promise<{ status: number; message?: string }> {
   const headers = { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "nuvx-canvas-upload" };
+  // The passcode is shared, so an upload never replaces someone else's canvas.
   const existing = await fetchFn(`${REPO_FILE}${id}.mp4`, { headers });
-  const sha = existing.ok ? ((await existing.json()) as { sha?: string }).sha : undefined;
+  if (existing.ok) return { status: 409 };
   const put = await fetchFn(`${REPO_FILE}${id}.mp4`, {
     method: "PUT",
     headers: { ...headers, "content-type": "application/json" },
-    body: JSON.stringify({ message: `${sha ? "Replace" : "Add"} canvas ${id}`, content: base64(bytes), branch: "main", ...(sha ? { sha } : {}) }),
+    body: JSON.stringify({ message: `Add canvas ${id}`, content: base64(bytes), branch: "main" }),
   });
   if (put.ok) return { status: put.status };
   return { status: put.status, message: ((await put.json().catch(() => ({}))) as { message?: string }).message };

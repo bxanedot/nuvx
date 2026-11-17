@@ -435,6 +435,9 @@ export class Presence extends DurableObject<Env> {
     if (![...ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(installs)")].some((column) => column.name === "source_hash")) {
       ctx.storage.sql.exec("ALTER TABLE installs ADD COLUMN source_hash TEXT");
     }
+    // Without these, every ping scans the whole table and spends the Durable Object read quota.
+    ctx.storage.sql.exec("CREATE INDEX IF NOT EXISTS installs_last ON installs(last_ms)");
+    ctx.storage.sql.exec("CREATE INDEX IF NOT EXISTS installs_source ON installs(source_hash)");
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS playing_parties (code TEXT PRIMARY KEY, listeners INTEGER NOT NULL, expires_ms INTEGER NOT NULL)");
   }
 

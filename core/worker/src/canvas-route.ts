@@ -34,9 +34,10 @@ export async function handleCanvasUpload(req: Request, env: CanvasUploadEnv, fet
   const bytes = new Uint8Array(await video.arrayBuffer());
   if (!isMp4(bytes)) return json({ error: "The video must be an MP4." }, 415);
   const { status, message } = await commitCanvas(id, bytes, env.CANVAS_GITHUB_TOKEN, fetcher);
+  if (status === 409) return json({ error: "This song already has a canvas." }, 409);
   if (status !== 200 && status !== 201) return json({ error: `GitHub refused the upload (${status}${message ? `: ${message}` : ""}).` }, 502);
   const shared = await shareCanvas(id, env.CANVAS_GITHUB_TOKEN, fetcher);
   return shared
-    ? json({ ok: true, id, replaced: status === 200, shared: true })
-    : json({ ok: false, uploaded: true, id, replaced: status === 200, shared: false }, 202);
+    ? json({ ok: true, id, shared: true })
+    : json({ ok: false, uploaded: true, id, shared: false }, 202);
 }

@@ -96,6 +96,25 @@ test("export returns everything; deleting the space removes data and access", ()
   assert.equal(a.call("GET", "/v1/export", me.token).status, 401);
 });
 
+test("a space stops at its storage limit, and export pages like a pull", () => {
+  const a = app();
+  const me = newSpace(a);
+  const big = "x".repeat(30_000);
+  let status = 200, pushed = 0;
+  for (let batch = 0; status === 200 && batch < 10; batch++) {
+    status = a.call("POST", "/v1/ops", me.token, { ops: Array.from({ length: 100 }, (_, i) => op(`b${batch}-${i}`, big)) }).status;
+    if (status === 200) pushed += 100;
+  }
+  assert.equal(status, 413);
+  assert.equal(pushed, 600, "20 MB holds six batches of 100 x 30 KB");
+  const first = a.call("GET", "/v1/export", me.token).body;
+  assert.equal(first.ops.length, 500);
+  assert.equal(first.more, true);
+  const rest = a.call("GET", `/v1/export?after=${first.ops.at(-1).seq}`, me.token).body;
+  assert.equal(rest.ops.length, 100);
+  assert.equal(rest.more, false);
+});
+
 test("bad input is refused: oversize payloads, empty and oversize batches, missing fields", () => {
   const a = app();
   const me = newSpace(a);

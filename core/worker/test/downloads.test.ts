@@ -12,7 +12,12 @@ test("counts app packages across release pages and skips checksums and drafts", 
       { name: "SHA256SUMS", download_count: 100 },
     ] })),
     [
-      { assets: [{ name: "nuvx-portable-0.2.0.zip", download_count: 8 }] },
+      { assets: [
+        { name: "nuvx-portable-0.2.0.zip", download_count: 8 },
+        { name: "NuvxAuto-v1.0.0.apk", download_count: 16 },
+        { name: "nuvx-extension-chrome-1.0.0.zip", download_count: 32 },
+        { name: "extension.json", download_count: 1000 },
+      ] },
       { draft: true, assets: [{ name: "nuvx-v0.3.0.apk", download_count: 100 }] },
     ],
   ];
@@ -23,7 +28,7 @@ test("counts app packages across release pages and skips checksums and drafts", 
     assert.equal(options?.redirect, "manual");
     return Response.json(pages[Number(request.searchParams.get("page")) - 1]);
   };
-  assert.equal(await countReleaseDownloads(get, "fixture-token"), 1408);
+  assert.equal(await countReleaseDownloads(get, "fixture-token"), 1456);
 });
 
 test("an unavailable GitHub API cannot report zero downloads", async () => {
