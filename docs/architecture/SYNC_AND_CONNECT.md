@@ -47,3 +47,21 @@ The code expires after two minutes and works once. The code alone grants nothing
 ## Not built yet
 
 Client integration on every platform, operation kinds and payload schemas for playlists, favorites and settings, conformance tests shared across clients, Nuvx Connect (remote control and handoff), and history compaction once a space nears its limit.
+
+## Operation kinds (v1)
+
+Clients push these ops; the server stores them in order and never interprets them. Every client replays the log with the same rules and must reproduce `core/sync/fixtures/replay-v1.json`. The Kotlin reference is `core/shared/.../data/sync/SyncReplay.kt` (Android and JVM); iOS, desktop and web ports must pass the same fixture.
+
+| Kind | Entity | Payload | Rule |
+|---|---|---|---|
+| `playlist.create` | `playlist:<id>` | `title` | Ignored if the id exists or was ever deleted |
+| `playlist.rename` | `playlist:<id>` | `title` | Later in server order wins |
+| `playlist.delete` | `playlist:<id>` | — | Final; later ops on that id are ignored |
+| `playlist.addTrack` | `playlist:<id>` | `videoId`, `after` | `after` absent appends, `null` puts it first, an id places it after that track; a missing anchor appends; a track already present is not added again |
+| `playlist.moveTrack` | `playlist:<id>` | `videoId`, `after` | Same placement rules; ignored if the track is gone |
+| `playlist.removeTrack` | `playlist:<id>` | `videoId` | Ignored if the track is gone |
+| `favorite.set` | `favorite:<videoId>` | `on` | Later in server order wins |
+| `setting.set` | `setting:<key>` | `value` | Later in server order wins |
+
+- **Unknown kinds:** skipped, so an older client never corrupts state written by a newer one.
+- **Restoring a version:** replay the log up to its `seq`.

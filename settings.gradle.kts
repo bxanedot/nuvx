@@ -10,7 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://jitpack.io")
+        // JitPack builds any public GitHub repo on demand, so it may only serve com.github.* (no dependency confusion).
+        maven("https://jitpack.io") { content { includeGroupByRegex("""com\.github\..*""") } }
         maven(uri("core/third_party/maven")) { content { includeGroup("com.excor") } }
     }
 }

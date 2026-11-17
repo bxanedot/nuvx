@@ -5,6 +5,12 @@ val cmp = "1.12.2"
 val CMP_DESKTOP =
     if (System.getProperty("os.name").contains("Windows", ignoreCase = true)) "1.10.3" else "1.12.0"
 
+val skikoHost = run {
+    val os = System.getProperty("os.name").lowercase()
+    val arch = if (System.getProperty("os.arch").lowercase().let { "aarch64" in it || "arm64" in it }) "arm64" else "x64"
+    (if ("windows" in os) "windows" else if ("mac" in os) "macos" else "linux") + "-" + arch
+}
+
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("com.android.library")
@@ -60,6 +66,8 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation(kotlin("test"))
+            // Native renderer for the screenshot tests; same version as the skiko-awt the UI already uses.
+            implementation("org.jetbrains.skiko:skiko-awt-runtime-$skikoHost:0.150.2")
             implementation("junit:junit:4.13.2")
         }
         androidMain.dependencies {

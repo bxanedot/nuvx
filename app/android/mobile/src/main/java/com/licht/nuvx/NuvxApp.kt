@@ -444,6 +444,25 @@ internal fun NuvxApp(
             }
         }
     }
+    var exportTarget by remember { mutableStateOf<UserPlaylist?>(null) }
+    val playlistExportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/x-mpegurl")) { uri ->
+        val p = exportTarget
+        exportTarget = null
+        if (uri != null && p != null) {
+            viewModel.loadPlaylistEntries(p) { songs ->
+                playerSheetScope.launch {
+                    val ok = withContext(Dispatchers.IO) {
+                        songs.mapCatching { list ->
+                            context.contentResolver.openOutputStream(uri, "wt")
+                                ?.use { it.write(com.licht.nuvx.data.PlaylistExport.m3u(p.title, list).toByteArray()) }
+                                ?: error("Couldn't open that file for writing")
+                        }
+                    }.isSuccess
+                    Toast.makeText(context, context.getString(if (ok) R.string.saved else R.string.failed), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
     var browseMenuOrigin by remember { mutableStateOf<HeldItem?>(null) }
     var browseMenuAnchor by remember { mutableStateOf<Rect?>(null) }
     var browseRenameInSheet by remember { mutableStateOf(false) }
@@ -3325,6 +3344,13 @@ internal fun NuvxApp(
                                 onFailure = { UiState.Error(context.getString(R.string.failed)) },
                             )
                         }
+                    }
+                },
+                onExport = playlist?.let { p ->
+                    {
+                        browseActions = null
+                        exportTarget = p
+                        playlistExportPicker.launch("${p.title}.m3u")
                     }
                 },
                 onDelete = playlist?.let { p ->

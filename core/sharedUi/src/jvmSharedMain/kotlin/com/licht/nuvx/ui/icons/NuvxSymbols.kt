@@ -3,7 +3,6 @@ package com.licht.nuvx.ui.icons
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,8 +38,14 @@ enum class NuvxGlyph(val sfName: String) {
  * Motion only happens on that change, never continuously, and not at all with "reduce animation" on.
  */
 @Composable
-fun NuvxSymbol(glyph: NuvxGlyph, contentDescription: String?, tint: Color, size: Dp, modifier: Modifier = Modifier) {
-    val reduce by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
+fun NuvxSymbol(
+    glyph: NuvxGlyph,
+    contentDescription: String?,
+    tint: Color,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    reduce: Boolean = PlayerSettings.reduceAnimation.collectAsStateWithLifecycle().value,
+) {
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         SfSymbolIcon(
             symbol = glyph.symbol,

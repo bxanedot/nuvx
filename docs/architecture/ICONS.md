@@ -28,7 +28,9 @@ GlyphStudio is Compose-only, so the Rust desktop uses equivalents with the same 
 ## Tests
 
 - **Present:** `NuvxGlyphTest` checks that every registry entry exists in GlyphStudio.
-- **Missing:** visual regression tests. The repository has no screenshot tooling yet; adding Roborazzi or Paparazzi is the next step.
+- **Rendering:** `NuvxSymbolRenderTest` (`core/sharedUi`, JVM) renders each glyph with Compose's desktop renderer. It checks that every glyph draws visible ink and that play and pause differ.
+- **Animation state:** with reduce animation on, the first frame after a toggle already equals the final symbol; with it off, that frame is mid-transition.
+- **Missing:** pixel-golden comparisons of whole screens. Golden images of single icons would break on every renderer update, so the checks above test what matters instead.
 
 ## Licensing
 
