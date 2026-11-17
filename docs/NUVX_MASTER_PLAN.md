@@ -59,11 +59,11 @@ The one handoff document for this programme. The owner's standing instructions a
 | 320 | Worker: `counts()` reuses its answer for 5 s (cleared on every ping and party update), so a stats or badge request loop no longer runs DELETEs on the one Presence object. Needs a Worker redeploy (owner item 3). |
 | 321 | Sync transport client (`core/shared/.../data/sync/SyncClient.kt`): push batches under server limits, pull pages, retry-or-stop results, bounded backoff. Not wired into any app yet. |
 | 322 | Android: export a nuvx playlist as CSV (formula-safe), label in all 20 locales. |
+| 317 | Sync pairing: the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. |
 | 313 | Icon render and animation-state tests; web signature code in an isolated worker; JitPack limited to `com.github.*`; shared sync replay rules with a fixture; crossfade timing tests; Android playlist export as M3U; security, platform, testing, release and decision docs |
 
 ## Open
 
-- **Sync pairing hardening** (PR 317): the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. 11 Sync tests pass.
 - **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
 - Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
 - **Dependabot alert 1 (high, `picomatch` ReDoS, `app/web`)**: comes only from build and test tools (vite, vitest, wxt, unimport, tinyglobby), not the shipped web app or extension. No patched version yet; update when one exists.
