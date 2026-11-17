@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 internal class AppearanceSettingsController {
     private lateinit var prefs: SharedPreferences
 
-    val themeMode = MutableStateFlow(ThemeMode.LIGHT)
+    val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val appFont = MutableStateFlow(AppFont.DEFAULT)
     val reduceAnimation = MutableStateFlow(false)
     val highPerformanceMode = MutableStateFlow(false)
@@ -24,8 +24,8 @@ internal class AppearanceSettingsController {
 
     fun readThemeAndFont() {
         themeMode.value = runCatching {
-            ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: "LIGHT")
-        }.getOrDefault(ThemeMode.LIGHT)
+            ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: ThemeMode.SYSTEM.name)
+        }.getOrDefault(ThemeMode.SYSTEM)
         appFont.value = runCatching {
             AppFont.valueOf(prefs.getString(KEY_APP_FONT, null) ?: AppFont.DEFAULT.name)
         }.getOrDefault(AppFont.DEFAULT)
