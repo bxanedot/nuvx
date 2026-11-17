@@ -1,18 +1,7 @@
 import { Maximize, Minimize, X } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { useLocation } from 'react-router';
-import {
-  BackwardIcon,
-  ForwardIcon,
-  LyricsActiveIcon,
-  LyricsIcon,
-  PauseIcon,
-  PlayIcon,
-  RepeatIcon,
-  RepeatOneIcon,
-  ShuffleIcon,
-  UpNextIcon,
-} from '@/components/icons/Transport';
+import { BackwardIcon, ForwardIcon, LyricsActiveIcon, LyricsIcon, RepeatIcon, RepeatOneIcon, ShuffleIcon, UpNextIcon, PlayPauseIcon } from '@/components/icons/Transport';
 import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { TrackMenu } from '@/components/music/TrackMenu';
@@ -103,7 +92,7 @@ function Transport() {
         <BackwardIcon size={40} />
       </button>
       <button className={`${transportButton} size-14 text-primary`} disabled={!hasTrack} aria-label={playing ? 'Pause' : 'Play'} onClick={togglePlay}>
-        {playing ? <PauseIcon size={48} /> : <PlayIcon size={48} />}
+        <PlayPauseIcon playing={playing} size={48} />
       </button>
       <button className={skip} disabled={!hasTrack || !hasNext} aria-label="Next" onClick={next}>
         <ForwardIcon size={40} />

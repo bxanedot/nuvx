@@ -17,7 +17,7 @@ nuvx draws its symbols with GlyphStudio (`com.github.bxanedot.GlyphStudio:sfsymb
 
 ## Desktop and web
 
-GlyphStudio is Compose-only, so the Rust desktop uses equivalents with the same meanings: its own SVG glyphs (`app/desktop/src/ui/glyphs.rs`). Play/pause cross-morph and the favorite star pops, both turned off by its "Reduce animation" setting (test `reduced_motion_disables_glyph_animation`). The web player is not yet checked.
+GlyphStudio is Compose-only, so the Rust desktop uses equivalents with the same meanings: its own SVG glyphs (`app/desktop/src/ui/glyphs.rs`). Play/pause cross-morph and the favorite star pops, both turned off by its "Reduce animation" setting (test `reduced_motion_disables_glyph_animation`). The web player draws the same SF-style paths (`components/icons/Transport.tsx`); `PlayPauseIcon` cross-morphs play and pause in the player bar, full-screen player, mobile bar and track list, with no transition under `prefers-reduced-motion`.
 
 ## Rules
 
