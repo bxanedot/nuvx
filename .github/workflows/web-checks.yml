@@ -1,0 +1,44 @@
+name: Web checks
+
+# Runs the web app and browser extension tests and the web type-check on every
+# pull request that can change them. Before this, they only ran on a
+# developer's machine.
+on:
+  pull_request:
+    paths:
+      - "app/web/**"
+      - ".github/workflows/web-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.11.2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Tests (web app and extension)
+        run: pnpm -r test
+      - name: Type-check the web app
+        working-directory: app/web/app
+        run: pnpm exec tsc --noEmit -p .

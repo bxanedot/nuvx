@@ -1,0 +1,59 @@
+name: Android checks
+
+# Runs the Android and shared Kotlin unit tests on every pull request that can
+# change them. Before this, those tests only ran after merge, inside the release
+# build. No secrets are used: unit tests do not need the signing key.
+on:
+  pull_request:
+    paths:
+      - "app/android/**"
+      - "app/web/app/public/models/**"
+      - "core/shared/**"
+      - "core/sharedUi/**"
+      - "core/sync/fixtures/**"
+      - "core/third_party/maven/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - ".github/workflows/android-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - uses: android-actions/setup-android@v4.0.4
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;30.0.16248370" "cmake;3.22.1"
+      - name: Unit tests (phone app, shared, shared UI)
+        run: bash gradlew :app:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-test-reports
+          path: |
+            app/android/mobile/build/reports/tests/
+            core/shared/build/reports/tests/
+            core/sharedUi/build/reports/tests/
+          retention-days: 7
