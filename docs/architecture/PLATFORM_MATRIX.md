@@ -13,7 +13,7 @@ What each platform has, as of 2026-11-17 (nuvx 1.0.0). The terms:
 | Android Auto (projection) | Media3 media library in the phone app | Released with the phone app | `AndroidAutoMediaLibraryTest` (instrumented) exists; not run here |
 | nuvx Auto (standalone head unit) | Kotlin | Released (`NuvxAuto-v1.0.0.apk`) | Compiles |
 | Android Automotive OS | — | Not started | — |
-| iPhone and iPad | SwiftUI + Kotlin Multiplatform shared module | Built in CI. The 1.0.0 IPA (unsigned, sideload) is being attached by a manual Apple build | CI build on macOS runners |
+| iPhone and iPad | SwiftUI + Kotlin Multiplatform shared module | Released (`nuvx-1.0.0-universal.ipa`, unsigned, for sideloading) | CI build on macOS runners |
 | Apple TV (tvOS) | — | Not started | — |
 | CarPlay | — | Not started; needs an Apple entitlement nuvx does not hold | — |
 | Windows | Rust + egui | Released (`nuvx-setup-1.0.0.exe`, x64 and ARM64) | 230 desktop tests (Linux); release build on Windows runners |

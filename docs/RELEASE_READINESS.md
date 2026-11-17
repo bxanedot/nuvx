@@ -25,7 +25,7 @@ The Android key lives in four repository secrets: `NUVX_KEYSTORE_BASE64`, `NUVX_
 ## Known issues
 
 - **Mac runners:** "Apple builds" and the macOS release jobs wait for GitHub's macOS runners. A job left queued too long can be cancelled, and the stable build then fails safely; run it again.
-- **iPhone builds:** not attached automatically (step 3).
+- **iPhone builds:** not attached automatically (step 3). Done for 1.0.0.
 
 ## Before the next release
 
