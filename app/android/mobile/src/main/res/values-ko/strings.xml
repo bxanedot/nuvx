@@ -1287,4 +1287,5 @@
     <string name="privacy_orbot_subtitle">Orbot이 실행 중이고 Tor에 연결되어 있어야 합니다</string>
     <string name="nightly_updates">나이틀리 업데이트</string>
     <string name="nightly_updates_subtitle">테스트 빌드가 게시되는 즉시 받습니다. 기본값은 꺼짐이며, 꺼져 있으면 nuvx는 안정 버전만 안내합니다.</string>
+    <string name="playlist_deleted">‘%1$s’ 삭제됨</string>
 </resources>

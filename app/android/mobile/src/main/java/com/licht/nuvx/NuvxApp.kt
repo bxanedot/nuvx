@@ -3330,7 +3330,16 @@ internal fun NuvxApp(
                 onDelete = playlist?.let { p ->
                     {
                         browseActions = null
-                        viewModel.deletePlaylist(p)
+                        val restorePlaylist: (() -> Unit)? = viewModel.deletePlaylist(p)
+                        if (restorePlaylist != null) {
+                            scope.launch {
+                                val result = snackbars.showSnackbar(
+                                    message = context.getString(R.string.playlist_deleted, p.title),
+                                    actionLabel = context.getString(R.string.undo),
+                                )
+                                if (result == SnackbarResult.ActionPerformed) restorePlaylist()
+                            }
+                        }
                     }
                 } ?: offlineEditable?.let { p ->
                     {

@@ -1435,4 +1435,5 @@
     <string name="privacy_orbot_subtitle">ต้องเปิด Orbot และเชื่อมต่อ Tor อยู่</string>
     <string name="nightly_updates">อัปเดตแบบ Nightly</string>
     <string name="nightly_updates_subtitle">รับบิลด์ทดสอบทันทีที่เผยแพร่ ปิดไว้เป็นค่าเริ่มต้น เมื่อปิด nuvx จะเสนอเฉพาะเวอร์ชันเสถียร</string>
+    <string name="playlist_deleted">ลบ “%1$s” แล้ว</string>
 </resources>

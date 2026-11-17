@@ -43,4 +43,19 @@ class BackupPlaylistsTest {
         assertEquals("Mine", LocalPlaylistStore.getPlaylist(id)?.title)
         LocalPlaylistStore.deletePlaylist(id)
     }
+
+    @Test
+    fun undoingADeletePutsThePlaylistBackInPlaceWithItsSongs() {
+        val ids = listOf("undo_a", "undo_b", "undo_c")
+        ids.forEach(LocalPlaylistStore::deletePlaylist)
+        ids.reversed().forEach { LocalPlaylistStore.restore(LocalPlaylist(it, it, listOf(Song("v_$it", "T", "A", null))), 0) }
+        val before = LocalPlaylistStore.playlists.value.map { it.id }.filter { it in ids }
+        val removed = LocalPlaylistStore.getPlaylist("undo_b")!!
+        val at = LocalPlaylistStore.playlists.value.indexOf(removed)
+        LocalPlaylistStore.deletePlaylist("undo_b")
+        LocalPlaylistStore.restore(removed, at)
+        assertEquals(before, LocalPlaylistStore.playlists.value.map { it.id }.filter { it in ids })
+        assertEquals(listOf("v_undo_b"), LocalPlaylistStore.getPlaylist("undo_b")!!.songs.map { it.videoId })
+        ids.forEach(LocalPlaylistStore::deletePlaylist)
+    }
 }

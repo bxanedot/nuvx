@@ -1421,4 +1421,5 @@
     <string name="privacy_orbot_subtitle">Orbot debe estar en ejecución con Tor conectado</string>
     <string name="nightly_updates">Actualizaciones nightly</string>
     <string name="nightly_updates_subtitle">Recibe versiones de prueba en cuanto se publican. Desactivado por defecto; si está desactivado, nuvx solo ofrece versiones estables.</string>
+    <string name="playlist_deleted">Se eliminó «%1$s»</string>
 </resources>

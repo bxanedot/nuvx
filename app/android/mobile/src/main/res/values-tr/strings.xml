@@ -1406,4 +1406,5 @@
     <string name="privacy_orbot_subtitle">Orbot çalışıyor ve Tor\'a bağlı olmalı</string>
     <string name="nightly_updates">Nightly güncellemeler</string>
     <string name="nightly_updates_subtitle">Test sürümlerini yayınlanır yayınlanmaz alın. Varsayılan olarak kapalıdır; kapalıyken nuvx yalnızca kararlı sürümleri sunar.</string>
+    <string name="playlist_deleted">“%1$s” silindi</string>
 </resources>

@@ -122,6 +122,14 @@ object LocalPlaylistStore {
         persist(updated)
     }
 
+    /** Puts back a playlist removed by [deletePlaylist] at its old position (undo). */
+    fun restore(playlist: LocalPlaylist, at: Int) {
+        if (_playlists.value.any { it.id == playlist.id }) return
+        val updated = _playlists.value.toMutableList().apply { add(at.coerceIn(0, size), playlist) }
+        _playlists.value = updated
+        persist(updated)
+    }
+
     /** Adds restored playlists; one whose id already exists is skipped, never overwritten. Returns how many were added. */
     fun mergeIn(incoming: List<LocalPlaylist>): Int {
         val have = _playlists.value.mapTo(HashSet()) { it.id }

@@ -407,15 +407,27 @@ internal class MainPlaylistController(
         }
     }
 
-    fun deletePlaylist(playlist: UserPlaylist) {
+    /** Deletes [playlist]. For a nuvx playlist, returns an undo that puts it back with its songs and position. */
+    fun deletePlaylist(playlist: UserPlaylist): (() -> Unit)? {
         if (playlist.browseId.startsWith("local:playlist:")) {
-            com.licht.nuvx.data.spotify.LocalPlaylistStore.deletePlaylist(playlist.playlistId)
+            val store = com.licht.nuvx.data.spotify.LocalPlaylistStore
+            val stored = store.getPlaylist(playlist.playlistId)
+            val storeIndex = store.playlists.value.indexOf(stored)
+            val listIndex = _playlists.value.indexOfFirst { it.playlistId == playlist.playlistId }
+            store.deletePlaylist(playlist.playlistId)
             _playlists.value = _playlists.value.filterNot { it.playlistId == playlist.playlistId }
             _detailStack.value = _detailStack.value.filterNot { it.browseId == playlist.browseId }
             navigator.onDetailStackShrunk(_detailStack.value.size)
-            return
+            return stored?.let {
+                {
+                    store.restore(it, storeIndex)
+                    if (_playlists.value.none { p -> p.playlistId == playlist.playlistId }) {
+                        _playlists.value = _playlists.value.toMutableList().apply { add(listIndex.coerceIn(0, size), playlist) }
+                    }
+                }
+            }
         }
-        if (!requireSignIn()) return
+        if (!requireSignIn()) return null
         scope.launch {
             YtMusicRepository.deletePlaylist(playlist.playlistId).fold(
                 onSuccess = {
@@ -432,6 +444,7 @@ internal class MainPlaylistController(
                 onFailure = {},
             )
         }
+        return null
     }
 
     fun editablePlaylist(browseId: String?): UserPlaylist? {
