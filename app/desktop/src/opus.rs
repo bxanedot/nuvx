@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rusty_opus::OpusDecoder;
-use symphonia::core::codecs::CODEC_TYPE_OPUS;
+use symphonia::core::codecs::audio::well_known::CODEC_ID_OPUS;
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
 use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::units::{Time, TimeBase};
@@ -43,7 +43,7 @@ impl MediaSource for Media {
 }
 
 pub struct OpusSource {
-    format: MkvReader,
+    format: MkvReader<'static>,
     track: u32,
     time_base: Option<TimeBase>,
     decoder: OpusDecoder,
@@ -57,13 +57,17 @@ pub struct OpusSource {
 impl OpusSource {
     pub fn new(reader: StreamReader, len: u64, duration_ms: u64) -> anyhow::Result<Self> {
         let mss = MediaSourceStream::new(Box::new(Media { reader, len }), Default::default());
-        let format = MkvReader::try_new(mss, &FormatOptions::default())?;
-        let track = format.tracks().iter().find(|t| t.codec_params.codec == CODEC_TYPE_OPUS).ok_or_else(|| anyhow::anyhow!("no Opus track"))?;
-        let head = track.codec_params.extra_data.as_deref().unwrap_or_default();
+        let format = MkvReader::try_new(mss, FormatOptions::default())?;
+        let track = format
+            .tracks()
+            .iter()
+            .find(|t| t.codec_params.as_ref().and_then(|c| c.audio()).is_some_and(|a| a.codec == CODEC_ID_OPUS))
+            .ok_or_else(|| anyhow::anyhow!("no Opus track"))?;
+        let head = track.codec_params.as_ref().and_then(|c| c.audio()).and_then(|a| a.extra_data.as_deref()).unwrap_or_default();
         let channels = head.get(9).map_or(2, |&c| c as u16);
         anyhow::ensure!(matches!(channels, 1 | 2), "{channels}-channel Opus isn't supported");
         let pre_skip = head.get(10..12).map_or(0, |b| u16::from_le_bytes([b[0], b[1]]) as usize);
-        let (track, time_base) = (track.id, track.codec_params.time_base);
+        let (track, time_base) = (track.id, track.time_base);
         Ok(Self {
             format,
             track,
@@ -80,10 +84,10 @@ impl OpusSource {
     fn refill(&mut self) -> bool {
         loop {
             let packet = match self.format.next_packet() {
-                Ok(p) => p,
-                Err(_) => return false,
+                Ok(Some(p)) => p,
+                _ => return false,
             };
-            if packet.track_id() != self.track {
+            if packet.track_id != self.track {
                 continue;
             }
             let ch = self.channels as usize;
@@ -131,12 +135,9 @@ impl rodio::Source for OpusSource {
     }
     fn try_seek(&mut self, pos: Duration) -> Result<(), rodio::source::SeekError> {
         let from = pos.saturating_sub(PREROLL);
-        let to = SeekTo::Time { time: Time::from(from.as_secs_f64()), track_id: Some(self.track) };
+        let to = SeekTo::Time { time: Time::try_from_secs_f64(from.as_secs_f64()).unwrap_or_default(), track_id: Some(self.track) };
         let seeked = self.format.seek(SeekMode::Accurate, to).map_err(|e| rodio::source::SeekError::Other(Arc::new(e)))?;
-        let at = self.time_base.map_or(from.as_secs_f64(), |tb| {
-            let t = tb.calc_time(seeked.actual_ts);
-            t.seconds as f64 + t.frac
-        });
+        let at = self.time_base.and_then(|tb| tb.calc_time(seeked.actual_ts)).map_or(from.as_secs_f64(), |t| t.as_secs_f64());
         let ahead = (pos.as_secs_f64() - at).max(0.0);
         if let Ok(d) = OpusDecoder::new(RATE as i32, self.channels as usize) {
             self.decoder = d;
@@ -180,6 +181,21 @@ mod tests {
         fn total_duration(&self) -> Option<Duration> {
             None
         }
+    }
+
+    // 3 s stereo 440 Hz sine, made with: ffmpeg -f lavfi -i sine=frequency=440:duration=3 -ac 2 -c:a libopus -b:a 24k -f webm
+    #[test]
+    fn decodes_and_seeks_local_webm() {
+        let data = include_bytes!("testdata/tone.webm").to_vec();
+        let shared = crate::stream::Shared::from_bytes_with_format(data, 3000, None, crate::stream::Format::from_opus(true), None);
+        let mut d = super::OpusSource::new(crate::stream::StreamReader::new(shared.clone()), shared.total, 3000).unwrap();
+        assert_eq!((d.channels().get(), d.sample_rate().get()), (2, 48_000));
+        let secs = d.by_ref().count() as f64 / (2.0 * 48_000.0);
+        assert!((secs - 3.0).abs() < 0.1, "decoded {secs:.2} s of 3 s");
+        let mut d = super::OpusSource::new(crate::stream::StreamReader::new(shared.clone()), shared.total, 3000).unwrap();
+        d.try_seek(Duration::from_millis(1500)).unwrap();
+        let left = d.count() as f64 / (2.0 * 48_000.0);
+        assert!((left - 1.5).abs() < 0.1, "{left:.2} s left after seeking to 1.5 s");
     }
 
     #[tokio::test]
