@@ -27,6 +27,8 @@ enum class NuvxGlyph(val sfName: String) {
     Downloading("arrow.down"),
     Downloaded("arrow.down.circle.fill"),
     DownloadFailed("exclamationmark.circle"),
+    Device("airplay.video"),
+    DeviceConnected("airplay.video.circle.fill"),
     ;
 
     val symbol: SfSymbol get() = requireNotNull(SfSymbol[sfName]) { "GlyphStudio has no symbol $sfName" }
