@@ -141,6 +141,19 @@ object LocalPlaylistStore {
         return added.size
     }
 
+    /**
+     * Replaces every playlist with [updated] (a sync result), but only if the list is still [expected], so an edit
+     * made while the sync ran is never overwritten; the next sync picks it up. Returns false when skipped.
+     */
+    @Synchronized
+    fun replaceAllIfUnchanged(expected: List<LocalPlaylist>, updated: List<LocalPlaylist>): Boolean {
+        if (_playlists.value != expected) return false
+        if (updated == expected) return true
+        _playlists.value = updated
+        persist(updated)
+        return true
+    }
+
     fun getPlaylist(id: String): LocalPlaylist? {
         val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
         return _playlists.value.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }

@@ -112,6 +112,7 @@ class NuvxApplication : Application(), SingletonImageLoader.Factory, Configurati
         OriginalVersion.init(this)
         Downloads.init(this)
         PlaylistSync.init(this)
+        com.licht.nuvx.data.sync.NuvxSync.init(this) // after AppSettings, which loads the playlists
         ListeningStats.init(this)
         ArtistFacts.init(this)
         AudioCache.init(this)
