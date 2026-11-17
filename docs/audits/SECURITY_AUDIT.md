@@ -15,6 +15,7 @@ Status of every security finding, 2026-11-17. "Live" means running for users. Th
 | Android asked the canvas site about every song played (listening history) | `CommunityCanvas.kt` | Uses the downloaded index (PR 305) | Next Android build |
 | Shared diagnostics (Android, iOS, desktop log) kept stream URLs and error traces with the user's IP, signed tokens and cookies | `TrackLog`, `ActionMenus.swift`, `logging.rs` | Redacted when recorded or copied (PR 312) | After PR 312 |
 | The web player ran YouTube's signature script with `new Function` in the page, where it could read storage and reach the extension bridge that makes signed-in requests | `innertube.ts` | Runs in an isolated worker with a 10 s limit (`isolatedEval.ts`) | After PR 312 deploys to web.nuvx.lol |
+| JitPack, which builds any public GitHub repository on demand, was trusted for every dependency group, so a missing or mistyped artifact could resolve from it (dependency confusion) | `settings.gradle.kts` | JitPack serves only `com.github.*`, the groups nuvx takes from it | Next build |
 | Downloads could fill the phone | `Downloads.kt` | 500 MB floor (PR 311) | Next Android build |
 
 ## Checked and healthy
@@ -35,4 +36,4 @@ Status of every security finding, 2026-11-17. "Live" means running for users. Th
 - **Licensing:**
   - GlyphStudio's glyphs are Apple's SF Symbols, used on every platform by the owner's decision.
   - The desktop also bundles Apple's SF Pro Display font files, which Apple's font license does not allow redistributing. Not decided.
-- **Not audited yet:** native C/C++ code and Gradle build scripts. The web app was checked for raw HTML and code injection: only the bundled logo SVG uses `dangerouslySetInnerHTML`, which is safe.
+- **Not audited yet:** native C/C++ code. Gradle: repositories checked (above); `FAIL_ON_PROJECT_REPOS` keeps modules from adding their own. The web app was checked for raw HTML and code injection: only the bundled logo SVG uses `dangerouslySetInnerHTML`, which is safe.
