@@ -241,10 +241,14 @@ class CrossfadeController(
 
     private fun tick() {
         if (phase == Phase.FADING || phase == Phase.BAILING) {
+            // Only the session owner holds audio focus; the other player must follow its focus state too.
+            val owner = if (handedOff) incoming else outgoing
+            val held = owner?.playbackSuppressionReason?.let(::heldByTransientFocusLoss) == true
+            if (held && phase == Phase.FADING) bail()
             if (handedOff) {
-                outgoing?.playWhenReady = incoming?.playWhenReady ?: true
+                outgoing?.playWhenReady = !held && (incoming?.playWhenReady ?: true)
             } else {
-                outgoing?.playWhenReady?.let { incoming?.playWhenReady = it }
+                outgoing?.playWhenReady?.let { incoming?.playWhenReady = it && !held }
             }
         }
 
@@ -761,3 +765,7 @@ class CrossfadeController(
 
     }
 }
+
+/** A call, assistant or other app took audio focus for a moment: the owner is held, so nothing of the blend may play. */
+internal fun heldByTransientFocusLoss(suppressionReason: Int): Boolean =
+    suppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS
