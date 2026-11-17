@@ -2,6 +2,24 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
+## 1.0.1
+
+Android version code 2.
+
+### Privacy Connection
+
+- **Android:** Orbot is detected when it is already running. nuvx asked Orbot for its status in a way Orbot never answers, so the connection only succeeded if Orbot happened to change state while nuvx was listening. nuvx now asks with Orbot's start request, which Orbot answers with its status and SOCKS port, and if Orbot does not answer (its "allow background starts" is off) nuvx still uses a Tor that is running on port 9050. A real request through Tor must pass before anything is sent.
+- **Android:** Privacy Connection now lives under **Settings → Network**, and a **Restart now** row applies a changed mode in one tap.
+- **Desktop:** a Tor started after nuvx is found by itself. nuvx used to remember "no Tor" from start-up until **Find Tor** was pressed, so it stayed offline. The Tor check also tolerates whitespace in the Tor Project's reply.
+
+### Playback
+
+- **Android:** a failed song is retried after 350 ms and then 700 ms, not twice after 350 ms, so a brief network drop can recover.
+
+### Playlists
+
+- **Android:** export a playlist as an M3U file from its menu (**Export playlist**).
+
 ## 1.0.0
 
 ### Android release

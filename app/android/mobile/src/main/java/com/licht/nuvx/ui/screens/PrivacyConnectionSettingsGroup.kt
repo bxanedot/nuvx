@@ -50,7 +50,6 @@ internal fun PrivacyConnectionSettingsGroup(search: SettingsSearch) {
     )
     val footer = buildString {
         append(stringResource(R.string.privacy_connection_footer))
-        if (saved != PrivacyNetwork.activeMode) append("\n\n").append(stringResource(R.string.privacy_restart_needed))
         if (PrivacyNetwork.activeMode != PrivacyMode.OFF && !PrivacyNetwork.webViewCovered) {
             append("\n\n").append(stringResource(R.string.privacy_webview_uncovered))
         }
@@ -66,6 +65,23 @@ internal fun PrivacyConnectionSettingsGroup(search: SettingsSearch) {
                 onSelect = { index -> PrivacyNetwork.setMode(context, modes[index]) },
                 modifier = Modifier.padding(start = TEXT_INSET, end = ROW_INSET, bottom = 14.dp),
             )
+        }
+        if (saved != PrivacyNetwork.activeMode) {
+            val restartTitle = stringResource(R.string.restart_now)
+            row(restartTitle, "restart", "apply", "tor", "orbot") {
+                SettingsRow(
+                    icon = SfIcons.Refresh,
+                    title = restartTitle,
+                    subtitle = stringResource(R.string.privacy_restart_needed),
+                    onClick = {
+                        // The mode is read once at start-up (see PrivacyNetwork), so applying it means a fresh process.
+                        context.packageManager.getLaunchIntentForPackage(context.packageName)?.component?.let {
+                            context.startActivity(android.content.Intent.makeRestartActivityTask(it))
+                            Runtime.getRuntime().exit(0)
+                        }
+                    },
+                )
+            }
         }
         if (PrivacyNetwork.activeMode != PrivacyMode.OFF) {
             val statusTitle = stringResource(R.string.privacy_status)

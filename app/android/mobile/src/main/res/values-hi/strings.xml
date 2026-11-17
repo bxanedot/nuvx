@@ -1451,4 +1451,6 @@
     <string name="nightly_updates_subtitle">टेस्ट बिल्ड प्रकाशित होते ही पाएँ। डिफ़ॉल्ट रूप से बंद; बंद होने पर nuvx केवल स्थिर रिलीज़ सुझाता है।</string>
     <string name="playlist_deleted">“%1$s” मिटाई गई</string>
     <string name="export_playlist">प्लेलिस्ट एक्सपोर्ट करें</string>
+    <string name="network">नेटवर्क</string>
+    <string name="restart_now">अभी रीस्टार्ट करें</string>
 </resources>
