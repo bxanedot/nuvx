@@ -1,43 +1,61 @@
 # Nuvx master plan
 
-The one handoff document for this programme. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md).
+The one handoff document for this programme. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md). The repository audit lives in [`audits/FULL_REFACTOR_AUDIT.md`](audits/FULL_REFACTOR_AUDIT.md).
 
-## Open pull requests
+## Released
 
-Merged on 2026-11-17: 283, 284, 285, 286, 288, 289, 301, 303, and the web and Worker dependency updates 291, 296, 299.
+**nuvx 1.0.0** (licht line), published 2026-11-17 from `6d3126e6`. It ships 12 files: phone, TV, Auto and Wear APKs signed with the `CN=licht` key (SHA-256 `833677fb…`), the Windows installer, the Linux `.tar.gz`, one universal macOS `.dmg`, the Chrome and Firefox extensions, and `SHA256SUMS`. The website's download routes, old `mac-arm`, `mac-intel` and `foss` links included, resolve to these files; this was checked by running `core/website/api/download.js` against the published asset list. All older releases are pre-releases named "old nuvx build …", and the old 1.0.0 is at `old-nuvx-v1.0.0`.
 
-| Branch | What | Evidence |
+## Merged on 2026-11-17
+
+| PR | What |
+|---|---|
+| 283, 288 | Listen Together: a rejoin needs the seat's token; only YouTube image hosts are relayed as thumbnails |
+| 284 | Nuvx Sync API and the manual Oracle deployment workflow (not deployed) |
+| 285, 289, 301 | Android: external shuffle, reduced motion for symbol animations, nuvx playlist menu |
+| 286, 303 | This plan and the audit matrix; Ponytail enabled |
+| 291, 296, 299, 304 | Dependency updates; 304 also carries the licht 1.0.0 line, the Nightly updates switch and the launch-crash fix |
+| 305 | Audit fixes: presence indexes, Sync size cap and paged export, canvas no-overwrite, updater SHA-256 check, private canvas lookup, download counter, the old-releases workflow removed; desktop quality badge read from the file |
+| 306 | Android downloads resume after the app is killed |
+| 307 | Android holds a Wi-Fi lock while streaming |
+| 308 | Audit notes: desktop audio, web player, iOS sign-in storage and the Discord bot are healthy |
+| 309 | Android backups include nuvx playlists |
+| 310 | Desktop retries a song once on a network blip |
+| 311 | Android refuses to download with under 500 MB free |
+
+## Open
+
+| PR | What | State |
 |---|---|---|
-| `claude/brave-bohr-qzzh9m` | Licht 1.0.0: the candidate branch, current `main`, the Nightly updates switch and update chain (from 302), one universal macOS image, the contact email, the launch-crash fix and the desktop/Android dependency updates (from 304). Held: merging to `main` starts a release. | see the PR description |
-
-PRs 287, 302 and 304 are folded into that branch.
-
-## Baseline on `main` at `e1cafdb`
-
-Desktop 219 pass, 27 ignored. Android phone 1,343 pass, 1 skipped. Web 240 and 2 pass. Worker 27 pass. Shared Kotlin suites pass. CI: the Swift app builds on Mac runners; the "Apple builds" workflow can show red when the Apple silicon runner waits out its 15 minute limit; nightly release run 200 failed at the macOS installer upload with "release not found" and its root cause is not established.
+| 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android; the same morph on iOS and web; per-device equalizer on Android; undo after deleting a nuvx playlist | Android 1,361 tests and web 241 pass; the iOS build is re-running after a fix |
 
 ## Waiting on the owner
 
-1. **Oracle server preparation** (admin, once): enable lingering for `nuvxdeploy`, install Caddy, open ports 80 and 443. Steps in `ORACLE_DEPLOYMENT.md` (PR 284). Then the workflow's `check` action.
+1. **Oracle server preparation** (admin, once): enable lingering for `nuvxdeploy`, install Caddy, open ports 80 and 443. Steps in `ORACLE_DEPLOYMENT.md`. Then the workflow's `check` action.
 2. **Sync host name**, and whether off-server backups may run on a schedule. The `backup` action needs a `NUVX_BACKUP_PASSPHRASE` secret.
-3. **Redeploy the Cloudflare Worker** after PRs 283 and 288 merge. Neither fix is live until then.
-4. **Rename leftovers:** the new Worker address (16 references), profile links, contact email.
-5. **GlyphStudio dependency**, see below.
-
-## GlyphStudio (read 2026-11-16)
-
-- The repository is now `lylicht/GlyphStudio`, Apache-2.0, with a Compose Multiplatform library (`com.composables.sfsymbols`) for Android, desktop, iOS and web. Latest release is `v2.0.0`. Nuvx pins `v1.0.0` in `core/sharedUi/build.gradle.kts` under the repository's old JitPack group. Whether JitPack serves the group under the new owner name is unchecked.
-- The library has no reduced-motion handling, so every call site must gate itself. Nuvx has three animated call sites on Android: tab icon bounce, reveal bounce (already gated), and the two Radio screen indicators. The tab bounce and the Radio indicators were not gated; the next PR fixes that.
-- **Legal question for the maintainer, not decided:** the library states that SF Symbols are Apple's property, to be used under Apple's terms and not in app icons or logos. Android and desktop builds ship those glyphs. Apple's current terms need a read to confirm that is permitted, or those platforms need a different icon set.
-- Not started: the central icon registry, other-platform adapters, visual and animation-state tests.
+3. **Redeploy the Cloudflare Worker.** The Listen Together fixes (283, 288) and the presence indexes (305) are not live until then.
+4. **GlyphStudio `lylicht` JitPack build:** v2.0.0 ran out of memory on JitPack. GlyphStudio needs `org.gradle.jvmargs=-Xmx4g` in `gradle.properties` and a new tag. Until then nuvx uses the `bxanedot` build of v2.0.0.
+5. **Licensing:**
+   - The owner chose GlyphStudio's SF Symbols on every platform, knowing Apple licenses them for Apple platforms.
+   - Separately, the desktop bundles Apple's SF Pro Display font files, which Apple's font license does not allow redistributing. That one is not decided. See `architecture/ICONS.md`.
+6. **Canvas repository** (optional): create a separate repository for community canvases so uploads stop growing the code repository.
 
 ## Next, in order
 
-1. Read the "Investigate" rows of the audit: download durability, gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
-2. First sync client, off by default: operation kinds and schemas for playlists, favorites and settings, with one fixture every client replays.
-3. Nuvx Connect on top of QR pairing: one playback owner, remote control, handoff.
-4. Run Ponytail's repository audit per subsystem and record it. Ponytail 5.3.3 is installed and its rules were applied to the changes above, but the full audit has not been run. Size for planning: web about 590k lines including vendored code, desktop 187k, iOS 140k, Android 138k, Apple core 78k.
-5. Playlist import and export, history and restore, Smart Offline, audio profiles, diagnostics export.
+1. Merge 312 once the iOS build passes.
+2. **Remaining audit:**
+   - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
+   - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
+3. **First Sync client**, off by default: operation kinds for playlists, favorites and settings, one fixture every client replays. It needs the Oracle server (item 1 above) to test end to end.
+4. **Nuvx Connect** on top of QR pairing: one playback owner, remote control, handoff.
+5. **Smart Offline:**
+   - done: resume after a kill, a 500 MB floor;
+   - left: a user-set quota and auto-download of chosen playlists.
+6. **Remaining features:**
+   - Privacy & Data Center (devices and sessions once Sync exists);
+   - M3U/CSV/JSON playlist export;
+   - diagnostics export.
+7. **Visual regression tests** (Roborazzi or Paparazzi) for the icon registry and the main screens.
 
 ## Decisions that need evidence and approval first
 
@@ -47,7 +65,3 @@ Desktop 219 pass, 27 ignored. Android phone 1,343 pass, 1 skipped. Web 240 and 2
 - **Design system and per-device-class specifications.** Not started; representative screens need the maintainer's sign-off first.
 
 No major migration is started without approval.
-
-## Not started
-
-The repository-wide refactor, performance baselines, visual regression tests, SBOM and release signing, and every feature in the brief not listed above.
