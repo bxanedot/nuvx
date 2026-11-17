@@ -351,6 +351,11 @@
     animation: nuvx-flow-b 26s cubic-bezier(0.42, 0, 0.58, 1) infinite alternate;
   }
 
+  html:has(.nuvx-ambient[data-motion-paused])::before,
+  html:has(.nuvx-ambient[data-motion-paused])::after {
+    animation-play-state: paused;
+  }
+
   @keyframes nuvx-flow-a {
     0% { transform: translate3d(-7%, -4%, 0) scale(0.94) rotate(-6deg); }
     50% { transform: translate3d(6%, 5%, 0) scale(1.08) rotate(7deg); }
