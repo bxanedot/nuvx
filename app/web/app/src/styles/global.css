@@ -299,7 +299,6 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     overscroll-behavior: none;
-    filter: grayscale(1);
   }
 
   .app-licht-signature {
