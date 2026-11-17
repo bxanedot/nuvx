@@ -10,9 +10,9 @@ The one handoff document for this programme. The owner's standing instructions a
 
 ## Session handoff (2026-11-17, Phase 0 baseline)
 
-- **Repository:** `bxanedot/nuvx` and `bxanedot/GlyphStudio` now redirect to `lylicht/nuvx` and `lylicht/GlyphStudio`. They are the same repositories.
+- **Repository:** `bxanedot/nuvx` redirects to `lylicht/nuvx`; SFStudio is now `lylicht/SFStudio`. They are the same repositories.
 - **Local checkouts:** the shared object store under `Codex/2026-11-15/hi-2/work/nuvx/.git` is corrupt (missing objects, so `git fetch` and `git log` fail). Work from a fresh clone instead (this session used `Codex/nuvx-phase0/nuvx`).
-- **Already in place, so not redone:** the Oracle deploy workflow (`sync-deploy.yml`, manual only, never run against the server), the Sync server (`core/sync`), the GlyphStudio v2 icon registry, and the Ponytail plugin.
+- **Already in place, so not redone:** the Oracle deploy workflow (`sync-deploy.yml`, manual only, never run against the server), the Sync server (`core/sync`), the SFStudio v2 icon registry, and the Ponytail plugin.
 
 ### Test baseline on the owner's Windows machine, 2026-11-17, `main` at `9abbddba`
 
@@ -51,7 +51,7 @@ The one handoff document for this programme. The owner's standing instructions a
 | 309 | Android backups include nuvx playlists |
 | 310 | Desktop retries a song once on a network blip |
 | 311 | Android refuses to download with under 500 MB free |
-| 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android, the same morph on iOS and web; per-device equalizer; undo after deleting a nuvx playlist; redacted diagnostics on Android, iOS and desktop |
+| 312 | SFStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android, the same morph on iOS and web; per-device equalizer; undo after deleting a nuvx playlist; redacted diagnostics on Android, iOS and desktop |
 | 315 | Android, shared Kotlin and web tests run on every pull request that touches them |
 | 316 | Desktop tests run on Linux and Windows for every pull request that touches `app/desktop` |
 | 318 | yt-dlp on Windows with a bad PATH folder: a PATH folder Windows cannot resolve no longer skips every song that needs yt-dlp (BitChord-PC PR 13 equivalent). |
@@ -59,11 +59,11 @@ The one handoff document for this programme. The owner's standing instructions a
 | 320 | Worker: `counts()` reuses its answer for 5 s (cleared on every ping and party update), so a stats or badge request loop no longer runs DELETEs on the one Presence object. Needs a Worker redeploy (owner item 3). |
 | 321 | Sync transport client (`core/shared/.../data/sync/SyncClient.kt`): push batches under server limits, pull pages, retry-or-stop results, bounded backoff. Not wired into any app yet. |
 | 322 | Android: export a nuvx playlist as CSV (formula-safe), label in all 20 locales. |
+| 317 | Sync pairing: the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. |
 | 313 | Icon render and animation-state tests; web signature code in an isolated worker; JitPack limited to `com.github.*`; shared sync replay rules with a fixture; crossfade timing tests; Android playlist export as M3U; security, platform, testing, release and decision docs |
 
 ## Open
 
-- **Sync pairing hardening** (PR 317): the first approval of a pairing code wins (a second space got to overwrite it and take the device), and the 20-device cap is checked again at claim. 11 Sync tests pass.
 - **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
 - Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
 - **Dependabot alert 1 (high, `picomatch` ReDoS, `app/web`)**: comes only from build and test tools (vite, vitest, wxt, unimport, tinyglobby), not the shipped web app or extension. No patched version yet; update when one exists.
@@ -89,9 +89,9 @@ Next session, in order: wire `SyncClient` into Android behind an off-by-default 
 1. **Oracle server preparation** (admin, once): enable lingering for `nuvxdeploy`, install Caddy, open ports 80 and 443. Steps in `ORACLE_DEPLOYMENT.md`. Then the workflow's `check` action.
 2. **Sync host name**, and whether off-server backups may run on a schedule. The `backup` action needs a `NUVX_BACKUP_PASSPHRASE` secret.
 3. **Redeploy the Cloudflare Worker.** The Listen Together fixes (283, 288) and the presence indexes (305) are not live until then.
-4. **GlyphStudio `lylicht` JitPack build:** v2.0.0 ran out of memory on JitPack. GlyphStudio needs `org.gradle.jvmargs=-Xmx4g` in `gradle.properties` and a new tag. Until then nuvx uses the `bxanedot` build of v2.0.0.
+4. **SFStudio JitPack release:** SFStudio now sets `org.gradle.jvmargs=-Xmx6656m`, but `lylicht/SFStudio` has only tag `v1.0.0` and no JitPack build (checked 2026-11-17). Tag a release at or after the v2.0.0 API; then nuvx can switch to `com.github.lylicht:SFStudio`. Until then it uses the `bxanedot` build of v2.0.0.
 5. **Licensing:**
-   - The owner chose GlyphStudio's SF Symbols on every platform, knowing Apple licenses them for Apple platforms.
+   - The owner chose SFStudio's SF Symbols on every platform, knowing Apple licenses them for Apple platforms.
    - Separately, the desktop bundles Apple's SF Pro Display font files, which Apple's font license does not allow redistributing. That one is not decided. See `architecture/ICONS.md`.
 6. **Canvas repository** (optional): create a separate repository for community canvases so uploads stop growing the code repository.
 

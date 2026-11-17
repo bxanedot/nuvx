@@ -72,7 +72,7 @@ The rebranded v1.0.0 release provides one APK each for Android phone/tablet, TV,
 
 Batch downloads on Android, iOS, and desktop resolve YouTube stream URLs one at a time to reduce request bursts; audio file transfers can still run concurrently. If YouTube temporarily refuses a track, wait a moment and retry.
 
-iOS feature parity is partial: the iPhone app uses native SF Symbols and app-owned vectors instead of Android's GlyphStudio runtime, and does not yet include Android's eXcor playback fallback. See the [platform parity notes](app/ios/docs/ANDROID_PARITY.md) for the known differences and verification limits.
+iOS feature parity is partial: the iPhone app uses native SF Symbols and app-owned vectors instead of Android's SFStudio runtime, and does not yet include Android's eXcor playback fallback. See the [platform parity notes](app/ios/docs/ANDROID_PARITY.md) for the known differences and verification limits.
 
 Playlist creation defaults to YouTube Music. To keep newly created playlists inside nuvx, turn on **Create Playlists in Nuvx Only** in Settings (Content Preferences on Android and Apple, Account & Integrations on desktop). The web setting is stored in that browser. Local playlists stay on the current device and do not sync with YouTube Music or other nuvx installs. Desktop's separate Spotify Transfer action still copies to its explicitly chosen YouTube Music destination.
 
