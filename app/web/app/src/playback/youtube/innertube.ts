@@ -2,6 +2,7 @@ import type { Innertube, Types } from 'youtubei.js/web';
 import { getBridge } from '@/extension/bridge';
 import { ensureYtAuth, identityOf, noteMusicIdentity } from '@/extension/useYtAuth';
 import { trackLog } from '../trackLog';
+import { createIsolatedEval } from './isolatedEval';
 
 let instance: Promise<Innertube> | null = null;
 
@@ -112,6 +113,10 @@ async function isFirstRun(): Promise<boolean> {
   }
 }
 
+const isolatedEval = createIsolatedEval(
+  () => new Worker(new URL('./decipher.worker.ts', import.meta.url), { type: 'module' }),
+);
+
 async function create(fetch: typeof globalThis.fetch = simpleRequestFetch): Promise<Innertube> {
   const started = performance.now();
   const { Innertube, Platform, UniversalCache } = await import('youtubei.js/web');
@@ -120,7 +125,7 @@ async function create(fetch: typeof globalThis.fetch = simpleRequestFetch): Prom
     const properties: string[] = [];
     if (env.n) properties.push(`n: exportedVars.nFunction(${JSON.stringify(env.n)})`);
     if (env.sig) properties.push(`sig: exportedVars.sigFunction(${JSON.stringify(env.sig)})`);
-    return new Function(`${data.output}\nreturn { ${properties.join(', ')} }`)();
+    return (await isolatedEval(`${data.output}\nreturn { ${properties.join(', ')} }`)) as Record<string, Types.VMPrimative>;
   };
 
   const firstRun = await isFirstRun();
