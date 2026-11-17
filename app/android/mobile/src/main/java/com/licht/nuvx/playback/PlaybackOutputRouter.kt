@@ -107,6 +107,7 @@ internal class PlaybackOutputRouter(
 
         val activeDevice = resolveActiveOutputDevice()
         val routeKind = resolveActiveRouteKind(activeDevice)
+        AppSettings.onOutputDevice(activeDevice?.let { "${it.type}:${it.productName}" } ?: "phone")
 
         val format = currentAudioInputFormat
         val measured by lazy(LazyThreadSafetyMode.NONE) { format?.measure() }
