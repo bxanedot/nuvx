@@ -19,6 +19,9 @@
   pointer-events: none;
 }
 
+body > main { position: relative; z-index: 1; }
+body > .licht-signature-corner { z-index: 2; }
+
 .nuvx-ambient::before,
 .nuvx-ambient::after {
   content: "";
@@ -47,6 +50,11 @@
 
 .nuvx-ambient[data-motion-paused]::before,
 .nuvx-ambient[data-motion-paused]::after {
+  animation-play-state: paused;
+}
+
+body:has(.ambient-pause input:checked) .nuvx-ambient::before,
+body:has(.ambient-pause input:checked) .nuvx-ambient::after {
   animation-play-state: paused;
 }
 
