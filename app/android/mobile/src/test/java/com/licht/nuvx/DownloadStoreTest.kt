@@ -241,4 +241,19 @@ class DownloadStoreTest {
         assertNull(Downloads.estimatedKbps(9_600_000, null))
         assertNull(Downloads.estimatedKbps(9_600_000, 0))
     }
+
+    @Test
+    fun startingADownloadSweepsOnlyStalePartFiles() {
+        val folder = kotlin.io.path.createTempDirectory("nuvx-parts").toFile()
+        val now = 10_000_000_000L
+        fun file(name: String, ageMs: Long) = java.io.File(folder, name).apply { writeText("x"); setLastModified(now - ageMs) }
+        val stale = file(".Song.flac.1234.part", 2 * 60 * 60 * 1000L)
+        val running = file(".Other.flac.5678.part", 60_000L)
+        val song = file("Song.flac", 5 * 60 * 60 * 1000L)
+        DownloadStore.sweepStaleParts(folder, now)
+        assertFalse(stale.exists())
+        assertTrue(running.exists())
+        assertTrue(song.exists())
+        folder.deleteRecursively()
+    }
 }

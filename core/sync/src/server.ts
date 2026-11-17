@@ -9,6 +9,7 @@ const MAX_BODY = 256 * 1024;
 const MAX_OPS_PER_PUSH = 200;
 const MAX_OP_BYTES = 32 * 1024;
 const MAX_OPS_PER_SPACE = 200_000;
+const MAX_BYTES_PER_SPACE = 20 * 1024 * 1024;
 const MAX_DEVICES = 20;
 const PULL_LIMIT = 500;
 const PAIRING_TTL_MS = 2 * 60_000;
@@ -157,8 +158,11 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now) {
         if (!opId || !kind || !entity || payload.length > MAX_OP_BYTES) return fail(422, "invalid_op", "Each op needs id, kind, entity and a payload under 32 KB.");
         rows.push({ opId, kind, entity, payload, clientMs: typeof raw.clientMs === "number" && Number.isFinite(raw.clientMs) ? Math.trunc(raw.clientMs) : now() });
       }
-      const stored = (db.prepare("SELECT COUNT(*) AS n FROM ops WHERE space_id = ?").get(space) as { n: number }).n;
-      if (stored + rows.length > MAX_OPS_PER_SPACE) return fail(413, "space_full", "This space has reached its operation limit. Export and reset it.");
+      const stored = db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(length(payload)), 0) AS bytes FROM ops WHERE space_id = ?").get(space) as { n: number; bytes: number };
+      const adding = rows.reduce((sum, r) => sum + r.payload.length, 0);
+      if (stored.n + rows.length > MAX_OPS_PER_SPACE || stored.bytes + adding > MAX_BYTES_PER_SPACE) {
+        return fail(413, "space_full", "This space has reached its storage limit. Export and reset it.");
+      }
       // Idempotent: a retried op keeps its first sequence number, so a replayed push changes nothing.
       const insert = db.prepare("INSERT OR IGNORE INTO ops (space_id, op_id, device_id, kind, entity, payload, client_ms, server_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
       const seqOf = db.prepare("SELECT seq FROM ops WHERE space_id = ? AND op_id = ?");
@@ -175,9 +179,10 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now) {
         throw error;
       }
     }
+    // Export pages like a pull (follow "more" with ?after=), so a full space never sits in memory at once.
     if (route === "GET /v1/ops" || route === "GET /v1/export") {
-      const after = route === "GET /v1/ops" ? Math.max(0, Number(query.get("after")) || 0) : 0;
-      const limit = route === "GET /v1/ops" ? PULL_LIMIT : MAX_OPS_PER_SPACE;
+      const after = Math.max(0, Number(query.get("after")) || 0);
+      const limit = PULL_LIMIT;
       const ops = (db.prepare("SELECT seq, op_id AS id, device_id AS deviceId, kind, entity, payload, client_ms AS clientMs, server_ms AS serverMs FROM ops WHERE space_id = ? AND seq > ? ORDER BY seq LIMIT ?")
         .all(space, after, limit) as { payload: string }[]).map((op) => ({ ...op, payload: JSON.parse(op.payload) }));
       return { status: 200, body: { api: API_VERSION, ops, more: ops.length === limit } };

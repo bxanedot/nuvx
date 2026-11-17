@@ -132,6 +132,12 @@ impl Shared {
         shared
     }
 
+    /// The first `max` bytes if the first block is downloaded, without touching download priorities.
+    pub fn head(&self, max: usize) -> Vec<u8> {
+        let inner = self.inner.lock().unwrap();
+        inner.blocks.first().and_then(|b| b.as_ref()).map_or_else(Vec::new, |b| b[..b.len().min(max)].to_vec())
+    }
+
     pub fn bytes(&self) -> Option<Vec<u8>> {
         let inner = self.inner.lock().unwrap();
         let mut out = Vec::with_capacity(self.total as usize);

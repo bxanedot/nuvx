@@ -311,6 +311,12 @@ impl Updater {
             }
             std::fs::rename(&part, &path)?;
         }
+        if let Some(want) = asset["digest"].as_str().and_then(|d| d.strip_prefix("sha256:")) {
+            if !sha256_matches(&path, want)? {
+                let _ = std::fs::remove_file(&path);
+                anyhow::bail!("download of {version} is damaged (SHA-256 mismatch)");
+            }
+        }
         if let Ok(rd) = std::fs::read_dir(&self.dir) {
             for e in rd.flatten() {
                 let p = e.path();
@@ -490,13 +496,30 @@ fn run_detached(script: &str) {
     }
 }
 
+// GitHub lists each asset's SHA-256 as "digest"; older assets have none, and then only the size is checked.
+fn sha256_matches(path: &Path, want_hex: &str) -> anyhow::Result<bool> {
+    use sha2::Digest;
+    let mut hasher = sha2::Sha256::new();
+    std::io::copy(&mut std::fs::File::open(path)?, &mut hasher)?;
+    Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>().eq_ignore_ascii_case(want_hex))
+}
+
 fn client() -> anyhow::Result<reqwest::Client> {
     Ok(crate::proxy::apply(reqwest::Client::builder()).user_agent(concat!("nuvx/", env!("CARGO_PKG_VERSION"))).connect_timeout(std::time::Duration::from_secs(10)).read_timeout(std::time::Duration::from_secs(30)).build()?)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{asset_name_for, compare_release_order, is_old_build, newer};
+    use super::{asset_name_for, compare_release_order, is_old_build, newer, sha256_matches};
+
+    #[test]
+    fn sha256_check_accepts_the_right_file_only() {
+        let path = std::env::temp_dir().join("nuvx-sha256-check");
+        std::fs::write(&path, b"abc").unwrap();
+        assert!(sha256_matches(&path, "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD").unwrap());
+        assert!(!sha256_matches(&path, "0000000000000000000000000000000000000000000000000000000000000000").unwrap());
+        let _ = std::fs::remove_file(&path);
+    }
 
     fn release_is_newer(a: &str, b: &str, c: &str, d: &str, e: &str, f: &str) -> bool {
         super::release_is_newer(a, b, c, d, e, f, e.starts_with("nightly."))

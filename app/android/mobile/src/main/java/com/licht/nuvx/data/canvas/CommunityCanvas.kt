@@ -1,11 +1,9 @@
 package com.licht.nuvx.data.canvas
 
 import com.licht.nuvx.data.DebugLog as Log
-import com.licht.nuvx.data.Http
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.Request
 
 object CommunityCanvas {
 
@@ -19,7 +17,9 @@ object CommunityCanvas {
     @Volatile private var fetchedAtMs = 0L
 
     fun search(videoId: String, title: String, artist: String): CanvasArtwork? {
-        val id = videoId.takeIf { it.isNotBlank() && exists(it) } ?: index()[key(title, artist)] ?: return null
+        // Look the song up in the downloaded list; asking the server per song would reveal every play.
+        val index = index()
+        val id = videoId.takeIf { it.isNotBlank() && index.containsValue(it) } ?: index[key(title, artist)] ?: return null
         Log.d(TAG, "community canvas $id for '$title'")
         return CanvasArtwork(url = "$ORIGIN/$id.mp4", title = title, artist = artist)
     }
@@ -28,11 +28,6 @@ object CommunityCanvas {
         fun clean(value: String) = value.trim().replace(Regex("\\s+"), " ").lowercase()
         return "${clean(title)}|${clean(artist).replace(Regex(" - topic$", RegexOption.IGNORE_CASE), "")}"
     }
-
-    private fun exists(id: String): Boolean = runCatching {
-        Http.client.newCall(Request.Builder().url("$ORIGIN/$id.mp4").head().build()).execute()
-            .use { it.isSuccessful }
-    }.getOrDefault(false)
 
     @Synchronized
     private fun index(): Map<String, String> {
