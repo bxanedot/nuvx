@@ -13,7 +13,7 @@ Priority: P0 security or data loss, P1 wrong behavior users hit, P2 reliability 
 | BitChord issue 1662, Automix decks | Open | Loop mixes always time out to crossfade | Not checked | `CrossfadeLoopPlanner`, `CrossfadeLoopMixController` exist | P2 | Investigate | Planner unit test |
 | BitChord-PC issue 20, PipeWire 44.1 kHz | Open | Output opened once at 44.1 kHz, everything resampled | Partly | `audio/output.rs` opens the device at its default config and reads the rate back; it does not follow the track's rate | P2 | Investigate | `pw-top` on Linux |
 | BitChord-PC issue 25, CJK fonts | Open | CJK text shows empty boxes on Linux | Likely no | `theme/fonts.rs` loads Noto CJK from standard paths | P3 | None unless reported | Screenshot on a distro without Noto |
-| BitChord-PC PR 13, Windows PATH | Open | yt-dlp fails on unusable PATH entries | Not checked | `ytdlp.rs` spawns with the inherited environment | P2 | Investigate | Windows only |
+| BitChord-PC PR 13, Windows PATH | Closed | yt-dlp fails on unusable PATH entries (WinError 448) | **Yes** | `ytdlp.rs` passed the inherited PATH and `--js-runtimes node`, so yt-dlp ran `realpath` on every folder | P2 | **Fixed**: child PATH keeps only folders that resolve, original spelling | `cargo test ytdlp` |
 | BitChord-PC PR 17, WASAPI exclusive | Open | Feature: bit-perfect Windows output | n/a | Not present on desktop | P3 | Candidate feature | Needs Windows and a DAC |
 | BitChord-PC PR 24, MPRIS | Open, no description | Volume, seek, two-way sync | Not checked | No `mpris` string under `app/desktop/src`; media keys live in `media.rs` | P2 | Investigate | `playerctl` on Linux |
 | Hi-Res addon | No license | Provider adapters with failover | Concept only | nuvx has `hires/`, `SourceRegistry`, source fallback | P3 | Do not reuse code; quality labels must come from the decoded stream | n/a |
@@ -24,7 +24,7 @@ Priority: P0 security or data loss, P1 wrong behavior users hit, P2 reliability 
 | Vivi PR 772, double unbind crash | Open | `unbindService` twice on exit | **No** | No `unbindService` call in the phone app | n/a | Reject | grep |
 | Vivi PR 938, SAF downloads | Open, stale | Download to a user folder | n/a | Feature idea | P3 | Candidate for Smart Offline | n/a |
 | Metrolist issue 4763, offload deadlock | Closed, reporter says not fixed | Sink sleeps for offload and never wakes | **No** | No audio offload use in `playback/` | n/a | Reject | grep |
-| Metrolist PR 4814, gapless | Open, review findings unresolved | Second player leaves a gap | Not checked | nuvx uses two players for crossfade; gapless path unread | P1 | Investigate | Gap measurement test |
+| Metrolist PR 4814, gapless | Open, review findings unresolved | Second player leaves a gap | **No** | With crossfade and Smart Fade off, `CrossfadeTransitionPlanner.planAutoTransition` returns before any second player, so ExoPlayer's own playlist (gapless) advances | n/a | None | A measured gap test on a device would still be good |
 | Metrolist PR 4615, WebView leak | Merged | New hidden WebView per token reset, 300 MB each on Linux | Possible | Desktop builds WebViews in `turnstile.rs` and `login.rs`; reuse unread | P2 | Investigate | Process count across resets |
 
 ## The older BitChord feature list
