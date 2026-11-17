@@ -590,4 +590,30 @@ mod tests {
         assert!(!is_old_build(Some("Golden hour"), "v1.0.1", false));
         assert!(!is_old_build(None, "v1.0.0", false));
     }
+
+    // Mirrors Updater::run's selection: keep the newer releases, take the best by compare_release_order.
+    fn offer<'a>(feed: &[(&'a str, &'a str, &'a str)], installed: (&str, &str, &str), nightly: bool) -> Option<&'a str> {
+        feed.iter()
+            .filter(|(v, tag, time)| super::release_is_newer(v, tag, time, installed.0, installed.1, installed.2, nightly))
+            .max_by(|a, b| compare_release_order(a.0, a.1, a.2, b.0, b.1, b.2))
+            .map(|r| r.1)
+    }
+
+    #[test]
+    fn stable_then_nightlies_then_a_new_stable() {
+        let s100 = ("1.0.0", "v1.0.0", "2026-11-10T00:00:00Z");
+        let n121 = ("1.0.0-nightly.121.1", "nightly.121.1", "2026-11-11T00:00:00Z");
+        let n122 = ("1.0.0-nightly.122.1", "nightly.122.1", "2026-11-12T00:00:00Z");
+        let s101 = ("1.0.1", "v1.0.1", "2026-11-13T00:00:00Z");
+        let s120 = ("1.2.0", "v1.2.0", "2026-11-14T00:00:00Z");
+        assert_eq!(offer(&[s100, n121], s100, true), Some("nightly.121.1"));
+        assert_eq!(offer(&[s100, n121, n122], n121, true), Some("nightly.122.1"));
+        assert_eq!(offer(&[s100, n121, n122], n122, true), None);
+        assert_eq!(offer(&[s100, n121, n122], s100, false), None);
+        assert_eq!(offer(&[s100, n121, n122], n121, false), None);
+        for nightly in [true, false] {
+            assert_eq!(offer(&[s100, n121, n122, s101, s120], n122, nightly), Some("v1.2.0"));
+        }
+        assert_eq!(offer(&[n122, s101], s100, true), Some("v1.0.1"));
+    }
 }
