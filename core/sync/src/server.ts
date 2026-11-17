@@ -2,6 +2,8 @@
 // No dependencies: node:http and node:sqlite. Binds to loopback; TLS is the reverse proxy's job.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 export const API_VERSION = 1;
@@ -246,11 +248,11 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now, maxDbB
   return { server, handle };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const db = openDb(process.env.NUVX_SYNC_DB ?? "nuvx-sync.db");
   const port = Number(process.env.NUVX_SYNC_PORT ?? 8787);
   const { server } = createApp(db);
   server.maxConnections = 200;
-  server.listen(port, "127.0.0.1", () => console.log(`nuvx-sync listening on 127.0.0.1:${port}`));
+  server.listen(port, "127.0.0.1", () => console.log(`nuvx-sync listening on 127.0.0.1:${(server.address() as AddressInfo).port}`));
   process.on("SIGTERM", () => server.close(() => { db.close(); process.exit(0); }));
 }
