@@ -39,6 +39,15 @@ Ponytail audit, run 2026-11-17 on `main` at `f1e655b1` (licht 1.0.0). Assumed lo
 | Skip silence | Off by default; uses Media3's default threshold. Whether it trims quiet intros (vivi #1055) needs listening on a device |
 | Desktop quality badge | **Fixed:** Lossless and Hi-Res came from the addon's label; codec and bit depth now come from the file's first bytes |
 
+## Desktop audio, web player, Discord bot (read 2026-11-17)
+
+| Area | Result |
+|---|---|
+| Desktop output device loss (`audio/engine.rs`, `audio/output.rs`) | Healthy: reopens the default device, pauses when the device changed, retries at most once a second |
+| Web video player (`playback/youtube/videoDeck.ts`) | Healthy: one Shaka player for the page's lifetime, unloaded between videos; retries capped at 2 |
+| iOS sign-in storage (`core/apple/src/App/Keychain.swift`) | Healthy: session and account in the Keychain with `AfterFirstUnlockThisDeviceOnly` (not in iCloud or backups, still readable for background playback); WebDAV password and lyric keys also in the Keychain |
+| Discord bot (`core/discord-bot`) | Healthy: `yt-dlp` runs without a shell, searches are prefixed `ytsearch1:` so they cannot become options, links must be YouTube https URLs, 20 s timeout and 2 MB output cap |
+
 ## Not read yet
 
-Android playback service internals (crossfade, focus, output routing), the iOS app, the desktop audio engine and UI, the web player, the Discord bot, native C/C++ and Gradle build scripts. These hold most of the code; playback and download reliability need device testing. Next audits go one subsystem at a time, in that order.
+Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle build scripts. These hold most of the code; playback and download reliability need device testing. Next audits go one subsystem at a time, in that order.
