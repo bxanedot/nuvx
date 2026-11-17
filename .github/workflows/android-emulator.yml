@@ -1,0 +1,78 @@
+name: Android emulator
+
+# The phone app on a real Android emulator: install, launch, no crash, then the
+# instrumented tests (androidTest). Too slow for every pull request, so it runs
+# weekly, by hand, and on pull requests that change this check itself.
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/android-emulator.yml"
+      - "scripts/android-launch-smoke.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-emulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - uses: android-actions/setup-android@v4.0.4
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;30.0.16248370" "cmake;3.22.1"
+      - name: Build the debug app and its instrumented tests
+        run: bash gradlew :app:assembleProdDebug :app:assembleProdDebugAndroidTest
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch smoke test and instrumented tests
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: |
+            bash scripts/android-launch-smoke.sh "$(ls app/android/mobile/build/outputs/apk/prod/debug/*.apk | head -1)"
+            bash gradlew :app:connectedProdDebugAndroidTest
+      # The Android Gradle plugin can log an install failure and still succeed with 0 tests run.
+      - name: Require instrumented tests to have run and passed
+        run: |
+          python3 - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+          files = glob.glob("app/android/mobile/build/outputs/androidTest-results/connected/**/TEST-*.xml", recursive=True)
+          suites = [ET.parse(f).getroot() for f in files]
+          tests = sum(int(s.get("tests", 0)) for s in suites)
+          bad = sum(int(s.get("failures", 0)) + int(s.get("errors", 0)) for s in suites)
+          print(f"instrumented tests: {tests} run, {bad} failed, from {len(files)} result files")
+          sys.exit(0 if tests > 0 and bad == 0 else 1)
+          PY
+      - name: Upload screenshot, logcat and test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-emulator-results
+          path: |
+            build/smoke/
+            app/android/mobile/build/reports/androidTests/
+          retention-days: 14
