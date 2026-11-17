@@ -2,7 +2,7 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
-## 1.0.0 (Unreleased)
+## 1.0.0
 
 ### Android release
 
