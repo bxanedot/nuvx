@@ -1,16 +1,5 @@
 import { useState } from 'react';
-import {
-  BackwardIcon,
-  ForwardIcon,
-  LyricsActiveIcon,
-  LyricsIcon,
-  PauseIcon,
-  PlayIcon,
-  RepeatIcon,
-  RepeatOneIcon,
-  ShuffleIcon,
-  UpNextIcon,
-} from '@/components/icons/Transport';
+import { BackwardIcon, ForwardIcon, LyricsActiveIcon, LyricsIcon, RepeatIcon, RepeatOneIcon, ShuffleIcon, UpNextIcon, PlayPauseIcon } from '@/components/icons/Transport';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { TrackMenu } from '@/components/music/TrackMenu';
 import { usePlayer } from '@/state/player';
@@ -60,7 +49,7 @@ export function PlayerBar() {
               <BackwardIcon size={26} />
             </button>
             <button className={transport} disabled={!hasTrack} aria-label={playing ? 'Pause' : 'Play'} onClick={togglePlay}>
-              {playing ? <PauseIcon size={28} /> : <PlayIcon size={28} />}
+              <PlayPauseIcon playing={playing} size={28} />
             </button>
             <button className={transport} disabled={!hasTrack || !hasNext} aria-label="Next" onClick={next}>
               <ForwardIcon size={26} />

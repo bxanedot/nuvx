@@ -333,11 +333,11 @@ fun MiniPlayer(
                     },
                     modifier = Modifier.size(GLYPH_SLOT),
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) SfIcons.Pause else SfIcons.PlayArrow,
+                    com.licht.nuvx.ui.icons.NuvxSymbol(
+                        glyph = if (isPlaying) com.licht.nuvx.ui.icons.NuvxGlyph.Pause else com.licht.nuvx.ui.icons.NuvxGlyph.Play,
                         contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
                         tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(GLYPH_SIZE),
+                        size = GLYPH_SIZE,
                     )
                 }
             }

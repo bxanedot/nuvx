@@ -119,11 +119,11 @@ private fun CastDeviceRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = if (connected) SfIcons.CastConnected else SfIcons.Cast,
+            com.licht.nuvx.ui.icons.NuvxSymbol(
+                glyph = if (connected) com.licht.nuvx.ui.icons.NuvxGlyph.DeviceConnected else com.licht.nuvx.ui.icons.NuvxGlyph.Device,
                 contentDescription = null,
                 tint = Color.White.copy(alpha = if (connected) 1f else 0.8f),
-                modifier = Modifier.size(20.dp),
+                size = 20.dp,
             )
         }
         Spacer(Modifier.width(16.dp))

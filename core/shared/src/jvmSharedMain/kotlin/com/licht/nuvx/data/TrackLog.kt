@@ -61,7 +61,13 @@ object TrackLog {
 
     private var held = 0
 
-    private fun record(level: Char, message: String, about: String?) {
+    /** Shared logs never carry secrets: URL queries hold the user's IP and signed tokens, headers hold cookies. */
+    fun redact(message: String): String = message
+        .replace(URL_QUERY, "$1?…")
+        .replace(SECRET_FIELD, "$1$2…")
+
+    private fun record(level: Char, raw: String, about: String?) {
+        val message = redact(raw)
         val text = if (message.length > MAX_LINE_CHARS) {
             message.take(MAX_LINE_CHARS) + "…(${message.length - MAX_LINE_CHARS} more)"
         } else {
@@ -137,6 +143,9 @@ object TrackLog {
     private val CLOCK = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
     private const val LEAD_IN_MS = 20_000L
+
+    private val URL_QUERY = Regex("""(https?://[^\s?#"']+)\?[^\s"']*""")
+    private val SECRET_FIELD = Regex("""(?i)\b(cookie|authorization|sapisid\w*|__secure-\w+|token|access_token|refresh_token|password)(\s*[:=]\s*)(?:bearer\s+)?[^\s;,&]+""")
 
     private const val MAX_HELD_CHARS = 512_000
 

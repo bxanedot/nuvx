@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useRef, useState } from 'react';
 import { PrefetchLink } from '@/components/PrefetchLink';
-import { PauseIcon, PlayIcon } from '@/components/icons/Transport';
+import { PlayIcon, PlayPauseIcon } from '@/components/icons/Transport';
 import type { ArtistRef, Track } from '@/data/music/types';
 import { usePlayer } from '@/state/player';
 import { Artwork } from './Artwork';
@@ -135,7 +135,7 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow, source }: R
             onClick={onPlay}
             disabled={!!unavailable}
           >
-            {playing ? <PauseIcon size={variant === 'playlist' ? 18 : 16} /> : <PlayIcon size={variant === 'playlist' ? 18 : 16} />}
+            <PlayPauseIcon playing={playing} size={variant === 'playlist' ? 18 : 16} />
           </button>
         </div>
         <div

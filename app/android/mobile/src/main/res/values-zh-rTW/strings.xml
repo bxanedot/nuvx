@@ -1429,4 +1429,5 @@
     <string name="privacy_orbot_subtitle">Orbot 必須正在執行並已連上 Tor</string>
     <string name="nightly_updates">每夜更新</string>
     <string name="nightly_updates_subtitle">測試版一發布就取得。預設為關閉；關閉時，nuvx 只提供穩定版本。</string>
+    <string name="playlist_deleted">已刪除「%1$s」</string>
 </resources>

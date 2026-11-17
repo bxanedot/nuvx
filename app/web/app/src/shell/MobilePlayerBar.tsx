@@ -1,5 +1,5 @@
 import { LogoMark } from '@/components/icons/LogoMark';
-import { PauseIcon, PlayIcon } from '@/components/icons/Transport';
+import { PlayPauseIcon } from '@/components/icons/Transport';
 import { sizedArtwork } from '@/lib/artwork';
 import { usePlayer } from '@/state/player';
 import { useUi } from '@/state/ui';
@@ -35,7 +35,7 @@ export function MobilePlayerBar() {
           aria-label={playing ? 'Pause' : 'Play'}
           onClick={togglePlay}
         >
-          {playing ? <PauseIcon size={24} /> : <PlayIcon size={24} />}
+          <PlayPauseIcon playing={playing} size={24} />
         </button>
       </div>
     </div>

@@ -543,6 +543,9 @@ object AppSettings {
 
     fun setEqualizerPreset(preset: EqualizerPreset) = equalizerSettings.setPreset(preset)
 
+    /** Called when the audio output changes, so each device keeps its own EQ. */
+    fun onOutputDevice(key: String) = equalizerSettings.onOutputDevice(key)
+
     fun setPlaybackSpeed(value: Float) {
         playbackSpeed.value = value
         prefs.edit().putFloat(KEY_SPEED, value).apply()

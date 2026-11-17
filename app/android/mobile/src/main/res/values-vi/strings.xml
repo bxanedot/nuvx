@@ -1369,4 +1369,5 @@
     <string name="privacy_orbot_subtitle">Orbot phải đang chạy và đã kết nối Tor</string>
     <string name="nightly_updates">Bản cập nhật nightly</string>
     <string name="nightly_updates_subtitle">Nhận bản dựng thử nghiệm ngay khi được phát hành. Mặc định tắt; khi tắt, nuvx chỉ đề xuất bản ổn định.</string>
+    <string name="playlist_deleted">Đã xóa “%1$s”</string>
 </resources>

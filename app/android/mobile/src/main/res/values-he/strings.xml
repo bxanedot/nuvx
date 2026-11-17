@@ -1454,4 +1454,5 @@
     <string name="privacy_orbot_subtitle">Orbot צריך לפעול כש-Tor מחובר</string>
     <string name="nightly_updates">עדכוני Nightly</string>
     <string name="nightly_updates_subtitle">קבלו גרסאות ניסוי ברגע שהן מתפרסמות. כבוי כברירת מחדל; כשהוא כבוי, nuvx מציע רק גרסאות יציבות.</string>
+    <string name="playlist_deleted">‏„%1$s” נמחקה</string>
 </resources>

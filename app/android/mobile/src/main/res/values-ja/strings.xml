@@ -1430,4 +1430,5 @@
     <string name="privacy_orbot_subtitle">Orbotが起動し、Torに接続されている必要があります</string>
     <string name="nightly_updates">ナイトリーアップデート</string>
     <string name="nightly_updates_subtitle">テストビルドを公開と同時に受け取ります。初期設定ではオフで、オフの間は安定版のみを案内します。</string>
+    <string name="playlist_deleted">「%1$s」を削除しました</string>
 </resources>

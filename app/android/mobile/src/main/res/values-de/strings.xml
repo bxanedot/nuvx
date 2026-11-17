@@ -1449,4 +1449,5 @@
     <string name="privacy_orbot_subtitle">Orbot muss laufen und mit Tor verbunden sein</string>
     <string name="nightly_updates">Nightly-Updates</string>
     <string name="nightly_updates_subtitle">Testversionen erhalten, sobald sie veröffentlicht werden. Standardmäßig aus; wenn aus, bietet nuvx nur stabile Versionen an.</string>
+    <string name="playlist_deleted">„%1$s“ gelöscht</string>
 </resources>

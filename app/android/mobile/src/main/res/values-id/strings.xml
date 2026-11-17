@@ -1429,4 +1429,5 @@
     <string name="privacy_orbot_subtitle">Orbot harus berjalan dengan Tor terhubung</string>
     <string name="nightly_updates">Pembaruan nightly</string>
     <string name="nightly_updates_subtitle">Dapatkan build uji begitu dirilis. Nonaktif secara default; jika nonaktif, nuvx hanya menawarkan rilis stabil.</string>
+    <string name="playlist_deleted">“%1$s” dihapus</string>
 </resources>

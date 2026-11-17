@@ -1300,4 +1300,5 @@
     <string name="enable_youtube_search_subtitle">Adds a YouTube filter for videos beyond YouTube Music</string>
     <string name="nightly_updates">Nightly updates</string>
     <string name="nightly_updates_subtitle">Get test builds as soon as they are published. Off by default; when off, nuvx only offers stable releases.</string>
+    <string name="playlist_deleted">Deleted “%1$s”</string>
 </resources>
