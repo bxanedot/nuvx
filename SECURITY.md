@@ -10,7 +10,7 @@ Security fixes are prioritized for the latest published stable release of each c
 
 Use GitHub's **Report a vulnerability** option on the repository's Security page to send vulnerability details privately. Do not post exploitable details in public issues, pull requests, or Discord.
 
-If private reporting is unavailable, contact [Licht on Guns.lol](https://guns.lol/lylicht) instead.
+If private reporting is unavailable, email [loveylicht@gmail.com](mailto:loveylicht@gmail.com) instead.
 
 Include the affected component and version, platform, steps to reproduce, and potential impact. Redact passwords, tokens, cookies, private listening data, and other personal information from logs or screenshots.
 
