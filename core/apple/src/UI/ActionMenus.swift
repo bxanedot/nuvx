@@ -897,7 +897,18 @@ struct TrackLogSheet: View {
         let needles = [entry.videoId, entry.id].compactMap { $0 }.filter { !$0.isEmpty }
         return dump.split(separator: "\n").map(String.init).filter { line in
             needles.contains { line.contains($0) }
-        }
+        }.map(Self.redact)
+    }
+
+    /// Copied logs never carry secrets: URL queries hold the user's IP and signed tokens, headers hold cookies.
+    static func redact(_ line: String) -> String {
+        line
+            .replacingOccurrences(of: #"(https?://[^\s?#"']+)\?[^\s"']*"#, with: "$1?…", options: .regularExpression)
+            .replacingOccurrences(
+                of: #"(?i)\b(cookie|authorization|sapisid\w*|__secure-\w+|token|access_token|refresh_token|password)(\s*[:=]\s*)(?:bearer\s+)?[^\s;,&]+"#,
+                with: "$1$2…",
+                options: .regularExpression
+            )
     }
 }
 
