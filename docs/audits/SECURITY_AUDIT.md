@@ -27,6 +27,7 @@ Status of every security finding, 2026-11-17. "Live" means running for users. Th
 | iOS sign-in | Keychain, `AfterFirstUnlockThisDeviceOnly` (not in iCloud or backups) |
 | Discord bot | `yt-dlp` without a shell, `ytsearch1:` prefix, YouTube-only https links, timeout and output cap |
 | Android release signing | The release workflow refuses any APK not signed with the pinned `CN=licht` certificate (SHA-256 `833677fb…`) and names the key it found |
+| Dependency advisories | `cargo audit` (desktop, 735 crates), `pnpm audit --prod` (web) and `npm audit` (Worker): no known vulnerabilities. Seven "unmaintained" notices, all in the Linux D-Bus stack (`zbus_names`, `zvariant`) and `proc-macro-error`, with no fixed version yet. The Sync server has no dependencies |
 | Privacy Connection (Android) | Opt-in and fails closed (PR 282, preserved) |
 
 ## Open
