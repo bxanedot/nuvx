@@ -21,8 +21,11 @@ internal class DownloadQueueController(
     private val run: suspend (Context, Song) -> Unit,
     private val clear: (String) -> Unit,
     private val fail: (String, String) -> Unit,
+    private val onQueueChanged: (List<Song>) -> Unit = {},
 ) {
     private val pending = LinkedHashMap<String, Song>()
+    // Songs the download service owns, pending or running; saved so they resume after the app is killed.
+    private val owned = LinkedHashMap<String, Song>()
     private val lock = Any()
     private val running = LinkedHashMap<String, Job?>()
 
@@ -39,7 +42,9 @@ internal class DownloadQueueController(
         synchronized(lock) {
             if (id in pending || id in running) return
             pending[id] = song
+            owned[id] = song
         }
+        saveQueue()
         active.update { it + (id to DownloadState.Queued) }
         DownloadSession.queued(song, from)
 
@@ -48,7 +53,11 @@ internal class DownloadQueueController(
             ContextCompat.startForegroundService(app, Intent(app, DownloadService::class.java))
         }.onFailure {
             Log.w(TAG, "could not start the download service: ${it.message}")
-            synchronized(lock) { pending.remove(id) }
+            synchronized(lock) {
+                pending.remove(id)
+                owned.remove(id)
+            }
+            saveQueue()
             fail(id, "Downloads can't start right now")
         }
     }
@@ -56,9 +65,11 @@ internal class DownloadQueueController(
     fun cancel(videoId: String) {
         val job = synchronized(lock) {
             pending.remove(videoId)
+            owned.remove(videoId)
             if (videoId !in running) return@synchronized null
             running.remove(videoId)
         }
+        saveQueue()
         job?.cancel()
         clear(videoId)
         DownloadSession.forget(videoId)
@@ -134,8 +145,14 @@ internal class DownloadQueueController(
     }
 
     fun onIdle(videoId: String) {
-        synchronized(lock) { running.remove(videoId) }
+        val changed = synchronized(lock) {
+            running.remove(videoId)
+            owned.remove(videoId) != null
+        }
+        if (changed) saveQueue()
     }
+
+    private fun saveQueue() = onQueueChanged(synchronized(lock) { owned.values.toList() })
 
     fun busy(): Boolean = synchronized(lock) { pending.isNotEmpty() || running.isNotEmpty() }
 

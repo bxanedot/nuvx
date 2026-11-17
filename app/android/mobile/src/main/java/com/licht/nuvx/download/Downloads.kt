@@ -48,7 +48,22 @@ object Downloads {
 
     val collections: StateFlow<Map<String, SavedCollection>> = library.collections
 
-    fun init(context: Context) = library.init(context)
+    private var queueFile: java.io.File? = null
+    private val resumed = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    fun init(context: Context) {
+        queueFile = java.io.File(context.filesDir, "download_queue.json")
+        library.init(context)
+    }
+
+    /** Re-queues downloads that were waiting when Android last killed the app. Call from a visible activity. */
+    fun resumeSaved(context: Context) {
+        val file = queueFile ?: return
+        if (!resumed.compareAndSet(false, true)) return
+        val songs = runCatching { SavedDownloadQueue.read(file) }.getOrDefault(emptyList())
+        if (songs.isNotEmpty()) Log.d(TAG, "resuming ${songs.size} downloads")
+        songs.forEach { enqueue(context, it) }
+    }
 
     private val fromCache = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
@@ -59,6 +74,12 @@ object Downloads {
         run = ::run,
         clear = ::clear,
         fail = ::fail,
+        onQueueChanged = { songs ->
+            queueFile?.let { file ->
+                runCatching { SavedDownloadQueue.write(file, songs) }
+                    .onFailure { Log.w(TAG, "could not save the download queue: ${it.message}") }
+            }
+        },
     )
 
     fun enqueue(context: Context, song: Song, from: String? = null) =

@@ -32,7 +32,7 @@ Ponytail audit, run 2026-11-17 on `main` at `f1e655b1` (licht 1.0.0). Assumed lo
 |---|---|
 | Range download (`Downloader.kt`) | Healthy: checks every Content-Range, total size and short reads; re-resolves once on 403/404/410 |
 | Failure cleanup (`DownloadStore.kt`) | Healthy on errors: a pending MediaStore row or `.part` file is aborted. **Fixed:** a download killed with the app left its hidden `.part` file forever; the next download now removes `.part` files untouched for an hour |
-| Queue durability | **Gap:** the queue lives in memory (`DownloadSession`, `START_NOT_STICKY`); if Android kills the app, queued songs must be requested again. Belongs to Smart Offline (persist the queue, resume at start) |
+| Queue durability | **Fixed:** the queue lived only in memory, so a killed app forgot it. Waiting and running downloads are now saved to `download_queue.json` and resume when the app is next opened (not at process start: Android 12+ refuses a background service start then) |
 | Audio offload | Not enabled, so the offload freeze seen in Metrolist #4763 cannot happen |
 | Skip silence | Off by default; uses Media3's default threshold. Whether it trims quiet intros (vivi #1055) needs listening on a device |
 | Desktop quality badge | **Fixed:** Lossless and Hi-Res came from the addon's label; codec and bit depth now come from the file's first bytes |
