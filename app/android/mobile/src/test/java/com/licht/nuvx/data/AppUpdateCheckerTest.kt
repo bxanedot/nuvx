@@ -208,4 +208,45 @@ class AppUpdateCheckerTest {
         assertFalse(isOldBuild("nuvx 1.0.0-nightly.7.1", "nightly.7.1", prerelease = true))
         assertFalse(isOldBuild("Golden hour", "v1.0.1", prerelease = false))
     }
+
+    private fun release(version: String, tag: String, published: String) =
+        AppUpdateChecker.ReleaseCandidate(version, tag, published, "https://example.invalid/$tag", "https://example.invalid/$tag.apk", null)
+
+    private val stable100 = release("1.0.0", "v1.0.0", "2026-11-10T00:00:00Z")
+    private val nightly121 = release("1.0.0-nightly.121.1", "nightly.121.1", "2026-11-11T00:00:00Z")
+    private val nightly122 = release("1.0.0-nightly.122.1", "nightly.122.1", "2026-11-12T00:00:00Z")
+    private val stable101 = release("1.0.1", "v1.0.1", "2026-11-13T00:00:00Z")
+    private val stable120 = release("1.2.0", "v1.2.0", "2026-11-14T00:00:00Z")
+
+    private fun offered(feed: List<AppUpdateChecker.ReleaseCandidate>, installed: AppUpdateChecker.ReleaseCandidate, nightlies: Boolean) =
+        selectUpdate(feed, installed.version, installed.tag, installed.publishedAt, nightlies)?.tag
+
+    @Test
+    fun `with nightly updates on, stable moves to nightly 121 then nightly 122`() {
+        assertEquals("nightly.121.1", offered(listOf(stable100, nightly121), stable100, nightlies = true))
+        assertEquals("nightly.122.1", offered(listOf(stable100, nightly121, nightly122), nightly121, nightlies = true))
+        assertNull(offered(listOf(stable100, nightly121, nightly122), nightly122, nightlies = true))
+    }
+
+    @Test
+    fun `with nightly updates off, nightlies are never offered`() {
+        val feed = listOf(stable100, nightly121, nightly122)
+        assertNull(offered(feed, stable100, nightlies = false))
+        assertNull(offered(feed, nightly121, nightlies = false))
+    }
+
+    @Test
+    fun `a new stable release replaces the nightlies whatever the setting`() {
+        val feed = listOf(stable100, nightly121, nightly122, stable101, stable120)
+        for (nightlies in listOf(true, false)) {
+            assertEquals("v1.2.0", offered(feed, nightly122, nightlies))
+            assertEquals("v1.2.0", offered(feed, stable100, nightlies))
+        }
+        assertEquals("v1.0.1", offered(listOf(stable100, nightly121, nightly122, stable101), stable100, nightlies = true))
+    }
+
+    @Test
+    fun `a stable release is chosen over a newer nightly of an older version`() {
+        assertEquals("v1.0.1", offered(listOf(nightly122, stable101), stable100, nightlies = true))
+    }
 }

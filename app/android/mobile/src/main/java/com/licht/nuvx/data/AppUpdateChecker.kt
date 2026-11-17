@@ -61,25 +61,17 @@ object AppUpdateChecker {
                 if (!response.isSuccessful) null else response.body?.string()
             } ?: return@runCatching
             val releases = json.parseToJsonElement(body) as? JsonArray ?: return@runCatching
-            _available.value = releases.mapNotNull { it as? JsonObject }
-                .mapNotNull(::releaseCandidate)
-                .filter {
-                    isNewerRelease(
-                        it.version,
-                        it.tag,
-                        it.publishedAt,
-                        BuildConfig.VERSION_NAME,
-                        BuildConfig.NUVX_RELEASE_TAG,
-                        BuildConfig.NUVX_BUILD_TIME,
-                        allowNightly = AppSettings.nightlyUpdates.value,
-                    )
-                }
-                .maxWithOrNull(compareBy<ReleaseCandidate> { it.tag.startsWith("v") }.thenBy { it.publishedAt })
-                ?.let { UpdateInfo(it.version, it.releaseUrl, it.apkUrl, it.notes) }
+            _available.value = selectUpdate(
+                releases.mapNotNull { it as? JsonObject }.mapNotNull(::releaseCandidate),
+                BuildConfig.VERSION_NAME,
+                BuildConfig.NUVX_RELEASE_TAG,
+                BuildConfig.NUVX_BUILD_TIME,
+                allowNightly = AppSettings.nightlyUpdates.value,
+            )?.let { UpdateInfo(it.version, it.releaseUrl, it.apkUrl, it.notes) }
         }
     }
 
-    private data class ReleaseCandidate(
+    internal data class ReleaseCandidate(
         val version: String,
         val tag: String,
         val publishedAt: String,
@@ -215,6 +207,33 @@ object AppUpdateChecker {
 internal fun isOldBuild(name: String?, tag: String, prerelease: Boolean): Boolean =
     name?.contains(Regex("\\bold\\b", RegexOption.IGNORE_CASE)) == true ||
         prerelease && !tag.startsWith("nightly.")
+
+// The best release to offer: a stable release beats any nightly, then the higher version, then the later nightly build.
+internal fun selectUpdate(
+    candidates: List<AppUpdateChecker.ReleaseCandidate>,
+    currentVersion: String,
+    currentTag: String,
+    currentBuildTime: String,
+    allowNightly: Boolean,
+): AppUpdateChecker.ReleaseCandidate? = candidates
+    .filter { isNewerRelease(it.version, it.tag, it.publishedAt, currentVersion, currentTag, currentBuildTime, allowNightly) }
+    .maxWithOrNull(
+        compareBy<AppUpdateChecker.ReleaseCandidate> { it.tag.startsWith("v") }
+            .thenComparator { a, b -> compareCore(a.version, b.version) }
+            .thenBy { nightlyBuild(it.tag)?.first ?: 0L }
+            .thenBy { nightlyBuild(it.tag)?.second ?: 0L }
+            .thenBy { it.publishedAt },
+    )
+
+private fun compareCore(a: String, b: String): Int {
+    val left = a.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
+    val right = b.substringBefore('-').split('.').map { it.toLongOrNull() ?: 0L }
+    for (index in 0 until maxOf(left.size, right.size)) {
+        val order = left.getOrElse(index) { 0L }.compareTo(right.getOrElse(index) { 0L })
+        if (order != 0) return order
+    }
+    return 0
+}
 
 internal fun isNewerRelease(
     candidateVersion: String,

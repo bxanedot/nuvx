@@ -287,6 +287,7 @@ impl App {
             Ok("settings") => app.go(Page::Settings),
             Ok("appearance-settings") => app.go(Page::Setting(SettingsPane::Appearance)),
             Ok("content-settings") => app.go(Page::Setting(SettingsPane::Content)),
+            Ok("window-settings") => app.go(Page::Setting(SettingsPane::Window)),
             Ok("radio") => app.go(Page::Radio),
             Ok("podcasts") => app.go(Page::Mood { browse_id: crate::ytm::PODCASTS.into(), params: None, title: "Podcasts".into() }),
             Ok("equalizer-settings") => app.go(Page::Setting(SettingsPane::Equalizer)),
