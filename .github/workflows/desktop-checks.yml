@@ -1,0 +1,46 @@
+name: Desktop checks
+
+# Runs the desktop tests on Linux and Windows for pull requests that change the
+# desktop app. Apple builds already runs them on macOS; Windows- and Linux-only
+# tests (for example the saved-login vault) ran nowhere before this.
+on:
+  pull_request:
+    paths:
+      - "app/desktop/**"
+      - ".github/workflows/desktop-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # shortcut: x86_64 only; add windows-11-arm / ubuntu-24.04-arm if ARM-only code appears.
+        runner: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/desktop
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Linux build packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev libasound2-dev libxdo-dev libssl-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/desktop
+      - run: cargo test --locked

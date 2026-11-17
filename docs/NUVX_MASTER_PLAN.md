@@ -30,7 +30,7 @@ The one handoff document for this programme. Update it in the same pull request 
 ### Top measured risks
 
 1. **Most tests did not run on pull requests.** The 1,378 Android unit tests ran only after merge, inside the release build. The 247 web tests and the web type-check never ran in CI. *Addressed by the "Android checks" and "Web checks" workflows (PR in "Open").*
-2. **Desktop tests run in CI only on macOS.** Windows- and Linux-only code paths (audio output, tray, updater, installer) compile in the release but are never unit-tested in CI.
+2. **Desktop tests run in CI only on macOS.** Windows- and Linux-only code paths (audio output, tray, updater, installer) compile in the release but were never unit-tested in CI, including the Windows and Linux saved-login vault tests. *Addressed by "Desktop checks" (PR in "Open").*
 3. **No device or emulator tests.** TV, Wear, nuvx Auto and Android Auto are compile-only; `androidTest` needs an emulator.
 4. **Server fixes may not be live.** The Listen Together workflow only tests; it does not deploy. Whether the Worker was redeployed after PRs 283, 288 and 305 was not verified (owner item 3).
 5. **Licensing:** the desktop still bundles Apple's SF Pro Display fonts (owner item 5).
@@ -52,11 +52,12 @@ The one handoff document for this programme. Update it in the same pull request 
 | 310 | Desktop retries a song once on a network blip |
 | 311 | Android refuses to download with under 500 MB free |
 | 312 | GlyphStudio v2 icon registry (`NuvxGlyph`/`NuvxSymbol`) with animated play/pause, download and cast states on Android, the same morph on iOS and web; per-device equalizer; undo after deleting a nuvx playlist; redacted diagnostics on Android, iOS and desktop |
+| 315 | Android, shared Kotlin and web tests run on every pull request that touches them |
 | 313 | Icon render and animation-state tests; web signature code in an isolated worker; JitPack limited to `com.github.*`; shared sync replay rules with a fixture; crossfade timing tests; Android playlist export as M3U; security, platform, testing, release and decision docs |
 
 ## Open
 
-- **PR checks for Android and web** (branch `claude/pr-checks-android-web`): runs Android, shared and web tests on every pull request that touches them.
+- **Desktop checks on Linux and Windows** (branch `claude/desktop-checks-win-linux`): desktop tests on every pull request that touches `app/desktop`.
 - **Orbot hardening** (branch `claude/brave-bohr-qzzh9m`, commit `fd7a743d`): all Android unit tests pass; no PR yet. Do not redo it.
 - Leftover branches of closed Dependabot PRs (290, 292, 294 and others; the updates went in through PR 304): `reqwest-0.13.5`, `souvlaki-0.9.3`, `tokio-1.54.1`, `window-vibrancy-0.8.1`, `actions/setup-node-7`. Safe to delete once confirmed.
 
@@ -73,7 +74,7 @@ The one handoff document for this programme. Update it in the same pull request 
 
 ## Next, in order
 
-0. **Desktop tests on Linux and Windows in CI** (risk 2), then a scheduled emulator smoke test for the phone app (risk 3).
+0. A scheduled emulator smoke test for the phone app (risk 3).
 1. **Remaining audit:**
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
