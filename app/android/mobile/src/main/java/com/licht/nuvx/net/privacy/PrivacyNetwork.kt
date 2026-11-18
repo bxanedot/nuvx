@@ -78,6 +78,7 @@ object PrivacyNetwork {
             ),
         )
         routeWebViews(m)
+        isolateTorCircuits(m)
         m.start()
         retryWhenTheNetworkReturns(app, m)
     }
@@ -92,6 +93,28 @@ object PrivacyNetwork {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putInt(KEY_LOCAL_SOCKS_PORT, port).apply()
         _savedLocalSocksPort.value = port
+    }
+
+    @Volatile private var circuit = 0
+
+    /**
+     * Tor gives every SOCKS username its own circuit (IsolateSOCKSAuth), so answering Tor's SOCKS login with
+     * `nuvx-<n>` and raising n moves new connections to a different exit. Only loopback SOCKS asks are answered;
+     * a local SOCKS5 client that offers no-auth never asks.
+     */
+    private fun isolateTorCircuits(m: ConnectionManager) {
+        java.net.Authenticator.setDefault(object : java.net.Authenticator() {
+            override fun getPasswordAuthentication(): java.net.PasswordAuthentication? {
+                val socks = requestingProtocol?.startsWith("SOCKS", ignoreCase = true) == true
+                val loopback = requestingSite?.isLoopbackAddress == true || requestingHost == "127.0.0.1"
+                return if (socks && loopback) java.net.PasswordAuthentication("nuvx-$circuit", "x".toCharArray()) else null
+            }
+        })
+        com.licht.nuvx.data.innertube.StreamResolver.newExit = {
+            val onTor = (m.state.value as? ConnectionState.Connected)?.backend == BackendId.ORBOT
+            if (onTor) circuit++
+            onTor
+        }
     }
 
     /** How long a request waits for a route that is still starting (bridged Tor can take minutes). */
