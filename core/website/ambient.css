@@ -1,4 +1,4 @@
-/* Shared CSS-only grayscale motion for standalone nuvx pages. */
+/* Shared ambient video and motion-safe fallback for standalone nuvx pages. */
 :root {
   --ambient-a: rgb(255 255 255 / 18%);
   --ambient-b: rgb(190 190 190 / 13%);
@@ -19,11 +19,15 @@
   pointer-events: none;
 }
 
-body > main { position: relative; z-index: 1; }
+.nuvx-ambient[data-background-monochrome],
+html[data-background-monochrome] .nuvx-ambient { filter: grayscale(1); }
+.nuvx-ambient > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .56; }
+
+body > main,
+body > footer { position: relative; z-index: 1; }
 body > .licht-signature-corner { z-index: 2; }
 
-.nuvx-ambient::before,
-.nuvx-ambient::after {
+.nuvx-ambient::before {
   content: "";
   position: absolute;
   inset: -12%;
@@ -35,21 +39,25 @@ body > .licht-signature-corner { z-index: 2; }
   background:
     radial-gradient(ellipse 43% 36% at 22% 34%, var(--ambient-a), transparent 72%),
     radial-gradient(ellipse 35% 32% at 78% 26%, var(--ambient-b), transparent 70%),
-    radial-gradient(ellipse 42% 38% at 61% 78%, var(--ambient-c), transparent 72%);
+    radial-gradient(ellipse 42% 38% at 61% 78%, var(--ambient-c), transparent 72%),
+    radial-gradient(ellipse 34% 31% at 72% 52%, var(--ambient-a), transparent 72%),
+    radial-gradient(ellipse 39% 34% at 26% 76%, var(--ambient-b), transparent 73%);
   filter: blur(34px);
   animation: nuvx-flow-a 18s cubic-bezier(.45, 0, .55, 1) infinite alternate;
 }
 
 .nuvx-ambient::after {
-  background:
-    radial-gradient(ellipse 34% 31% at 72% 52%, var(--ambient-a), transparent 72%),
-    radial-gradient(ellipse 39% 34% at 26% 76%, var(--ambient-b), transparent 73%);
-  filter: blur(44px);
-  animation: nuvx-flow-b 26s cubic-bezier(.42, 0, .58, 1) infinite alternate;
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--page-tint, var(--pageBG, var(--bg, #0a0a0a))) 55%, transparent);
+  pointer-events: none;
 }
 
 .nuvx-ambient[data-motion-paused]::before,
-.nuvx-ambient[data-motion-paused]::after {
+.nuvx-ambient[data-motion-paused]::after,
+html[data-motion-paused] .nuvx-ambient::before,
+html[data-motion-paused] .nuvx-ambient::after {
   animation-play-state: paused;
 }
 
@@ -79,15 +87,8 @@ body:has(.ambient-pause input:checked) .nuvx-ambient::after {
   100% { transform: translate3d(-4%, 6%, 0) scale(1.02) rotate(-5deg); }
 }
 
-@keyframes nuvx-flow-b {
-  0% { transform: translate3d(6%, 4%, 0) scale(1.04) rotate(5deg); }
-  50% { transform: translate3d(-7%, -5%, 0) scale(.95) rotate(-7deg); }
-  100% { transform: translate3d(5%, 5%, 0) scale(1.08) rotate(6deg); }
-}
-
 @media (max-width: 620px) {
   .nuvx-ambient::before { inset: -8%; filter: blur(24px); }
-  .nuvx-ambient::after { inset: -8%; filter: blur(32px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -47,10 +47,10 @@ export default function RadioPage() {
       <div className="mx-(--body-gutter) mt-5 max-w-[760px]">
         <form className="flex gap-2" onSubmit={submit}>
           <input className="min-w-0 flex-1 rounded-pill bg-quinary px-4 py-2 type-body" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search stations" aria-label="Search radio stations" />
-          <button className="rounded-pill bg-key-bg px-4 type-body-emphasized text-white" type="submit">Search</button>
+          <button className="rounded-pill bg-key-bg px-4 type-body-emphasized text-pill" type="submit">Search</button>
           {search && <button className="rounded-pill px-3 type-body text-secondary hover:bg-quinary" type="button" onClick={() => { setSearch(''); setSearchInput(''); }}>Country</button>}
         </form>
-        {!search && countries.data && <div className="mt-4 flex gap-2 overflow-x-auto pb-2">{countries.data.map((item) => <button key={item.iso_3166_1} className="shrink-0 rounded-pill bg-quinary px-3 py-1.5 type-callout aria-pressed:bg-key-bg aria-pressed:text-white" aria-pressed={country === item.iso_3166_1} onClick={() => setCountry(item.iso_3166_1)}>{item.iso_3166_1 === country ? '● ' : ''}{item.name}</button>)}</div>}
+        {!search && countries.data && <div className="mt-4 flex gap-2 overflow-x-auto pb-2">{countries.data.map((item) => <button key={item.iso_3166_1} className="shrink-0 rounded-pill bg-quinary px-3 py-1.5 type-callout aria-pressed:bg-key-bg aria-pressed:text-pill" aria-pressed={country === item.iso_3166_1} onClick={() => setCountry(item.iso_3166_1)}>{item.iso_3166_1 === country ? '● ' : ''}{item.name}</button>)}</div>}
         {countries.isError && !search && <LoadError error={countries.error} onRetry={() => void countries.refetch()} />}
         {stations.isError && <LoadError error={stations.error} onRetry={() => void stations.refetch()} />}
         {!stations.isError && stations.isPending && <div className="py-12 text-center type-body text-secondary">Loading stations…</div>}

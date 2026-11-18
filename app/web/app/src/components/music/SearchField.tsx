@@ -129,7 +129,7 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
                 <>
                   <Search size={13} strokeWidth={2.4} aria-hidden="true" />
                   <span className="truncate">
-                    <span className="text-primary group-data-active/option:text-white">{option.typed}</span>
+                    <span className="text-primary group-data-active/option:text-pill">{option.typed}</span>
                     <span>{option.rest}</span>
                   </span>
                 </>
@@ -144,13 +144,13 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
                   </div>
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate type-body">{option.item.title}</span>
-                    <span className="mt-px truncate type-callout text-secondary group-data-active/option:text-white">{option.item.subtitle || kindLabel(option.item.kind)}</span>
+                    <span className="mt-px truncate type-callout text-secondary group-data-active/option:text-pill">{option.item.subtitle || kindLabel(option.item.kind)}</span>
                   </div>
                   {playable && item && (
                     <TrackMenu
                       track={toTrack(item)}
                       onOpenChange={onMenuOpenChange}
-                      className="grid size-7 place-items-center rounded-full text-secondary opacity-0 transition-opacity duration-100 ease-in group-hover/option:opacity-100 group-data-active/option:text-white focus-visible:opacity-100 hover:bg-quinary group-data-active/option:hover:bg-white/20 data-open:opacity-100"
+                      className="grid size-7 place-items-center rounded-full text-secondary opacity-0 transition-opacity duration-100 ease-in group-hover/option:opacity-100 group-data-active/option:text-pill focus-visible:opacity-100 hover:bg-quinary group-data-active/option:hover:bg-black/10 data-open:opacity-100"
                     />
                   )}
                 </>
@@ -164,7 +164,7 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
   );
 }
 
-const optionRow = 'group/option mx-1.5 cursor-default rounded-[3px] data-active:bg-key-bg data-active:text-white';
+const optionRow = 'group/option mx-1.5 cursor-default rounded-[3px] data-active:bg-key-bg data-active:text-pill';
 const hint = `${optionRow} grid grid-cols-[16px_minmax(0,1fr)] items-center p-1 type-body text-secondary`;
 const lockup = `${optionRow} mt-1.5 grid items-center gap-x-2.5 p-1.5`;
 const lockupCols = 'grid-cols-[46px_minmax(0,1fr)]';

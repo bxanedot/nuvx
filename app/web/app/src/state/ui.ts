@@ -13,6 +13,8 @@ interface UiState {
   setDrawerOpen: (open: boolean) => void;
   backgroundMotion: boolean;
   setBackgroundMotion: (enabled: boolean) => void;
+  backgroundMonochrome: boolean;
+  setBackgroundMonochrome: (enabled: boolean) => void;
   installBannerDismissed: boolean;
   dismissInstallBanner: () => void;
   libraryView: 'grid' | 'list';
@@ -21,6 +23,7 @@ interface UiState {
 
 const BANNER_KEY = 'nuvx:install-banner-dismissed';
 const BACKGROUND_MOTION_KEY = 'nuvx:background-motion';
+const BACKGROUND_MONOCHROME_KEY = 'nuvx:background-monochrome';
 const LIBRARY_VIEW_KEY = 'nuvx:library-view';
 
 export const useUi = create<UiState>()((set) => ({
@@ -35,6 +38,11 @@ export const useUi = create<UiState>()((set) => ({
   setBackgroundMotion: (backgroundMotion) => {
     writeStorage('sessionStorage', BACKGROUND_MOTION_KEY, backgroundMotion ? 'on' : 'off');
     set({ backgroundMotion });
+  },
+  backgroundMonochrome: readStorage('localStorage', BACKGROUND_MONOCHROME_KEY) === 'on',
+  setBackgroundMonochrome: (backgroundMonochrome) => {
+    writeStorage('localStorage', BACKGROUND_MONOCHROME_KEY, backgroundMonochrome ? 'on' : 'off');
+    set({ backgroundMonochrome });
   },
   installBannerDismissed: readStorage('sessionStorage', BANNER_KEY) === '1',
   dismissInstallBanner: () => {

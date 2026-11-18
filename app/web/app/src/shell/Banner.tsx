@@ -11,7 +11,7 @@ interface BannerProps {
 export function Banner({ title, detail, action, onDismiss }: BannerProps) {
   return (
     <div
-      className="relative z-(--z-web-chrome) flex min-h-[71px] items-center gap-4 bg-key-bg px-[30px] py-3 text-white max-sm:pr-4 max-sm:pl-5"
+      className="relative z-(--z-web-chrome) flex min-h-[71px] items-center gap-4 bg-key-bg px-[30px] py-3 text-pill max-sm:pr-4 max-sm:pl-5"
       role="region"
       aria-label={title}
     >
@@ -22,7 +22,7 @@ export function Banner({ title, detail, action, onDismiss }: BannerProps) {
       <div className="shrink-0">{action}</div>
       {onDismiss && (
         <button
-          className="-mr-3.5 grid size-7 place-items-center rounded-full text-white opacity-85 hover:bg-[#ffffff26] hover:opacity-100"
+          className="-mr-3.5 grid size-7 place-items-center rounded-full opacity-85 hover:bg-black/10 hover:opacity-100"
           onClick={onDismiss}
           aria-label="Dismiss"
         >
@@ -34,4 +34,4 @@ export function Banner({ title, detail, action, onDismiss }: BannerProps) {
 }
 
 export const bannerButtonClass =
-  'inline-flex h-8 items-center whitespace-nowrap rounded-pill bg-white px-4 type-body-emphasized text-black hover:bg-[#ffffffe0]';
+  'inline-flex h-8 items-center whitespace-nowrap rounded-pill bg-page px-4 type-body-emphasized text-primary hover:brightness-95';

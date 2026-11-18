@@ -67,6 +67,8 @@ export default function SettingsPage() {
   const setShareHistory = useHistorySettings((s) => s.setShare);
   const backgroundMotion = useUi((s) => s.backgroundMotion);
   const setBackgroundMotion = useUi((s) => s.setBackgroundMotion);
+  const backgroundMonochrome = useUi((s) => s.backgroundMonochrome);
+  const setBackgroundMonochrome = useUi((s) => s.setBackgroundMonochrome);
   const { setAutoplay, setCrossfade, setAutomix, setAutomixBars, setShowNerdStats, setLoudnessTarget, setSleepTimer } = usePlayer.getState();
   const [lyrics, setLyrics] = useState(false);
   const [localPlaylistsOnly, setLocalPlaylistsOnly] = useState(createPlaylistsLocally);
@@ -142,6 +144,12 @@ export default function SettingsPage() {
             detail="Animate the color background when your device allows motion."
             checked={backgroundMotion}
             onChange={setBackgroundMotion}
+          />
+          <Toggle
+            label="Monochrome Background"
+            detail="Show the animated background in grayscale."
+            checked={backgroundMonochrome}
+            onChange={setBackgroundMonochrome}
           />
         </section>
 

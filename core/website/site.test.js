@@ -7,6 +7,7 @@ const source = readFileSync(`${__dirname}/site.js`, 'utf8');
 const packageList = '#ecosystem';
 const openSource = readFileSync(`${__dirname}/open.js`, 'utf8');
 const openPage = readFileSync(`${__dirname}/open.html`, 'utf8');
+const themeInitSource = readFileSync(`${__dirname}/theme-init.js`, 'utf8');
 
 test('nuvx open page tries the app and offers the web fallback', () => {
   const status = { textContent: '' };
@@ -109,4 +110,83 @@ test('search discovery files keep the IndexNow key and canonical sitemap connect
     'https://www.nuvx.lol/terms',
     'https://www.nuvx.lol/privacy',
   ]);
+});
+
+test('all marketing pages load the shared ambient layer', () => {
+  for (const page of ['index.html', 'docs.html', 'changelog.html', 'privacy.html', 'terms.html', 'open.html']) {
+    const html = readFileSync(`${__dirname}/${page}`, 'utf8');
+    assert.match(html, /href="\/ambient\.css"/, `${page} loads ambient.css`);
+    assert.match(html, /src="\/site\.js"/, `${page} loads site.js`);
+    assert.match(html, /class="nuvx-ambient"/, `${page} has the ambient layer`);
+    assert.match(html, /poster="\/mesh-gradient-poster\.webp"/, `${page} has a static video poster`);
+    assert.match(html, /<source src="\/mesh-gradient-web\.webm" type="video\/webm">/, `${page} prefers WebM`);
+    assert.match(html, /<source src="\/mesh-gradient-web\.mp4" type="video\/mp4">/, `${page} supports MP4`);
+  }
+});
+
+function loadBackgroundPage({ paused = false, reducedMotion = false, monochrome = false } = {}) {
+  const attributes = new Set();
+  const root = {
+    dataset: { theme: 'dark' },
+    hasAttribute: (name) => attributes.has(name),
+    toggleAttribute: (name, force) => force ? attributes.add(name) : attributes.delete(name),
+  };
+  const handlers = {};
+  const buttonAttributes = {};
+  const button = {
+    addEventListener: (name, callback) => { handlers[name] = callback; },
+    setAttribute: (name, value) => { buttonAttributes[name] = value; },
+  };
+  const video = { pauses: 0, plays: 0, pause() { this.pauses++; }, play() { this.plays++; return Promise.resolve(); } };
+  const elements = {
+    '#background-monochrome-toggle': button,
+    '#ambient-video': video,
+  };
+  const storage = new Map([
+    ...(paused ? [['nuvx-motion', 'paused']] : []),
+    ...(monochrome ? [['nuvx-background-monochrome', '1']] : []),
+  ]);
+  const context = {
+    document: {
+      documentElement: root,
+      querySelector: (selector) => elements[selector] ?? null,
+      querySelectorAll: () => [],
+      addEventListener() {},
+    },
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+    },
+    matchMedia: () => ({ matches: reducedMotion, addEventListener() {} }),
+    navigator: { userAgent: 'Unknown Browser', platform: 'Unknown', maxTouchPoints: 0 },
+    fetch: () => Promise.resolve({ ok: false }),
+    window: { addEventListener() {}, scrollY: 0 },
+  };
+  runInNewContext(themeInitSource, context);
+  runInNewContext(source, context);
+  return { attributes, buttonAttributes, handlers, root, storage, video };
+}
+
+test('monochrome background toggle persists and exposes its state', () => {
+  const page = loadBackgroundPage();
+  page.handlers.click();
+  assert.ok(page.attributes.has('data-background-monochrome'));
+  assert.equal(page.buttonAttributes['aria-pressed'], 'true');
+  assert.equal(page.storage.get('nuvx-background-monochrome'), '1');
+  const restored = loadBackgroundPage({ monochrome: true });
+  assert.ok(restored.attributes.has('data-background-monochrome'));
+  assert.equal(restored.buttonAttributes['aria-pressed'], 'true');
+});
+
+test('ambient video pauses when motion is disabled or reduced', async (t) => {
+  await t.test('saved pause setting', () => {
+    const page = loadBackgroundPage({ paused: true });
+    assert.ok(page.video.pauses > 0);
+    assert.ok(page.attributes.has('data-motion-paused'));
+  });
+  await t.test('reduced motion', () => {
+    const page = loadBackgroundPage({ reducedMotion: true });
+    assert.ok(page.video.pauses > 0);
+    assert.ok(page.attributes.has('data-motion-paused'));
+  });
 });

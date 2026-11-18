@@ -85,7 +85,7 @@ export default function ArtistPage() {
           <ArtistName name={data.name} apple={apple} />
           {data.audience && <p className="type-callout-emphasized text-secondary">{data.audience}</p>}
           <button
-            className="mt-2.5 grid size-14 place-items-center rounded-full bg-(--play-fill,var(--keyColorBG)) text-(--play-glyph,#fff) shadow-[0_2px_6px_-4px_#0006,inset_0_0_2px_#ffffff1a] disabled:opacity-40 enabled:hover:scale-[1.04]"
+            className="mt-2.5 grid size-14 place-items-center rounded-full bg-(--play-fill,var(--keyColorBG)) text-(--play-glyph,var(--button-pill-color)) shadow-[0_2px_6px_-4px_#0006,inset_0_0_2px_#ffffff1a] disabled:opacity-40 enabled:hover:scale-[1.04]"
             style={
               apple
                 ? ({ '--play-fill': apple.keyColor ?? '#ffffff', '--play-glyph': apple.background } as CSSProperties)
@@ -101,7 +101,7 @@ export default function ArtistPage() {
             <div className="mt-3 flex items-center gap-2.5 rounded-[999px] bg-[#0000004d] py-1.5 pr-2 pl-3.5 type-callout text-[#ffffffcc] [backdrop-filter:blur(20px)_saturate(1.6)]">
               <span>Apple Music artist art needs the extension’s permission.</span>
               <button
-                className="flex-none rounded-[999px] bg-[#ffffff26] px-2.5 py-1 type-callout-emphasized text-white hover:bg-[#ffffff40]"
+                className="flex-none rounded-[999px] bg-black/60 px-2.5 py-1 type-callout-emphasized text-white hover:bg-black/75"
                 onClick={requestAppleAccess}
               >
                 Allow

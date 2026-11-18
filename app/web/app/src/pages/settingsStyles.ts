@@ -24,7 +24,7 @@ export const settingsUi = {
   downloadDetail: 'type-body text-secondary',
   chevron: 'text-tertiary',
   guideTab:
-    'rounded-[12px] bg-quaternary px-3 py-1 type-callout-emphasized text-secondary hover:text-primary aria-pressed:bg-key-bg aria-pressed:text-white',
+    'rounded-[12px] bg-quaternary px-3 py-1 type-callout-emphasized text-secondary hover:text-primary aria-pressed:bg-key-bg aria-pressed:text-pill',
   steps: 'mx-4 mt-2.5 list-decimal ps-[18px] type-body-tall text-secondary [&>li+li]:mt-1',
 
   integration: `${integration} grid-cols-[24px_minmax(0,1fr)_auto]`,
@@ -37,7 +37,7 @@ export const settingsUi = {
 
   switch: [
     'relative h-[22px] w-[38px] flex-none cursor-pointer appearance-none rounded-[11px] bg-quaternary transition-[background-color] duration-200 checked:bg-green',
-    'after:absolute after:top-0.5 after:left-0.5 after:size-[18px] after:rounded-full after:bg-white after:shadow-[0_1px_3px_rgb(0_0_0/0.3)] after:transition-[translate] after:duration-200 checked:after:translate-x-4',
+    'after:absolute after:top-0.5 after:left-0.5 after:size-[18px] after:rounded-full after:bg-pill after:shadow-[0_1px_3px_rgb(0_0_0/0.3)] after:transition-[translate] after:duration-200 checked:after:translate-x-4',
   ].join(' '),
   input: field,
 };

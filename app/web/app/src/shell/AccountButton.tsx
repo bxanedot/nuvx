@@ -6,7 +6,7 @@ import { useRefreshYtAuth, useSelectChannel, useSetConnected, useYtAuth } from '
 const SIGN_IN_URL = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/';
 
 const pill =
-  'self-start rounded-[16px] bg-key-bg px-3.5 py-[5px] type-[600_13px/18px] text-white hover:brightness-[1.08] disabled:opacity-60';
+  'self-start rounded-[16px] bg-key-bg px-3.5 py-[5px] type-[600_13px/18px] text-pill hover:brightness-[1.08] disabled:opacity-60';
 const avatar = 'inline-grid flex-none place-items-center rounded-full bg-quinary object-cover type-[600_11px/1] text-secondary';
 
 function Avatar({ src, name, size }: { src: string | null; name: string; size: number }) {

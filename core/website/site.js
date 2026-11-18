@@ -16,6 +16,14 @@
 
   const topbar = document.querySelector('.topbar');
   const menuToggle = document.querySelector('#menu-toggle');
+  const backgroundToggle = document.querySelector('#background-monochrome-toggle');
+  const monochrome = () => root.hasAttribute('data-background-monochrome');
+  backgroundToggle?.setAttribute('aria-pressed', String(monochrome()));
+  backgroundToggle?.addEventListener('click', () => {
+    root.toggleAttribute('data-background-monochrome', !monochrome());
+    backgroundToggle.setAttribute('aria-pressed', String(monochrome()));
+    try { localStorage.setItem('nuvx-background-monochrome', monochrome() ? '1' : '0'); } catch {}
+  });
   const updateTopbar = () => {
     if (!topbar) return;
     const isCompact = topbar.classList.contains('is-forward');
@@ -54,6 +62,7 @@
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const control = document.querySelector('.showcase-toggle');
   const video = document.querySelector('#promo-video');
+  const ambientVideo = document.querySelector('#ambient-video');
   const volume = document.querySelector('#promo-volume');
   if (video && volume) {
     volume.addEventListener('input', () => {
@@ -68,8 +77,13 @@
     root.toggleAttribute('data-motion-paused', !playing);
     if (control) control.textContent = playing ? 'Pause showcase and video' : 'Play showcase and video';
     syncShowcase?.();
-    if (playing) video?.play().catch(() => {});
-    else video?.pause();
+    if (playing) {
+      video?.play().catch(() => {});
+      ambientVideo?.play().catch(() => {});
+    } else {
+      video?.pause();
+      ambientVideo?.pause();
+    }
   };
   const toggleMotion = () => {
     playing = !playing;
