@@ -43,12 +43,16 @@ internal class PlaybackOutputRouter(
     private val audioManager by lazy { context.getSystemService(AudioManager::class.java) }
     private val bluetoothTracker by lazy { BluetoothAudioTracker(context) }
     var currentAudioInputFormat: Format? = null
+    private val knownOutputs = OutputRouteMemory()
     private val outputDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
-            AudioRouting.forget()
+            // Registration replays every connected device, and calls add input/SCO devices: only a newly plugged output overrides the user's pick.
+            val newOutput = addedDevices.count { knownOutputs.added(it.id, it.type, it.isSink) } > 0
+            if (newOutput) AudioRouting.forget()
             requestOutputReconfiguration()
         }
         override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
+            removedDevices.forEach { knownOutputs.removed(it.id) }
             if (removedDevices.any { it.id == AudioRouting.selectedId.value }) {
                 AudioRouting.forget()
             }
@@ -76,12 +80,18 @@ internal class PlaybackOutputRouter(
     }
 
     fun registerDeviceCallback() {
-        audioManager?.registerAudioDeviceCallback(outputDeviceCallback, null)
+        val manager = audioManager ?: return
+        runCatching { manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS) }.getOrNull()
+            ?.forEach { knownOutputs.added(it.id, it.type, it.isSink) }
+        manager.registerAudioDeviceCallback(outputDeviceCallback, null)
     }
 
     fun stop() {
+        outputReconfigureJob?.cancel()
+        outputReconfigureJob = null
         bluetoothTracker.stop()
         audioManager?.unregisterAudioDeviceCallback(outputDeviceCallback)
+        knownOutputs.clear()
     }
 
     private fun lastReportedSampleRateHz(): Int? {
@@ -328,6 +338,24 @@ internal class PlaybackOutputRouter(
         val telemetry = bluetoothTracker.telemetry.value
         return telemetry.bitDepth.takeIf { telemetry.isConnected && telemetry.isAuthoritative }
     }
+}
+
+/** Output devices already seen, so a replayed or non-output "added" event doesn't reset the chosen route. */
+internal class OutputRouteMemory {
+    private val known = HashSet<Int>()
+
+    /** True only for a routable output device that wasn't connected before. */
+    @Synchronized
+    fun added(id: Int, type: Int, isSink: Boolean): Boolean =
+        isSink && AudioRouting.kindOf(type) != null && known.add(id)
+
+    @Synchronized
+    fun removed(id: Int) {
+        known.remove(id)
+    }
+
+    @Synchronized
+    fun clear() = known.clear()
 }
 
 private const val STREAM_INFO_BYTES = 34
