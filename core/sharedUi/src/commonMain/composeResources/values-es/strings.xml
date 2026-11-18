@@ -200,4 +200,5 @@
     <string name="search_library_no_results">Nada en Música local coincide con “%1$s”.</string>
     <string name="import_playlist_file">Importar archivo</string>
     <string name="import_playlist_file_subtitle">M3U o CSV</string>
+    <string name="saved_on_this_device">Guardada en este dispositivo</string>
 </resources>

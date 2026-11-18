@@ -178,15 +178,14 @@ fun SongActionsMenu(
             }
         }
 
-        if (canRate) {
-            if (startsGroup()) IosMenuSeparator()
-            ActionRow(
-                icon = SfIcons.AddToPlaylist,
-                label = stringResource(R.string.add_to_playlist),
-                accent = palette.accent,
-                onClick = onAddToPlaylist,
-            )
-        }
+        // Signed out, the picker still offers (and creates) nuvx playlists on this device.
+        if (startsGroup()) IosMenuSeparator()
+        ActionRow(
+            icon = SfIcons.AddToPlaylist,
+            label = stringResource(R.string.add_to_playlist),
+            accent = palette.accent,
+            onClick = onAddToPlaylist,
+        )
         // Given only for a playlist this device may edit; nuvx playlists need no sign-in.
         onRemoveFromPlaylist?.let {
             ActionRow(

@@ -200,4 +200,5 @@
     <string name="search_library_no_results">Nichts in der lokalen Musik passt zu „%1$s“.</string>
     <string name="import_playlist_file">Datei importieren</string>
     <string name="import_playlist_file_subtitle">M3U oder CSV</string>
+    <string name="saved_on_this_device">Auf diesem Gerät gespeichert</string>
 </resources>

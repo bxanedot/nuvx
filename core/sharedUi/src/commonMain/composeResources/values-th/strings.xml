@@ -200,4 +200,5 @@
     <string name="search_library_no_results">ไม่มีอะไรในเพลงในเครื่องตรงกับ “%1$s”</string>
     <string name="import_playlist_file">นำเข้าไฟล์</string>
     <string name="import_playlist_file_subtitle">M3U หรือ CSV</string>
+    <string name="saved_on_this_device">บันทึกไว้ในอุปกรณ์นี้</string>
 </resources>

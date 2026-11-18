@@ -200,4 +200,5 @@
     <string name="search_library_no_results">NIC w muzyce lokalnej nie pasuje do „%1$s”.</string>
     <string name="import_playlist_file">Importuj plik</string>
     <string name="import_playlist_file_subtitle">M3U lub CSV</string>
+    <string name="saved_on_this_device">Zapisano na tym urządzeniu</string>
 </resources>

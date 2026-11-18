@@ -200,4 +200,5 @@
     <string name="search_library_no_results">Tidak ada di Musik Lokal yang cocok dengan “%1$s”.</string>
     <string name="import_playlist_file">Impor file</string>
     <string name="import_playlist_file_subtitle">M3U atau CSV</string>
+    <string name="saved_on_this_device">Disimpan di perangkat ini</string>
 </resources>

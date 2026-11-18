@@ -3137,6 +3137,7 @@ internal fun NuvxApp(
                 loading = playlistsLoading,
                 song = target,
                 startCreating = target == null,
+                signedIn = signedIn,
                 onDismiss = dismiss,
                 onAdd = { picked ->
                     target?.let { song ->

@@ -200,4 +200,5 @@
     <string name="search_library_no_results">אין דבר במוזיקה המקומית שתואם ל-„%1$s”.</string>
     <string name="import_playlist_file">ייבוא קובץ</string>
     <string name="import_playlist_file_subtitle">M3U או CSV</string>
+    <string name="saved_on_this_device">נשמר במכשיר הזה</string>
 </resources>

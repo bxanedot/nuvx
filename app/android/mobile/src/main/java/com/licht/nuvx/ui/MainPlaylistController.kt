@@ -128,7 +128,8 @@ internal class MainPlaylistController(
 
     fun createPlaylist(title: String, privacy: PlaylistPrivacy, song: Song? = null) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
-        if (com.licht.nuvx.data.settings.AppSettings.createPlaylistsLocally.value) {
+        // Signed out there is no YouTube account to save to, so keep it on this device instead of doing nothing.
+        if (com.licht.nuvx.data.settings.AppSettings.createPlaylistsLocally.value || !requireSignIn()) {
             val local = com.licht.nuvx.data.spotify.LocalPlaylistStore.createNuvxPlaylist(name, listOfNotNull(song))
             _playlists.value = listOf(UserPlaylist(local.browseId, local.title, "${local.songs.size} songs", local.songs.firstOrNull()?.thumbnailUrl)) +
                 _playlists.value.filterNot { it.browseId == local.browseId }

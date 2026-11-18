@@ -23,6 +23,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **Remove songs from your nuvx playlists, with Undo.** The song menu in a playlist saved on this device now has
   **Remove from this playlist** even when you aren't signed in (before, it never appeared for these playlists).
   A bar with **Undo** puts the song back where it was.
+- **Playlists work without signing in.** Signed out, **New playlist** now creates a playlist on this device
+  (before, nothing happened), says "Saved on this device", and **Add to playlist** shows in the song menu so you
+  can fill it. Signed-in behaviour is unchanged.
 
 ### Desktop (Windows, macOS, Linux)
 

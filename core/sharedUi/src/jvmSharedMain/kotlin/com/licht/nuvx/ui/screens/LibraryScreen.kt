@@ -136,6 +136,7 @@ fun LibraryScreen(
                         onImportSpotifyPlaylist = onImportSpotifyPlaylist,
                         onImportPlaylistFile = onImportPlaylistFile,
                         onShowAll = { onShowAll(emptyPlaylists) },
+                        savedOnDevice = true,
                     )
                 }
                 item {
@@ -280,6 +281,7 @@ private fun PlaylistShelf(
     onImportPlaylistFile: (() -> Unit)? = null,
     onShowAll: () -> Unit,
     pinnedPlaylists: List<String> = emptyList(),
+    savedOnDevice: Boolean = false,
 ) {
     LibraryGridShelf(
         shelf = shelf,
@@ -292,7 +294,7 @@ private fun PlaylistShelf(
                 NewShelfCard(
                     icon = SfIcons.Add,
                     label = stringResource(Res.string.new_playlist),
-                    subtitle = stringResource(Res.string.saved_to_youtube_music),
+                    subtitle = stringResource(if (savedOnDevice) Res.string.saved_on_this_device else Res.string.saved_to_youtube_music),
                     onClick = onNewPlaylist,
                 )
                 if (onImportSpotifyPlaylist != null) {

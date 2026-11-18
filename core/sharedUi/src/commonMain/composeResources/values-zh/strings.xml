@@ -200,4 +200,5 @@
     <string name="search_library_no_results">本地音乐中没有与「%1$s」匹配的内容。</string>
     <string name="import_playlist_file">导入文件</string>
     <string name="import_playlist_file_subtitle">M3U 或 CSV</string>
+    <string name="saved_on_this_device">已保存在此设备上</string>
 </resources>

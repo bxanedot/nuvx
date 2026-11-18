@@ -281,4 +281,5 @@
     <string name="browse_categories">Browse Categories</string>
     <string name="import_playlist_file">Import file</string>
     <string name="import_playlist_file_subtitle">M3U or CSV</string>
+    <string name="saved_on_this_device">Saved on this device</string>
 </resources>

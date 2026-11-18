@@ -200,4 +200,5 @@
     <string name="search_library_no_results">Yerel Müzik’te “%1$s” ile eşleşen bir şey yok.</string>
     <string name="import_playlist_file">Dosya içe aktar</string>
     <string name="import_playlist_file_subtitle">M3U veya CSV</string>
+    <string name="saved_on_this_device">Bu cihaza kaydedildi</string>
 </resources>

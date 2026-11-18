@@ -280,4 +280,5 @@
     <string name="mix_view_bpm">%1$d bpm</string>
     <string name="import_playlist_file">파일 가져오기</string>
     <string name="import_playlist_file_subtitle">M3U 또는 CSV</string>
+    <string name="saved_on_this_device">이 기기에 저장됨</string>
 </resources>

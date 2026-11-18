@@ -200,4 +200,5 @@
     <string name="search_library_no_results">Không có gì trong Nhạc cục bộ khớp với “%1$s”.</string>
     <string name="import_playlist_file">Nhập tệp</string>
     <string name="import_playlist_file_subtitle">M3U hoặc CSV</string>
+    <string name="saved_on_this_device">Đã lưu trên thiết bị này</string>
 </resources>

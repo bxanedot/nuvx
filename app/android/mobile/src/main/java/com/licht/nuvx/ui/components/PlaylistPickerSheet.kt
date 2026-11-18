@@ -84,8 +84,10 @@ fun PlaylistPickerSheet(
     song: Song? = null,
     startCreating: Boolean = false,
     offline: Boolean = false,
+    signedIn: Boolean = true,
 ) {
-    val createLocally = AppSettings.createPlaylistsLocally.collectAsStateWithLifecycle().value
+    // Signed out, new playlists are kept on this device (see MainPlaylistController.createPlaylist).
+    val createLocally = AppSettings.createPlaylistsLocally.collectAsStateWithLifecycle().value || !signedIn
     var creating by remember { mutableStateOf(startCreating) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
     var query by remember { mutableStateOf("") }

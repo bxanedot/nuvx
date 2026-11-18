@@ -200,4 +200,5 @@
     <string name="search_library_no_results">लोकल म्यूज़िक में “%1$s” से मेल खाता कुछ नहीं.</string>
     <string name="import_playlist_file">फ़ाइल इंपोर्ट करें</string>
     <string name="import_playlist_file_subtitle">M3U या CSV</string>
+    <string name="saved_on_this_device">इस डिवाइस पर सेव किया गया</string>
 </resources>
