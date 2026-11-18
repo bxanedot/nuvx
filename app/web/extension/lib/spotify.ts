@@ -510,7 +510,7 @@ export async function setConnected(connected: boolean): Promise<SpotifyAuthState
 }
 
 export function isSessionCookie(cookie: Browser.cookies.Cookie): boolean {
-  return cookie.name === 'sp_dc' && cookie.domain.endsWith('spotify.com');
+  return cookie.name === 'sp_dc' && /(^|\.)spotify\.com$/.test(cookie.domain.replace(/^\./, ''));
 }
 
 export function invalidateSession(): void {

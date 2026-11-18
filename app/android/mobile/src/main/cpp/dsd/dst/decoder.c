@@ -339,7 +339,7 @@ int dst_decoder_decode(dst_decoder_t *decoder,
         if (get_bits(gb, 6))
             return AVERROR_INVALIDDATA;
         if (frame_size - 1 != nb_samples * channels) return AVERROR_INVALIDDATA;
-        memcpy(dsd_output, dst_data + 1, nb_samples * channels);
+        memcpy(dsd_output, dst_data + 1, (size_t)nb_samples * channels);
         *dsd_output_len = nb_samples * channels;
         return 0;
     }
@@ -401,7 +401,7 @@ int dst_decoder_decode(dst_decoder_t *decoder,
     if (gb->error || build_filter(decoder->filter, &decoder->fsets) < 0) return AVERROR_INVALIDDATA;
 
     memset(decoder->status, 0xAA, sizeof(decoder->status));
-    memset(dsd_output, 0, nb_samples * channels);
+    memset(dsd_output, 0, (size_t)nb_samples * channels);
 
     ac_get(ac, gb, prob_dst_x_bit(decoder->fsets.coeff[0][0]), &dst_x_bit);
 

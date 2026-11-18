@@ -169,3 +169,10 @@ test("a full server refuses new spaces and pushes, but still serves reads", () =
   assert.equal(roomy.call("GET", "/v1/ops", me.token).status, 200);
   assert.equal(roomy.call("POST", "/v1/spaces", undefined, { deviceName: "Laptop" }).status, 507);
 });
+
+test("a huge whitespace-padded bearer header is refused quickly", () => {
+  const a = app();
+  const started = performance.now();
+  assert.equal(a.call("GET", "/v1/devices", `${" ".repeat(50_000)}\n`).status, 401);
+  assert.ok(performance.now() - started < 1_000, "the auth pattern must not backtrack on long headers");
+});

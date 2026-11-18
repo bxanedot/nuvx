@@ -19,6 +19,12 @@ const SESSION_WAIT_MS = 20_000;
 const KEEPALIVE_MS = 20_000;
 const IDLE_CLOSE_MS = 5 * 60_000;
 
+// Discord sends these; still only follow its own gateway hosts and sane heartbeat timings.
+export const gatewayResumeUrl = (url: unknown): string | null =>
+  typeof url === 'string' && /^wss:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.discord\.gg$/i.test(url) ? `${url}/?v=9&encoding=json` : null;
+export const heartbeatMs = (ms: unknown): number =>
+  Math.min(5 * 60_000, Math.max(1_000, typeof ms === 'number' && Number.isFinite(ms) ? ms : 41_250));
+
 const ACCOUNT_KEY = 'discord.account';
 const ENABLED_KEY = 'discord.enabled';
 
@@ -226,7 +232,7 @@ export class Gateway {
         if (payload.t === 'READY') {
           const ready = payload.d as { session_id: string; resume_gateway_url: string };
           this.sessionId = ready.session_id;
-          this.resumeUrl = `${ready.resume_gateway_url}/?v=9&encoding=json`;
+          this.resumeUrl = gatewayResumeUrl(ready.resume_gateway_url);
           this.sessionReady();
         } else if (payload.t === 'RESUMED') {
           this.sessionReady();
@@ -248,7 +254,7 @@ export class Gateway {
         setTimeout(() => this.identify(), 150);
         break;
       case OP.HELLO: {
-        this.heartbeatInterval = (payload.d as { heartbeat_interval: number }).heartbeat_interval;
+        this.heartbeatInterval = heartbeatMs((payload.d as { heartbeat_interval: number }).heartbeat_interval);
         if (this.sequence > 0 && this.sessionId) {
           this.send(OP.RESUME, { token: this.token, session_id: this.sessionId, seq: this.sequence });
         } else {

@@ -58,7 +58,7 @@
     return parent;
   };
 
-  const onlyPictures = (line) => /^(\s*!\[[^\]]*\]\([^)]*\)\s*)+$/.test(line);
+  const onlyPictures = (line) => /^\s*(!\[[^\]]*\]\([^)]*\)\s*)+$/.test(line);
   const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
 
   const render = (md) => {

@@ -129,7 +129,7 @@ const client = new Client({
 });
 
 const safeName = (value) => String(value)
-  .replace(/[\r\n`@*|_~]/g, (character) => character === '@' ? '@\u200b' : `\\${character}`)
+  .replace(/[\\\r\n`@*|_~]/g, (character) => character === '@' ? '@\u200b' : `\\${character}`)
   .replace(/\[/g, '\\[')
   .replace(/\]/g, '\\]');
 

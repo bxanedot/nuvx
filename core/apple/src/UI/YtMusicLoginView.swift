@@ -467,7 +467,7 @@ final class LoginWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, W
 
 
             decisionHandler(.cancel)
-            NSLog("[Nuvx] sign-in refused scheme: \(url?.scheme ?? "unknown")")
+            NSLog("[Nuvx] sign-in refused scheme: %@", url?.scheme ?? "unknown")
             flow.refusal = why
         }
     }
