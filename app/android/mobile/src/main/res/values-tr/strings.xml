@@ -1482,4 +1482,9 @@
     <string name="computer_output_name">Bilgisayar</string>
     <string name="nuvx_connect_how">Oynatıcıdaki hoparlör düğmesine dokunup %1$s seçin. Telefon onu yönetir.</string>
     <string name="nuvx_connect_not_reachable">Şu an ulaşılamıyor. İkisi aynı Wi-Fi’da olmalı ve bilgisayarda uzaktan kontrol açık olmalı.</string>
+    <string name="nuvx_files_copy_title">%1$s indirmelerini kopyala</string>
+    <string name="nuvx_files_copy_subtitle">Bilgisayarda indirilen şarkıları çevrimdışı dinlemek için bu telefona</string>
+    <string name="nuvx_files_copying">%2$d şarkıdan %1$d kopyalanıyor…</string>
+    <string name="nuvx_files_done">%1$d şarkı kopyalandı</string>
+    <string name="nuvx_files_nothing">Kopyalanacak yeni bir şey yok</string>
 </resources>

@@ -360,6 +360,40 @@ object Downloads {
 
     internal const val LOW_STORAGE_REFUSAL = "Less than 500 MB of storage is free"
 
+    /**
+     * Copies a song the paired computer downloaded into this phone's downloads, as if it had been downloaded here.
+     * Same storage rules as a normal download. Blocking: run on Dispatchers.IO.
+     */
+    fun copyFromComputer(context: Context, file: com.licht.nuvx.data.sync.NuvxFiles.Remote, onProgress: (Long) -> Unit = {}) {
+        if (saved.value.containsKey(file.id)) return
+        if (DownloadStore.freeBytes(context) < MIN_FREE_BYTES + file.size) error(LOW_STORAGE_REFUSAL)
+        val limitGb = AppSettings.downloadLimitGb.value
+        if (limitGb > 0 && limitReached(DownloadStore.usedBytes(context, saved.value.values) + file.size, limitGb)) error(limitRefusal(limitGb))
+        val song = Song(
+            videoId = file.id,
+            title = file.title.ifBlank { file.id },
+            artist = file.artist,
+            thumbnailUrl = file.art,
+            durationText = file.durationMs?.let { ms -> "%d:%02d".format(ms / 60_000, ms / 1_000 % 60) },
+        )
+        val mime = when (file.ext) {
+            "m4a" -> "audio/mp4"
+            "webm", "opus" -> "audio/webm"
+            "mp3" -> "audio/mpeg"
+            "flac" -> "audio/flac"
+            else -> "audio/ogg"
+        }
+        val pending = DownloadStore.begin(context, DownloadStore.fileNameFor(song, file.ext), mime)
+        try {
+            pending.openStream().use { out -> com.licht.nuvx.data.sync.NuvxFiles.fetch(file, out, onProgress) }
+            val uri = pending.commit()
+            library.remember(song, song, uri, file.ext, file.art)
+        } catch (e: Throwable) {
+            pending.abort()
+            throw e
+        }
+    }
+
     internal fun limitReached(usedBytes: Long, limitGb: Int): Boolean = limitGb > 0 && usedBytes >= limitGb * 1_000_000_000L
 
     internal fun limitRefusal(limitGb: Int) = "Downloads have reached your $limitGb GB limit. Raise it in Settings → Downloads."

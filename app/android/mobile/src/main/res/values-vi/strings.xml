@@ -1444,4 +1444,9 @@
     <string name="computer_output_name">Máy tính</string>
     <string name="nuvx_connect_how">Chạm nút loa trong trình phát và chọn %1$s. Điện thoại sẽ điều khiển nó.</string>
     <string name="nuvx_connect_not_reachable">Hiện không kết nối được. Cả hai cần cùng Wi-Fi và đã cho phép điều khiển từ xa trên máy tính.</string>
+    <string name="nuvx_files_copy_title">Sao chép bản tải xuống từ %1$s</string>
+    <string name="nuvx_files_copy_subtitle">Bài đã tải trên máy tính, về điện thoại này để nghe ngoại tuyến</string>
+    <string name="nuvx_files_copying">Đang sao chép %1$d / %2$d…</string>
+    <string name="nuvx_files_done">Đã sao chép %1$d bài</string>
+    <string name="nuvx_files_nothing">Không có gì mới để sao chép</string>
 </resources>

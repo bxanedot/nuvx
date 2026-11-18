@@ -1497,4 +1497,9 @@
     <string name="computer_output_name">Ordenador</string>
     <string name="nuvx_connect_how">Toca el botón de altavoz del reproductor y elige %1$s. El teléfono lo controla desde ahí.</string>
     <string name="nuvx_connect_not_reachable">No disponible ahora. Ambos necesitan la misma Wi-Fi y el control remoto permitido en el ordenador.</string>
+    <string name="nuvx_files_copy_title">Copiar descargas de %1$s</string>
+    <string name="nuvx_files_copy_subtitle">Canciones descargadas en el ordenador, a este teléfono para escuchar sin conexión</string>
+    <string name="nuvx_files_copying">Copiando %1$d de %2$d…</string>
+    <string name="nuvx_files_done">%1$d canciones copiadas</string>
+    <string name="nuvx_files_nothing">Nada nuevo que copiar</string>
 </resources>

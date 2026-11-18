@@ -1526,4 +1526,9 @@
     <string name="computer_output_name">Ordinateur</string>
     <string name="nuvx_connect_how">Touchez le bouton haut-parleur du lecteur et choisissez %1$s. Le téléphone le contrôle alors.</string>
     <string name="nuvx_connect_not_reachable">Injoignable pour le moment. Il faut le même Wi-Fi et le contrôle à distance autorisé sur l’ordinateur.</string>
+    <string name="nuvx_files_copy_title">Copier les téléchargements de %1$s</string>
+    <string name="nuvx_files_copy_subtitle">Les titres téléchargés sur l’ordinateur, sur ce téléphone pour l’écoute hors ligne</string>
+    <string name="nuvx_files_copying">Copie %1$d sur %2$d…</string>
+    <string name="nuvx_files_done">%1$d titres copiés</string>
+    <string name="nuvx_files_nothing">Rien de nouveau à copier</string>
 </resources>

@@ -1504,4 +1504,9 @@
     <string name="computer_output_name">Komputer</string>
     <string name="nuvx_connect_how">Ketuk tombol speaker di pemutar lalu pilih %1$s. Ponsel lalu mengendalikannya.</string>
     <string name="nuvx_connect_not_reachable">Tidak terjangkau sekarang. Keduanya perlu Wi-Fi yang sama dan kendali jarak jauh diizinkan di komputer.</string>
+    <string name="nuvx_files_copy_title">Salin unduhan dari %1$s</string>
+    <string name="nuvx_files_copy_subtitle">Lagu yang diunduh di komputer, ke ponsel ini untuk didengar offline</string>
+    <string name="nuvx_files_copying">Menyalin %1$d dari %2$d…</string>
+    <string name="nuvx_files_done">%1$d lagu disalin</string>
+    <string name="nuvx_files_nothing">Tidak ada yang baru untuk disalin</string>
 </resources>

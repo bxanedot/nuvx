@@ -1376,4 +1376,9 @@
     <string name="computer_output_name">Computer</string>
     <string name="nuvx_connect_how">Tap the speaker button in the player and pick %1$s. The phone then controls it.</string>
     <string name="nuvx_connect_not_reachable">Not reachable right now. Both need the same Wi-Fi, and Allow remote control on the computer.</string>
+    <string name="nuvx_files_copy_title">Copy downloads from %1$s</string>
+    <string name="nuvx_files_copy_subtitle">Songs downloaded on the computer, onto this phone for offline listening</string>
+    <string name="nuvx_files_copying">Copying %1$d of %2$d…</string>
+    <string name="nuvx_files_done">Copied %1$d songs</string>
+    <string name="nuvx_files_nothing">Nothing new to copy</string>
 </resources>

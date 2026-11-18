@@ -1525,4 +1525,9 @@
     <string name="computer_output_name">Computer</string>
     <string name="nuvx_connect_how">Tippe im Player auf die Lautsprecher-Taste und wähle %1$s. Das Handy steuert ihn dann.</string>
     <string name="nuvx_connect_not_reachable">Gerade nicht erreichbar. Beide brauchen dasselbe WLAN und auf dem Computer die erlaubte Fernsteuerung.</string>
+    <string name="nuvx_files_copy_title">Downloads von %1$s kopieren</string>
+    <string name="nuvx_files_copy_subtitle">Auf dem Computer geladene Songs zum Offline-Hören auf dieses Handy</string>
+    <string name="nuvx_files_copying">Kopiere %1$d von %2$d …</string>
+    <string name="nuvx_files_done">%1$d Songs kopiert</string>
+    <string name="nuvx_files_nothing">Nichts Neues zu kopieren</string>
 </resources>

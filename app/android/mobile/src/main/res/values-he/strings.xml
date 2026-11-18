@@ -1530,4 +1530,9 @@
     <string name="computer_output_name">מחשב</string>
     <string name="nuvx_connect_how">הקש על לחצן הרמקול בנגן ובחר %1$s. הטלפון ישלוט בו.</string>
     <string name="nuvx_connect_not_reachable">לא זמין כרגע. שניהם צריכים את אותה רשת Wi-Fi ושליטה מרחוק מופעלת במחשב.</string>
+    <string name="nuvx_files_copy_title">העתקת הורדות מ-%1$s</string>
+    <string name="nuvx_files_copy_subtitle">שירים שהורדו במחשב, לטלפון הזה להאזנה לא מקוונת</string>
+    <string name="nuvx_files_copying">מעתיק %1$d מתוך %2$d…</string>
+    <string name="nuvx_files_done">הועתקו %1$d שירים</string>
+    <string name="nuvx_files_nothing">אין מה להעתיק</string>
 </resources>

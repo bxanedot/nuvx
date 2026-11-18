@@ -1554,4 +1554,9 @@
     <string name="computer_output_name">Компьютер</string>
     <string name="nuvx_connect_how">Нажмите кнопку динамика в плеере и выберите %1$s. Телефон будет им управлять.</string>
     <string name="nuvx_connect_not_reachable">Сейчас недоступен. Нужна одна сеть Wi-Fi и разрешённое удалённое управление на компьютере.</string>
+    <string name="nuvx_files_copy_title">Копировать загрузки с %1$s</string>
+    <string name="nuvx_files_copy_subtitle">Треки, загруженные на компьютере, на этот телефон для прослушивания офлайн</string>
+    <string name="nuvx_files_copying">Копирование %1$d из %2$d…</string>
+    <string name="nuvx_files_done">Скопировано треков: %1$d</string>
+    <string name="nuvx_files_nothing">Нечего копировать</string>
 </resources>

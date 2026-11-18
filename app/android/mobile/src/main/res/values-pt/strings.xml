@@ -1530,4 +1530,9 @@
     <string name="computer_output_name">Computador</string>
     <string name="nuvx_connect_how">Toque no botão de alto-falante do player e escolha %1$s. O telefone passa a controlá-lo.</string>
     <string name="nuvx_connect_not_reachable">Indisponível agora. Os dois precisam da mesma Wi-Fi e do controle remoto permitido no computador.</string>
+    <string name="nuvx_files_copy_title">Copiar downloads de %1$s</string>
+    <string name="nuvx_files_copy_subtitle">Músicas baixadas no computador, para este telefone ouvir offline</string>
+    <string name="nuvx_files_copying">Copiando %1$d de %2$d…</string>
+    <string name="nuvx_files_done">%1$d músicas copiadas</string>
+    <string name="nuvx_files_nothing">Nada novo para copiar</string>
 </resources>

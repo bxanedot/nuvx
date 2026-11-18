@@ -1525,4 +1525,9 @@
     <string name="computer_output_name">कंप्यूटर</string>
     <string name="nuvx_connect_how">प्लेयर में स्पीकर बटन दबाएँ और %1$s चुनें। फिर फ़ोन उसे नियंत्रित करता है।</string>
     <string name="nuvx_connect_not_reachable">अभी नहीं मिल रहा। दोनों एक ही वाई-फ़ाई पर हों और कंप्यूटर पर रिमोट कंट्रोल चालू हो।</string>
+    <string name="nuvx_files_copy_title">%1$s से डाउनलोड कॉपी करें</string>
+    <string name="nuvx_files_copy_subtitle">कंप्यूटर पर डाउनलोड गाने, ऑफ़लाइन सुनने के लिए इस फ़ोन पर</string>
+    <string name="nuvx_files_copying">%2$d में से %1$d कॉपी हो रहा है…</string>
+    <string name="nuvx_files_done">%1$d गाने कॉपी हुए</string>
+    <string name="nuvx_files_nothing">कॉपी करने को कुछ नया नहीं</string>
 </resources>

@@ -413,6 +413,11 @@ impl Inner {
                 }
                 if self.revoke(target) { (200, json!({ "ok": true })) } else { err(404, "no_such_device", "That device is not paired.") }
             }
+            ("GET", "/v1/files") => (200, super::files::list()),
+            ("GET", p) if p.starts_with("/v1/files/") => match super::files::chunk(&p["/v1/files/".len()..], query) {
+                Ok(piece) => (200, piece),
+                Err((status, e)) => err(status, e, "That download is not here."),
+            },
             ("GET" | "POST", "/v1/connect") if !self.connect_allowed => err(403, "connect_off", "Remote control is turned off on this computer."),
             ("GET", "/v1/connect") => (200, if self.connect_now.is_null() { json!({ "track": null, "playing": false }) } else { self.connect_now.clone() }),
             ("POST", "/v1/connect") => {

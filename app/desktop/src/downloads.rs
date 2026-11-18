@@ -117,6 +117,10 @@ pub fn list() -> Vec<Track> {
     out.into_iter().map(|(_, t)| t).collect()
 }
 
+pub fn duration_ms(video_id: &str) -> Option<u64> {
+    STATE.read().unwrap().index.get(video_id).map(|e| e.duration_ms).filter(|ms| *ms > 0)
+}
+
 pub fn song_for(video_id: &str) -> Option<Track> {
     let st = STATE.read().unwrap();
     st.index.values().find(|e| e.stands_for.as_deref() == Some(video_id) && e.path.is_file()).and_then(|e| e.song.clone())
