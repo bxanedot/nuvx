@@ -31,8 +31,8 @@ server config you trust in that app.
    in nuvx choose **Settings → Network → Privacy Connection → Orbot**, tap **Restart now**, and wait for
    **Connected via Orbot**.
 
-What to expect over Tor: the first screen can take a while; songs start in 5 to 30 seconds; some songs are refused
-by YouTube, and nuvx tries up to two other Tor exits by itself. Music videos play at 360p. Casting is turned off
+What to expect over Tor: the first screen can take a while; songs usually start in 3 to 10 seconds, sometimes up to 30; some songs are refused
+by YouTube, and nuvx moves to a fresh Tor exit at once, up to four times per song. Music videos play at 360p. Casting is turned off
 while a protected connection is on.
 
 If **Privacy Connection** says *Connection unavailable*, nuvx is blocking everything on purpose rather than
