@@ -1,6 +1,12 @@
 package com.licht.nuvx.ui.screens
 
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,9 +32,11 @@ private fun ConnectionState.label(): String = when (this) {
     ConnectionState.Disabled -> stringResource(R.string.privacy_status_disabled)
     is ConnectionState.Connecting -> stringResource(R.string.privacy_status_connecting)
     is ConnectionState.Bootstrapping -> stringResource(R.string.privacy_status_bootstrapping, percent)
-    is ConnectionState.Connected -> stringResource(
-        if (backend == BackendId.ORBOT) R.string.privacy_status_connected_orbot else R.string.privacy_status_connected_embedded,
-    )
+    is ConnectionState.Connected -> stringResource(when (backend) {
+        BackendId.ORBOT -> R.string.privacy_status_connected_orbot
+        BackendId.EMBEDDED -> R.string.privacy_status_connected_embedded
+        BackendId.LOCAL_SOCKS -> R.string.privacy_status_connected_socks
+    })
     is ConnectionState.Switching -> stringResource(R.string.privacy_status_switching)
     is ConnectionState.Unavailable -> stringResource(R.string.privacy_status_unavailable)
 }
@@ -39,17 +47,22 @@ internal fun PrivacyConnectionSettingsGroup(search: SettingsSearch) {
     val scope = rememberCoroutineScope()
     val saved by PrivacyNetwork.savedMode.collectAsStateWithLifecycle()
     val state by PrivacyNetwork.state.collectAsStateWithLifecycle()
+    val savedPort by PrivacyNetwork.savedLocalSocksPort.collectAsStateWithLifecycle()
+    var portText by remember(savedPort) { mutableStateOf(savedPort.toString()) }
+    val port = portText.toIntOrNull()?.takeIf { it in 1..65535 }
     var testResult by remember { mutableStateOf<Boolean?>(null) }
     var testing by remember { mutableStateOf(false) }
-    val modes = if (PrivacyNetwork.EMBEDDED_AVAILABLE) PrivacyMode.entries else listOf(PrivacyMode.OFF, PrivacyMode.ORBOT_ONLY)
+    val modes = if (PrivacyNetwork.EMBEDDED_AVAILABLE) PrivacyMode.entries else
+        listOf(PrivacyMode.OFF, PrivacyMode.ORBOT_ONLY, PrivacyMode.LOCAL_SOCKS)
     val labels = mapOf(
         PrivacyMode.OFF to R.string.off,
         PrivacyMode.AUTOMATIC to R.string.privacy_mode_automatic,
         PrivacyMode.ORBOT_ONLY to R.string.privacy_mode_orbot,
         PrivacyMode.EMBEDDED_ONLY to R.string.privacy_mode_embedded,
+        PrivacyMode.LOCAL_SOCKS to R.string.privacy_mode_local_socks,
     )
     val footer = buildString {
-        append(stringResource(R.string.privacy_connection_footer))
+        append(stringResource(if (saved == PrivacyMode.LOCAL_SOCKS) R.string.privacy_local_socks_footer else R.string.privacy_connection_footer))
         if (PrivacyNetwork.activeMode != PrivacyMode.OFF && !PrivacyNetwork.webViewCovered) {
             append("\n\n").append(stringResource(R.string.privacy_webview_uncovered))
         }
@@ -62,11 +75,47 @@ internal fun PrivacyConnectionSettingsGroup(search: SettingsSearch) {
             SegmentedControl(
                 options = modes.map { stringResource(labels.getValue(it)) },
                 selectedIndex = modes.indexOf(saved).coerceAtLeast(0),
-                onSelect = { index -> PrivacyNetwork.setMode(context, modes[index]) },
+                onSelect = { index ->
+                    testResult = null
+                    PrivacyNetwork.setMode(context, modes[index])
+                },
                 modifier = Modifier.padding(start = TEXT_INSET, end = ROW_INSET, bottom = 14.dp),
             )
         }
-        if (saved != PrivacyNetwork.activeMode) {
+        if (saved == PrivacyMode.LOCAL_SOCKS) {
+            val portTitle = stringResource(R.string.privacy_local_socks_port)
+            row(portTitle, "socks", "port", "v2ray", "mihomo", "clash", "127.0.0.1") {
+                SettingsRow(
+                    icon = SfIcons.Link,
+                    title = portTitle,
+                    subtitle = stringResource(R.string.privacy_local_socks_port_subtitle),
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = TEXT_INSET, end = ROW_INSET, bottom = 14.dp),
+                ) {
+                    OutlinedTextField(
+                        value = portText,
+                        onValueChange = { portText = it.filter(Char::isDigit).take(5) },
+                        singleLine = true,
+                        isError = port == null,
+                        label = { Text(stringResource(R.string.privacy_local_socks_port)) },
+                        modifier = Modifier.width(150.dp),
+                    )
+                    Button(
+                        onClick = {
+                            port?.let { PrivacyNetwork.setLocalSocksPort(context, it) }
+                            testResult = null
+                        },
+                        enabled = port != null && port != savedPort,
+                        modifier = Modifier.padding(start = 12.dp),
+                    ) { Text(stringResource(R.string.save)) }
+                }
+            }
+        }
+        if (saved != PrivacyNetwork.activeMode ||
+            (saved == PrivacyMode.LOCAL_SOCKS && savedPort != PrivacyNetwork.activeLocalSocksPort)
+        ) {
             val restartTitle = stringResource(R.string.restart_now)
             row(restartTitle, "restart", "apply", "tor", "orbot") {
                 SettingsRow(
@@ -95,8 +144,8 @@ internal fun PrivacyConnectionSettingsGroup(search: SettingsSearch) {
                     title = testTitle,
                     subtitle = when {
                         testing -> stringResource(R.string.privacy_test_running)
-                        testResult == true -> stringResource(R.string.privacy_test_passed)
-                        testResult == false -> stringResource(R.string.privacy_test_failed)
+                        testResult == true -> stringResource(if (PrivacyNetwork.activeMode == PrivacyMode.LOCAL_SOCKS) R.string.privacy_test_socks_passed else R.string.privacy_test_passed)
+                        testResult == false -> stringResource(if (PrivacyNetwork.activeMode == PrivacyMode.LOCAL_SOCKS) R.string.privacy_test_socks_failed else R.string.privacy_test_failed)
                         else -> null
                     },
                     enabled = !testing,
@@ -116,7 +165,7 @@ internal fun PrivacyConnectionSettingsGroup(search: SettingsSearch) {
                 }
             }
         }
-        if (saved != PrivacyMode.OFF && saved != PrivacyMode.EMBEDDED_ONLY) {
+        if (saved == PrivacyMode.ORBOT_ONLY || saved == PrivacyMode.AUTOMATIC) {
             val installed = OrbotBackend.isInstalled(context)
             val orbotTitle = stringResource(if (installed) R.string.privacy_open_orbot else R.string.privacy_install_orbot)
             row(orbotTitle, "orbot", "tor", "install") {
