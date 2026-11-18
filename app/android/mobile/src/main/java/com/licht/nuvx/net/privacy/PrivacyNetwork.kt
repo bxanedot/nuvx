@@ -27,7 +27,7 @@ object PrivacyNetwork {
     private const val KEY_LOCAL_SOCKS_PORT = "local_socks_port"
     private const val DEFAULT_LOCAL_SOCKS_PORT = 10808
 
-    /** Built-in Tor + Snowflake is not bundled yet; until it is, only Off and Orbot are offered. */
+    /** Built-in Tor + Snowflake is not bundled; Orbot and external local SOCKS5 are supported. */
     const val EMBEDDED_AVAILABLE = false
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
