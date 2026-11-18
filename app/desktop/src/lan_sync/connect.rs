@@ -71,7 +71,7 @@ fn item(v: &Value) -> Option<Item> {
 }
 
 /// Only YouTube's own image hosts: the computer fetches this URL, so a phone must not point it anywhere else.
-fn art_host_ok(url: &str) -> bool {
+pub(crate) fn art_host_ok(url: &str) -> bool {
     let Ok(u) = url::Url::parse(url) else { return false };
     let host = u.host_str().unwrap_or("");
     u.scheme() == "https"

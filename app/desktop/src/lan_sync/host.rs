@@ -101,6 +101,7 @@ pub struct Inner {
     /// Four digits shown on this computer so a phone can find it on the Wi-Fi without typing an address. Not a
     /// secret: pairing still needs the approval here and the matching six-digit code.
     pub find_code: String,
+    uploads: HashMap<String, super::files::Upload>,
 }
 
 impl Inner {
@@ -115,7 +116,7 @@ impl Inner {
         // A device whose key is gone (credential store wiped) cannot talk to us; drop it rather than keep a ghost.
         saved.devices.retain(|d| keys.contains_key(&d.id));
         let op_ids = saved.ops.iter().map(|o| o.op_id.clone()).collect();
-        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code() };
+        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code(), uploads: HashMap::new() };
         me.persist();
         me
     }
@@ -414,6 +415,13 @@ impl Inner {
                 if self.revoke(target) { (200, json!({ "ok": true })) } else { err(404, "no_such_device", "That device is not paired.") }
             }
             ("GET", "/v1/files") => (200, super::files::list()),
+            ("POST", p) if p.starts_with("/v1/files/") => {
+                let incoming = self.data_dir.join("incoming");
+                match super::files::receive(&incoming, &mut self.uploads, device, &p["/v1/files/".len()..], &body) {
+                    Ok(reply) => (200, reply),
+                    Err((status, e)) => err(status, e, "That piece was refused; send the song again."),
+                }
+            }
             ("GET", p) if p.starts_with("/v1/files/") => match super::files::chunk(&p["/v1/files/".len()..], query) {
                 Ok(piece) => (200, piece),
                 Err((status, e)) => err(status, e, "That download is not here."),

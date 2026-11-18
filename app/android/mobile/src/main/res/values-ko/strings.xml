@@ -1366,6 +1366,16 @@
     <string name="nuvx_files_copy_title">%1$s에서 다운로드 복사</string>
     <string name="nuvx_files_copy_subtitle">컴퓨터에서 다운로드한 곡을 이 휴대전화로 가져와 오프라인 감상</string>
     <string name="nuvx_files_copying">%2$d곡 중 %1$d곡 복사 중…</string>
-    <string name="nuvx_files_done">%1$d곡을 복사했습니다</string>
     <string name="nuvx_files_nothing">새로 복사할 곡이 없습니다</string>
+    <string name="nuvx_files_send_title">%1$s(으)로 다운로드 보내기</string>
+    <string name="nuvx_files_send_subtitle">이 휴대전화에서 다운로드한 곡을 컴퓨터로</string>
+    <string name="nuvx_files_sending">%2$d곡 중 %1$d곡 보내는 중…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">복사함: %1$d곡</item>
+        <item quantity="other">복사함: %1$d곡</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">보냄: %1$d곡</item>
+        <item quantity="other">보냄: %1$d곡</item>
+    </plurals>
 </resources>

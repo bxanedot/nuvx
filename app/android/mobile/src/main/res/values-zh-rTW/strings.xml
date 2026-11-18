@@ -1507,6 +1507,14 @@
     <string name="nuvx_files_copy_title">從 %1$s 複製下載</string>
     <string name="nuvx_files_copy_subtitle">把電腦上下載的歌曲複製到這支手機，離線收聽</string>
     <string name="nuvx_files_copying">正在複製第 %1$d 首，共 %2$d 首…</string>
-    <string name="nuvx_files_done">已複製 %1$d 首歌曲</string>
     <string name="nuvx_files_nothing">沒有可複製的新內容</string>
+    <string name="nuvx_files_send_title">把下載傳送到 %1$s</string>
+    <string name="nuvx_files_send_subtitle">把這支手機上下載的歌曲傳送到電腦</string>
+    <string name="nuvx_files_sending">正在傳送第 %1$d 首，共 %2$d 首…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="other">已複製：%1$d 首歌曲</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="other">已傳送：%1$d 首歌曲</item>
+    </plurals>
 </resources>

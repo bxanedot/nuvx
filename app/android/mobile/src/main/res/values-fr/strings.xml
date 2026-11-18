@@ -1529,6 +1529,16 @@
     <string name="nuvx_files_copy_title">Copier les téléchargements de %1$s</string>
     <string name="nuvx_files_copy_subtitle">Les titres téléchargés sur l’ordinateur, sur ce téléphone pour l’écoute hors ligne</string>
     <string name="nuvx_files_copying">Copie %1$d sur %2$d…</string>
-    <string name="nuvx_files_done">%1$d titres copiés</string>
     <string name="nuvx_files_nothing">Rien de nouveau à copier</string>
+    <string name="nuvx_files_send_title">Envoyer les téléchargements vers %1$s</string>
+    <string name="nuvx_files_send_subtitle">Les titres téléchargés sur ce téléphone, vers l’ordinateur</string>
+    <string name="nuvx_files_sending">Envoi %1$d sur %2$d…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">Copiés : %1$d chanson</item>
+        <item quantity="other">Copiés : %1$d chansons</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">Envoyés : %1$d chanson</item>
+        <item quantity="other">Envoyés : %1$d chansons</item>
+    </plurals>
 </resources>

@@ -10,8 +10,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   skip, and **Play this song on the computer** to move the phone's song (at the same moment) over. Each app has its
   own **Settings → Nuvx Connect** tab. On the computer, turn on **Allow remote control** there (off by default);
   only phones you paired and approved in Local Wi-Fi Sync can use it, encrypted, on your own network.
-- **Copy downloads from your computer.** **Settings → Sync & Connect → Copy downloads from …** copies the songs
-  your paired computer downloaded onto the phone for offline listening, skipping ones the phone already has. It uses
+- **Copy downloads between your phone and computer.** **Settings → Sync & Connect → Copy downloads from …** copies
+  the songs your paired computer downloaded onto the phone, and **Send downloads to …** sends the phone's
+  downloads to the computer; each skips songs the other side already has. It uses
   the same encrypted pairing, so it only works between your own approved devices; the usual storage limit and free
   space rules apply.
 - **Pair with a 4-digit code.** The computer shows a 4-digit code in Nuvx Sync and Nuvx Connect; type it on the

@@ -1528,6 +1528,16 @@
     <string name="nuvx_files_copy_title">%1$s से डाउनलोड कॉपी करें</string>
     <string name="nuvx_files_copy_subtitle">कंप्यूटर पर डाउनलोड गाने, ऑफ़लाइन सुनने के लिए इस फ़ोन पर</string>
     <string name="nuvx_files_copying">%2$d में से %1$d कॉपी हो रहा है…</string>
-    <string name="nuvx_files_done">%1$d गाने कॉपी हुए</string>
     <string name="nuvx_files_nothing">कॉपी करने को कुछ नया नहीं</string>
+    <string name="nuvx_files_send_title">%1$s पर डाउनलोड भेजें</string>
+    <string name="nuvx_files_send_subtitle">इस फ़ोन पर डाउनलोड गाने, कंप्यूटर पर</string>
+    <string name="nuvx_files_sending">%2$d में से %1$d भेजा जा रहा है…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">कॉपी हुए: %1$d गाना</item>
+        <item quantity="other">कॉपी हुए: %1$d गाने</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">भेजे: %1$d गाना</item>
+        <item quantity="other">भेजे: %1$d गाने</item>
+    </plurals>
 </resources>

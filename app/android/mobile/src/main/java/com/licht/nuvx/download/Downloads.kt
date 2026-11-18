@@ -361,6 +361,31 @@ object Downloads {
     internal const val LOW_STORAGE_REFUSAL = "Less than 500 MB of storage is free"
 
     /**
+     * Sends one of this phone's downloads to the paired computer, which adds it to its own downloads. Only single-file
+     * downloads (offline stream folders stay on the phone). Blocking: run on Dispatchers.IO.
+     */
+    fun sendToComputer(context: Context, songId: String) {
+        val meta = library.savedSongs().firstOrNull { it.videoId == songId } ?: error("Not downloaded")
+        val uri = Uri.parse(meta.uri)
+        val size = when (uri.scheme) {
+            "file" -> uri.path?.let { java.io.File(it).length() } ?: 0L
+            else -> context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: 0L
+        }
+        if (size <= 0) error("The file is missing")
+        val durationMs = meta.durationText?.split(':')?.mapNotNull(String::toLongOrNull)
+            ?.fold(0L) { acc, part -> acc * 60 + part }?.times(1_000)
+        val input = context.contentResolver.openInputStream(uri) ?: error("The file is missing")
+        input.use {
+            com.licht.nuvx.data.sync.NuvxFiles.send(meta.videoId, meta.title, meta.artist, meta.thumbnailUrl, durationMs, size, it)
+        }
+    }
+
+    /** Single-file songs this phone could send (offline stream folders are not portable). */
+    fun sendableSongIds(): List<String> = library.savedSongs()
+        .filterNot { it.uri.endsWith("playlist.m3u8") }
+        .map { it.videoId }
+
+    /**
      * Copies a song the paired computer downloaded into this phone's downloads, as if it had been downloaded here.
      * Same storage rules as a normal download. Blocking: run on Dispatchers.IO.
      */

@@ -1467,6 +1467,16 @@
     <string name="nuvx_files_copy_title">Copia i download da %1$s</string>
     <string name="nuvx_files_copy_subtitle">I brani scaricati sul computer, su questo telefono per l’ascolto offline</string>
     <string name="nuvx_files_copying">Copia %1$d di %2$d…</string>
-    <string name="nuvx_files_done">%1$d brani copiati</string>
     <string name="nuvx_files_nothing">Niente di nuovo da copiare</string>
+    <string name="nuvx_files_send_title">Invia i download a %1$s</string>
+    <string name="nuvx_files_send_subtitle">I brani scaricati su questo telefono, sul computer</string>
+    <string name="nuvx_files_sending">Invio %1$d di %2$d…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">Copiati: %1$d brano</item>
+        <item quantity="other">Copiati: %1$d brani</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">Inviati: %1$d brano</item>
+        <item quantity="other">Inviati: %1$d brani</item>
+    </plurals>
 </resources>

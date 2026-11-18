@@ -1533,6 +1533,16 @@
     <string name="nuvx_files_copy_title">העתקת הורדות מ-%1$s</string>
     <string name="nuvx_files_copy_subtitle">שירים שהורדו במחשב, לטלפון הזה להאזנה לא מקוונת</string>
     <string name="nuvx_files_copying">מעתיק %1$d מתוך %2$d…</string>
-    <string name="nuvx_files_done">הועתקו %1$d שירים</string>
     <string name="nuvx_files_nothing">אין מה להעתיק</string>
+    <string name="nuvx_files_send_title">שליחת הורדות אל %1$s</string>
+    <string name="nuvx_files_send_subtitle">שירים שהורדו בטלפון הזה, אל המחשב</string>
+    <string name="nuvx_files_sending">שולח %1$d מתוך %2$d…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">הועתקו: %1$d שיר</item>
+        <item quantity="other">הועתקו: %1$d שירים</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">נשלחו: %1$d שיר</item>
+        <item quantity="other">נשלחו: %1$d שירים</item>
+    </plurals>
 </resources>

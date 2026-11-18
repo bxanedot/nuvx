@@ -149,6 +149,10 @@ internal class DownloadLibraryController {
         }
     }
 
+    /** One entry per downloaded song (the metadata map also holds the alias ids a download stands for). */
+    internal fun savedSongs(): List<SavedSongMetadata> =
+        _savedMetadata.value.filter { (id, meta) -> id == meta.videoId && _saved.value.containsKey(id) }.values.toList()
+
     internal fun remember(
         asked: Song,
         fetched: Song,

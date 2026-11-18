@@ -1557,6 +1557,20 @@
     <string name="nuvx_files_copy_title">Копировать загрузки с %1$s</string>
     <string name="nuvx_files_copy_subtitle">Треки, загруженные на компьютере, на этот телефон для прослушивания офлайн</string>
     <string name="nuvx_files_copying">Копирование %1$d из %2$d…</string>
-    <string name="nuvx_files_done">Скопировано треков: %1$d</string>
     <string name="nuvx_files_nothing">Нечего копировать</string>
+    <string name="nuvx_files_send_title">Отправить загрузки на %1$s</string>
+    <string name="nuvx_files_send_subtitle">Треки, загруженные на этом телефоне, на компьютер</string>
+    <string name="nuvx_files_sending">Отправка %1$d из %2$d…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">Скопировано: %1$d песня</item>
+        <item quantity="few">Скопировано: %1$d песни</item>
+        <item quantity="many">Скопировано: %1$d песен</item>
+        <item quantity="other">Скопировано: %1$d песни</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">Отправлено: %1$d песня</item>
+        <item quantity="few">Отправлено: %1$d песни</item>
+        <item quantity="many">Отправлено: %1$d песен</item>
+        <item quantity="other">Отправлено: %1$d песни</item>
+    </plurals>
 </resources>

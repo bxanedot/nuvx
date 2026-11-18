@@ -33,9 +33,44 @@ internal fun ConnectSettingsGroup(search: SettingsSearch) {
     var copying by remember { mutableStateOf(false) }
     var copyStatus by remember { mutableStateOf<String?>(null) }
     val copyingText = stringResource(R.string.nuvx_files_copying)
-    val doneText = stringResource(R.string.nuvx_files_done)
+    val doneText = { n: Int -> context.resources.getQuantityString(R.plurals.nuvx_files_done, n, n) }
     val nothingText = stringResource(R.string.nuvx_files_nothing)
     val unreachableText = stringResource(R.string.nuvx_sync_lan_unreachable)
+    var sending by remember { mutableStateOf(false) }
+    var sendStatus by remember { mutableStateOf<String?>(null) }
+    val sendingText = stringResource(R.string.nuvx_files_sending)
+    val sentText = { n: Int -> context.resources.getQuantityString(R.plurals.nuvx_files_sent, n, n) }
+    fun sendAll() = scope.launch {
+        sending = true
+        sendStatus = null
+        try {
+            val there = withContext(Dispatchers.IO) { com.licht.nuvx.data.sync.NuvxFiles.list() }.getOrElse {
+                sendStatus = unreachableText
+                return@launch
+            }.map { it.id }.toSet()
+            val ids = com.licht.nuvx.download.Downloads.sendableSongIds().filterNot { it in there }
+            if (ids.isEmpty()) {
+                sendStatus = nothingText
+                return@launch
+            }
+            var sent = 0
+            for ((i, id) in ids.withIndex()) {
+                sendStatus = sendingText.format(i + 1, ids.size)
+                val result = withContext(Dispatchers.IO) {
+                    runCatching { com.licht.nuvx.download.Downloads.sendToComputer(context, id) }
+                }
+                if (result.isFailure) {
+                    val why = result.exceptionOrNull()?.message ?: unreachableText
+                    sendStatus = if (sent > 0) sentText(sent) + " · " + why else why
+                    return@launch
+                }
+                sent++
+            }
+            sendStatus = sentText(sent)
+        } finally {
+            sending = false
+        }
+    }
     fun copyAll() = scope.launch {
         copying = true
         copyStatus = null
@@ -57,12 +92,12 @@ internal fun ConnectSettingsGroup(search: SettingsSearch) {
                 if (result.isFailure) {
                     // Storage full or over the limit: stop instead of failing every remaining song the same way.
                     val why = result.exceptionOrNull()?.message ?: unreachableText
-                    copyStatus = if (copied > 0) doneText.format(copied) + " · " + why else why
+                    copyStatus = if (copied > 0) doneText(copied) + " · " + why else why
                     return@launch
                 }
                 copied++
             }
-            copyStatus = doneText.format(copied)
+            copyStatus = doneText(copied)
         } finally {
             copying = false
         }
@@ -101,6 +136,16 @@ internal fun ConnectSettingsGroup(search: SettingsSearch) {
                     subtitle = copyStatus ?: stringResource(R.string.nuvx_files_copy_subtitle),
                     enabled = !copying,
                     onClick = { copyAll() },
+                )
+            }
+            val sendTitle = stringResource(R.string.nuvx_files_send_title, name)
+            row(sendTitle, "download", "send", "copy", "files", "songs", "transfer", "upload") {
+                SettingsRow(
+                    icon = SfIcons.FileUpload,
+                    title = sendTitle,
+                    subtitle = sendStatus ?: stringResource(R.string.nuvx_files_send_subtitle),
+                    enabled = !sending,
+                    onClick = { sendAll() },
                 )
             }
         }

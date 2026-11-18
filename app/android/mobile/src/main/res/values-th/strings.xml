@@ -1513,6 +1513,14 @@
     <string name="nuvx_files_copy_title">คัดลอกเพลงที่ดาวน์โหลดจาก %1$s</string>
     <string name="nuvx_files_copy_subtitle">เพลงที่ดาวน์โหลดในคอมพิวเตอร์ มาไว้ในโทรศัพท์นี้เพื่อฟังออฟไลน์</string>
     <string name="nuvx_files_copying">กำลังคัดลอก %1$d จาก %2$d…</string>
-    <string name="nuvx_files_done">คัดลอกแล้ว %1$d เพลง</string>
     <string name="nuvx_files_nothing">ไม่มีอะไรใหม่ให้คัดลอก</string>
+    <string name="nuvx_files_send_title">ส่งเพลงที่ดาวน์โหลดไปยัง %1$s</string>
+    <string name="nuvx_files_send_subtitle">เพลงที่ดาวน์โหลดในโทรศัพท์นี้ ไปไว้ในคอมพิวเตอร์</string>
+    <string name="nuvx_files_sending">กำลังส่ง %1$d จาก %2$d…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="other">คัดลอกแล้ว: %1$d เพลง</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="other">ส่งแล้ว: %1$d เพลง</item>
+    </plurals>
 </resources>

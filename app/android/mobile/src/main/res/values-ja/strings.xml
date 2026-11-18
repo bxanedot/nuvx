@@ -1508,6 +1508,14 @@
     <string name="nuvx_files_copy_title">%1$s からダウンロードをコピー</string>
     <string name="nuvx_files_copy_subtitle">パソコンでダウンロードした曲を、このスマホでオフライン再生用に</string>
     <string name="nuvx_files_copying">%2$d 曲中 %1$d 曲をコピー中…</string>
-    <string name="nuvx_files_done">%1$d 曲をコピーしました</string>
     <string name="nuvx_files_nothing">新しくコピーする曲はありません</string>
+    <string name="nuvx_files_send_title">%1$s にダウンロードを送る</string>
+    <string name="nuvx_files_send_subtitle">このスマホでダウンロードした曲をパソコンへ</string>
+    <string name="nuvx_files_sending">%2$d 曲中 %1$d 曲を送信中…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="other">コピー済み: %1$d曲</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="other">送信済み: %1$d曲</item>
+    </plurals>
 </resources>

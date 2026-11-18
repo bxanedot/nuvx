@@ -1485,6 +1485,16 @@
     <string name="nuvx_files_copy_title">%1$s indirmelerini kopyala</string>
     <string name="nuvx_files_copy_subtitle">Bilgisayarda indirilen şarkıları çevrimdışı dinlemek için bu telefona</string>
     <string name="nuvx_files_copying">%2$d şarkıdan %1$d kopyalanıyor…</string>
-    <string name="nuvx_files_done">%1$d şarkı kopyalandı</string>
     <string name="nuvx_files_nothing">Kopyalanacak yeni bir şey yok</string>
+    <string name="nuvx_files_send_title">İndirmeleri %1$s cihazına gönder</string>
+    <string name="nuvx_files_send_subtitle">Bu telefonda indirilen şarkıları bilgisayara</string>
+    <string name="nuvx_files_sending">%2$d şarkıdan %1$d gönderiliyor…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">Kopyalandı: %1$d şarkı</item>
+        <item quantity="other">Kopyalandı: %1$d şarkı</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">Gönderildi: %1$d şarkı</item>
+        <item quantity="other">Gönderildi: %1$d şarkı</item>
+    </plurals>
 </resources>

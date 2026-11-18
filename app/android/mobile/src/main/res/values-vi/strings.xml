@@ -1447,6 +1447,14 @@
     <string name="nuvx_files_copy_title">Sao chép bản tải xuống từ %1$s</string>
     <string name="nuvx_files_copy_subtitle">Bài đã tải trên máy tính, về điện thoại này để nghe ngoại tuyến</string>
     <string name="nuvx_files_copying">Đang sao chép %1$d / %2$d…</string>
-    <string name="nuvx_files_done">Đã sao chép %1$d bài</string>
     <string name="nuvx_files_nothing">Không có gì mới để sao chép</string>
+    <string name="nuvx_files_send_title">Gửi bản tải xuống tới %1$s</string>
+    <string name="nuvx_files_send_subtitle">Bài đã tải trên điện thoại này, sang máy tính</string>
+    <string name="nuvx_files_sending">Đang gửi %1$d / %2$d…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="other">Đã sao chép: %1$d bài hát</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="other">Đã gửi: %1$d bài hát</item>
+    </plurals>
 </resources>

@@ -1528,6 +1528,16 @@
     <string name="nuvx_files_copy_title">Downloads von %1$s kopieren</string>
     <string name="nuvx_files_copy_subtitle">Auf dem Computer geladene Songs zum Offline-Hören auf dieses Handy</string>
     <string name="nuvx_files_copying">Kopiere %1$d von %2$d …</string>
-    <string name="nuvx_files_done">%1$d Songs kopiert</string>
     <string name="nuvx_files_nothing">Nichts Neues zu kopieren</string>
+    <string name="nuvx_files_send_title">Downloads an %1$s senden</string>
+    <string name="nuvx_files_send_subtitle">Auf diesem Handy geladene Songs auf den Computer</string>
+    <string name="nuvx_files_sending">Sende %1$d von %2$d …</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="one">%1$d Song kopiert</item>
+        <item quantity="other">%1$d Songs kopiert</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="one">%1$d Song gesendet</item>
+        <item quantity="other">%1$d Songs gesendet</item>
+    </plurals>
 </resources>

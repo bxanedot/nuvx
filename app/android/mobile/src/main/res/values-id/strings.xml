@@ -1507,6 +1507,14 @@
     <string name="nuvx_files_copy_title">Salin unduhan dari %1$s</string>
     <string name="nuvx_files_copy_subtitle">Lagu yang diunduh di komputer, ke ponsel ini untuk didengar offline</string>
     <string name="nuvx_files_copying">Menyalin %1$d dari %2$d…</string>
-    <string name="nuvx_files_done">%1$d lagu disalin</string>
     <string name="nuvx_files_nothing">Tidak ada yang baru untuk disalin</string>
+    <string name="nuvx_files_send_title">Kirim unduhan ke %1$s</string>
+    <string name="nuvx_files_send_subtitle">Lagu yang diunduh di ponsel ini, ke komputer</string>
+    <string name="nuvx_files_sending">Mengirim %1$d dari %2$d…</string>
+    <plurals name="nuvx_files_done">
+        <item quantity="other">Disalin: %1$d lagu</item>
+    </plurals>
+    <plurals name="nuvx_files_sent">
+        <item quantity="other">Dikirim: %1$d lagu</item>
+    </plurals>
 </resources>
