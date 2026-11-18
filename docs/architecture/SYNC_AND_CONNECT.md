@@ -1,6 +1,6 @@
 # Nuvx Sync and device protocols (API v1)
 
-Implemented by `core/sync`. **No client uses it yet.** Sync is opt-in and every client must keep working without it.
+Implemented by `core/sync` (a server you host) and by every **LAN host**: the desktop app (`app/desktop/src/lan_sync/`) and, when turned on, an Android phone (`LanHost.kt`). Android is the client in both cases. Sync is opt-in and every client must keep working without it.
 
 ## Model
 
@@ -48,9 +48,42 @@ The code expires after two minutes and works once. The code alone grants nothing
 - **No silent loss.** Operations are appended, never overwritten, so earlier states can be rebuilt. That history is what playlist undo and restore will read.
 - **Version field.** Responses carry `api`. A client that sees a higher number than it knows must stop writing and ask for an update, so an old client cannot corrupt newer data.
 
+## LAN hosts (no server, no account)
+
+A computer, or a phone with **Settings → Sync & Connect → Let other phones pair with this phone** on, serves the
+same v1 log to devices on its network. Everything below rides one encrypted channel, so it all inherits the
+pairing, approval and revocation.
+
+- **Finding the host.** `GET /lan/hello` answers `{ app, api, name, id, code, bt }`: a fresh 4-digit `code` the host
+  shows (it only locates the host, it grants nothing) and its Bluetooth address when its listener runs. A phone
+  typing the code probes its own Wi-Fi /24 (never a mobile carrier's network), then computers it is paired with over
+  Bluetooth.
+- **Pairing.** P-256 ECDH. The phone first commits to its key (SHA-256), the host answers with its one-time key, the
+  phone reveals; a wrong reveal ends the attempt. HKDF-SHA256 (salt: phone key ‖ host key) gives the device key and
+  a 6-digit code both screens show; the host approves only after comparing. Requests expire after 5 minutes, at most
+  4 wait at once, claims are single use. Rust (`crypto.rs`) and Kotlin (`LanSyncCrypto`, both roles) are byte
+  compatible.
+- **Channel.** `POST /lan/v1` carries `{ m, p, t, n, b }` sealed with AES-256-GCM, bound to the device id; the reply
+  is sealed and bound to the request nonce. Timestamps outside ±2 minutes and reused nonces are refused. Removing a
+  device on the host deletes its key: its next request gets 401.
+- **Routes inside the channel.** The v1 sync routes, plus:
+  - `GET /v1/connect` (what the host plays) and `POST /v1/connect` (`toggle`, `play`, `pause`, `next`, `previous`,
+    `seek`, `load` with 1–20 YouTube songs from a position, paused or playing). Off until the host turns on **Allow
+    remote control** (403 meanwhile). Cover art only from YouTube image hosts over https.
+  - `GET /v1/files` (the host's single-file downloads), `GET /v1/files/{videoId}?offset=` (1 MB pieces),
+    `POST /v1/files/{videoId}` (192 KB pieces in order from one device, 500 MB cap, at most 4 at once). Songs are
+    named by video id only, never by path.
+- **Transports.** TCP on the host's Wi-Fi (local peers only, port 47731 or the next free one), or Bluetooth RFCOMM
+  service `6e757678-4c61-6e53-796e-630000000001` (Windows hosts; one kept-open connection for many requests).
+  Android prefers Wi-Fi, switches to Bluetooth when the paired host's id answers only there, and back when it is
+  on Wi-Fi again.
+- **Nuvx Connect on Android** is a speaker in the player's output sheet (`ComputerSpeaker`, the same contract as Cast
+  and the watch): the phone keeps the queue, the host plays the current song and the next two, and the phone's
+  player, notification and lock screen control it. A hosting phone is never its own speaker.
+
 ## Not built yet
 
-**Android** syncs nuvx playlists (opt-in, Settings → Your data → Nuvx Sync): `SyncEngine` (`core/shared/.../data/sync/SyncEngine.kt`) finds local changes by comparing with the last synced snapshot, keeps them in an outbox until the server stores them, replays the whole log, and the app applies the result only if the playlists were not edited meanwhile. HTTPS servers only. Pairing shows a QR and an 8-character code; the other device types the code (no camera scanner yet). Still to do: iOS, desktop and web clients, favorites and settings, operation kinds and payload schemas for playlists, favorites and settings, conformance tests shared across clients, Nuvx Connect (remote control and handoff), and history compaction once a space nears its limit.
+**Android** syncs nuvx playlists (opt-in, Settings → Your data → Nuvx Sync): `SyncEngine` (`core/shared/.../data/sync/SyncEngine.kt`) finds local changes by comparing with the last synced snapshot, keeps them in an outbox until the server stores them, replays the whole log, and the app applies the result only if the playlists were not edited meanwhile. HTTPS servers only. Pairing shows a QR and an 8-character code; the other device types the code (no camera scanner yet). Still to do: server Sync on iOS, desktop and web; LAN hosting and Bluetooth on macOS/Linux and iOS; the desktop controlling a phone (Connect is phone → host only); a camera QR scanner; favorites and settings; shared conformance tests; history compaction once a space nears its limit.
 
 ## Operation kinds (v1)
 

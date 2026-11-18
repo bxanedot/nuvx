@@ -100,6 +100,11 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
 | `2e25c37b` | Android: optional downloads storage limit (off by default) |
 | `e1deefa1` | Android: songs can be removed from nuvx playlists again, with Undo |
 | `dd4b13d0` | Android, signed out: New playlist and Add to playlist work on this device |
+| `1cd81367`, `0816f328` | Nuvx Connect: the paired computer is a speaker in the phone's player (queue, cover art, controls, auto-reconnect); one Sync & Connect tab on phone and computer; 4-digit pairing code |
+| `767e4d1e`, `3f47c8ce` | Copy downloads between the phone and the computer over Wi-Fi, both ways, checked byte-identical |
+| `0c8e582a` | Desktop: downloaded WebM/Opus songs play instead of skipping (opened as AAC before) |
+| `756916f1`, `b1e8a29c` | Bluetooth (RFCOMM) as a second link, Android ↔ Windows: hello, sealed requests and a full song copy checked over Bluetooth only |
+| `b55385e3` | Phone to phone: an Android phone can host other phones (pairing, sync, Connect, file copy); protocol checked on a device over real sockets, not yet between two physical phones |
 
 ## Checked and found healthy (2026-11-17, second session)
 
@@ -122,7 +127,7 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
 2. **Sync beyond Android:** server Sync is on Android (opt-in, PR 326) and LAN Sync covers Android ↔ desktop playlists. Left: server Sync on desktop, iOS and web; it needs the Oracle server (owner item 1) to run for real.
-3. **Nuvx Connect** on top of QR pairing: one playback owner, remote control, handoff.
+3. **Nuvx Connect:** done phone → computer and phone → phone (Android). Left: the computer controlling a phone, iOS, and a test between two physical phones.
 4. **Smart Offline:** done on Android (resume after a kill, 500 MB floor, Wi-Fi-only, auto-sync of downloaded playlists, optional storage limit). Left: the same on iOS and desktop.
 5. **Remaining features:**
    - Privacy & Data Center: one screen for devices, sync, diagnostics and export (Android has the parts in separate places);
