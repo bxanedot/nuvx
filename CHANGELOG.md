@@ -15,9 +15,12 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   carry a YouTube link. Entries with only a title and artist (for example a Spotify playlist exported to CSV, or
   local files with names) are looked up on YouTube Music; only confident matches are kept, in file order. The
   playlist is saved on this device only, and nuvx tells you how many songs could not be found.
-- **Copy diagnostics for a bug report.** **Settings → Miscellaneous → Copy diagnostics** copies the app version,
+- **Copy diagnostics for a bug report.** **Settings → Your data → Copy diagnostics** copies the app version,
   phone model, Android version, network mode and the latest warnings and errors to your clipboard, with links,
   cookies and tokens removed. Nothing is sent anywhere; paste it where you want to report the problem.
+- **Your data explains what leaves your phone.** **Settings → Your data** now gathers backup export/import, Copy
+  diagnostics and Sync, with a short note on what stays on this device and what only leaves it when you turn
+  something on.
 - **A storage limit for downloads.** **Settings → Downloads → Storage limit** (Off, 2, 5, 10, 20 or 50 GB). Once
   your downloads take up that much space, new downloads stop with a message saying so; songs already saved stay.
   Off by default, so nothing changes unless you set it.

@@ -1483,4 +1483,5 @@
     <string name="download_limit_footer">Saat unduhan memakai ruang sebesar ini, unduhan baru berhenti. Lagu yang sudah tersimpan tetap ada.</string>
     <string name="song_removed_from_playlist">“%1$s” dihapus</string>
     <string name="playlist_import_matching">Mencocokkan %1$d lagu di YouTube Music…</string>
+    <string name="your_data_footer">Playlist, riwayat dengar, unduhan, dan pengaturan tetap di perangkat ini. Data itu hanya keluar jika Anda menyalakan Nuvx Sync, scrobbling, atau status Discord, atau mengekspor cadangan sendiri. Untuk memutar lagu serta menampilkan lirik dan artwork, nuvx menanyakan lagu yang Anda putar ke YouTube serta layanan lirik dan artwork.</string>
 </resources>

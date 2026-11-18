@@ -1483,4 +1483,5 @@
     <string name="download_limit_footer">下载内容占用达到此空间后，新的下载会停止。已保存的歌曲会保留。</string>
     <string name="song_removed_from_playlist">已移除“%1$s”</string>
     <string name="playlist_import_matching">正在 YouTube Music 上匹配 %1$d 首歌曲…</string>
+    <string name="your_data_footer">播放列表、收听记录、下载内容和设置都保存在此设备上。只有在你开启 Nuvx Sync、Scrobbling 或 Discord 状态，或自己导出备份时，它们才会离开设备。为了播放歌曲并显示歌词和封面，nuvx 会就你播放的歌曲询问 YouTube 以及歌词和封面服务。</string>
 </resources>

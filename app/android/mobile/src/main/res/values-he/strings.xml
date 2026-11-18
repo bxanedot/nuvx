@@ -1509,4 +1509,5 @@
     <string name="download_limit_footer">כשההורדות שלך תופסות את הנפח הזה, הורדות חדשות נעצרות. שירים שכבר נשמרו נשארים.</string>
     <string name="song_removed_from_playlist">„%1$s” הוסר</string>
     <string name="playlist_import_matching">מחפש %1$d שירים ב-YouTube Music…</string>
+    <string name="your_data_footer">פלייליסטים, היסטוריית האזנה, הורדות והגדרות נשארים במכשיר הזה. הם יוצאים ממנו רק אם תפעיל את Nuvx Sync, סקרובלינג או סטטוס Discord, או תייצא גיבוי בעצמך. כדי לנגן ולהציג מילים ועטיפות, nuvx שואל את YouTube ואת שירותי המילים והעטיפות על השירים שאתה מנגן.</string>
 </resources>

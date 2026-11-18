@@ -1505,4 +1505,5 @@
     <string name="download_limit_footer">Quand vos téléchargements occupent cet espace, les nouveaux s’arrêtent. Les titres déjà enregistrés restent.</string>
     <string name="song_removed_from_playlist">« %1$s » retiré</string>
     <string name="playlist_import_matching">Recherche de %1$d titres sur YouTube Music…</string>
+    <string name="your_data_footer">Playlists, historique d’écoute, téléchargements et réglages restent sur cet appareil. Ils n’en sortent que si vous activez Nuvx Sync, le scrobbling ou le statut Discord, ou si vous exportez vous-même une sauvegarde. Pour lire les titres et afficher paroles et pochettes, nuvx interroge YouTube et les services de paroles et de pochettes sur les titres que vous écoutez.</string>
 </resources>

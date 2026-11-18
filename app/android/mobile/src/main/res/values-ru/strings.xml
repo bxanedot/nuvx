@@ -1533,4 +1533,5 @@
     <string name="download_limit_footer">Когда загрузки займут столько места, новые загрузки остановятся. Сохранённые треки останутся.</string>
     <string name="song_removed_from_playlist">«%1$s» удалён</string>
     <string name="playlist_import_matching">Поиск треков в YouTube Music: %1$d…</string>
+    <string name="your_data_footer">Плейлисты, история прослушивания, загрузки и настройки остаются на этом устройстве. Они покидают его, только если вы включите Nuvx Sync, скробблинг или статус Discord либо сами экспортируете резервную копию. Чтобы воспроизводить треки и показывать тексты и обложки, nuvx спрашивает о них YouTube и сервисы текстов и обложек.</string>
 </resources>

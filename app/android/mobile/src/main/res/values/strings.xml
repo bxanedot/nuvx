@@ -1355,4 +1355,5 @@
     <string name="download_limit_footer">When your downloads take up this much space, new downloads stop. Songs already saved stay.</string>
     <string name="song_removed_from_playlist">Removed “%1$s”</string>
     <string name="playlist_import_matching">Matching %1$d songs on YouTube Music…</string>
+    <string name="your_data_footer">Playlists, listening history, downloads and settings stay on this device. They leave it only if you turn on Nuvx Sync, scrobbling or Discord status, or export a backup yourself. To play songs and show lyrics and artwork, nuvx asks YouTube and the lyrics and artwork services about the songs you play.</string>
 </resources>

@@ -90,25 +90,6 @@ internal fun MiscellaneousSettingsGroup(
                 onClick = { setNightly(!nightlyUpdates) },
             )
         }
-        val diagnosticsTitle = stringResource(R.string.copy_diagnostics)
-        row(diagnosticsTitle, "log", "debug", "bug", "report", "diagnostics", "support") {
-            SettingsRow(
-                icon = SfIcons.Bug,
-                title = diagnosticsTitle,
-                subtitle = stringResource(R.string.copy_diagnostics_subtitle),
-                onClick = {
-                    val text = com.licht.nuvx.data.TrackLog.recentProblems()
-                    val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(diagnosticsTitle, text))
-                    val count = text.lineSequence().count { it.isNotEmpty() }
-                    android.widget.Toast.makeText(
-                        context,
-                        context.resources.getQuantityString(R.plurals.log_copied_line_count, count, count),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
-                },
-            )
-        }
         val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
         row(hideVolumeBarTitle, "volume", "player") {
             SettingsRow(

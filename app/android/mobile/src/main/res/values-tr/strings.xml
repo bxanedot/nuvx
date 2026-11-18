@@ -1461,4 +1461,5 @@
     <string name="download_limit_footer">İndirmeler bu kadar yer kapladığında yeni indirmeler durur. Kaydedilmiş şarkılar kalır.</string>
     <string name="song_removed_from_playlist">“%1$s” kaldırıldı</string>
     <string name="playlist_import_matching">YouTube Music’te %1$d şarkı eşleştiriliyor…</string>
+    <string name="your_data_footer">Çalma listeleri, dinleme geçmişi, indirmeler ve ayarlar bu cihazda kalır. Yalnızca Nuvx Sync, scrobbling veya Discord durumunu açarsanız ya da kendiniz yedek dışa aktarırsanız cihazdan çıkar. Şarkıları çalmak, sözleri ve kapakları göstermek için nuvx dinlediğiniz şarkıları YouTube’a ve söz ve kapak servislerine sorar.</string>
 </resources>

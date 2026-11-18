@@ -1509,4 +1509,5 @@
     <string name="download_limit_footer">Quando os downloads ocuparem este espaço, novos downloads param. As músicas já salvas ficam.</string>
     <string name="song_removed_from_playlist">“%1$s” removida</string>
     <string name="playlist_import_matching">Procurando %1$d músicas no YouTube Music…</string>
+    <string name="your_data_footer">Playlists, histórico, downloads e configurações ficam neste dispositivo. Só saem dele se você ativar o Nuvx Sync, o scrobbling ou o status do Discord, ou exportar um backup você mesmo. Para tocar músicas e mostrar letras e capas, o nuvx consulta o YouTube e os serviços de letras e capas sobre as músicas que você ouve.</string>
 </resources>

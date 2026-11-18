@@ -17,7 +17,12 @@ internal fun YourDataSettingsGroup(
     onExport: () -> Unit,
     onImport: () -> Unit,
 ) {
-    SearchableSettingsGroup(search, header = stringResource(R.string.your_data)) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    SearchableSettingsGroup(
+        search,
+        header = stringResource(R.string.your_data),
+        footer = stringResource(R.string.your_data_footer),
+    ) {
         val replayTitle = stringResource(R.string.replay)
         row(replayTitle, "stats", "history", "wrapped") {
             SettingsRow(
@@ -62,6 +67,25 @@ internal fun YourDataSettingsGroup(
                 title = importDataTitle,
                 subtitle = importStatus ?: stringResource(R.string.import_data_subtitle),
                 onClick = onImport,
+            )
+        }
+        val diagnosticsTitle = stringResource(R.string.copy_diagnostics)
+        row(diagnosticsTitle, "log", "debug", "bug", "report", "diagnostics", "support") {
+            SettingsRow(
+                icon = SfIcons.Bug,
+                title = diagnosticsTitle,
+                subtitle = stringResource(R.string.copy_diagnostics_subtitle),
+                onClick = {
+                    val text = com.licht.nuvx.data.TrackLog.recentProblems()
+                    val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(diagnosticsTitle, text))
+                    val count = text.lineSequence().count { it.isNotEmpty() }
+                    android.widget.Toast.makeText(
+                        context,
+                        context.resources.getQuantityString(R.plurals.log_copied_line_count, count, count),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                },
             )
         }
     }

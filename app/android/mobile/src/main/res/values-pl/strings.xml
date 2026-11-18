@@ -1542,4 +1542,5 @@
     <string name="download_limit_footer">Gdy pobrane utwory zajmą tyle miejsca, nowe pobieranie się zatrzyma. Zapisane utwory zostają.</string>
     <string name="song_removed_from_playlist">Usunięto „%1$s”</string>
     <string name="playlist_import_matching">Wyszukiwanie %1$d utworów w YouTube Music…</string>
+    <string name="your_data_footer">Playlisty, historia słuchania, pobrane utwory i ustawienia zostają na tym urządzeniu. Opuszczają je tylko, gdy włączysz Nuvx Sync, scrobbling lub status Discord albo sam wyeksportujesz kopię. Aby odtwarzać utwory i pokazywać teksty oraz okładki, nuvx pyta YouTube i serwisy z tekstami i okładkami o słuchane utwory.</string>
 </resources>

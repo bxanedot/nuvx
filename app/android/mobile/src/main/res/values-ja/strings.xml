@@ -1484,4 +1484,5 @@
     <string name="download_limit_footer">ダウンロードがこの容量に達すると、新しいダウンロードは止まります。保存済みの曲はそのまま残ります。</string>
     <string name="song_removed_from_playlist">「%1$s」を削除しました</string>
     <string name="playlist_import_matching">YouTube Music で %1$d 曲を照合しています…</string>
+    <string name="your_data_footer">プレイリスト、再生履歴、ダウンロード、設定はこの端末に保存されます。Nuvx Sync、スクロブル、Discord ステータスをオンにするか、自分でバックアップを書き出したときだけ端末の外に出ます。曲の再生や歌詞・アートワークの表示のため、nuvx は再生中の曲について YouTube や歌詞・アートワークのサービスに問い合わせます。</string>
 </resources>

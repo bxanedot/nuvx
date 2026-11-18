@@ -1504,4 +1504,5 @@
     <string name="download_limit_footer">Wenn deine Downloads so viel Platz belegen, starten keine neuen Downloads mehr. Gespeicherte Songs bleiben.</string>
     <string name="song_removed_from_playlist">„%1$s“ entfernt</string>
     <string name="playlist_import_matching">%1$d Songs werden auf YouTube Music gesucht …</string>
+    <string name="your_data_footer">Playlists, Hörverlauf, Downloads und Einstellungen bleiben auf diesem Gerät. Sie verlassen es nur, wenn du Nuvx Sync, Scrobbling oder den Discord-Status einschaltest oder selbst ein Backup exportierst. Zum Abspielen und für Songtexte und Cover fragt nuvx YouTube und die Songtext- und Cover-Dienste nach den Songs, die du hörst.</string>
 </resources>

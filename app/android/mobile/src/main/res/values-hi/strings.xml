@@ -1504,4 +1504,5 @@
     <string name="download_limit_footer">जब आपके डाउनलोड इतनी जगह ले लें, तो नए डाउनलोड रुक जाते हैं। पहले से सेव गाने बने रहते हैं।</string>
     <string name="song_removed_from_playlist">“%1$s” हटाया गया</string>
     <string name="playlist_import_matching">YouTube Music पर %1$d गाने खोजे जा रहे हैं…</string>
+    <string name="your_data_footer">प्लेलिस्ट, सुनने का इतिहास, डाउनलोड और सेटिंग्स इसी डिवाइस पर रहती हैं। ये तभी बाहर जाती हैं जब आप Nuvx Sync, स्क्रॉबलिंग या Discord स्टेटस चालू करें, या खुद बैकअप एक्सपोर्ट करें। गाने चलाने और लिरिक्स व आर्टवर्क दिखाने के लिए nuvx YouTube और लिरिक्स व आर्टवर्क सेवाओं से आपके गानों के बारे में पूछता है।</string>
 </resources>

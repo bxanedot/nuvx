@@ -1489,4 +1489,5 @@
     <string name="download_limit_footer">เมื่อไฟล์ดาวน์โหลดใช้พื้นที่ถึงขนาดนี้ การดาวน์โหลดใหม่จะหยุด เพลงที่บันทึกไว้แล้วยังอยู่</string>
     <string name="song_removed_from_playlist">นำ “%1$s” ออกแล้ว</string>
     <string name="playlist_import_matching">กำลังจับคู่ %1$d เพลงบน YouTube Music…</string>
+    <string name="your_data_footer">เพลย์ลิสต์ ประวัติการฟัง ไฟล์ดาวน์โหลด และการตั้งค่าจะอยู่ในอุปกรณ์นี้ จะออกไปก็ต่อเมื่อคุณเปิด Nuvx Sync, Scrobbling หรือสถานะ Discord หรือส่งออกข้อมูลสำรองเอง ในการเล่นเพลงและแสดงเนื้อเพลงและภาพปก nuvx จะสอบถาม YouTube และบริการเนื้อเพลงและภาพปกเกี่ยวกับเพลงที่คุณเล่น</string>
 </resources>

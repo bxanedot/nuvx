@@ -1476,4 +1476,5 @@
     <string name="download_limit_footer">Cuando tus descargas ocupen este espacio, no se iniciarán más. Las canciones guardadas se quedan.</string>
     <string name="song_removed_from_playlist">Se quitó «%1$s»</string>
     <string name="playlist_import_matching">Buscando %1$d canciones en YouTube Music…</string>
+    <string name="your_data_footer">Las playlists, el historial, las descargas y los ajustes se quedan en este dispositivo. Solo salen de él si activas Nuvx Sync, el scrobbling o el estado de Discord, o si exportas una copia tú mismo. Para reproducir y mostrar letras y portadas, nuvx consulta a YouTube y a los servicios de letras y portadas sobre las canciones que escuchas.</string>
 </resources>

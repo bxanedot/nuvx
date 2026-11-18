@@ -1342,4 +1342,5 @@
     <string name="download_limit_footer">다운로드가 이만큼의 공간을 차지하면 새 다운로드가 멈춥니다. 이미 저장된 곡은 그대로 남습니다.</string>
     <string name="song_removed_from_playlist">“%1$s” 삭제됨</string>
     <string name="playlist_import_matching">YouTube Music에서 %1$d곡을 찾는 중…</string>
+    <string name="your_data_footer">플레이리스트, 감상 기록, 다운로드, 설정은 이 기기에 남습니다. Nuvx Sync, 스크로블링, Discord 상태를 켜거나 직접 백업을 내보낼 때만 기기 밖으로 나갑니다. 곡 재생과 가사·아트워크 표시를 위해 nuvx는 재생하는 곡에 대해 YouTube와 가사·아트워크 서비스에 묻습니다.</string>
 </resources>

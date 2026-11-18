@@ -1423,4 +1423,5 @@
     <string name="download_limit_footer">Khi bản tải xuống chiếm chừng này dung lượng, các lượt tải mới sẽ dừng. Bài đã lưu vẫn giữ nguyên.</string>
     <string name="song_removed_from_playlist">Đã xóa “%1$s”</string>
     <string name="playlist_import_matching">Đang tìm %1$d bài trên YouTube Music…</string>
+    <string name="your_data_footer">Danh sách phát, lịch sử nghe, bản tải xuống và cài đặt ở lại trên thiết bị này. Chúng chỉ rời thiết bị khi bạn bật Nuvx Sync, scrobbling hoặc trạng thái Discord, hoặc tự xuất bản sao lưu. Để phát nhạc và hiện lời bài hát, ảnh bìa, nuvx hỏi YouTube và các dịch vụ lời bài hát, ảnh bìa về bài bạn nghe.</string>
 </resources>
