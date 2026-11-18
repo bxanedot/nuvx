@@ -102,6 +102,18 @@ object TrackLog {
             "\n"
     }
 
+    /** Opt-in general report: versions, connection, and the latest warnings/errors from any track, already redacted. */
+    fun recentProblems(limit: Int = MAX_PROBLEM_LINES): String {
+        val problems = synchronized(lines) { lines.filter { it.level == 'W' || it.level == 'E' } }.takeLast(limit)
+        return buildString {
+            appendLine("nuvx diagnostics — ${CLOCK.format(Date())}")
+            headerLines().forEach(::appendLine)
+            sourcesLine()?.let(::appendLine)
+            appendLine("problems: ${problems.size} most recent warnings and errors")
+            problems.forEach { appendLine("${CLOCK.format(Date(it.at))} ${it.level} ${it.track?.let { id -> "[$id] " }.orEmpty()}${it.text}") }
+        }
+    }
+
     private fun header(
         song: Song,
         stats: NerdStats.Snapshot?,
@@ -152,4 +164,6 @@ object TrackLog {
     private const val MAX_LINE_CHARS = 2_000
 
     private const val MAX_REMEMBERED = 32
+
+    private const val MAX_PROBLEM_LINES = 200
 }

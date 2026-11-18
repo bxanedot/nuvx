@@ -1346,4 +1346,6 @@
     <string name="playlist_import_done">Imported %1$d songs into %2$s</string>
     <string name="playlist_import_partial">Imported %1$d songs into %2$s. %3$d had no YouTube link and were left out.</string>
     <string name="playlist_import_empty">No songs with a YouTube link in that file.</string>
+    <string name="copy_diagnostics">Copy diagnostics</string>
+    <string name="copy_diagnostics_subtitle">Recent errors with app, phone and network versions. Links, cookies and tokens are removed. Only copied to your clipboard; nothing is sent.</string>
 </resources>

@@ -1481,4 +1481,6 @@
     <string name="playlist_import_done">นำเข้า %1$d เพลงไปยัง %2$s แล้ว</string>
     <string name="playlist_import_partial">นำเข้า %1$d เพลงไปยัง %2$s แล้ว %3$d เพลงไม่มีลิงก์ YouTube จึงถูกข้าม</string>
     <string name="playlist_import_empty">ไม่มีเพลงที่มีลิงก์ YouTube ในไฟล์นี้</string>
+    <string name="copy_diagnostics">คัดลอกข้อมูลวินิจฉัย</string>
+    <string name="copy_diagnostics_subtitle">ข้อผิดพลาดล่าสุดพร้อมข้อมูลแอป โทรศัพท์ และเครือข่าย ลิงก์ คุกกี้ และโทเค็นจะถูกลบออก คัดลอกไปยังคลิปบอร์ดเท่านั้น ไม่มีการส่งข้อมูลใด ๆ</string>
 </resources>

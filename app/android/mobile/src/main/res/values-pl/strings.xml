@@ -1533,4 +1533,6 @@
     <string name="playlist_import_done">Zaimportowano %1$d utworów do %2$s</string>
     <string name="playlist_import_partial">Zaimportowano %1$d utworów do %2$s. Pominięto %3$d bez linku YouTube.</string>
     <string name="playlist_import_empty">W tym pliku nie ma utworów z linkiem YouTube.</string>
+    <string name="copy_diagnostics">Kopiuj diagnostykę</string>
+    <string name="copy_diagnostics_subtitle">Ostatnie błędy z danymi aplikacji, telefonu i sieci. Linki, ciasteczka i tokeny są usuwane. Tylko kopiowane do schowka; nic nie jest wysyłane.</string>
 </resources>

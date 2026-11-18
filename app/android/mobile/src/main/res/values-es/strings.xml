@@ -1467,4 +1467,6 @@
     <string name="playlist_import_done">Se importaron %1$d canciones en %2$s</string>
     <string name="playlist_import_partial">Se importaron %1$d canciones en %2$s. %3$d no tenían enlace de YouTube y se omitieron.</string>
     <string name="playlist_import_empty">No hay canciones con enlace de YouTube en ese archivo.</string>
+    <string name="copy_diagnostics">Copiar diagnóstico</string>
+    <string name="copy_diagnostics_subtitle">Errores recientes con datos de la app, el teléfono y la red. Se quitan enlaces, cookies y tokens. Solo se copia al portapapeles; no se envía nada.</string>
 </resources>

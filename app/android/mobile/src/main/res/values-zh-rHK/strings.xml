@@ -1458,4 +1458,6 @@
     <string name="playlist_import_done">已將 %1$d 首歌曲匯入 %2$s</string>
     <string name="playlist_import_partial">已將 %1$d 首歌曲匯入 %2$s。%3$d 首沒有 YouTube 連結，已略過。</string>
     <string name="playlist_import_empty">該檔案中沒有帶 YouTube 連結的歌曲。</string>
+    <string name="copy_diagnostics">複製診斷資訊</string>
+    <string name="copy_diagnostics_subtitle">最近的錯誤及 App、手機和網路資訊。連結、Cookie 和權杖會被移除。僅複製到剪貼簿，不會傳送任何內容。</string>
 </resources>

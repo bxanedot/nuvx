@@ -1522,4 +1522,6 @@
     <string name="playlist_import_done">Импортировано треков в %2$s: %1$d</string>
     <string name="playlist_import_partial">Импортировано треков в %2$s: %1$d. Пропущено без ссылки YouTube: %3$d.</string>
     <string name="playlist_import_empty">В этом файле нет треков со ссылкой YouTube.</string>
+    <string name="copy_diagnostics">Копировать диагностику</string>
+    <string name="copy_diagnostics_subtitle">Последние ошибки с данными о приложении, телефоне и сети. Ссылки, cookie и токены удаляются. Только копируется в буфер обмена, ничего не отправляется.</string>
 </resources>

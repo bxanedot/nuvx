@@ -1496,4 +1496,6 @@
     <string name="playlist_import_done">%1$d titres importés dans %2$s</string>
     <string name="playlist_import_partial">%1$d titres importés dans %2$s. %3$d sans lien YouTube ont été ignorés.</string>
     <string name="playlist_import_empty">Aucun titre avec un lien YouTube dans ce fichier.</string>
+    <string name="copy_diagnostics">Copier le diagnostic</string>
+    <string name="copy_diagnostics_subtitle">Erreurs récentes avec les infos de l’app, du téléphone et du réseau. Liens, cookies et jetons sont retirés. Copié dans le presse-papiers uniquement ; rien n’est envoyé.</string>
 </resources>

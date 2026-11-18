@@ -1495,4 +1495,6 @@
     <string name="playlist_import_done">%2$s में %1$d गाने इंपोर्ट हुए</string>
     <string name="playlist_import_partial">%2$s में %1$d गाने इंपोर्ट हुए। %3$d में YouTube लिंक नहीं था, इसलिए छोड़ दिए गए।</string>
     <string name="playlist_import_empty">इस फ़ाइल में YouTube लिंक वाला कोई गाना नहीं है।</string>
+    <string name="copy_diagnostics">डायग्नोस्टिक्स कॉपी करें</string>
+    <string name="copy_diagnostics_subtitle">ऐप, फ़ोन और नेटवर्क जानकारी के साथ हाल की गड़बड़ियाँ। लिंक, कुकी और टोकन हटा दिए जाते हैं। सिर्फ़ क्लिपबोर्ड पर कॉपी होता है; कुछ भी भेजा नहीं जाता।</string>
 </resources>

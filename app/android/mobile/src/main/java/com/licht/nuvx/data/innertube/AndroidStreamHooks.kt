@@ -35,6 +35,8 @@ object AndroidStreamHooks {
             listOf(
                 "build: ${BuildConfig.VERSION_NAME} (${BuildConfig.BUILD_TYPE})",
                 "device: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}",
+                "network: ${com.licht.nuvx.net.privacy.PrivacyNetwork.activeMode} " +
+                    "(${com.licht.nuvx.net.privacy.PrivacyNetwork.state.value::class.simpleName})",
             )
         }
         StreamResolver.maxKbps = { AppSettings.effectiveAudioQuality.maxKbps }

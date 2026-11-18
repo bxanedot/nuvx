@@ -1452,4 +1452,6 @@
     <string name="playlist_import_done">%2$s listesine %1$d şarkı aktarıldı</string>
     <string name="playlist_import_partial">%2$s listesine %1$d şarkı aktarıldı. YouTube bağlantısı olmayan %3$d şarkı atlandı.</string>
     <string name="playlist_import_empty">Bu dosyada YouTube bağlantılı şarkı yok.</string>
+    <string name="copy_diagnostics">Tanılamayı kopyala</string>
+    <string name="copy_diagnostics_subtitle">Uygulama, telefon ve ağ bilgileriyle son hatalar. Bağlantılar, çerezler ve belirteçler kaldırılır. Yalnızca panoya kopyalanır; hiçbir şey gönderilmez.</string>
 </resources>

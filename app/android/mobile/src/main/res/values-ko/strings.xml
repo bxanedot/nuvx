@@ -1333,4 +1333,6 @@
     <string name="playlist_import_done">%2$s에 %1$d곡을 가져왔습니다</string>
     <string name="playlist_import_partial">%2$s에 %1$d곡을 가져왔습니다. YouTube 링크가 없는 %3$d곡은 제외했습니다.</string>
     <string name="playlist_import_empty">이 파일에 YouTube 링크가 있는 곡이 없습니다.</string>
+    <string name="copy_diagnostics">진단 정보 복사</string>
+    <string name="copy_diagnostics_subtitle">앱, 휴대전화, 네트워크 정보가 포함된 최근 오류입니다. 링크, 쿠키, 토큰은 제거됩니다. 클립보드에만 복사되며 아무것도 전송되지 않습니다.</string>
 </resources>

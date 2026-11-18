@@ -1434,4 +1434,6 @@
     <string name="playlist_import_done">%1$d brani importati in %2$s</string>
     <string name="playlist_import_partial">%1$d brani importati in %2$s. %3$d senza link YouTube sono stati esclusi.</string>
     <string name="playlist_import_empty">Nessun brano con link YouTube in quel file.</string>
+    <string name="copy_diagnostics">Copia diagnostica</string>
+    <string name="copy_diagnostics_subtitle">Errori recenti con informazioni su app, telefono e rete. Link, cookie e token vengono rimossi. Solo copiato negli appunti; non viene inviato nulla.</string>
 </resources>

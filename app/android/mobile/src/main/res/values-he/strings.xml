@@ -1500,4 +1500,6 @@
     <string name="playlist_import_done">יובאו %1$d שירים אל %2$s</string>
     <string name="playlist_import_partial">יובאו %1$d שירים אל %2$s. %3$d ללא קישור YouTube הושמטו.</string>
     <string name="playlist_import_empty">אין בקובץ הזה שירים עם קישור YouTube.</string>
+    <string name="copy_diagnostics">העתקת אבחון</string>
+    <string name="copy_diagnostics_subtitle">שגיאות אחרונות עם פרטי האפליקציה, הטלפון והרשת. קישורים, קובצי Cookie ואסימונים מוסרים. מועתק ללוח בלבד; שום דבר לא נשלח.</string>
 </resources>

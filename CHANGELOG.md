@@ -14,6 +14,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   nuvx exported come back with the same songs in the same order; other players' files work too when their entries
   carry a YouTube link. The playlist is saved on this device only, and nuvx tells you how many entries had no
   YouTube link and were left out.
+- **Copy diagnostics for a bug report.** **Settings → Miscellaneous → Copy diagnostics** copies the app version,
+  phone model, Android version, network mode and the latest warnings and errors to your clipboard, with links,
+  cookies and tokens removed. Nothing is sent anywhere; paste it where you want to report the problem.
 
 ### Desktop (Windows, macOS, Linux)
 

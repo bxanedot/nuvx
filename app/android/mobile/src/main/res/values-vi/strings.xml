@@ -1415,4 +1415,6 @@
     <string name="playlist_import_done">Đã nhập %1$d bài vào %2$s</string>
     <string name="playlist_import_partial">Đã nhập %1$d bài vào %2$s. Bỏ qua %3$d bài không có liên kết YouTube.</string>
     <string name="playlist_import_empty">Tệp này không có bài nào có liên kết YouTube.</string>
+    <string name="copy_diagnostics">Sao chép chẩn đoán</string>
+    <string name="copy_diagnostics_subtitle">Lỗi gần đây kèm thông tin ứng dụng, điện thoại và mạng. Liên kết, cookie và token được xóa. Chỉ sao chép vào bộ nhớ tạm; không gửi gì đi.</string>
 </resources>

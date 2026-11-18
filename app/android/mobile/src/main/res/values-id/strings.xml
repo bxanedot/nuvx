@@ -1475,4 +1475,6 @@
     <string name="playlist_import_done">%1$d lagu diimpor ke %2$s</string>
     <string name="playlist_import_partial">%1$d lagu diimpor ke %2$s. %3$d tanpa tautan YouTube dilewati.</string>
     <string name="playlist_import_empty">Tidak ada lagu dengan tautan YouTube di file itu.</string>
+    <string name="copy_diagnostics">Salin diagnostik</string>
+    <string name="copy_diagnostics_subtitle">Error terbaru beserta info aplikasi, ponsel, dan jaringan. Tautan, cookie, dan token dihapus. Hanya disalin ke papan klip; tidak ada yang dikirim.</string>
 </resources>
