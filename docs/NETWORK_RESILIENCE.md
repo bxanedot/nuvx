@@ -1,6 +1,6 @@
 # Network resilience and censorship-resistant access
 
-Status: Android local SOCKS5 and desktop proxy support; other device paths need staged implementation.
+Status: Android (Orbot, local SOCKS5) verified on a real device; desktop proxy hardened; TV, Wear, iOS and web rely on a device-level VPN for now.
 This is an app connectivity feature, **not** an embedded VPN and **not** a guarantee of access in Iran.
 
 ## What Nuvx needs
@@ -34,6 +34,50 @@ Important: this mode does **not** turn on your proxy client or handle its VLESS/
 ### Desktop custom proxy
 
 If your external client exposes SOCKS5 on `127.0.0.1:10808`, open **Settings → Network → Proxy → Custom** and enter `socks5h://127.0.0.1:10808` (the `h` form requests proxy-side hostname resolution). Save, restart and run **Test connection**. For HTTP proxies use an appropriate `http://127.0.0.1:<port>` address. On macOS/Linux, the system mode displays environment-proxy guidance instead of Windows registry instructions.
+
+## Verified on a real device (Galaxy S26, Android dev build, 2026-11-18)
+
+Method: a SOCKS5 relay that logs every destination, reached by the phone at `127.0.0.1:10808`; the app's own TCP
+sockets read from `/proc/net/tcp{,6}` (owner uid) to catch anything that does not go through the proxy; then real
+Orbot 17.9.7 (Direct and **Snowflake** transport) in Orbot mode.
+
+| Traffic | Local SOCKS5 | Orbot | Notes |
+| --- | --- | --- | --- |
+| YouTube Music API (InnerTube), search, home | ✅ via proxy, host names | ✅ | remote DNS: the relay saw names, not IPs |
+| Audio stream (`*.googlevideo.com`) | ✅ played | ✅ played | |
+| Artwork in app (Coil: `i.ytimg.com`, `yt3.googleusercontent.com`) | ✅ | ✅ | |
+| Notification / lock screen / Auto artwork (MediaSession) | ✅ **after fix** | ✅ | was leaking direct, see below |
+| Lyrics providers, Apple/canvas lookups, update check, Listen Together | ✅ | ✅ | |
+| Proxy down (fail-closed) | ✅ no direct sockets | — | status shows "Connection unavailable" |
+| Casting | ⛔ refused in protected mode | ⛔ | the receiver would fetch the stream itself |
+| LAN Sync to a paired computer | direct (local) | direct (local) | private-address exception, by design |
+| Snowflake-bridged Orbot | — | ✅ traffic through Orbot 13 s after connect | Iran itself not tested |
+
+Fixed in this branch:
+- **Leak:** Media3's default MediaSession bitmap loader uses `HttpURLConnection`, whose platform OkHttp retries
+  a failed proxy *directly*. With the route down, session artwork went straight to Google. Now loaded through the
+  app's OkHttp client, which fails closed.
+- **Desktop DNS leak:** a custom `socks5://` proxy resolved names locally; now used as `socks5h://`.
+- **Desktop fail-open:** an unusable custom proxy address meant no proxy; it now fails closed like Tor mode.
+- **Bridged Tor:** Orbot bootstrap wait 45 s → 5 min; Tor check 40 s → 90 s with one retry; local SOCKS5 probe
+  20 s → 60 s.
+
+## Iran and other heavily filtered networks
+
+Plain Tor is blocked in Iran; a tester's Orbot failed for this reason. What works there changes often, so nuvx
+depends on a local interface, not one transport:
+
+1. **Fastest:** a VLESS/REALITY (or Shadowsocks) client such as v2rayNG, Hiddify or NekoBox with a config the user
+   trusts. In its **VPN mode** leave nuvx's Network setting **Off** (the whole phone is tunnelled). In its
+   **proxy mode** choose **Local SOCKS5** and enter its port (v2rayNG `10808`, NekoBox `2080`, Clash/Mihomo mixed
+   port `7890`).
+2. **Tor:** in Orbot, turn on a bridge (Snowflake, Snowflake AMP, obfs4 or WebTunnel) before connecting, then pick
+   **Orbot** in nuvx. Expect slow starts and lower bitrates.
+3. **Router-level:** [youtubeUnblock](https://github.com/Waujito/youtubeUnblock) splits the TLS handshake on an
+   OpenWrt router (or rooted Linux) so DPI cannot read the YouTube SNI. It needs no app support: nuvx works with it
+   in **Off** mode. It cannot be embedded in an app (it relies on netfilter queues).
+
+None of this works during a full internet shutdown, and a working probe is not a claim of anonymity.
 
 ## Network Management architecture
 
