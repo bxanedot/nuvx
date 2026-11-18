@@ -1540,4 +1540,20 @@
         <item quantity="one">%1$d Song gesendet</item>
         <item quantity="other">%1$d Songs gesendet</item>
     </plurals>
+    <string name="nuvx_host_header">Andere Handys</string>
+    <string name="nuvx_host_footer">Andere Handys koppeln sich wie mit einem Computer: Du bestätigst jedes hier, und beide zeigen denselben 6-stelligen Code. Gekoppelte Handys teilen nuvx-Playlists und Downloads, im selben WLAN, verschlüsselt.</string>
+    <string name="nuvx_host_title">Andere Handys mit diesem koppeln lassen</string>
+    <string name="nuvx_host_blocked">Beende zuerst die Synchronisierung mit deinem Computer oder Server</string>
+    <string name="nuvx_host_on">An · Code %1$s · %2$s</string>
+    <string name="nuvx_host_off">Aus</string>
+    <string name="nuvx_host_code_title">Code für das andere Handy</string>
+    <string name="nuvx_host_code_subtitle">Auf dem anderen Handy: Sync &amp; Connect → Lokale WLAN-Synchronisierung, und diesen Code eingeben</string>
+    <string name="nuvx_host_wants">%1$s möchte sich koppeln</string>
+    <string name="nuvx_host_compare">Nur bestätigen, wenn dort %1$s steht</string>
+    <string name="nuvx_host_decline">Ablehnen</string>
+    <string name="nuvx_host_approve">Bestätigen</string>
+    <string name="nuvx_host_paired">Gekoppeltes Handy</string>
+    <string name="nuvx_host_remove">Entfernen</string>
+    <string name="nuvx_host_remote_title">Fernsteuerung erlauben</string>
+    <string name="nuvx_host_remote_subtitle">Gekoppelte Handys können über die Lautsprecher-Taste auf diesem Handy abspielen</string>
 </resources>

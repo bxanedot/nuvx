@@ -1573,4 +1573,20 @@
         <item quantity="many">Отправлено: %1$d песен</item>
         <item quantity="other">Отправлено: %1$d песни</item>
     </plurals>
+    <string name="nuvx_host_header">Другие телефоны</string>
+    <string name="nuvx_host_footer">Другие телефоны сопрягаются как с компьютером: вы одобряете каждый здесь, и оба показывают один и тот же 6-значный код. Сопряжённые телефоны делят плейлисты и загрузки nuvx, в одной сети Wi-Fi, с шифрованием.</string>
+    <string name="nuvx_host_title">Разрешить другим телефонам сопрягаться с этим</string>
+    <string name="nuvx_host_blocked">Сначала отключите синхронизацию с компьютером или сервером</string>
+    <string name="nuvx_host_on">Вкл. · код %1$s · %2$s</string>
+    <string name="nuvx_host_off">Выкл.</string>
+    <string name="nuvx_host_code_title">Код для другого телефона</string>
+    <string name="nuvx_host_code_subtitle">На другом телефоне: Синхронизация и Connect → Локальная синхронизация по Wi-Fi, и введите этот код</string>
+    <string name="nuvx_host_wants">%1$s хочет сопрячься</string>
+    <string name="nuvx_host_compare">Одобряйте, только если там %1$s</string>
+    <string name="nuvx_host_decline">Отклонить</string>
+    <string name="nuvx_host_approve">Одобрить</string>
+    <string name="nuvx_host_paired">Сопряжённый телефон</string>
+    <string name="nuvx_host_remove">Удалить</string>
+    <string name="nuvx_host_remote_title">Разрешить удалённое управление</string>
+    <string name="nuvx_host_remote_subtitle">Сопряжённые телефоны могут воспроизводить через этот кнопкой динамика</string>
 </resources>

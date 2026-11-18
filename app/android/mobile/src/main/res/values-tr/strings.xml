@@ -1497,4 +1497,20 @@
         <item quantity="one">Gönderildi: %1$d şarkı</item>
         <item quantity="other">Gönderildi: %1$d şarkı</item>
     </plurals>
+    <string name="nuvx_host_header">Diğer telefonlar</string>
+    <string name="nuvx_host_footer">Diğer telefonlar bilgisayardaki gibi eşlenir: her birini burada onaylarsınız ve ikisi de aynı 6 haneli kodu gösterir. Eşlenen telefonlar nuvx çalma listelerini ve indirmelerini aynı Wi-Fi’da, şifreli paylaşır.</string>
+    <string name="nuvx_host_title">Diğer telefonların bununla eşlenmesine izin ver</string>
+    <string name="nuvx_host_blocked">Önce bilgisayar veya sunucu ile eşitlemeyi kapatın</string>
+    <string name="nuvx_host_on">Açık · kod %1$s · %2$s</string>
+    <string name="nuvx_host_off">Kapalı</string>
+    <string name="nuvx_host_code_title">Diğer telefon için kod</string>
+    <string name="nuvx_host_code_subtitle">Diğer telefonda: Eşitle ve Bağlan → Yerel Wi-Fi Senkronizasyonu, ve bu kodu girin</string>
+    <string name="nuvx_host_wants">%1$s eşlenmek istiyor</string>
+    <string name="nuvx_host_compare">Yalnızca %1$s gösteriyorsa onaylayın</string>
+    <string name="nuvx_host_decline">Reddet</string>
+    <string name="nuvx_host_approve">Onayla</string>
+    <string name="nuvx_host_paired">Eşlenen telefon</string>
+    <string name="nuvx_host_remove">Kaldır</string>
+    <string name="nuvx_host_remote_title">Uzaktan kontrole izin ver</string>
+    <string name="nuvx_host_remote_subtitle">Eşlenen telefonlar hoparlör düğmesiyle bu telefondan çalabilir</string>
 </resources>

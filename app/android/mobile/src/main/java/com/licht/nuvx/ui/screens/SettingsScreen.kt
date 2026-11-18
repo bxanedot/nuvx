@@ -633,6 +633,8 @@ fun SettingsScreen(
 
         if (shows(SettingsCategory.CONNECT)) ConnectSettingsGroup(search = search)
 
+        if (shows(SettingsCategory.CONNECT)) HostSettingsGroup(search = search)
+
         if (shows(SettingsCategory.NETWORK)) PrivacyConnectionSettingsGroup(search = search)
 
         if (shows(SettingsCategory.MISCELLANEOUS)) MiscellaneousSettingsGroup(

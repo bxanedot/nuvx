@@ -33,7 +33,8 @@ object NuvxConnect {
     private const val URL = "http://lan.invalid/v1/connect"
     private val YOUTUBE_ID = Regex("[A-Za-z0-9_-]{11}")
 
-    val available: Boolean get() = NuvxSync.isLan && NuvxSync.status.value.enabled
+    // The hosting phone reaches itself over loopback: it is never its own speaker.
+    val available: Boolean get() = NuvxSync.isLan && NuvxSync.status.value.enabled && !NuvxSync.isHosting
 
     fun state(http: OkHttpClient? = NuvxSync.lanHttp()): Result<Remote> = runCatching {
         val client = http ?: throw IOException("Not paired with a computer")

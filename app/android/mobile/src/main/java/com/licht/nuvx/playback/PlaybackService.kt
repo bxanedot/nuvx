@@ -354,6 +354,9 @@ class PlaybackService : MediaLibraryService() {
 
     private val speakers by lazy { Speakers(listOf(castPlayback, watchSpeaker, computerSpeaker)) }
 
+    /** This phone as a speaker for other paired phones while it hosts them (Nuvx Connect). */
+    private val hostSpeaker by lazy { com.licht.nuvx.playback.cast.HostSpeaker { player } }
+
     private var partySync: PartySync? = null
 
     private val boundedContextCommand = SessionCommand(ACTION_START_BOUNDED_CONTEXT, Bundle.EMPTY)
@@ -661,6 +664,19 @@ class PlaybackService : MediaLibraryService() {
 
         CastController.ensureStarted(this)
         CastController.attach(castPlayback)
+        // Other paired phones may play through this one only while hosting with remote control allowed.
+        scope.launch {
+            kotlinx.coroutines.flow.combine(com.licht.nuvx.data.sync.LanHost.state, com.licht.nuvx.data.sync.LanHost.allowRemote) { s, allowed -> s.running && allowed }
+                .collect { on ->
+                    if (on) {
+                        hostSpeaker.start()
+                        com.licht.nuvx.data.sync.LanHost.speaker = hostSpeaker
+                    } else {
+                        hostSpeaker.stop()
+                        if (com.licht.nuvx.data.sync.LanHost.speaker === hostSpeaker) com.licht.nuvx.data.sync.LanHost.speaker = null
+                    }
+                }
+        }
     }
 
     private fun newSessionPlayer(player: Player, crossfade: CrossfadeController) = SessionPlayer(
@@ -1306,6 +1322,8 @@ class PlaybackService : MediaLibraryService() {
 
 
     override fun onDestroy() {
+        hostSpeaker.stop()
+        if (com.licht.nuvx.data.sync.LanHost.speaker === hostSpeaker) com.licht.nuvx.data.sync.LanHost.speaker = null
         computerSpeaker.stop(resumeHere = false)
         com.licht.nuvx.playback.cast.ComputerSpeaker.current = null
         WearBridge.attachStreams(null)

@@ -56,6 +56,7 @@ object NuvxSync {
     private const val KEY_LAN_HOST_ID = "lan_host_id"
     private const val KEY_LAN_HOST_NAME = "lan_host_name"
     private const val KEY_LAN_HOST_BT = "lan_host_bt"
+    private const val KEY_HOSTING = "hosting"
     const val LAN_SCHEME = "lan://"
 
     private lateinit var app: Context
@@ -71,6 +72,7 @@ object NuvxSync {
     fun init(context: Context) {
         app = context.applicationContext
         LanBluetooth.init(app)
+        LanHost.init(app)
         _status.value = Status(
             enabled = prefs.getBoolean("enabled", false) && token() != null,
             server = prefs.getString("server", "").orEmpty(),
@@ -78,6 +80,7 @@ object NuvxSync {
             lastSyncMs = prefs.getLong("last", 0),
             error = prefs.getString("error", null),
         )
+        if (prefs.getBoolean(KEY_HOSTING, false)) startHosting()
         if (_status.value.enabled) {
             schedulePeriodic()
             // A computer's edits can't reach the phone by themselves: catch up each time the app opens.
@@ -150,6 +153,7 @@ object NuvxSync {
     suspend fun healLanAddress(): Boolean {
         val status = _status.value
         if (!status.enabled || !isLan) return false
+        if (isHosting) return LanHost.state.value.running
         val saved = lanAddress(status.server) ?: return false
         val hostId = prefs.getString(KEY_LAN_HOST_ID, null)
         if (saved.bluetooth && hostId != null) {
@@ -202,6 +206,29 @@ object NuvxSync {
     fun revoke(deviceId: String): SyncResult = client().revoke(deviceId)
 
     /** Leaves sync on this device. With [deleteServerData], first deletes the whole space on the server. */
+    /** True while this phone hosts other phones (and syncs with itself over loopback). */
+    val isHosting: Boolean get() = prefs.getBoolean(KEY_HOSTING, false)
+
+    /**
+     * Lets other phones pair with this one: starts the host and joins its own space over loopback, so this phone's
+     * playlists sync with every phone that pairs. Replaces any other sync this phone had.
+     */
+    fun startHosting(): Boolean {
+        if (!LanHost.start()) return false
+        val (address, deviceId, key) = LanHost.selfJoin() ?: return false
+        val server = "$LAN_SCHEME$address"
+        prefs.edit().putBoolean(KEY_HOSTING, true).putString(KEY_LAN_HOST_NAME, deviceName).apply()
+        if (_status.value.server != server || _status.value.deviceId != deviceId || !_status.value.enabled) {
+            join(server, SyncResult.Joined(LanHost.spaceIdForSelf, deviceId, LanSyncCrypto.b64(key)))
+        }
+        return true
+    }
+
+    fun stopHosting() {
+        LanHost.stop()
+        if (isHosting) leave(deleteServerData = false)
+    }
+
     fun leave(deleteServerData: Boolean): SyncResult {
         if (deleteServerData && token() != null) {
             val r = client().deleteSpace()
@@ -209,6 +236,7 @@ object NuvxSync {
         }
         WorkManager.getInstance(app).cancelUniqueWork(PERIODIC)
         WorkManager.getInstance(app).cancelUniqueWork(ONE_OFF)
+        if (isHosting) LanHost.stop() // turning sync off on the hosting phone stops hosting too
         secure.edit().remove(KEY_TOKEN).apply()
         prefs.edit().clear().apply()
         engine("").reset()

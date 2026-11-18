@@ -1578,4 +1578,20 @@
         <item quantity="one">Wysłano: %1$d piosenka</item>
         <item quantity="other">Wysłano: %1$d piosenki</item>
     </plurals>
+    <string name="nuvx_host_header">Inne telefony</string>
+    <string name="nuvx_host_footer">Inne telefony parują się jak z komputerem: każdy zatwierdzasz tutaj, a oba pokazują ten sam 6-cyfrowy kod. Sparowane telefony współdzielą playlisty i pobrane utwory nuvx, w tej samej sieci Wi-Fi, z szyfrowaniem.</string>
+    <string name="nuvx_host_title">Pozwól innym telefonom sparować się z tym</string>
+    <string name="nuvx_host_blocked">Najpierw wyłącz synchronizację z komputerem lub serwerem</string>
+    <string name="nuvx_host_on">Wł. · kod %1$s · %2$s</string>
+    <string name="nuvx_host_off">Wył.</string>
+    <string name="nuvx_host_code_title">Kod dla drugiego telefonu</string>
+    <string name="nuvx_host_code_subtitle">Na drugim telefonie: Synchronizacja i połączenie → Lokalna synchronizacja Wi-Fi, i wpisz ten kod</string>
+    <string name="nuvx_host_wants">%1$s chce się sparować</string>
+    <string name="nuvx_host_compare">Zatwierdź tylko, jeśli pokazuje %1$s</string>
+    <string name="nuvx_host_decline">Odrzuć</string>
+    <string name="nuvx_host_approve">Zatwierdź</string>
+    <string name="nuvx_host_paired">Sparowany telefon</string>
+    <string name="nuvx_host_remove">Usuń</string>
+    <string name="nuvx_host_remote_title">Zezwalaj na zdalne sterowanie</string>
+    <string name="nuvx_host_remote_subtitle">Sparowane telefony mogą odtwarzać przez ten telefon przyciskiem głośnika</string>
 </resources>

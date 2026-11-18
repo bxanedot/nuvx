@@ -74,13 +74,19 @@ object LanSyncCrypto {
     }
 
     /** The device key and the 6-digit code both screens show; null when [hostPublic] is not a P-256 point. */
-    fun agree(mine: KeyPair, hostPublic: ByteArray): Pair<ByteArray, String>? = runCatching {
-        require(hostPublic.size == 65 && hostPublic[0] == 4.toByte())
+    fun agree(mine: KeyPair, hostPublic: ByteArray): Pair<ByteArray, String>? = agree(mine, hostPublic, mineIsDevice = true)
+
+    /** The host's side of [agree] (a phone hosting other phones): same key and code, salt still phone first. */
+    fun agreeAsHost(host: KeyPair, devicePublic: ByteArray): Pair<ByteArray, String>? = agree(host, devicePublic, mineIsDevice = false)
+
+    private fun agree(mine: KeyPair, theirPublic: ByteArray, mineIsDevice: Boolean): Pair<ByteArray, String>? = runCatching {
+        require(theirPublic.size == 65 && theirPublic[0] == 4.toByte())
         val params = (mine.public as ECPublicKey).params
-        val point = ECPoint(BigInteger(1, hostPublic.copyOfRange(1, 33)), BigInteger(1, hostPublic.copyOfRange(33, 65)))
+        val point = ECPoint(BigInteger(1, theirPublic.copyOfRange(1, 33)), BigInteger(1, theirPublic.copyOfRange(33, 65)))
         val theirs = java.security.KeyFactory.getInstance("EC").generatePublic(ECPublicKeySpec(point, params))
         val shared = KeyAgreement.getInstance("ECDH").run { init(mine.private); doPhase(theirs, true); generateSecret() }
-        val salt = encode(mine.public as ECPublicKey) + hostPublic
+        val minePublic = encode(mine.public as ECPublicKey)
+        val salt = if (mineIsDevice) minePublic + theirPublic else theirPublic + minePublic
         val prk = hmac(salt, shared)
         val key = hmac(prk, KEY_INFO + 1).copyOf(32)
         val sas = hmac(prk, SAS_INFO + 1).copyOf(4)

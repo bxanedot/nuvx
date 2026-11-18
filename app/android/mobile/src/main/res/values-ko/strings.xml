@@ -1378,4 +1378,20 @@
         <item quantity="one">보냄: %1$d곡</item>
         <item quantity="other">보냄: %1$d곡</item>
     </plurals>
+    <string name="nuvx_host_header">다른 휴대전화</string>
+    <string name="nuvx_host_footer">다른 휴대전화는 컴퓨터처럼 페어링됩니다. 여기서 하나씩 승인하고, 두 기기에 같은 6자리 코드가 표시됩니다. 페어링된 휴대전화는 같은 Wi-Fi에서 암호화하여 nuvx 플레이리스트와 다운로드를 공유합니다.</string>
+    <string name="nuvx_host_title">다른 휴대전화가 이 휴대전화와 페어링하도록 허용</string>
+    <string name="nuvx_host_blocked">먼저 컴퓨터나 서버와의 동기화를 끄세요</string>
+    <string name="nuvx_host_on">켜짐 · 코드 %1$s · %2$s</string>
+    <string name="nuvx_host_off">꺼짐</string>
+    <string name="nuvx_host_code_title">다른 휴대전화용 코드</string>
+    <string name="nuvx_host_code_subtitle">다른 휴대전화에서 동기화 및 연결 → 로컬 Wi-Fi 동기화를 열고 이 코드를 입력하세요</string>
+    <string name="nuvx_host_wants">%1$s이(가) 페어링을 요청합니다</string>
+    <string name="nuvx_host_compare">%1$s이(가) 표시될 때만 승인</string>
+    <string name="nuvx_host_decline">거절</string>
+    <string name="nuvx_host_approve">승인</string>
+    <string name="nuvx_host_paired">페어링된 휴대전화</string>
+    <string name="nuvx_host_remove">삭제</string>
+    <string name="nuvx_host_remote_title">원격 조작 허용</string>
+    <string name="nuvx_host_remote_subtitle">페어링된 휴대전화가 스피커 버튼으로 이 휴대전화에서 재생할 수 있습니다</string>
 </resources>

@@ -1457,4 +1457,20 @@
     <plurals name="nuvx_files_sent">
         <item quantity="other">Đã gửi: %1$d bài hát</item>
     </plurals>
+    <string name="nuvx_host_header">Điện thoại khác</string>
+    <string name="nuvx_host_footer">Điện thoại khác ghép đôi như với máy tính: bạn duyệt từng máy ở đây, và cả hai hiện cùng một mã 6 chữ số. Điện thoại đã ghép đôi chia sẻ danh sách phát và bản tải xuống nuvx, cùng Wi-Fi, được mã hóa.</string>
+    <string name="nuvx_host_title">Cho phép điện thoại khác ghép đôi với máy này</string>
+    <string name="nuvx_host_blocked">Hãy tắt đồng bộ với máy tính hoặc máy chủ trước</string>
+    <string name="nuvx_host_on">Bật · mã %1$s · %2$s</string>
+    <string name="nuvx_host_off">Tắt</string>
+    <string name="nuvx_host_code_title">Mã cho điện thoại kia</string>
+    <string name="nuvx_host_code_subtitle">Trên điện thoại kia: Đồng bộ &amp; Kết nối → Đồng bộ Wi-Fi cục bộ, rồi nhập mã này</string>
+    <string name="nuvx_host_wants">%1$s muốn ghép đôi</string>
+    <string name="nuvx_host_compare">Chỉ duyệt nếu máy kia hiện %1$s</string>
+    <string name="nuvx_host_decline">Từ chối</string>
+    <string name="nuvx_host_approve">Duyệt</string>
+    <string name="nuvx_host_paired">Điện thoại đã ghép đôi</string>
+    <string name="nuvx_host_remove">Xóa</string>
+    <string name="nuvx_host_remote_title">Cho phép điều khiển từ xa</string>
+    <string name="nuvx_host_remote_subtitle">Điện thoại đã ghép đôi có thể phát qua máy này bằng nút loa</string>
 </resources>

@@ -1517,4 +1517,20 @@
     <plurals name="nuvx_files_sent">
         <item quantity="other">Dikirim: %1$d lagu</item>
     </plurals>
+    <string name="nuvx_host_header">Ponsel lain</string>
+    <string name="nuvx_host_footer">Ponsel lain berpasangan seperti dengan komputer: Anda menyetujui masing-masing di sini, dan keduanya menampilkan kode 6 digit yang sama. Ponsel berpasangan berbagi playlist dan unduhan nuvx, di Wi-Fi yang sama, terenkripsi.</string>
+    <string name="nuvx_host_title">Izinkan ponsel lain berpasangan dengan ponsel ini</string>
+    <string name="nuvx_host_blocked">Matikan dulu sinkronisasi dengan komputer atau server</string>
+    <string name="nuvx_host_on">Aktif · kode %1$s · %2$s</string>
+    <string name="nuvx_host_off">Mati</string>
+    <string name="nuvx_host_code_title">Kode untuk ponsel lain</string>
+    <string name="nuvx_host_code_subtitle">Di ponsel lain: Sinkron &amp; Hubungkan → Sinkronisasi Wi-Fi lokal, lalu masukkan kode ini</string>
+    <string name="nuvx_host_wants">%1$s ingin berpasangan</string>
+    <string name="nuvx_host_compare">Setujui hanya jika menampilkan %1$s</string>
+    <string name="nuvx_host_decline">Tolak</string>
+    <string name="nuvx_host_approve">Setujui</string>
+    <string name="nuvx_host_paired">Ponsel berpasangan</string>
+    <string name="nuvx_host_remove">Hapus</string>
+    <string name="nuvx_host_remote_title">Izinkan kendali jarak jauh</string>
+    <string name="nuvx_host_remote_subtitle">Ponsel berpasangan bisa memutar lewat ponsel ini dengan tombol speaker</string>
 </resources>

@@ -1518,4 +1518,20 @@
     <plurals name="nuvx_files_sent">
         <item quantity="other">送信済み: %1$d曲</item>
     </plurals>
+    <string name="nuvx_host_header">ほかのスマホ</string>
+    <string name="nuvx_host_footer">ほかのスマホはパソコンと同じようにペアにします。ここで1台ずつ承認し、両方に同じ6桁のコードが表示されます。ペアのスマホは同じ Wi-Fi で、暗号化して nuvx のプレイリストとダウンロードを共有します。</string>
+    <string name="nuvx_host_title">ほかのスマホとのペアを許可</string>
+    <string name="nuvx_host_blocked">先にパソコンやサーバーとの同期をオフにしてください</string>
+    <string name="nuvx_host_on">オン · コード %1$s · %2$s</string>
+    <string name="nuvx_host_off">オフ</string>
+    <string name="nuvx_host_code_title">ほかのスマホ用のコード</string>
+    <string name="nuvx_host_code_subtitle">ほかのスマホで 同期とコネクト → ローカル Wi-Fi 同期 を開き、このコードを入力</string>
+    <string name="nuvx_host_wants">%1$s がペアを求めています</string>
+    <string name="nuvx_host_compare">%1$s と表示されている場合だけ承認</string>
+    <string name="nuvx_host_decline">拒否</string>
+    <string name="nuvx_host_approve">承認</string>
+    <string name="nuvx_host_paired">ペアのスマホ</string>
+    <string name="nuvx_host_remove">削除</string>
+    <string name="nuvx_host_remote_title">リモート操作を許可</string>
+    <string name="nuvx_host_remote_subtitle">ペアのスマホがスピーカーボタンでこのスマホから再生できます</string>
 </resources>

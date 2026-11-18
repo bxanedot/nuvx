@@ -1523,4 +1523,20 @@
     <plurals name="nuvx_files_sent">
         <item quantity="other">ส่งแล้ว: %1$d เพลง</item>
     </plurals>
+    <string name="nuvx_host_header">โทรศัพท์เครื่องอื่น</string>
+    <string name="nuvx_host_footer">โทรศัพท์เครื่องอื่นจับคู่เหมือนกับคอมพิวเตอร์: คุณอนุมัติแต่ละเครื่องที่นี่ และทั้งสองแสดงรหัส 6 หลักเดียวกัน โทรศัพท์ที่จับคู่จะแชร์เพลย์ลิสต์และเพลงดาวน์โหลดของ nuvx ใน Wi-Fi เดียวกันแบบเข้ารหัส</string>
+    <string name="nuvx_host_title">อนุญาตให้โทรศัพท์อื่นจับคู่กับเครื่องนี้</string>
+    <string name="nuvx_host_blocked">ปิดการซิงก์กับคอมพิวเตอร์หรือเซิร์ฟเวอร์ก่อน</string>
+    <string name="nuvx_host_on">เปิด · รหัส %1$s · %2$s</string>
+    <string name="nuvx_host_off">ปิด</string>
+    <string name="nuvx_host_code_title">รหัสสำหรับโทรศัพท์อีกเครื่อง</string>
+    <string name="nuvx_host_code_subtitle">ในโทรศัพท์อีกเครื่อง: ซิงก์และเชื่อมต่อ → การซิงก์ Wi-Fi ภายใน แล้วป้อนรหัสนี้</string>
+    <string name="nuvx_host_wants">%1$s ต้องการจับคู่</string>
+    <string name="nuvx_host_compare">อนุมัติเฉพาะเมื่อแสดง %1$s</string>
+    <string name="nuvx_host_decline">ปฏิเสธ</string>
+    <string name="nuvx_host_approve">อนุมัติ</string>
+    <string name="nuvx_host_paired">โทรศัพท์ที่จับคู่</string>
+    <string name="nuvx_host_remove">ลบ</string>
+    <string name="nuvx_host_remote_title">อนุญาตการควบคุมระยะไกล</string>
+    <string name="nuvx_host_remote_subtitle">โทรศัพท์ที่จับคู่สามารถเล่นผ่านเครื่องนี้ด้วยปุ่มลำโพง</string>
 </resources>

@@ -1479,4 +1479,20 @@
         <item quantity="one">Inviati: %1$d brano</item>
         <item quantity="other">Inviati: %1$d brani</item>
     </plurals>
+    <string name="nuvx_host_header">Altri telefoni</string>
+    <string name="nuvx_host_footer">Gli altri telefoni si associano come a un computer: approvi ciascuno qui, ed entrambi mostrano lo stesso codice a 6 cifre. I telefoni associati condividono playlist e download di nuvx, sulla stessa Wi-Fi, cifrato.</string>
+    <string name="nuvx_host_title">Consenti ad altri telefoni di associarsi</string>
+    <string name="nuvx_host_blocked">Prima disattiva la sincronizzazione con computer o server</string>
+    <string name="nuvx_host_on">Attivo · codice %1$s · %2$s</string>
+    <string name="nuvx_host_off">Disattivato</string>
+    <string name="nuvx_host_code_title">Codice per l’altro telefono</string>
+    <string name="nuvx_host_code_subtitle">Sull’altro telefono: Sincronizza e connetti → Sincronizzazione Wi-Fi locale, e inserisci questo codice</string>
+    <string name="nuvx_host_wants">%1$s vuole associarsi</string>
+    <string name="nuvx_host_compare">Approva solo se mostra %1$s</string>
+    <string name="nuvx_host_decline">Rifiuta</string>
+    <string name="nuvx_host_approve">Approva</string>
+    <string name="nuvx_host_paired">Telefono associato</string>
+    <string name="nuvx_host_remove">Rimuovi</string>
+    <string name="nuvx_host_remote_title">Consenti controllo remoto</string>
+    <string name="nuvx_host_remote_subtitle">I telefoni associati possono riprodurre su questo con il pulsante altoparlante</string>
 </resources>

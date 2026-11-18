@@ -1391,4 +1391,20 @@
         <item quantity="one">Sent %1$d song</item>
         <item quantity="other">Sent %1$d songs</item>
     </plurals>
+    <string name="nuvx_host_header">Other phones</string>
+    <string name="nuvx_host_footer">Other phones pair with this one like with a computer: you approve each here, and both phones show the same 6-digit code. Paired phones share nuvx playlists and downloads, on the same Wi-Fi, encrypted.</string>
+    <string name="nuvx_host_title">Let other phones pair with this phone</string>
+    <string name="nuvx_host_blocked">Turn off sync with your computer or server first</string>
+    <string name="nuvx_host_on">On · code %1$s · %2$s</string>
+    <string name="nuvx_host_off">Off</string>
+    <string name="nuvx_host_code_title">Code for the other phone</string>
+    <string name="nuvx_host_code_subtitle">On the other phone: Sync &amp; Connect → Local Wi-Fi Sync, and enter this code</string>
+    <string name="nuvx_host_wants">%1$s wants to pair</string>
+    <string name="nuvx_host_compare">Approve only if it shows %1$s</string>
+    <string name="nuvx_host_decline">Decline</string>
+    <string name="nuvx_host_approve">Approve</string>
+    <string name="nuvx_host_paired">Paired phone</string>
+    <string name="nuvx_host_remove">Remove</string>
+    <string name="nuvx_host_remote_title">Allow remote control</string>
+    <string name="nuvx_host_remote_subtitle">Paired phones can play through this phone with their speaker button</string>
 </resources>

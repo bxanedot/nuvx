@@ -1517,4 +1517,20 @@
     <plurals name="nuvx_files_sent">
         <item quantity="other">已发送：%1$d 首歌曲</item>
     </plurals>
+    <string name="nuvx_host_header">其他手机</string>
+    <string name="nuvx_host_footer">其他手机像连接电脑一样配对：你在这里逐一批准，两部手机显示相同的 6 位代码。已配对的手机在同一 Wi-Fi 下加密共享 nuvx 播放列表和下载。</string>
+    <string name="nuvx_host_title">允许其他手机与这部手机配对</string>
+    <string name="nuvx_host_blocked">请先关闭与电脑或服务器的同步</string>
+    <string name="nuvx_host_on">已开启 · 代码 %1$s · %2$s</string>
+    <string name="nuvx_host_off">关闭</string>
+    <string name="nuvx_host_code_title">给另一部手机的代码</string>
+    <string name="nuvx_host_code_subtitle">在另一部手机上：同步与连接 → 本地 Wi-Fi 同步，然后输入此代码</string>
+    <string name="nuvx_host_wants">%1$s 请求配对</string>
+    <string name="nuvx_host_compare">仅当对方显示 %1$s 时才批准</string>
+    <string name="nuvx_host_decline">拒绝</string>
+    <string name="nuvx_host_approve">批准</string>
+    <string name="nuvx_host_paired">已配对的手机</string>
+    <string name="nuvx_host_remove">移除</string>
+    <string name="nuvx_host_remote_title">允许远程控制</string>
+    <string name="nuvx_host_remote_subtitle">已配对的手机可以用扬声器按钮通过这部手机播放</string>
 </resources>

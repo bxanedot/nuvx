@@ -1545,4 +1545,20 @@
         <item quantity="one">Enviadas: %1$d música</item>
         <item quantity="other">Enviadas: %1$d músicas</item>
     </plurals>
+    <string name="nuvx_host_header">Outros telefones</string>
+    <string name="nuvx_host_footer">Outros telefones pareiam como com um computador: você aprova cada um aqui, e os dois mostram o mesmo código de 6 dígitos. Telefones pareados compartilham playlists e downloads do nuvx, na mesma Wi-Fi, com criptografia.</string>
+    <string name="nuvx_host_title">Permitir que outros telefones pareiem com este</string>
+    <string name="nuvx_host_blocked">Primeiro desative a sincronização com o computador ou servidor</string>
+    <string name="nuvx_host_on">Ativado · código %1$s · %2$s</string>
+    <string name="nuvx_host_off">Desativado</string>
+    <string name="nuvx_host_code_title">Código para o outro telefone</string>
+    <string name="nuvx_host_code_subtitle">No outro telefone: Sincronizar e conectar → Sincronização Wi-Fi local, e digite este código</string>
+    <string name="nuvx_host_wants">%1$s quer parear</string>
+    <string name="nuvx_host_compare">Aprove só se mostrar %1$s</string>
+    <string name="nuvx_host_decline">Recusar</string>
+    <string name="nuvx_host_approve">Aprovar</string>
+    <string name="nuvx_host_paired">Telefone pareado</string>
+    <string name="nuvx_host_remove">Remover</string>
+    <string name="nuvx_host_remote_title">Permitir controle remoto</string>
+    <string name="nuvx_host_remote_subtitle">Telefones pareados podem tocar por este com o botão de alto-falante</string>
 </resources>

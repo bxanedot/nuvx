@@ -380,6 +380,75 @@ object Downloads {
         }
     }
 
+    /** This phone's downloads as seen by phones it hosts (copy to and from them). */
+    fun hostFiles(context: Context) = object : com.licht.nuvx.data.sync.LanHost.Files {
+        override fun list(): kotlinx.serialization.json.JsonArray = kotlinx.serialization.json.buildJsonArray {
+            library.savedSongs().filterNot { it.uri.endsWith("playlist.m3u8") }.forEach { meta ->
+                val size = sizeOf(context, Uri.parse(meta.uri)).takeIf { it > 0 } ?: return@forEach
+                val ext = meta.downloadFormat?.takeIf { it.length in 2..5 } ?: meta.uri.substringAfterLast('.', "m4a")
+                add(kotlinx.serialization.json.buildJsonObject {
+                    put("id", kotlinx.serialization.json.JsonPrimitive(meta.videoId))
+                    put("title", kotlinx.serialization.json.JsonPrimitive(meta.title))
+                    put("artist", kotlinx.serialization.json.JsonPrimitive(meta.artist))
+                    meta.thumbnailUrl?.let { put("art", kotlinx.serialization.json.JsonPrimitive(it)) }
+                    put("size", kotlinx.serialization.json.JsonPrimitive(size))
+                    put("ext", kotlinx.serialization.json.JsonPrimitive(ext))
+                })
+            }
+        }
+
+        override fun read(id: String, offset: Long, max: Int): Pair<ByteArray, Long>? {
+            val meta = library.savedSongs().firstOrNull { it.videoId == id } ?: return null
+            val uri = Uri.parse(meta.uri)
+            val size = sizeOf(context, uri)
+            if (size <= 0 || offset > size) return null
+            val input = context.contentResolver.openInputStream(uri) ?: return null
+            return input.use { s ->
+                var skipped = 0L
+                while (skipped < offset) {
+                    val n = s.skip(offset - skipped)
+                    if (n <= 0) return null
+                    skipped += n
+                }
+                val buf = ByteArray(minOf(max.toLong(), size - offset).toInt())
+                var at = 0
+                while (at < buf.size) {
+                    val n = s.read(buf, at, buf.size - at)
+                    if (n < 0) break
+                    at += n
+                }
+                buf.copyOf(at) to size
+            }
+        }
+
+        override fun has(id: String): Boolean = saved.value.containsKey(id)
+
+        override fun receive(id: String, file: java.io.File, title: String, artist: String, art: String?, durationMs: Long?, ext: String) {
+            if (saved.value.containsKey(id)) return
+            if (DownloadStore.freeBytes(context) < MIN_FREE_BYTES + file.length()) error(LOW_STORAGE_REFUSAL)
+            val song = Song(
+                videoId = id,
+                title = title.ifBlank { id },
+                artist = artist,
+                thumbnailUrl = art,
+                durationText = durationMs?.let { ms -> "%d:%02d".format(ms / 60_000, ms / 1_000 % 60) },
+            )
+            val pending = DownloadStore.begin(context, DownloadStore.fileNameFor(song, ext), if (ext == "webm") "audio/webm" else "audio/mp4")
+            try {
+                pending.openStream().use { out -> file.inputStream().use { it.copyTo(out) } }
+                library.remember(song, song, pending.commit(), ext, art)
+            } catch (e: Throwable) {
+                pending.abort()
+                throw e
+            }
+        }
+    }
+
+    private fun sizeOf(context: Context, uri: Uri): Long = when (uri.scheme) {
+        "file" -> uri.path?.let { java.io.File(it).length() } ?: 0L
+        else -> runCatching { context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } }.getOrNull() ?: 0L
+    }
+
     /** Single-file songs this phone could send (offline stream folders are not portable). */
     fun sendableSongIds(): List<String> = library.savedSongs()
         .filterNot { it.uri.endsWith("playlist.m3u8") }

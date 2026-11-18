@@ -1540,4 +1540,20 @@
         <item quantity="one">भेजे: %1$d गाना</item>
         <item quantity="other">भेजे: %1$d गाने</item>
     </plurals>
+    <string name="nuvx_host_header">दूसरे फ़ोन</string>
+    <string name="nuvx_host_footer">दूसरे फ़ोन कंप्यूटर की तरह जुड़ते हैं: आप हर एक को यहाँ मंज़ूर करते हैं और दोनों पर वही 6 अंकों का कोड दिखता है। जुड़े फ़ोन nuvx प्लेलिस्ट और डाउनलोड साझा करते हैं, एक ही वाई-फ़ाई पर, एन्क्रिप्टेड।</string>
+    <string name="nuvx_host_title">दूसरे फ़ोन को इस फ़ोन से जुड़ने दें</string>
+    <string name="nuvx_host_blocked">पहले अपने कंप्यूटर या सर्वर से सिंक बंद करें</string>
+    <string name="nuvx_host_on">चालू · कोड %1$s · %2$s</string>
+    <string name="nuvx_host_off">बंद</string>
+    <string name="nuvx_host_code_title">दूसरे फ़ोन के लिए कोड</string>
+    <string name="nuvx_host_code_subtitle">दूसरे फ़ोन पर: सिंक और कनेक्ट → लोकल वाई-फ़ाई सिंक, और यह कोड डालें</string>
+    <string name="nuvx_host_wants">%1$s जुड़ना चाहता है</string>
+    <string name="nuvx_host_compare">तभी मंज़ूर करें जब वहाँ %1$s दिखे</string>
+    <string name="nuvx_host_decline">मना करें</string>
+    <string name="nuvx_host_approve">मंज़ूर करें</string>
+    <string name="nuvx_host_paired">जुड़ा फ़ोन</string>
+    <string name="nuvx_host_remove">हटाएँ</string>
+    <string name="nuvx_host_remote_title">रिमोट कंट्रोल की अनुमति दें</string>
+    <string name="nuvx_host_remote_subtitle">जुड़े फ़ोन अपने स्पीकर बटन से इस फ़ोन पर चला सकते हैं</string>
 </resources>

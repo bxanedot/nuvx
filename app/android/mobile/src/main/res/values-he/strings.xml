@@ -1545,4 +1545,20 @@
         <item quantity="one">נשלחו: %1$d שיר</item>
         <item quantity="other">נשלחו: %1$d שירים</item>
     </plurals>
+    <string name="nuvx_host_header">טלפונים אחרים</string>
+    <string name="nuvx_host_footer">טלפונים אחרים מתחברים כמו למחשב: אתה מאשר כל אחד כאן, ושניהם מציגים את אותו קוד בן 6 ספרות. טלפונים מצומדים משתפים פלייליסטים והורדות של nuvx, באותה רשת Wi-Fi, מוצפן.</string>
+    <string name="nuvx_host_title">לאפשר לטלפונים אחרים להצטמד לטלפון הזה</string>
+    <string name="nuvx_host_blocked">קודם כבה את הסנכרון עם המחשב או השרת</string>
+    <string name="nuvx_host_on">פועל · קוד %1$s · %2$s</string>
+    <string name="nuvx_host_off">כבוי</string>
+    <string name="nuvx_host_code_title">קוד לטלפון האחר</string>
+    <string name="nuvx_host_code_subtitle">בטלפון האחר: סנכרון וחיבור ← סנכרון Wi-Fi מקומי, והזן את הקוד הזה</string>
+    <string name="nuvx_host_wants">%1$s רוצה להצטמד</string>
+    <string name="nuvx_host_compare">אשר רק אם מוצג שם %1$s</string>
+    <string name="nuvx_host_decline">דחה</string>
+    <string name="nuvx_host_approve">אשר</string>
+    <string name="nuvx_host_paired">טלפון מצומד</string>
+    <string name="nuvx_host_remove">הסר</string>
+    <string name="nuvx_host_remote_title">לאפשר שליטה מרחוק</string>
+    <string name="nuvx_host_remote_subtitle">טלפונים מצומדים יכולים לנגן דרך הטלפון הזה עם לחצן הרמקול</string>
 </resources>

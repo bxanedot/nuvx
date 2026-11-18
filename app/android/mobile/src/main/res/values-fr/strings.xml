@@ -1541,4 +1541,20 @@
         <item quantity="one">Envoyés : %1$d chanson</item>
         <item quantity="other">Envoyés : %1$d chansons</item>
     </plurals>
+    <string name="nuvx_host_header">Autres téléphones</string>
+    <string name="nuvx_host_footer">Les autres téléphones s’associent comme avec un ordinateur : vous approuvez chacun ici, et les deux affichent le même code à 6 chiffres. Les téléphones associés partagent playlists et téléchargements nuvx, sur le même Wi-Fi, chiffré.</string>
+    <string name="nuvx_host_title">Autoriser d’autres téléphones à s’associer</string>
+    <string name="nuvx_host_blocked">Arrêtez d’abord la synchro avec votre ordinateur ou serveur</string>
+    <string name="nuvx_host_on">Activé · code %1$s · %2$s</string>
+    <string name="nuvx_host_off">Désactivé</string>
+    <string name="nuvx_host_code_title">Code pour l’autre téléphone</string>
+    <string name="nuvx_host_code_subtitle">Sur l’autre téléphone : Synchro et Connect → Synchro Wi-Fi locale, et saisissez ce code</string>
+    <string name="nuvx_host_wants">%1$s veut s’associer</string>
+    <string name="nuvx_host_compare">Approuvez seulement s’il affiche %1$s</string>
+    <string name="nuvx_host_decline">Refuser</string>
+    <string name="nuvx_host_approve">Approuver</string>
+    <string name="nuvx_host_paired">Téléphone associé</string>
+    <string name="nuvx_host_remove">Retirer</string>
+    <string name="nuvx_host_remote_title">Autoriser le contrôle à distance</string>
+    <string name="nuvx_host_remote_subtitle">Les téléphones associés peuvent lire sur celui-ci avec leur bouton haut-parleur</string>
 </resources>

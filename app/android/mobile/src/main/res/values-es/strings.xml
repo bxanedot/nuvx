@@ -1512,4 +1512,20 @@
         <item quantity="one">Enviadas: %1$d canción</item>
         <item quantity="other">Enviadas: %1$d canciones</item>
     </plurals>
+    <string name="nuvx_host_header">Otros teléfonos</string>
+    <string name="nuvx_host_footer">Otros teléfonos se emparejan como con un ordenador: apruebas cada uno aquí y ambos muestran el mismo código de 6 cifras. Los teléfonos emparejados comparten playlists y descargas de nuvx, en la misma Wi-Fi y cifrado.</string>
+    <string name="nuvx_host_title">Permitir que otros teléfonos se emparejen</string>
+    <string name="nuvx_host_blocked">Primero desactiva la sincronización con tu ordenador o servidor</string>
+    <string name="nuvx_host_on">Activado · código %1$s · %2$s</string>
+    <string name="nuvx_host_off">Desactivado</string>
+    <string name="nuvx_host_code_title">Código para el otro teléfono</string>
+    <string name="nuvx_host_code_subtitle">En el otro teléfono: Sincronizar y conectar → Sincronización Wi-Fi local, e introduce este código</string>
+    <string name="nuvx_host_wants">%1$s quiere emparejarse</string>
+    <string name="nuvx_host_compare">Aprueba solo si muestra %1$s</string>
+    <string name="nuvx_host_decline">Rechazar</string>
+    <string name="nuvx_host_approve">Aprobar</string>
+    <string name="nuvx_host_paired">Teléfono emparejado</string>
+    <string name="nuvx_host_remove">Quitar</string>
+    <string name="nuvx_host_remote_title">Permitir control remoto</string>
+    <string name="nuvx_host_remote_subtitle">Los teléfonos emparejados pueden reproducir en este con su botón de altavoz</string>
 </resources>
