@@ -26,6 +26,9 @@ import com.licht.nuvx.ui.icons.SfIcons
 internal fun ConnectSettingsGroup(search: SettingsSearch) {
     val status by NuvxSync.status.collectAsStateWithLifecycle()
     val computer by ComputerSpeaker.state.collectAsStateWithLifecycle()
+    val host by com.licht.nuvx.data.sync.LanHost.state.collectAsStateWithLifecycle()
+    // A hosting phone is joined to its own space: it is the host, never a "computer" to control or copy from.
+    if (host.running && NuvxSync.isHosting) return
     val paired = status.enabled && NuvxSync.isLan
     LaunchedEffect(paired) { if (paired) ComputerSpeaker.current?.refresh() }
     val context = LocalContext.current

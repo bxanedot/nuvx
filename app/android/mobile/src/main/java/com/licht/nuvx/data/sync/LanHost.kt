@@ -69,6 +69,9 @@ object LanHost {
     @Volatile var speaker: Speaker? = null
     @Volatile var files: Files? = null
 
+    /** Another phone pushed new ops: this phone's own library pulls them now instead of at its next periodic sync. */
+    @Volatile var onRemoteOps: (() -> Unit)? = null
+
     private const val API_VERSION = 1
     private const val PAIRING_TTL_MS = 5 * 60_000L
     private const val MAX_PENDING = 4
@@ -440,6 +443,7 @@ object LanHost {
                     listOf(id, kind, entity) to (payload to (o["clientMs"]?.jsonPrimitive?.longOrNull ?: System.currentTimeMillis()))
                 }
                 if (ops.size + rows.size > MAX_OPS) return err(413, "space_full", "This sync log is full.")
+                val before = ops.size
                 val seqs = rows.map { (ids, rest) ->
                     val (id, kind, entity) = ids
                     (if (id in opIds) ops.firstOrNull { it.str("id") == id }?.get("seq")?.jsonPrimitive?.longOrNull else null) ?: run {
@@ -453,6 +457,7 @@ object LanHost {
                     }
                 }
                 persist()
+                if (ops.size > before && !device.startsWith("self-")) onRemoteOps?.invoke()
                 200 to buildJsonObject { put("seqs", JsonArray(seqs.map(::JsonPrimitive))) }
             }
             method == "GET" && path == "/v1/ops" -> {

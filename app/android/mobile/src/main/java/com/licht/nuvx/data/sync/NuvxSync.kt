@@ -73,6 +73,7 @@ object NuvxSync {
         app = context.applicationContext
         LanBluetooth.init(app)
         LanHost.init(app)
+        LanHost.onRemoteOps = ::requestSync
         _status.value = Status(
             enabled = prefs.getBoolean("enabled", false) && token() != null,
             server = prefs.getString("server", "").orEmpty(),

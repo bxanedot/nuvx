@@ -23,7 +23,8 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   phone a host, like the computer: it shows a 4-digit code, you approve each phone and compare the 6-digit code,
   and paired phones then share nuvx playlists and copy downloads both ways. Turn on **Allow remote control** to let
   them play through this phone with the speaker button. Same Wi-Fi, encrypted. A phone that hosts cannot also sync
-  with a computer at the same time.
+  with a computer at the same time. A playlist made on a paired phone shows up on the host within seconds, and the
+  host no longer lists itself as a computer to control or copy from.
 - **Pair with a 4-digit code.** The computer shows a 4-digit code in Nuvx Sync and Nuvx Connect; type it on the
   phone instead of an address and the phone finds the computer on your Wi-Fi. You still approve the phone on the
   computer and compare the 6-digit code. The address is shown too, and now skips VPN/proxy adapters.

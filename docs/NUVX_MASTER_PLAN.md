@@ -104,7 +104,7 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
 | `767e4d1e`, `3f47c8ce` | Copy downloads between the phone and the computer over Wi-Fi, both ways, checked byte-identical |
 | `0c8e582a` | Desktop: downloaded WebM/Opus songs play instead of skipping (opened as AAC before) |
 | `756916f1`, `b1e8a29c` | Bluetooth (RFCOMM) as a second link, Android ↔ Windows: hello, sealed requests and a full song copy checked over Bluetooth only |
-| `b55385e3` | Phone to phone: an Android phone can host other phones (pairing, sync, Connect, file copy); protocol checked on a device over real sockets, not yet between two physical phones |
+| `b55385e3` | Phone to phone: an Android phone can host other phones (pairing, sync, Connect, file copy); checked between two Android emulators: pairing with approval, playlists both ways, hand-off and pause, song copy both ways byte-identical; not yet on two physical phones |
 
 ## Checked and found healthy (2026-11-17, second session)
 
@@ -127,7 +127,7 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
 2. **Sync beyond Android:** server Sync is on Android (opt-in, PR 326) and LAN Sync covers Android ↔ desktop playlists. Left: server Sync on desktop, iOS and web; it needs the Oracle server (owner item 1) to run for real.
-3. **Nuvx Connect:** done phone → computer and phone → phone (Android). Left: the computer controlling a phone, iOS, and a test between two physical phones.
+3. **Nuvx Connect:** done phone → computer and phone → phone (Android). Left: the computer controlling a phone, iOS, and a check on two physical phones (done on two emulators).
 4. **Smart Offline:** done on Android (resume after a kill, 500 MB floor, Wi-Fi-only, auto-sync of downloaded playlists, optional storage limit). Left: the same on iOS and desktop.
 5. **Remaining features:**
    - Privacy & Data Center: one screen for devices, sync, diagnostics and export (Android has the parts in separate places);
