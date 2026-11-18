@@ -749,20 +749,33 @@ internal fun NuvxApp(
                     name?.substringBeforeLast('.') to com.licht.nuvx.data.PlaylistImport.parse(bytes.decodeToString())
                 }
             }
-            read.onFailure { Toast.makeText(context, it.message ?: context.getString(R.string.failed), Toast.LENGTH_SHORT).show() }
-            read.onSuccess { (fileName, result) ->
-                if (result.songs.isEmpty()) {
-                    showQueueNotice(context.getString(R.string.playlist_import_empty))
-                    return@onSuccess
-                }
-                val title = result.title ?: fileName ?: context.getString(R.string.new_playlist)
-                val id = viewModel.importPlaylist(title, result.songs)
-                showQueueNotice(
-                    if (result.unmatched > 0) context.getString(R.string.playlist_import_partial, result.songs.size, title, result.unmatched)
-                    else context.getString(R.string.playlist_import_done, result.songs.size, title),
-                )
-                viewModel.openDetail(id, title, "${result.songs.size} songs", result.songs.first().thumbnailUrl)
+            val (fileName, result) = read.getOrElse {
+                Toast.makeText(context, it.message ?: context.getString(R.string.failed), Toast.LENGTH_SHORT).show()
+                return@launch
             }
+            if (result.wanted > 0) showQueueNotice(context.getString(R.string.playlist_import_matching, result.wanted))
+            // Only a confident match is kept: a wrong song is worse than one reported as missing.
+            val (songs, missed) = com.licht.nuvx.data.PlaylistImport.resolve(result.entries) { wanted ->
+                val query = listOf(wanted.title, wanted.artist).filter(String::isNotBlank).joinToString(" ")
+                val candidates = YtMusicRepository.search(query, SearchFilter.SONGS).getOrNull()
+                    ?.filterIsInstance<SearchResult.Track>()?.map { it.song }.orEmpty()
+                com.licht.nuvx.data.sources.TrackMatcher.best(
+                    candidates,
+                    com.licht.nuvx.data.sources.TrackMatcher.Target(wanted.title, wanted.artist, wanted.durationSec),
+                )
+            }
+            val leftOut = result.unmatched + missed
+            if (songs.isEmpty()) {
+                showQueueNotice(context.getString(R.string.playlist_import_empty))
+                return@launch
+            }
+            val title = result.title ?: fileName ?: context.getString(R.string.new_playlist)
+            val id = viewModel.importPlaylist(title, songs)
+            showQueueNotice(
+                if (leftOut > 0) context.getString(R.string.playlist_import_partial, songs.size, title, leftOut)
+                else context.getString(R.string.playlist_import_done, songs.size, title),
+            )
+            viewModel.openDetail(id, title, "${songs.size} songs", songs.first().thumbnailUrl)
         }
     }
     LaunchedEffect(queueNotice?.id) {

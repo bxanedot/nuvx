@@ -12,8 +12,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   **Settings → Network → Privacy Connection** (Orbot or a local SOCKS5 app) or a VPN, which do carry the audio.
 - **Import a playlist from an M3U or CSV file.** Library → Playlists → **Import file**, then pick the file. Files
   nuvx exported come back with the same songs in the same order; other players' files work too when their entries
-  carry a YouTube link. The playlist is saved on this device only, and nuvx tells you how many entries had no
-  YouTube link and were left out.
+  carry a YouTube link. Entries with only a title and artist (for example a Spotify playlist exported to CSV, or
+  local files with names) are looked up on YouTube Music; only confident matches are kept, in file order. The
+  playlist is saved on this device only, and nuvx tells you how many songs could not be found.
 - **Copy diagnostics for a bug report.** **Settings → Miscellaneous → Copy diagnostics** copies the app version,
   phone model, Android version, network mode and the latest warnings and errors to your clipboard, with links,
   cookies and tokens removed. Nothing is sent anywhere; paste it where you want to report the problem.

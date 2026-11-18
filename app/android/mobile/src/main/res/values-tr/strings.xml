@@ -1450,11 +1450,12 @@
     <string name="nuvx_sync_lan_unreachable">Bilgisayara ulaşılamadı. İkisinin de aynı Wi-Fi\'da olduğunu ve Yerel Wi-Fi Eşitleme\'nin açık olduğunu kontrol edin.</string>
     <string name="stream_host_unreachable">Şarkılar yüklenmiyor: Bu ağ YouTube\'un ses sunucularını (googlevideo.com) engelliyor. %1$s → %2$s seçeneğini açın veya VPN kullanın.</string>
     <string name="playlist_import_done">%2$s listesine %1$d şarkı aktarıldı</string>
-    <string name="playlist_import_partial">%2$s listesine %1$d şarkı aktarıldı. YouTube bağlantısı olmayan %3$d şarkı atlandı.</string>
-    <string name="playlist_import_empty">Bu dosyada YouTube bağlantılı şarkı yok.</string>
+    <string name="playlist_import_partial">%2$s listesine %1$d şarkı aktarıldı. Bulunamayan %3$d şarkı atlandı.</string>
+    <string name="playlist_import_empty">Bu dosyadaki şarkıların hiçbiri bulunamadı.</string>
     <string name="copy_diagnostics">Tanılamayı kopyala</string>
     <string name="copy_diagnostics_subtitle">Uygulama, telefon ve ağ bilgileriyle son hatalar. Bağlantılar, çerezler ve belirteçler kaldırılır. Yalnızca panoya kopyalanır; hiçbir şey gönderilmez.</string>
     <string name="download_limit">Depolama sınırı</string>
     <string name="download_limit_footer">İndirmeler bu kadar yer kapladığında yeni indirmeler durur. Kaydedilmiş şarkılar kalır.</string>
     <string name="song_removed_from_playlist">“%1$s” kaldırıldı</string>
+    <string name="playlist_import_matching">YouTube Music’te %1$d şarkı eşleştiriliyor…</string>
 </resources>

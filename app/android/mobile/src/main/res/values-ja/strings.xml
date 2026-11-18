@@ -1474,11 +1474,12 @@
     <string name="nuvx_sync_lan_unreachable">コンピュータに接続できません。両方が同じ Wi-Fi にあり、ローカル Wi-Fi 同期がオンか確認してください。</string>
     <string name="stream_host_unreachable">曲を読み込めません：このネットワークは YouTube の音声サーバー（googlevideo.com）をブロックしています。%1$s → %2$s をオンにするか、VPN を使ってください。</string>
     <string name="playlist_import_done">%2$s に %1$d 曲を読み込みました</string>
-    <string name="playlist_import_partial">%2$s に %1$d 曲を読み込みました。YouTube のリンクがない %3$d 曲は除外しました。</string>
-    <string name="playlist_import_empty">このファイルには YouTube のリンクがある曲がありません。</string>
+    <string name="playlist_import_partial">%2$s に %1$d 曲を読み込みました。見つからなかった %3$d 曲は除外しました。</string>
+    <string name="playlist_import_empty">このファイルの曲は見つかりませんでした。</string>
     <string name="copy_diagnostics">診断情報をコピー</string>
     <string name="copy_diagnostics_subtitle">アプリ・端末・ネットワークの情報付きの最近のエラー。リンク、Cookie、トークンは除去されます。クリップボードにコピーするだけで、送信はしません。</string>
     <string name="download_limit">保存容量の上限</string>
     <string name="download_limit_footer">ダウンロードがこの容量に達すると、新しいダウンロードは止まります。保存済みの曲はそのまま残ります。</string>
     <string name="song_removed_from_playlist">「%1$s」を削除しました</string>
+    <string name="playlist_import_matching">YouTube Music で %1$d 曲を照合しています…</string>
 </resources>

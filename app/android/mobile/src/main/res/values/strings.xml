@@ -1344,11 +1344,12 @@
     <string name="restart_now">Restart now</string>
     <string name="stream_host_unreachable">Songs can\'t load: this network blocks YouTube\'s audio servers (googlevideo.com). Turn on %1$s → %2$s, or use a VPN.</string>
     <string name="playlist_import_done">Imported %1$d songs into %2$s</string>
-    <string name="playlist_import_partial">Imported %1$d songs into %2$s. %3$d had no YouTube link and were left out.</string>
-    <string name="playlist_import_empty">No songs with a YouTube link in that file.</string>
+    <string name="playlist_import_partial">Imported %1$d songs into %2$s. %3$d could not be found and were left out.</string>
+    <string name="playlist_import_empty">No songs in that file could be found.</string>
     <string name="copy_diagnostics">Copy diagnostics</string>
     <string name="copy_diagnostics_subtitle">Recent errors with app, phone and network versions. Links, cookies and tokens are removed. Only copied to your clipboard; nothing is sent.</string>
     <string name="download_limit">Storage limit</string>
     <string name="download_limit_footer">When your downloads take up this much space, new downloads stop. Songs already saved stay.</string>
     <string name="song_removed_from_playlist">Removed “%1$s”</string>
+    <string name="playlist_import_matching">Matching %1$d songs on YouTube Music…</string>
 </resources>
