@@ -39,9 +39,10 @@ private suspend fun probeYouTubeMusicViaSocks(port: Int): Boolean = withContext(
     val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(loopback, port))
     val client = OkHttpClient.Builder()
         .proxy(proxy)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .callTimeout(20, TimeUnit.SECONDS)
+        // A VLESS/REALITY or Shadowsocks hop over a congested filtered link can take a while to answer.
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(60, TimeUnit.SECONDS)
         .build()
     try {
         client.newCall(Request.Builder().url("https://music.youtube.com/").build()).execute().use {

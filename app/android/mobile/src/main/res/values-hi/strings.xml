@@ -1434,6 +1434,7 @@
     <string name="privacy_mode_embedded">बिल्ट-इन Tor</string>
     <string name="privacy_status">स्थिति</string>
     <string name="privacy_status_disabled">बंद</string>
+    <string name="privacy_filtered_network_tip">बहुत ज़्यादा फ़िल्टर किए गए नेटवर्क पर (जैसे ईरान में) साधारण Tor ब्लॉक रहता है: पहले Orbot में ब्रिज (Snowflake या obfs4) चालू करें, और पहले कनेक्शन में कुछ मिनट लग सकते हैं। v2rayNG या Hiddify जैसा VLESS/REALITY क्लाइंट आम तौर पर तेज़ होता है: उसके VPN मोड में यह सेटिंग बंद रखें; प्रॉक्सी मोड में लोकल SOCKS5 चुनें।</string>
     <string name="privacy_mode_local_socks">लोकल SOCKS5</string>
     <string name="privacy_local_socks_port">लोकल SOCKS5 पोर्ट</string>
     <string name="privacy_local_socks_port_subtitle">इस डिवाइस पर SOCKS5 लिसनर का पोर्ट, जैसे अलग से इंस्टॉल किए गए प्रॉक्सी क्लाइंट का। होस्ट: 127.0.0.1। सेव करने के बाद nuvx रीस्टार्ट करें।</string>

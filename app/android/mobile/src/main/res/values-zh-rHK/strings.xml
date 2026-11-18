@@ -1397,6 +1397,7 @@
     <string name="privacy_mode_embedded">內建 Tor</string>
     <string name="privacy_status">狀態</string>
     <string name="privacy_status_disabled">已停用</string>
+    <string name="privacy_filtered_network_tip">在嚴格過濾的網路上（例如伊朗），一般的 Tor 會被封鎖：請先在 Orbot 中開啟橋接（Snowflake 或 obfs4），第一次連線可能需要幾分鐘。VLESS/REALITY 用戶端（例如 v2rayNG 或 Hiddify）通常更快：以 VPN 模式使用時請將此設定關閉，以代理模式使用時請選擇本機 SOCKS5。</string>
     <string name="privacy_mode_local_socks">本機 SOCKS5</string>
     <string name="privacy_local_socks_port">本機 SOCKS5 連接埠</string>
     <string name="privacy_local_socks_port_subtitle">此裝置上 SOCKS5 監聽器的連接埠，例如另外安裝的代理用戶端。主機：127.0.0.1。儲存後請重新啟動 nuvx。</string>

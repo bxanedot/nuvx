@@ -1272,6 +1272,7 @@
     <string name="privacy_mode_embedded">내장 Tor</string>
     <string name="privacy_status">상태</string>
     <string name="privacy_status_disabled">사용 안 함</string>
+    <string name="privacy_filtered_network_tip">강하게 필터링되는 네트워크(예: 이란)에서는 일반 Tor가 차단됩니다. 먼저 Orbot에서 브리지(Snowflake 또는 obfs4)를 켜세요. 첫 연결에는 몇 분이 걸릴 수 있습니다. v2rayNG나 Hiddify 같은 VLESS/REALITY 클라이언트가 대체로 더 빠릅니다. VPN 모드에서는 이 설정을 끄고, 프록시 모드에서는 로컬 SOCKS5를 선택하세요.</string>
     <string name="privacy_mode_local_socks">로컬 SOCKS5</string>
     <string name="privacy_local_socks_port">로컬 SOCKS5 포트</string>
     <string name="privacy_local_socks_port_subtitle">이 기기에서 실행 중인 SOCKS5 리스너의 포트(별도로 설치한 프록시 클라이언트 등)입니다. 호스트: 127.0.0.1. 저장 후 nuvx를 다시 시작하세요.</string>

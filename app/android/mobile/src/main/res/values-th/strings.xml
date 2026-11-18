@@ -1420,6 +1420,7 @@
     <string name="privacy_mode_embedded">Tor ในตัว</string>
     <string name="privacy_status">สถานะ</string>
     <string name="privacy_status_disabled">ปิดอยู่</string>
+    <string name="privacy_filtered_network_tip">บนเครือข่ายที่ถูกกรองหนัก (เช่น ในอิหร่าน) Tor แบบปกติจะถูกบล็อก ให้เปิดบริดจ์ใน Orbot (Snowflake หรือ obfs4) ก่อน และการเชื่อมต่อครั้งแรกอาจใช้เวลาหลายนาที ไคลเอนต์ VLESS/REALITY เช่น v2rayNG หรือ Hiddify มักเร็วกว่า ในโหมด VPN ให้ปิดการตั้งค่านี้ ในโหมดพร็อกซีให้เลือก SOCKS5 ในเครื่อง</string>
     <string name="privacy_mode_local_socks">SOCKS5 ในเครื่อง</string>
     <string name="privacy_local_socks_port">พอร์ต SOCKS5 ในเครื่อง</string>
     <string name="privacy_local_socks_port_subtitle">พอร์ตของตัวรับ SOCKS5 บนอุปกรณ์นี้ เช่น จากไคลเอนต์พร็อกซีที่ติดตั้งแยก โฮสต์: 127.0.0.1 รีสตาร์ท nuvx หลังบันทึก</string>

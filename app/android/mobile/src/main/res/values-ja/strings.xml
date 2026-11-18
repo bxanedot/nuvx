@@ -1415,6 +1415,7 @@
     <string name="privacy_mode_embedded">内蔵Tor</string>
     <string name="privacy_status">状態</string>
     <string name="privacy_status_disabled">無効</string>
+    <string name="privacy_filtered_network_tip">強くフィルタリングされたネットワーク（イランなど）では通常の Tor はブロックされます。先に Orbot でブリッジ（Snowflake または obfs4）をオンにしてください。最初の接続には数分かかることがあります。v2rayNG や Hiddify などの VLESS/REALITY クライアントの方が通常は高速です。VPN モードで使う場合はこの設定をオフに、プロキシモードの場合はローカル SOCKS5 を選んでください。</string>
     <string name="privacy_mode_local_socks">ローカル SOCKS5</string>
     <string name="privacy_local_socks_port">ローカル SOCKS5 ポート</string>
     <string name="privacy_local_socks_port_subtitle">この端末上の SOCKS5 リスナーのポート（別途インストールしたプロキシクライアントなど）。ホスト：127.0.0.1。保存後に nuvx を再起動してください。</string>

@@ -1461,6 +1461,7 @@
     <string name="privacy_mode_embedded">Встроенный Tor</string>
     <string name="privacy_status">Состояние</string>
     <string name="privacy_status_disabled">Отключено</string>
+    <string name="privacy_filtered_network_tip">В сильно фильтруемых сетях (например, в Иране) обычный Tor заблокирован: сначала включите мосты в Orbot (Snowflake или obfs4), а первое подключение может занять несколько минут. Клиент VLESS/REALITY, например v2rayNG или Hiddify, обычно быстрее: в его режиме VPN оставьте эту настройку выключенной, в режиме прокси выберите локальный SOCKS5.</string>
     <string name="privacy_mode_local_socks">Локальный SOCKS5</string>
     <string name="privacy_local_socks_port">Порт локального SOCKS5</string>
     <string name="privacy_local_socks_port_subtitle">Порт SOCKS5-сервера на этом устройстве, например отдельно установленного прокси-клиента. Хост: 127.0.0.1. После сохранения перезапустите nuvx.</string>

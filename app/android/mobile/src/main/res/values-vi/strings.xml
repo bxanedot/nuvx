@@ -1354,6 +1354,7 @@
     <string name="privacy_mode_embedded">Tor tích hợp</string>
     <string name="privacy_status">Trạng thái</string>
     <string name="privacy_status_disabled">Đã tắt</string>
+    <string name="privacy_filtered_network_tip">Trên mạng bị lọc mạnh (ví dụ ở Iran), Tor thông thường bị chặn: hãy bật cầu nối trong Orbot (Snowflake hoặc obfs4) trước, và lần kết nối đầu có thể mất vài phút. Ứng dụng VLESS/REALITY như v2rayNG hoặc Hiddify thường nhanh hơn: ở chế độ VPN, để cài đặt này Tắt; ở chế độ proxy, chọn SOCKS5 cục bộ.</string>
     <string name="privacy_mode_local_socks">SOCKS5 cục bộ</string>
     <string name="privacy_local_socks_port">Cổng SOCKS5 cục bộ</string>
     <string name="privacy_local_socks_port_subtitle">Cổng của trình nghe SOCKS5 trên thiết bị này, chẳng hạn từ ứng dụng proxy cài riêng. Máy chủ: 127.0.0.1. Khởi động lại nuvx sau khi lưu.</string>
