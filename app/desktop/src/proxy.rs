@@ -17,7 +17,7 @@ pub enum Setting {
 impl Setting {
     pub fn label(&self) -> &'static str {
         match self {
-            Setting::System => "Use Windows settings",
+            Setting::System => if cfg!(windows) { "Use Windows settings" } else { "Use environment proxy" },
             Setting::Off => "No proxy",
             Setting::Custom(_) => "Custom",
             Setting::Tor => "Privacy Connection (Tor)",
