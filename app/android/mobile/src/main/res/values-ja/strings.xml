@@ -1087,6 +1087,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">保護された接続の使用中はキャストできません。テレビが保護ルートを通らず直接接続するためです。</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">デコーダーから出力までのリアルタイム信号経路</string>
 
@@ -1414,6 +1415,13 @@
     <string name="privacy_mode_embedded">内蔵Tor</string>
     <string name="privacy_status">状態</string>
     <string name="privacy_status_disabled">無効</string>
+    <string name="privacy_mode_local_socks">ローカル SOCKS5</string>
+    <string name="privacy_local_socks_port">ローカル SOCKS5 ポート</string>
+    <string name="privacy_local_socks_port_subtitle">この端末上の SOCKS5 リスナーのポート（別途インストールしたプロキシクライアントなど）。ホスト：127.0.0.1。保存後に nuvx を再起動してください。</string>
+    <string name="privacy_local_socks_footer">この端末に別途インストールしたプロキシクライアントを使います。Nuvx は VPN をインストールせず、公開プロキシリストにも接続しません。プロキシが使えないときは、保護された通信は直接送られずブロックされます。一部のログインやサードパーティのコンポーネントはアプリのプロキシに従わない場合があるため、別途確認してください。ログインしているサービスは引き続きアカウントを識別できます。</string>
+    <string name="privacy_status_connected_socks">ローカル SOCKS5 で接続中</string>
+    <string name="privacy_test_socks_passed">成功：YouTube Music がローカル SOCKS5 経由で応答しました</string>
+    <string name="privacy_test_socks_failed">失敗：YouTube Music がローカル SOCKS5 経由で応答しませんでした</string>
     <string name="privacy_status_connecting">接続中</string>
     <string name="privacy_status_bootstrapping">Torを起動中（%1$d%%）</string>
     <string name="privacy_status_connected_orbot">Orbot経由で接続済み</string>

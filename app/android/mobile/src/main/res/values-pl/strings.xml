@@ -1142,6 +1142,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">Przesyłanie jest wyłączone przy chronionym połączeniu: telewizor łączyłby się bezpośrednio, poza chronioną trasą.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Ścieżka sygnału na żywo, od dekodera do wyjścia</string>
 
@@ -1471,6 +1472,13 @@
     <string name="privacy_mode_embedded">Wbudowany Tor</string>
     <string name="privacy_status">Stan</string>
     <string name="privacy_status_disabled">Wyłączone</string>
+    <string name="privacy_mode_local_socks">Lokalny SOCKS5</string>
+    <string name="privacy_local_socks_port">Port lokalnego SOCKS5</string>
+    <string name="privacy_local_socks_port_subtitle">Port serwera SOCKS5 na tym urządzeniu, np. osobno zainstalowanego klienta proxy. Host: 127.0.0.1. Po zapisaniu uruchom ponownie nuvx.</string>
+    <string name="privacy_local_socks_footer">Używa osobno zainstalowanego klienta proxy na tym urządzeniu. Nuvx nie instaluje VPN i nie łączy się z publicznymi listami proxy. Gdy proxy jest niedostępne, chronione żądania są blokowane zamiast iść bezpośrednio. Niektóre elementy logowania i komponenty innych firm mogą nie respektować proxy aplikacji; sprawdź je osobno. Usługi, w których się logujesz, nadal mogą rozpoznać Twoje konto.</string>
+    <string name="privacy_status_connected_socks">Połączono przez lokalny SOCKS5</string>
+    <string name="privacy_test_socks_passed">Sukces: YouTube Music odpowiedział przez lokalny SOCKS5</string>
+    <string name="privacy_test_socks_failed">Błąd: YouTube Music nie odpowiedział przez lokalny SOCKS5</string>
     <string name="privacy_status_connecting">Łączenie</string>
     <string name="privacy_status_bootstrapping">Uruchamianie Tora (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Połączono przez Orbot</string>

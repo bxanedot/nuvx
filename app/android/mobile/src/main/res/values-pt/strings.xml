@@ -1109,6 +1109,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">A transmissão fica desativada com uma conexão protegida: a TV se conectaria diretamente, fora da rota protegida.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Caminho do sinal ao vivo, do decodificador à saída</string>
 
@@ -1438,6 +1439,13 @@
     <string name="privacy_mode_embedded">Tor integrado</string>
     <string name="privacy_status">Status</string>
     <string name="privacy_status_disabled">Desativada</string>
+    <string name="privacy_mode_local_socks">SOCKS5 local</string>
+    <string name="privacy_local_socks_port">Porta SOCKS5 local</string>
+    <string name="privacy_local_socks_port_subtitle">Porta de um servidor SOCKS5 neste dispositivo, como o de um cliente proxy instalado à parte. Host: 127.0.0.1. Reinicie o nuvx depois de salvar.</string>
+    <string name="privacy_local_socks_footer">Usa um cliente proxy instalado à parte neste dispositivo. O Nuvx não instala VPN e não se conecta a listas públicas de proxy. Se o proxy estiver indisponível, as solicitações protegidas são bloqueadas em vez de sair diretamente. Alguns componentes de login e de terceiros podem não respeitar o proxy do app; verifique-os separadamente. Os serviços em que você faz login ainda podem identificar sua conta.</string>
+    <string name="privacy_status_connected_socks">Conectado via SOCKS5 local</string>
+    <string name="privacy_test_socks_passed">Aprovado: o YouTube Music respondeu pelo SOCKS5 local</string>
+    <string name="privacy_test_socks_failed">Falhou: o YouTube Music não respondeu pelo SOCKS5 local</string>
     <string name="privacy_status_connecting">Conectando</string>
     <string name="privacy_status_bootstrapping">Iniciando o Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Conectado pelo Orbot</string>

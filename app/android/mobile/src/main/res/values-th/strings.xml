@@ -925,6 +925,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">แคสต์ไม่ได้ขณะใช้การเชื่อมต่อที่ป้องกัน เพราะทีวีจะเชื่อมต่อโดยตรงนอกเส้นทางที่ป้องกัน</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">เส้นทางสัญญาณแบบเรียลไทม์ จากตัวถอดรหัสถึงเอาต์พุต</string>
 
@@ -1419,6 +1420,13 @@
     <string name="privacy_mode_embedded">Tor ในตัว</string>
     <string name="privacy_status">สถานะ</string>
     <string name="privacy_status_disabled">ปิดอยู่</string>
+    <string name="privacy_mode_local_socks">SOCKS5 ในเครื่อง</string>
+    <string name="privacy_local_socks_port">พอร์ต SOCKS5 ในเครื่อง</string>
+    <string name="privacy_local_socks_port_subtitle">พอร์ตของตัวรับ SOCKS5 บนอุปกรณ์นี้ เช่น จากไคลเอนต์พร็อกซีที่ติดตั้งแยก โฮสต์: 127.0.0.1 รีสตาร์ท nuvx หลังบันทึก</string>
+    <string name="privacy_local_socks_footer">ใช้ไคลเอนต์พร็อกซีที่ติดตั้งแยกบนอุปกรณ์นี้ Nuvx ไม่ติดตั้ง VPN และไม่เชื่อมต่อรายการพร็อกซีสาธารณะ หากพร็อกซีใช้ไม่ได้ คำขอที่ป้องกันจะถูกบล็อกแทนการส่งตรง ส่วนประกอบการลงชื่อเข้าใช้และของบุคคลที่สามบางอย่างอาจไม่ใช้พร็อกซีของแอป โปรดตรวจสอบแยก บริการที่คุณลงชื่อเข้าใช้ยังระบุบัญชีของคุณได้</string>
+    <string name="privacy_status_connected_socks">เชื่อมต่อผ่าน SOCKS5 ในเครื่อง</string>
+    <string name="privacy_test_socks_passed">ผ่าน: YouTube Music ตอบกลับผ่าน SOCKS5 ในเครื่อง</string>
+    <string name="privacy_test_socks_failed">ไม่ผ่าน: YouTube Music ไม่ตอบกลับผ่าน SOCKS5 ในเครื่อง</string>
     <string name="privacy_status_connecting">กำลังเชื่อมต่อ</string>
     <string name="privacy_status_bootstrapping">กำลังเริ่ม Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">เชื่อมต่อผ่าน Orbot แล้ว</string>

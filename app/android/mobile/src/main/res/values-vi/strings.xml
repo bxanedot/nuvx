@@ -1075,6 +1075,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">Không thể truyền khi đang dùng kết nối được bảo vệ: TV sẽ kết nối trực tiếp, ngoài tuyến được bảo vệ.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Live signal path, decoder to output</string>
     <string name="song_added_to_playlist">Added to playlist</string>
@@ -1353,6 +1354,13 @@
     <string name="privacy_mode_embedded">Tor tích hợp</string>
     <string name="privacy_status">Trạng thái</string>
     <string name="privacy_status_disabled">Đã tắt</string>
+    <string name="privacy_mode_local_socks">SOCKS5 cục bộ</string>
+    <string name="privacy_local_socks_port">Cổng SOCKS5 cục bộ</string>
+    <string name="privacy_local_socks_port_subtitle">Cổng của trình nghe SOCKS5 trên thiết bị này, chẳng hạn từ ứng dụng proxy cài riêng. Máy chủ: 127.0.0.1. Khởi động lại nuvx sau khi lưu.</string>
+    <string name="privacy_local_socks_footer">Dùng ứng dụng proxy cài riêng trên thiết bị này. Nuvx không cài VPN và không kết nối với danh sách proxy công khai. Nếu proxy không khả dụng, các yêu cầu được bảo vệ sẽ bị chặn thay vì gửi trực tiếp. Một số thành phần đăng nhập và bên thứ ba có thể không tuân theo proxy của ứng dụng; hãy kiểm tra riêng. Các dịch vụ bạn đăng nhập vẫn có thể nhận ra tài khoản của bạn.</string>
+    <string name="privacy_status_connected_socks">Đã kết nối qua SOCKS5 cục bộ</string>
+    <string name="privacy_test_socks_passed">Đạt: YouTube Music đã phản hồi qua SOCKS5 cục bộ</string>
+    <string name="privacy_test_socks_failed">Không đạt: YouTube Music không phản hồi qua SOCKS5 cục bộ</string>
     <string name="privacy_status_connecting">Đang kết nối</string>
     <string name="privacy_status_bootstrapping">Đang khởi động Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Đã kết nối qua Orbot</string>

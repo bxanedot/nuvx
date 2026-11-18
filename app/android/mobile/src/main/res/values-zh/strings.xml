@@ -1086,6 +1086,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">使用受保护连接时无法投放：电视会直接连接，不经过受保护的路由。</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">实时信号路径，从解码器到输出</string>
 
@@ -1413,6 +1414,13 @@
     <string name="privacy_mode_embedded">内置 Tor</string>
     <string name="privacy_status">状态</string>
     <string name="privacy_status_disabled">已停用</string>
+    <string name="privacy_mode_local_socks">本地 SOCKS5</string>
+    <string name="privacy_local_socks_port">本地 SOCKS5 端口</string>
+    <string name="privacy_local_socks_port_subtitle">此设备上 SOCKS5 监听器的端口，例如另外安装的代理客户端。主机：127.0.0.1。保存后请重启 nuvx。</string>
+    <string name="privacy_local_socks_footer">使用此设备上另外安装的代理客户端。Nuvx 不会安装 VPN，也不会连接公开代理列表。代理不可用时，受保护的请求会被阻止而不会直连。部分登录和第三方组件可能不遵循应用代理，请另行确认。你登录的服务仍可识别你的账号。</string>
+    <string name="privacy_status_connected_socks">已通过本地 SOCKS5 连接</string>
+    <string name="privacy_test_socks_passed">通过：YouTube Music 通过本地 SOCKS5 响应</string>
+    <string name="privacy_test_socks_failed">失败：YouTube Music 未通过本地 SOCKS5 响应</string>
     <string name="privacy_status_connecting">正在连接</string>
     <string name="privacy_status_bootstrapping">正在启动 Tor（%1$d%%）</string>
     <string name="privacy_status_connected_orbot">已通过 Orbot 连接</string>

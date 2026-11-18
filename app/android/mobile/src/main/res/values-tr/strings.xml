@@ -1061,6 +1061,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">Korumalı bağlantı açıkken yayın kapalıdır: TV korumalı rotanın dışında doğrudan bağlanırdı.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Kod çözücüden çıkışa canlı sinyal yolu</string>
 
@@ -1390,6 +1391,13 @@
     <string name="privacy_mode_embedded">Yerleşik Tor</string>
     <string name="privacy_status">Durum</string>
     <string name="privacy_status_disabled">Devre dışı</string>
+    <string name="privacy_mode_local_socks">Yerel SOCKS5</string>
+    <string name="privacy_local_socks_port">Yerel SOCKS5 bağlantı noktası</string>
+    <string name="privacy_local_socks_port_subtitle">Bu cihazdaki bir SOCKS5 dinleyicisinin bağlantı noktası (örneğin ayrı kurulmuş bir proxy istemcisi). Sunucu: 127.0.0.1. Kaydettikten sonra nuvx\'i yeniden başlatın.</string>
+    <string name="privacy_local_socks_footer">Bu cihazda ayrı kurulmuş bir proxy istemcisi kullanır. Nuvx VPN kurmaz ve herkese açık proxy listelerine bağlanmaz. Proxy kullanılamazsa korumalı istekler doğrudan gönderilmek yerine engellenir. Bazı oturum açma ve üçüncü taraf bileşenleri uygulama proxy\'sine uymayabilir; ayrıca kontrol edin. Oturum açtığınız hizmetler hesabınızı yine de tanıyabilir.</string>
+    <string name="privacy_status_connected_socks">Yerel SOCKS5 ile bağlandı</string>
+    <string name="privacy_test_socks_passed">Başarılı: YouTube Music yerel SOCKS5 üzerinden yanıt verdi</string>
+    <string name="privacy_test_socks_failed">Başarısız: YouTube Music yerel SOCKS5 üzerinden yanıt vermedi</string>
     <string name="privacy_status_connecting">Bağlanıyor</string>
     <string name="privacy_status_bootstrapping">Tor başlatılıyor (%%%1$d)</string>
     <string name="privacy_status_connected_orbot">Orbot üzerinden bağlı</string>

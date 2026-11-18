@@ -1104,6 +1104,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">Streamen ist aus, solange eine geschützte Verbindung aktiv ist: Der Fernseher würde direkt verbinden, außerhalb der geschützten Route.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Live-Signalweg vom Decoder bis zur Ausgabe</string>
 
@@ -1433,6 +1434,13 @@
     <string name="privacy_mode_embedded">Integriertes Tor</string>
     <string name="privacy_status">Status</string>
     <string name="privacy_status_disabled">Deaktiviert</string>
+    <string name="privacy_mode_local_socks">Lokaler SOCKS5</string>
+    <string name="privacy_local_socks_port">Lokaler SOCKS5-Port</string>
+    <string name="privacy_local_socks_port_subtitle">Port eines SOCKS5-Listeners auf diesem Gerät, etwa von einem separat installierten Proxy-Client. Host: 127.0.0.1. Nach dem Speichern nuvx neu starten.</string>
+    <string name="privacy_local_socks_footer">Nutzt einen separat installierten Proxy-Client auf diesem Gerät. Nuvx installiert kein VPN und verbindet sich mit keinen öffentlichen Proxy-Listen. Ist der Proxy nicht erreichbar, werden geschützte Anfragen blockiert statt direkt gesendet. Manche Anmelde- und Drittanbieter-Komponenten beachten den App-Proxy eventuell nicht; prüfe sie gesondert. Dienste, bei denen du angemeldet bist, können dein Konto weiterhin erkennen.</string>
+    <string name="privacy_status_connected_socks">Über lokalen SOCKS5 verbunden</string>
+    <string name="privacy_test_socks_passed">Bestanden: YouTube Music hat über lokalen SOCKS5 geantwortet</string>
+    <string name="privacy_test_socks_failed">Fehlgeschlagen: YouTube Music hat über lokalen SOCKS5 nicht geantwortet</string>
     <string name="privacy_status_connecting">Verbindung wird hergestellt</string>
     <string name="privacy_status_bootstrapping">Tor wird gestartet (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Über Orbot verbunden</string>

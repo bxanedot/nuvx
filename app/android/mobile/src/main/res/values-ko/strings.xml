@@ -440,6 +440,7 @@
     <string name="cast_device_connected">캐스팅 중</string>
     <string name="cast_stop">캐스팅 중단</string>
     <string name="cast_track_unsupported">이 음악은 캐스팅할 수 없습니다</string>
+    <string name="cast_blocked_protected">보호된 연결을 사용하는 동안에는 전송할 수 없습니다. TV가 보호된 경로를 거치지 않고 직접 연결하기 때문입니다.</string>
     <string name="cast_connect_failed">수신기에 연결할 수 없습니다</string>
     <string name="audio_pipeline_subtitle">디코더부터 출력까지의 실시간 신호 경로</string>
     <string name="pipeline_track_info">음악 정보</string>
@@ -1271,6 +1272,13 @@
     <string name="privacy_mode_embedded">내장 Tor</string>
     <string name="privacy_status">상태</string>
     <string name="privacy_status_disabled">사용 안 함</string>
+    <string name="privacy_mode_local_socks">로컬 SOCKS5</string>
+    <string name="privacy_local_socks_port">로컬 SOCKS5 포트</string>
+    <string name="privacy_local_socks_port_subtitle">이 기기에서 실행 중인 SOCKS5 리스너의 포트(별도로 설치한 프록시 클라이언트 등)입니다. 호스트: 127.0.0.1. 저장 후 nuvx를 다시 시작하세요.</string>
+    <string name="privacy_local_socks_footer">이 기기에 별도로 설치한 프록시 클라이언트를 사용합니다. Nuvx는 VPN을 설치하지 않으며 공개 프록시 목록에 연결하지 않습니다. 프록시를 사용할 수 없으면 보호된 요청은 직접 전송되지 않고 차단됩니다. 일부 로그인 및 서드파티 구성 요소는 앱 프록시를 따르지 않을 수 있으니 따로 확인하세요. 로그인한 서비스는 여전히 계정을 식별할 수 있습니다.</string>
+    <string name="privacy_status_connected_socks">로컬 SOCKS5로 연결됨</string>
+    <string name="privacy_test_socks_passed">성공: YouTube Music이 로컬 SOCKS5를 통해 응답했습니다</string>
+    <string name="privacy_test_socks_failed">실패: YouTube Music이 로컬 SOCKS5를 통해 응답하지 않았습니다</string>
     <string name="privacy_status_connecting">연결 중</string>
     <string name="privacy_status_bootstrapping">Tor 시작 중(%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Orbot으로 연결됨</string>

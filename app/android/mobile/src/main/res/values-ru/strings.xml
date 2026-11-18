@@ -1127,6 +1127,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">Трансляция отключена при защищённом подключении: телевизор подключился бы напрямую, в обход защищённого маршрута.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Путь сигнала в реальном времени, от декодера до выхода</string>
 
@@ -1460,6 +1461,13 @@
     <string name="privacy_mode_embedded">Встроенный Tor</string>
     <string name="privacy_status">Состояние</string>
     <string name="privacy_status_disabled">Отключено</string>
+    <string name="privacy_mode_local_socks">Локальный SOCKS5</string>
+    <string name="privacy_local_socks_port">Порт локального SOCKS5</string>
+    <string name="privacy_local_socks_port_subtitle">Порт SOCKS5-сервера на этом устройстве, например отдельно установленного прокси-клиента. Хост: 127.0.0.1. После сохранения перезапустите nuvx.</string>
+    <string name="privacy_local_socks_footer">Использует отдельно установленный прокси-клиент на этом устройстве. Nuvx не устанавливает VPN и не подключается к публичным спискам прокси. Если прокси недоступен, защищённые запросы блокируются, а не уходят напрямую. Некоторые компоненты входа и сторонние компоненты могут не учитывать прокси приложения; проверьте их отдельно. Сервисы, в которые вы вошли, по-прежнему могут узнать ваш аккаунт.</string>
+    <string name="privacy_status_connected_socks">Подключено через локальный SOCKS5</string>
+    <string name="privacy_test_socks_passed">Успешно: YouTube Music ответил через локальный SOCKS5</string>
+    <string name="privacy_test_socks_failed">Ошибка: YouTube Music не ответил через локальный SOCKS5</string>
     <string name="privacy_status_connecting">Подключение</string>
     <string name="privacy_status_bootstrapping">Запуск Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Подключено через Orbot</string>
