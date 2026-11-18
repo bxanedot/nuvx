@@ -1488,7 +1488,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">このスマホからパソコンの nuvx を操作したり、再生中の曲をパソコンに移したりできます。ローカル Wi-Fi 同期でペアにしたパソコンとだけ、同じネットワーク上で暗号化して動作します。止めるにはペアを解除します。</string>
     <string name="nuvx_connect_pair_first">先にパソコンとペアにしてください</string>
-    <string name="nuvx_connect_pair_first_subtitle">データ → ローカル Wi-Fi 同期で、このスマホをパソコンの nuvx とペアにします。その後ここで操作できます。</string>
+    <string name="nuvx_connect_pair_first_subtitle">下のローカル Wi-Fi 同期でペアにします。パソコンの 設定 → Nuvx Sync に表示される 4 桁のコードを入力してください。</string>
     <string name="nuvx_connect_nothing_playing">パソコンで再生中の曲はありません</string>
     <string name="nuvx_connect_paused">一時停止中</string>
     <string name="nuvx_connect_previous">前へ</string>
@@ -1499,4 +1499,5 @@
     <string name="nuvx_connect_nothing_to_hand">パソコンに移せるのは YouTube の曲だけです</string>
     <string name="nuvx_connect_off_on_computer">パソコンの 設定 → Nuvx Connect でリモート操作を許可してください</string>
     <string name="nuvx_sync_lan_code_not_found">この Wi-Fi にそのコードを表示しているパソコンはありません。コードを確認するか、その下のアドレスを入力してください。</string>
+    <string name="nuvx_connect_subtitle">このスマホからパソコンの nuvx を操作</string>
 </resources>

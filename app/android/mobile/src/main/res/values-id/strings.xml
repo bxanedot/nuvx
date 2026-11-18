@@ -1487,7 +1487,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Kendalikan nuvx di komputer dari ponsel ini, atau pindahkan lagu yang sedang diputar ke sana. Hanya bekerja dengan komputer yang dipasangkan di Sinkronisasi Wi-Fi lokal, di jaringan yang sama, terenkripsi. Hapus pasangan untuk menghentikannya.</string>
     <string name="nuvx_connect_pair_first">Pasangkan komputer dulu</string>
-    <string name="nuvx_connect_pair_first_subtitle">Di Data Anda → Sinkronisasi Wi-Fi lokal, pasangkan ponsel ini dengan nuvx di komputer. Lalu Anda bisa mengendalikannya di sini.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Pasangkan di bawah dengan Sinkronisasi Wi-Fi lokal: ketik kode 4 digit yang ditampilkan komputer di Pengaturan → Nuvx Sync.</string>
     <string name="nuvx_connect_nothing_playing">Tidak ada yang diputar di komputer</string>
     <string name="nuvx_connect_paused">Dijeda</string>
     <string name="nuvx_connect_previous">Sebelumnya</string>
@@ -1498,4 +1498,5 @@
     <string name="nuvx_connect_nothing_to_hand">Hanya lagu YouTube yang bisa pindah ke komputer</string>
     <string name="nuvx_connect_off_on_computer">Aktifkan Izinkan kendali jarak jauh di Pengaturan → Nuvx Connect pada komputer</string>
     <string name="nuvx_sync_lan_code_not_found">Tidak ada komputer di Wi-Fi ini yang menampilkan kode itu. Periksa kodenya, atau masukkan alamat di bawahnya.</string>
+    <string name="nuvx_connect_subtitle">Kendalikan nuvx di komputer dari ponsel ini</string>
 </resources>

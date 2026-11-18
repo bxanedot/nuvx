@@ -1546,7 +1546,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Steruj nuvx na komputerze z tego telefonu albo przenieś na niego odtwarzany utwór. Działa tylko z komputerem sparowanym w Lokalnej synchronizacji Wi-Fi, w tej samej sieci, z szyfrowaniem. Usuń parowanie, aby to wyłączyć.</string>
     <string name="nuvx_connect_pair_first">Najpierw sparuj komputer</string>
-    <string name="nuvx_connect_pair_first_subtitle">W Twoje dane → Lokalna synchronizacja Wi-Fi sparuj ten telefon z nuvx na komputerze. Potem możesz nim sterować tutaj.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Sparuj poniżej przez Lokalną synchronizację Wi-Fi: wpisz 4-cyfrowy kod, który komputer pokazuje w Ustawienia → Nuvx Sync.</string>
     <string name="nuvx_connect_nothing_playing">Na komputerze nic nie gra</string>
     <string name="nuvx_connect_paused">Wstrzymano</string>
     <string name="nuvx_connect_previous">Poprzedni</string>
@@ -1557,4 +1557,5 @@
     <string name="nuvx_connect_nothing_to_hand">Na komputer można przenieść tylko utwory z YouTube</string>
     <string name="nuvx_connect_off_on_computer">Na komputerze włącz Zezwalaj na zdalne sterowanie w Ustawienia → Nuvx Connect</string>
     <string name="nuvx_sync_lan_code_not_found">Żaden komputer w tej sieci Wi-Fi nie pokazuje tego kodu. Sprawdź kod albo wpisz adres widoczny pod nim.</string>
+    <string name="nuvx_connect_subtitle">Steruj nuvx na komputerze z tego telefonu</string>
 </resources>

@@ -1493,7 +1493,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">ควบคุม nuvx บนคอมพิวเตอร์จากโทรศัพท์เครื่องนี้ หรือย้ายเพลงที่กำลังเล่นไปที่คอมพิวเตอร์ ใช้ได้กับคอมพิวเตอร์ที่จับคู่ไว้ในการซิงก์ Wi-Fi ภายในเท่านั้น ในเครือข่ายเดียวกันและเข้ารหัส ลบการจับคู่เพื่อหยุดใช้</string>
     <string name="nuvx_connect_pair_first">จับคู่กับคอมพิวเตอร์ก่อน</string>
-    <string name="nuvx_connect_pair_first_subtitle">ในข้อมูลของคุณ → การซิงก์ Wi-Fi ภายใน ให้จับคู่โทรศัพท์นี้กับ nuvx บนคอมพิวเตอร์ แล้วจึงควบคุมได้ที่นี่</string>
+    <string name="nuvx_connect_pair_first_subtitle">จับคู่ด้านล่างด้วยการซิงก์ Wi-Fi ภายใน: ป้อนรหัส 4 หลักที่คอมพิวเตอร์แสดงใน การตั้งค่า → Nuvx Sync</string>
     <string name="nuvx_connect_nothing_playing">ไม่มีเพลงเล่นบนคอมพิวเตอร์</string>
     <string name="nuvx_connect_paused">หยุดชั่วคราว</string>
     <string name="nuvx_connect_previous">ก่อนหน้า</string>
@@ -1504,4 +1504,5 @@
     <string name="nuvx_connect_nothing_to_hand">ย้ายได้เฉพาะเพลงจาก YouTube</string>
     <string name="nuvx_connect_off_on_computer">เปิดอนุญาตการควบคุมระยะไกลใน การตั้งค่า → Nuvx Connect บนคอมพิวเตอร์</string>
     <string name="nuvx_sync_lan_code_not_found">ไม่มีคอมพิวเตอร์ใน Wi-Fi นี้ที่แสดงรหัสนั้น ตรวจสอบรหัส หรือป้อนที่อยู่ที่แสดงด้านล่าง</string>
+    <string name="nuvx_connect_subtitle">ควบคุม nuvx บนคอมพิวเตอร์จากโทรศัพท์นี้</string>
 </resources>

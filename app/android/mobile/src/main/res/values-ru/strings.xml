@@ -1537,7 +1537,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Управляйте nuvx на компьютере с этого телефона или передайте ему текущий трек. Работает только с компьютером, сопряжённым в локальной синхронизации по Wi-Fi, в той же сети и с шифрованием. Чтобы отключить, удалите сопряжение.</string>
     <string name="nuvx_connect_pair_first">Сначала сопрягите компьютер</string>
-    <string name="nuvx_connect_pair_first_subtitle">В разделе «Ваши данные» → «Локальная синхронизация по Wi-Fi» сопрягите телефон с nuvx на компьютере. После этого управляйте им здесь.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Сопрягите ниже через локальную синхронизацию по Wi-Fi: введите 4-значный код, который компьютер показывает в Настройки → Nuvx Sync.</string>
     <string name="nuvx_connect_nothing_playing">На компьютере ничего не играет</string>
     <string name="nuvx_connect_paused">Пауза</string>
     <string name="nuvx_connect_previous">Назад</string>
@@ -1548,4 +1548,5 @@
     <string name="nuvx_connect_nothing_to_hand">На компьютер можно передать только треки YouTube</string>
     <string name="nuvx_connect_off_on_computer">Включите удалённое управление на компьютере: Настройки → Nuvx Connect</string>
     <string name="nuvx_sync_lan_code_not_found">Ни один компьютер в этой сети Wi-Fi не показывает этот код. Проверьте код или введите адрес под ним.</string>
+    <string name="nuvx_connect_subtitle">Управляйте nuvx на компьютере с этого телефона</string>
 </resources>

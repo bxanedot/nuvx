@@ -1508,7 +1508,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">इस फ़ोन से अपने कंप्यूटर पर nuvx चलाएँ, या चल रहा गाना उस पर भेजें। यह सिर्फ़ लोकल वाई-फ़ाई सिंक में जोड़े गए कंप्यूटर के साथ, एक ही नेटवर्क पर, एन्क्रिप्टेड रूप में काम करता है। बंद करने के लिए जोड़ी हटाएँ।</string>
     <string name="nuvx_connect_pair_first">पहले कंप्यूटर से जोड़ें</string>
-    <string name="nuvx_connect_pair_first_subtitle">आपका डेटा → लोकल वाई-फ़ाई सिंक में इस फ़ोन को अपने कंप्यूटर के nuvx से जोड़ें। फिर आप उसे यहाँ से चला सकते हैं।</string>
+    <string name="nuvx_connect_pair_first_subtitle">नीचे लोकल वाई-फ़ाई सिंक से जोड़ें: कंप्यूटर की सेटिंग्स → Nuvx Sync में दिखा 4 अंकों का कोड डालें।</string>
     <string name="nuvx_connect_nothing_playing">कंप्यूटर पर कुछ नहीं चल रहा</string>
     <string name="nuvx_connect_paused">रुका हुआ</string>
     <string name="nuvx_connect_previous">पिछला</string>
@@ -1519,4 +1519,5 @@
     <string name="nuvx_connect_nothing_to_hand">सिर्फ़ YouTube गाने कंप्यूटर पर जा सकते हैं</string>
     <string name="nuvx_connect_off_on_computer">कंप्यूटर पर सेटिंग्स → Nuvx Connect में रिमोट कंट्रोल चालू करें</string>
     <string name="nuvx_sync_lan_code_not_found">इस वाई-फ़ाई पर कोई कंप्यूटर यह कोड नहीं दिखा रहा। कोड जाँचें, या नीचे दिखाया गया पता डालें।</string>
+    <string name="nuvx_connect_subtitle">इस फ़ोन से अपने कंप्यूटर पर nuvx चलाएँ</string>
 </resources>

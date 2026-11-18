@@ -1447,7 +1447,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Controlla nuvx sul computer da questo telefono o sposta lì il brano in riproduzione. Funziona solo con un computer associato in Sincronizzazione Wi-Fi locale, sulla stessa rete e cifrato. Rimuovi l’associazione per fermarlo.</string>
     <string name="nuvx_connect_pair_first">Prima associa il computer</string>
-    <string name="nuvx_connect_pair_first_subtitle">In I tuoi dati → Sincronizzazione Wi-Fi locale, associa questo telefono a nuvx sul computer. Poi potrai controllarlo qui.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Associa qui sotto con Sincronizzazione Wi-Fi locale: inserisci il codice a 4 cifre mostrato dal computer in Impostazioni → Nuvx Sync.</string>
     <string name="nuvx_connect_nothing_playing">Sul computer non suona nulla</string>
     <string name="nuvx_connect_paused">In pausa</string>
     <string name="nuvx_connect_previous">Precedente</string>
@@ -1458,4 +1458,5 @@
     <string name="nuvx_connect_nothing_to_hand">Solo i brani YouTube possono passare al computer</string>
     <string name="nuvx_connect_off_on_computer">Attiva Consenti controllo remoto in Impostazioni → Nuvx Connect sul computer</string>
     <string name="nuvx_sync_lan_code_not_found">Nessun computer su questa Wi-Fi mostra quel codice. Controllalo o inserisci l’indirizzo indicato sotto.</string>
+    <string name="nuvx_connect_subtitle">Controlla nuvx sul computer da questo telefono</string>
 </resources>

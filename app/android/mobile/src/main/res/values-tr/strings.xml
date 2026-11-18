@@ -1465,7 +1465,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Bilgisayardaki nuvx’i bu telefondan yönetin ya da çalan şarkıyı ona aktarın. Yalnızca Yerel Wi-Fi Senkronizasyonu’nda eşlenen bir bilgisayarla, aynı ağda ve şifreli çalışır. Durdurmak için eşlemeyi kaldırın.</string>
     <string name="nuvx_connect_pair_first">Önce bilgisayarla eşleyin</string>
-    <string name="nuvx_connect_pair_first_subtitle">Verileriniz → Yerel Wi-Fi Senkronizasyonu’nda bu telefonu bilgisayardaki nuvx ile eşleyin. Sonra buradan yönetebilirsiniz.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Aşağıda Yerel Wi-Fi Senkronizasyonu ile eşleyin: bilgisayarın Ayarlar → Nuvx Sync’te gösterdiği 4 haneli kodu girin.</string>
     <string name="nuvx_connect_nothing_playing">Bilgisayarda çalan bir şey yok</string>
     <string name="nuvx_connect_paused">Duraklatıldı</string>
     <string name="nuvx_connect_previous">Önceki</string>
@@ -1476,4 +1476,5 @@
     <string name="nuvx_connect_nothing_to_hand">Bilgisayara yalnızca YouTube şarkıları aktarılabilir</string>
     <string name="nuvx_connect_off_on_computer">Bilgisayarda Ayarlar → Nuvx Connect’te uzaktan kontrolü açın</string>
     <string name="nuvx_sync_lan_code_not_found">Bu Wi-Fi’da o kodu gösteren bir bilgisayar yok. Kodu kontrol edin veya altındaki adresi girin.</string>
+    <string name="nuvx_connect_subtitle">Bilgisayardaki nuvx’i bu telefondan yönetin</string>
 </resources>

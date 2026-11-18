@@ -1346,7 +1346,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">이 휴대전화로 컴퓨터의 nuvx를 조작하거나, 재생 중인 곡을 컴퓨터로 옮기세요. 로컬 Wi-Fi 동기화로 페어링한 컴퓨터와만, 같은 네트워크에서 암호화되어 작동합니다. 그만하려면 페어링을 해제하세요.</string>
     <string name="nuvx_connect_pair_first">먼저 컴퓨터와 페어링하세요</string>
-    <string name="nuvx_connect_pair_first_subtitle">내 데이터 → 로컬 Wi-Fi 동기화에서 이 휴대전화를 컴퓨터의 nuvx와 페어링하세요. 그러면 여기서 조작할 수 있습니다.</string>
+    <string name="nuvx_connect_pair_first_subtitle">아래 로컬 Wi-Fi 동기화로 페어링하세요. 컴퓨터의 설정 → Nuvx Sync에 표시된 4자리 코드를 입력하세요.</string>
     <string name="nuvx_connect_nothing_playing">컴퓨터에서 재생 중인 곡이 없습니다</string>
     <string name="nuvx_connect_paused">일시정지됨</string>
     <string name="nuvx_connect_previous">이전</string>
@@ -1357,4 +1357,5 @@
     <string name="nuvx_connect_nothing_to_hand">YouTube 곡만 컴퓨터로 옮길 수 있습니다</string>
     <string name="nuvx_connect_off_on_computer">컴퓨터의 설정 → Nuvx Connect에서 원격 조작 허용을 켜세요</string>
     <string name="nuvx_sync_lan_code_not_found">이 Wi-Fi에서 그 코드를 표시하는 컴퓨터가 없습니다. 코드를 확인하거나 그 아래의 주소를 입력하세요.</string>
+    <string name="nuvx_connect_subtitle">이 휴대전화로 컴퓨터의 nuvx를 조작</string>
 </resources>

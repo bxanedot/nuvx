@@ -1513,7 +1513,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">שלוט ב-nuvx במחשב מהטלפון הזה, או העבר אליו את השיר שמתנגן. עובד רק עם מחשב שצימדת בסנכרון Wi-Fi מקומי, באותה רשת ובהצפנה. הסר את הצימוד כדי להפסיק.</string>
     <string name="nuvx_connect_pair_first">קודם צמד את המחשב</string>
-    <string name="nuvx_connect_pair_first_subtitle">ב„הנתונים שלך” ← סנכרון Wi-Fi מקומי, צמד את הטלפון ל-nuvx במחשב. אחר כך תוכל לשלוט בו כאן.</string>
+    <string name="nuvx_connect_pair_first_subtitle">צמד למטה עם סנכרון Wi-Fi מקומי: הזן את הקוד בן 4 הספרות שהמחשב מציג בהגדרות ← Nuvx Sync.</string>
     <string name="nuvx_connect_nothing_playing">שום דבר לא מתנגן במחשב</string>
     <string name="nuvx_connect_paused">מושהה</string>
     <string name="nuvx_connect_previous">הקודם</string>
@@ -1524,4 +1524,5 @@
     <string name="nuvx_connect_nothing_to_hand">רק שירי YouTube יכולים לעבור למחשב</string>
     <string name="nuvx_connect_off_on_computer">הפעל שליטה מרחוק בהגדרות ← Nuvx Connect במחשב</string>
     <string name="nuvx_sync_lan_code_not_found">אין מחשב ברשת ה-Wi-Fi הזו שמציג את הקוד הזה. בדוק את הקוד או הזן את הכתובת שמתחתיו.</string>
+    <string name="nuvx_connect_subtitle">שלוט ב-nuvx במחשב מהטלפון הזה</string>
 </resources>

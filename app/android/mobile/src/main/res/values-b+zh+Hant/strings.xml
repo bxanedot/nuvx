@@ -1470,7 +1470,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">用這支手機控制電腦上的 nuvx，或把正在播放的歌曲轉到電腦。只適用於在本機 Wi-Fi 同步中配對的電腦，需在同一網路並經過加密。刪除配對即可停止。</string>
     <string name="nuvx_connect_pair_first">請先與電腦配對</string>
-    <string name="nuvx_connect_pair_first_subtitle">在「你的資料 → 本機 Wi-Fi 同步」中，將這支手機與電腦上的 nuvx 配對，之後就能在這裡控制。</string>
+    <string name="nuvx_connect_pair_first_subtitle">在下方用本機 Wi-Fi 同步配對：輸入電腦在 設定 → Nuvx Sync 中顯示的 4 位代碼。</string>
     <string name="nuvx_connect_nothing_playing">電腦上沒有正在播放的內容</string>
     <string name="nuvx_connect_paused">已暫停</string>
     <string name="nuvx_connect_previous">上一首</string>
@@ -1481,4 +1481,5 @@
     <string name="nuvx_connect_nothing_to_hand">只有 YouTube 歌曲可以轉到電腦</string>
     <string name="nuvx_connect_off_on_computer">請在電腦的 設定 → Nuvx Connect 中開啟允許遠端控制</string>
     <string name="nuvx_sync_lan_code_not_found">此 Wi-Fi 上沒有電腦顯示該代碼。請檢查代碼，或輸入其下方顯示的位址。</string>
+    <string name="nuvx_connect_subtitle">用這支手機控制電腦上的 nuvx</string>
 </resources>

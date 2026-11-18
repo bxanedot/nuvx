@@ -1508,7 +1508,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Steuere nuvx auf deinem Computer von diesem Handy aus oder schicke den laufenden Song hinüber. Funktioniert nur mit einem Computer, den du in der lokalen WLAN-Synchronisierung gekoppelt hast, im selben Netzwerk und verschlüsselt. Entferne die Kopplung, um es zu beenden.</string>
     <string name="nuvx_connect_pair_first">Zuerst mit dem Computer koppeln</string>
-    <string name="nuvx_connect_pair_first_subtitle">Koppele dieses Handy unter Deine Daten → Lokale WLAN-Synchronisierung mit nuvx auf deinem Computer. Danach kannst du ihn hier steuern.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Kopple unten mit der lokalen WLAN-Synchronisierung: Gib den 4-stelligen Code ein, den dein Computer unter Einstellungen → Nuvx Sync zeigt.</string>
     <string name="nuvx_connect_nothing_playing">Auf dem Computer läuft nichts</string>
     <string name="nuvx_connect_paused">Pausiert</string>
     <string name="nuvx_connect_previous">Zurück</string>
@@ -1519,4 +1519,5 @@
     <string name="nuvx_connect_nothing_to_hand">Nur YouTube-Songs können auf den Computer wechseln</string>
     <string name="nuvx_connect_off_on_computer">Aktiviere auf dem Computer unter Einstellungen → Nuvx Connect die Fernsteuerung</string>
     <string name="nuvx_sync_lan_code_not_found">Kein Computer in diesem WLAN zeigt diesen Code. Prüfe den Code oder gib die Adresse darunter ein.</string>
+    <string name="nuvx_connect_subtitle">Steuere nuvx auf deinem Computer von diesem Handy aus</string>
 </resources>

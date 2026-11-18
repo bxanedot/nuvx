@@ -1509,7 +1509,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Contrôlez nuvx sur votre ordinateur depuis ce téléphone, ou envoyez-y le titre en cours. Fonctionne uniquement avec un ordinateur associé dans la Synchro Wi-Fi locale, sur le même réseau, de façon chiffrée. Supprimez l’association pour l’arrêter.</string>
     <string name="nuvx_connect_pair_first">Associez d’abord votre ordinateur</string>
-    <string name="nuvx_connect_pair_first_subtitle">Dans Vos données → Synchro Wi-Fi locale, associez ce téléphone à nuvx sur votre ordinateur. Vous pourrez ensuite le contrôler ici.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Associez ci-dessous avec la Synchro Wi-Fi locale : saisissez le code à 4 chiffres affiché par votre ordinateur dans Réglages → Nuvx Sync.</string>
     <string name="nuvx_connect_nothing_playing">Rien ne joue sur l’ordinateur</string>
     <string name="nuvx_connect_paused">En pause</string>
     <string name="nuvx_connect_previous">Précédent</string>
@@ -1520,4 +1520,5 @@
     <string name="nuvx_connect_nothing_to_hand">Seuls les titres YouTube peuvent passer sur l’ordinateur</string>
     <string name="nuvx_connect_off_on_computer">Activez Autoriser le contrôle à distance dans Réglages → Nuvx Connect sur l’ordinateur</string>
     <string name="nuvx_sync_lan_code_not_found">Aucun ordinateur de ce Wi-Fi n’affiche ce code. Vérifiez-le ou saisissez l’adresse indiquée dessous.</string>
+    <string name="nuvx_connect_subtitle">Contrôlez nuvx sur votre ordinateur depuis ce téléphone</string>
 </resources>

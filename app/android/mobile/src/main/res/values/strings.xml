@@ -1359,7 +1359,7 @@
     <string name="nuvx_connect">Nuvx Connect</string>
     <string name="nuvx_connect_footer">Control nuvx on your computer from this phone, or move the song you are playing over to it. Works only with a computer you paired in Local Wi-Fi Sync, on the same network, encrypted. Remove the pairing to stop it.</string>
     <string name="nuvx_connect_pair_first">Pair with your computer first</string>
-    <string name="nuvx_connect_pair_first_subtitle">In Your data → Local Wi-Fi Sync, pair this phone with nuvx on your computer. Then you can control it here.</string>
+    <string name="nuvx_connect_pair_first_subtitle">Pair below with Local Wi-Fi Sync: type the 4-digit code your computer shows in Settings → Nuvx Sync.</string>
     <string name="nuvx_connect_nothing_playing">Nothing is playing on the computer</string>
     <string name="nuvx_connect_paused">Paused</string>
     <string name="nuvx_connect_previous">Previous</string>
@@ -1370,4 +1370,5 @@
     <string name="nuvx_connect_nothing_to_hand">Only YouTube songs can move to the computer</string>
     <string name="nuvx_connect_off_on_computer">Turn on Allow remote control in Settings → Nuvx Connect on the computer</string>
     <string name="nuvx_sync_lan_code_not_found">No computer on this Wi-Fi shows that code. Check the code, or enter the address shown under it.</string>
+    <string name="nuvx_connect_subtitle">Control nuvx on your computer from this phone</string>
 </resources>
