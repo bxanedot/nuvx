@@ -13,7 +13,9 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.BandwidthMeter
@@ -636,6 +638,15 @@ class PlaybackService : MediaLibraryService() {
         )
             .setId(SESSION_ID)
             .setSessionActivity(sessionActivity())
+            // Notification, lock-screen and Auto artwork through the app's OkHttp client: Media3's default loader
+            // uses HttpURLConnection, which retries a failed proxy directly and so leaked past Privacy Connection.
+            .setBitmapLoader(
+                CacheBitmapLoader(
+                    DataSourceBitmapLoader.Builder(this)
+                        .setDataSourceFactory(DefaultDataSource.Factory(this, OkHttpDataSource.Factory(Http.client)))
+                        .build(),
+                ),
+            )
             .build()
         refreshCustomLayouts()
 
