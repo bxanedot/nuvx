@@ -177,6 +177,7 @@ html{scroll-padding-top:88px}
 @media(max-width:380px){.topbar{padding-inline:14px}.topbar-actions{gap:5px}.topbar .theme-toggle,.menu-toggle{width:34px;height:34px}.landing .hero .actions{flex-direction:column;align-items:center;justify-content:center}.landing .hero .actions .button{justify-content:center;width:min(100%,250px)}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.topbar,.topbar::before,.topbar nav a::after,.hero .button,.signature-arrow{transition:none}}
 
+.topbar.is-forward:not(.is-menu-open)::before{border-color:transparent;background:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
 .project-stats{border-block:1px solid var(--line);background:var(--bg)}
 .project-stats .wrap{min-height:78px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;padding-block:14px}
 .project-stat{min-height:40px;display:inline-flex;align-items:center;justify-content:space-between;gap:13px;padding:8px 13px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:11px;line-height:1;text-decoration:none;transition:background-color .2s ease,border-color .2s ease,color .2s ease}
