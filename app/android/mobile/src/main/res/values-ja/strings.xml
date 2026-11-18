@@ -1469,8 +1469,8 @@
     <string name="nuvx_sync_delete_server">すべての端末について、サーバー上のデータもすべて削除</string>
     <string name="nuvx_sync_lan">ローカル Wi-Fi 同期</string>
     <string name="nuvx_sync_lan_subtitle">同じ Wi-Fi のコンピュータの nuvx と同期します。アカウントもインターネットも不要です。</string>
-    <string name="nuvx_sync_lan_steps">コンピュータで「設定」→「Nuvx Sync」を開き、ローカル Wi-Fi 同期をオンにして、表示されたアドレスを入力してください。</string>
-    <string name="nuvx_sync_lan_address">コンピュータのアドレス</string>
+    <string name="nuvx_sync_lan_steps">パソコンで 設定 → Nuvx Sync を開き、ローカル Wi-Fi 同期をオンにして、表示される 4 桁のコード（またはアドレス）を入力します。</string>
+    <string name="nuvx_sync_lan_address">コードまたはアドレス</string>
     <string name="nuvx_sync_lan_connect">接続</string>
     <string name="nuvx_sync_lan_compare">%1$s にこのコードが表示されたら、そこで承認してください：</string>
     <string name="nuvx_sync_lan_unreachable">コンピュータに接続できません。両方が同じ Wi-Fi にあり、ローカル Wi-Fi 同期がオンか確認してください。</string>
@@ -1485,4 +1485,18 @@
     <string name="song_removed_from_playlist">「%1$s」を削除しました</string>
     <string name="playlist_import_matching">YouTube Music で %1$d 曲を照合しています…</string>
     <string name="your_data_footer">プレイリスト、再生履歴、ダウンロード、設定はこの端末に保存されます。Nuvx Sync、スクロブル、Discord ステータスをオンにするか、自分でバックアップを書き出したときだけ端末の外に出ます。曲の再生や歌詞・アートワークの表示のため、nuvx は再生中の曲について YouTube や歌詞・アートワークのサービスに問い合わせます。</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">このスマホからパソコンの nuvx を操作したり、再生中の曲をパソコンに移したりできます。ローカル Wi-Fi 同期でペアにしたパソコンとだけ、同じネットワーク上で暗号化して動作します。止めるにはペアを解除します。</string>
+    <string name="nuvx_connect_pair_first">先にパソコンとペアにしてください</string>
+    <string name="nuvx_connect_pair_first_subtitle">データ → ローカル Wi-Fi 同期で、このスマホをパソコンの nuvx とペアにします。その後ここで操作できます。</string>
+    <string name="nuvx_connect_nothing_playing">パソコンで再生中の曲はありません</string>
+    <string name="nuvx_connect_paused">一時停止中</string>
+    <string name="nuvx_connect_previous">前へ</string>
+    <string name="nuvx_connect_next">次へ</string>
+    <string name="nuvx_connect_hand_off">この曲をパソコンで再生</string>
+    <string name="nuvx_connect_hand_off_subtitle">曲と再生位置を移して、このスマホは一時停止します</string>
+    <string name="nuvx_connect_handed_off">パソコンで再生中</string>
+    <string name="nuvx_connect_nothing_to_hand">パソコンに移せるのは YouTube の曲だけです</string>
+    <string name="nuvx_connect_off_on_computer">パソコンの 設定 → Nuvx Connect でリモート操作を許可してください</string>
+    <string name="nuvx_sync_lan_code_not_found">この Wi-Fi にそのコードを表示しているパソコンはありません。コードを確認するか、その下のアドレスを入力してください。</string>
 </resources>

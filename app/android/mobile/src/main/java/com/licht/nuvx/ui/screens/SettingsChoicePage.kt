@@ -48,6 +48,7 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
     LOCAL_MUSIC(R.string.local_music),
     STORAGE(R.string.storage),
     YOUR_DATA(R.string.your_data),
+    CONNECT(R.string.nuvx_connect),
     NETWORK(R.string.network),
     MISCELLANEOUS(R.string.miscellaneous),
     LANGUAGE(R.string.language),
@@ -63,6 +64,7 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
             LOCAL_MUSIC -> SfIcons.LibraryMusic
             STORAGE -> SfIcons.Storage
             YOUR_DATA -> SfIcons.YourData
+            CONNECT -> SfIcons.Tv
             NETWORK -> SfIcons.Wifi
             MISCELLANEOUS -> SfIcons.Miscellaneous
             LANGUAGE -> SfIcons.Language

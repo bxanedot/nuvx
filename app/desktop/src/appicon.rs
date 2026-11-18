@@ -110,6 +110,10 @@ mod window {
 }
 
 pub fn sync_shortcuts(id: &'static str, data_dir: &Path) {
+    // A dev build or a test profile must never take over the installed app's Start menu and desktop shortcuts.
+    if cfg!(debug_assertions) || std::env::var_os("NUVX_DATA_DIR").is_some() {
+        return;
+    }
     let data_dir = data_dir.to_owned();
     std::thread::Builder::new()
         .name("app-icon".into())

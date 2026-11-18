@@ -1494,8 +1494,8 @@
     <string name="nuvx_sync_delete_server">למחוק גם את כל המידע בשרת, לכל המכשירים</string>
     <string name="nuvx_sync_lan">סנכרון Wi-Fi מקומי</string>
     <string name="nuvx_sync_lan_subtitle">סנכרון עם nuvx במחשב באותה רשת Wi-Fi. בלי חשבון ובלי אינטרנט.</string>
-    <string name="nuvx_sync_lan_steps">במחשב, פתחו הגדרות ← Nuvx Sync, הפעילו סנכרון Wi-Fi מקומי והזינו את הכתובת שמוצגת.</string>
-    <string name="nuvx_sync_lan_address">כתובת המחשב</string>
+    <string name="nuvx_sync_lan_steps">במחשב, פתח הגדרות ← Nuvx Sync, הפעל סנכרון Wi-Fi מקומי והזן את הקוד בן 4 הספרות שמוצג (או את הכתובת).</string>
+    <string name="nuvx_sync_lan_address">קוד או כתובת</string>
     <string name="nuvx_sync_lan_connect">התחברות</string>
     <string name="nuvx_sync_lan_compare">אשרו ב-%1$s כשהוא מציג את הקוד הזה:</string>
     <string name="nuvx_sync_lan_unreachable">לא ניתן להתחבר למחשב. ודאו ששניהם באותה רשת Wi-Fi ושסנכרון Wi-Fi מקומי מופעל.</string>
@@ -1510,4 +1510,18 @@
     <string name="song_removed_from_playlist">„%1$s” הוסר</string>
     <string name="playlist_import_matching">מחפש %1$d שירים ב-YouTube Music…</string>
     <string name="your_data_footer">פלייליסטים, היסטוריית האזנה, הורדות והגדרות נשארים במכשיר הזה. הם יוצאים ממנו רק אם תפעיל את Nuvx Sync, סקרובלינג או סטטוס Discord, או תייצא גיבוי בעצמך. כדי לנגן ולהציג מילים ועטיפות, nuvx שואל את YouTube ואת שירותי המילים והעטיפות על השירים שאתה מנגן.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">שלוט ב-nuvx במחשב מהטלפון הזה, או העבר אליו את השיר שמתנגן. עובד רק עם מחשב שצימדת בסנכרון Wi-Fi מקומי, באותה רשת ובהצפנה. הסר את הצימוד כדי להפסיק.</string>
+    <string name="nuvx_connect_pair_first">קודם צמד את המחשב</string>
+    <string name="nuvx_connect_pair_first_subtitle">ב„הנתונים שלך” ← סנכרון Wi-Fi מקומי, צמד את הטלפון ל-nuvx במחשב. אחר כך תוכל לשלוט בו כאן.</string>
+    <string name="nuvx_connect_nothing_playing">שום דבר לא מתנגן במחשב</string>
+    <string name="nuvx_connect_paused">מושהה</string>
+    <string name="nuvx_connect_previous">הקודם</string>
+    <string name="nuvx_connect_next">הבא</string>
+    <string name="nuvx_connect_hand_off">נגן את השיר הזה במחשב</string>
+    <string name="nuvx_connect_hand_off_subtitle">מעביר את השיר ואת הרגע הנוכחי ומשהה את הטלפון</string>
+    <string name="nuvx_connect_handed_off">מתנגן במחשב</string>
+    <string name="nuvx_connect_nothing_to_hand">רק שירי YouTube יכולים לעבור למחשב</string>
+    <string name="nuvx_connect_off_on_computer">הפעל שליטה מרחוק בהגדרות ← Nuvx Connect במחשב</string>
+    <string name="nuvx_sync_lan_code_not_found">אין מחשב ברשת ה-Wi-Fi הזו שמציג את הקוד הזה. בדוק את הקוד או הזן את הכתובת שמתחתיו.</string>
 </resources>

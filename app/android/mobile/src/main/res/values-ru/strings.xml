@@ -1518,8 +1518,8 @@
     <string name="nuvx_sync_delete_server">Также удалить всё на сервере для всех устройств</string>
     <string name="nuvx_sync_lan">Синхронизация по локальной Wi-Fi</string>
     <string name="nuvx_sync_lan_subtitle">Синхронизация с nuvx на компьютере в этой сети Wi-Fi. Без аккаунта и интернета.</string>
-    <string name="nuvx_sync_lan_steps">На компьютере откройте Настройки → Nuvx Sync, включите синхронизацию по локальной Wi-Fi и введите показанный адрес.</string>
-    <string name="nuvx_sync_lan_address">Адрес компьютера</string>
+    <string name="nuvx_sync_lan_steps">На компьютере откройте Настройки → Nuvx Sync, включите локальную синхронизацию по Wi-Fi и введите показанный 4-значный код (или адрес).</string>
+    <string name="nuvx_sync_lan_address">Код или адрес</string>
     <string name="nuvx_sync_lan_connect">Подключить</string>
     <string name="nuvx_sync_lan_compare">Подтвердите на %1$s, когда там появится этот код:</string>
     <string name="nuvx_sync_lan_unreachable">Не удалось связаться с компьютером. Проверьте, что оба устройства в одной сети Wi-Fi и синхронизация по локальной Wi-Fi включена.</string>
@@ -1534,4 +1534,18 @@
     <string name="song_removed_from_playlist">«%1$s» удалён</string>
     <string name="playlist_import_matching">Поиск треков в YouTube Music: %1$d…</string>
     <string name="your_data_footer">Плейлисты, история прослушивания, загрузки и настройки остаются на этом устройстве. Они покидают его, только если вы включите Nuvx Sync, скробблинг или статус Discord либо сами экспортируете резервную копию. Чтобы воспроизводить треки и показывать тексты и обложки, nuvx спрашивает о них YouTube и сервисы текстов и обложек.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Управляйте nuvx на компьютере с этого телефона или передайте ему текущий трек. Работает только с компьютером, сопряжённым в локальной синхронизации по Wi-Fi, в той же сети и с шифрованием. Чтобы отключить, удалите сопряжение.</string>
+    <string name="nuvx_connect_pair_first">Сначала сопрягите компьютер</string>
+    <string name="nuvx_connect_pair_first_subtitle">В разделе «Ваши данные» → «Локальная синхронизация по Wi-Fi» сопрягите телефон с nuvx на компьютере. После этого управляйте им здесь.</string>
+    <string name="nuvx_connect_nothing_playing">На компьютере ничего не играет</string>
+    <string name="nuvx_connect_paused">Пауза</string>
+    <string name="nuvx_connect_previous">Назад</string>
+    <string name="nuvx_connect_next">Далее</string>
+    <string name="nuvx_connect_hand_off">Включить этот трек на компьютере</string>
+    <string name="nuvx_connect_hand_off_subtitle">Передаёт трек и текущий момент, а телефон ставит на паузу</string>
+    <string name="nuvx_connect_handed_off">Играет на компьютере</string>
+    <string name="nuvx_connect_nothing_to_hand">На компьютер можно передать только треки YouTube</string>
+    <string name="nuvx_connect_off_on_computer">Включите удалённое управление на компьютере: Настройки → Nuvx Connect</string>
+    <string name="nuvx_sync_lan_code_not_found">Ни один компьютер в этой сети Wi-Fi не показывает этот код. Проверьте код или введите адрес под ним.</string>
 </resources>

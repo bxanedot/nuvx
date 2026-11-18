@@ -1494,8 +1494,8 @@
     <string name="nuvx_sync_delete_server">Apagar também tudo no servidor, para todos os dispositivos</string>
     <string name="nuvx_sync_lan">Sincronização por Wi-Fi local</string>
     <string name="nuvx_sync_lan_subtitle">Sincronize com o nuvx num computador nesta rede Wi-Fi. Sem conta nem internet.</string>
-    <string name="nuvx_sync_lan_steps">No computador, abra Configurações → Nuvx Sync, ative a sincronização por Wi-Fi local e digite o endereço exibido.</string>
-    <string name="nuvx_sync_lan_address">Endereço do computador</string>
+    <string name="nuvx_sync_lan_steps">No computador, abra Configurações → Nuvx Sync, ative a Sincronização Wi-Fi local e digite o código de 4 dígitos mostrado (ou o endereço).</string>
+    <string name="nuvx_sync_lan_address">Código ou endereço</string>
     <string name="nuvx_sync_lan_connect">Conectar</string>
     <string name="nuvx_sync_lan_compare">Aprove em %1$s quando ele mostrar este código:</string>
     <string name="nuvx_sync_lan_unreachable">Não foi possível alcançar o computador. Verifique se ambos estão na mesma rede Wi-Fi e se a sincronização por Wi-Fi local está ativada.</string>
@@ -1510,4 +1510,18 @@
     <string name="song_removed_from_playlist">“%1$s” removida</string>
     <string name="playlist_import_matching">Procurando %1$d músicas no YouTube Music…</string>
     <string name="your_data_footer">Playlists, histórico, downloads e configurações ficam neste dispositivo. Só saem dele se você ativar o Nuvx Sync, o scrobbling ou o status do Discord, ou exportar um backup você mesmo. Para tocar músicas e mostrar letras e capas, o nuvx consulta o YouTube e os serviços de letras e capas sobre as músicas que você ouve.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Controle o nuvx no computador por este telefone ou passe a música que está tocando para ele. Só funciona com um computador pareado na Sincronização Wi-Fi local, na mesma rede, com criptografia. Remova o pareamento para parar.</string>
+    <string name="nuvx_connect_pair_first">Primeiro pareie o computador</string>
+    <string name="nuvx_connect_pair_first_subtitle">Em Seus dados → Sincronização Wi-Fi local, pareie este telefone com o nuvx no computador. Depois você o controla aqui.</string>
+    <string name="nuvx_connect_nothing_playing">Nada tocando no computador</string>
+    <string name="nuvx_connect_paused">Pausado</string>
+    <string name="nuvx_connect_previous">Anterior</string>
+    <string name="nuvx_connect_next">Próxima</string>
+    <string name="nuvx_connect_hand_off">Tocar esta música no computador</string>
+    <string name="nuvx_connect_hand_off_subtitle">Passa a música e o momento exato e pausa este telefone</string>
+    <string name="nuvx_connect_handed_off">Tocando no computador</string>
+    <string name="nuvx_connect_nothing_to_hand">Só músicas do YouTube podem ir para o computador</string>
+    <string name="nuvx_connect_off_on_computer">Ative Permitir controle remoto em Configurações → Nuvx Connect no computador</string>
+    <string name="nuvx_sync_lan_code_not_found">Nenhum computador nesta Wi-Fi mostra esse código. Confira o código ou digite o endereço mostrado abaixo dele.</string>
 </resources>

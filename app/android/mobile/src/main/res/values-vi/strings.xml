@@ -1408,8 +1408,8 @@
     <string name="nuvx_sync_delete_server">Xóa luôn mọi thứ trên máy chủ, cho tất cả thiết bị</string>
     <string name="nuvx_sync_lan">Đồng bộ Wi-Fi nội bộ</string>
     <string name="nuvx_sync_lan_subtitle">Đồng bộ với nuvx trên máy tính cùng mạng Wi-Fi này. Không cần tài khoản hay internet.</string>
-    <string name="nuvx_sync_lan_steps">Trên máy tính, mở Cài đặt → Nuvx Sync, bật Đồng bộ Wi-Fi nội bộ và nhập địa chỉ được hiển thị.</string>
-    <string name="nuvx_sync_lan_address">Địa chỉ máy tính</string>
+    <string name="nuvx_sync_lan_steps">Trên máy tính, mở Cài đặt → Nuvx Sync, bật Đồng bộ Wi-Fi cục bộ và nhập mã 4 chữ số đang hiện (hoặc địa chỉ).</string>
+    <string name="nuvx_sync_lan_address">Mã hoặc địa chỉ</string>
     <string name="nuvx_sync_lan_connect">Kết nối</string>
     <string name="nuvx_sync_lan_compare">Phê duyệt trên %1$s khi nó hiển thị mã này:</string>
     <string name="nuvx_sync_lan_unreachable">Không thể kết nối tới máy tính đó. Hãy kiểm tra cả hai cùng mạng Wi-Fi và Đồng bộ Wi-Fi nội bộ đang bật.</string>
@@ -1424,4 +1424,18 @@
     <string name="song_removed_from_playlist">Đã xóa “%1$s”</string>
     <string name="playlist_import_matching">Đang tìm %1$d bài trên YouTube Music…</string>
     <string name="your_data_footer">Danh sách phát, lịch sử nghe, bản tải xuống và cài đặt ở lại trên thiết bị này. Chúng chỉ rời thiết bị khi bạn bật Nuvx Sync, scrobbling hoặc trạng thái Discord, hoặc tự xuất bản sao lưu. Để phát nhạc và hiện lời bài hát, ảnh bìa, nuvx hỏi YouTube và các dịch vụ lời bài hát, ảnh bìa về bài bạn nghe.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Điều khiển nuvx trên máy tính từ điện thoại này, hoặc chuyển bài đang phát sang máy tính. Chỉ hoạt động với máy tính đã ghép đôi trong Đồng bộ Wi-Fi cục bộ, cùng mạng và được mã hóa. Gỡ ghép đôi để dừng.</string>
+    <string name="nuvx_connect_pair_first">Hãy ghép đôi máy tính trước</string>
+    <string name="nuvx_connect_pair_first_subtitle">Trong Dữ liệu của bạn → Đồng bộ Wi-Fi cục bộ, ghép đôi điện thoại này với nuvx trên máy tính. Sau đó bạn có thể điều khiển ở đây.</string>
+    <string name="nuvx_connect_nothing_playing">Máy tính không phát gì</string>
+    <string name="nuvx_connect_paused">Đã tạm dừng</string>
+    <string name="nuvx_connect_previous">Trước</string>
+    <string name="nuvx_connect_next">Tiếp</string>
+    <string name="nuvx_connect_hand_off">Phát bài này trên máy tính</string>
+    <string name="nuvx_connect_hand_off_subtitle">Chuyển bài và đúng thời điểm đang nghe, rồi tạm dừng điện thoại này</string>
+    <string name="nuvx_connect_handed_off">Đang phát trên máy tính</string>
+    <string name="nuvx_connect_nothing_to_hand">Chỉ bài từ YouTube mới chuyển sang máy tính được</string>
+    <string name="nuvx_connect_off_on_computer">Bật Cho phép điều khiển từ xa trong Cài đặt → Nuvx Connect trên máy tính</string>
+    <string name="nuvx_sync_lan_code_not_found">Không có máy tính nào trên Wi-Fi này hiện mã đó. Kiểm tra mã hoặc nhập địa chỉ hiện bên dưới.</string>
 </resources>

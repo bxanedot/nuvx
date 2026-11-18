@@ -270,7 +270,10 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
         )
         SyncDialog.LanSetup -> {
             var address by remember { mutableStateOf("") }
-            val parsed = LanAddress.parse(address)
+            val isCode = com.licht.nuvx.data.sync.LanFinder.CODE.matches(address.trim())
+            val parsed = if (isCode) null else LanAddress.parse(address)
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val noMatch = stringResource(R.string.nuvx_sync_lan_code_not_found)
             AlertDialog(
                 onDismissRequest = { if (!busy) dialog = null },
                 title = { Text(stringResource(R.string.nuvx_sync_lan)) },
@@ -281,7 +284,7 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                             value = address,
                             onValueChange = { address = it.take(80) },
                             label = { Text(stringResource(R.string.nuvx_sync_lan_address)) },
-                            placeholder = { Text("192.168.1.20:47731") },
+                            placeholder = { Text("1234") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                             modifier = Modifier.fillMaxWidth(),
@@ -291,9 +294,17 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = parsed != null && !busy, onClick = {
+                    TextButton(enabled = (isCode || parsed != null) && !busy, onClick = {
                         io {
-                            withContext(Dispatchers.IO) { NuvxSync.lanStart(parsed!!) }
+                            val target = if (!isCode) parsed else {
+                                com.licht.nuvx.data.sync.LanFinder.phoneAddress(context)
+                                    ?.let { com.licht.nuvx.data.sync.LanFinder.find(it, address.trim()) }
+                            }
+                            if (target == null) {
+                                message = noMatch
+                                return@io
+                            }
+                            withContext(Dispatchers.IO) { NuvxSync.lanStart(target) }
                                 .onSuccess { dialog = SyncDialog.LanWaiting(it) }
                                 .onFailure { message = unreachable }
                         }

@@ -280,6 +280,7 @@ impl eframe::App for App {
         storage.set_string("nuvx_playlist_artwork", serde_json::to_string(&self.playlist_artwork).unwrap_or_default());
         storage.set_string("create_playlists_locally", b(self.create_playlists_locally));
         storage.set_string("lan_sync_enabled", b(self.lan.enabled));
+        storage.set_string("nuvx_connect", b(self.lan.connect));
         storage.set_string("lib_list", b(self.lib_list));
         storage.set_string("norm_target", self.norm_target.map_or("off".into(), |t| t.to_string()));
         storage.set_string("spatial_audio", b(self.spatial));

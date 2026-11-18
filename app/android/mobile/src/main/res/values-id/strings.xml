@@ -1468,8 +1468,8 @@
     <string name="nuvx_sync_delete_server">Hapus juga semua data di server, untuk semua perangkat</string>
     <string name="nuvx_sync_lan">Sinkronisasi Wi-Fi Lokal</string>
     <string name="nuvx_sync_lan_subtitle">Sinkronkan dengan nuvx di komputer pada Wi-Fi ini. Tanpa akun atau internet.</string>
-    <string name="nuvx_sync_lan_steps">Di komputer, buka Setelan → Nuvx Sync, aktifkan Sinkronisasi Wi-Fi Lokal, lalu masukkan alamat yang ditampilkan.</string>
-    <string name="nuvx_sync_lan_address">Alamat komputer</string>
+    <string name="nuvx_sync_lan_steps">Di komputer, buka Pengaturan → Nuvx Sync, nyalakan Sinkronisasi Wi-Fi lokal, lalu masukkan kode 4 digit yang ditampilkan (atau alamatnya).</string>
+    <string name="nuvx_sync_lan_address">Kode atau alamat</string>
     <string name="nuvx_sync_lan_connect">Hubungkan</string>
     <string name="nuvx_sync_lan_compare">Setujui di %1$s saat menampilkan kode ini:</string>
     <string name="nuvx_sync_lan_unreachable">Tidak dapat menjangkau komputer itu. Pastikan keduanya di Wi-Fi yang sama dan Sinkronisasi Wi-Fi Lokal aktif.</string>
@@ -1484,4 +1484,18 @@
     <string name="song_removed_from_playlist">“%1$s” dihapus</string>
     <string name="playlist_import_matching">Mencocokkan %1$d lagu di YouTube Music…</string>
     <string name="your_data_footer">Playlist, riwayat dengar, unduhan, dan pengaturan tetap di perangkat ini. Data itu hanya keluar jika Anda menyalakan Nuvx Sync, scrobbling, atau status Discord, atau mengekspor cadangan sendiri. Untuk memutar lagu serta menampilkan lirik dan artwork, nuvx menanyakan lagu yang Anda putar ke YouTube serta layanan lirik dan artwork.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Kendalikan nuvx di komputer dari ponsel ini, atau pindahkan lagu yang sedang diputar ke sana. Hanya bekerja dengan komputer yang dipasangkan di Sinkronisasi Wi-Fi lokal, di jaringan yang sama, terenkripsi. Hapus pasangan untuk menghentikannya.</string>
+    <string name="nuvx_connect_pair_first">Pasangkan komputer dulu</string>
+    <string name="nuvx_connect_pair_first_subtitle">Di Data Anda → Sinkronisasi Wi-Fi lokal, pasangkan ponsel ini dengan nuvx di komputer. Lalu Anda bisa mengendalikannya di sini.</string>
+    <string name="nuvx_connect_nothing_playing">Tidak ada yang diputar di komputer</string>
+    <string name="nuvx_connect_paused">Dijeda</string>
+    <string name="nuvx_connect_previous">Sebelumnya</string>
+    <string name="nuvx_connect_next">Berikutnya</string>
+    <string name="nuvx_connect_hand_off">Putar lagu ini di komputer</string>
+    <string name="nuvx_connect_hand_off_subtitle">Memindahkan lagu dan posisinya, lalu menjeda ponsel ini</string>
+    <string name="nuvx_connect_handed_off">Diputar di komputer</string>
+    <string name="nuvx_connect_nothing_to_hand">Hanya lagu YouTube yang bisa pindah ke komputer</string>
+    <string name="nuvx_connect_off_on_computer">Aktifkan Izinkan kendali jarak jauh di Pengaturan → Nuvx Connect pada komputer</string>
+    <string name="nuvx_sync_lan_code_not_found">Tidak ada komputer di Wi-Fi ini yang menampilkan kode itu. Periksa kodenya, atau masukkan alamat di bawahnya.</string>
 </resources>

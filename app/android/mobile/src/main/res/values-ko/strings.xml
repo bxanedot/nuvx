@@ -1327,8 +1327,8 @@
     <string name="nuvx_sync_delete_server">모든 기기의 서버 데이터도 모두 삭제</string>
     <string name="nuvx_sync_lan">로컬 Wi-Fi 동기화</string>
     <string name="nuvx_sync_lan_subtitle">같은 Wi-Fi의 컴퓨터에 있는 nuvx와 동기화합니다. 계정이나 인터넷이 필요 없습니다.</string>
-    <string name="nuvx_sync_lan_steps">컴퓨터에서 설정 → Nuvx Sync를 열고 로컬 Wi-Fi 동기화를 켠 뒤 표시된 주소를 입력하세요.</string>
-    <string name="nuvx_sync_lan_address">컴퓨터 주소</string>
+    <string name="nuvx_sync_lan_steps">컴퓨터에서 설정 → Nuvx Sync를 열고 로컬 Wi-Fi 동기화를 켠 뒤 표시된 4자리 코드(또는 주소)를 입력하세요.</string>
+    <string name="nuvx_sync_lan_address">코드 또는 주소</string>
     <string name="nuvx_sync_lan_connect">연결</string>
     <string name="nuvx_sync_lan_compare">%1$s에 이 코드가 표시되면 거기서 승인하세요:</string>
     <string name="nuvx_sync_lan_unreachable">컴퓨터에 연결할 수 없습니다. 두 기기가 같은 Wi-Fi에 있고 로컬 Wi-Fi 동기화가 켜져 있는지 확인하세요.</string>
@@ -1343,4 +1343,18 @@
     <string name="song_removed_from_playlist">“%1$s” 삭제됨</string>
     <string name="playlist_import_matching">YouTube Music에서 %1$d곡을 찾는 중…</string>
     <string name="your_data_footer">플레이리스트, 감상 기록, 다운로드, 설정은 이 기기에 남습니다. Nuvx Sync, 스크로블링, Discord 상태를 켜거나 직접 백업을 내보낼 때만 기기 밖으로 나갑니다. 곡 재생과 가사·아트워크 표시를 위해 nuvx는 재생하는 곡에 대해 YouTube와 가사·아트워크 서비스에 묻습니다.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">이 휴대전화로 컴퓨터의 nuvx를 조작하거나, 재생 중인 곡을 컴퓨터로 옮기세요. 로컬 Wi-Fi 동기화로 페어링한 컴퓨터와만, 같은 네트워크에서 암호화되어 작동합니다. 그만하려면 페어링을 해제하세요.</string>
+    <string name="nuvx_connect_pair_first">먼저 컴퓨터와 페어링하세요</string>
+    <string name="nuvx_connect_pair_first_subtitle">내 데이터 → 로컬 Wi-Fi 동기화에서 이 휴대전화를 컴퓨터의 nuvx와 페어링하세요. 그러면 여기서 조작할 수 있습니다.</string>
+    <string name="nuvx_connect_nothing_playing">컴퓨터에서 재생 중인 곡이 없습니다</string>
+    <string name="nuvx_connect_paused">일시정지됨</string>
+    <string name="nuvx_connect_previous">이전</string>
+    <string name="nuvx_connect_next">다음</string>
+    <string name="nuvx_connect_hand_off">이 곡을 컴퓨터에서 재생</string>
+    <string name="nuvx_connect_hand_off_subtitle">곡과 재생 위치를 옮기고 이 휴대전화는 일시정지합니다</string>
+    <string name="nuvx_connect_handed_off">컴퓨터에서 재생 중</string>
+    <string name="nuvx_connect_nothing_to_hand">YouTube 곡만 컴퓨터로 옮길 수 있습니다</string>
+    <string name="nuvx_connect_off_on_computer">컴퓨터의 설정 → Nuvx Connect에서 원격 조작 허용을 켜세요</string>
+    <string name="nuvx_sync_lan_code_not_found">이 Wi-Fi에서 그 코드를 표시하는 컴퓨터가 없습니다. 코드를 확인하거나 그 아래의 주소를 입력하세요.</string>
 </resources>

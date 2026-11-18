@@ -1489,8 +1489,8 @@
     <string name="nuvx_sync_delete_server">Auch alles auf dem Server löschen, für alle Geräte</string>
     <string name="nuvx_sync_lan">Lokale WLAN-Synchronisierung</string>
     <string name="nuvx_sync_lan_subtitle">Mit nuvx auf einem Computer in diesem WLAN synchronisieren. Kein Konto und kein Internet nötig.</string>
-    <string name="nuvx_sync_lan_steps">Öffne auf dem Computer Einstellungen → Nuvx Sync, schalte die lokale WLAN-Synchronisierung ein und gib die angezeigte Adresse ein.</string>
-    <string name="nuvx_sync_lan_address">Computeradresse</string>
+    <string name="nuvx_sync_lan_steps">Öffne auf dem Computer Einstellungen → Nuvx Sync, schalte die lokale WLAN-Synchronisierung ein und gib den 4-stelligen Code ein, den er anzeigt (oder seine Adresse).</string>
+    <string name="nuvx_sync_lan_address">Code oder Adresse</string>
     <string name="nuvx_sync_lan_connect">Verbinden</string>
     <string name="nuvx_sync_lan_compare">Bestätige auf %1$s, wenn dort dieser Code angezeigt wird:</string>
     <string name="nuvx_sync_lan_unreachable">Computer nicht erreichbar. Prüfe, ob beide im selben WLAN sind und die lokale WLAN-Synchronisierung an ist.</string>
@@ -1505,4 +1505,18 @@
     <string name="song_removed_from_playlist">„%1$s“ entfernt</string>
     <string name="playlist_import_matching">%1$d Songs werden auf YouTube Music gesucht …</string>
     <string name="your_data_footer">Playlists, Hörverlauf, Downloads und Einstellungen bleiben auf diesem Gerät. Sie verlassen es nur, wenn du Nuvx Sync, Scrobbling oder den Discord-Status einschaltest oder selbst ein Backup exportierst. Zum Abspielen und für Songtexte und Cover fragt nuvx YouTube und die Songtext- und Cover-Dienste nach den Songs, die du hörst.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Steuere nuvx auf deinem Computer von diesem Handy aus oder schicke den laufenden Song hinüber. Funktioniert nur mit einem Computer, den du in der lokalen WLAN-Synchronisierung gekoppelt hast, im selben Netzwerk und verschlüsselt. Entferne die Kopplung, um es zu beenden.</string>
+    <string name="nuvx_connect_pair_first">Zuerst mit dem Computer koppeln</string>
+    <string name="nuvx_connect_pair_first_subtitle">Koppele dieses Handy unter Deine Daten → Lokale WLAN-Synchronisierung mit nuvx auf deinem Computer. Danach kannst du ihn hier steuern.</string>
+    <string name="nuvx_connect_nothing_playing">Auf dem Computer läuft nichts</string>
+    <string name="nuvx_connect_paused">Pausiert</string>
+    <string name="nuvx_connect_previous">Zurück</string>
+    <string name="nuvx_connect_next">Weiter</string>
+    <string name="nuvx_connect_hand_off">Diesen Song auf dem Computer abspielen</string>
+    <string name="nuvx_connect_hand_off_subtitle">Übergibt Song und Stelle und pausiert dieses Handy</string>
+    <string name="nuvx_connect_handed_off">Läuft auf dem Computer</string>
+    <string name="nuvx_connect_nothing_to_hand">Nur YouTube-Songs können auf den Computer wechseln</string>
+    <string name="nuvx_connect_off_on_computer">Aktiviere auf dem Computer unter Einstellungen → Nuvx Connect die Fernsteuerung</string>
+    <string name="nuvx_sync_lan_code_not_found">Kein Computer in diesem WLAN zeigt diesen Code. Prüfe den Code oder gib die Adresse darunter ein.</string>
 </resources>

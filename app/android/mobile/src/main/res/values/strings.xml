@@ -1337,8 +1337,8 @@
     <string name="nuvx_sync_delete_server">Also delete everything on the server, for all devices</string>
     <string name="nuvx_sync_lan">Local Wi-Fi Sync</string>
     <string name="nuvx_sync_lan_subtitle">Sync with nuvx on a computer on this Wi-Fi. No account or internet needed.</string>
-    <string name="nuvx_sync_lan_steps">On the computer, open Settings → Nuvx Sync, turn on Local Wi-Fi Sync and enter the address it shows.</string>
-    <string name="nuvx_sync_lan_address">Computer address</string>
+    <string name="nuvx_sync_lan_steps">On the computer, open Settings → Nuvx Sync, turn on Local Wi-Fi Sync and enter the 4-digit code it shows (or its address).</string>
+    <string name="nuvx_sync_lan_address">Code or address</string>
     <string name="nuvx_sync_lan_connect">Connect</string>
     <string name="nuvx_sync_lan_compare">Approve on %1$s when it shows this code:</string>
     <string name="nuvx_sync_lan_unreachable">Couldn\'t reach that computer. Check that both are on the same Wi-Fi and Local Wi-Fi Sync is on.</string>
@@ -1356,4 +1356,18 @@
     <string name="song_removed_from_playlist">Removed “%1$s”</string>
     <string name="playlist_import_matching">Matching %1$d songs on YouTube Music…</string>
     <string name="your_data_footer">Playlists, listening history, downloads and settings stay on this device. They leave it only if you turn on Nuvx Sync, scrobbling or Discord status, or export a backup yourself. To play songs and show lyrics and artwork, nuvx asks YouTube and the lyrics and artwork services about the songs you play.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Control nuvx on your computer from this phone, or move the song you are playing over to it. Works only with a computer you paired in Local Wi-Fi Sync, on the same network, encrypted. Remove the pairing to stop it.</string>
+    <string name="nuvx_connect_pair_first">Pair with your computer first</string>
+    <string name="nuvx_connect_pair_first_subtitle">In Your data → Local Wi-Fi Sync, pair this phone with nuvx on your computer. Then you can control it here.</string>
+    <string name="nuvx_connect_nothing_playing">Nothing is playing on the computer</string>
+    <string name="nuvx_connect_paused">Paused</string>
+    <string name="nuvx_connect_previous">Previous</string>
+    <string name="nuvx_connect_next">Next</string>
+    <string name="nuvx_connect_hand_off">Play this song on the computer</string>
+    <string name="nuvx_connect_hand_off_subtitle">Moves the song and the moment you are at, then pauses this phone</string>
+    <string name="nuvx_connect_handed_off">Playing on the computer</string>
+    <string name="nuvx_connect_nothing_to_hand">Only YouTube songs can move to the computer</string>
+    <string name="nuvx_connect_off_on_computer">Turn on Allow remote control in Settings → Nuvx Connect on the computer</string>
+    <string name="nuvx_sync_lan_code_not_found">No computer on this Wi-Fi shows that code. Check the code, or enter the address shown under it.</string>
 </resources>

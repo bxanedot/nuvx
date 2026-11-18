@@ -1489,8 +1489,8 @@
     <string name="nuvx_sync_delete_server">सर्वर पर सब कुछ भी हटाएं, सभी डिवाइसों के लिए</string>
     <string name="nuvx_sync_lan">लोकल वाई-फ़ाई सिंक</string>
     <string name="nuvx_sync_lan_subtitle">इसी वाई-फ़ाई पर किसी कंप्यूटर के nuvx से सिंक करें। कोई खाता या इंटरनेट नहीं चाहिए।</string>
-    <string name="nuvx_sync_lan_steps">कंप्यूटर पर सेटिंग्स → Nuvx Sync खोलें, लोकल वाई-फ़ाई सिंक चालू करें और दिखाया गया पता डालें।</string>
-    <string name="nuvx_sync_lan_address">कंप्यूटर का पता</string>
+    <string name="nuvx_sync_lan_steps">कंप्यूटर पर सेटिंग्स → Nuvx Sync खोलें, लोकल वाई-फ़ाई सिंक चालू करें और दिखाया गया 4 अंकों का कोड (या उसका पता) डालें।</string>
+    <string name="nuvx_sync_lan_address">कोड या पता</string>
     <string name="nuvx_sync_lan_connect">कनेक्ट करें</string>
     <string name="nuvx_sync_lan_compare">जब %1$s यह कोड दिखाए, तो वहाँ स्वीकृति दें:</string>
     <string name="nuvx_sync_lan_unreachable">उस कंप्यूटर तक नहीं पहुँच सके। जाँचें कि दोनों एक ही वाई-फ़ाई पर हैं और लोकल वाई-फ़ाई सिंक चालू है।</string>
@@ -1505,4 +1505,18 @@
     <string name="song_removed_from_playlist">“%1$s” हटाया गया</string>
     <string name="playlist_import_matching">YouTube Music पर %1$d गाने खोजे जा रहे हैं…</string>
     <string name="your_data_footer">प्लेलिस्ट, सुनने का इतिहास, डाउनलोड और सेटिंग्स इसी डिवाइस पर रहती हैं। ये तभी बाहर जाती हैं जब आप Nuvx Sync, स्क्रॉबलिंग या Discord स्टेटस चालू करें, या खुद बैकअप एक्सपोर्ट करें। गाने चलाने और लिरिक्स व आर्टवर्क दिखाने के लिए nuvx YouTube और लिरिक्स व आर्टवर्क सेवाओं से आपके गानों के बारे में पूछता है।</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">इस फ़ोन से अपने कंप्यूटर पर nuvx चलाएँ, या चल रहा गाना उस पर भेजें। यह सिर्फ़ लोकल वाई-फ़ाई सिंक में जोड़े गए कंप्यूटर के साथ, एक ही नेटवर्क पर, एन्क्रिप्टेड रूप में काम करता है। बंद करने के लिए जोड़ी हटाएँ।</string>
+    <string name="nuvx_connect_pair_first">पहले कंप्यूटर से जोड़ें</string>
+    <string name="nuvx_connect_pair_first_subtitle">आपका डेटा → लोकल वाई-फ़ाई सिंक में इस फ़ोन को अपने कंप्यूटर के nuvx से जोड़ें। फिर आप उसे यहाँ से चला सकते हैं।</string>
+    <string name="nuvx_connect_nothing_playing">कंप्यूटर पर कुछ नहीं चल रहा</string>
+    <string name="nuvx_connect_paused">रुका हुआ</string>
+    <string name="nuvx_connect_previous">पिछला</string>
+    <string name="nuvx_connect_next">अगला</string>
+    <string name="nuvx_connect_hand_off">यह गाना कंप्यूटर पर चलाएँ</string>
+    <string name="nuvx_connect_hand_off_subtitle">गाना और उसका पल भेजता है, फिर इस फ़ोन को रोकता है</string>
+    <string name="nuvx_connect_handed_off">कंप्यूटर पर चल रहा है</string>
+    <string name="nuvx_connect_nothing_to_hand">सिर्फ़ YouTube गाने कंप्यूटर पर जा सकते हैं</string>
+    <string name="nuvx_connect_off_on_computer">कंप्यूटर पर सेटिंग्स → Nuvx Connect में रिमोट कंट्रोल चालू करें</string>
+    <string name="nuvx_sync_lan_code_not_found">इस वाई-फ़ाई पर कोई कंप्यूटर यह कोड नहीं दिखा रहा। कोड जाँचें, या नीचे दिखाया गया पता डालें।</string>
 </resources>

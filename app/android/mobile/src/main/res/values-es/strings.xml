@@ -1461,8 +1461,8 @@
     <string name="nuvx_sync_delete_server">Borrar también todo en el servidor, para todos los dispositivos</string>
     <string name="nuvx_sync_lan">Sincronización por Wi-Fi local</string>
     <string name="nuvx_sync_lan_subtitle">Sincroniza con nuvx en un ordenador de esta red Wi-Fi. Sin cuenta ni internet.</string>
-    <string name="nuvx_sync_lan_steps">En el ordenador, abre Ajustes → Nuvx Sync, activa la sincronización por Wi-Fi local e introduce la dirección que aparece.</string>
-    <string name="nuvx_sync_lan_address">Dirección del ordenador</string>
+    <string name="nuvx_sync_lan_steps">En el ordenador, abre Ajustes → Nuvx Sync, activa la Sincronización Wi-Fi local e introduce el código de 4 cifras que muestra (o su dirección).</string>
+    <string name="nuvx_sync_lan_address">Código o dirección</string>
     <string name="nuvx_sync_lan_connect">Conectar</string>
     <string name="nuvx_sync_lan_compare">Aprueba en %1$s cuando muestre este código:</string>
     <string name="nuvx_sync_lan_unreachable">No se pudo conectar con ese ordenador. Comprueba que ambos estén en la misma Wi-Fi y que la sincronización por Wi-Fi local esté activada.</string>
@@ -1477,4 +1477,18 @@
     <string name="song_removed_from_playlist">Se quitó «%1$s»</string>
     <string name="playlist_import_matching">Buscando %1$d canciones en YouTube Music…</string>
     <string name="your_data_footer">Las playlists, el historial, las descargas y los ajustes se quedan en este dispositivo. Solo salen de él si activas Nuvx Sync, el scrobbling o el estado de Discord, o si exportas una copia tú mismo. Para reproducir y mostrar letras y portadas, nuvx consulta a YouTube y a los servicios de letras y portadas sobre las canciones que escuchas.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Controla nuvx en tu ordenador desde este teléfono o pasa la canción que suena a él. Solo funciona con un ordenador emparejado en Sincronización Wi-Fi local, en la misma red y cifrado. Quita el emparejamiento para detenerlo.</string>
+    <string name="nuvx_connect_pair_first">Primero empareja tu ordenador</string>
+    <string name="nuvx_connect_pair_first_subtitle">En Tus datos → Sincronización Wi-Fi local, empareja este teléfono con nuvx en tu ordenador. Luego podrás controlarlo aquí.</string>
+    <string name="nuvx_connect_nothing_playing">No suena nada en el ordenador</string>
+    <string name="nuvx_connect_paused">En pausa</string>
+    <string name="nuvx_connect_previous">Anterior</string>
+    <string name="nuvx_connect_next">Siguiente</string>
+    <string name="nuvx_connect_hand_off">Reproducir esta canción en el ordenador</string>
+    <string name="nuvx_connect_hand_off_subtitle">Pasa la canción y el momento exacto, y pausa este teléfono</string>
+    <string name="nuvx_connect_handed_off">Sonando en el ordenador</string>
+    <string name="nuvx_connect_nothing_to_hand">Solo las canciones de YouTube pueden pasar al ordenador</string>
+    <string name="nuvx_connect_off_on_computer">Activa Permitir control remoto en Ajustes → Nuvx Connect en el ordenador</string>
+    <string name="nuvx_sync_lan_code_not_found">Ningún ordenador de esta Wi-Fi muestra ese código. Revísalo o escribe la dirección que aparece debajo.</string>
 </resources>

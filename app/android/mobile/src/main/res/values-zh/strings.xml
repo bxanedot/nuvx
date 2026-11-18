@@ -1468,8 +1468,8 @@
     <string name="nuvx_sync_delete_server">同时删除服务器上所有设备的全部数据</string>
     <string name="nuvx_sync_lan">本地 Wi-Fi 同步</string>
     <string name="nuvx_sync_lan_subtitle">与同一 Wi-Fi 下电脑上的 nuvx 同步。无需账号或互联网。</string>
-    <string name="nuvx_sync_lan_steps">在电脑上打开“设置”→“Nuvx Sync”，开启本地 Wi-Fi 同步，然后输入显示的地址。</string>
-    <string name="nuvx_sync_lan_address">电脑地址</string>
+    <string name="nuvx_sync_lan_steps">在电脑上打开 设置 → Nuvx Sync，开启本地 Wi-Fi 同步，然后输入显示的 4 位代码（或其地址）。</string>
+    <string name="nuvx_sync_lan_address">代码或地址</string>
     <string name="nuvx_sync_lan_connect">连接</string>
     <string name="nuvx_sync_lan_compare">当 %1$s 显示此代码时，在电脑上批准：</string>
     <string name="nuvx_sync_lan_unreachable">无法连接到该电脑。请确认两者在同一 Wi-Fi 下，且已开启本地 Wi-Fi 同步。</string>
@@ -1484,4 +1484,18 @@
     <string name="song_removed_from_playlist">已移除“%1$s”</string>
     <string name="playlist_import_matching">正在 YouTube Music 上匹配 %1$d 首歌曲…</string>
     <string name="your_data_footer">播放列表、收听记录、下载内容和设置都保存在此设备上。只有在你开启 Nuvx Sync、Scrobbling 或 Discord 状态，或自己导出备份时，它们才会离开设备。为了播放歌曲并显示歌词和封面，nuvx 会就你播放的歌曲询问 YouTube 以及歌词和封面服务。</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">用这部手机控制电脑上的 nuvx，或把正在播放的歌曲转到电脑上。只适用于在本地 Wi-Fi 同步中配对的电脑，需在同一网络并经过加密。删除配对即可停止。</string>
+    <string name="nuvx_connect_pair_first">请先与电脑配对</string>
+    <string name="nuvx_connect_pair_first_subtitle">在“你的数据 → 本地 Wi-Fi 同步”中，将这部手机与电脑上的 nuvx 配对，之后就能在这里控制。</string>
+    <string name="nuvx_connect_nothing_playing">电脑上没有正在播放的内容</string>
+    <string name="nuvx_connect_paused">已暂停</string>
+    <string name="nuvx_connect_previous">上一首</string>
+    <string name="nuvx_connect_next">下一首</string>
+    <string name="nuvx_connect_hand_off">在电脑上播放这首歌</string>
+    <string name="nuvx_connect_hand_off_subtitle">转移歌曲和当前进度，并暂停这部手机</string>
+    <string name="nuvx_connect_handed_off">正在电脑上播放</string>
+    <string name="nuvx_connect_nothing_to_hand">只有 YouTube 歌曲可以转到电脑</string>
+    <string name="nuvx_connect_off_on_computer">请在电脑的 设置 → Nuvx Connect 中开启允许远程控制</string>
+    <string name="nuvx_sync_lan_code_not_found">此 Wi-Fi 上没有电脑显示该代码。请检查代码，或输入其下方显示的地址。</string>
 </resources>

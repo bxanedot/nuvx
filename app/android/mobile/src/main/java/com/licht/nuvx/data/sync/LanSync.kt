@@ -5,6 +5,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
@@ -140,12 +142,20 @@ data class LanAddress(val host: String, val port: Int) {
 internal object LanHttp {
     private const val MAX_REPLY = 4 * 1024 * 1024
 
-    fun exchange(to: LanAddress, method: String, path: String, body: String?, device: String? = null): Pair<Int, String> {
+    fun exchange(
+        to: LanAddress,
+        method: String,
+        path: String,
+        body: String?,
+        device: String? = null,
+        connectMs: Int = 5_000,
+        readMs: Int = 20_000,
+    ): Pair<Int, String> {
         val ip = InetAddress.getAllByName(to.host).firstOrNull(LanAddress::isLocal)
             ?: throw IOException("Not an address on this network")
         Socket().use { socket ->
-            socket.connect(InetSocketAddress(ip, to.port), 5_000)
-            socket.soTimeout = 20_000
+            socket.connect(InetSocketAddress(ip, to.port), connectMs)
+            socket.soTimeout = readMs
             val bytes = body?.toByteArray() ?: ByteArray(0)
             val head = buildString {
                 append("$method $path HTTP/1.1\r\nhost: $to\r\nconnection: close\r\ncontent-type: application/json\r\n")
@@ -254,4 +264,46 @@ object LanPairingClient {
 
     private fun JsonObject.str(key: String) = getValue(key).jsonPrimitive.content
     private fun JsonObject.message() = this["message"]?.jsonPrimitive?.contentOrNull
+}
+
+/**
+ * Finds the nuvx computer on this phone's Wi-Fi that shows [code] (Settings → Nuvx Sync / Nuvx Connect on the
+ * computer), so nobody has to type an address. The code only locates it: pairing still needs the approval on the
+ * computer and the matching six-digit code.
+ */
+object LanFinder {
+    val CODE = Regex("[0-9]{4}")
+
+    // shortcut: searches the phone's own /24 only; wider home networks still pair by typing the address.
+    suspend fun find(phoneIpv4: java.net.Inet4Address, code: String): LanAddress? = kotlinx.coroutines.coroutineScope {
+        val base = phoneIpv4.address
+        val gate = kotlinx.coroutines.sync.Semaphore(48)
+        val found = kotlinx.coroutines.CompletableDeferred<LanAddress?>()
+        val probes = (1..254).filter { it != (base[3].toInt() and 0xff) }.map { last ->
+            launch(kotlinx.coroutines.Dispatchers.IO) {
+                gate.acquire()
+                try {
+                    val to = LanAddress("${base[0].toInt() and 0xff}.${base[1].toInt() and 0xff}.${base[2].toInt() and 0xff}.$last", LanAddress.DEFAULT_PORT)
+                    if (!found.isCompleted && matches(to, code)) found.complete(to)
+                } finally {
+                    gate.release()
+                }
+            }
+        }
+        launch { probes.joinAll(); found.complete(null) }
+        found.await().also { probes.forEach { it.cancel() } }
+    }
+
+    private fun matches(to: LanAddress, code: String): Boolean = runCatching {
+        val (status, reply) = LanHttp.exchange(to, "GET", "/lan/hello", null, connectMs = 700, readMs = 1_500)
+        val hello = Json.parseToJsonElement(reply).jsonObject
+        status == 200 && hello["app"]?.jsonPrimitive?.contentOrNull == "nuvx" && hello["code"]?.jsonPrimitive?.contentOrNull == code
+    }.getOrDefault(false)
+
+    /** This phone's private IPv4 address on its current network, if any. */
+    fun phoneAddress(context: android.content.Context): java.net.Inet4Address? {
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java) ?: return null
+        val links = cm.getLinkProperties(cm.activeNetwork) ?: return null
+        return links.linkAddresses.map { it.address }.filterIsInstance<java.net.Inet4Address>().firstOrNull { it.isSiteLocalAddress }
+    }
 }

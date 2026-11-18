@@ -1490,8 +1490,8 @@
     <string name="nuvx_sync_delete_server">Supprimer aussi tout sur le serveur, pour tous les appareils</string>
     <string name="nuvx_sync_lan">Synchro Wi-Fi locale</string>
     <string name="nuvx_sync_lan_subtitle">Synchronisez avec nuvx sur un ordinateur de ce Wi-Fi. Sans compte ni internet.</string>
-    <string name="nuvx_sync_lan_steps">Sur l\'ordinateur, ouvrez Réglages → Nuvx Sync, activez la synchro Wi-Fi locale et saisissez l\'adresse affichée.</string>
-    <string name="nuvx_sync_lan_address">Adresse de l\'ordinateur</string>
+    <string name="nuvx_sync_lan_steps">Sur l’ordinateur, ouvrez Réglages → Nuvx Sync, activez la Synchro Wi-Fi locale et saisissez le code à 4 chiffres affiché (ou son adresse).</string>
+    <string name="nuvx_sync_lan_address">Code ou adresse</string>
     <string name="nuvx_sync_lan_connect">Se connecter</string>
     <string name="nuvx_sync_lan_compare">Approuvez sur %1$s quand ce code s\'affiche :</string>
     <string name="nuvx_sync_lan_unreachable">Impossible de joindre cet ordinateur. Vérifiez que les deux sont sur le même Wi-Fi et que la synchro Wi-Fi locale est activée.</string>
@@ -1506,4 +1506,18 @@
     <string name="song_removed_from_playlist">« %1$s » retiré</string>
     <string name="playlist_import_matching">Recherche de %1$d titres sur YouTube Music…</string>
     <string name="your_data_footer">Playlists, historique d’écoute, téléchargements et réglages restent sur cet appareil. Ils n’en sortent que si vous activez Nuvx Sync, le scrobbling ou le statut Discord, ou si vous exportez vous-même une sauvegarde. Pour lire les titres et afficher paroles et pochettes, nuvx interroge YouTube et les services de paroles et de pochettes sur les titres que vous écoutez.</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">Contrôlez nuvx sur votre ordinateur depuis ce téléphone, ou envoyez-y le titre en cours. Fonctionne uniquement avec un ordinateur associé dans la Synchro Wi-Fi locale, sur le même réseau, de façon chiffrée. Supprimez l’association pour l’arrêter.</string>
+    <string name="nuvx_connect_pair_first">Associez d’abord votre ordinateur</string>
+    <string name="nuvx_connect_pair_first_subtitle">Dans Vos données → Synchro Wi-Fi locale, associez ce téléphone à nuvx sur votre ordinateur. Vous pourrez ensuite le contrôler ici.</string>
+    <string name="nuvx_connect_nothing_playing">Rien ne joue sur l’ordinateur</string>
+    <string name="nuvx_connect_paused">En pause</string>
+    <string name="nuvx_connect_previous">Précédent</string>
+    <string name="nuvx_connect_next">Suivant</string>
+    <string name="nuvx_connect_hand_off">Lire ce titre sur l’ordinateur</string>
+    <string name="nuvx_connect_hand_off_subtitle">Envoie le titre et le moment exact, puis met ce téléphone en pause</string>
+    <string name="nuvx_connect_handed_off">Lecture sur l’ordinateur</string>
+    <string name="nuvx_connect_nothing_to_hand">Seuls les titres YouTube peuvent passer sur l’ordinateur</string>
+    <string name="nuvx_connect_off_on_computer">Activez Autoriser le contrôle à distance dans Réglages → Nuvx Connect sur l’ordinateur</string>
+    <string name="nuvx_sync_lan_code_not_found">Aucun ordinateur de ce Wi-Fi n’affiche ce code. Vérifiez-le ou saisissez l’adresse indiquée dessous.</string>
 </resources>

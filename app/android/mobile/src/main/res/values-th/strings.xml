@@ -1474,8 +1474,8 @@
     <string name="nuvx_sync_delete_server">ลบทุกอย่างบนเซิร์ฟเวอร์ด้วย สำหรับทุกอุปกรณ์</string>
     <string name="nuvx_sync_lan">ซิงค์ผ่าน Wi-Fi ในบ้าน</string>
     <string name="nuvx_sync_lan_subtitle">ซิงค์กับ nuvx บนคอมพิวเตอร์ที่ใช้ Wi-Fi เดียวกัน ไม่ต้องมีบัญชีหรืออินเทอร์เน็ต</string>
-    <string name="nuvx_sync_lan_steps">บนคอมพิวเตอร์ เปิดการตั้งค่า → Nuvx Sync เปิดซิงค์ผ่าน Wi-Fi ในบ้าน แล้วป้อนที่อยู่ที่แสดง</string>
-    <string name="nuvx_sync_lan_address">ที่อยู่คอมพิวเตอร์</string>
+    <string name="nuvx_sync_lan_steps">บนคอมพิวเตอร์ เปิด การตั้งค่า → Nuvx Sync เปิดการซิงก์ Wi-Fi ภายใน แล้วป้อนรหัส 4 หลักที่แสดง (หรือที่อยู่)</string>
+    <string name="nuvx_sync_lan_address">รหัสหรือที่อยู่</string>
     <string name="nuvx_sync_lan_connect">เชื่อมต่อ</string>
     <string name="nuvx_sync_lan_compare">อนุมัติบน %1$s เมื่อแสดงรหัสนี้:</string>
     <string name="nuvx_sync_lan_unreachable">เชื่อมต่อคอมพิวเตอร์ไม่ได้ ตรวจสอบว่าทั้งสองใช้ Wi-Fi เดียวกันและเปิดซิงค์ผ่าน Wi-Fi ในบ้านอยู่</string>
@@ -1490,4 +1490,18 @@
     <string name="song_removed_from_playlist">นำ “%1$s” ออกแล้ว</string>
     <string name="playlist_import_matching">กำลังจับคู่ %1$d เพลงบน YouTube Music…</string>
     <string name="your_data_footer">เพลย์ลิสต์ ประวัติการฟัง ไฟล์ดาวน์โหลด และการตั้งค่าจะอยู่ในอุปกรณ์นี้ จะออกไปก็ต่อเมื่อคุณเปิด Nuvx Sync, Scrobbling หรือสถานะ Discord หรือส่งออกข้อมูลสำรองเอง ในการเล่นเพลงและแสดงเนื้อเพลงและภาพปก nuvx จะสอบถาม YouTube และบริการเนื้อเพลงและภาพปกเกี่ยวกับเพลงที่คุณเล่น</string>
+    <string name="nuvx_connect">Nuvx Connect</string>
+    <string name="nuvx_connect_footer">ควบคุม nuvx บนคอมพิวเตอร์จากโทรศัพท์เครื่องนี้ หรือย้ายเพลงที่กำลังเล่นไปที่คอมพิวเตอร์ ใช้ได้กับคอมพิวเตอร์ที่จับคู่ไว้ในการซิงก์ Wi-Fi ภายในเท่านั้น ในเครือข่ายเดียวกันและเข้ารหัส ลบการจับคู่เพื่อหยุดใช้</string>
+    <string name="nuvx_connect_pair_first">จับคู่กับคอมพิวเตอร์ก่อน</string>
+    <string name="nuvx_connect_pair_first_subtitle">ในข้อมูลของคุณ → การซิงก์ Wi-Fi ภายใน ให้จับคู่โทรศัพท์นี้กับ nuvx บนคอมพิวเตอร์ แล้วจึงควบคุมได้ที่นี่</string>
+    <string name="nuvx_connect_nothing_playing">ไม่มีเพลงเล่นบนคอมพิวเตอร์</string>
+    <string name="nuvx_connect_paused">หยุดชั่วคราว</string>
+    <string name="nuvx_connect_previous">ก่อนหน้า</string>
+    <string name="nuvx_connect_next">ถัดไป</string>
+    <string name="nuvx_connect_hand_off">เล่นเพลงนี้บนคอมพิวเตอร์</string>
+    <string name="nuvx_connect_hand_off_subtitle">ย้ายเพลงและตำแหน่งที่เล่นอยู่ แล้วหยุดโทรศัพท์นี้ชั่วคราว</string>
+    <string name="nuvx_connect_handed_off">กำลังเล่นบนคอมพิวเตอร์</string>
+    <string name="nuvx_connect_nothing_to_hand">ย้ายได้เฉพาะเพลงจาก YouTube</string>
+    <string name="nuvx_connect_off_on_computer">เปิดอนุญาตการควบคุมระยะไกลใน การตั้งค่า → Nuvx Connect บนคอมพิวเตอร์</string>
+    <string name="nuvx_sync_lan_code_not_found">ไม่มีคอมพิวเตอร์ใน Wi-Fi นี้ที่แสดงรหัสนั้น ตรวจสอบรหัส หรือป้อนที่อยู่ที่แสดงด้านล่าง</string>
 </resources>

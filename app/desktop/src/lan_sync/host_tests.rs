@@ -156,3 +156,47 @@ fn only_this_network_is_answered() {
         assert!(!is_local_peer(bad.parse().unwrap()), "{bad}");
     }
 }
+
+#[test]
+fn connect_commands_need_a_paired_phone_and_are_queued_for_the_window() {
+    let (mut h, _d) = host();
+    let (device, key) = paired(&mut h);
+    let now = now_ms();
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "next" }), now, &fresh()).0, 403, "off until turned on");
+    assert!(h.connect_commands.is_empty());
+    h.connect_allowed = true;
+    let (s, state) = call(&mut h, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh());
+    assert_eq!((s, state), (200, json!({ "track": null, "playing": false })));
+
+    h.connect_now = json!({ "track": { "id": "dQw4w9WgXcQ", "title": "Never" }, "playing": true, "positionMs": 1000 });
+    assert_eq!(call(&mut h, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1["track"]["id"], "dQw4w9WgXcQ");
+
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "next" }), now, &fresh()).0, 202);
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "format_disk" }), now, &fresh()).0, 422);
+    assert_eq!(h.connect_commands, vec![super::connect::Command::Next]);
+
+    // Plain (unsealed) and unknown-device requests never reach the queue.
+    assert_eq!(h.handle("POST", "/v1/connect", None, br#"{"action":"next"}"#).0, 404);
+    let stranger = [7u8; 32];
+    assert_ne!(call(&mut h, "nobody", &stranger, "POST", "/v1/connect", json!({ "action": "next" }), now, &fresh()).0, 202);
+    // A revoked phone is locked out too.
+    assert!(h.revoke(&device));
+    assert_ne!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "pause" }), now, &fresh()).0, 202);
+    assert_eq!(h.connect_commands.len(), 1);
+
+    let (device, key) = paired(&mut h);
+    for _ in 0..super::connect::MAX_QUEUED {
+        call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "toggle" }), now, &fresh());
+    }
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "toggle" }), now, &fresh()).0, 429, "bounded");
+}
+
+#[test]
+fn hello_carries_a_four_digit_find_code() {
+    let (mut h, _d) = host();
+    let (s, b) = h.handle("GET", "/lan/hello", None, b"");
+    assert_eq!(s, 200);
+    let code = serde_json::from_str::<Value>(&b).unwrap()["code"].as_str().unwrap().to_owned();
+    assert!(code.len() == 4 && code.bytes().all(|c| c.is_ascii_digit()), "{code}");
+    assert_eq!(code, h.find_code);
+}

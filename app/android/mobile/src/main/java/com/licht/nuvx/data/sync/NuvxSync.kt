@@ -109,6 +109,15 @@ object NuvxSync {
 
     val isLan: Boolean get() = _status.value.server.startsWith(LAN_SCHEME)
 
+    /** The sealed LAN channel while this phone is paired with a computer; Nuvx Connect rides it too. */
+    fun lanHttp(): okhttp3.OkHttpClient? {
+        val status = _status.value
+        if (!status.enabled) return null
+        val lan = lanAddress(status.server) ?: return null
+        val key = token()?.let(LanSyncCrypto::unb64) ?: return null
+        return com.licht.nuvx.data.Http.client.newBuilder().addInterceptor(LanSyncInterceptor(lan, status.deviceId, key)).build()
+    }
+
     // Local Wi-Fi Sync pairing: blocking network calls, run them on Dispatchers.IO.
     fun lanStart(address: LanAddress): Result<LanPairing> = LanPairingClient.start(address, deviceName)
     fun lanClaim(pairing: LanPairing): SyncResult =

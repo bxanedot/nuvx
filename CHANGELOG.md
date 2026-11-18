@@ -4,6 +4,16 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## Unreleased
 
+### Phone and computer
+
+- **Nuvx Connect (new).** Control nuvx on your computer from your phone: see what plays there, play/pause,
+  skip, and **Play this song on the computer** to move the phone's song (at the same moment) over. Each app has its
+  own **Settings → Nuvx Connect** tab. On the computer, turn on **Allow remote control** there (off by default);
+  only phones you paired and approved in Local Wi-Fi Sync can use it, encrypted, on your own network.
+- **Pair with a 4-digit code.** The computer shows a 4-digit code in Nuvx Sync and Nuvx Connect; type it on the
+  phone instead of an address and the phone finds the computer on your Wi-Fi. You still approve the phone on the
+  computer and compare the 6-digit code. The address is shown too, and now skips VPN/proxy adapters.
+
 ### Android phone and tablet
 
 - **A clear message when your network blocks YouTube's audio.** Some DNS services (for example 87.107.206.10 /

@@ -92,6 +92,15 @@ pub struct Inner {
     /// Phones pushed ops this computer has not replayed yet.
     pub remote_changed: bool,
     host_name: String,
+    /// Nuvx Connect: what this computer plays, written by the window every frame.
+    pub connect_now: Value,
+    /// Nuvx Connect: commands from paired phones, carried out by the window.
+    pub connect_commands: Vec<super::connect::Command>,
+    /// Nuvx Connect is its own opt-in: a phone paired for playlists cannot control playback until this is on.
+    pub connect_allowed: bool,
+    /// Four digits shown on this computer so a phone can find it on the Wi-Fi without typing an address. Not a
+    /// secret: pairing still needs the approval here and the matching six-digit code.
+    pub find_code: String,
 }
 
 impl Inner {
@@ -106,7 +115,7 @@ impl Inner {
         // A device whose key is gone (credential store wiped) cannot talk to us; drop it rather than keep a ghost.
         saved.devices.retain(|d| keys.contains_key(&d.id));
         let op_ids = saved.ops.iter().map(|o| o.op_id.clone()).collect();
-        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name };
+        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code() };
         me.persist();
         me
     }
@@ -251,7 +260,7 @@ impl Inner {
         self.expire();
         let json_body = || serde_json::from_slice::<Value>(body).ok().filter(Value::is_object);
         match (method, path) {
-            ("GET", "/lan/hello") => ok(json!({ "app": "nuvx", "api": API_VERSION, "name": self.host_name, "id": self.saved.host_id })),
+            ("GET", "/lan/hello") => ok(json!({ "app": "nuvx", "api": API_VERSION, "name": self.host_name, "id": self.saved.host_id, "code": self.find_code })),
             ("POST", "/lan/pair/start") => {
                 let Some(b) = json_body() else { return fail(422, "invalid_json", "Body must be one JSON object.") };
                 let name = b.get("deviceName").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty() && n.chars().count() <= 80);
@@ -404,6 +413,19 @@ impl Inner {
                 }
                 if self.revoke(target) { (200, json!({ "ok": true })) } else { err(404, "no_such_device", "That device is not paired.") }
             }
+            ("GET" | "POST", "/v1/connect") if !self.connect_allowed => err(403, "connect_off", "Remote control is turned off on this computer."),
+            ("GET", "/v1/connect") => (200, if self.connect_now.is_null() { json!({ "track": null, "playing": false }) } else { self.connect_now.clone() }),
+            ("POST", "/v1/connect") => {
+                let Some(command) = super::connect::Command::parse(&body) else {
+                    return err(422, "bad_command", "Unknown or invalid command.");
+                };
+                if self.connect_commands.len() >= super::connect::MAX_QUEUED {
+                    return err(429, "busy", "Too many commands at once.");
+                }
+                log::info!("connect: {device} sent {command:?}");
+                self.connect_commands.push(command);
+                (202, json!({ "queued": true }))
+            }
             _ => err(404, "not_found", "Not found."),
         }
     }
@@ -451,11 +473,29 @@ pub fn is_local_peer(ip: IpAddr) -> bool {
     }
 }
 
-/// The address phones should type: this computer's address on the network that leads outward (no packet is sent).
+fn new_find_code() -> String {
+    format!("{:04}", u16::from_le_bytes(crypto::random_bytes::<2>()) % 10_000)
+}
+
+/// The address phones should type. The outward route first (no packet is sent); when that runs through a VPN or
+/// proxy adapter (e.g. 198.18.0.1), this computer's own addresses, home networks (192.168/16) first.
 pub fn lan_address() -> Option<IpAddr> {
-    let s = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
-    s.connect("192.0.2.1:9").ok()?;
-    s.local_addr().ok().map(|a| a.ip()).filter(|ip| is_local_peer(*ip) && !ip.is_loopback())
+    let routed = std::net::UdpSocket::bind("0.0.0.0:0").ok().and_then(|s| {
+        s.connect("192.0.2.1:9").ok()?;
+        s.local_addr().ok().map(|a| a.ip())
+    });
+    let usable = |ip: &IpAddr| matches!(ip, IpAddr::V4(v4) if v4.is_private());
+    if let Some(ip) = routed.filter(usable) {
+        return Some(ip);
+    }
+    let name = std::env::var("COMPUTERNAME").or_else(|_| std::env::var("HOSTNAME")).ok()?;
+    let mut own: Vec<IpAddr> = std::net::ToSocketAddrs::to_socket_addrs(&(name.as_str(), 0)).ok()?.map(|a| a.ip()).filter(usable).collect();
+    own.sort_by_key(|ip| match ip {
+        IpAddr::V4(v4) if v4.octets()[0] == 192 => 0,
+        IpAddr::V4(v4) if v4.octets()[0] == 172 => 1,
+        _ => 2,
+    });
+    own.into_iter().next()
 }
 
 /// Serves until `stop` is set. Binds every interface but answers only local peers.
@@ -531,7 +571,7 @@ fn connection(stream: TcpStream, inner: &Mutex<Inner>, wake: &dyn Fn()) -> std::
         reader.read_exact(&mut body)?;
         let mut g = inner.lock().unwrap_or_else(|e| e.into_inner());
         let reply = g.handle(&method, &path, device.as_deref(), &body);
-        let notify = g.remote_changed || !g.pairings.is_empty();
+        let notify = g.remote_changed || !g.pairings.is_empty() || !g.connect_commands.is_empty();
         drop(g);
         if notify {
             wake();
