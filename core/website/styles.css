@@ -129,8 +129,8 @@ html{scroll-padding-top:88px}
 
 /* Quiet monochrome header: blends into the page, then lifts on scroll. */
 :root{--ui-ease:cubic-bezier(.23,1,.32,1)}
-.topbar{background:transparent;border-bottom-color:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;transition:background-color .32s var(--ui-ease),border-color .32s var(--ui-ease),box-shadow .32s var(--ui-ease),backdrop-filter .32s var(--ui-ease),-webkit-backdrop-filter .32s var(--ui-ease)}
-.topbar.is-forward{background:rgba(250,250,250,.9);background:color-mix(in srgb,var(--bg) 88%,transparent);border-bottom-color:var(--line);box-shadow:0 12px 32px rgba(0,0,0,.055);-webkit-backdrop-filter:blur(18px) saturate(145%);backdrop-filter:blur(18px) saturate(145%)}
+.topbar{background:transparent;border:1px solid transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;transition:top .34s var(--ui-ease),width .34s var(--ui-ease),height .34s var(--ui-ease),min-height .34s var(--ui-ease),margin .34s var(--ui-ease),padding .34s var(--ui-ease),border-radius .34s var(--ui-ease),background-color .32s var(--ui-ease),border-color .32s var(--ui-ease),box-shadow .32s var(--ui-ease),backdrop-filter .32s var(--ui-ease),-webkit-backdrop-filter .32s var(--ui-ease)}
+.topbar.is-forward{top:clamp(8px,1vw,12px);width:min(1040px,calc(100% - clamp(24px,4vw,48px)));height:56px;min-height:56px;margin:clamp(8px,1vw,12px) auto 0;padding-inline:clamp(14px,2.2vw,28px);border:1px solid var(--line);border-radius:999px;background:rgba(250,250,250,.9);background:color-mix(in srgb,var(--bg) 88%,transparent);box-shadow:0 12px 32px rgba(0,0,0,.055);-webkit-backdrop-filter:blur(18px) saturate(145%);backdrop-filter:blur(18px) saturate(145%)}
 :root[data-theme=dark] .topbar.is-forward{background:rgba(10,10,10,.9);background:color-mix(in srgb,var(--bg) 88%,transparent);box-shadow:0 12px 32px rgba(0,0,0,.26)}
 .topbar.is-menu-open{background:var(--bg);border-bottom-color:var(--line);box-shadow:0 12px 32px rgba(0,0,0,.09)}
 .topbar nav{gap:clamp(14px,2vw,28px)}
