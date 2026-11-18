@@ -1477,4 +1477,6 @@
     <string name="playlist_import_empty">该文件中没有带 YouTube 链接的歌曲。</string>
     <string name="copy_diagnostics">复制诊断信息</string>
     <string name="copy_diagnostics_subtitle">最近的错误及应用、手机和网络信息。链接、Cookie 和令牌会被移除。仅复制到剪贴板，不会发送任何内容。</string>
+    <string name="download_limit">存储上限</string>
+    <string name="download_limit_footer">下载内容占用达到此空间后，新的下载会停止。已保存的歌曲会保留。</string>
 </resources>

@@ -1477,4 +1477,6 @@
     <string name="playlist_import_empty">Tidak ada lagu dengan tautan YouTube di file itu.</string>
     <string name="copy_diagnostics">Salin diagnostik</string>
     <string name="copy_diagnostics_subtitle">Error terbaru beserta info aplikasi, ponsel, dan jaringan. Tautan, cookie, dan token dihapus. Hanya disalin ke papan klip; tidak ada yang dikirim.</string>
+    <string name="download_limit">Batas penyimpanan</string>
+    <string name="download_limit_footer">Saat unduhan memakai ruang sebesar ini, unduhan baru berhenti. Lagu yang sudah tersimpan tetap ada.</string>
 </resources>

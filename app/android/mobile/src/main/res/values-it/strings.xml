@@ -1436,4 +1436,6 @@
     <string name="playlist_import_empty">Nessun brano con link YouTube in quel file.</string>
     <string name="copy_diagnostics">Copia diagnostica</string>
     <string name="copy_diagnostics_subtitle">Errori recenti con informazioni su app, telefono e rete. Link, cookie e token vengono rimossi. Solo copiato negli appunti; non viene inviato nulla.</string>
+    <string name="download_limit">Limite di spazio</string>
+    <string name="download_limit_footer">Quando i download occupano questo spazio, i nuovi si fermano. I brani già salvati restano.</string>
 </resources>

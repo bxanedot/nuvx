@@ -115,6 +115,7 @@ object AppSettings {
     val downloadQuality = downloadSettings.downloadQuality
 
     val wifiOnlyDownloads = downloadSettings.wifiOnlyDownloads
+    val downloadLimitGb = downloadSettings.downloadLimitGb
 
     val exportDownloads = downloadSettings.exportDownloads
 
@@ -511,6 +512,8 @@ object AppSettings {
     fun setDownloadQuality(value: DownloadQuality) = downloadSettings.setDownloadQuality(value)
 
     fun setWifiOnlyDownloads(value: Boolean) = downloadSettings.setWifiOnlyDownloads(value)
+
+    fun setDownloadLimitGb(value: Int) = downloadSettings.setDownloadLimitGb(value)
 
     fun setCrossfadeSeconds(value: Int) = transitionSettings.setCrossfadeSeconds(value)
 

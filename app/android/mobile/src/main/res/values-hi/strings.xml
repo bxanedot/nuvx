@@ -1497,4 +1497,6 @@
     <string name="playlist_import_empty">इस फ़ाइल में YouTube लिंक वाला कोई गाना नहीं है।</string>
     <string name="copy_diagnostics">डायग्नोस्टिक्स कॉपी करें</string>
     <string name="copy_diagnostics_subtitle">ऐप, फ़ोन और नेटवर्क जानकारी के साथ हाल की गड़बड़ियाँ। लिंक, कुकी और टोकन हटा दिए जाते हैं। सिर्फ़ क्लिपबोर्ड पर कॉपी होता है; कुछ भी भेजा नहीं जाता।</string>
+    <string name="download_limit">स्टोरेज सीमा</string>
+    <string name="download_limit_footer">जब आपके डाउनलोड इतनी जगह ले लें, तो नए डाउनलोड रुक जाते हैं। पहले से सेव गाने बने रहते हैं।</string>
 </resources>

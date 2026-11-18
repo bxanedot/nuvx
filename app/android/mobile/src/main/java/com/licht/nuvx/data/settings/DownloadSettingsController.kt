@@ -10,6 +10,7 @@ internal class DownloadSettingsController {
     val wifiOnlyDownloads = MutableStateFlow(true)
     val exportDownloads = MutableStateFlow(false)
     val syncDownloadedPlaylists = MutableStateFlow(false)
+    val downloadLimitGb = MutableStateFlow(0)
 
     fun initialize(prefs: SharedPreferences) {
         this.prefs = prefs
@@ -26,6 +27,7 @@ internal class DownloadSettingsController {
         wifiOnlyDownloads.value = prefs.getBoolean(KEY_WIFI_ONLY_DOWNLOADS, true)
         exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
         syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
+        downloadLimitGb.value = prefs.getInt(KEY_DOWNLOAD_LIMIT_GB, 0).takeIf { it in DOWNLOAD_LIMIT_CHOICES_GB } ?: 0
     }
 
     fun setDownloadQuality(value: DownloadQuality) {
@@ -48,10 +50,20 @@ internal class DownloadSettingsController {
         prefs.edit().putBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, value).apply()
     }
 
+    fun setDownloadLimitGb(value: Int) {
+        val safe = value.takeIf { it in DOWNLOAD_LIMIT_CHOICES_GB } ?: 0
+        downloadLimitGb.value = safe
+        prefs.edit().putInt(KEY_DOWNLOAD_LIMIT_GB, safe).apply()
+    }
+
     private companion object {
         const val KEY_QUALITY_DOWNLOAD = "audio_quality_download"
         const val KEY_WIFI_ONLY_DOWNLOADS = "wifi_only_downloads"
         const val KEY_EXPORT_DOWNLOADS = "export_downloads"
         const val KEY_SYNC_DOWNLOADED_PLAYLISTS = "sync_downloaded_playlists"
+        const val KEY_DOWNLOAD_LIMIT_GB = "download_limit_gb"
     }
 }
+
+/** 0 means no limit. */
+internal val DOWNLOAD_LIMIT_CHOICES_GB = listOf(0, 2, 5, 10, 20, 50)

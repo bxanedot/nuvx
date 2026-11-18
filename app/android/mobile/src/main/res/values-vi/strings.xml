@@ -1417,4 +1417,6 @@
     <string name="playlist_import_empty">Tệp này không có bài nào có liên kết YouTube.</string>
     <string name="copy_diagnostics">Sao chép chẩn đoán</string>
     <string name="copy_diagnostics_subtitle">Lỗi gần đây kèm thông tin ứng dụng, điện thoại và mạng. Liên kết, cookie và token được xóa. Chỉ sao chép vào bộ nhớ tạm; không gửi gì đi.</string>
+    <string name="download_limit">Giới hạn dung lượng</string>
+    <string name="download_limit_footer">Khi bản tải xuống chiếm chừng này dung lượng, các lượt tải mới sẽ dừng. Bài đã lưu vẫn giữ nguyên.</string>
 </resources>

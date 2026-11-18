@@ -153,6 +153,25 @@ object DownloadStore {
     fun freeBytes(context: Context): Long =
         (if (AppSettings.exportDownloads.value) Environment.getExternalStorageDirectory() else context.filesDir).usableSpace
 
+    /** Bytes the saved downloads take: files (offline HLS/DASH folders whole) and exported MediaStore entries. */
+    fun usedBytes(context: Context, uris: Collection<String>): Long = uris.sumOf { raw ->
+        val uri = Uri.parse(raw)
+        when (uri.scheme) {
+            "file" -> uri.path?.let { fileBytes(File(it)) } ?: 0L
+            "content" -> runCatching {
+                context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)
+                    ?.use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else 0L } ?: 0L
+            }.getOrDefault(0L)
+            else -> 0L
+        }
+    }
+
+    /** An offline stream is a folder (playlist.m3u8 plus segments); count all of it. */
+    internal fun fileBytes(file: File): Long {
+        val folder = file.parentFile?.takeIf { file.name == "playlist.m3u8" }
+        return folder?.walkTopDown()?.filter { it.isFile }?.sumOf { it.length() } ?: file.length()
+    }
+
     fun begin(context: Context, name: String, mimeType: String): Pending {
         if (!AppSettings.exportDownloads.value) {
             val target = privateFile(context, name)

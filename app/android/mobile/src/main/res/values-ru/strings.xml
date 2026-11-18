@@ -1524,4 +1524,6 @@
     <string name="playlist_import_empty">В этом файле нет треков со ссылкой YouTube.</string>
     <string name="copy_diagnostics">Копировать диагностику</string>
     <string name="copy_diagnostics_subtitle">Последние ошибки с данными о приложении, телефоне и сети. Ссылки, cookie и токены удаляются. Только копируется в буфер обмена, ничего не отправляется.</string>
+    <string name="download_limit">Лимит памяти</string>
+    <string name="download_limit_footer">Когда загрузки займут столько места, новые загрузки остановятся. Сохранённые треки останутся.</string>
 </resources>

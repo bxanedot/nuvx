@@ -1497,4 +1497,6 @@
     <string name="playlist_import_empty">Keine Songs mit YouTube-Link in dieser Datei.</string>
     <string name="copy_diagnostics">Diagnose kopieren</string>
     <string name="copy_diagnostics_subtitle">Letzte Fehler mit App-, Geräte- und Netzwerkinfos. Links, Cookies und Tokens werden entfernt. Nur in die Zwischenablage kopiert, nichts wird gesendet.</string>
+    <string name="download_limit">Speicherlimit</string>
+    <string name="download_limit_footer">Wenn deine Downloads so viel Platz belegen, starten keine neuen Downloads mehr. Gespeicherte Songs bleiben.</string>
 </resources>

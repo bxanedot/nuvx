@@ -73,6 +73,7 @@ enum class SettingsChoiceKind(@param:StringRes val title: Int) {
     AUDIO_QUALITY_WIFI(R.string.on_wifi),
     AUDIO_QUALITY_CELLULAR(R.string.on_mobile_data),
     DOWNLOAD_QUALITY(R.string.download_quality),
+    DOWNLOAD_LIMIT(R.string.download_limit),
     AUTOMIX_PERFORMANCE(R.string.automix_performance),
     BIT_PERFECT(R.string.bit_perfect_output),
     FONT(R.string.font),
@@ -137,6 +138,19 @@ fun SettingsChoicePage(
                     footer = stringResource(R.string.download_quality_dialog_subtitle),
                 ) { quality ->
                     AppSettings.setDownloadQuality(quality)
+                    onChosen()
+                }
+            }
+
+            SettingsChoiceKind.DOWNLOAD_LIMIT -> {
+                val selected by AppSettings.downloadLimitGb.collectAsStateWithLifecycle()
+                ChoiceGroup(
+                    options = com.licht.nuvx.data.settings.DOWNLOAD_LIMIT_CHOICES_GB,
+                    selected = selected,
+                    label = { downloadLimitLabel(it) },
+                    footer = stringResource(R.string.download_limit_footer),
+                ) { gb ->
+                    AppSettings.setDownloadLimitGb(gb)
                     onChosen()
                 }
             }

@@ -224,6 +224,11 @@ object Downloads {
         val route = plan.route ?: error("Nothing to download")
         // Never fill the phone: a full disk breaks other apps and Android itself.
         if (DownloadStore.freeBytes(context) < MIN_FREE_BYTES) error(LOW_STORAGE_REFUSAL)
+        val limitGb = AppSettings.downloadLimitGb.value
+        // shortcut: re-sums every saved file per download; cache a running total if limits on big libraries feel slow.
+        if (limitGb > 0 && limitReached(DownloadStore.usedBytes(context, saved.value.values), limitGb)) {
+            error(limitRefusal(limitGb))
+        }
 
         var pending: DownloadStore.Pending? = null
         var lyrics: Deferred<LyricsTag.Embeddable?>? = null
@@ -354,6 +359,10 @@ object Downloads {
     internal const val WIFI_ONLY_REFUSAL = "Downloads are set to Wi-Fi only"
 
     internal const val LOW_STORAGE_REFUSAL = "Less than 500 MB of storage is free"
+
+    internal fun limitReached(usedBytes: Long, limitGb: Int): Boolean = limitGb > 0 && usedBytes >= limitGb * 1_000_000_000L
+
+    internal fun limitRefusal(limitGb: Int) = "Downloads have reached your $limitGb GB limit. Raise it in Settings → Downloads."
 
     private const val MIN_FREE_BYTES = 500L * 1024 * 1024
 

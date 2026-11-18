@@ -1,5 +1,9 @@
 package com.licht.nuvx.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.licht.nuvx.R
@@ -26,6 +30,16 @@ internal fun DownloadSettingsGroup(
                 subtitle = stringResource(R.string.download_quality_subtitle, downloadQuality.perTrack),
                 value = downloadQuality.localizedLabel(),
                 onClick = { onOpenChoice(SettingsChoiceKind.DOWNLOAD_QUALITY) },
+            )
+        }
+        val limitTitle = stringResource(R.string.download_limit)
+        val limitGb by AppSettings.downloadLimitGb.collectAsStateWithLifecycle()
+        row(limitTitle, "storage", "space", "quota", "size", "gb") {
+            SettingsRow(
+                icon = SfIcons.Download,
+                title = limitTitle,
+                value = downloadLimitLabel(limitGb),
+                onClick = { onOpenChoice(SettingsChoiceKind.DOWNLOAD_LIMIT) },
             )
         }
         val downloadWifiOnlyTitle = stringResource(R.string.download_wifi_only)
@@ -57,3 +71,6 @@ internal fun DownloadSettingsGroup(
         }
     }
 }
+
+@Composable
+internal fun downloadLimitLabel(gb: Int): String = if (gb == 0) stringResource(R.string.off) else "$gb GB"

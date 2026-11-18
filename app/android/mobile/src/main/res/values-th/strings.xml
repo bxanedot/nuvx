@@ -1483,4 +1483,6 @@
     <string name="playlist_import_empty">ไม่มีเพลงที่มีลิงก์ YouTube ในไฟล์นี้</string>
     <string name="copy_diagnostics">คัดลอกข้อมูลวินิจฉัย</string>
     <string name="copy_diagnostics_subtitle">ข้อผิดพลาดล่าสุดพร้อมข้อมูลแอป โทรศัพท์ และเครือข่าย ลิงก์ คุกกี้ และโทเค็นจะถูกลบออก คัดลอกไปยังคลิปบอร์ดเท่านั้น ไม่มีการส่งข้อมูลใด ๆ</string>
+    <string name="download_limit">ขีดจำกัดพื้นที่</string>
+    <string name="download_limit_footer">เมื่อไฟล์ดาวน์โหลดใช้พื้นที่ถึงขนาดนี้ การดาวน์โหลดใหม่จะหยุด เพลงที่บันทึกไว้แล้วยังอยู่</string>
 </resources>

@@ -1502,4 +1502,6 @@
     <string name="playlist_import_empty">Nenhuma música com link do YouTube nesse arquivo.</string>
     <string name="copy_diagnostics">Copiar diagnóstico</string>
     <string name="copy_diagnostics_subtitle">Erros recentes com dados do app, do telefone e da rede. Links, cookies e tokens são removidos. Só é copiado para a área de transferência; nada é enviado.</string>
+    <string name="download_limit">Limite de armazenamento</string>
+    <string name="download_limit_footer">Quando os downloads ocuparem este espaço, novos downloads param. As músicas já salvas ficam.</string>
 </resources>

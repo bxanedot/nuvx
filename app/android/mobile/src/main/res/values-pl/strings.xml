@@ -1535,4 +1535,6 @@
     <string name="playlist_import_empty">W tym pliku nie ma utworów z linkiem YouTube.</string>
     <string name="copy_diagnostics">Kopiuj diagnostykę</string>
     <string name="copy_diagnostics_subtitle">Ostatnie błędy z danymi aplikacji, telefonu i sieci. Linki, ciasteczka i tokeny są usuwane. Tylko kopiowane do schowka; nic nie jest wysyłane.</string>
+    <string name="download_limit">Limit miejsca</string>
+    <string name="download_limit_footer">Gdy pobrane utwory zajmą tyle miejsca, nowe pobieranie się zatrzyma. Zapisane utwory zostają.</string>
 </resources>
