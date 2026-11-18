@@ -48,6 +48,8 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ### Desktop (Windows, macOS, Linux)
 
+- **Downloaded WebM songs play again.** Songs saved as WebM/Opus (downloaded on the computer or sent from a phone)
+  were opened as AAC, failed at once and skipped to the next song. The format is now read from the file.
 - **YouTube videos keep their original language.** Videos dubbed into other languages list every dub next to the
   original. nuvx used to take the first one listed, which could be a dub (Arabic, German, ...). It now plays the
   track YouTube marks as the original, and falls back to YouTube's default track when no original is marked.
