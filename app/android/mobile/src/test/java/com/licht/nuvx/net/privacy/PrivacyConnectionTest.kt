@@ -281,4 +281,17 @@ class PrivacyConnectionTest {
                 .newCall(Request.Builder().url(web.url("/x")).build()).execute().use { assertEquals("ok", it.body.string()) }
         }
     }
+
+    @Test
+    fun `a request made while the route is starting waits for it and never goes direct`() {
+        var port: Int? = null
+        val waiting = PrivacyProxySelector(protected = true, socksPort = { port }, awaitPort = { 9050 })
+        val proxy = waiting.select(java.net.URI("https://music.youtube.com/")).single()
+        assertEquals(java.net.Proxy.Type.SOCKS, proxy.type())
+        assertEquals(9050, (proxy.address() as java.net.InetSocketAddress).port)
+        val gaveUp = PrivacyProxySelector(protected = true, socksPort = { port }, awaitPort = { null })
+        assertEquals(PrivacyProxySelector.BLOCKED, gaveUp.select(java.net.URI("https://music.youtube.com/")).single())
+        port = 9150
+        assertEquals(9150, (gaveUp.select(java.net.URI("https://i.ytimg.com/x.jpg")).single().address() as java.net.InetSocketAddress).port)
+    }
 }

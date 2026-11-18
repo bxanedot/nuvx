@@ -163,12 +163,16 @@ class PrivacyProxySelector(
     private val socksPort: () -> Int?,
     private val onConnectFailed: () -> Unit = {},
     private val fallback: ProxySelector? = null,
+    /** While the route is still coming up, waits (off the main thread) for its port; null keeps the request blocked. */
+    private val awaitPort: () -> Int? = { null },
 ) : ProxySelector() {
 
     override fun select(uri: URI?): List<Proxy> {
         if (!protected) return fallback?.select(uri) ?: listOf(Proxy.NO_PROXY)
         if (isLocal(uri?.host)) return listOf(Proxy.NO_PROXY)
-        val port = socksPort() ?: return listOf(BLOCKED)
+        // A request made while Tor/the local proxy is still starting waits for it instead of failing for good;
+        // it never goes direct either way.
+        val port = socksPort() ?: awaitPort() ?: return listOf(BLOCKED)
         return listOf(Proxy(Proxy.Type.SOCKS, InetSocketAddress(LOOPBACK, port)))
     }
 
