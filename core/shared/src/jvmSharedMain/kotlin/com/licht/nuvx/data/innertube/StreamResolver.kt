@@ -42,6 +42,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 object StreamResolver {
+    /**
+     * Set by the app while its traffic goes through Tor: moves to a fresh circuit (a different exit) and says
+     * whether it did. YouTube refuses streams to many Tor exits, so one refusal is worth one new exit.
+     */
+    @Volatile
+    var newExit: (() -> Boolean)? = null
+
     @Volatile
     var maxKbps: () -> Int = { Int.MAX_VALUE }
 
@@ -205,9 +212,8 @@ object StreamResolver {
 
     private val resolverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private suspend fun resolveUncached(videoId: String): Stream {
-        val resolveStart = MonotonicClock.nowMs()
-        val stream = try {
+    /** One full walk through the sources on the current route. */
+    private suspend fun resolveOnce(videoId: String): Stream =
             timed("$videoId InnerTubeX") { innerTubeXStreamAllowingUploads(videoId) }
                 ?.let { found ->
                     if (!isLiveUrl(found.url)) found
@@ -218,6 +224,30 @@ object StreamResolver {
                     TrackLog.w(TAG, "InnerTubeX found no usable stream for $videoId; falling back to extraction")
                     timed("$videoId newPipeStream") { newPipeStream(videoId, ::pickForQuality) }
                 }
+
+    /** A full walk, and over Tor a few more on fresh exits: YouTube refuses streams to many Tor exits. */
+    private suspend fun resolveAcrossExits(videoId: String): Stream {
+        var exits = 0
+        while (true) {
+            try {
+                return resolveOnce(videoId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: LinkageError) {
+                throw e
+            } catch (e: Exception) {
+                if (permanentReason(e) != null || exits >= TOR_EXIT_RETRIES || newExit?.invoke() != true) throw e
+                exits++
+                Http.client.connectionPool.evictAll() // pooled connections would keep the refused exit
+                TrackLog.i(TAG, "$videoId refused on this Tor exit (${e.message}); trying a new exit ($exits of $TOR_EXIT_RETRIES)")
+            }
+        }
+    }
+
+    private suspend fun resolveUncached(videoId: String): Stream {
+        val resolveStart = MonotonicClock.nowMs()
+        val stream = try {
+            resolveAcrossExits(videoId)
         } catch (e: CancellationException) {
             throw e
         } catch (e: LinkageError) {
@@ -605,6 +635,8 @@ object StreamResolver {
     }
 
     private const val EXTRACTION_ATTEMPTS = 3
+
+    private const val TOR_EXIT_RETRIES = 2
 
     private const val EXTRACTION_RETRY_MS = 1000L
 
