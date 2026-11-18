@@ -16,9 +16,9 @@ import java.net.ProxySelector
 import java.net.SocketAddress
 import java.net.URI
 
-enum class PrivacyMode { OFF, AUTOMATIC, ORBOT_ONLY, EMBEDDED_ONLY }
+enum class PrivacyMode { OFF, AUTOMATIC, ORBOT_ONLY, EMBEDDED_ONLY, LOCAL_SOCKS }
 
-enum class BackendId { ORBOT, EMBEDDED }
+enum class BackendId { ORBOT, EMBEDDED, LOCAL_SOCKS }
 
 sealed interface ConnectionState {
     data object Disabled : ConnectionState
@@ -42,6 +42,7 @@ fun PrivacyMode.candidates(): List<BackendId> = when (this) {
     PrivacyMode.AUTOMATIC -> listOf(BackendId.ORBOT, BackendId.EMBEDDED)
     PrivacyMode.ORBOT_ONLY -> listOf(BackendId.ORBOT)
     PrivacyMode.EMBEDDED_ONLY -> listOf(BackendId.EMBEDDED)
+    PrivacyMode.LOCAL_SOCKS -> listOf(BackendId.LOCAL_SOCKS)
 }
 
 /**
@@ -64,6 +65,12 @@ class ConnectionManager(
 
     /** The SOCKS port protected requests must use, or null while nothing verified is up. */
     val socksPort: Int? get() = (_state.value as? ConnectionState.Connected)?.socksPort
+
+    /** Test the active backend; a successful SOCKS request is not necessarily a Tor exit. */
+    suspend fun verifyCurrent(): Boolean {
+        val connection = _state.value as? ConnectionState.Connected ?: return false
+        return backends[connection.backend]?.verify(connection.socksPort) == true
+    }
 
     fun start() {
         if (mode == PrivacyMode.OFF || job?.isActive == true) return
