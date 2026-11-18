@@ -2,6 +2,16 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
+## Unreleased
+
+### Desktop (Windows, macOS, Linux)
+
+- **YouTube videos keep their original language.** Videos dubbed into other languages list every dub next to the
+  original. nuvx used to take the first one listed, which could be a dub (Arabic, German, ...). It now plays the
+  track YouTube marks as the original, and falls back to YouTube's default track when no original is marked.
+- **How to use it:** turn on **Settings → Enable YouTube Search**, switch the search results to **YouTube**, and
+  play any video. Nothing else to set.
+
 ## 1.0.3
 
 Android version code 4 (phone, TV, Auto and Wear OS). iOS build 4. Desktop 1.0.3 for Windows, macOS and Linux.

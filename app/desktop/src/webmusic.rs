@@ -290,7 +290,7 @@ impl Session {
         let formats = resp["streamingData"]["adaptiveFormats"].as_array().map(Vec::as_slice).unwrap_or_default();
         let f = [141, 140, 139]
             .iter()
-            .find_map(|itag| formats.iter().find(|f| f["itag"] == *itag))
+            .find_map(|itag| crate::innertube::audio_format(formats, *itag))
             .ok_or_else(|| anyhow::anyhow!("no AAC stream in web player response"))?;
         log::info!("web music: {video_id} itag {} ({} kbps)", f["itag"], f["bitrate"].as_u64().unwrap_or(0) / 1000);
         let size = f["contentLength"].as_str().and_then(|s| s.parse().ok()).ok_or_else(|| anyhow::anyhow!("unknown stream size"))?;

@@ -119,6 +119,56 @@ fn video_itags_fit_the_height_then_go_up() {
     assert_eq!(video_itags(100), [133, 134, 135, 136, 137]);
 }
 
+/// The format for `itag`. Multi-language videos list one per audio track under the same itag,
+/// so take the source-language one over dubbed or auto-dubbed tracks, then YouTube's default.
+pub fn audio_format(formats: &[Value], itag: u64) -> Option<&Value> {
+    let same: Vec<&Value> = formats.iter().filter(|f| f["itag"] == itag).collect();
+    same.iter().find(|f| is_original_audio(f)).or_else(|| same.iter().find(|f| f["audioTrack"]["audioIsDefault"] == true)).or(same.first()).copied()
+}
+
+// shortcut: reads the plain `acont=original` URL tag and the English track label (requests send hl=en), not the base64 `xtags` field; decode that if YouTube drops the URL tag.
+fn is_original_audio(f: &Value) -> bool {
+    let tagged = ["url", "signatureCipher"].iter().filter_map(|k| f[k].as_str()).any(|s| s.contains("acont%3Doriginal") || s.contains("acont%253Doriginal") || s.contains("acont=original"));
+    tagged || f["audioTrack"]["displayName"].as_str().is_some_and(|n| n.to_lowercase().contains("original"))
+}
+
+#[cfg(test)]
+mod audio_track_tests {
+    use super::audio_format;
+    use serde_json::json;
+
+    #[test]
+    fn the_original_track_beats_a_dubbed_one_listed_first() {
+        let formats = [
+            json!({"itag": 251, "url": "https://x/videoplayback?xtags=acont%3Ddubbed-auto%3Alang%3Dde", "audioTrack": {"displayName": "German", "audioIsDefault": true}}),
+            json!({"itag": 251, "url": "https://x/videoplayback?xtags=acont%3Doriginal%3Alang%3Den", "audioTrack": {"displayName": "English original", "audioIsDefault": false}}),
+            json!({"itag": 140, "url": "https://x/aac"}),
+        ];
+        assert!(audio_format(&formats, 251).unwrap()["url"].as_str().unwrap().contains("original"));
+    }
+
+    #[test]
+    fn a_ciphered_original_is_found_too() {
+        let formats = [
+            json!({"itag": 140, "signatureCipher": "s=AB&url=https%3A%2F%2Fx%2Fvp%3Fxtags%3Dacont%253Ddubbed%253Alang%253Dfr", "audioTrack": {"displayName": "French", "audioIsDefault": true}}),
+            json!({"itag": 140, "signatureCipher": "s=CD&url=https%3A%2F%2Fx%2Fvp%3Fxtags%3Dacont%253Doriginal%253Alang%253Dja", "audioTrack": {"displayName": "Japanese", "audioIsDefault": false}}),
+        ];
+        assert!(audio_format(&formats, 140).unwrap()["signatureCipher"].as_str().unwrap().starts_with("s=CD"));
+    }
+
+    #[test]
+    fn without_an_original_marker_it_falls_back_to_the_default_then_the_first() {
+        let unmarked = [
+            json!({"itag": 251, "url": "https://x/a", "audioTrack": {"displayName": "Spanish", "audioIsDefault": false}}),
+            json!({"itag": 251, "url": "https://x/b", "audioTrack": {"displayName": "English", "audioIsDefault": true}}),
+        ];
+        assert_eq!(audio_format(&unmarked, 251).unwrap()["url"], "https://x/b");
+        let single = [json!({"itag": 251, "url": "https://x/only"})];
+        assert_eq!(audio_format(&single, 251).unwrap()["url"], "https://x/only");
+        assert!(audio_format(&single, 140).is_none());
+    }
+}
+
 pub async fn audio_stream(http: &reqwest::Client, video_id: &str, visitor_data: &str, opus: bool) -> anyhow::Result<Stream> {
     let resp = vision_player(http, video_id, visitor_data).await?;
     let formats = resp["streamingData"]["adaptiveFormats"].as_array().map(Vec::as_slice).unwrap_or_default();
@@ -126,7 +176,7 @@ pub async fn audio_stream(http: &reqwest::Client, video_id: &str, visitor_data: 
     itags
         .iter()
         .find_map(|itag| {
-            let f = formats.iter().find(|f| f["itag"] == *itag)?;
+            let f = audio_format(formats, *itag)?;
             log::info!("visionOS: {video_id} itag {itag} ({} kbps)", f["averageBitrate"].as_u64().or(f["bitrate"].as_u64()).unwrap_or(0) / 1000);
             Some(Stream {
                 url: f["url"].as_str()?.to_owned(),
