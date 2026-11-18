@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -69,7 +70,12 @@ object PrivacyNetwork {
         val m = ConnectionManager(mode, backends, scope)
         manager = m
         ProxySelector.setDefault(
-            PrivacyProxySelector(protected = true, socksPort = { m.socksPort }, onConnectFailed = m::reportTransportFailure),
+            PrivacyProxySelector(
+                protected = true,
+                socksPort = { m.socksPort },
+                onConnectFailed = m::reportTransportFailure,
+                awaitPort = { awaitRoute(m, ROUTE_WAIT_MS) },
+            ),
         )
         routeWebViews(m)
         m.start()
@@ -86,6 +92,20 @@ object PrivacyNetwork {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putInt(KEY_LOCAL_SOCKS_PORT, port).apply()
         _savedLocalSocksPort.value = port
+    }
+
+    /** How long a request waits for a route that is still starting (bridged Tor can take minutes). */
+    private const val ROUTE_WAIT_MS = 60_000L
+
+    /** The port once [m] connects, if it does within [ms] while still trying. Never blocks the main thread. */
+    internal fun awaitRoute(m: ConnectionManager, ms: Long): Int? {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return null
+        val settled = kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.withTimeoutOrNull(ms) {
+                m.state.first { it is ConnectionState.Connected || it is ConnectionState.Unavailable || it is ConnectionState.Disabled }
+            }
+        }
+        return (settled as? ConnectionState.Connected)?.socksPort
     }
 
     fun retry() {
