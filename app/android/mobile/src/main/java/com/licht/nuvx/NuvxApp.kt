@@ -673,12 +673,12 @@ internal fun NuvxApp(
     }
     val localPlaylistItems = offlinePlaylistShelfItems(
         offlinePlaylists,
-        subtitleFor = { context.getString(R.string.local_playlist_subtitle, it) },
+        subtitleFor = { context.resources.getQuantityString(R.plurals.local_playlist_subtitle, it, it) },
         artworkFor = { localPlaylistArtwork[it] ?: com.licht.nuvx.data.PlaylistArtworkStore.get(context, it) },
     ) + localPlaylists.map { playlist ->
         ShelfItem(
             title = playlist.title,
-            subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
+            subtitle = context.resources.getQuantityString(R.plurals.local_playlist_subtitle, playlist.songs.size, playlist.songs.size),
             thumbnailUrl = localPlaylistArtwork[playlist.browseId]
                 ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
             videoId = null,

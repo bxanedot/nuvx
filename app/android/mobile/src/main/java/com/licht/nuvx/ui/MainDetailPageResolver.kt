@@ -84,7 +84,7 @@ internal class MainDetailPageResolver(
             }
             if (localPlaylist != null) {
                 name = localPlaylist.title
-                credit = application.getString(R.string.local_playlist_subtitle, localPlaylist.songs.size)
+                credit = application.resources.getQuantityString(R.plurals.local_playlist_subtitle, localPlaylist.songs.size, localPlaylist.songs.size)
                 artwork = localPlaylist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl
             }
             OfflinePlaylists.get(browseId)?.let { name = it.title }

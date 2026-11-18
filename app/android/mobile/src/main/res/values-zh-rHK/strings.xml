@@ -1190,7 +1190,9 @@
     <string name="clear_song_cache_warning">所有已快取的歌曲都將被刪除，已快取歌曲資料夾也會被清空。下次播放時會重新線上播放。</string>
     <string name="import_spotify">從 Spotify 匯入</string>
     <string name="import_spotify_subtitle">從播放列表連結</string>
-    <string name="local_playlist_subtitle">%1$d 首歌曲 · 本裝置上</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="other">%1$d 首歌曲 · 本裝置上</item>
+    </plurals>
     <string name="lossless_output_permission_denied">附近裝置許可權未開啟</string>
     <string name="lossless_output_permission_denied_detail">點按以開啟設定並允許「附近裝置」——沒有它就無法讀取你的藍芽編解碼器</string>
     <string name="recent_album">最近的專輯</string>

@@ -1249,7 +1249,10 @@
     <string name="clear_song_cache_warning">Wszystkie utwory z pamięci podręcznej zostaną usunięte, a folder utworów w pamięci podręcznej zostanie opróżniony. Przy następnym odtworzeniu zostaną ponownie przesłane strumieniowo.</string>
     <string name="import_spotify">Importuj z Spotify</string>
     <string name="import_spotify_subtitle">Z linku do playlisty</string>
-    <string name="local_playlist_subtitle">%1$d utworów · Na tym urządzeniu</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d piosenka · Na tym urządzeniu</item>
+        <item quantity="other">%1$d piosenki · Na tym urządzeniu</item>
+    </plurals>
     <string name="lossless_output_permission_denied">Uprawnienie Urządzenia w pobliżu jest wyłączone</string>
     <string name="lossless_output_permission_denied_detail">Dotknij, aby otworzyć ustawienia i zezwolić na Urządzenia w pobliżu — bez tego nie odczytamy Twojego kodeka Bluetooth</string>
     <string name="recent_album">Ostatni album</string>

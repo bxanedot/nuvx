@@ -1168,7 +1168,10 @@
     <string name="clear_song_cache_warning">Önbellekteki tüm şarkılar silinecek ve önbellekteki şarkılar klasörü boşaltılacak. Bir sonraki çalışta yeniden akışla oynatılacaklar.</string>
     <string name="import_spotify">Spotify’den içe aktar</string>
     <string name="import_spotify_subtitle">Bir çalma listesi bağlantısından</string>
-    <string name="local_playlist_subtitle">%1$d şarkı · Bu cihazda</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d şarkı · Bu cihazda</item>
+        <item quantity="other">%1$d şarkı · Bu cihazda</item>
+    </plurals>
     <string name="lossless_output_permission_denied">Yakındaki cihazlar izni kapalı</string>
     <string name="lossless_output_permission_denied_detail">Ayarlar’ı açmak ve Yakındaki cihazlara izin vermek için dokunun — olmadan Bluetooth kodunuzu okuyamayız</string>
     <string name="recent_album">Son albüm</string>

@@ -1192,7 +1192,9 @@
     <string name="clear_song_cache_warning">キャッシュ済みの曲はすべて削除され、キャッシュ済みの曲フォルダは空になります。次回再生時に再びストリーミングされます。</string>
     <string name="import_spotify">Spotify からインポート</string>
     <string name="import_spotify_subtitle">プレイリストのリンクから</string>
-    <string name="local_playlist_subtitle">%1$d 曲 · この端末内</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="other">%1$d曲 · この端末内</item>
+    </plurals>
     <string name="lossless_output_permission_denied">近くのデバイスの権限がオフです</string>
     <string name="lossless_output_permission_denied_detail">タップして設定を開き、「近くのデバイス」を許可してください — 許可しないと Bluetooth コーデックを読み取れません</string>
     <string name="recent_album">最近のアルバム</string>

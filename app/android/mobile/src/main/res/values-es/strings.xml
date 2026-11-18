@@ -1183,7 +1183,10 @@
     <string name="clear_song_cache_warning">Se eliminarán todas las canciones en caché y la carpeta de canciones en caché quedará vacía. Se volverán a transmitir la próxima vez que las reproduzcas.</string>
     <string name="import_spotify">Importar de Spotify</string>
     <string name="import_spotify_subtitle">Desde un enlace de playlist</string>
-    <string name="local_playlist_subtitle">%1$d canciones · En este dispositivo</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d canción · En este dispositivo</item>
+        <item quantity="other">%1$d canciones · En este dispositivo</item>
+    </plurals>
     <string name="lossless_output_permission_denied">El permiso de dispositivos cercanos está desactivado</string>
     <string name="lossless_output_permission_denied_detail">Toca para abrir Ajustes y permitir dispositivos cercanos; sin él no podemos leer tu códec Bluetooth</string>
     <string name="recent_album">Álbum reciente</string>

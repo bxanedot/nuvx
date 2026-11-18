@@ -1216,7 +1216,10 @@
     <string name="clear_song_cache_warning">כל השירים במטמון יימחקו ותיקיית השירים במטמון תתרוקן. הם יוזרמו שוב בפעם הבאה שתנגן אותם.</string>
     <string name="import_spotify">ייבוא מ-Spotify</string>
     <string name="import_spotify_subtitle">מקישור לפלייליסט</string>
-    <string name="local_playlist_subtitle">%1$d שירים · במכשיר זה</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d שיר · במכשיר זה</item>
+        <item quantity="other">%1$d שירים · במכשיר זה</item>
+    </plurals>
     <string name="lossless_output_permission_denied">הרשאת מכשירים בקרבת מקום כבויה</string>
     <string name="lossless_output_permission_denied_detail">הקישו לפתיחת ההגדרות ולאישור מכשירים בקרבת מקום — בלעדיה לא נוכל לזהות את מקודד ה-Bluetooth שלכם</string>
     <string name="recent_album">אלבום אחרון</string>

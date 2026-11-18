@@ -1131,7 +1131,9 @@
     <string name="clear_song_cache_warning">Tất cả bài hát trong bộ nhớ đệm sẽ bị xóa và thư mục bài hát trong bộ nhớ đệm sẽ trống. Chúng sẽ được phát trực tuyến lại vào lần phát tiếp theo.</string>
     <string name="import_spotify">Nhập từ Spotify</string>
     <string name="import_spotify_subtitle">Từ liên kết danh sách phát</string>
-    <string name="local_playlist_subtitle">%1$d bài hát · Trên thiết bị này</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="other">%1$d bài hát · Trên thiết bị này</item>
+    </plurals>
     <string name="lossless_output_permission_denied">Quyền thiết bị gần đang tắt</string>
     <string name="lossless_output_permission_denied_detail">Nhấn để mở Cài đặt và cho phép Thiết bị gần — thiếu quyền này chúng tôi không đọc được bộ giải mã Bluetooth của bạn</string>
     <string name="recent_album">Album gần đây</string>

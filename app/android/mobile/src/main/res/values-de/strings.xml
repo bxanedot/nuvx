@@ -1211,7 +1211,10 @@
     <string name="clear_song_cache_warning">Alle zwischengespeicherten Songs werden gelöscht und der Ordner für zwischengespeicherte Songs wird geleert. Beim nächsten Abspielen werden sie erneut gestreamt.</string>
     <string name="import_spotify">Aus Spotify importieren</string>
     <string name="import_spotify_subtitle">Über einen Playlist-Link</string>
-    <string name="local_playlist_subtitle">%1$d Titel · Auf diesem Gerät</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d Song · Auf diesem Gerät</item>
+        <item quantity="other">%1$d Songs · Auf diesem Gerät</item>
+    </plurals>
     <string name="lossless_output_permission_denied">Berechtigung für Geräte in der Nähe ist aus</string>
     <string name="lossless_output_permission_denied_detail">Tippe, um die Einstellungen zu öffnen und Geräte in der Nähe zuzulassen — sonst kann dein Bluetooth-Codec nicht gelesen werden</string>
     <string name="recent_album">Neues Album</string>

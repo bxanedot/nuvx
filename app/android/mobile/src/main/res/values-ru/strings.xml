@@ -1238,7 +1238,12 @@
     <string name="clear_song_cache_warning">Все кэшированные треки будут удалены, а папка кэшированных треков опустеет. При следующем воспроизведении они снова будут загружаться потоком.</string>
     <string name="import_spotify">Импорт из Spotify</string>
     <string name="import_spotify_subtitle">Из ссылки на плейлист</string>
-    <string name="local_playlist_subtitle">%1$d треков · На этом устройстве</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d песня · На этом устройстве</item>
+        <item quantity="few">%1$d песни · На этом устройстве</item>
+        <item quantity="many">%1$d песен · На этом устройстве</item>
+        <item quantity="other">%1$d песни · На этом устройстве</item>
+    </plurals>
     <string name="lossless_output_permission_denied">Разрешение «Устройства поблизости» выключено</string>
     <string name="lossless_output_permission_denied_detail">Нажмите, чтобы открыть настройки и разрешить «Устройства поблизости» — без него мы не сможем определить ваш кодек Bluetooth</string>
     <string name="recent_album">Недавний альбом</string>

@@ -1197,7 +1197,9 @@
     <string name="clear_song_cache_warning">เพลงในแคชทั้งหมดจะถูกลบและโฟลเดอร์เพลงในแคชจะว่างเปล่า เพลงจะสตรีมใหม่ในครั้งถัดไปที่เล่น</string>
     <string name="import_spotify">นำเข้าจาก Spotify</string>
     <string name="import_spotify_subtitle">จากลิงก์เพลย์ลิสต์</string>
-    <string name="local_playlist_subtitle">%1$d เพลง · ในเครื่องนี้</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="other">%1$d เพลง · ในเครื่องนี้</item>
+    </plurals>
     <string name="lossless_output_permission_denied">สิทธิ์อุปกรณ์ใกล้เคียงปิดอยู่</string>
     <string name="lossless_output_permission_denied_detail">แตะเพื่อเปิดการตั้งค่าและอนุญาตอุปกรณ์ใกล้เคียง — หากไม่มีจะอ่านโคเดกบลูทูธของคุณไม่ได้</string>
     <string name="recent_album">อัลบั้มล่าสุด</string>

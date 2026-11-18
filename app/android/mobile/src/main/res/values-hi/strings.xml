@@ -1211,7 +1211,10 @@
     <string name="clear_song_cache_warning">सभी कैश किए गए गाने हटा दिए जाएँगे और कैश किए गए गानों का फ़ोल्डर खाली हो जाएगा। अगली बार चलाने पर वे फिर से स्ट्रीम होंगे।</string>
     <string name="import_spotify">Spotify से आयात करें</string>
     <string name="import_spotify_subtitle">प्लेलिस्ट लिंक से</string>
-    <string name="local_playlist_subtitle">%1$d गाने · इस डिवाइस पर</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d गाना · इस डिवाइस पर</item>
+        <item quantity="other">%1$d गाने · इस डिवाइस पर</item>
+    </plurals>
     <string name="lossless_output_permission_denied">नज़दीकी डिवाइस अनुमति बंद है</string>
     <string name="lossless_output_permission_denied_detail">सेटिंग्स खोलने और नज़दीकी डिवाइस अनुमति देने के लिए टैप करें — इसके बिना आपका ब्लूटूथ कोडेक नहीं पढ़ा जा सकता</string>
     <string name="recent_album">हाल का एल्बम</string>

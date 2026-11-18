@@ -1191,7 +1191,9 @@
     <string name="clear_song_cache_warning">所有已缓存的歌曲都将被删除，已缓存歌曲文件夹也会被清空。下次播放时会重新在线播放。</string>
     <string name="import_spotify">从 Spotify 导入</string>
     <string name="import_spotify_subtitle">从播放列表链接</string>
-    <string name="local_playlist_subtitle">%1$d 首歌曲 · 本设备上</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="other">%1$d 首歌曲 · 本设备上</item>
+    </plurals>
     <string name="lossless_output_permission_denied">附近设备权限未开启</string>
     <string name="lossless_output_permission_denied_detail">点按以打开设置并允许「附近设备」——没有它就无法读取你的蓝牙编解码器</string>
     <string name="recent_album">最近的专辑</string>

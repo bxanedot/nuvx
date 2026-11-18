@@ -1212,7 +1212,10 @@
     <string name="clear_song_cache_warning">Tous les titres en cache seront supprimés et le dossier des titres en cache sera vidé. Ils seront à nouveau diffusés en streaming à la prochaine lecture.</string>
     <string name="import_spotify">Importer depuis Spotify</string>
     <string name="import_spotify_subtitle">Depuis un lien de playlist</string>
-    <string name="local_playlist_subtitle">%1$d titres · Sur cet appareil</string>
+    <plurals name="local_playlist_subtitle">
+        <item quantity="one">%1$d chanson · Sur cet appareil</item>
+        <item quantity="other">%1$d chansons · Sur cet appareil</item>
+    </plurals>
     <string name="lossless_output_permission_denied">L\'autorisation Appareils à proximité est désactivée</string>
     <string name="lossless_output_permission_denied_detail">Touchez pour ouvrir les paramètres et autoriser Appareils à proximité — sans elle, votre codec Bluetooth ne peut pas être lu</string>
     <string name="recent_album">Album récent</string>
