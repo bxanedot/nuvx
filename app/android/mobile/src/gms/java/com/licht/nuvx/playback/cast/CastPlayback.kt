@@ -326,6 +326,14 @@ class CastPlayback(
     }
 
     private suspend fun loadNow(item: MediaItem?, positionMs: Long, play: Boolean, generation: Int, remote: RemoteMediaClient) {
+        if (castingWouldLeaveProtectedRoute()) {
+            // The receiver fetches the stream itself, from its own network: outside the protected route.
+            loading = false
+            wantsPlay = false
+            say(R.string.cast_blocked_protected)
+            sink?.onRemotePlaybackChanged()
+            return
+        }
         run {
             val queueItem = item?.let { buildQueueItem(it, play) }
             if (generation != loadGeneration || !active) return@run
@@ -420,6 +428,7 @@ class CastPlayback(
     }
 
     private suspend fun buildQueueItem(item: MediaItem, autoplay: Boolean): MediaQueueItem? {
+        if (castingWouldLeaveProtectedRoute()) return null
         val stream = try {
             resolve(item)
         } catch (e: Exception) {
@@ -496,3 +505,7 @@ class CastPlayback(
         }
     }
 }
+
+/** Protected routing (Orbot, local SOCKS5) only covers this phone; a cast receiver would go direct. */
+internal fun castingWouldLeaveProtectedRoute(): Boolean =
+    com.licht.nuvx.net.privacy.PrivacyNetwork.activeMode != com.licht.nuvx.net.privacy.PrivacyMode.OFF

@@ -500,6 +500,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">Casting is off while a protected connection is on: the TV would connect directly, outside the protected route.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Live signal path, decoder to output</string>
     <string name="pipeline_track_info">Track Info</string>

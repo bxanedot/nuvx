@@ -1076,6 +1076,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">No se puede transmitir con una conexión protegida activa: la TV se conectaría directamente, fuera de la ruta protegida.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Ruta de la señal en vivo, del decodificador a la salida</string>
 
@@ -1405,6 +1406,13 @@
     <string name="privacy_mode_embedded">Tor integrado</string>
     <string name="privacy_status">Estado</string>
     <string name="privacy_status_disabled">Desactivada</string>
+    <string name="privacy_mode_local_socks">SOCKS5 local</string>
+    <string name="privacy_local_socks_port">Puerto SOCKS5 local</string>
+    <string name="privacy_local_socks_port_subtitle">Puerto de un servidor SOCKS5 en este dispositivo, como el de un cliente proxy instalado aparte. Host: 127.0.0.1. Reinicia nuvx después de guardar.</string>
+    <string name="privacy_local_socks_footer">Usa un cliente proxy instalado aparte en este dispositivo. Nuvx no instala una VPN ni se conecta a listas públicas de proxies. Si el proxy no está disponible, las solicitudes protegidas se bloquean en vez de ir directas. Algunos componentes de inicio de sesión y de terceros pueden no respetar el proxy de la app; compruébalos aparte. Los servicios en los que inicias sesión aún pueden identificar tu cuenta.</string>
+    <string name="privacy_status_connected_socks">Conectado mediante SOCKS5 local</string>
+    <string name="privacy_test_socks_passed">Correcto: YouTube Music respondió a través del SOCKS5 local</string>
+    <string name="privacy_test_socks_failed">Error: YouTube Music no respondió a través del SOCKS5 local</string>
     <string name="privacy_status_connecting">Conectando</string>
     <string name="privacy_status_bootstrapping">Iniciando Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Conectado mediante Orbot</string>

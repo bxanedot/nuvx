@@ -1086,6 +1086,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">Transmisi nonaktif saat koneksi terlindungi aktif: TV akan terhubung langsung, di luar rute terlindungi.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">Jalur sinyal langsung, dari dekoder ke output</string>
 
@@ -1413,6 +1414,13 @@
     <string name="privacy_mode_embedded">Tor bawaan</string>
     <string name="privacy_status">Status</string>
     <string name="privacy_status_disabled">Nonaktif</string>
+    <string name="privacy_mode_local_socks">SOCKS5 lokal</string>
+    <string name="privacy_local_socks_port">Port SOCKS5 lokal</string>
+    <string name="privacy_local_socks_port_subtitle">Port listener SOCKS5 di perangkat ini, misalnya dari klien proxy yang dipasang terpisah. Host: 127.0.0.1. Mulai ulang nuvx setelah menyimpan.</string>
+    <string name="privacy_local_socks_footer">Menggunakan klien proxy yang dipasang terpisah di perangkat ini. Nuvx tidak memasang VPN dan tidak terhubung ke daftar proxy publik. Jika proxy tidak tersedia, permintaan terlindungi diblokir alih-alih dikirim langsung. Beberapa komponen masuk dan pihak ketiga mungkin tidak mengikuti proxy aplikasi; periksa secara terpisah. Layanan yang Anda masuki tetap dapat mengenali akun Anda.</string>
+    <string name="privacy_status_connected_socks">Terhubung melalui SOCKS5 lokal</string>
+    <string name="privacy_test_socks_passed">Berhasil: YouTube Music merespons melalui SOCKS5 lokal</string>
+    <string name="privacy_test_socks_failed">Gagal: YouTube Music tidak merespons melalui SOCKS5 lokal</string>
     <string name="privacy_status_connecting">Menghubungkan</string>
     <string name="privacy_status_bootstrapping">Memulai Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Terhubung melalui Orbot</string>

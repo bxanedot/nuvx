@@ -1104,6 +1104,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">सुरक्षित कनेक्शन चालू रहते कास्ट बंद है: टीवी सीधे कनेक्ट होगा, सुरक्षित रूट के बाहर।</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">डीकोडर से आउटपुट तक लाइव सिग्नल पाथ</string>
 
@@ -1433,6 +1434,13 @@
     <string name="privacy_mode_embedded">बिल्ट-इन Tor</string>
     <string name="privacy_status">स्थिति</string>
     <string name="privacy_status_disabled">बंद</string>
+    <string name="privacy_mode_local_socks">लोकल SOCKS5</string>
+    <string name="privacy_local_socks_port">लोकल SOCKS5 पोर्ट</string>
+    <string name="privacy_local_socks_port_subtitle">इस डिवाइस पर SOCKS5 लिसनर का पोर्ट, जैसे अलग से इंस्टॉल किए गए प्रॉक्सी क्लाइंट का। होस्ट: 127.0.0.1। सेव करने के बाद nuvx रीस्टार्ट करें।</string>
+    <string name="privacy_local_socks_footer">इस डिवाइस पर अलग से इंस्टॉल किए गए प्रॉक्सी क्लाइंट का इस्तेमाल करता है। Nuvx कोई VPN इंस्टॉल नहीं करता और सार्वजनिक प्रॉक्सी सूचियों से नहीं जुड़ता। प्रॉक्सी उपलब्ध न होने पर सुरक्षित अनुरोध सीधे जाने के बजाय रोक दिए जाते हैं। कुछ साइन-इन और थर्ड-पार्टी हिस्से ऐप प्रॉक्सी का पालन नहीं कर सकते; उन्हें अलग से जाँचें। जिन सेवाओं में आप साइन इन हैं, वे अब भी आपका खाता पहचान सकती हैं।</string>
+    <string name="privacy_status_connected_socks">लोकल SOCKS5 से कनेक्टेड</string>
+    <string name="privacy_test_socks_passed">सफल: YouTube Music ने लोकल SOCKS5 से जवाब दिया</string>
+    <string name="privacy_test_socks_failed">विफल: YouTube Music ने लोकल SOCKS5 से जवाब नहीं दिया</string>
     <string name="privacy_status_connecting">कनेक्ट हो रहा है</string>
     <string name="privacy_status_bootstrapping">Tor शुरू हो रहा है (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Orbot से कनेक्ट है</string>

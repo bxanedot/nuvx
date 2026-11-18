@@ -1105,6 +1105,7 @@
     <string name="cast_device_connected">Diffusion en cours</string>
     <string name="cast_stop">Arrêter la diffusion</string>
     <string name="cast_track_unsupported">Ce titre ne peut pas être casté</string>
+    <string name="cast_blocked_protected">La diffusion est désactivée avec une connexion protégée : la TV se connecterait directement, hors de la route protégée.</string>
     <string name="cast_connect_failed">Impossible de se connecter au récepteur</string>
     <string name="audio_pipeline_subtitle">Chemin du signal en direct, du décodeur à la sortie</string>
 
@@ -1434,6 +1435,13 @@
     <string name="privacy_mode_embedded">Tor intégré</string>
     <string name="privacy_status">État</string>
     <string name="privacy_status_disabled">Désactivée</string>
+    <string name="privacy_mode_local_socks">SOCKS5 local</string>
+    <string name="privacy_local_socks_port">Port SOCKS5 local</string>
+    <string name="privacy_local_socks_port_subtitle">Port d\'un serveur SOCKS5 sur cet appareil, par exemple celui d\'un client proxy installé séparément. Hôte : 127.0.0.1. Redémarrez nuvx après l\'enregistrement.</string>
+    <string name="privacy_local_socks_footer">Utilise un client proxy installé séparément sur cet appareil. Nuvx n\'installe pas de VPN et ne se connecte à aucune liste de proxys publics. Si le proxy est indisponible, les requêtes protégées sont bloquées au lieu de partir en direct. Certains composants de connexion et tiers peuvent ignorer le proxy de l\'app ; vérifiez-les séparément. Les services auxquels vous êtes connecté peuvent toujours identifier votre compte.</string>
+    <string name="privacy_status_connected_socks">Connecté via SOCKS5 local</string>
+    <string name="privacy_test_socks_passed">Réussi : YouTube Music a répondu via le SOCKS5 local</string>
+    <string name="privacy_test_socks_failed">Échec : YouTube Music n\'a pas répondu via le SOCKS5 local</string>
     <string name="privacy_status_connecting">Connexion en cours</string>
     <string name="privacy_status_bootstrapping">Démarrage de Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Connecté via Orbot</string>

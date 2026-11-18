@@ -1109,6 +1109,7 @@
     <string name="cast_device_connected">Casting</string>
     <string name="cast_stop">Stop casting</string>
     <string name="cast_track_unsupported">This track can\'t be cast</string>
+    <string name="cast_blocked_protected">שידור כבוי כשחיבור מוגן פעיל: הטלוויזיה הייתה מתחברת ישירות, מחוץ לנתיב המוגן.</string>
     <string name="cast_connect_failed">Couldn\'t connect to the receiver</string>
     <string name="audio_pipeline_subtitle">נתיב האות בזמן אמת, מהמפענח ועד הפלט</string>
 
@@ -1438,6 +1439,13 @@
     <string name="privacy_mode_embedded">Tor מובנה</string>
     <string name="privacy_status">מצב</string>
     <string name="privacy_status_disabled">מושבת</string>
+    <string name="privacy_mode_local_socks">SOCKS5 מקומי</string>
+    <string name="privacy_local_socks_port">פורט SOCKS5 מקומי</string>
+    <string name="privacy_local_socks_port_subtitle">הפורט של שרת SOCKS5 במכשיר הזה, למשל של לקוח פרוקסי שהותקן בנפרד. מארח: 127.0.0.1. יש להפעיל מחדש את nuvx אחרי השמירה.</string>
+    <string name="privacy_local_socks_footer">משתמש בלקוח פרוקסי שהותקן בנפרד במכשיר הזה. Nuvx לא מתקינה VPN ולא מתחברת לרשימות פרוקסי ציבוריות. אם הפרוקסי לא זמין, בקשות מוגנות נחסמות במקום לצאת ישירות. חלק מרכיבי ההתחברות והרכיבים של צד שלישי עשויים לא לכבד את הפרוקסי של האפליקציה; כדאי לבדוק אותם בנפרד. שירותים שאתם מחוברים אליהם עדיין יכולים לזהות את החשבון שלכם.</string>
+    <string name="privacy_status_connected_socks">מחובר דרך SOCKS5 מקומי</string>
+    <string name="privacy_test_socks_passed">עבר: YouTube Music הגיב דרך SOCKS5 מקומי</string>
+    <string name="privacy_test_socks_failed">נכשל: YouTube Music לא הגיב דרך SOCKS5 מקומי</string>
     <string name="privacy_status_connecting">מתחבר</string>
     <string name="privacy_status_bootstrapping">מפעיל את Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">מחובר דרך Orbot</string>
