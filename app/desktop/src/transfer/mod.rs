@@ -28,6 +28,11 @@ const PLAYLIST_MAX: usize = 5000;
 const SAVE_EVERY: Duration = Duration::from_secs(5);
 const VAULT: &str = "spotify sp_dc";
 
+/// The Spotify sign-in saved under Account & integrations, if any (for Spotify Canvas; never logged or shown).
+pub(crate) fn saved_cookie(data_dir: &std::path::Path) -> Option<String> {
+    crate::vault::get(VAULT, data_dir).and_then(|b| String::from_utf8(b).ok()).filter(|c| !c.trim().is_empty())
+}
+
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Search {
     Pending,

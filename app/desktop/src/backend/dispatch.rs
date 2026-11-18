@@ -112,23 +112,38 @@ impl Backend {
                     log::info!("cover for '{}': {}", track.title, song.as_ref().map_or("none".to_owned(), |s| format!("'{}'", s.title)));
                     Resp::SongCover { id: track.id, song }
                 }
-                Req::Canvas { key, album, artist, title } => {
+                Req::Canvas { key, album, artist, title, video_id } => {
                     let http = self.http();
                     let album = Some(album.as_str()).filter(|a| !a.is_empty());
-                    let apple = match (title.as_deref(), album) {
-                        (Some(t), _) => crate::apple::song_motion(&http, t, &artist, album).await,
-                        (None, Some(a)) => crate::apple::album_motion(&http, a, &artist).await,
-                        (None, None) => None,
-                    };
-                    let url = match apple.and_then(|m| m.square) {
-                        Some(url) => Some(url),
-                        None => match (title.as_deref(), album) {
-                            (Some(t), _) => crate::tidal::cover(&http, t, &artist, album, false).await,
-                            (None, Some(a)) => crate::tidal::cover(&http, a, &artist, None, true).await,
-                            (None, None) => None,
-                        },
-                    };
-                    log::info!("canvas for '{}' by '{artist}': {}", title.as_deref().or(album).unwrap_or_default(), url.as_deref().unwrap_or("none"));
+                    let signed_in = crate::transfer::saved_cookie(&crate::data_dir()).is_some();
+                    let mut url = None;
+                    // First hit wins; a source that fails or has nothing hands over to the next.
+                    for source in crate::canvas::order(title.is_some(), signed_in) {
+                        use crate::canvas::Source;
+                        url = match (source, title.as_deref(), album) {
+                            (Source::Community, Some(t), _) => crate::canvas::community(&http, video_id.as_deref(), t, &artist).await,
+                            (Source::Apple, Some(t), _) => crate::apple::song_motion(&http, t, &artist, album).await.and_then(|m| m.square),
+                            (Source::Apple, None, Some(a)) => crate::apple::album_motion(&http, a, &artist).await.and_then(|m| m.square),
+                            (Source::Tidal, Some(t), _) => crate::tidal::cover(&http, t, &artist, album, false).await,
+                            (Source::Tidal, None, Some(a)) => crate::tidal::cover(&http, a, &artist, None, true).await,
+                            (Source::Spotify, _, _) => match crate::canvas::spotify_token(&http).await {
+                                Some(token) => match (title.as_deref(), album) {
+                                    (Some(t), _) => crate::canvas::spotify(&http, &token, t, &artist, album).await,
+                                    (None, Some(a)) => crate::canvas::spotify(&http, &token, a, &artist, None).await,
+                                    (None, None) => None,
+                                },
+                                None => None,
+                            },
+                            _ => None,
+                        };
+                        if url.is_some() {
+                            log::info!("canvas for '{}' by '{artist}': {source:?}", title.as_deref().or(album).unwrap_or_default());
+                            break;
+                        }
+                    }
+                    if url.is_none() {
+                        log::info!("canvas for '{}' by '{artist}': none", title.as_deref().or(album).unwrap_or_default());
+                    }
                     Resp::Canvas { key, url }
                 }
                 Req::Video { id, audio_id, height } => {

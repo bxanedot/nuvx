@@ -401,6 +401,16 @@ fn split_artists(s: &str) -> Vec<String> {
     s.split([',', ';']).map(str::trim).filter(|a| !a.is_empty()).map(str::to_owned).collect()
 }
 
+/// A web-player access token, signed in with the saved `sp_dc` when there is one, anonymous otherwise.
+pub(crate) async fn web_token(http: &reqwest::Client, sp_dc: Option<&str>) -> Result<String> {
+    let resp = http.get("https://open.spotify.com").header("User-Agent", UA).send().await?.error_for_status()?;
+    let device_id = resp.headers().get_all("set-cookie").iter()
+        .filter_map(|v| v.to_str().ok()?.strip_prefix("sp_t=")?.split(';').next().map(str::to_owned))
+        .next()
+        .unwrap_or_default();
+    Ok(access_token(http, sp_dc, &device_id).await?.0)
+}
+
 async fn access_token(http: &reqwest::Client, sp_dc: Option<&str>, device_id: &str) -> Result<(String, String)> {
     let (version, secret) = totp_secret(http).await;
     let totp = totp(&secret, SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs());

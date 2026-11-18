@@ -38,7 +38,7 @@ pub enum Req {
     Art { key: String, url: String },
     AppleArtist { id: String, name: String },
     SongCover { track: Track },
-    Canvas { key: String, album: String, artist: String, title: Option<String> },
+    Canvas { key: String, album: String, artist: String, title: Option<String>, video_id: Option<String> },
     Video { id: String, audio_id: String, height: u32 },
     VideoOf { generation: u64, track: Track },
     ArtistSignature { key: String, endpoint: String, name: String },

@@ -105,7 +105,7 @@ impl App {
     pub(super) fn song_canvas(&mut self, ctx: &egui::Context, t: &Track, max_width: u32) -> Option<widgets::MotionSprite> {
         let album = t.album.as_ref().map_or("", |a| a.name.as_str());
         let artist = t.artists.first().map(|a| a.name.clone()).unwrap_or_else(|| t.artist_line());
-        self.canvas(ctx, format!("song\u{1}{}\u{1}{album}", t.id), album, &artist, Some(&t.title), max_width)
+        self.canvas(ctx, format!("song\u{1}{}\u{1}{album}", t.id), album, &artist, Some((&t.title, &t.id)), max_width)
     }
 
     pub(super) fn album_canvas(&mut self, ctx: &egui::Context, album: &str, artist: &str, max_width: u32) -> Option<widgets::MotionSprite> {
@@ -115,7 +115,7 @@ impl App {
         self.canvas(ctx, format!("{album}\u{1}{artist}"), album, artist, None, max_width)
     }
 
-    pub(super) fn canvas(&mut self, ctx: &egui::Context, key: String, album: &str, artist: &str, title: Option<&str>, max_width: u32) -> Option<widgets::MotionSprite> {
+    pub(super) fn canvas(&mut self, ctx: &egui::Context, key: String, album: &str, artist: &str, song: Option<(&str, &str)>, max_width: u32) -> Option<widgets::MotionSprite> {
         if !crate::motion::SUPPORTED || !self.anim_canvas || artist.is_empty() {
             return None;
         }
@@ -125,7 +125,8 @@ impl App {
         }
         let cooling = self.apple_missed.get(&key).is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(300));
         if !cooling && self.apple_waiting.insert(key.clone()) {
-            self.backend.request(Req::Canvas { key, album: album.to_owned(), artist: artist.to_owned(), title: title.map(str::to_owned) });
+            let (title, video_id) = song.map(|(t, id)| (t.to_owned(), id.to_owned())).unzip();
+            self.backend.request(Req::Canvas { key, album: album.to_owned(), artist: artist.to_owned(), title, video_id });
         }
         None
     }

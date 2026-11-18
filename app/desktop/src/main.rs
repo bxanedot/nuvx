@@ -51,6 +51,7 @@ mod ytdlp;
 mod ytm;
 mod vault;
 mod lan_sync;
+mod canvas;
 mod ytmapi;
 
 use std::sync::{Arc, OnceLock};

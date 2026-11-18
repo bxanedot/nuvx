@@ -131,6 +131,8 @@ fn fetch(master: &str, max_width: u32) -> Option<PathBuf> {
         }
         let path = dir.join(format!("{}.mp4", &name[..32]));
         if std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) > 1024 {
+            // Mark it recently used, so the size cap drops clips nobody plays anymore first.
+            let _ = std::fs::File::options().append(true).open(&path).and_then(|f| f.set_modified(std::time::SystemTime::now()));
             return Some(path);
         }
         let bytes = http
@@ -147,9 +149,34 @@ fn fetch(master: &str, max_width: u32) -> Option<PathBuf> {
         let tmp = path.with_extension("part");
         std::fs::write(&tmp, &bytes).ok()?;
         std::fs::rename(&tmp, &path).ok()?;
+        prune(&dir, MAX_CACHE_BYTES);
         log::info!("apple: motion clip {:.0} KB cached", bytes.len() as f64 / 1024.0);
         Some(path)
     })
+}
+
+/// Canvas, Apple Music and Tidal clips together stay under this on disk.
+const MAX_CACHE_BYTES: u64 = 300 * 1024 * 1024;
+
+/// Deletes the least recently used clips until the folder fits in `max_bytes` (unfinished downloads go first).
+fn prune(dir: &std::path::Path, max_bytes: u64) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let mut files: Vec<(std::time::SystemTime, u64, PathBuf)> = entries.flatten()
+        .filter_map(|e| {
+            let m = e.metadata().ok()?;
+            m.is_file().then(|| (m.modified().unwrap_or(std::time::UNIX_EPOCH), m.len(), e.path()))
+        })
+        .collect();
+    let mut total: u64 = files.iter().map(|f| f.1).sum();
+    files.sort_by_key(|(at, _, p)| (p.extension().is_some_and(|e| e == "mp4"), *at));
+    for (_, len, path) in files {
+        if total <= max_bytes {
+            break;
+        }
+        if std::fs::remove_file(&path).is_ok() {
+            total -= len;
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -402,6 +429,31 @@ fn layout(w: usize, h: usize, len: usize, reported: i32) -> (usize, bool) {
         }
     }
     (reported.max(row), bottom_up)
+}
+
+#[cfg(test)]
+mod cache_tests {
+    use super::*;
+
+    #[test]
+    fn the_clip_cache_drops_the_least_recently_used_first() {
+        let dir = std::env::temp_dir().join(format!("nuvx-motion-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let old = std::time::SystemTime::now() - Duration::from_secs(3600);
+        for (name, size, age) in [("old.mp4", 400, true), ("new.mp4", 400, false), ("stale.part", 100, false)] {
+            let p = dir.join(name);
+            std::fs::write(&p, vec![0u8; size]).unwrap();
+            if age {
+                std::fs::File::options().append(true).open(&p).unwrap().set_modified(old).unwrap();
+            }
+        }
+        prune(&dir, 500);
+        let left: Vec<String> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        assert_eq!(left, vec!["new.mp4"], "the half download and the oldest clip go, the newest stays");
+        prune(&dir, 10_000);
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "under the cap nothing is touched");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
 
 #[cfg(all(test, windows))]
