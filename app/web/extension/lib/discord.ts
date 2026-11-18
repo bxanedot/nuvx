@@ -22,8 +22,10 @@ const IDLE_CLOSE_MS = 5 * 60_000;
 // Discord sends these; still only follow its own gateway hosts and sane heartbeat timings.
 export const gatewayResumeUrl = (url: unknown): string | null =>
   typeof url === 'string' && /^wss:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.discord\.gg$/i.test(url) ? `${url}/?v=9&encoding=json` : null;
-export const heartbeatMs = (ms: unknown): number =>
-  Math.min(5 * 60_000, Math.max(1_000, typeof ms === 'number' && Number.isFinite(ms) ? ms : 41_250));
+export const heartbeatMs = (ms: unknown): number => {
+  if (typeof ms !== 'number' || !(ms >= 1_000) || !(ms <= 5 * 60_000)) return 41_250;
+  return ms;
+};
 
 const ACCOUNT_KEY = 'discord.account';
 const ENABLED_KEY = 'discord.enabled';
