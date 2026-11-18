@@ -23,8 +23,10 @@ internal class LocalSocksBackend(
 ) : ConnectionBackend {
     override val id: BackendId = BackendId.LOCAL_SOCKS
 
-    override suspend fun connect(onProgress: (Int) -> Unit): Int? =
-        port.takeIf { it in 1..65535 && probe(it) }
+    override suspend fun connect(onProgress: (Int) -> Unit): Int? {
+        if (port !in 1..65535) return null
+        return if (probe(port)) port else null
+    }
 
     override suspend fun verify(socksPort: Int): Boolean =
         socksPort == port && port in 1..65535 && probe(port)
