@@ -1343,4 +1343,7 @@
     <string name="network">Network</string>
     <string name="restart_now">Restart now</string>
     <string name="stream_host_unreachable">Songs can\'t load: this network blocks YouTube\'s audio servers (googlevideo.com). Turn on %1$s → %2$s, or use a VPN.</string>
+    <string name="playlist_import_done">Imported %1$d songs into %2$s</string>
+    <string name="playlist_import_partial">Imported %1$d songs into %2$s. %3$d had no YouTube link and were left out.</string>
+    <string name="playlist_import_empty">No songs with a YouTube link in that file.</string>
 </resources>

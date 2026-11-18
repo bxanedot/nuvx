@@ -1412,4 +1412,7 @@
     <string name="nuvx_sync_lan_compare">Phê duyệt trên %1$s khi nó hiển thị mã này:</string>
     <string name="nuvx_sync_lan_unreachable">Không thể kết nối tới máy tính đó. Hãy kiểm tra cả hai cùng mạng Wi-Fi và Đồng bộ Wi-Fi nội bộ đang bật.</string>
     <string name="stream_host_unreachable">Không tải được bài hát: mạng này chặn máy chủ âm thanh của YouTube (googlevideo.com). Bật %1$s → %2$s hoặc dùng VPN.</string>
+    <string name="playlist_import_done">Đã nhập %1$d bài vào %2$s</string>
+    <string name="playlist_import_partial">Đã nhập %1$d bài vào %2$s. Bỏ qua %3$d bài không có liên kết YouTube.</string>
+    <string name="playlist_import_empty">Tệp này không có bài nào có liên kết YouTube.</string>
 </resources>

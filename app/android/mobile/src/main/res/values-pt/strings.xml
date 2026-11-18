@@ -1497,4 +1497,7 @@
     <string name="nuvx_sync_lan_compare">Aprove em %1$s quando ele mostrar este código:</string>
     <string name="nuvx_sync_lan_unreachable">Não foi possível alcançar o computador. Verifique se ambos estão na mesma rede Wi-Fi e se a sincronização por Wi-Fi local está ativada.</string>
     <string name="stream_host_unreachable">As músicas não carregam: esta rede bloqueia os servidores de áudio do YouTube (googlevideo.com). Ative %1$s → %2$s ou use uma VPN.</string>
+    <string name="playlist_import_done">%1$d músicas importadas para %2$s</string>
+    <string name="playlist_import_partial">%1$d músicas importadas para %2$s. %3$d sem link do YouTube ficaram de fora.</string>
+    <string name="playlist_import_empty">Nenhuma música com link do YouTube nesse arquivo.</string>
 </resources>

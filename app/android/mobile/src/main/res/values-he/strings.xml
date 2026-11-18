@@ -1497,4 +1497,7 @@
     <string name="nuvx_sync_lan_compare">אשרו ב-%1$s כשהוא מציג את הקוד הזה:</string>
     <string name="nuvx_sync_lan_unreachable">לא ניתן להתחבר למחשב. ודאו ששניהם באותה רשת Wi-Fi ושסנכרון Wi-Fi מקומי מופעל.</string>
     <string name="stream_host_unreachable">השירים לא נטענים: הרשת הזו חוסמת את שרתי השמע של YouTube ‏(googlevideo.com). הפעל את %1$s ← %2$s או השתמש ב-VPN.</string>
+    <string name="playlist_import_done">יובאו %1$d שירים אל %2$s</string>
+    <string name="playlist_import_partial">יובאו %1$d שירים אל %2$s. %3$d ללא קישור YouTube הושמטו.</string>
+    <string name="playlist_import_empty">אין בקובץ הזה שירים עם קישור YouTube.</string>
 </resources>

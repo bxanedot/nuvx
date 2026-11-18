@@ -279,4 +279,6 @@
     <string name="mix_view_bpm">%1$d bpm</string>
     <string name="automix_overview_unavailable">No Automix transition coming up</string>
     <string name="browse_categories">Browse Categories</string>
+    <string name="import_playlist_file">Import file</string>
+    <string name="import_playlist_file_subtitle">M3U or CSV</string>
 </resources>

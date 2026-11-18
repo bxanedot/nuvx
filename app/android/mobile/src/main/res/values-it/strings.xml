@@ -1431,4 +1431,7 @@
     <string name="nuvx_sync_lan_compare">Approva su %1$s quando mostra questo codice:</string>
     <string name="nuvx_sync_lan_unreachable">Impossibile raggiungere il computer. Controlla che siano sulla stessa rete Wi-Fi e che la sincronizzazione Wi-Fi locale sia attiva.</string>
     <string name="stream_host_unreachable">I brani non si caricano: questa rete blocca i server audio di YouTube (googlevideo.com). Attiva %1$s → %2$s o usa una VPN.</string>
+    <string name="playlist_import_done">%1$d brani importati in %2$s</string>
+    <string name="playlist_import_partial">%1$d brani importati in %2$s. %3$d senza link YouTube sono stati esclusi.</string>
+    <string name="playlist_import_empty">Nessun brano con link YouTube in quel file.</string>
 </resources>

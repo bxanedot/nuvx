@@ -170,6 +170,15 @@ internal class MainPlaylistController(
         }
     }
 
+    /** A playlist read from a file always stays on this device: the user's file is never uploaded. */
+    fun importPlaylist(title: String, songs: List<Song>): String {
+        val local = com.licht.nuvx.data.spotify.LocalPlaylistStore.createNuvxPlaylist(title.trim().ifBlank { text(R.string.new_playlist) }, songs)
+        _playlists.value = listOf(UserPlaylist(local.browseId, local.title, "${local.songs.size} songs", local.songs.firstOrNull()?.thumbnailUrl)) +
+            _playlists.value.filterNot { it.browseId == local.browseId }
+        setPlaylistOwned(local.browseId, true)
+        return local.browseId
+    }
+
     fun createPlaylistWithVideoIds(
         title: String,
         privacy: PlaylistPrivacy,

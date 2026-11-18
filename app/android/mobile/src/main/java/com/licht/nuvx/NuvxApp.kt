@@ -736,6 +736,35 @@ internal fun NuvxApp(
         queueNoticeId += 1
         queueNotice = QueueActionNotice(queueNoticeId, message)
     }
+    val playlistImportPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        playerSheetScope.launch {
+            val read = withContext(Dispatchers.IO) {
+                runCatching {
+                    val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readNBytesCompat(PLAYLIST_IMPORT_MAX_BYTES + 1) }
+                        ?: error("Couldn't open that file")
+                    require(bytes.size <= PLAYLIST_IMPORT_MAX_BYTES) { "That file is too large for a playlist" }
+                    name?.substringBeforeLast('.') to com.licht.nuvx.data.PlaylistImport.parse(bytes.decodeToString())
+                }
+            }
+            read.onFailure { Toast.makeText(context, it.message ?: context.getString(R.string.failed), Toast.LENGTH_SHORT).show() }
+            read.onSuccess { (fileName, result) ->
+                if (result.songs.isEmpty()) {
+                    showQueueNotice(context.getString(R.string.playlist_import_empty))
+                    return@onSuccess
+                }
+                val title = result.title ?: fileName ?: context.getString(R.string.new_playlist)
+                val id = viewModel.importPlaylist(title, result.songs)
+                showQueueNotice(
+                    if (result.unmatched > 0) context.getString(R.string.playlist_import_partial, result.songs.size, title, result.unmatched)
+                    else context.getString(R.string.playlist_import_done, result.songs.size, title),
+                )
+                viewModel.openDetail(id, title, "${result.songs.size} songs", result.songs.first().thumbnailUrl)
+            }
+        }
+    }
     LaunchedEffect(queueNotice?.id) {
         val shown = queueNotice ?: return@LaunchedEffect
         delay(3_000)
@@ -2175,6 +2204,7 @@ internal fun NuvxApp(
                                 onShelfItemLongPress = onBrowseLongPress,
                                 onNewPlaylist = { creatingPlaylist = true },
                                 onImportSpotifyPlaylist = { showSpotifyImportDialog = true },
+                                onImportPlaylistFile = { playlistImportPicker.launch(arrayOf("*/*")) },
                                 onShowAll = { shelf -> navigator.push(AppRoute.LibraryShowAll(shelf)) },
                                 replay = {
                                     LibraryReplayEntry(
@@ -3825,4 +3855,18 @@ private fun searchCategories(viewModel: MainViewModel): List<MoodGenre> {
     LaunchedEffect(classic) { if (!classic) viewModel.onExploreShown() }
     if (classic) return emptyList()
     return (explore as? UiState.Success)?.data?.flatMap { it.items }?.distinctBy { it.browseId + it.params }.orEmpty()
+}
+
+private const val PLAYLIST_IMPORT_MAX_BYTES = 8 * 1024 * 1024
+
+// InputStream.readNBytes needs API 33; the app supports 26.
+private fun java.io.InputStream.readNBytesCompat(limit: Int): ByteArray {
+    val out = java.io.ByteArrayOutputStream()
+    val buf = ByteArray(16 * 1024)
+    while (out.size() < limit) {
+        val n = read(buf, 0, minOf(buf.size, limit - out.size()))
+        if (n < 0) break
+        out.write(buf, 0, n)
+    }
+    return out.toByteArray()
 }

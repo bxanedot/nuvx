@@ -1519,4 +1519,7 @@
     <string name="nuvx_sync_lan_compare">Подтвердите на %1$s, когда там появится этот код:</string>
     <string name="nuvx_sync_lan_unreachable">Не удалось связаться с компьютером. Проверьте, что оба устройства в одной сети Wi-Fi и синхронизация по локальной Wi-Fi включена.</string>
     <string name="stream_host_unreachable">Треки не загружаются: эта сеть блокирует аудиосерверы YouTube (googlevideo.com). Включите %1$s → %2$s или используйте VPN.</string>
+    <string name="playlist_import_done">Импортировано треков в %2$s: %1$d</string>
+    <string name="playlist_import_partial">Импортировано треков в %2$s: %1$d. Пропущено без ссылки YouTube: %3$d.</string>
+    <string name="playlist_import_empty">В этом файле нет треков со ссылкой YouTube.</string>
 </resources>

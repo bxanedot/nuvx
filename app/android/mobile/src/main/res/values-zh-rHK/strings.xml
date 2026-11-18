@@ -1455,4 +1455,7 @@
     <string name="nuvx_sync_lan_compare">當 %1$s 顯示此代碼時，在電腦上核准：</string>
     <string name="nuvx_sync_lan_unreachable">無法連線到該電腦。請確認兩者在同一個 Wi-Fi 上，且已開啟本機 Wi-Fi 同步。</string>
     <string name="stream_host_unreachable">歌曲無法載入：此網路封鎖了 YouTube 的音訊伺服器（googlevideo.com）。請開啟 %1$s → %2$s，或使用 VPN。</string>
+    <string name="playlist_import_done">已將 %1$d 首歌曲匯入 %2$s</string>
+    <string name="playlist_import_partial">已將 %1$d 首歌曲匯入 %2$s。%3$d 首沒有 YouTube 連結，已略過。</string>
+    <string name="playlist_import_empty">該檔案中沒有帶 YouTube 連結的歌曲。</string>
 </resources>

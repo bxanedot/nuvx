@@ -213,6 +213,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun createPlaylist(title: String, privacy: PlaylistPrivacy, song: Song? = null) =
         playlistController.createPlaylist(title, privacy, song)
 
+    fun importPlaylist(title: String, songs: List<Song>): String = playlistController.importPlaylist(title, songs)
+
     fun createPlaylistWithVideoIds(
         title: String,
         privacy: PlaylistPrivacy,

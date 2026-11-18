@@ -1492,4 +1492,7 @@
     <string name="nuvx_sync_lan_compare">जब %1$s यह कोड दिखाए, तो वहाँ स्वीकृति दें:</string>
     <string name="nuvx_sync_lan_unreachable">उस कंप्यूटर तक नहीं पहुँच सके। जाँचें कि दोनों एक ही वाई-फ़ाई पर हैं और लोकल वाई-फ़ाई सिंक चालू है।</string>
     <string name="stream_host_unreachable">गाने लोड नहीं हो रहे: यह नेटवर्क YouTube के ऑडियो सर्वर (googlevideo.com) ब्लॉक करता है। %1$s → %2$s चालू करें या VPN इस्तेमाल करें।</string>
+    <string name="playlist_import_done">%2$s में %1$d गाने इंपोर्ट हुए</string>
+    <string name="playlist_import_partial">%2$s में %1$d गाने इंपोर्ट हुए। %3$d में YouTube लिंक नहीं था, इसलिए छोड़ दिए गए।</string>
+    <string name="playlist_import_empty">इस फ़ाइल में YouTube लिंक वाला कोई गाना नहीं है।</string>
 </resources>

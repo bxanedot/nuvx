@@ -198,4 +198,6 @@
     <string name="search_library_empty">Pesquise as músicas da sua pasta de Música local.</string>
     <string name="search_library_hint">Músicas, artistas e álbuns</string>
     <string name="search_library_no_results">Nada na Música local corresponde a “%1$s”.</string>
+    <string name="import_playlist_file">Importar arquivo</string>
+    <string name="import_playlist_file_subtitle">M3U ou CSV</string>
 </resources>

@@ -72,6 +72,7 @@ fun LibraryScreen(
     onShelfItemLongPress: (ShelfItem) -> Unit,
     onNewPlaylist: () -> Unit,
     onImportSpotifyPlaylist: (() -> Unit)? = null,
+    onImportPlaylistFile: (() -> Unit)? = null,
     onShowAll: (HomeShelf) -> Unit,
     replay: @Composable () -> Unit,
     onSignIn: () -> Unit,
@@ -133,6 +134,7 @@ fun LibraryScreen(
                         onItemLongPress = onShelfItemLongPress,
                         onNewPlaylist = onNewPlaylist,
                         onImportSpotifyPlaylist = onImportSpotifyPlaylist,
+                        onImportPlaylistFile = onImportPlaylistFile,
                         onShowAll = { onShowAll(emptyPlaylists) },
                     )
                 }
@@ -153,6 +155,7 @@ fun LibraryScreen(
                         onItemLongPress = onShelfItemLongPress,
                         onNewPlaylist = onNewPlaylist,
                         onImportSpotifyPlaylist = onImportSpotifyPlaylist,
+                        onImportPlaylistFile = onImportPlaylistFile,
                         onShowAll = { onShowAll(HomeShelf(PLAYLISTS, localPlaylists)) },
                     )
                 }
@@ -178,6 +181,7 @@ fun LibraryScreen(
                                 onItemLongPress = onShelfItemLongPress,
                                 onNewPlaylist = onNewPlaylist,
                                 onImportSpotifyPlaylist = onImportSpotifyPlaylist,
+                                onImportPlaylistFile = onImportPlaylistFile,
                                 onShowAll = { onShowAll(emptyPlaylists) },
                             )
                         }
@@ -192,6 +196,7 @@ fun LibraryScreen(
                                     onItemLongPress = onShelfItemLongPress,
                                     onNewPlaylist = onNewPlaylist,
                                     onImportSpotifyPlaylist = onImportSpotifyPlaylist,
+                                    onImportPlaylistFile = onImportPlaylistFile,
                                     onShowAll = { onShowAll(pinnedFirst) },
                                     pinnedPlaylists = pinnedPlaylists,
                                 )
@@ -272,6 +277,7 @@ private fun PlaylistShelf(
     onItemLongPress: (ShelfItem) -> Unit,
     onNewPlaylist: () -> Unit,
     onImportSpotifyPlaylist: (() -> Unit)? = null,
+    onImportPlaylistFile: (() -> Unit)? = null,
     onShowAll: () -> Unit,
     pinnedPlaylists: List<String> = emptyList(),
 ) {
@@ -296,6 +302,14 @@ private fun PlaylistShelf(
                         subtitle = stringResource(Res.string.import_spotify_subtitle),
                         onClick = onImportSpotifyPlaylist,
                         logo = Res.drawable.spotify_logo,
+                    )
+                }
+                if (onImportPlaylistFile != null) {
+                    NewShelfCard(
+                        icon = SfIcons.Download,
+                        label = stringResource(Res.string.import_playlist_file),
+                        subtitle = stringResource(Res.string.import_playlist_file_subtitle),
+                        onClick = onImportPlaylistFile,
                     )
                 }
             }

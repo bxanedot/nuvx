@@ -1472,4 +1472,7 @@
     <string name="nuvx_sync_lan_compare">Setujui di %1$s saat menampilkan kode ini:</string>
     <string name="nuvx_sync_lan_unreachable">Tidak dapat menjangkau komputer itu. Pastikan keduanya di Wi-Fi yang sama dan Sinkronisasi Wi-Fi Lokal aktif.</string>
     <string name="stream_host_unreachable">Lagu tidak bisa dimuat: jaringan ini memblokir server audio YouTube (googlevideo.com). Aktifkan %1$s → %2$s, atau gunakan VPN.</string>
+    <string name="playlist_import_done">%1$d lagu diimpor ke %2$s</string>
+    <string name="playlist_import_partial">%1$d lagu diimpor ke %2$s. %3$d tanpa tautan YouTube dilewati.</string>
+    <string name="playlist_import_empty">Tidak ada lagu dengan tautan YouTube di file itu.</string>
 </resources>

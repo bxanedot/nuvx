@@ -1473,4 +1473,7 @@
     <string name="nuvx_sync_lan_compare">%1$s にこのコードが表示されたら、そこで承認してください：</string>
     <string name="nuvx_sync_lan_unreachable">コンピュータに接続できません。両方が同じ Wi-Fi にあり、ローカル Wi-Fi 同期がオンか確認してください。</string>
     <string name="stream_host_unreachable">曲を読み込めません：このネットワークは YouTube の音声サーバー（googlevideo.com）をブロックしています。%1$s → %2$s をオンにするか、VPN を使ってください。</string>
+    <string name="playlist_import_done">%2$s に %1$d 曲を読み込みました</string>
+    <string name="playlist_import_partial">%2$s に %1$d 曲を読み込みました。YouTube のリンクがない %3$d 曲は除外しました。</string>
+    <string name="playlist_import_empty">このファイルには YouTube のリンクがある曲がありません。</string>
 </resources>

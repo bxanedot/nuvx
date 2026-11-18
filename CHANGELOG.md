@@ -10,6 +10,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   87.107.206.11) let search, home and covers through but not googlevideo.com, the servers the songs play from, so
   songs showed up but never played, with no explanation. nuvx now tells you once, then points you to
   **Settings → Network → Privacy Connection** (Orbot or a local SOCKS5 app) or a VPN, which do carry the audio.
+- **Import a playlist from an M3U or CSV file.** Library → Playlists → **Import file**, then pick the file. Files
+  nuvx exported come back with the same songs in the same order; other players' files work too when their entries
+  carry a YouTube link. The playlist is saved on this device only, and nuvx tells you how many entries had no
+  YouTube link and were left out.
 
 ### Desktop (Windows, macOS, Linux)
 
