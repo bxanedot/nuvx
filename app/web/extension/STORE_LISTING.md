@@ -3,8 +3,8 @@
 ## Publisher details
 
 - Product name: nuvx
-- Developer: Licht
-- Support email: Licht on Guns.lol
+- Developer: licht
+- Support email: licht on Guns.lol
 - Homepage: https://web.nuvx.lol/extension
 - Support: https://github.com/lylicht/nuvx/issues
 - Privacy policy: https://www.nuvx.lol/privacy
