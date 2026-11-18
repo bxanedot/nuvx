@@ -299,6 +299,7 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                             val target = if (!isCode) parsed else {
                                 com.licht.nuvx.data.sync.LanFinder.phoneAddress(context)
                                     ?.let { com.licht.nuvx.data.sync.LanFinder.find(it, address.trim()) }
+                                    ?: com.licht.nuvx.data.sync.LanFinder.findOverBluetooth(address.trim())
                             }
                             if (target == null) {
                                 message = noMatch

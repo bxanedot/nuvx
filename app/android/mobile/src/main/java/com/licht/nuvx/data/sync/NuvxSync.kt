@@ -55,6 +55,7 @@ object NuvxSync {
     private const val KEY_TOKEN = "token"
     private const val KEY_LAN_HOST_ID = "lan_host_id"
     private const val KEY_LAN_HOST_NAME = "lan_host_name"
+    private const val KEY_LAN_HOST_BT = "lan_host_bt"
     const val LAN_SCHEME = "lan://"
 
     private lateinit var app: Context
@@ -69,6 +70,7 @@ object NuvxSync {
     @OptIn(FlowPreview::class)
     fun init(context: Context) {
         app = context.applicationContext
+        LanBluetooth.init(app)
         _status.value = Status(
             enabled = prefs.getBoolean("enabled", false) && token() != null,
             server = prefs.getString("server", "").orEmpty(),
@@ -133,6 +135,7 @@ object NuvxSync {
                 prefs.edit()
                     .putString(KEY_LAN_HOST_ID, hello?.get("id")?.jsonPrimitive?.contentOrNull)
                     .putString(KEY_LAN_HOST_NAME, pairing.hostName)
+                    .putString(KEY_LAN_HOST_BT, hello?.get("bt")?.jsonPrimitive?.contentOrNull?.takeIf(LanBluetooth::isAddress))
                     .apply()
             }
         }
@@ -149,17 +152,33 @@ object NuvxSync {
         if (!status.enabled || !isLan) return false
         val saved = lanAddress(status.server) ?: return false
         val hostId = prefs.getString(KEY_LAN_HOST_ID, null)
+        if (saved.bluetooth && hostId != null) {
+            LanFinder.phoneAddress(app)?.let { LanFinder.findHost(it, hostId) }?.let { wifi ->
+                val server = "$LAN_SCHEME$wifi"
+                prefs.edit().putString("server", server).apply()
+                _status.value = _status.value.copy(server = server, error = null)
+                LanBluetooth.close()
+                return true
+            }
+        }
         val here = kotlinx.coroutines.withContext(Dispatchers.IO) { LanFinder.hello(saved) }
         if (here != null && (hostId == null || here["id"]?.jsonPrimitive?.contentOrNull == hostId)) return true
+        if (here != null) prefs.edit().putString(KEY_LAN_HOST_BT, here["bt"]?.jsonPrimitive?.contentOrNull?.takeIf(LanBluetooth::isAddress)).apply()
         if (hostId == null) return false
-        val phone = LanFinder.phoneAddress(app) ?: return false
-        val moved = LanFinder.findHost(phone, hostId) ?: return false
+        val moved = LanFinder.phoneAddress(app)?.let { LanFinder.findHost(it, hostId) }
+            // No Wi-Fi way to it (other network, no network): the same computer over Bluetooth, if it said where.
+            ?: prefs.getString(KEY_LAN_HOST_BT, null)?.let { LanAddress(it, 0, bluetooth = true) }
+                ?.takeIf { bt -> bt != saved && kotlinx.coroutines.withContext(Dispatchers.IO) { LanFinder.hello(bt) }?.get("id")?.jsonPrimitive?.contentOrNull == hostId }
+            ?: return false
         val server = "$LAN_SCHEME$moved"
         prefs.edit().putString("server", server).apply()
         _status.value = _status.value.copy(server = server, error = null)
-        DebugLog.d(TAG, "paired computer moved to $moved")
+        DebugLog.d(TAG, "paired computer reached at $moved")
         return true
     }
+
+    /** True while the paired computer is reached over Bluetooth rather than Wi-Fi. */
+    val viaBluetooth: Boolean get() = lanAddress(_status.value.server)?.bluetooth == true
 
     // Setup and pairing. Blocking network calls: run them on Dispatchers.IO.
 

@@ -15,6 +15,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   downloads to the computer; each skips songs the other side already has. It uses
   the same encrypted pairing, so it only works between your own approved devices; the usual storage limit and free
   space rules apply.
+- **Bluetooth as a second link (Windows computer ↔ Android phone).** When the phone and computer share no Wi-Fi,
+  Sync, Nuvx Connect and copying downloads switch to Bluetooth by themselves, and back to Wi-Fi when it returns.
+  The 4-digit code also finds a computer over Bluetooth. Needs Bluetooth on, the two devices paired once in the
+  Bluetooth settings, and "Nearby devices" allowed for nuvx. Bluetooth is slower: copying a song takes longer.
 - **Pair with a 4-digit code.** The computer shows a 4-digit code in Nuvx Sync and Nuvx Connect; type it on the
   phone instead of an address and the phone finds the computer on your Wi-Fi. You still approve the phone on the
   computer and compare the 6-digit code. The address is shown too, and now skips VPN/proxy adapters.

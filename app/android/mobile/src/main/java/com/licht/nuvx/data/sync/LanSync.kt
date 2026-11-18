@@ -112,13 +112,21 @@ object LanSyncCrypto {
 }
 
 /** A computer address the user typed: `host` or `host:port`. Only this network is ever contacted. */
-data class LanAddress(val host: String, val port: Int) {
-    override fun toString() = if (':' in host) "[$host]:$port" else "$host:$port"
+data class LanAddress(val host: String, val port: Int, val bluetooth: Boolean = false) {
+    override fun toString() = when {
+        bluetooth -> "bt/$host"
+        ':' in host -> "[$host]:$port"
+        else -> "$host:$port"
+    }
 
     companion object {
         const val DEFAULT_PORT = 47731
 
         fun parse(text: String): LanAddress? {
+            // A computer reached over Bluetooth: "bt/AA:BB:CC:DD:EE:FF".
+            text.trim().removePrefix("bt/").takeIf { text.trim().startsWith("bt/") }?.uppercase()?.let { mac ->
+                return if (LanBluetooth.isAddress(mac)) LanAddress(mac, 0, bluetooth = true) else null
+            }
             val t = text.trim().removePrefix("http://").trimEnd('/')
             if (t.isEmpty() || t.any { it.isWhitespace() || it == '/' || it == '@' }) return null
             val (host, port) = when {
@@ -151,6 +159,16 @@ internal object LanHttp {
         connectMs: Int = 5_000,
         readMs: Int = 20_000,
     ): Pair<Int, String> {
+        if (to.bluetooth) {
+            // Kept open between requests: a Bluetooth connection takes a second or two to set up.
+            val bytes = body?.toByteArray() ?: ByteArray(0)
+            val head = buildString {
+                append("$method $path HTTP/1.1\r\nhost: nuvx\r\ncontent-type: application/json\r\n")
+                device?.let { append("x-nuvx-device: $it\r\n") }
+                append("content-length: ${bytes.size}\r\n\r\n")
+            }
+            return LanBluetooth.exchange(to.host, head.toByteArray() + bytes, ::read)
+        }
         val ip = InetAddress.getAllByName(to.host).firstOrNull(LanAddress::isLocal)
             ?: throw IOException("Not an address on this network")
         Socket().use { socket ->
@@ -276,6 +294,13 @@ object LanFinder {
 
     // shortcut: searches the phone's own /24 only; wider home networks still pair by typing the address.
     suspend fun find(phoneIpv4: java.net.Inet4Address, code: String): LanAddress? = find(phoneIpv4) { it.text("code") == code }
+
+    /** The computer showing [code], among the computers this phone is paired with over Bluetooth. */
+    suspend fun findOverBluetooth(code: String): LanAddress? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        LanBluetooth.pairedComputers().firstNotNullOfOrNull { (mac, _) ->
+            LanAddress(mac, 0, bluetooth = true).takeIf { hello(it)?.text("code") == code }
+        }
+    }
 
     /** Finds the computer this phone paired with again after its address changed (same [hostId]). */
     suspend fun findHost(phoneIpv4: java.net.Inet4Address, hostId: String): LanAddress? = find(phoneIpv4) { it.text("id") == hostId }

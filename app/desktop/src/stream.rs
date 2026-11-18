@@ -110,10 +110,6 @@ impl Shared {
         })
     }
 
-    pub fn from_bytes(data: Vec<u8>, duration_ms: u64, loudness_db: Option<f32>) -> Arc<Self> {
-        Self::from_bytes_with_format(data, duration_ms, loudness_db, Format::Aac, None)
-    }
-
     pub fn from_bytes_with_format(data: Vec<u8>, duration_ms: u64, loudness_db: Option<f32>, format: Format, info: Option<crate::hires::Info>) -> Arc<Self> {
         let total = data.len() as u64;
         let data = Bytes::from(data);

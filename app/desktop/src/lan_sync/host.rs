@@ -102,6 +102,8 @@ pub struct Inner {
     /// secret: pairing still needs the approval here and the matching six-digit code.
     pub find_code: String,
     uploads: HashMap<String, super::files::Upload>,
+    /// This computer's Bluetooth address while the Bluetooth listener runs, told to phones in `/lan/hello`.
+    pub bluetooth: Option<String>,
 }
 
 impl Inner {
@@ -116,7 +118,7 @@ impl Inner {
         // A device whose key is gone (credential store wiped) cannot talk to us; drop it rather than keep a ghost.
         saved.devices.retain(|d| keys.contains_key(&d.id));
         let op_ids = saved.ops.iter().map(|o| o.op_id.clone()).collect();
-        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code(), uploads: HashMap::new() };
+        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code(), uploads: HashMap::new(), bluetooth: None };
         me.persist();
         me
     }
@@ -261,7 +263,7 @@ impl Inner {
         self.expire();
         let json_body = || serde_json::from_slice::<Value>(body).ok().filter(Value::is_object);
         match (method, path) {
-            ("GET", "/lan/hello") => ok(json!({ "app": "nuvx", "api": API_VERSION, "name": self.host_name, "id": self.saved.host_id, "code": self.find_code })),
+            ("GET", "/lan/hello") => ok(json!({ "app": "nuvx", "api": API_VERSION, "name": self.host_name, "id": self.saved.host_id, "code": self.find_code, "bt": self.bluetooth })),
             ("POST", "/lan/pair/start") => {
                 let Some(b) = json_body() else { return fail(422, "invalid_json", "Body must be one JSON object.") };
                 let name = b.get("deviceName").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty() && n.chars().count() <= 80);
@@ -525,7 +527,10 @@ pub fn serve(inner: Arc<Mutex<Inner>>, stop: Arc<AtomicBool>, wake: impl Fn() + 
         }
     }
     listener.set_nonblocking(true)?;
-    let wake = Arc::new(wake);
+    let wake: Arc<dyn Fn() + Send + Sync> = Arc::new(wake);
+    // Bluetooth carries the same requests for phones off the Wi-Fi; a computer without Bluetooth just skips it.
+    let bt = super::bluetooth::serve(inner.clone(), stop.clone(), wake.clone());
+    inner.lock().unwrap_or_else(|e| e.into_inner()).bluetooth = bt;
     let busy = Arc::new(AtomicUsize::new(0));
     std::thread::Builder::new().name("lan-sync".into()).spawn(move || {
         while !stop.load(Ordering::Relaxed) {
@@ -559,8 +564,17 @@ fn connection(stream: TcpStream, inner: &Mutex<Inner>, wake: &dyn Fn()) -> std::
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
     stream.set_write_timeout(Some(Duration::from_secs(10)))?;
     let mut reader = BufReader::new(stream.try_clone()?);
+    let mut out = stream;
+    respond(&mut reader, &mut out, inner, wake).map(|_| ())
+}
+
+/// Reads one HTTP request from `reader`, answers it on `out`. False when the peer closed before a request:
+/// Bluetooth keeps one connection for many requests and stops there. Wi-Fi uses one request per connection.
+pub(super) fn respond(reader: &mut impl BufRead, out: &mut impl Write, inner: &Mutex<Inner>, wake: &dyn Fn()) -> std::io::Result<bool> {
     let mut line = String::new();
-    reader.by_ref().take(8192).read_line(&mut line)?;
+    if reader.by_ref().take(8192).read_line(&mut line)? == 0 {
+        return Ok(false);
+    }
     let mut parts = line.split_whitespace();
     let (method, path) = (parts.next().unwrap_or("").to_owned(), parts.next().unwrap_or("").to_owned());
     let (mut length, mut device) = (0usize, None);
@@ -592,8 +606,13 @@ fn connection(stream: TcpStream, inner: &Mutex<Inner>, wake: &dyn Fn()) -> std::
         reply
     };
     let reason = match status { 200 => "OK", 201 => "Created", 202 => "Accepted", 401 => "Unauthorized", 403 => "Forbidden", 404 => "Not Found", _ => "Error" };
-    let mut out = stream;
-    write!(out, "HTTP/1.1 {status} {reason}\r\ncontent-type: application/json\r\ncache-control: no-store\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}", body.len())?;
-    out.flush()
+    write!(out, "HTTP/1.1 {status} {reason}
+content-type: application/json
+cache-control: no-store
+content-length: {}
+
+{body}", body.len())?;
+    out.flush()?;
+    Ok(true)
 }
 
