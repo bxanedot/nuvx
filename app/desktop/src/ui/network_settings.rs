@@ -38,11 +38,16 @@ pub(super) fn network(app: &mut App, ui: &mut Ui) {
     match &app.proxy_mode {
         Setting::System => {
             divider(ui);
-            let desc = match proxy::system() {
-                Some(p) => format!("Windows is set to use {}.", proxy::redact(&p)),
-                None => "Windows isn't set to use a proxy, so nuvx connects directly.".to_owned(),
+            let (label, desc) = if cfg!(windows) {
+                let message = match proxy::system() {
+                    Some(p) => format!("Windows is set to use {}.", proxy::redact(&p)),
+                    None => "Windows isn't set to use a proxy, so nuvx connects directly.".to_owned(),
+                };
+                ("Windows proxy", message)
+            } else {
+                ("Environment proxy", "Uses HTTPS_PROXY, HTTP_PROXY or ALL_PROXY from the environment when set; otherwise direct. Restart nuvx after changing these variables.".to_owned())
             };
-            setting_row(ui, "Windows proxy", Some(&desc), |_| {});
+            setting_row(ui, label, Some(&desc), |_| {});
         }
         Setting::Custom(_) => {
             divider(ui);
