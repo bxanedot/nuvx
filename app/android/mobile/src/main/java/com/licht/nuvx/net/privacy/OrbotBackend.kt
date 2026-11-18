@@ -22,10 +22,14 @@ import java.util.concurrent.TimeUnit
 internal object TorCheck {
     private const val URL = "https://check.torproject.org/api/ip"
 
-    suspend fun passes(socksPort: Int): Boolean = withContext(Dispatchers.IO) {
+    // Bridged Tor (Snowflake, obfs4, WebTunnel: what works in Iran) builds its first circuits slowly, so one
+    // slow answer is not a failure: allow minutes-scale latency and a second try.
+    suspend fun passes(socksPort: Int): Boolean = once(socksPort) || once(socksPort)
+
+    private suspend fun once(socksPort: Int): Boolean = withContext(Dispatchers.IO) {
         val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), socksPort))
         val client = OkHttpClient.Builder().proxy(proxy)
-            .connectTimeout(20, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).callTimeout(40, TimeUnit.SECONDS).build()
+            .connectTimeout(45, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
         try {
             client.newCall(Request.Builder().url(URL).build()).execute().use { response ->
                 response.isSuccessful && response.body.string().replace(" ", "").contains("\"IsTor\":true")
@@ -79,7 +83,8 @@ class OrbotBackend(private val context: Context) : ConnectionBackend {
         private const val STATUS_ON = "ON"
         const val DEFAULT_SOCKS_PORT = 9050
         private const val STATUS_WAIT_MS = 4_000L
-        private const val START_WAIT_MS = 45_000L
+        // Orbot with Snowflake or obfs4 bridges can take minutes to bootstrap on filtered networks.
+        private const val START_WAIT_MS = 5 * 60_000L
 
         fun isInstalled(context: Context): Boolean =
             runCatching { context.packageManager.getPackageInfo(PACKAGE, 0) }.isSuccess

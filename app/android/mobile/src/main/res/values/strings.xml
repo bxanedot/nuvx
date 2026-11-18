@@ -244,6 +244,7 @@
     <string name="privacy_local_socks_footer">Uses a separately installed proxy client listening on this device. Nuvx does not install a VPN or connect to public proxy feeds. If the proxy is unavailable, protected requests fail closed. Some sign-in and third-party components may not respect the app proxy; verify them separately. Services you sign in to can still identify your account.</string>
     <string name="privacy_status">Status</string>
     <string name="privacy_status_disabled">Disabled</string>
+    <string name="privacy_filtered_network_tip">On heavily filtered networks (for example in Iran) plain Tor is blocked: turn on bridges in Orbot (Snowflake or obfs4) first, and expect the first connection to take a few minutes. A VLESS/REALITY client such as v2rayNG or Hiddify is usually faster: in its VPN mode leave this setting Off; in its proxy mode choose Local SOCKS5.</string>
     <string name="privacy_status_connecting">Connecting</string>
     <string name="privacy_status_bootstrapping">Bootstrapping Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Connected via Orbot</string>

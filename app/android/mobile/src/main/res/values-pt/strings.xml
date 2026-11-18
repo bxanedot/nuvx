@@ -1439,6 +1439,7 @@
     <string name="privacy_mode_embedded">Tor integrado</string>
     <string name="privacy_status">Status</string>
     <string name="privacy_status_disabled">Desativada</string>
+    <string name="privacy_filtered_network_tip">Em redes muito filtradas (por exemplo, no Irã) o Tor comum é bloqueado: ative primeiro as pontes no Orbot (Snowflake ou obfs4) e espere alguns minutos pela primeira conexão. Um cliente VLESS/REALITY como v2rayNG ou Hiddify costuma ser mais rápido: no modo VPN, deixe esta opção desativada; no modo proxy, escolha SOCKS5 local.</string>
     <string name="privacy_mode_local_socks">SOCKS5 local</string>
     <string name="privacy_local_socks_port">Porta SOCKS5 local</string>
     <string name="privacy_local_socks_port_subtitle">Porta de um servidor SOCKS5 neste dispositivo, como o de um cliente proxy instalado à parte. Host: 127.0.0.1. Reinicie o nuvx depois de salvar.</string>

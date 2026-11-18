@@ -1414,6 +1414,7 @@
     <string name="privacy_mode_embedded">Tor bawaan</string>
     <string name="privacy_status">Status</string>
     <string name="privacy_status_disabled">Nonaktif</string>
+    <string name="privacy_filtered_network_tip">Di jaringan yang sangat difilter (misalnya di Iran) Tor biasa diblokir: aktifkan dulu jembatan di Orbot (Snowflake atau obfs4), dan koneksi pertama bisa memakan beberapa menit. Klien VLESS/REALITY seperti v2rayNG atau Hiddify biasanya lebih cepat: dalam mode VPN biarkan setelan ini Nonaktif; dalam mode proxy pilih SOCKS5 lokal.</string>
     <string name="privacy_mode_local_socks">SOCKS5 lokal</string>
     <string name="privacy_local_socks_port">Port SOCKS5 lokal</string>
     <string name="privacy_local_socks_port_subtitle">Port listener SOCKS5 di perangkat ini, misalnya dari klien proxy yang dipasang terpisah. Host: 127.0.0.1. Mulai ulang nuvx setelah menyimpan.</string>

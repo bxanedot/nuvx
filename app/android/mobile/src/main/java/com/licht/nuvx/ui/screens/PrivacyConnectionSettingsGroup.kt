@@ -66,6 +66,7 @@ internal fun PrivacyConnectionSettingsGroup(search: SettingsSearch) {
         if (PrivacyNetwork.activeMode != PrivacyMode.OFF && !PrivacyNetwork.webViewCovered) {
             append("\n\n").append(stringResource(R.string.privacy_webview_uncovered))
         }
+        append("\n\n").append(stringResource(R.string.privacy_filtered_network_tip))
     }
 
     SearchableSettingsGroup(search, header = stringResource(R.string.privacy_connection), footer = footer) {
