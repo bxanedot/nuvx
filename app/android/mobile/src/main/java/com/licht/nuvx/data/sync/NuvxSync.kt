@@ -116,10 +116,10 @@ object NuvxSync {
     val isLan: Boolean get() = _status.value.server.startsWith(LAN_SCHEME)
 
     /** The sealed LAN channel while this phone is paired with a computer; Nuvx Connect rides it too. */
-    fun lanHttp(): okhttp3.OkHttpClient? {
+    fun lanHttp(via: LanAddress? = null): okhttp3.OkHttpClient? {
         val status = _status.value
         if (!status.enabled) return null
-        val lan = lanAddress(status.server) ?: return null
+        val lan = via ?: lanAddress(status.server) ?: return null
         val key = token()?.let(LanSyncCrypto::unb64) ?: return null
         return com.licht.nuvx.data.Http.client.newBuilder().addInterceptor(LanSyncInterceptor(lan, status.deviceId, key)).build()
     }
@@ -162,8 +162,16 @@ object NuvxSync {
             }
         }
         val here = kotlinx.coroutines.withContext(Dispatchers.IO) { LanFinder.hello(saved) }
-        if (here != null && (hostId == null || here["id"]?.jsonPrimitive?.contentOrNull == hostId)) return true
-        if (here != null) prefs.edit().putString(KEY_LAN_HOST_BT, here["bt"]?.jsonPrimitive?.contentOrNull?.takeIf(LanBluetooth::isAddress)).apply()
+        val hereId = here?.get("id")?.jsonPrimitive?.contentOrNull
+        if (here != null && (hostId == null || hereId == hostId)) {
+            // Learn (or refresh) how to find this computer later: older pairings saved neither its id nor Bluetooth.
+            prefs.edit().apply {
+                if (hostId == null && hereId != null) putString(KEY_LAN_HOST_ID, hereId)
+                here["bt"]?.jsonPrimitive?.contentOrNull?.takeIf(LanBluetooth::isAddress)?.let { putString(KEY_LAN_HOST_BT, it) }
+                here["name"]?.jsonPrimitive?.contentOrNull?.takeIf { prefs.getString(KEY_LAN_HOST_NAME, null) == null }?.let { putString(KEY_LAN_HOST_NAME, it) }
+            }.apply()
+            return true
+        }
         if (hostId == null) return false
         val moved = LanFinder.phoneAddress(app)?.let { LanFinder.findHost(it, hostId) }
             // No Wi-Fi way to it (other network, no network): the same computer over Bluetooth, if it said where.
@@ -176,6 +184,9 @@ object NuvxSync {
         DebugLog.d(TAG, "paired computer reached at $moved")
         return true
     }
+
+    /** The paired computer's Bluetooth address, once it has told this phone. */
+    val lanHostBluetooth: String? get() = prefs.getString(KEY_LAN_HOST_BT, null)
 
     /** True while the paired computer is reached over Bluetooth rather than Wi-Fi. */
     val viaBluetooth: Boolean get() = lanAddress(_status.value.server)?.bluetooth == true

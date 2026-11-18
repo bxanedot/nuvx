@@ -78,7 +78,7 @@ internal object LanBluetooth {
         close()
         val adapter = adapter() ?: throw IOException("Bluetooth is off")
         val device = adapter.getRemoteDevice(address)
-        adapter.cancelDiscovery()
+        // No cancelDiscovery(): it needs the scan permission, and nuvx never starts a discovery itself.
         val socket = device.createRfcommSocketToServiceRecord(SERVICE)
         try {
             socket.connect()

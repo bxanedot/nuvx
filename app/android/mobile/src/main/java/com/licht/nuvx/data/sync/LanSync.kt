@@ -307,9 +307,9 @@ object LanFinder {
 
     /** The computer's `/lan/hello`, or null when nothing (or not nuvx) answers there. Blocking. */
     fun hello(to: LanAddress): JsonObject? = runCatching {
-        val (status, reply) = LanHttp.exchange(to, "GET", "/lan/hello", null, connectMs = 700, readMs = 1_500)
+        val (status, reply) = LanHttp.exchange(to, "GET", "/lan/hello", null, connectMs = 700, readMs = if (to.bluetooth) 8_000 else 1_500)
         Json.parseToJsonElement(reply).jsonObject.takeIf { status == 200 && it.text("app") == "nuvx" }
-    }.getOrNull()
+    }.onFailure { if (to.bluetooth) com.licht.nuvx.data.DebugLog.w("LanSync", "Bluetooth hello failed: $it") }.getOrNull()
 
     private fun JsonObject.text(key: String) = this[key]?.jsonPrimitive?.contentOrNull
 
@@ -335,7 +335,13 @@ object LanFinder {
     /** This phone's private IPv4 address on its current network, if any. */
     fun phoneAddress(context: android.content.Context): java.net.Inet4Address? {
         val cm = context.getSystemService(android.net.ConnectivityManager::class.java) ?: return null
-        val links = cm.getLinkProperties(cm.activeNetwork) ?: return null
+        // Only a home network: never scan a mobile carrier's network (its 10.x addresses look private too).
+        val network = cm.allNetworks.firstOrNull { n ->
+            cm.getNetworkCapabilities(n)?.let {
+                it.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+            } == true
+        } ?: return null
+        val links = cm.getLinkProperties(network) ?: return null
         return links.linkAddresses.map { it.address }.filterIsInstance<java.net.Inet4Address>().firstOrNull { it.isSiteLocalAddress }
     }
 }
