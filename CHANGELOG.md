@@ -2,6 +2,46 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
+## 1.0.3
+
+Android version code 4 (phone, TV, Auto and Wear OS). iOS build 4. Desktop 1.0.3 for Windows, macOS and Linux.
+
+This release makes nuvx faster and more reliable over Tor. How to set up Tor or a VLESS/REALITY app on each device:
+**[Connecting from restricted networks](https://github.com/lylicht/nuvx/blob/main/docs/CONNECTING_FROM_RESTRICTED_NETWORKS.md)**.
+
+### Android phone and tablet (also Android Auto)
+
+- **Songs start much faster over Tor.** YouTube turns away many Tor exits. nuvx now notices that straight away and
+  moves to a fresh exit instead of retrying the blocked one for about half a minute, and it tries up to four exits
+  per song instead of two. In testing over Orbot, 8 of 8 songs played, most within 3 to 9 seconds (before: up to a
+  minute, or not at all).
+- **How to use it:** in Orbot choose a transport (Smart Connect, or Snowflake / obfs4 on blocked networks) and tap
+  **Connect**. In nuvx open **Settings → Network → Privacy Connection**, choose **Orbot** and tap **Restart now**.
+  Nothing else to set: nuvx picks new exits by itself. If Orbot ignores start requests from other apps, nuvx shows
+  **Open Orbot**: open it and tap **Connect**.
+- Local SOCKS5 (v2rayNG, Hiddify, NekoBox, Clash/Mihomo) is unchanged and keeps its normal retries.
+
+### Android TV and Google TV
+
+- New version (code 4) with the shared fixes. Use a VPN app on the TV for a protected connection.
+
+### Wear OS
+
+- New version (code 4). No network changes on the watch.
+
+### Windows, macOS and Linux
+
+- New version (1.0.3). No changes since 1.0.2; the desktop already switches Tor exits by itself
+  (**Settings → Network → Proxy → Privacy Connection (Tor)**).
+
+### iPhone and iPad
+
+- Build 4. Use a VPN app for the whole device for a protected connection.
+
+### Web player and browser extension
+
+- Extension 1.0.3. Use your device's or browser's VPN/proxy for a protected connection.
+
 ## 1.0.2
 
 Android version code 3 (phone, TV, Auto and Wear OS). iOS build 3. Desktop 1.0.2 for Windows, macOS and Linux.
