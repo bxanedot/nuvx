@@ -165,17 +165,17 @@
   if (downloads[device]) {
     const target = downloads[device];
     if (hero) hero.href = '/api/download?platform=' + target;
-    if (downloadLabel) downloadLabel.textContent = device === 'iOS' ? 'Check iOS availability' : `Download for ${device}`;
+    if (downloadLabel) downloadLabel.textContent = device === 'iOS' ? 'Download iOS IPA' : `Download for ${device}`;
     setNightlyLink(target);
   } else if (device === 'iOS') {
     if (hero) hero.href = '/api/download?platform=ios';
-    if (downloadLabel) downloadLabel.textContent = 'Check iOS availability';
+    if (downloadLabel) downloadLabel.textContent = 'Download iOS IPA';
     setNightlyLink(null);
   } else {
     setNightlyLink(null);
   }
   const showNote = (version) => {
-    if (device === 'iOS') note.textContent = 'The iOS app is not available in the current stable release. Check the package list for updates.';
+    if (device === 'iOS') note.textContent = 'The unsigned iOS IPA must be signed before installation.';
     else if (downloads[device]) note.textContent = `The latest nuvx ${version} package for ${device} downloads directly.`;
     else note.textContent = 'Choose a device package from the list below.';
   };

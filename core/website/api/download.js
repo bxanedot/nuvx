@@ -1,5 +1,9 @@
 const releases = 'https://github.com/lylicht/nuvx/releases';
 const downloadsPage = 'https://www.nuvx.lol/#releases';
+// shortcut: iOS has no newer IPA asset yet; update this fallback when one ships.
+const fallbackAssets = {
+  ios: `${releases}/download/v1.0.0/nuvx-1.0.0-universal.ipa`,
+};
 const files = {
   windows: 'nuvx-setup-{v}.exe',
   linux: 'nuvx-setup-{v}-linux-universal.tar.gz',
@@ -99,6 +103,7 @@ module.exports = async (req, res) => {
       }
     } catch {
     }
+    if (target === downloadsPage && fallbackAssets[platform]) target = fallbackAssets[platform];
   }
   res.writeHead(302, { Location: target, 'Cache-Control': 'no-store' });
   res.end();

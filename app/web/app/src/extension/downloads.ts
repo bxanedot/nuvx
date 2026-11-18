@@ -37,9 +37,9 @@ export function downloadsFor(): Download[] {
     {
       browser: 'firefox',
       source: 'store',
-      title: 'Firefox Add-ons listing pending review',
-      detail: 'Desktop Firefox · install and automatic updates will be available after approval',
-      href: null,
+      title: 'Install from Firefox Add-ons',
+      detail: 'Desktop Firefox 140+ · automatic updates through Mozilla',
+      href: 'https://addons.mozilla.org/en-US/firefox/addon/nuvx/',
       Icon: FaFirefoxBrowser,
     },
     {

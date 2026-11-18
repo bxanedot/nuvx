@@ -74,7 +74,7 @@ export default function ExtensionPage() {
         </section>
         <p className={settingsUi.footer}>
           The version above is the extension installed in your browser. The web player can receive features independently.
-          Chrome and Firefox install extension updates automatically after store approval.
+          Store installs receive browser-managed updates automatically.
         </p>
 
 

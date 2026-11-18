@@ -91,13 +91,12 @@ export default function GuidePage() {
               ? 'In Firefox Developer Edition or Nightly, open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on, and select this ZIP. It is removed when Firefox closes. Firefox Stable requires a Mozilla-signed add-on.'
               : chosen.href
                 ? 'Approved store installs receive browser-managed updates automatically.'
-                : 'Firefox installation from the store will be available after the desktop add-on passes Mozilla review.'}
+                : 'This browser store listing is not available yet.'}
         </p>
 
         <h2 className={settingsUi.sectionHeader}>Automatic updates</h2>
         <p className={settingsUi.footer}>
-          Store installs receive browser-managed updates. GitHub ZIP installs need manual downloads and replacement. Firefox
-          Stable updates will be managed by Mozilla after the nuvx listing is approved.
+          Store installs receive browser-managed updates. GitHub ZIP installs need manual downloads and replacement.
         </p>
         <p className={settingsUi.footer}>
           Spotify, Discord and Listen Together are set up on the{' '}

@@ -42,7 +42,7 @@ export default function DownloadsPage() {
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
               <span className={settingsUi.downloadTitle}>nuvx Auto · universal APK</span>
-              <span className={settingsUi.downloadDetail}>Planned for 1.0.0; TV-inspired head-unit app, separate from Android Auto projection</span>
+              <span className={settingsUi.downloadDetail}>TV-inspired head-unit app, separate from Android Auto projection</span>
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
           </a>
@@ -58,7 +58,7 @@ export default function DownloadsPage() {
             <Download size={25} className="text-primary" />
             <span className={settingsUi.downloadText}>
               <span className={settingsUi.downloadTitle}>iPhone and iPad · unsigned IPA</span>
-              <span className={settingsUi.downloadDetail}>Planned for 1.0.0; requires signing and installation through a sideloading tool</span>
+              <span className={settingsUi.downloadDetail}>Unsigned v1.0.0 IPA; requires signing and installation through a sideloading tool</span>
             </span>
             <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
           </a>
