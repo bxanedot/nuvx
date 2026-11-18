@@ -315,7 +315,13 @@ object MusicVideoEngine {
 
     private fun capFor(videoId: String): Int {
         val metered = AppSettings.meteredConnection.value == true
-        val auto = if (metered) METERED_HEIGHT else AUTO_HEIGHT
+        // Tor (often through bridges) or a proxy over a filtered link carries a few hundred kbit/s: Full HD stalls.
+        val protected = com.licht.nuvx.net.privacy.PrivacyNetwork.activeMode != com.licht.nuvx.net.privacy.PrivacyMode.OFF
+        val auto = when {
+            protected -> PROTECTED_HEIGHT
+            metered -> METERED_HEIGHT
+            else -> AUTO_HEIGHT
+        }
         val held = _quality.value.held ?: return auto
         return if (videoId in stepDown) minOf(held, AUTO_HEIGHT) else held
     }
@@ -485,6 +491,7 @@ object MusicVideoEngine {
 
     private const val AUTO_HEIGHT = 1080
     private const val METERED_HEIGHT = 480
+    private const val PROTECTED_HEIGHT = 360
     private const val KEY_QUALITY = "quality"
 
     private val REFUSAL_CODES = setOf(403, 404, 410)
