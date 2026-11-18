@@ -51,7 +51,7 @@
 - **Community Canvases.** Add motion artwork to Now Playing on supported players. [Browse the project](core/canvas/README.md)
 - **Controls for each screen.** Navigate with a TV remote, control the phone app from Wear OS, or keep the desktop mini player close by.
 
-For restricted networks, see [Network resilience and device compatibility](docs/NETWORK_RESILIENCE.md). Nuvx can use external proxy/VPN clients where the platform supports them; this is not a built-in VPN.
+In Iran or on another filtered network? See [Connecting from restricted networks](docs/CONNECTING_FROM_RESTRICTED_NETWORKS.md) (Tor/Orbot and VLESS/REALITY, per device) and [Network resilience](docs/NETWORK_RESILIENCE.md) for the technical detail. Nuvx can use external proxy/VPN clients where the platform supports them; this is not a built-in VPN.
 
 ## Download
 

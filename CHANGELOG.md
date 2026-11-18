@@ -2,6 +2,80 @@
 
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
+## 1.0.2
+
+Android version code 3 (phone, TV, Auto and Wear OS). iOS build 3. Desktop 1.0.2 for Windows, macOS and Linux.
+
+Using nuvx from Iran or another filtered network? Read **[Connecting from restricted networks](https://github.com/lylicht/nuvx/blob/main/docs/CONNECTING_FROM_RESTRICTED_NETWORKS.md)** first.
+
+### Android phone and tablet (also Android Auto, which plays from the phone)
+
+**Network and privacy (Settings → Network → Privacy Connection)**
+- **New: Local SOCKS5.** Use a proxy app you installed yourself (v2rayNG, Hiddify, NekoBox, Clash/Mihomo). Start it in *proxy* mode, choose **Local SOCKS5** in nuvx, type the app's port (v2rayNG `10808`, NekoBox `2080`, Clash/Mihomo `7890`), tap **Save** and restart nuvx. nuvx only connects once a real request to YouTube Music has gone through that port. If you use the proxy app in *VPN* mode instead, leave this setting **Off**.
+- **Orbot works on filtered networks.** nuvx now waits up to 5 minutes for Orbot to connect (bridges like Snowflake and obfs4 are slow to start) and gives Tor's first answer more time. Turn on a bridge in Orbot first, then choose **Orbot** in nuvx.
+- **Songs refused by YouTube over Tor are retried on another Tor exit.** YouTube blocks many Tor exits; nuvx moves to up to two fresh exits by itself. Over Tor some songs can still fail, and start slower than usual.
+- **Screens no longer stay empty while Tor connects.** Home, artist pages and search wait for the connection instead of failing for good.
+- **Music videos play at 360p** while Orbot or Local SOCKS5 is on, so they don't stall. You can still pick another quality in the player.
+- **Nothing leaks when the connection drops.** Notification, lock-screen and Auto artwork now go through the protected connection too; before, they could go out directly when the proxy was down.
+- **Casting is off while a protected connection is on**, because the TV would connect directly. nuvx says so when you try.
+- The Network page explains what to do on filtered networks, in every app language.
+
+**Sync**
+- **Nuvx Sync (opt-in):** keep nuvx playlists in step across your devices through a sync server you choose. **Settings → Nuvx Sync**; nothing leaves the phone until you turn it on.
+- **Local Wi-Fi Sync:** sync nuvx playlists straight with nuvx on your computer over the same Wi-Fi, with no account or internet. On the computer turn on **Settings → Nuvx Sync → Local Wi-Fi Sync**; on the phone open **Settings → Nuvx Sync → Local Wi-Fi Sync**, type the address the computer shows, check that both screens show the same 6-digit code and click **Approve** on the computer. Traffic is encrypted; remove a phone any time on either side.
+
+**Playback**
+- Crossfade stops when a call or the assistant takes the audio: before, the next song kept playing under the call.
+- After nuvx is closed by the system, it reopens on the song that was playing, even far into a long queue.
+
+**App**
+- The theme follows your phone (light or dark) until you choose one in **Settings → Appearance**.
+- **Hide Radio tab** and **Hide Podcasts tab** are now under **Settings → Miscellaneous**, where the tab tips point.
+- Export a nuvx playlist as CSV from its menu (**Export playlist**).
+
+### Android TV and Google TV
+
+- Same playback fixes and app version as the phone (version code 3).
+- No in-app proxy on TV yet: to use a protected connection, run a VPN app on the TV itself. A phone's connection does not cover a TV.
+
+### Wear OS
+
+- New version (code 3) alongside the phone. **No network changes** on the watch: when the watch controls the phone, the phone's connection settings apply.
+
+### Windows, macOS and Linux
+
+**Network (Settings → Network → Proxy)**
+- A custom `socks5://` proxy now looks up addresses through the proxy (like `socks5h://`), so DNS lookups no longer go around it.
+- A custom proxy address nuvx can't use now blocks connections instead of quietly connecting directly.
+- **Use with a proxy app:** choose **Custom** and enter its address, for example `socks5h://127.0.0.1:10808` (v2rayN/v2rayA), `socks5h://127.0.0.1:7890` (Clash/Mihomo) or `socks5h://127.0.0.1:9150` (Tor Browser). **Privacy Connection (Tor)** finds a running Tor Browser or Tor by itself.
+
+**Sync**
+- **Local Wi-Fi Sync:** **Settings → Nuvx Sync → Local Wi-Fi Sync**. Turn it on, give the phone the address shown, and approve the phone when both screens show the same code. Paired devices, last sync and **Sync now** are on the same page. Off by default; it only answers devices on your own network.
+
+**Animated artwork**
+- Song canvases now come from Nuvx Community Canvas (canvas.nuvx.lol), Apple Music, Tidal and, if you are signed in to Spotify under **Account & integrations**, Spotify, in that order. Animated artwork stays under **Settings → Appearance → Animated artwork**.
+- Downloaded clips are kept under 300 MB.
+
+**Playback**
+- Seeking while the next song is still loading now lands where you seeked.
+- A bad folder in the Windows PATH no longer skips songs that need yt-dlp.
+
+### iPhone and iPad
+
+- Build 3 with this release's shared fixes.
+- No in-app proxy on iOS yet: use a VPN app for the whole device (for example a VLESS/REALITY client, or Orbot for iOS).
+
+### Web player and browser extension
+
+- Extension 1.0.2.
+- A web page cannot change your network: use a VPN or proxy for your browser or the whole device.
+
+### Behind the scenes
+
+- Continuous checks for Android, shared Kotlin, web and desktop (Linux and Windows) on every pull request, a weekly Android emulator run, and CodeQL code scanning including the iOS app.
+- Sync server: first pairing approval wins, device cap at claim, whole-server size cap.
+- Docs and comments: GlyphStudio is now SFStudio.
+
 ## 1.0.1
 
 Android version code 2.
