@@ -25,7 +25,7 @@ pub(super) fn settings(app: &mut App, ui: &mut Ui, pane: Option<super::SettingsP
     });
 }
 
-const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 12] = {
+const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 13] = {
     use super::SettingsPane::*;
     [
         (Account, glyphs::PERSON, "Account & integrations", "YouTube Music, Spotify, Discord and Last.fm"),
@@ -38,6 +38,7 @@ const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 12] = {
         (Appearance, glyphs::PAINTBRUSH, "Appearance", "Light or dark, background, font, hidden playlists, classic search, tabs"),
         (Window, glyphs::MAXIMIZE_2, "Window", "Material, close to tray, sidebar, renderer"),
         (Network, glyphs::WIFI, "Network", "Proxy and connection test"),
+        (Sync, glyphs::REPEAT, "Nuvx Sync", "Local Wi-Fi Sync of Nuvx playlists with your phone"),
         (Import, glyphs::IMPORT, "Import", "Transfer from Spotify"),
         (Shortcuts, glyphs::KEYBOARD, "Keyboard shortcuts", "Every key the app answers to"),
     ]
@@ -141,6 +142,10 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
         Network => {
             section_label(ui, "Network", None);
             settings_card(ui, |ui| super::network_settings::network(app, ui));
+        }
+        Sync => {
+            section_label(ui, "Nuvx Sync", None);
+            settings_card(ui, |ui| super::lan_sync::settings(app, ui));
         }
         Import => super::transfer::settings_section(app, ui),
         Shortcuts => settings_shortcuts(ui),

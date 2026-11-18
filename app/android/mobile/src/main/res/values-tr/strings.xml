@@ -1432,4 +1432,11 @@
     <string name="nuvx_sync_turn_off">Eşitlemeyi kapat</string>
     <string name="nuvx_sync_turn_off_body">Bu cihaz eşitlemeyi bırakır. Çalma listeleriniz bu cihazda kalır.</string>
     <string name="nuvx_sync_delete_server">Tüm cihazlar için sunucudaki her şeyi de sil</string>
+    <string name="nuvx_sync_lan">Yerel Wi-Fi Eşitleme</string>
+    <string name="nuvx_sync_lan_subtitle">Bu Wi-Fi\'daki bir bilgisayardaki nuvx ile eşitleyin. Hesap veya internet gerekmez.</string>
+    <string name="nuvx_sync_lan_steps">Bilgisayarda Ayarlar → Nuvx Sync\'i açın, Yerel Wi-Fi Eşitleme\'yi etkinleştirin ve gösterilen adresi girin.</string>
+    <string name="nuvx_sync_lan_address">Bilgisayar adresi</string>
+    <string name="nuvx_sync_lan_connect">Bağlan</string>
+    <string name="nuvx_sync_lan_compare">%1$s bu kodu gösterdiğinde orada onaylayın:</string>
+    <string name="nuvx_sync_lan_unreachable">Bilgisayara ulaşılamadı. İkisinin de aynı Wi-Fi\'da olduğunu ve Yerel Wi-Fi Eşitleme\'nin açık olduğunu kontrol edin.</string>
 </resources>

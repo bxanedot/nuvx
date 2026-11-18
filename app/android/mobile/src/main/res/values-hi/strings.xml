@@ -1475,4 +1475,11 @@
     <string name="nuvx_sync_turn_off">सिंक बंद करें</string>
     <string name="nuvx_sync_turn_off_body">यह डिवाइस सिंक करना बंद कर देगा। आपकी प्लेलिस्ट इसी डिवाइस पर रहेंगी।</string>
     <string name="nuvx_sync_delete_server">सर्वर पर सब कुछ भी हटाएं, सभी डिवाइसों के लिए</string>
+    <string name="nuvx_sync_lan">लोकल वाई-फ़ाई सिंक</string>
+    <string name="nuvx_sync_lan_subtitle">इसी वाई-फ़ाई पर किसी कंप्यूटर के nuvx से सिंक करें। कोई खाता या इंटरनेट नहीं चाहिए।</string>
+    <string name="nuvx_sync_lan_steps">कंप्यूटर पर सेटिंग्स → Nuvx Sync खोलें, लोकल वाई-फ़ाई सिंक चालू करें और दिखाया गया पता डालें।</string>
+    <string name="nuvx_sync_lan_address">कंप्यूटर का पता</string>
+    <string name="nuvx_sync_lan_connect">कनेक्ट करें</string>
+    <string name="nuvx_sync_lan_compare">जब %1$s यह कोड दिखाए, तो वहाँ स्वीकृति दें:</string>
+    <string name="nuvx_sync_lan_unreachable">उस कंप्यूटर तक नहीं पहुँच सके। जाँचें कि दोनों एक ही वाई-फ़ाई पर हैं और लोकल वाई-फ़ाई सिंक चालू है।</string>
 </resources>

@@ -1455,4 +1455,11 @@
     <string name="nuvx_sync_turn_off">Matikan sinkronisasi</string>
     <string name="nuvx_sync_turn_off_body">Perangkat ini berhenti sinkron. Playlist Anda tetap ada di perangkat ini.</string>
     <string name="nuvx_sync_delete_server">Hapus juga semua data di server, untuk semua perangkat</string>
+    <string name="nuvx_sync_lan">Sinkronisasi Wi-Fi Lokal</string>
+    <string name="nuvx_sync_lan_subtitle">Sinkronkan dengan nuvx di komputer pada Wi-Fi ini. Tanpa akun atau internet.</string>
+    <string name="nuvx_sync_lan_steps">Di komputer, buka Setelan → Nuvx Sync, aktifkan Sinkronisasi Wi-Fi Lokal, lalu masukkan alamat yang ditampilkan.</string>
+    <string name="nuvx_sync_lan_address">Alamat komputer</string>
+    <string name="nuvx_sync_lan_connect">Hubungkan</string>
+    <string name="nuvx_sync_lan_compare">Setujui di %1$s saat menampilkan kode ini:</string>
+    <string name="nuvx_sync_lan_unreachable">Tidak dapat menjangkau komputer itu. Pastikan keduanya di Wi-Fi yang sama dan Sinkronisasi Wi-Fi Lokal aktif.</string>
 </resources>

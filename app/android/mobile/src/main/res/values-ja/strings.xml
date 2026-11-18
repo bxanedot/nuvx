@@ -1456,4 +1456,11 @@
     <string name="nuvx_sync_turn_off">同期をオフにする</string>
     <string name="nuvx_sync_turn_off_body">この端末は同期を停止します。プレイリストはこの端末に残ります。</string>
     <string name="nuvx_sync_delete_server">すべての端末について、サーバー上のデータもすべて削除</string>
+    <string name="nuvx_sync_lan">ローカル Wi-Fi 同期</string>
+    <string name="nuvx_sync_lan_subtitle">同じ Wi-Fi のコンピュータの nuvx と同期します。アカウントもインターネットも不要です。</string>
+    <string name="nuvx_sync_lan_steps">コンピュータで「設定」→「Nuvx Sync」を開き、ローカル Wi-Fi 同期をオンにして、表示されたアドレスを入力してください。</string>
+    <string name="nuvx_sync_lan_address">コンピュータのアドレス</string>
+    <string name="nuvx_sync_lan_connect">接続</string>
+    <string name="nuvx_sync_lan_compare">%1$s にこのコードが表示されたら、そこで承認してください：</string>
+    <string name="nuvx_sync_lan_unreachable">コンピュータに接続できません。両方が同じ Wi-Fi にあり、ローカル Wi-Fi 同期がオンか確認してください。</string>
 </resources>

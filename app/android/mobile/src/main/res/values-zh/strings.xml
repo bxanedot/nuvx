@@ -1455,4 +1455,11 @@
     <string name="nuvx_sync_turn_off">关闭同步</string>
     <string name="nuvx_sync_turn_off_body">这台设备将停止同步。你的歌单仍保留在这台设备上。</string>
     <string name="nuvx_sync_delete_server">同时删除服务器上所有设备的全部数据</string>
+    <string name="nuvx_sync_lan">本地 Wi-Fi 同步</string>
+    <string name="nuvx_sync_lan_subtitle">与同一 Wi-Fi 下电脑上的 nuvx 同步。无需账号或互联网。</string>
+    <string name="nuvx_sync_lan_steps">在电脑上打开“设置”→“Nuvx Sync”，开启本地 Wi-Fi 同步，然后输入显示的地址。</string>
+    <string name="nuvx_sync_lan_address">电脑地址</string>
+    <string name="nuvx_sync_lan_connect">连接</string>
+    <string name="nuvx_sync_lan_compare">当 %1$s 显示此代码时，在电脑上批准：</string>
+    <string name="nuvx_sync_lan_unreachable">无法连接到该电脑。请确认两者在同一 Wi-Fi 下，且已开启本地 Wi-Fi 同步。</string>
 </resources>

@@ -1455,4 +1455,11 @@
     <string name="nuvx_sync_turn_off">關閉同步</string>
     <string name="nuvx_sync_turn_off_body">這部裝置將停止同步。你的播放清單仍會保留在這部裝置上。</string>
     <string name="nuvx_sync_delete_server">同時刪除伺服器上所有裝置的全部資料</string>
+    <string name="nuvx_sync_lan">本機 Wi-Fi 同步</string>
+    <string name="nuvx_sync_lan_subtitle">與同一 Wi-Fi 上電腦的 nuvx 同步。不需要帳號或網際網路。</string>
+    <string name="nuvx_sync_lan_steps">在電腦上開啟「設定」→「Nuvx Sync」，開啟本機 Wi-Fi 同步，然後輸入顯示的位址。</string>
+    <string name="nuvx_sync_lan_address">電腦位址</string>
+    <string name="nuvx_sync_lan_connect">連線</string>
+    <string name="nuvx_sync_lan_compare">當 %1$s 顯示此代碼時，在電腦上核准：</string>
+    <string name="nuvx_sync_lan_unreachable">無法連線到該電腦。請確認兩者在同一個 Wi-Fi 上，且已開啟本機 Wi-Fi 同步。</string>
 </resources>

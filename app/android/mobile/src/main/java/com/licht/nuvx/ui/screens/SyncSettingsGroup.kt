@@ -24,11 +24,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.licht.nuvx.R
 import com.licht.nuvx.data.spotify.LocalPlaylistStore
+import com.licht.nuvx.data.sync.LanAddress
+import com.licht.nuvx.data.sync.LanPairing
 import com.licht.nuvx.data.sync.NuvxSync
 import com.licht.nuvx.data.sync.SyncDevice
 import com.licht.nuvx.data.sync.SyncResult
@@ -45,6 +48,8 @@ private sealed interface SyncDialog {
     data object Approve : SyncDialog
     data class Devices(val devices: List<SyncDevice>, val you: String) : SyncDialog
     data object Leave : SyncDialog
+    data object LanSetup : SyncDialog
+    data class LanWaiting(val pairing: LanPairing) : SyncDialog
 }
 
 private fun SyncResult.problem(): String? = when (this) {
@@ -61,6 +66,8 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
     var dialog by remember { mutableStateOf<SyncDialog?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    val unreachable = stringResource(R.string.nuvx_sync_lan_unreachable)
+    val expiredText = stringResource(R.string.nuvx_sync_code_expired)
     fun io(block: suspend () -> Unit) = scope.launch { busy = true; message = null; try { block() } finally { busy = false } }
 
     SearchableSettingsGroup(search, header = stringResource(R.string.nuvx_sync), footer = stringResource(R.string.nuvx_sync_footer)) {
@@ -79,11 +86,19 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                 onClick = { if (status.enabled) NuvxSync.requestSync() else dialog = SyncDialog.Setup },
             )
         }
-        if (status.enabled) {
+        if (!status.enabled) {
+            val lanTitle = stringResource(R.string.nuvx_sync_lan)
+            row(lanTitle, "wifi", "lan", "local", "computer", "desktop", "pc") {
+                SettingsRow(icon = SfIcons.Wifi, title = lanTitle, subtitle = stringResource(R.string.nuvx_sync_lan_subtitle), onClick = { dialog = SyncDialog.LanSetup })
+            }
+        }
+        if (status.enabled && !NuvxSync.isLan) {
             val approveTitle = stringResource(R.string.nuvx_sync_add_device)
             row(approveTitle, "pair", "qr", "code", "device") {
                 SettingsRow(icon = SfIcons.Add, title = approveTitle, onClick = { dialog = SyncDialog.Approve })
             }
+        }
+        if (status.enabled) {
             val devicesTitle = stringResource(R.string.nuvx_sync_devices)
             row(devicesTitle, "devices", "revoke", "remove") {
                 SettingsRow(icon = SfIcons.PhoneIphone, title = devicesTitle, enabled = !busy, onClick = {
@@ -253,6 +268,69 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
             },
             confirmButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(android.R.string.ok)) } },
         )
+        SyncDialog.LanSetup -> {
+            var address by remember { mutableStateOf("") }
+            val parsed = LanAddress.parse(address)
+            AlertDialog(
+                onDismissRequest = { if (!busy) dialog = null },
+                title = { Text(stringResource(R.string.nuvx_sync_lan)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.nuvx_sync_lan_steps))
+                        OutlinedTextField(
+                            value = address,
+                            onValueChange = { address = it.take(80) },
+                            label = { Text(stringResource(R.string.nuvx_sync_lan_address)) },
+                            placeholder = { Text("192.168.1.20:47731") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(stringResource(R.string.nuvx_sync_consent, playlists.size), style = MaterialTheme.typography.bodyMedium)
+                        message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = parsed != null && !busy, onClick = {
+                        io {
+                            withContext(Dispatchers.IO) { NuvxSync.lanStart(parsed!!) }
+                                .onSuccess { dialog = SyncDialog.LanWaiting(it) }
+                                .onFailure { message = unreachable }
+                        }
+                    }) { Text(stringResource(R.string.nuvx_sync_lan_connect)) }
+                },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(android.R.string.cancel)) } },
+            )
+        }
+        is SyncDialog.LanWaiting -> {
+            var ended by remember(d) { mutableStateOf<String?>(null) }
+            LaunchedEffect(d) {
+                val until = System.currentTimeMillis() + 5 * 60_000
+                while (System.currentTimeMillis() < until) {
+                    when (val r = withContext(Dispatchers.IO) { NuvxSync.lanClaim(d.pairing) }) {
+                        is SyncResult.Joined -> { dialog = null; return@LaunchedEffect }
+                        is SyncResult.Waiting, is SyncResult.RetryLater -> delay(1_500)
+                        else -> { ended = r.problem(); return@LaunchedEffect }
+                    }
+                }
+                ended = expiredText
+            }
+            AlertDialog(
+                onDismissRequest = { dialog = null },
+                title = { Text(stringResource(R.string.nuvx_sync_lan)) },
+                text = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        if (ended != null) {
+                            Text(ended!!)
+                        } else {
+                            Text(stringResource(R.string.nuvx_sync_lan_compare, d.pairing.hostName))
+                            Text(d.pairing.code.chunked(3).joinToString(" "), fontFamily = FontFamily.Monospace, fontSize = 32.sp)
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(android.R.string.cancel)) } },
+            )
+        }
         SyncDialog.Leave -> {
             var deleteServer by remember { mutableStateOf(false) }
             AlertDialog(
@@ -261,9 +339,11 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.nuvx_sync_turn_off_body))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = deleteServer, onCheckedChange = { deleteServer = it })
-                            Text(stringResource(R.string.nuvx_sync_delete_server))
+                        if (!NuvxSync.isLan) { // a computer keeps its own playlists; leaving only unpairs this phone
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = deleteServer, onCheckedChange = { deleteServer = it })
+                                Text(stringResource(R.string.nuvx_sync_delete_server))
+                            }
                         }
                         message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }

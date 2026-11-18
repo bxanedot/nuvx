@@ -1395,4 +1395,11 @@
     <string name="nuvx_sync_turn_off">Tắt đồng bộ</string>
     <string name="nuvx_sync_turn_off_body">Thiết bị này ngừng đồng bộ. Danh sách phát vẫn ở trên thiết bị này.</string>
     <string name="nuvx_sync_delete_server">Xóa luôn mọi thứ trên máy chủ, cho tất cả thiết bị</string>
+    <string name="nuvx_sync_lan">Đồng bộ Wi-Fi nội bộ</string>
+    <string name="nuvx_sync_lan_subtitle">Đồng bộ với nuvx trên máy tính cùng mạng Wi-Fi này. Không cần tài khoản hay internet.</string>
+    <string name="nuvx_sync_lan_steps">Trên máy tính, mở Cài đặt → Nuvx Sync, bật Đồng bộ Wi-Fi nội bộ và nhập địa chỉ được hiển thị.</string>
+    <string name="nuvx_sync_lan_address">Địa chỉ máy tính</string>
+    <string name="nuvx_sync_lan_connect">Kết nối</string>
+    <string name="nuvx_sync_lan_compare">Phê duyệt trên %1$s khi nó hiển thị mã này:</string>
+    <string name="nuvx_sync_lan_unreachable">Không thể kết nối tới máy tính đó. Hãy kiểm tra cả hai cùng mạng Wi-Fi và Đồng bộ Wi-Fi nội bộ đang bật.</string>
 </resources>

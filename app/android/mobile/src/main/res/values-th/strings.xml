@@ -1461,4 +1461,11 @@
     <string name="nuvx_sync_turn_off">ปิดการซิงค์</string>
     <string name="nuvx_sync_turn_off_body">อุปกรณ์นี้จะหยุดซิงค์ เพลย์ลิสต์ยังอยู่ในอุปกรณ์นี้</string>
     <string name="nuvx_sync_delete_server">ลบทุกอย่างบนเซิร์ฟเวอร์ด้วย สำหรับทุกอุปกรณ์</string>
+    <string name="nuvx_sync_lan">ซิงค์ผ่าน Wi-Fi ในบ้าน</string>
+    <string name="nuvx_sync_lan_subtitle">ซิงค์กับ nuvx บนคอมพิวเตอร์ที่ใช้ Wi-Fi เดียวกัน ไม่ต้องมีบัญชีหรืออินเทอร์เน็ต</string>
+    <string name="nuvx_sync_lan_steps">บนคอมพิวเตอร์ เปิดการตั้งค่า → Nuvx Sync เปิดซิงค์ผ่าน Wi-Fi ในบ้าน แล้วป้อนที่อยู่ที่แสดง</string>
+    <string name="nuvx_sync_lan_address">ที่อยู่คอมพิวเตอร์</string>
+    <string name="nuvx_sync_lan_connect">เชื่อมต่อ</string>
+    <string name="nuvx_sync_lan_compare">อนุมัติบน %1$s เมื่อแสดงรหัสนี้:</string>
+    <string name="nuvx_sync_lan_unreachable">เชื่อมต่อคอมพิวเตอร์ไม่ได้ ตรวจสอบว่าทั้งสองใช้ Wi-Fi เดียวกันและเปิดซิงค์ผ่าน Wi-Fi ในบ้านอยู่</string>
 </resources>

@@ -1513,4 +1513,11 @@
     <string name="nuvx_sync_turn_off">Wyłącz synchronizację</string>
     <string name="nuvx_sync_turn_off_body">To urządzenie przestanie synchronizować. Twoje playlisty zostaną na tym urządzeniu.</string>
     <string name="nuvx_sync_delete_server">Usuń też wszystko z serwera, dla wszystkich urządzeń</string>
+    <string name="nuvx_sync_lan">Lokalna synchronizacja Wi-Fi</string>
+    <string name="nuvx_sync_lan_subtitle">Synchronizuj z nuvx na komputerze w tej sieci Wi-Fi. Bez konta i internetu.</string>
+    <string name="nuvx_sync_lan_steps">Na komputerze otwórz Ustawienia → Nuvx Sync, włącz lokalną synchronizację Wi-Fi i wpisz wyświetlony adres.</string>
+    <string name="nuvx_sync_lan_address">Adres komputera</string>
+    <string name="nuvx_sync_lan_connect">Połącz</string>
+    <string name="nuvx_sync_lan_compare">Zatwierdź na %1$s, gdy pokaże ten kod:</string>
+    <string name="nuvx_sync_lan_unreachable">Nie można połączyć się z komputerem. Sprawdź, czy oba są w tej samej sieci Wi-Fi i czy lokalna synchronizacja Wi-Fi jest włączona.</string>
 </resources>

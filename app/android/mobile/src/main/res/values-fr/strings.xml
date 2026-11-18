@@ -1476,4 +1476,11 @@
     <string name="nuvx_sync_turn_off">Désactiver la synchro</string>
     <string name="nuvx_sync_turn_off_body">Cet appareil arrête de synchroniser. Vos playlists restent sur cet appareil.</string>
     <string name="nuvx_sync_delete_server">Supprimer aussi tout sur le serveur, pour tous les appareils</string>
+    <string name="nuvx_sync_lan">Synchro Wi-Fi locale</string>
+    <string name="nuvx_sync_lan_subtitle">Synchronisez avec nuvx sur un ordinateur de ce Wi-Fi. Sans compte ni internet.</string>
+    <string name="nuvx_sync_lan_steps">Sur l\'ordinateur, ouvrez Réglages → Nuvx Sync, activez la synchro Wi-Fi locale et saisissez l\'adresse affichée.</string>
+    <string name="nuvx_sync_lan_address">Adresse de l\'ordinateur</string>
+    <string name="nuvx_sync_lan_connect">Se connecter</string>
+    <string name="nuvx_sync_lan_compare">Approuvez sur %1$s quand ce code s\'affiche :</string>
+    <string name="nuvx_sync_lan_unreachable">Impossible de joindre cet ordinateur. Vérifiez que les deux sont sur le même Wi-Fi et que la synchro Wi-Fi locale est activée.</string>
 </resources>

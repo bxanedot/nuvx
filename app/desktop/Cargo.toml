@@ -54,6 +54,9 @@ filmcraft-ac3 = "0.9"
 symphonia = { version = "0.6.1", default-features = false, features = ["mkv", "wav", "pcm"] }
 rusty-opus = "1.0.2"
 unicode-bidi = "0.3"
+# LAN Sync: pairing key agreement and encrypted traffic (lan_sync).
+p256 = { version = "0.13", default-features = false, features = ["ecdh", "std"] }
+aes-gcm = "0.10"
 [patch.crates-io]
 # Backport the upstream GLib iterator UB fix while GTK3 still pins glib 0.18.
 glib = { path = "vendor/glib" }

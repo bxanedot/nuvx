@@ -1480,4 +1480,11 @@
     <string name="nuvx_sync_turn_off">כיבוי סנכרון</string>
     <string name="nuvx_sync_turn_off_body">המכשיר הזה מפסיק לסנכרן. הפלייליסטים נשארים במכשיר.</string>
     <string name="nuvx_sync_delete_server">למחוק גם את כל המידע בשרת, לכל המכשירים</string>
+    <string name="nuvx_sync_lan">סנכרון Wi-Fi מקומי</string>
+    <string name="nuvx_sync_lan_subtitle">סנכרון עם nuvx במחשב באותה רשת Wi-Fi. בלי חשבון ובלי אינטרנט.</string>
+    <string name="nuvx_sync_lan_steps">במחשב, פתחו הגדרות ← Nuvx Sync, הפעילו סנכרון Wi-Fi מקומי והזינו את הכתובת שמוצגת.</string>
+    <string name="nuvx_sync_lan_address">כתובת המחשב</string>
+    <string name="nuvx_sync_lan_connect">התחברות</string>
+    <string name="nuvx_sync_lan_compare">אשרו ב-%1$s כשהוא מציג את הקוד הזה:</string>
+    <string name="nuvx_sync_lan_unreachable">לא ניתן להתחבר למחשב. ודאו ששניהם באותה רשת Wi-Fi ושסנכרון Wi-Fi מקומי מופעל.</string>
 </resources>

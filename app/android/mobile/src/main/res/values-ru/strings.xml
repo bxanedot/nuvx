@@ -1502,4 +1502,11 @@
     <string name="nuvx_sync_turn_off">Выключить синхронизацию</string>
     <string name="nuvx_sync_turn_off_body">Это устройство перестанет синхронизироваться. Плейлисты останутся на этом устройстве.</string>
     <string name="nuvx_sync_delete_server">Также удалить всё на сервере для всех устройств</string>
+    <string name="nuvx_sync_lan">Синхронизация по локальной Wi-Fi</string>
+    <string name="nuvx_sync_lan_subtitle">Синхронизация с nuvx на компьютере в этой сети Wi-Fi. Без аккаунта и интернета.</string>
+    <string name="nuvx_sync_lan_steps">На компьютере откройте Настройки → Nuvx Sync, включите синхронизацию по локальной Wi-Fi и введите показанный адрес.</string>
+    <string name="nuvx_sync_lan_address">Адрес компьютера</string>
+    <string name="nuvx_sync_lan_connect">Подключить</string>
+    <string name="nuvx_sync_lan_compare">Подтвердите на %1$s, когда там появится этот код:</string>
+    <string name="nuvx_sync_lan_unreachable">Не удалось связаться с компьютером. Проверьте, что оба устройства в одной сети Wi-Fi и синхронизация по локальной Wi-Fi включена.</string>
 </resources>

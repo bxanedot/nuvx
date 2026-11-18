@@ -1475,4 +1475,11 @@
     <string name="nuvx_sync_turn_off">Sync ausschalten</string>
     <string name="nuvx_sync_turn_off_body">Dieses Gerät synchronisiert nicht mehr. Deine Playlists bleiben auf diesem Gerät.</string>
     <string name="nuvx_sync_delete_server">Auch alles auf dem Server löschen, für alle Geräte</string>
+    <string name="nuvx_sync_lan">Lokale WLAN-Synchronisierung</string>
+    <string name="nuvx_sync_lan_subtitle">Mit nuvx auf einem Computer in diesem WLAN synchronisieren. Kein Konto und kein Internet nötig.</string>
+    <string name="nuvx_sync_lan_steps">Öffne auf dem Computer Einstellungen → Nuvx Sync, schalte die lokale WLAN-Synchronisierung ein und gib die angezeigte Adresse ein.</string>
+    <string name="nuvx_sync_lan_address">Computeradresse</string>
+    <string name="nuvx_sync_lan_connect">Verbinden</string>
+    <string name="nuvx_sync_lan_compare">Bestätige auf %1$s, wenn dort dieser Code angezeigt wird:</string>
+    <string name="nuvx_sync_lan_unreachable">Computer nicht erreichbar. Prüfe, ob beide im selben WLAN sind und die lokale WLAN-Synchronisierung an ist.</string>
 </resources>

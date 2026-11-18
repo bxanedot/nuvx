@@ -50,6 +50,7 @@ mod video_alignment;
 mod ytdlp;
 mod ytm;
 mod vault;
+mod lan_sync;
 mod ytmapi;
 
 use std::sync::{Arc, OnceLock};

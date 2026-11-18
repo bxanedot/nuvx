@@ -1,4 +1,5 @@
 mod account;
+mod lan_sync;
 mod account_settings;
 mod actions;
 mod appearance_settings;
@@ -102,6 +103,7 @@ pub enum SettingsPane {
     Appearance,
     Window,
     Network,
+    Sync,
     Import,
     Shortcuts,
 }
@@ -238,6 +240,7 @@ pub struct App {
     artist: Option<ArtistPage>,
     library: Option<Library>,
     local_playlists: Vec<LocalPlaylist>,
+    lan: lan_sync::LanSync,
     playlist_artwork: HashMap<String, String>,
     create_playlists_locally: bool,
     library_requested: std::time::Instant,

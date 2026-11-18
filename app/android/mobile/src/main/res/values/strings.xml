@@ -1323,6 +1323,13 @@
     <string name="nuvx_sync_turn_off">Turn off sync</string>
     <string name="nuvx_sync_turn_off_body">This device stops syncing. Your playlists stay on this device.</string>
     <string name="nuvx_sync_delete_server">Also delete everything on the server, for all devices</string>
+    <string name="nuvx_sync_lan">Local Wi-Fi Sync</string>
+    <string name="nuvx_sync_lan_subtitle">Sync with nuvx on a computer on this Wi-Fi. No account or internet needed.</string>
+    <string name="nuvx_sync_lan_steps">On the computer, open Settings → Nuvx Sync, turn on Local Wi-Fi Sync and enter the address it shows.</string>
+    <string name="nuvx_sync_lan_address">Computer address</string>
+    <string name="nuvx_sync_lan_connect">Connect</string>
+    <string name="nuvx_sync_lan_compare">Approve on %1$s when it shows this code:</string>
+    <string name="nuvx_sync_lan_unreachable">Couldn\'t reach that computer. Check that both are on the same Wi-Fi and Local Wi-Fi Sync is on.</string>
     <string name="export_playlist_csv">Export playlist (CSV)</string>
     <string name="network">Network</string>
     <string name="restart_now">Restart now</string>

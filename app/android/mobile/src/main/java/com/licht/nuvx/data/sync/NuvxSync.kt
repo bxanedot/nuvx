@@ -51,6 +51,7 @@ object NuvxSync {
     private const val PERIODIC = "nuvx-sync-periodic"
     private const val ONE_OFF = "nuvx-sync-now"
     private const val KEY_TOKEN = "token"
+    const val LAN_SCHEME = "lan://"
 
     private lateinit var app: Context
     private val prefs by lazy { app.getSharedPreferences("nuvx_sync", Context.MODE_PRIVATE) }
@@ -71,7 +72,11 @@ object NuvxSync {
             lastSyncMs = prefs.getLong("last", 0),
             error = prefs.getString("error", null),
         )
-        if (_status.value.enabled) schedulePeriodic()
+        if (_status.value.enabled) {
+            schedulePeriodic()
+            // A computer's edits can't reach the phone by themselves: catch up each time the app opens.
+            if (isLan) requestSync()
+        }
         // A playlist edit syncs a few seconds later instead of waiting for the periodic run.
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             LocalPlaylistStore.playlists.drop(1).debounce(5_000).collect { if (_status.value.enabled) requestSync() }
@@ -90,7 +95,24 @@ object NuvxSync {
     }
 
     private fun token(): String? = secure.getString(KEY_TOKEN, null)
-    private fun client(server: String = _status.value.server, token: String? = token()) = SyncClient(server, token)
+
+    /** Local Wi-Fi Sync keeps `lan://host:port` as its server; the secure token slot holds the device key. */
+    private fun lanAddress(server: String): LanAddress? = server.removePrefix(LAN_SCHEME).takeIf { server.startsWith(LAN_SCHEME) }?.let(LanAddress::parse)
+
+    private fun client(server: String = _status.value.server, token: String? = token()): SyncClient {
+        val lan = lanAddress(server) ?: return SyncClient(server, token)
+        val key = token?.let(LanSyncCrypto::unb64) ?: ByteArray(32)
+        // The interceptor answers every call itself over the sealed LAN channel; this URL is never contacted.
+        val http = com.licht.nuvx.data.Http.client.newBuilder().addInterceptor(LanSyncInterceptor(lan, _status.value.deviceId, key)).build()
+        return SyncClient("http://lan.invalid", null, http)
+    }
+
+    val isLan: Boolean get() = _status.value.server.startsWith(LAN_SCHEME)
+
+    // Local Wi-Fi Sync pairing: blocking network calls, run them on Dispatchers.IO.
+    fun lanStart(address: LanAddress): Result<LanPairing> = LanPairingClient.start(address, deviceName)
+    fun lanClaim(pairing: LanPairing): SyncResult =
+        LanPairingClient.claim(pairing).also { if (it is SyncResult.Joined) join("$LAN_SCHEME${pairing.to}", it) }
 
     // Setup and pairing. Blocking network calls: run them on Dispatchers.IO.
 
