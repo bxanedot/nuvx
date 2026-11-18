@@ -67,12 +67,21 @@ keyring = { version = "3.6.3", features = ["windows-native"] }
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_Media_MediaFoundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_Registry", "Win32_System_Threading", "Win32_System_Variant", "Win32_UI_Controls", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+# Canvas loops: GStreamer comes with WebKitGTK, which the app already needs (motion/linux.rs).
+gstreamer = "0.25"
+gstreamer-app = "0.25"
 # The Secret Service (GNOME Keyring, KWallet) for the sign-ins.
 keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust"] }
 # The tray icon needs GTK running on a thread of its own.
 gtk = "0.18"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+# Canvas loops through the system AVFoundation decoder (motion/macos.rs).
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL", "NSArray", "NSDictionary", "NSValue", "NSError"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVAsset", "AVAssetReader", "AVAssetReaderOutput", "AVAssetTrack", "AVMediaFormat", "objc2-core-media"] }
+objc2-core-media = { version = "0.3", default-features = false, features = ["std", "CMSampleBuffer", "CMTime", "objc2-core-video"] }
+objc2-core-video = { version = "0.3", default-features = false, features = ["std", "CVBase", "CVPixelBuffer", "CVImageBuffer", "CVBuffer", "CVReturn"] }
 # The login Keychain for the sign-ins.
 keyring = { version = "3.6.3", features = ["apple-native"] }
 # macOS's own window materials (NSVisualEffectView) behind the see-through window.
