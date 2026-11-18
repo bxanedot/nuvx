@@ -231,7 +231,7 @@
     <string name="your_data">Your data</string>
     <string name="miscellaneous">Miscellaneous</string>
     <string name="privacy_connection">Privacy Connection</string>
-    <string name="privacy_connection_subtitle">Send nuvx\'s traffic through Tor</string>
+    <string name="privacy_connection_subtitle">Route nuvx through Tor or a local SOCKS5 proxy</string>
     <string name="privacy_connection_footer">Routes nuvx\'s own requests and audio through the Tor network using the Orbot app. It protects nuvx only and is not a system-wide VPN. Services you are signed in to can still recognise your account, and Tor is slower, so high audio quality may buffer. If the connection drops, nuvx stops loading instead of going online directly.</string>
     <string name="privacy_restart_needed">Close and reopen nuvx to apply this change.</string>
     <string name="privacy_webview_uncovered">Sign-in pages on this device can\'t be routed through Tor and connect directly.</string>
