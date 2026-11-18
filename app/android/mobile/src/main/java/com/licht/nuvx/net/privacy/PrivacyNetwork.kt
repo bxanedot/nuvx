@@ -110,6 +110,9 @@ object PrivacyNetwork {
                 return if (socks && loopback) java.net.PasswordAuthentication("nuvx-$circuit", "x".toCharArray()) else null
             }
         })
+        com.licht.nuvx.data.innertube.StreamResolver.onTor = {
+            (m.state.value as? ConnectionState.Connected)?.backend == BackendId.ORBOT
+        }
         com.licht.nuvx.data.innertube.StreamResolver.newExit = {
             val onTor = (m.state.value as? ConnectionState.Connected)?.backend == BackendId.ORBOT
             if (onTor) circuit++

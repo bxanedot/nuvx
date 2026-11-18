@@ -49,6 +49,10 @@ object StreamResolver {
     @Volatile
     var newExit: (() -> Boolean)? = null
 
+    /** Whether traffic currently goes through Tor (set by the app); only then is an exit worth switching. */
+    @Volatile
+    var onTor: () -> Boolean = { false }
+
     @Volatile
     var maxKbps: () -> Int = { Int.MAX_VALUE }
 
@@ -574,6 +578,8 @@ object StreamResolver {
                 throw IOException("Extractor cannot run on this device: $e", e)
             } catch (e: Exception) {
                 if (e is ReCaptchaException) throw e
+                // Over Tor, a refusal of the whole exit won't change on a retry here: let the caller switch exits now.
+                if (onTor() && isExitRefusal(e)) throw e
                 permanentReason(e)?.let { reason ->
                     TrackLog.w(TAG, "extraction will not succeed for $videoId: $reason")
                     throw e
@@ -636,7 +642,14 @@ object StreamResolver {
 
     private const val EXTRACTION_ATTEMPTS = 3
 
-    private const val TOR_EXIT_RETRIES = 2
+    private const val TOR_EXIT_RETRIES = 4
+
+    /** YouTube turning away this IP rather than this song: worth a new Tor exit, not another try on the same one. */
+    internal fun isExitRefusal(e: Throwable): Boolean = generateSequence(e) { it.cause?.takeIf { c -> c !== it } }.any { t ->
+        t is ReCaptchaException || t.message?.let { m ->
+            "This video is not available" in m || "confirm you" in m || "not a bot" in m || "LOGIN_REQUIRED" in m
+        } == true
+    }
 
     private const val EXTRACTION_RETRY_MS = 1000L
 
