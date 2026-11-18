@@ -79,11 +79,11 @@
     syncShowcase?.();
     if (playing) {
       video?.play().catch(() => {});
-      ambientVideo?.play().catch(() => {});
     } else {
       video?.pause();
-      ambientVideo?.pause();
     }
+    if (motion.matches) ambientVideo?.pause();
+    else ambientVideo?.play().catch(() => {});
   };
   const toggleMotion = () => {
     playing = !playing;

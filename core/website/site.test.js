@@ -178,10 +178,11 @@ test('monochrome background toggle persists and exposes its state', () => {
   assert.equal(restored.buttonAttributes['aria-pressed'], 'true');
 });
 
-test('ambient video pauses when motion is disabled or reduced', async (t) => {
+test('ambient video ignores the showcase pause but respects reduced motion', async (t) => {
   await t.test('saved pause setting', () => {
     const page = loadBackgroundPage({ paused: true });
-    assert.ok(page.video.pauses > 0);
+    assert.ok(page.video.plays > 0);
+    assert.equal(page.video.pauses, 0);
     assert.ok(page.attributes.has('data-motion-paused'));
   });
   await t.test('reduced motion', () => {

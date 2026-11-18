@@ -55,9 +55,7 @@ body > .licht-signature-corner { z-index: 2; }
 }
 
 .nuvx-ambient[data-motion-paused]::before,
-.nuvx-ambient[data-motion-paused]::after,
-html[data-motion-paused] .nuvx-ambient::before,
-html[data-motion-paused] .nuvx-ambient::after {
+.nuvx-ambient[data-motion-paused]::after {
   animation-play-state: paused;
 }
 
