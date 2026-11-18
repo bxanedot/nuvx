@@ -1537,4 +1537,5 @@
     <string name="copy_diagnostics_subtitle">Ostatnie błędy z danymi aplikacji, telefonu i sieci. Linki, ciasteczka i tokeny są usuwane. Tylko kopiowane do schowka; nic nie jest wysyłane.</string>
     <string name="download_limit">Limit miejsca</string>
     <string name="download_limit_footer">Gdy pobrane utwory zajmą tyle miejsca, nowe pobieranie się zatrzyma. Zapisane utwory zostają.</string>
+    <string name="song_removed_from_playlist">Usunięto „%1$s”</string>
 </resources>

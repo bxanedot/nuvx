@@ -20,6 +20,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **A storage limit for downloads.** **Settings → Downloads → Storage limit** (Off, 2, 5, 10, 20 or 50 GB). Once
   your downloads take up that much space, new downloads stop with a message saying so; songs already saved stay.
   Off by default, so nothing changes unless you set it.
+- **Remove songs from your nuvx playlists, with Undo.** The song menu in a playlist saved on this device now has
+  **Remove from this playlist** even when you aren't signed in (before, it never appeared for these playlists).
+  A bar with **Undo** puts the song back where it was.
 
 ### Desktop (Windows, macOS, Linux)
 

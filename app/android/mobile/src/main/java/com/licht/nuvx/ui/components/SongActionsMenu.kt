@@ -186,14 +186,15 @@ fun SongActionsMenu(
                 accent = palette.accent,
                 onClick = onAddToPlaylist,
             )
-            onRemoveFromPlaylist?.let {
-                ActionRow(
-                    icon = SfIcons.RemoveFromPlaylist,
-                    label = stringResource(R.string.remove_from_playlist),
-                    accent = palette.accent,
-                    onClick = it,
-                )
-            }
+        }
+        // Given only for a playlist this device may edit; nuvx playlists need no sign-in.
+        onRemoveFromPlaylist?.let {
+            ActionRow(
+                icon = SfIcons.RemoveFromPlaylist,
+                label = stringResource(R.string.remove_from_playlist),
+                accent = palette.accent,
+                onClick = it,
+            )
         }
 
         if (startsGroup()) IosMenuSeparator()

@@ -1504,4 +1504,5 @@
     <string name="copy_diagnostics_subtitle">Erros recentes com dados do app, do telefone e da rede. Links, cookies e tokens são removidos. Só é copiado para a área de transferência; nada é enviado.</string>
     <string name="download_limit">Limite de armazenamento</string>
     <string name="download_limit_footer">Quando os downloads ocuparem este espaço, novos downloads param. As músicas já salvas ficam.</string>
+    <string name="song_removed_from_playlist">“%1$s” removida</string>
 </resources>

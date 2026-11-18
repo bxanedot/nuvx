@@ -1479,4 +1479,5 @@
     <string name="copy_diagnostics_subtitle">最近的錯誤及 App、手機和網路資訊。連結、Cookie 和權杖會被移除。僅複製到剪貼簿，不會傳送任何內容。</string>
     <string name="download_limit">儲存空間上限</string>
     <string name="download_limit_footer">下載內容佔用達到此空間後，新的下載會停止。已儲存的歌曲會保留。</string>
+    <string name="song_removed_from_playlist">已移除「%1$s」</string>
 </resources>

@@ -1500,4 +1500,5 @@
     <string name="copy_diagnostics_subtitle">Erreurs récentes avec les infos de l’app, du téléphone et du réseau. Liens, cookies et jetons sont retirés. Copié dans le presse-papiers uniquement ; rien n’est envoyé.</string>
     <string name="download_limit">Limite de stockage</string>
     <string name="download_limit_footer">Quand vos téléchargements occupent cet espace, les nouveaux s’arrêtent. Les titres déjà enregistrés restent.</string>
+    <string name="song_removed_from_playlist">« %1$s » retiré</string>
 </resources>

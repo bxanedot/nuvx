@@ -1471,4 +1471,5 @@
     <string name="copy_diagnostics_subtitle">Errores recientes con datos de la app, el teléfono y la red. Se quitan enlaces, cookies y tokens. Solo se copia al portapapeles; no se envía nada.</string>
     <string name="download_limit">Límite de almacenamiento</string>
     <string name="download_limit_footer">Cuando tus descargas ocupen este espacio, no se iniciarán más. Las canciones guardadas se quedan.</string>
+    <string name="song_removed_from_playlist">Se quitó «%1$s»</string>
 </resources>

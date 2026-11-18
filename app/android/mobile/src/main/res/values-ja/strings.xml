@@ -1480,4 +1480,5 @@
     <string name="copy_diagnostics_subtitle">アプリ・端末・ネットワークの情報付きの最近のエラー。リンク、Cookie、トークンは除去されます。クリップボードにコピーするだけで、送信はしません。</string>
     <string name="download_limit">保存容量の上限</string>
     <string name="download_limit_footer">ダウンロードがこの容量に達すると、新しいダウンロードは止まります。保存済みの曲はそのまま残ります。</string>
+    <string name="song_removed_from_playlist">「%1$s」を削除しました</string>
 </resources>

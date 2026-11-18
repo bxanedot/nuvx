@@ -2760,7 +2760,8 @@ internal fun NuvxApp(
             }
             LaunchedEffect(song.videoId) { viewModel.loadSongMenu(song.videoId) }
             val editable = viewModel.editablePlaylist(detail?.browseId)
-                ?.takeIf { !fromPlayer && song.setVideoId != null }
+                // nuvx playlists remove by video id; only YouTube playlists need the entry's setVideoId.
+                ?.takeIf { !fromPlayer && (song.setVideoId != null || it.browseId.startsWith("local:playlist:")) }
             val automixOn by AppSettings.smartFadeEnabled.collectAsStateWithLifecycle()
             val cacheVersion by AudioCache.contentsChanged.collectAsStateWithLifecycle()
             val inCache by produceState(false, song.videoId, cacheVersion) {
@@ -2825,7 +2826,16 @@ internal fun NuvxApp(
                 onRemoveFromPlaylist = editable?.let {
                     {
                         songActions = null
-                        viewModel.removeFromPlaylist(it.browseId, song)
+                        val putBack = viewModel.removeFromPlaylist(it.browseId, song)
+                        if (putBack != null) {
+                            scope.launch {
+                                val result = snackbars.showSnackbar(
+                                    message = context.getString(R.string.song_removed_from_playlist, song.title),
+                                    actionLabel = context.getString(R.string.undo),
+                                )
+                                if (result == SnackbarResult.ActionPerformed) putBack()
+                            }
+                        }
                     }
                 } ?: detail?.browseId
                     ?.takeIf { !fromPlayer && song.localUri != null && OfflinePlaylists.isOfflinePlaylist(it) }

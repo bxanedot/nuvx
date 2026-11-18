@@ -1350,4 +1350,5 @@
     <string name="copy_diagnostics_subtitle">Recent errors with app, phone and network versions. Links, cookies and tokens are removed. Only copied to your clipboard; nothing is sent.</string>
     <string name="download_limit">Storage limit</string>
     <string name="download_limit_footer">When your downloads take up this much space, new downloads stop. Songs already saved stay.</string>
+    <string name="song_removed_from_playlist">Removed “%1$s”</string>
 </resources>

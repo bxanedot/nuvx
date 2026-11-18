@@ -1419,4 +1419,5 @@
     <string name="copy_diagnostics_subtitle">Lỗi gần đây kèm thông tin ứng dụng, điện thoại và mạng. Liên kết, cookie và token được xóa. Chỉ sao chép vào bộ nhớ tạm; không gửi gì đi.</string>
     <string name="download_limit">Giới hạn dung lượng</string>
     <string name="download_limit_footer">Khi bản tải xuống chiếm chừng này dung lượng, các lượt tải mới sẽ dừng. Bài đã lưu vẫn giữ nguyên.</string>
+    <string name="song_removed_from_playlist">Đã xóa “%1$s”</string>
 </resources>

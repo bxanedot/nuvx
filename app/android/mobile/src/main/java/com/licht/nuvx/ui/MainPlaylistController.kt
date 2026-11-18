@@ -245,17 +245,23 @@ internal class MainPlaylistController(
         }
     }
 
-    fun removeFromPlaylist(browseId: String, song: Song) {
-        val local = com.licht.nuvx.data.spotify.LocalPlaylistStore.getPlaylist(browseId)
+    /** For a nuvx playlist, returns an undo that puts the song back where it was. */
+    fun removeFromPlaylist(browseId: String, song: Song): (() -> Unit)? {
+        val store = com.licht.nuvx.data.spotify.LocalPlaylistStore
+        val local = store.getPlaylist(browseId)
         if (local != null) {
-            com.licht.nuvx.data.spotify.LocalPlaylistStore.removeSong(local.id, song.videoId)
-            _detailStack.value = _detailStack.value.map { page ->
-                if (page.browseId == browseId) page.copy(songs = UiState.Success(local.songs.filterNot { it.videoId == song.videoId })) else page
+            val at = local.songs.indexOfFirst { it.videoId == song.videoId }
+            val removed = local.songs.getOrNull(at)
+            store.removeSong(local.id, song.videoId)
+            showLocalSongs(browseId, local.songs.filterNot { it.videoId == song.videoId })
+            return removed?.let {
+                {
+                    if (store.putBack(local.id, it, at)) store.getPlaylist(local.id)?.let { back -> showLocalSongs(browseId, back.songs) }
+                }
             }
-            return
         }
-        val setVideoId = song.setVideoId ?: return
-        if (!requireSignIn()) return
+        val setVideoId = song.setVideoId ?: return null
+        if (!requireSignIn()) return null
         val playlistId = browseId.removePrefix("VL")
         scope.launch {
             YtMusicRepository.removeFromPlaylist(
@@ -279,6 +285,13 @@ internal class MainPlaylistController(
                 },
                 onFailure = {},
             )
+        }
+        return null
+    }
+
+    private fun showLocalSongs(browseId: String, songs: List<Song>) {
+        _detailStack.value = _detailStack.value.map { page ->
+            if (page.browseId == browseId) page.copy(songs = UiState.Success(songs)) else page
         }
     }
 

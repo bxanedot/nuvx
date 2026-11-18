@@ -97,6 +97,17 @@ object LocalPlaylistStore {
         return true
     }
 
+    /** Undo of [removeSong]: puts [song] back at [at] unless it is already there again. */
+    fun putBack(id: String, song: Song, at: Int): Boolean {
+        val current = getPlaylist(id) ?: return false
+        if (current.songs.any { it.videoId == song.videoId }) return false
+        val songs = current.songs.toMutableList().apply { add(at.coerceIn(0, size), song) }
+        val updated = _playlists.value.map { if (it.id == current.id) it.copy(songs = songs) else it }
+        _playlists.value = updated
+        persist(updated)
+        return true
+    }
+
     fun replaceSongs(id: String, songs: List<Song>): Boolean {
         val current = getPlaylist(id) ?: return false
         val updated = _playlists.value.map { if (it.id == current.id) it.copy(songs = songs) else it }

@@ -1456,4 +1456,5 @@
     <string name="copy_diagnostics_subtitle">Uygulama, telefon ve ağ bilgileriyle son hatalar. Bağlantılar, çerezler ve belirteçler kaldırılır. Yalnızca panoya kopyalanır; hiçbir şey gönderilmez.</string>
     <string name="download_limit">Depolama sınırı</string>
     <string name="download_limit_footer">İndirmeler bu kadar yer kapladığında yeni indirmeler durur. Kaydedilmiş şarkılar kalır.</string>
+    <string name="song_removed_from_playlist">“%1$s” kaldırıldı</string>
 </resources>
