@@ -16,7 +16,11 @@
 
   const topbar = document.querySelector('.topbar');
   const menuToggle = document.querySelector('#menu-toggle');
-  const updateTopbar = () => topbar?.classList.toggle('is-forward', window.scrollY > 12);
+  const updateTopbar = () => {
+    if (!topbar) return;
+    const isCompact = topbar.classList.contains('is-forward');
+    topbar.classList.toggle('is-forward', window.scrollY > (isCompact ? 8 : 20));
+  };
   updateTopbar();
   window.addEventListener('scroll', updateTopbar, { passive: true });
   const closeMenu = () => {
@@ -155,24 +159,16 @@
   const device = /wear os|watch/.test(ua) ? 'Wear OS' : /android/.test(ua) && /tv|aft|bravia|shield/.test(ua) ? 'Android TV' : /android/.test(ua) ? 'Android' : /iphone|ipad|ipod/.test(ua) || (/ios/.test(platform.toLowerCase()) || /mac/.test(platform.toLowerCase()) && navigator.maxTouchPoints > 1) ? 'iOS' : /mac/.test(platform.toLowerCase()) ? 'macOS' : /win/.test(platform.toLowerCase()) ? 'Windows' : /linux/.test(platform.toLowerCase()) ? 'Linux' : '';
   const downloadLabel = document.querySelector('#download-label');
   const hero = document.querySelector('#device-download');
-  const nightly = document.querySelector('#nightly-download');
   const downloads = { Windows: 'windows', macOS: 'mac', Linux: 'linux', Android: 'android', 'Android TV': 'tv', 'Wear OS': 'wear' };
-  const setNightlyLink = (target) => {
-    if (nightly) nightly.href = target ? `/api/download?channel=nightly&platform=${target}` : '#releases';
-  };
-  if (hero) hero.href = '#releases';
+  if (hero) hero.href = '#ecosystem';
   if (downloadLabel) downloadLabel.textContent = 'Choose a download';
   if (downloads[device]) {
     const target = downloads[device];
     if (hero) hero.href = '/api/download?platform=' + target;
     if (downloadLabel) downloadLabel.textContent = device === 'iOS' ? 'Download iOS IPA' : `Download for ${device}`;
-    setNightlyLink(target);
   } else if (device === 'iOS') {
     if (hero) hero.href = '/api/download?platform=ios';
     if (downloadLabel) downloadLabel.textContent = 'Download iOS IPA';
-    setNightlyLink(null);
-  } else {
-    setNightlyLink(null);
   }
   const showNote = (version) => {
     if (device === 'iOS') note.textContent = 'The unsigned iOS IPA must be signed before installation.';

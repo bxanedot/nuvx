@@ -4,7 +4,7 @@
 
 ## Current status
 
-The v1.0.2 stable release ships one shared universal phone APK, one shared universal Android TV APK, standalone nuvx Auto, a separate Wear OS APK, universal Windows and Linux installers, one universal macOS installer, and Chrome and Firefox extensions. The unsigned universal iOS/iPadOS IPA is from v1.0.0. iOS/iPadOS 18+ requires signing before installation; read https://github.com/lylicht/nuvx/blob/main/app/ios/README.md for install and update instructions. Use https://www.nuvx.lol/#releases to choose a direct device package. The web player runs at https://web.nuvx.lol. nuvx is independent and not affiliated with YouTube or Google. Release notes for every version: https://www.nuvx.lol/changelog.
+The v1.0.2 stable release ships one shared universal phone APK, one shared universal Android TV APK, standalone nuvx Auto, a separate Wear OS APK, universal Windows and Linux installers, one universal macOS installer, and Chrome and Firefox extensions. The unsigned universal iOS/iPadOS IPA is from v1.0.0. iOS/iPadOS 18+ requires signing before installation; read https://github.com/lylicht/nuvx/blob/main/app/ios/README.md for install and update instructions. Use https://www.nuvx.lol/#ecosystem to choose a direct device package. The web player runs at https://web.nuvx.lol. nuvx is independent and not affiliated with YouTube or Google. Release notes for every version: https://www.nuvx.lol/changelog.
 
 ## Features
 

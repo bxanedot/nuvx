@@ -4,7 +4,7 @@ const { runInNewContext } = require('node:vm');
 const { test } = require('node:test');
 
 const source = readFileSync(`${__dirname}/site.js`, 'utf8');
-const packageList = '#releases';
+const packageList = '#ecosystem';
 const openSource = readFileSync(`${__dirname}/open.js`, 'utf8');
 const openPage = readFileSync(`${__dirname}/open.html`, 'utf8');
 
@@ -30,12 +30,10 @@ test('nuvx open page tries the app and offers the web fallback', () => {
 
 function loadPage(userAgentData, device = {}) {
   const hero = { href: packageList };
-  const nightly = { href: packageList };
   const note = { textContent: '' };
   const version = { textContent: '0.9.0' };
   const elements = {
     '#device-download': hero,
-    '#nightly-download': nightly,
     '#device-note': note,
     '#download-label': { textContent: '' },
     '[data-version]': version,
@@ -60,17 +58,16 @@ function loadPage(userAgentData, device = {}) {
     window: { addEventListener() {}, scrollY: 0 },
   };
   runInNewContext(source, context);
-  return { hero, nightly, note, label: elements['#download-label'], flush: () => new Promise(setImmediate) };
+  return { hero, note, label: elements['#download-label'], flush: () => new Promise(setImmediate) };
 }
 
 test('macOS links straight to the one universal package', async () => {
   const page = loadPage({ getHighEntropyValues: () => Promise.reject(new Error('unavailable')) });
   await page.flush();
   assert.equal(page.hero.href, '/api/download?platform=mac');
-  assert.equal(page.nightly.href, '/api/download?channel=nightly&platform=mac');
 });
 
-test('detected devices link directly to their stable and nightly packages', async (t) => {
+test('detected devices link directly to their stable packages', async (t) => {
   const routes = [
     ['Android phone', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 9)' }, 'android'],
     ['Android TV', { userAgent: 'Mozilla/5.0 (Linux; Android 12; AFTMM)' }, 'tv'],
@@ -85,8 +82,6 @@ test('detected devices link directly to their stable and nightly packages', asyn
       const page = loadPage(device.userAgentData, device);
       await page.flush();
       assert.equal(page.hero.href, `/api/download?platform=${platform}`);
-      if (platform === 'ios') assert.equal(page.nightly.href, packageList);
-      else assert.equal(page.nightly.href, `/api/download?channel=nightly&platform=${platform}`);
       assert.ok(!page.note.textContent.includes('github.com'));
     });
   }
@@ -96,7 +91,6 @@ test('unknown browsers stay on the local package list', async () => {
   const page = loadPage(undefined, { userAgent: 'Unknown Browser', platform: 'Unknown' });
   await page.flush();
   assert.equal(page.hero.href, packageList);
-  assert.equal(page.nightly.href, packageList);
   assert.equal(page.label.textContent, 'Choose a download');
 });
 

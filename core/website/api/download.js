@@ -1,5 +1,5 @@
 const releases = 'https://github.com/lylicht/nuvx/releases';
-const downloadsPage = 'https://www.nuvx.lol/#releases';
+const downloadsPage = 'https://www.nuvx.lol/#ecosystem';
 // shortcut: iOS has no newer IPA asset yet; update this fallback when one ships.
 const fallbackAssets = {
   ios: `${releases}/download/v1.0.0/nuvx-1.0.0-universal.ipa`,

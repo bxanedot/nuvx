@@ -15,7 +15,7 @@ const stableV090Assets = new Set([
   'NuvxTV-v0.9.0-gms.apk',
   'NuvxWear-v0.9.0.apk',
 ]);
-const downloadsPage = 'https://www.nuvx.lol/#releases';
+const downloadsPage = 'https://www.nuvx.lol/#ecosystem';
 
 async function request(platform, assets, version = '1.0.0') {
   const originalFetch = global.fetch;
@@ -67,7 +67,7 @@ test('release downloads select one package for each Android device', async (t) =
   }
 });
 
-test('v0.9.0 routes match the published assets and defer upcoming packages', async (t) => {
+test('v0.9.0 routes match published assets and use the iOS fallback', async (t) => {
   const routes = [
     ['windows', 'nuvx-setup-0.9.0.exe'],
     ['android', 'nuvx-v0.9.0-gms.apk'],
@@ -81,7 +81,7 @@ test('v0.9.0 routes match the published assets and defer upcoming packages', asy
     ['chrome', 'nuvx-extension-chrome-0.9.0.zip'],
     ['firefox', 'nuvx-extension-firefox-0.9.0.zip'],
     ['auto', null],
-    ['ios', null],
+    ['ios', 'nuvx-1.0.0-universal.ipa'],
   ];
 
   for (const [platform, asset] of routes) {
