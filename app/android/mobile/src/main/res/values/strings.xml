@@ -238,18 +238,25 @@
     <string name="privacy_mode_automatic">Automatic</string>
     <string name="privacy_mode_orbot" translatable="false">Orbot</string>
     <string name="privacy_mode_embedded">Built-in Tor</string>
+    <string name="privacy_mode_local_socks">Local SOCKS5</string>
+    <string name="privacy_local_socks_port">Local SOCKS5 port</string>
+    <string name="privacy_local_socks_port_subtitle">Port of a SOCKS5 listener on this device, such as one from an independently installed proxy client. Host: 127.0.0.1. Restart nuvx after saving.</string>
+    <string name="privacy_local_socks_footer">Uses a separately installed proxy client listening on this device. Nuvx does not install a VPN or connect to public proxy feeds. If the proxy is unavailable, protected requests fail closed. Some sign-in and third-party components may not respect the app proxy; verify them separately. Services you sign in to can still identify your account.</string>
     <string name="privacy_status">Status</string>
     <string name="privacy_status_disabled">Disabled</string>
     <string name="privacy_status_connecting">Connecting</string>
     <string name="privacy_status_bootstrapping">Bootstrapping Tor (%1$d%%)</string>
     <string name="privacy_status_connected_orbot">Connected via Orbot</string>
     <string name="privacy_status_connected_embedded">Connected via Tor + Snowflake</string>
+    <string name="privacy_status_connected_socks">Connected via local SOCKS5</string>
     <string name="privacy_status_switching">Switching connection</string>
     <string name="privacy_status_unavailable">Connection unavailable</string>
     <string name="privacy_test">Test connection</string>
     <string name="privacy_test_running">Testing…</string>
     <string name="privacy_test_passed">Passed: the request left through Tor</string>
     <string name="privacy_test_failed">Failed: no working Tor connection</string>
+    <string name="privacy_test_socks_passed">Passed: YouTube Music responded through local SOCKS5</string>
+    <string name="privacy_test_socks_failed">Failed: YouTube Music did not respond through local SOCKS5</string>
     <string name="privacy_retry">Retry connection</string>
     <string name="privacy_open_orbot">Open Orbot</string>
     <string name="privacy_install_orbot">Install Orbot</string>
