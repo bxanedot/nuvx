@@ -121,6 +121,9 @@ impl Inner {
     }
 
     fn persist_keys(&self) {
+        if cfg!(test) {
+            return; // tests hand keys in through `load`; they must never write the user's credential store
+        }
         let map: HashMap<&String, String> = self.keys.iter().map(|(id, k)| (id, crypto::b64(k))).collect();
         let text = serde_json::to_vec(&map).unwrap_or_default();
         if let Err(e) = crate::vault::set(KEYS_VAULT, &self.data_dir, &text) {
