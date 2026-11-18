@@ -27,7 +27,9 @@ impl Setting {
     pub fn resolve(&self) -> Option<url::Url> {
         match self {
             Setting::Off => None,
-            Setting::Custom(u) => parse(u).ok(),
+            // A custom proxy is a protected route: an unusable address fails closed instead of going direct,
+            // and SOCKS always resolves names at the proxy (socks5h), so lookups don't leak to the local DNS.
+            Setting::Custom(u) => Some(parse(u).map(remote_dns).unwrap_or_else(|_| fail_closed())),
             Setting::System => system(),
             // Fail closed: with no Tor found, point at a loopback port nothing answers on,
             // so requests fail instead of going direct.
@@ -38,6 +40,19 @@ impl Setting {
 
 /// Almost certainly closed (tcpmux); connecting fails fast and nothing falls back to a direct connection.
 const FAIL_CLOSED_PORT: u16 = 1;
+
+fn fail_closed() -> url::Url {
+    url::Url::parse(&format!("socks5h://127.0.0.1:{FAIL_CLOSED_PORT}")).expect("static URL")
+}
+
+/// `socks5://` makes reqwest resolve host names itself, outside the tunnel; every SOCKS client nuvx is used
+/// with (Tor, Xray, Mihomo, ssh -D) resolves them remotely, so ask for that.
+fn remote_dns(mut u: url::Url) -> url::Url {
+    if u.scheme() == "socks5" {
+        let _ = u.set_scheme("socks5h");
+    }
+    u
+}
 
 /// None = not probed yet; Some(None) = probed, no Tor; Some(Some(p)) = Tor's SOCKS port.
 static TOR: std::sync::RwLock<Option<Option<u16>>> = std::sync::RwLock::new(None);
@@ -177,7 +192,7 @@ fn build_for(n: u32) -> reqwest::Client {
         (1.., Some(mut p)) => {
             let _ = p.set_username(&format!("nuvx-{n}"));
             let _ = p.set_password(Some("x"));
-            reqwest::Proxy::all(p.as_str()).map_or_else(|_| apply(reqwest::Client::builder()), |p| reqwest::Client::builder().proxy(p))
+            reqwest::Proxy::all(p.as_str()).map_or_else(|_| apply(reqwest::Client::builder()), |p| reqwest::Client::builder().proxy(p)) // apply fails closed
         }
         _ => apply(reqwest::Client::builder()),
     };
@@ -226,7 +241,11 @@ fn apply_with(b: reqwest::ClientBuilder, s: &Setting) -> reqwest::ClientBuilder 
             Ok(proxy) => b.proxy(proxy),
             Err(e) => {
                 log::warn!("proxy {}: {e}", redact(&p));
-                b
+                // Never direct when a proxy was asked for (the system proxy is the user's own, best effort).
+                match s {
+                    Setting::System => b,
+                    _ => b.proxy(reqwest::Proxy::all(fail_closed().as_str()).expect("static proxy")),
+                }
             }
         },
         (Setting::Off, None) => b.no_proxy(),
@@ -510,6 +529,19 @@ fn plain(e: reqwest::Error, proxy: Option<&url::Url>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn custom_proxies_resolve_names_remotely_and_fail_closed() {
+        let r = |s: &str| Setting::Custom(s.into()).resolve().unwrap();
+        assert_eq!(r("socks5://127.0.0.1:10808").as_str(), "socks5h://127.0.0.1:10808", "no local DNS lookups");
+        assert_eq!(r("socks5h://127.0.0.1:9050").as_str(), "socks5h://127.0.0.1:9050");
+        assert_eq!(r("http://127.0.0.1:7890").as_str(), "http://127.0.0.1:7890/");
+        assert_eq!(r("[::1]:8080").as_str(), "http://[::1]:8080/", "IPv6 literals work");
+        for bad in ["", "ftp://x:1", "socks4://127.0.0.1:1080", "not a proxy"] {
+            assert_eq!(r(bad).as_str(), format!("socks5h://127.0.0.1:{FAIL_CLOSED_PORT}"), "{bad:?} must not go direct");
+        }
+        assert_eq!(Setting::Off.resolve(), None);
+    }
 
     #[test]
     fn tor_mode_resolves_fail_closed_or_to_the_detected_port() {
