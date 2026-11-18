@@ -1492,4 +1492,9 @@
     <string name="nuvx_connect_off_on_computer">Activa Permitir control remoto en Ajustes → Nuvx Connect en el ordenador</string>
     <string name="nuvx_sync_lan_code_not_found">Ningún ordenador de esta Wi-Fi muestra ese código. Revísalo o escribe la dirección que aparece debajo.</string>
     <string name="nuvx_connect_subtitle">Controla nuvx en tu ordenador desde este teléfono</string>
+    <string name="nuvx_sync_and_connect">Sincronizar y conectar</string>
+    <string name="nuvx_sync_and_connect_subtitle">Tus playlists y la reproducción en todos tus dispositivos</string>
+    <string name="computer_output_name">Ordenador</string>
+    <string name="nuvx_connect_how">Toca el botón de altavoz del reproductor y elige %1$s. El teléfono lo controla desde ahí.</string>
+    <string name="nuvx_connect_not_reachable">No disponible ahora. Ambos necesitan la misma Wi-Fi y el control remoto permitido en el ordenador.</string>
 </resources>

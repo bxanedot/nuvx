@@ -48,7 +48,7 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
     LOCAL_MUSIC(R.string.local_music),
     STORAGE(R.string.storage),
     YOUR_DATA(R.string.your_data),
-    CONNECT(R.string.nuvx_connect),
+    CONNECT(R.string.nuvx_sync_and_connect),
     NETWORK(R.string.network),
     MISCELLANEOUS(R.string.miscellaneous),
     LANGUAGE(R.string.language),

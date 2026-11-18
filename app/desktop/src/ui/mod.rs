@@ -104,7 +104,6 @@ pub enum SettingsPane {
     Window,
     Network,
     Sync,
-    Connect,
     Import,
     Shortcuts,
 }

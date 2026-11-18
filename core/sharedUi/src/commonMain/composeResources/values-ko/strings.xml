@@ -281,4 +281,6 @@
     <string name="import_playlist_file">파일 가져오기</string>
     <string name="import_playlist_file_subtitle">M3U 또는 CSV</string>
     <string name="saved_on_this_device">이 기기에 저장됨</string>
+    <string name="computer_output">컴퓨터</string>
+    <string name="computer_output_subtitle">컴퓨터의 nuvx에서 재생</string>
 </resources>

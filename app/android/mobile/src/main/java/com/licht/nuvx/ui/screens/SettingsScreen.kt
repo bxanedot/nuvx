@@ -396,12 +396,12 @@ fun SettingsScreen(
                         onClick = onListenTogether,
                     )
                 }
-                val connectTitle = stringResource(R.string.nuvx_connect)
-                row(connectTitle, "remote", "computer", "desktop", "pc", "pair", "handoff") {
+                val connectTitle = stringResource(R.string.nuvx_sync_and_connect)
+                row(connectTitle, "remote", "computer", "desktop", "pc", "pair", "handoff", "sync") {
                     SettingsRow(
                         icon = SfIcons.Tv,
                         title = connectTitle,
-                        subtitle = stringResource(R.string.nuvx_connect_subtitle),
+                        subtitle = stringResource(R.string.nuvx_sync_and_connect_subtitle),
                         onClick = { onOpenSection(SettingsCategory.CONNECT) },
                     )
                 }
@@ -629,11 +629,9 @@ fun SettingsScreen(
             onImport = { confirmImport = true },
         )
 
-        if (shows(SettingsCategory.YOUR_DATA)) SyncSettingsGroup(search = search)
+        if (shows(SettingsCategory.CONNECT)) SyncSettingsGroup(search = search)
 
         if (shows(SettingsCategory.CONNECT)) ConnectSettingsGroup(search = search)
-        // Pairing lives on the Connect page too, so nobody has to find it under Your data (not in search: no duplicate).
-        if (section == SettingsCategory.CONNECT) SyncSettingsGroup(search = search)
 
         if (shows(SettingsCategory.NETWORK)) PrivacyConnectionSettingsGroup(search = search)
 

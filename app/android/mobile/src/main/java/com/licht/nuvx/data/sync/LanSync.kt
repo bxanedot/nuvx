@@ -275,7 +275,20 @@ object LanFinder {
     val CODE = Regex("[0-9]{4}")
 
     // shortcut: searches the phone's own /24 only; wider home networks still pair by typing the address.
-    suspend fun find(phoneIpv4: java.net.Inet4Address, code: String): LanAddress? = kotlinx.coroutines.coroutineScope {
+    suspend fun find(phoneIpv4: java.net.Inet4Address, code: String): LanAddress? = find(phoneIpv4) { it.text("code") == code }
+
+    /** Finds the computer this phone paired with again after its address changed (same [hostId]). */
+    suspend fun findHost(phoneIpv4: java.net.Inet4Address, hostId: String): LanAddress? = find(phoneIpv4) { it.text("id") == hostId }
+
+    /** The computer's `/lan/hello`, or null when nothing (or not nuvx) answers there. Blocking. */
+    fun hello(to: LanAddress): JsonObject? = runCatching {
+        val (status, reply) = LanHttp.exchange(to, "GET", "/lan/hello", null, connectMs = 700, readMs = 1_500)
+        Json.parseToJsonElement(reply).jsonObject.takeIf { status == 200 && it.text("app") == "nuvx" }
+    }.getOrNull()
+
+    private fun JsonObject.text(key: String) = this[key]?.jsonPrimitive?.contentOrNull
+
+    private suspend fun find(phoneIpv4: java.net.Inet4Address, accept: (JsonObject) -> Boolean): LanAddress? = kotlinx.coroutines.coroutineScope {
         val base = phoneIpv4.address
         val gate = kotlinx.coroutines.sync.Semaphore(48)
         val found = kotlinx.coroutines.CompletableDeferred<LanAddress?>()
@@ -284,7 +297,7 @@ object LanFinder {
                 gate.acquire()
                 try {
                     val to = LanAddress("${base[0].toInt() and 0xff}.${base[1].toInt() and 0xff}.${base[2].toInt() and 0xff}.$last", LanAddress.DEFAULT_PORT)
-                    if (!found.isCompleted && matches(to, code)) found.complete(to)
+                    if (!found.isCompleted && hello(to)?.let(accept) == true) found.complete(to)
                 } finally {
                     gate.release()
                 }
@@ -293,12 +306,6 @@ object LanFinder {
         launch { probes.joinAll(); found.complete(null) }
         found.await().also { probes.forEach { it.cancel() } }
     }
-
-    private fun matches(to: LanAddress, code: String): Boolean = runCatching {
-        val (status, reply) = LanHttp.exchange(to, "GET", "/lan/hello", null, connectMs = 700, readMs = 1_500)
-        val hello = Json.parseToJsonElement(reply).jsonObject
-        status == 200 && hello["app"]?.jsonPrimitive?.contentOrNull == "nuvx" && hello["code"]?.jsonPrimitive?.contentOrNull == code
-    }.getOrDefault(false)
 
     /** This phone's private IPv4 address on its current network, if any. */
     fun phoneAddress(context: android.content.Context): java.net.Inet4Address? {

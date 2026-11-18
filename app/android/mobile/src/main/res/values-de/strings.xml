@@ -1520,4 +1520,9 @@
     <string name="nuvx_connect_off_on_computer">Aktiviere auf dem Computer unter Einstellungen → Nuvx Connect die Fernsteuerung</string>
     <string name="nuvx_sync_lan_code_not_found">Kein Computer in diesem WLAN zeigt diesen Code. Prüfe den Code oder gib die Adresse darunter ein.</string>
     <string name="nuvx_connect_subtitle">Steuere nuvx auf deinem Computer von diesem Handy aus</string>
+    <string name="nuvx_sync_and_connect">Sync &amp; Connect</string>
+    <string name="nuvx_sync_and_connect_subtitle">Deine Playlists und Wiedergabe auf all deinen Geräten</string>
+    <string name="computer_output_name">Computer</string>
+    <string name="nuvx_connect_how">Tippe im Player auf die Lautsprecher-Taste und wähle %1$s. Das Handy steuert ihn dann.</string>
+    <string name="nuvx_connect_not_reachable">Gerade nicht erreichbar. Beide brauchen dasselbe WLAN und auf dem Computer die erlaubte Fernsteuerung.</string>
 </resources>

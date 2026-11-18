@@ -201,4 +201,6 @@
     <string name="import_playlist_file">匯入檔案</string>
     <string name="import_playlist_file_subtitle">M3U 或 CSV</string>
     <string name="saved_on_this_device">已儲存在這部裝置上</string>
+    <string name="computer_output">電腦</string>
+    <string name="computer_output_subtitle">在電腦上的 nuvx 中播放</string>
 </resources>

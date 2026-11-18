@@ -17,15 +17,26 @@ pub enum Command {
     Next,
     Prev,
     Seek(u64),
-    /// Hand-off: play this YouTube song from this position (the phone pauses itself).
-    PlayTrack { id: String, title: String, artist: String, position_ms: u64 },
+    /// The phone moved playback here: these songs (the current one first, then what follows in its queue),
+    /// the current one from `position_ms`, playing or ready to play.
+    Load { tracks: Vec<Item>, position_ms: u64, paused: bool },
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Item {
+    pub id: String,
+    pub title: String,
+    pub artist: String,
+    /// Cover art: the phone's, if it is a YouTube image host; otherwise the video's own thumbnail.
+    pub art: String,
+}
+
+pub const MAX_TRACKS: usize = 20;
 
 impl Command {
     /// `{"action": "toggle" | "play" | "pause" | "next" | "previous" | "seek" | "playTrack", ...}`; anything else is refused.
     pub fn parse(body: &Value) -> Option<Self> {
         let position = || body.get("positionMs").and_then(Value::as_u64).filter(|ms| *ms <= MAX_POSITION_MS);
-        let text = |k: &str| body.get(k).and_then(Value::as_str).map(str::trim).filter(|t| t.len() <= MAX_TEXT).map(str::to_owned);
         Some(match body.get("action")?.as_str()? {
             "toggle" => Command::Toggle,
             "play" => Command::Play,
@@ -33,18 +44,38 @@ impl Command {
             "next" => Command::Next,
             "previous" => Command::Prev,
             "seek" => Command::Seek(position()?),
-            "playTrack" => {
-                let too_long = |k: &str| body.get(k).and_then(Value::as_str).is_some_and(|t| t.trim().len() > MAX_TEXT);
-                if too_long("title") || too_long("artist") {
-                    return None;
-                }
-                let id = text("videoId").filter(|id| is_video_id(id))?;
-                let title = text("title").filter(|t| !t.is_empty()).unwrap_or_else(|| id.clone());
-                Command::PlayTrack { id, title, artist: text("artist").unwrap_or_default(), position_ms: position().unwrap_or(0) }
+            "playTrack" => Command::Load { tracks: vec![item(body)?], position_ms: position().unwrap_or(0), paused: false },
+            "load" => {
+                let list = body.get("tracks")?.as_array().filter(|l| !l.is_empty() && l.len() <= MAX_TRACKS)?;
+                let tracks = list.iter().map(item).collect::<Option<Vec<_>>>()?;
+                let paused = body.get("paused").and_then(Value::as_bool).unwrap_or(false);
+                Command::Load { tracks, position_ms: position().unwrap_or(0), paused }
             }
             _ => return None,
         })
     }
+}
+
+/// One song: a YouTube video id plus the title and artist to show until the computer has looked it up.
+fn item(v: &Value) -> Option<Item> {
+    let field = |k: &str| match v.get(k) {
+        None | Some(Value::Null) => Some(String::new()),
+        Some(Value::String(t)) if t.trim().len() <= MAX_TEXT => Some(t.trim().to_owned()),
+        _ => None,
+    };
+    let id = field("videoId").filter(|id| is_video_id(id))?;
+    let title = field("title")?;
+    let art = field("art")?;
+    let art = if art_host_ok(&art) { art } else { format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg") };
+    Some(Item { title: if title.is_empty() { id.clone() } else { title }, artist: field("artist")?, id, art })
+}
+
+/// Only YouTube's own image hosts: the computer fetches this URL, so a phone must not point it anywhere else.
+fn art_host_ok(url: &str) -> bool {
+    let Ok(u) = url::Url::parse(url) else { return false };
+    let host = u.host_str().unwrap_or("");
+    u.scheme() == "https"
+        && ["ytimg.com", "googleusercontent.com", "ggpht.com"].iter().any(|h| host == *h || host.ends_with(&format!(".{h}")))
 }
 
 fn is_video_id(id: &str) -> bool {
@@ -60,15 +91,41 @@ mod tests {
     fn known_actions_parse_and_bad_input_is_refused() {
         assert_eq!(Command::parse(&json!({ "action": "next" })), Some(Command::Next));
         assert_eq!(Command::parse(&json!({ "action": "seek", "positionMs": 61_000 })), Some(Command::Seek(61_000)));
+        let thumb = |id: &str| format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg");
+        let never = Item { id: "dQw4w9WgXcQ".into(), title: "Never".into(), artist: "Rick".into(), art: thumb("dQw4w9WgXcQ") };
         assert_eq!(
             Command::parse(&json!({ "action": "playTrack", "videoId": "dQw4w9WgXcQ", "title": "Never", "artist": "Rick", "positionMs": 5000 })),
-            Some(Command::PlayTrack { id: "dQw4w9WgXcQ".into(), title: "Never".into(), artist: "Rick".into(), position_ms: 5000 })
+            Some(Command::Load { tracks: vec![never.clone()], position_ms: 5000, paused: false })
         );
+        assert_eq!(
+            Command::parse(&json!({ "action": "load", "paused": true, "positionMs": 1, "tracks": [
+                { "videoId": "dQw4w9WgXcQ", "title": "Never", "artist": "Rick" }, { "videoId": "kJQP7kiw5Fk" }
+            ] })),
+            Some(Command::Load { tracks: vec![never, Item { id: "kJQP7kiw5Fk".into(), title: "kJQP7kiw5Fk".into(), artist: String::new(), art: thumb("kJQP7kiw5Fk") }], position_ms: 1, paused: true })
+        );
+        assert_eq!(Command::parse(&json!({ "action": "load", "tracks": [] })), None, "nothing to play");
+        assert_eq!(Command::parse(&json!({ "action": "load", "tracks": [{ "videoId": "bad" }] })), None, "one bad song refuses all");
+        let many: Vec<Value> = (0..=MAX_TRACKS).map(|_| json!({ "videoId": "dQw4w9WgXcQ" })).collect();
+        assert_eq!(Command::parse(&json!({ "action": "load", "tracks": many })), None, "bounded");
         assert_eq!(Command::parse(&json!({ "action": "seek" })), None, "seek needs a position");
         assert_eq!(Command::parse(&json!({ "action": "seek", "positionMs": -1 })), None);
         assert_eq!(Command::parse(&json!({ "action": "playTrack", "videoId": "../../etc" })), None);
         assert_eq!(Command::parse(&json!({ "action": "playTrack", "videoId": "dQw4w9WgXcQ", "title": "x".repeat(301) })), None);
         assert_eq!(Command::parse(&json!({ "action": "shutdown" })), None);
         assert_eq!(Command::parse(&json!("next")), None);
+    }
+
+    #[test]
+    fn cover_art_only_from_youtube_image_hosts() {
+        let art = |url: &str| match Command::parse(&json!({ "action": "load", "tracks": [{ "videoId": "dQw4w9WgXcQ", "art": url }] })) {
+            Some(Command::Load { tracks, .. }) => tracks[0].art.clone(),
+            _ => panic!("refused"),
+        };
+        let fallback = "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg";
+        assert_eq!(art("https://lh3.googleusercontent.com/abc=w544"), "https://lh3.googleusercontent.com/abc=w544");
+        assert_eq!(art("http://lh3.googleusercontent.com/abc"), fallback, "https only");
+        assert_eq!(art("https://evil.example/x.jpg"), fallback);
+        assert_eq!(art("https://googleusercontent.com.evil.example/x"), fallback);
+        assert_eq!(art("https://192.168.1.1/router"), fallback, "never the local network");
     }
 }

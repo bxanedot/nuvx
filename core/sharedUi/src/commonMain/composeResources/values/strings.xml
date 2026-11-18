@@ -282,4 +282,6 @@
     <string name="import_playlist_file">Import file</string>
     <string name="import_playlist_file_subtitle">M3U or CSV</string>
     <string name="saved_on_this_device">Saved on this device</string>
+    <string name="computer_output">Computer</string>
+    <string name="computer_output_subtitle">Play on nuvx on your computer</string>
 </resources>

@@ -201,4 +201,6 @@
     <string name="import_playlist_file">Nhập tệp</string>
     <string name="import_playlist_file_subtitle">M3U hoặc CSV</string>
     <string name="saved_on_this_device">Đã lưu trên thiết bị này</string>
+    <string name="computer_output">Máy tính</string>
+    <string name="computer_output_subtitle">Phát trên nuvx ở máy tính của bạn</string>
 </resources>

@@ -1505,4 +1505,9 @@
     <string name="nuvx_connect_off_on_computer">เปิดอนุญาตการควบคุมระยะไกลใน การตั้งค่า → Nuvx Connect บนคอมพิวเตอร์</string>
     <string name="nuvx_sync_lan_code_not_found">ไม่มีคอมพิวเตอร์ใน Wi-Fi นี้ที่แสดงรหัสนั้น ตรวจสอบรหัส หรือป้อนที่อยู่ที่แสดงด้านล่าง</string>
     <string name="nuvx_connect_subtitle">ควบคุม nuvx บนคอมพิวเตอร์จากโทรศัพท์นี้</string>
+    <string name="nuvx_sync_and_connect">ซิงก์และเชื่อมต่อ</string>
+    <string name="nuvx_sync_and_connect_subtitle">เพลย์ลิสต์และการเล่นบนทุกอุปกรณ์ของคุณ</string>
+    <string name="computer_output_name">คอมพิวเตอร์</string>
+    <string name="nuvx_connect_how">แตะปุ่มลำโพงในเพลเยอร์แล้วเลือก %1$s จากนั้นโทรศัพท์จะควบคุมได้</string>
+    <string name="nuvx_connect_not_reachable">เชื่อมต่อไม่ได้ตอนนี้ ทั้งสองต้องใช้ Wi-Fi เดียวกัน และเปิดอนุญาตการควบคุมระยะไกลบนคอมพิวเตอร์</string>
 </resources>

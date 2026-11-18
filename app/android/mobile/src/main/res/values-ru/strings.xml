@@ -1549,4 +1549,9 @@
     <string name="nuvx_connect_off_on_computer">Включите удалённое управление на компьютере: Настройки → Nuvx Connect</string>
     <string name="nuvx_sync_lan_code_not_found">Ни один компьютер в этой сети Wi-Fi не показывает этот код. Проверьте код или введите адрес под ним.</string>
     <string name="nuvx_connect_subtitle">Управляйте nuvx на компьютере с этого телефона</string>
+    <string name="nuvx_sync_and_connect">Синхронизация и Connect</string>
+    <string name="nuvx_sync_and_connect_subtitle">Плейлисты и воспроизведение на всех ваших устройствах</string>
+    <string name="computer_output_name">Компьютер</string>
+    <string name="nuvx_connect_how">Нажмите кнопку динамика в плеере и выберите %1$s. Телефон будет им управлять.</string>
+    <string name="nuvx_connect_not_reachable">Сейчас недоступен. Нужна одна сеть Wi-Fi и разрешённое удалённое управление на компьютере.</string>
 </resources>

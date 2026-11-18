@@ -130,7 +130,8 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         val outputs = rememberAndroidAudioOutputs()
         val cast by CastController.state.collectAsStateWithLifecycle()
         val watch by WearBridge.watchOutput.collectAsStateWithLifecycle()
-        return if (cast.casting || watch.active) outputs.map { it.copy(isActive = false) } else outputs
+        val computer by com.licht.nuvx.playback.cast.ComputerSpeaker.state.collectAsStateWithLifecycle()
+        return if (cast.casting || watch.active || computer.active) outputs.map { it.copy(isActive = false) } else outputs
     }
 
     @Composable
@@ -140,6 +141,7 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         if (CastController.state.value.casting) CastController.disconnect(resumeHere = true)
         AudioRouting.select(id)
         WearBridge.leaveWatchOutput()
+        com.licht.nuvx.playback.cast.ComputerSpeaker.current?.stop(resumeHere = true)
     }
 
     override val watchOutput: StateFlow<WatchOutputUi> by lazy {
@@ -152,7 +154,24 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
 
     override fun selectWatchOutput() {
         if (CastController.state.value.casting) CastController.disconnect(resumeHere = false)
+        com.licht.nuvx.playback.cast.ComputerSpeaker.current?.stop(resumeHere = false)
         WearBridge.selectWatchOutput()
+    }
+
+    override val computerOutput: StateFlow<WatchOutputUi> by lazy {
+        com.licht.nuvx.playback.cast.ComputerSpeaker.state
+            .map { WatchOutputUi(available = it.available, name = it.name, active = it.active) }
+            .stateIn(scope, SharingStarted.Eagerly, WatchOutputUi())
+    }
+
+    override fun refreshComputerOutput() {
+        com.licht.nuvx.playback.cast.ComputerSpeaker.current?.refresh()
+    }
+
+    override fun selectComputerOutput() {
+        if (CastController.state.value.casting) CastController.disconnect(resumeHere = false)
+        WearBridge.leaveWatchOutput()
+        com.licht.nuvx.playback.cast.ComputerSpeaker.current?.start()
     }
 
     override val outputFormat: StateFlow<OutputFormatUi> by lazy {

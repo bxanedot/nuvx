@@ -57,7 +57,11 @@ internal fun AudioOutputSheet(
     val outputs = rememberAudioOutputs()
     val cast by PlayerPlatform.host.castState.collectAsStateWithLifecycle()
     val watch by PlayerPlatform.host.watchOutput.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { PlayerPlatform.host.refreshWatchOutput() }
+    val computer by PlayerPlatform.host.computerOutput.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        PlayerPlatform.host.refreshWatchOutput()
+        PlayerPlatform.host.refreshComputerOutput()
+    }
 
     PlayerDrawer(
         hazeState = hazeState,
@@ -78,6 +82,15 @@ internal fun AudioOutputSheet(
             }
             if (watch.available || watch.active) {
                 WatchRow(watch = watch, onClick = { PlayerPlatform.host.selectWatchOutput() })
+            }
+            if (computer.available || computer.active) {
+                WatchRow(
+                    watch = computer,
+                    icon = SfIcons.Tv,
+                    fallbackName = stringResource(Res.string.computer_output),
+                    subtitle = stringResource(Res.string.computer_output_subtitle),
+                    onClick = { PlayerPlatform.host.selectComputerOutput() },
+                )
             }
             if (cast.supported) CastRow(cast = cast, onClick = onOpenCast)
         }
@@ -221,7 +234,13 @@ private fun CastRow(cast: CastUi, onClick: () -> Unit) {
 }
 
 @Composable
-private fun WatchRow(watch: WatchOutputUi, onClick: () -> Unit) {
+private fun WatchRow(
+    watch: WatchOutputUi,
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector = SfIcons.Watch,
+    fallbackName: String = stringResource(Res.string.watch_output),
+    subtitle: String = stringResource(Res.string.watch_output_subtitle),
+) {
     val haptics = rememberHaptics()
     val active = watch.active
     Row(
@@ -248,7 +267,7 @@ private fun WatchRow(watch: WatchOutputUi, onClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = SfIcons.Watch,
+                imageVector = icon,
                 contentDescription = null,
                 tint = Color.White.copy(alpha = if (active) 1f else 0.7f),
                 modifier = Modifier.size(21.dp),
@@ -257,7 +276,7 @@ private fun WatchRow(watch: WatchOutputUi, onClick: () -> Unit) {
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = watch.name?.takeIf(String::isNotBlank) ?: stringResource(Res.string.watch_output),
+                text = watch.name?.takeIf(String::isNotBlank) ?: fallbackName,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                 ),
@@ -267,7 +286,7 @@ private fun WatchRow(watch: WatchOutputUi, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = stringResource(if (active) Res.string.audio_output_playing else Res.string.watch_output_subtitle),
+                text = if (active) stringResource(Res.string.audio_output_playing) else subtitle,
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.White.copy(alpha = 0.55f),
                 maxLines = 1,

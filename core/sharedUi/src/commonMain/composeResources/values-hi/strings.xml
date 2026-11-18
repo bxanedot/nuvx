@@ -201,4 +201,6 @@
     <string name="import_playlist_file">फ़ाइल इंपोर्ट करें</string>
     <string name="import_playlist_file_subtitle">M3U या CSV</string>
     <string name="saved_on_this_device">इस डिवाइस पर सेव किया गया</string>
+    <string name="computer_output">कंप्यूटर</string>
+    <string name="computer_output_subtitle">अपने कंप्यूटर के nuvx पर चलाएँ</string>
 </resources>

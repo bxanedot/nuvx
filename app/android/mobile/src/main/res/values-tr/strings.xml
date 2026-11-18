@@ -1477,4 +1477,9 @@
     <string name="nuvx_connect_off_on_computer">Bilgisayarda Ayarlar → Nuvx Connect’te uzaktan kontrolü açın</string>
     <string name="nuvx_sync_lan_code_not_found">Bu Wi-Fi’da o kodu gösteren bir bilgisayar yok. Kodu kontrol edin veya altındaki adresi girin.</string>
     <string name="nuvx_connect_subtitle">Bilgisayardaki nuvx’i bu telefondan yönetin</string>
+    <string name="nuvx_sync_and_connect">Eşitle ve Bağlan</string>
+    <string name="nuvx_sync_and_connect_subtitle">Tüm cihazlarınızda çalma listeleri ve çalma</string>
+    <string name="computer_output_name">Bilgisayar</string>
+    <string name="nuvx_connect_how">Oynatıcıdaki hoparlör düğmesine dokunup %1$s seçin. Telefon onu yönetir.</string>
+    <string name="nuvx_connect_not_reachable">Şu an ulaşılamıyor. İkisi aynı Wi-Fi’da olmalı ve bilgisayarda uzaktan kontrol açık olmalı.</string>
 </resources>

@@ -18,6 +18,8 @@ import com.licht.nuvx.data.DebugLog
 import com.licht.nuvx.data.model.Song
 import com.licht.nuvx.data.spotify.LocalPlaylist
 import com.licht.nuvx.data.spotify.LocalPlaylistStore
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -51,6 +53,8 @@ object NuvxSync {
     private const val PERIODIC = "nuvx-sync-periodic"
     private const val ONE_OFF = "nuvx-sync-now"
     private const val KEY_TOKEN = "token"
+    private const val KEY_LAN_HOST_ID = "lan_host_id"
+    private const val KEY_LAN_HOST_NAME = "lan_host_name"
     const val LAN_SCHEME = "lan://"
 
     private lateinit var app: Context
@@ -121,7 +125,41 @@ object NuvxSync {
     // Local Wi-Fi Sync pairing: blocking network calls, run them on Dispatchers.IO.
     fun lanStart(address: LanAddress): Result<LanPairing> = LanPairingClient.start(address, deviceName)
     fun lanClaim(pairing: LanPairing): SyncResult =
-        LanPairingClient.claim(pairing).also { if (it is SyncResult.Joined) join("$LAN_SCHEME${pairing.to}", it) }
+        LanPairingClient.claim(pairing).also {
+            if (it is SyncResult.Joined) {
+                join("$LAN_SCHEME${pairing.to}", it)
+                // Remembered so the phone can find this computer again by itself when its address changes.
+                val hello = LanFinder.hello(pairing.to)
+                prefs.edit()
+                    .putString(KEY_LAN_HOST_ID, hello?.get("id")?.jsonPrimitive?.contentOrNull)
+                    .putString(KEY_LAN_HOST_NAME, pairing.hostName)
+                    .apply()
+            }
+        }
+
+    /** The paired computer's name, while this phone is paired over Local Wi-Fi Sync. */
+    val lanHostName: String? get() = prefs.getString(KEY_LAN_HOST_NAME, null).takeIf { isLan && _status.value.enabled }
+
+    /**
+     * Automatic reconnect: when the paired computer no longer answers at its saved address (DHCP gave it a new
+     * one), find it again on this Wi-Fi by its id and keep the new address. True when it is reachable.
+     */
+    suspend fun healLanAddress(): Boolean {
+        val status = _status.value
+        if (!status.enabled || !isLan) return false
+        val saved = lanAddress(status.server) ?: return false
+        val hostId = prefs.getString(KEY_LAN_HOST_ID, null)
+        val here = kotlinx.coroutines.withContext(Dispatchers.IO) { LanFinder.hello(saved) }
+        if (here != null && (hostId == null || here["id"]?.jsonPrimitive?.contentOrNull == hostId)) return true
+        if (hostId == null) return false
+        val phone = LanFinder.phoneAddress(app) ?: return false
+        val moved = LanFinder.findHost(phone, hostId) ?: return false
+        val server = "$LAN_SCHEME$moved"
+        prefs.edit().putString("server", server).apply()
+        _status.value = _status.value.copy(server = server, error = null)
+        DebugLog.d(TAG, "paired computer moved to $moved")
+        return true
+    }
 
     // Setup and pairing. Blocking network calls: run them on Dispatchers.IO.
 
@@ -176,6 +214,7 @@ object NuvxSync {
 
     /** One sync run. Applies the result only if the playlists were not edited meanwhile. */
     suspend fun syncNow(): SyncOutcome = running.withLock {
+        if (_status.value.enabled && isLan) healLanAddress()
         val s = _status.value
         if (!s.enabled) return SyncOutcome.Stop("Sync is off")
         _status.value = s.copy(syncing = true)

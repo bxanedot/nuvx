@@ -1,6 +1,8 @@
 package com.licht.nuvx.ui.player
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.licht.nuvx.sharedui.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -19,6 +21,13 @@ internal fun outputLabel(device: AudioOutputDevice, accountName: String?): Strin
 
 @Composable
 internal fun rememberAudioOutputName(accountName: String?): String {
+    val cast by PlayerPlatform.host.castState.collectAsStateWithLifecycle()
+    val watch by PlayerPlatform.host.watchOutput.collectAsStateWithLifecycle()
+    val computer by PlayerPlatform.host.computerOutput.collectAsStateWithLifecycle()
+    // A remote output plays instead of every local one, so it names the button.
+    cast.connectedName?.let { return it }
+    if (computer.active) return computer.name?.takeIf(String::isNotBlank) ?: stringResource(Res.string.computer_output)
+    if (watch.active) return watch.name?.takeIf(String::isNotBlank) ?: stringResource(Res.string.watch_output)
     val outputs = rememberAudioOutputs()
     val active = outputs.firstOrNull { it.isActive }
         ?: return if (accountName.isNullOrBlank()) {

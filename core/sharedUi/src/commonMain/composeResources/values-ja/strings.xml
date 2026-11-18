@@ -201,4 +201,6 @@
     <string name="import_playlist_file">ファイルを読み込む</string>
     <string name="import_playlist_file_subtitle">M3U または CSV</string>
     <string name="saved_on_this_device">このデバイスに保存</string>
+    <string name="computer_output">パソコン</string>
+    <string name="computer_output_subtitle">パソコンの nuvx で再生</string>
 </resources>

@@ -85,6 +85,13 @@ interface PlayerHost {
 
     fun selectWatchOutput() = Unit
 
+    /** Nuvx Connect: the paired computer as a place to play, like the watch. */
+    val computerOutput: StateFlow<WatchOutputUi> get() = NoWatch
+
+    fun refreshComputerOutput() = Unit
+
+    fun selectComputerOutput() = Unit
+
     @Composable
     fun CastDialog(hazeState: HazeState, onDismiss: () -> Unit) = Unit
 

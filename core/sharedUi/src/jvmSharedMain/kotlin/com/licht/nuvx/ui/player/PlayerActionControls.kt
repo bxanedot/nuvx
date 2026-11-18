@@ -295,10 +295,12 @@ private fun OutputPartyPill(
 private fun rememberOutputGlyph(): OutputGlyph {
     val cast by PlayerPlatform.host.castState.collectAsStateWithLifecycle()
     val watch by PlayerPlatform.host.watchOutput.collectAsStateWithLifecycle()
+    val computer by PlayerPlatform.host.computerOutput.collectAsStateWithLifecycle()
     val active = rememberAudioOutputs().firstOrNull { it.isActive }
     return when {
         cast.connectedName != null -> OutputGlyph(SfIcons.CastConnected, PILL_OUTPUT_WIDE_SIZE)
         watch.active -> OutputGlyph(SfIcons.Watch, PILL_OUTPUT_TALL_SIZE)
+        computer.active -> OutputGlyph(SfIcons.Tv, PILL_OUTPUT_WIDE_SIZE)
         else -> when (active?.kind) {
             null, AudioOutputKind.PHONE -> OutputGlyph(SfIcons.Cast, PILL_OUTPUT_WIDE_SIZE)
             AudioOutputKind.BLUETOOTH -> when (active.form) {

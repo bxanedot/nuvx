@@ -296,7 +296,7 @@ impl App {
             Ok("account-settings") => app.go(Page::Setting(SettingsPane::Account)),
             Ok("import-settings") => app.go(Page::Setting(SettingsPane::Import)),
             Ok("sync-settings") => app.go(Page::Setting(SettingsPane::Sync)),
-            Ok("connect-settings") => app.go(Page::Setting(SettingsPane::Connect)),
+            Ok("connect-settings") => app.go(Page::Setting(SettingsPane::Sync)),
             Ok("transfer") => app.go(Page::Transfer),
             Ok("jam") => app.go(Page::Jam),
             Ok(p) if p.starts_with("album:") => app.go(Page::Album(p[6..].to_owned())),

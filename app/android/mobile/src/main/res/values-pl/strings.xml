@@ -1558,4 +1558,9 @@
     <string name="nuvx_connect_off_on_computer">Na komputerze włącz Zezwalaj na zdalne sterowanie w Ustawienia → Nuvx Connect</string>
     <string name="nuvx_sync_lan_code_not_found">Żaden komputer w tej sieci Wi-Fi nie pokazuje tego kodu. Sprawdź kod albo wpisz adres widoczny pod nim.</string>
     <string name="nuvx_connect_subtitle">Steruj nuvx na komputerze z tego telefonu</string>
+    <string name="nuvx_sync_and_connect">Synchronizacja i połączenie</string>
+    <string name="nuvx_sync_and_connect_subtitle">Playlisty i odtwarzanie na wszystkich urządzeniach</string>
+    <string name="computer_output_name">Komputer</string>
+    <string name="nuvx_connect_how">Stuknij przycisk głośnika w odtwarzaczu i wybierz %1$s. Telefon nim wtedy steruje.</string>
+    <string name="nuvx_connect_not_reachable">Teraz niedostępny. Potrzebna jest ta sama sieć Wi-Fi i zezwolenie na zdalne sterowanie na komputerze.</string>
 </resources>

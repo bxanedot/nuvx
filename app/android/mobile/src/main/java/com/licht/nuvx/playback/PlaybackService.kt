@@ -231,7 +231,7 @@ class PlaybackService : MediaLibraryService() {
         scope = scope,
         player = { player },
         isTransitioning = { crossfade?.isTransitioning() == true },
-        isCasting = { CastController.state.value.casting || castPlayback.active },
+        isCasting = { CastController.state.value.casting || castPlayback.active || computerSpeaker.active },
         refreshLayouts = { refreshCustomLayouts() },
         onContextStarted = {
             autoplay.clearRepeatAllStash()
@@ -347,7 +347,12 @@ class PlaybackService : MediaLibraryService() {
         WearBridge.createSpeaker(this, scope, localPlayer = { player }, onChanged = { publishWidgetState() })
     }
 
-    private val speakers by lazy { Speakers(listOf(castPlayback, watchSpeaker)) }
+    private val computerSpeaker by lazy {
+        com.licht.nuvx.playback.cast.ComputerSpeaker(scope, localPlayer = { player }, onChanged = { publishWidgetState() })
+            .also { com.licht.nuvx.playback.cast.ComputerSpeaker.current = it }
+    }
+
+    private val speakers by lazy { Speakers(listOf(castPlayback, watchSpeaker, computerSpeaker)) }
 
     private var partySync: PartySync? = null
 
@@ -1301,6 +1306,8 @@ class PlaybackService : MediaLibraryService() {
 
 
     override fun onDestroy() {
+        computerSpeaker.stop(resumeHere = false)
+        com.licht.nuvx.playback.cast.ComputerSpeaker.current = null
         WearBridge.attachStreams(null)
         WearBridge.releaseSpeaker()
         CastController.detach(castPlayback)

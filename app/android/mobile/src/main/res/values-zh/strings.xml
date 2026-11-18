@@ -1499,4 +1499,9 @@
     <string name="nuvx_connect_off_on_computer">请在电脑的 设置 → Nuvx Connect 中开启允许远程控制</string>
     <string name="nuvx_sync_lan_code_not_found">此 Wi-Fi 上没有电脑显示该代码。请检查代码，或输入其下方显示的地址。</string>
     <string name="nuvx_connect_subtitle">用这部手机控制电脑上的 nuvx</string>
+    <string name="nuvx_sync_and_connect">同步与连接</string>
+    <string name="nuvx_sync_and_connect_subtitle">在所有设备上同步播放列表与播放</string>
+    <string name="computer_output_name">电脑</string>
+    <string name="nuvx_connect_how">点按播放器中的扬声器按钮并选择 %1$s，之后由手机控制它。</string>
+    <string name="nuvx_connect_not_reachable">暂时无法连接。两者需在同一 Wi-Fi，且电脑上已允许远程控制。</string>
 </resources>

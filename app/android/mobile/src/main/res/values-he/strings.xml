@@ -1525,4 +1525,9 @@
     <string name="nuvx_connect_off_on_computer">הפעל שליטה מרחוק בהגדרות ← Nuvx Connect במחשב</string>
     <string name="nuvx_sync_lan_code_not_found">אין מחשב ברשת ה-Wi-Fi הזו שמציג את הקוד הזה. בדוק את הקוד או הזן את הכתובת שמתחתיו.</string>
     <string name="nuvx_connect_subtitle">שלוט ב-nuvx במחשב מהטלפון הזה</string>
+    <string name="nuvx_sync_and_connect">סנכרון וחיבור</string>
+    <string name="nuvx_sync_and_connect_subtitle">הפלייליסטים וההשמעה שלך בכל המכשירים</string>
+    <string name="computer_output_name">מחשב</string>
+    <string name="nuvx_connect_how">הקש על לחצן הרמקול בנגן ובחר %1$s. הטלפון ישלוט בו.</string>
+    <string name="nuvx_connect_not_reachable">לא זמין כרגע. שניהם צריכים את אותה רשת Wi-Fi ושליטה מרחוק מופעלת במחשב.</string>
 </resources>

@@ -1500,4 +1500,9 @@
     <string name="nuvx_connect_off_on_computer">パソコンの 設定 → Nuvx Connect でリモート操作を許可してください</string>
     <string name="nuvx_sync_lan_code_not_found">この Wi-Fi にそのコードを表示しているパソコンはありません。コードを確認するか、その下のアドレスを入力してください。</string>
     <string name="nuvx_connect_subtitle">このスマホからパソコンの nuvx を操作</string>
+    <string name="nuvx_sync_and_connect">同期とコネクト</string>
+    <string name="nuvx_sync_and_connect_subtitle">すべてのデバイスでプレイリストと再生を</string>
+    <string name="computer_output_name">パソコン</string>
+    <string name="nuvx_connect_how">プレーヤーのスピーカーボタンをタップして %1$s を選ぶと、スマホから操作できます。</string>
+    <string name="nuvx_connect_not_reachable">今は接続できません。同じ Wi-Fi で、パソコンのリモート操作が許可されている必要があります。</string>
 </resources>

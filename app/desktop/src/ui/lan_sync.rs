@@ -168,13 +168,22 @@ impl super::App {
     /// What a paired phone sees in Nuvx Connect.
     fn connect_snapshot(&self) -> serde_json::Value {
         let track = self.current().map(|t| serde_json::json!({
-            "id": t.id, "title": t.title, "artist": t.artist_line(), "durationMs": t.duration.map(|s| u64::from(s) * 1000),
+            "id": t.id, "title": t.title, "artist": t.artist_line(), "durationMs": t.duration.map(|s| u64::from(s) * 1000).or_else(|| self.audio.status.duration().map(|d| d.as_millis() as u64)),
         }));
         serde_json::json!({
             "track": track,
-            "playing": self.playing(),
+            "playing": self.playing() && self.resume_at.is_none(),
+            "ended": self.playback_ended(),
             "positionMs": self.audio.status.position().as_millis() as u64,
         })
+    }
+
+    /// The last song in the queue played to its end and nothing follows: the phone's queue takes over from here.
+    fn playback_ended(&self) -> bool {
+        let Some(total) = self.audio.status.duration() else { return false };
+        !self.playing() && self.resume_at.is_none() && !total.is_zero()
+            && self.audio.status.position() + std::time::Duration::from_millis(1_500) >= total
+            && self.queue.upcoming().is_none()
     }
 
     fn connect_apply(&mut self, command: crate::lan_sync::connect::Command) {
@@ -186,14 +195,26 @@ impl super::App {
             Command::Next => self.next(),
             Command::Prev => self.prev(),
             Command::Seek(ms) => self.seek_to(std::time::Duration::from_millis(ms)),
-            Command::PlayTrack { id, title, artist, position_ms } => {
-                let track = crate::model::Track {
-                    id, title, artists: vec![crate::model::Link { name: artist, id: None }],
-                    album: None, duration: None, thumbs: Vec::new(), track_nr: None, plays: None, music_video: false,
-                };
-                self.play_list(vec![track], 0);
-                if position_ms > 0 {
-                    self.seek_to(std::time::Duration::from_millis(position_ms));
+            Command::Load { tracks, position_ms, paused } => {
+                let tracks: Vec<crate::model::Track> = tracks.into_iter().map(|i| crate::model::Track {
+                    id: i.id, title: i.title, artists: vec![crate::model::Link { name: i.artist, id: None }],
+                    album: None, duration: None, thumbs: vec![crate::model::Thumb { url: i.art, width: 544, height: 544 }],
+                    track_nr: None, plays: None, music_video: false,
+                }).collect();
+                let at = std::time::Duration::from_millis(position_ms);
+                if !self.queue.replace(tracks, 0, None) {
+                    return;
+                }
+                self.play_pending = None;
+                if paused {
+                    // Ready where the phone was; Play (from either side) starts it there.
+                    self.audio.send(crate::audio::AudioCmd::Stop);
+                    self.audio.status.position_ms.store(position_ms, std::sync::atomic::Ordering::Relaxed);
+                    self.resume_at = Some(at);
+                    self.request_art();
+                } else {
+                    self.recoveries = 0;
+                    self.play_current_at(at, true, false, false);
                 }
             }
         }
@@ -291,7 +312,7 @@ pub(super) fn settings(app: &mut App, ui: &mut Ui) {
 /// How a phone finds this computer: the four-digit code, or the address for networks where the search fails.
 fn pair_row(ui: &mut Ui, code: &str, address: &str) {
     let desc = format!(
-        "On your phone: Settings → Your data → Local Wi-Fi Sync, and enter this code (or the address {address}). If Windows asks, allow nuvx on private networks."
+        "On your phone: Settings → Sync & Connect → Local Wi-Fi Sync, and enter this code (or the address {address}). If Windows asks, allow nuvx on private networks."
     );
     setting_row(ui, "Pair a new device", Some(&desc), |ui| {
         ui.label(RichText::new(code).font(theme::semibold(22.0)).color(theme::text()));
@@ -307,41 +328,15 @@ fn address_text(port: Option<u16>) -> String {
     }
 }
 
-/// Settings → Nuvx Connect: whether paired phones may control this computer, and which phones those are.
+/// Settings → Sync & Connect, the Connect half: whether paired phones may play through this computer.
 pub(super) fn connect_settings(app: &mut App, ui: &mut Ui) {
     let mut on = app.lan.connect;
-    setting_row(ui, "Allow remote control", Some("Paired phones can see what plays here, play, pause, skip, and hand their song over. Only phones you approved in Local Wi-Fi Sync, on this network, encrypted."), |ui| {
+    setting_row(ui, "Allow remote control", Some("On a paired phone, pick this computer with the speaker button in the player: its music then plays here and the phone's player controls it. Only phones paired above, on this network, encrypted."), |ui| {
         super::pages::toggle(ui, &mut on, "Allow remote control");
     });
     app.lan.connect = on;
-    if !app.lan.enabled {
-        let mut turn_on = false;
-        setting_row(ui, "Local Wi-Fi Sync is off", Some("Nuvx Connect uses its pairing. Turn it on, then pair your phone in Settings → Nuvx Sync."), |ui| {
-            turn_on = pill(ui, "Turn on", None, true).clicked();
-        });
-        if turn_on {
-            app.lan.enabled = true;
-            app.lan.error = None;
-        }
-        return;
-    }
-    let Some(inner) = app.lan.inner.clone() else { return };
-    let address = address_text(app.lan.port);
-    let mut g = inner.lock().unwrap_or_else(|e| e.into_inner());
-    pair_row(ui, &g.find_code, &address);
-    let devices = g.devices();
-    if devices.is_empty() {
-        setting_row(ui, "Phones", Some("None paired yet. Pairing a phone here also lets it control this computer."), |_| {});
-    }
-    for d in devices {
-        let mut remove = false;
-        let desc = if app.lan.connect { "Can control this computer" } else { "Remote control is off" };
-        setting_row(ui, &d.name, Some(&format!("{desc} · last seen {}", ago(d.seen_ms).to_lowercase())), |ui| {
-            remove = pill(ui, "Remove", None, false).clicked();
-        });
-        if remove {
-            g.revoke(&d.id);
-        }
+    if app.lan.connect && !app.lan.enabled {
+        setting_row(ui, "Local Wi-Fi Sync is off", Some("Turn it on above and pair your phone; Nuvx Connect uses that pairing."), |_| {});
     }
 }
 

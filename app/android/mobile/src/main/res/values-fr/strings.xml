@@ -1521,4 +1521,9 @@
     <string name="nuvx_connect_off_on_computer">Activez Autoriser le contrôle à distance dans Réglages → Nuvx Connect sur l’ordinateur</string>
     <string name="nuvx_sync_lan_code_not_found">Aucun ordinateur de ce Wi-Fi n’affiche ce code. Vérifiez-le ou saisissez l’adresse indiquée dessous.</string>
     <string name="nuvx_connect_subtitle">Contrôlez nuvx sur votre ordinateur depuis ce téléphone</string>
+    <string name="nuvx_sync_and_connect">Synchro et Connect</string>
+    <string name="nuvx_sync_and_connect_subtitle">Vos playlists et la lecture sur tous vos appareils</string>
+    <string name="computer_output_name">Ordinateur</string>
+    <string name="nuvx_connect_how">Touchez le bouton haut-parleur du lecteur et choisissez %1$s. Le téléphone le contrôle alors.</string>
+    <string name="nuvx_connect_not_reachable">Injoignable pour le moment. Il faut le même Wi-Fi et le contrôle à distance autorisé sur l’ordinateur.</string>
 </resources>

@@ -1371,4 +1371,9 @@
     <string name="nuvx_connect_off_on_computer">Turn on Allow remote control in Settings → Nuvx Connect on the computer</string>
     <string name="nuvx_sync_lan_code_not_found">No computer on this Wi-Fi shows that code. Check the code, or enter the address shown under it.</string>
     <string name="nuvx_connect_subtitle">Control nuvx on your computer from this phone</string>
+    <string name="nuvx_sync_and_connect">Sync &amp; Connect</string>
+    <string name="nuvx_sync_and_connect_subtitle">Your playlists and playback across your devices</string>
+    <string name="computer_output_name">Computer</string>
+    <string name="nuvx_connect_how">Tap the speaker button in the player and pick %1$s. The phone then controls it.</string>
+    <string name="nuvx_connect_not_reachable">Not reachable right now. Both need the same Wi-Fi, and Allow remote control on the computer.</string>
 </resources>

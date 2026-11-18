@@ -127,7 +127,7 @@ internal fun rememberAndroidOutputPicker(onOpen: () -> Unit): () -> Unit {
     val context = LocalContext.current
     val ask = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> if (granted) onOpen() }
+    ) { _ -> onOpen() } // Refused only hides Bluetooth names; Wi-Fi speakers like the paired computer still show.
     return {
         if (bluetoothNamesAllowed(context)) onOpen() else ask.launch(BLUETOOTH_CONNECT)
     }

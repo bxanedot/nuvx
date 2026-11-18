@@ -1520,4 +1520,9 @@
     <string name="nuvx_connect_off_on_computer">कंप्यूटर पर सेटिंग्स → Nuvx Connect में रिमोट कंट्रोल चालू करें</string>
     <string name="nuvx_sync_lan_code_not_found">इस वाई-फ़ाई पर कोई कंप्यूटर यह कोड नहीं दिखा रहा। कोड जाँचें, या नीचे दिखाया गया पता डालें।</string>
     <string name="nuvx_connect_subtitle">इस फ़ोन से अपने कंप्यूटर पर nuvx चलाएँ</string>
+    <string name="nuvx_sync_and_connect">सिंक और कनेक्ट</string>
+    <string name="nuvx_sync_and_connect_subtitle">आपके सभी डिवाइस पर प्लेलिस्ट और प्लेबैक</string>
+    <string name="computer_output_name">कंप्यूटर</string>
+    <string name="nuvx_connect_how">प्लेयर में स्पीकर बटन दबाएँ और %1$s चुनें। फिर फ़ोन उसे नियंत्रित करता है।</string>
+    <string name="nuvx_connect_not_reachable">अभी नहीं मिल रहा। दोनों एक ही वाई-फ़ाई पर हों और कंप्यूटर पर रिमोट कंट्रोल चालू हो।</string>
 </resources>
