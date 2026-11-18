@@ -85,7 +85,7 @@ export function AppShell() {
     document.title = title;
     document.querySelector('meta[name="description"]')?.setAttribute('content', description);
     document.querySelector('meta[name="robots"]')?.setAttribute('content', meta ? 'index,follow' : 'noindex,follow');
-    document.querySelector('meta[name="author"]')?.setAttribute('content', 'Licht');
+    document.querySelector('meta[name="author"]')?.setAttribute('content', 'licht');
     document.querySelector('link[rel="canonical"]')?.setAttribute('href', canonical);
     document.querySelector('meta[property="og:url"]')?.setAttribute('content', canonical);
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', title);
@@ -105,7 +105,7 @@ export function AppShell() {
       name: title,
       description,
       url: canonical,
-      author: { '@type': 'Person', name: 'Licht', url: 'https://github.com/lylicht' },
+      author: { '@type': 'Person', name: 'licht', url: 'https://github.com/lylicht' },
       ...(meta ? {} : { applicationCategory: 'MultimediaApplication', operatingSystem: 'Web browser', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } }),
     });
   }, [location.pathname]);
@@ -183,10 +183,10 @@ export function AppShell() {
           href="https://guns.lol/lylicht"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Licht on Guns.lol"
+          aria-label="licht on Guns.lol"
           className="absolute top-4 right-5 z-[calc(var(--z-web-chrome)-2)] block max-sm:right-3.5"
         >
-          <img src="/licht-signature.png" width="92" height="30" alt="Licht" className="app-licht-signature" />
+          <img src="/licht-signature.png" width="92" height="30" alt="licht" className="app-licht-signature" />
         </a>
         <main
           id="scrollable-page"

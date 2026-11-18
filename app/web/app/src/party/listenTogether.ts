@@ -92,13 +92,13 @@ export function partySettings(): Settings {
   try {
     const saved = JSON.parse(readStorage('localStorage', SETTINGS_KEY) ?? '{}') as Partial<Settings> | null;
     const savedNickname = typeof saved?.nickname === 'string' ? saved.nickname.trim() : '';
-    const nickname = !savedNickname || savedNickname.toLowerCase() === 'licht' ? 'Licht' : savedNickname;
+    const nickname = !savedNickname || savedNickname.toLowerCase() === 'licht' ? 'licht' : savedNickname;
     return {
       customServer: typeof saved?.customServer === 'string' ? saved.customServer : '',
       nickname,
     };
   } catch {
-    return { customServer: '', nickname: 'Licht' };
+    return { customServer: '', nickname: 'licht' };
   }
 }
 
@@ -133,7 +133,7 @@ async function identity(): Promise<Omit<JoinRequest, 'maxMembers' | 'autoplayEna
   const auth = ytAuthSnapshot();
   const active = auth.signedIn ? auth.active : null;
   if (!active) throw new PartyError('not_signed_in', 'Sign in to nuvx to listen together.');
-  const name = partySettings().nickname.trim() || 'Licht';
+  const name = partySettings().nickname.trim() || 'licht';
   return {
     userId: (await sha256(`${active.authUser}:${active.id}`)).slice(0, 32),
     deviceId: deviceId(),

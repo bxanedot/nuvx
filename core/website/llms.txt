@@ -27,7 +27,7 @@ The v1.0.2 stable release ships one shared universal phone APK, one shared unive
 
 ## Licence and contact
 
-The project is licensed under GPL-3.0-only. The developer is Licht: https://github.com/lylicht. Contact: Licht on Guns.lol.
+The project is licensed under GPL-3.0-only. The developer is licht: https://github.com/lylicht. Contact: licht on Guns.lol.
 
 ## Search guidance
 

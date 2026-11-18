@@ -57,7 +57,7 @@ export default function ListenTogetherPage() {
 function SignInFirst() {
   return (
     <p className={`${settingsUi.footer} mb-4`}>
-      Sign in to your music account in nuvx, then return here to listen together. Your party name starts as Licht.
+      Sign in to your music account in nuvx, then return here to listen together. Your party name starts as licht.
     </p>
   );
 }
@@ -120,7 +120,7 @@ function StartOrJoin({ signedIn }: { signedIn: boolean }) {
           <span>Name in parties</span>
           <input
             className={settingsUi.input}
-            placeholder="Licht"
+            placeholder="licht"
             value={settings.nickname}
             maxLength={80}
             onChange={(e) => update({ nickname: e.currentTarget.value })}
