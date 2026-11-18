@@ -24,6 +24,8 @@ import java.net.ProxySelector
 object PrivacyNetwork {
     private const val PREFS = "privacy_connection"
     private const val KEY_MODE = "mode"
+    private const val KEY_LOCAL_SOCKS_PORT = "local_socks_port"
+    private const val DEFAULT_LOCAL_SOCKS_PORT = 10808
 
     /** Built-in Tor + Snowflake is not bundled yet; until it is, only Off and Orbot are offered. */
     const val EMBEDDED_AVAILABLE = false
@@ -31,10 +33,15 @@ object PrivacyNetwork {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val disabled = MutableStateFlow<ConnectionState>(ConnectionState.Disabled).asStateFlow()
     private val _savedMode = MutableStateFlow(PrivacyMode.OFF)
+    private val _savedLocalSocksPort = MutableStateFlow(DEFAULT_LOCAL_SOCKS_PORT)
     private var manager: ConnectionManager? = null
 
     /** What the user chose; differs from [activeMode] until the next start. */
     val savedMode: StateFlow<PrivacyMode> = _savedMode.asStateFlow()
+    val savedLocalSocksPort: StateFlow<Int> = _savedLocalSocksPort.asStateFlow()
+
+    var activeLocalSocksPort: Int = DEFAULT_LOCAL_SOCKS_PORT
+        private set
 
     var activeMode: PrivacyMode = PrivacyMode.OFF
         private set
@@ -48,13 +55,17 @@ object PrivacyNetwork {
     /** Must run before the first network client is created, so every client picks up the selector. */
     fun install(context: Context) {
         val app = context.applicationContext
-        val stored = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_MODE, null)
+        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val stored = prefs.getString(KEY_MODE, null)
+        activeLocalSocksPort = prefs.getInt(KEY_LOCAL_SOCKS_PORT, DEFAULT_LOCAL_SOCKS_PORT)
+            .takeIf { it in 1..65535 } ?: DEFAULT_LOCAL_SOCKS_PORT
+        _savedLocalSocksPort.value = activeLocalSocksPort
         val mode = PrivacyMode.entries.firstOrNull { it.name == stored } ?: PrivacyMode.OFF
         _savedMode.value = mode
         activeMode = mode
         if (mode == PrivacyMode.OFF) return
 
-        val backends = listOf<ConnectionBackend>(OrbotBackend(app))
+        val backends = listOf<ConnectionBackend>(OrbotBackend(app), LocalSocksBackend(activeLocalSocksPort))
         val m = ConnectionManager(mode, backends, scope)
         manager = m
         ProxySelector.setDefault(
@@ -70,12 +81,19 @@ object PrivacyNetwork {
         _savedMode.value = mode
     }
 
+    fun setLocalSocksPort(context: Context, port: Int) {
+        require(port in 1..65535) { "SOCKS port must be between 1 and 65535" }
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putInt(KEY_LOCAL_SOCKS_PORT, port).apply()
+        _savedLocalSocksPort.value = port
+    }
+
     fun retry() {
         manager?.retry()
     }
 
     /** A real request through the current connection; false when nothing is connected. */
-    suspend fun test(): Boolean = manager?.socksPort?.let { TorCheck.passes(it) } ?: false
+    suspend fun test(): Boolean = manager?.verifyCurrent() ?: false
 
     private fun routeWebViews(m: ConnectionManager) {
         webViewCovered = runCatching { WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE) }.getOrDefault(false)
