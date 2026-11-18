@@ -27,7 +27,8 @@ jobs:
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners (GitHub.com only)
     # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-15') || 'ubuntu-latest' }}
+    timeout-minutes: ${{ (matrix.language == 'swift' && 120) || 360 }}
     permissions:
       # required for all workflows
       security-events: write
@@ -55,8 +56,9 @@ jobs:
           build-mode: none
         - language: rust
           build-mode: none
+        # Autobuild can't build the iOS app (it needs the Rust core and the KMP frameworks first): see the steps below.
         - language: swift
-          build-mode: autobuild
+          build-mode: manual
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
@@ -76,6 +78,54 @@ jobs:
     #   uses: actions/setup-example@v1
 
     # Initializes the CodeQL tools for scanning.
+    # Swift: build the native and KMP frameworks before tracing starts (same cache as apple-builds.yml),
+    # so only the app's own Swift compile is traced.
+    - uses: maxim-lobanov/setup-xcode@v1
+      if: matrix.language == 'swift'
+      with:
+        xcode-version: latest-stable
+    - uses: actions/setup-java@v5
+      if: matrix.language == 'swift'
+      with:
+        distribution: temurin
+        java-version: '25'
+    - uses: actions/setup-python@v7
+      if: matrix.language == 'swift'
+      with:
+        python-version: '3.13'
+    - uses: dtolnay/rust-toolchain@stable
+      if: matrix.language == 'swift'
+      with:
+        targets: aarch64-apple-darwin,aarch64-apple-ios,aarch64-apple-ios-sim
+    - name: Install Swift build tools
+      if: matrix.language == 'swift'
+      run: |
+        command -v cmake >/dev/null || brew install cmake
+        command -v xcodegen >/dev/null || brew install xcodegen
+    - name: Identify the Apple SDK for framework caching
+      if: matrix.language == 'swift'
+      id: apple-sdk
+      run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache/restore@v6
+      if: matrix.language == 'swift'
+      id: apple-frameworks
+      with:
+        path: |
+          core/apple/build/Frameworks
+          core/apple/src/Generated
+        key: apple-frameworks-${{ runner.os }}-${{ runner.arch }}-${{ steps.apple-sdk.outputs.version }}-${{ hashFiles('app/ios/native-core/**', 'app/ios/shared/**', 'app/ios/vendor/**', 'app/ios/*.kts', 'app/ios/gradle.properties', 'app/ios/gradle/**', 'app/ios/gradlew', 'app/ios/scripts/build-native-core.sh', 'app/ios/scripts/build-shared-framework.sh', 'core/native/**') }}
+    - name: Build native and KMP frameworks and generate the Xcode project
+      if: matrix.language == 'swift'
+      working-directory: app/ios
+      env:
+        CONFIG: release
+        FRAMEWORKS_CACHED: ${{ steps.apple-frameworks.outputs.cache-hit }}
+      run: |
+        if [[ "$FRAMEWORKS_CACHED" == true ]]; then
+          (cd mobile && xcodegen generate --spec project.yml)
+        else
+          bash scripts/bootstrap-apple.sh
+        fi
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
       with:
@@ -94,17 +144,11 @@ jobs:
     # to build your code.
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Run manual build steps
-      if: matrix.build-mode == 'manual'
-      shell: bash
+    - name: Build the iOS app (traced)
+      if: matrix.language == 'swift'
+      working-directory: app/ios
       run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
-
+        xcodebuild -project mobile/Nuvx.xcodeproj -scheme Nuvx -configuration Release           -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/codeql           build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= -quiet
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
       with:
