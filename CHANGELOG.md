@@ -4,6 +4,13 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## Unreleased
 
+### Android phone and tablet
+
+- **A clear message when your network blocks YouTube's audio.** Some DNS services (for example 87.107.206.10 /
+  87.107.206.11) let search, home and covers through but not googlevideo.com, the servers the songs play from, so
+  songs showed up but never played, with no explanation. nuvx now tells you once, then points you to
+  **Settings → Network → Privacy Connection** (Orbot or a local SOCKS5 app) or a VPN, which do carry the audio.
+
 ### Desktop (Windows, macOS, Linux)
 
 - **YouTube videos keep their original language.** Videos dubbed into other languages list every dub next to the

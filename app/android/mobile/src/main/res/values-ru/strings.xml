@@ -1518,4 +1518,5 @@
     <string name="nuvx_sync_lan_connect">Подключить</string>
     <string name="nuvx_sync_lan_compare">Подтвердите на %1$s, когда там появится этот код:</string>
     <string name="nuvx_sync_lan_unreachable">Не удалось связаться с компьютером. Проверьте, что оба устройства в одной сети Wi-Fi и синхронизация по локальной Wi-Fi включена.</string>
+    <string name="stream_host_unreachable">Треки не загружаются: эта сеть блокирует аудиосерверы YouTube (googlevideo.com). Включите %1$s → %2$s или используйте VPN.</string>
 </resources>

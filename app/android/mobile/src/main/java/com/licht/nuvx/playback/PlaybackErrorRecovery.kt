@@ -23,8 +23,11 @@ internal class PlaybackErrorRecovery(
     private val scope: CoroutineScope,
     private val player: () -> ExoPlayer?,
     private val onSwapping: (String) -> Unit,
+    private val onStreamHostUnreachable: () -> Unit = {},
 ) {
     private var audibleMediaId: String? = null
+
+    private var hostNoticeShown = false
 
     private var consecutiveErrorSkips = 0
 
@@ -35,6 +38,7 @@ internal class PlaybackErrorRecovery(
     fun onAudible(mediaId: String?) {
         audibleMediaId = mediaId
         consecutiveErrorSkips = 0
+        hostNoticeShown = false
     }
 
     fun onTrackChanged(becameCurrent: String?) {
@@ -81,6 +85,12 @@ internal class PlaybackErrorRecovery(
             TrackLog.w("nuvx", "$mediaId cannot be played: $verdict", about = mediaId)
         } else if (givingUp) {
             TrackLog.w("nuvx", "$mediaId has failed $attempts times; leaving it alone", about = mediaId)
+        }
+        // Once until something plays: DNS that proxies YouTube's pages but not googlevideo.com shows songs that never load.
+        if (givingUp && !hostNoticeShown && !AudioCache.isOffline() && RecoveryPolicy.streamHostUnresolved(error)) {
+            hostNoticeShown = true
+            TrackLog.w("nuvx", "YouTube's audio servers (googlevideo.com) do not resolve on this network", about = mediaId)
+            onStreamHostUnreachable()
         }
         QualityUpgrade.forget(mediaId)
         val diedOnModuleStream = uri?.let(QualityUpgrade::cacheTag)
@@ -314,6 +324,17 @@ internal object RecoveryPolicy {
         !neverStarted -> null
         skipsInARow >= MAX_CONSECUTIVE_SKIPS -> null
         else -> "failed to start after $attempts attempts ($errorName)"
+    }
+
+    /** True when the stream failed because a googlevideo.com host name could not be looked up. */
+    fun streamHostUnresolved(error: Throwable?): Boolean {
+        var cause = error
+        var depth = 0
+        while (cause != null && depth++ < 8) {
+            if (cause is java.net.UnknownHostException && cause.message.orEmpty().contains("googlevideo.com")) return true
+            cause = cause.cause?.takeIf { it !== cause }
+        }
+        return false
     }
 }
 

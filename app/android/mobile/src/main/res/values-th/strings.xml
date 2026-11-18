@@ -1477,4 +1477,5 @@
     <string name="nuvx_sync_lan_connect">เชื่อมต่อ</string>
     <string name="nuvx_sync_lan_compare">อนุมัติบน %1$s เมื่อแสดงรหัสนี้:</string>
     <string name="nuvx_sync_lan_unreachable">เชื่อมต่อคอมพิวเตอร์ไม่ได้ ตรวจสอบว่าทั้งสองใช้ Wi-Fi เดียวกันและเปิดซิงค์ผ่าน Wi-Fi ในบ้านอยู่</string>
+    <string name="stream_host_unreachable">โหลดเพลงไม่ได้: เครือข่ายนี้บล็อกเซิร์ฟเวอร์เสียงของ YouTube (googlevideo.com) เปิด %1$s → %2$s หรือใช้ VPN</string>
 </resources>

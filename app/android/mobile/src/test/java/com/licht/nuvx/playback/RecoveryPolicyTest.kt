@@ -31,4 +31,13 @@ class RecoveryPolicyTest {
         )
         assertNull(RecoveryPolicy.skipReason(null, "E", neverStarted = true, attempts = 3, skipsInARow = 4))
     }
+
+    @Test
+    fun anUnresolvableGooglevideoHostIsRecognisedThroughWrappedCauses() {
+        val dns = java.net.UnknownHostException("Unable to resolve host \"rr1---sn-4g5e6nzl.googlevideo.com\": No address associated with hostname")
+        assertTrue(RecoveryPolicy.streamHostUnresolved(java.io.IOException("source error", java.io.IOException("open", dns))))
+        assertFalse(RecoveryPolicy.streamHostUnresolved(java.net.UnknownHostException("Unable to resolve host \"music.youtube.com\"")))
+        assertFalse(RecoveryPolicy.streamHostUnresolved(java.net.SocketTimeoutException("googlevideo.com timed out")))
+        assertFalse(RecoveryPolicy.streamHostUnresolved(null))
+    }
 }

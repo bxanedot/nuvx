@@ -1448,4 +1448,5 @@
     <string name="nuvx_sync_lan_connect">Bağlan</string>
     <string name="nuvx_sync_lan_compare">%1$s bu kodu gösterdiğinde orada onaylayın:</string>
     <string name="nuvx_sync_lan_unreachable">Bilgisayara ulaşılamadı. İkisinin de aynı Wi-Fi\'da olduğunu ve Yerel Wi-Fi Eşitleme\'nin açık olduğunu kontrol edin.</string>
+    <string name="stream_host_unreachable">Şarkılar yüklenmiyor: Bu ağ YouTube\'un ses sunucularını (googlevideo.com) engelliyor. %1$s → %2$s seçeneğini açın veya VPN kullanın.</string>
 </resources>

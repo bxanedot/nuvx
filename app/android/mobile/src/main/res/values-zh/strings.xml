@@ -1471,4 +1471,5 @@
     <string name="nuvx_sync_lan_connect">连接</string>
     <string name="nuvx_sync_lan_compare">当 %1$s 显示此代码时，在电脑上批准：</string>
     <string name="nuvx_sync_lan_unreachable">无法连接到该电脑。请确认两者在同一 Wi-Fi 下，且已开启本地 Wi-Fi 同步。</string>
+    <string name="stream_host_unreachable">歌曲无法加载：此网络屏蔽了 YouTube 的音频服务器（googlevideo.com）。请开启 %1$s → %2$s，或使用 VPN。</string>
 </resources>

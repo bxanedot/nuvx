@@ -1529,4 +1529,5 @@
     <string name="nuvx_sync_lan_connect">Połącz</string>
     <string name="nuvx_sync_lan_compare">Zatwierdź na %1$s, gdy pokaże ten kod:</string>
     <string name="nuvx_sync_lan_unreachable">Nie można połączyć się z komputerem. Sprawdź, czy oba są w tej samej sieci Wi-Fi i czy lokalna synchronizacja Wi-Fi jest włączona.</string>
+    <string name="stream_host_unreachable">Utwory się nie wczytują: ta sieć blokuje serwery audio YouTube (googlevideo.com). Włącz %1$s → %2$s albo użyj VPN.</string>
 </resources>

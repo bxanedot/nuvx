@@ -1491,4 +1491,5 @@
     <string name="nuvx_sync_lan_connect">Verbinden</string>
     <string name="nuvx_sync_lan_compare">Bestätige auf %1$s, wenn dort dieser Code angezeigt wird:</string>
     <string name="nuvx_sync_lan_unreachable">Computer nicht erreichbar. Prüfe, ob beide im selben WLAN sind und die lokale WLAN-Synchronisierung an ist.</string>
+    <string name="stream_host_unreachable">Songs laden nicht: Dieses Netzwerk sperrt die Audio-Server von YouTube (googlevideo.com). Aktiviere %1$s → %2$s oder nutze ein VPN.</string>
 </resources>

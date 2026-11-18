@@ -281,6 +281,10 @@ class PlaybackService : MediaLibraryService() {
         scope = scope,
         player = { player },
         onSwapping = { swappingMediaId = it },
+        onStreamHostUnreachable = {
+            val text = getString(R.string.stream_host_unreachable, getString(R.string.network), getString(R.string.privacy_connection))
+            Toast.makeText(applicationContext, text, Toast.LENGTH_LONG).show()
+        },
     )
 
     private val directSourceWindow = PlaybackDirectSourceWindowController(

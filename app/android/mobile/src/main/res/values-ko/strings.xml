@@ -1329,4 +1329,5 @@
     <string name="nuvx_sync_lan_connect">연결</string>
     <string name="nuvx_sync_lan_compare">%1$s에 이 코드가 표시되면 거기서 승인하세요:</string>
     <string name="nuvx_sync_lan_unreachable">컴퓨터에 연결할 수 없습니다. 두 기기가 같은 Wi-Fi에 있고 로컬 Wi-Fi 동기화가 켜져 있는지 확인하세요.</string>
+    <string name="stream_host_unreachable">곡을 불러올 수 없습니다: 이 네트워크가 YouTube 오디오 서버(googlevideo.com)를 차단합니다. %1$s → %2$s을(를) 켜거나 VPN을 사용하세요.</string>
 </resources>

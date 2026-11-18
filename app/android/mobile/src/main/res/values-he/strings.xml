@@ -1496,4 +1496,5 @@
     <string name="nuvx_sync_lan_connect">התחברות</string>
     <string name="nuvx_sync_lan_compare">אשרו ב-%1$s כשהוא מציג את הקוד הזה:</string>
     <string name="nuvx_sync_lan_unreachable">לא ניתן להתחבר למחשב. ודאו ששניהם באותה רשת Wi-Fi ושסנכרון Wi-Fi מקומי מופעל.</string>
+    <string name="stream_host_unreachable">השירים לא נטענים: הרשת הזו חוסמת את שרתי השמע של YouTube ‏(googlevideo.com). הפעל את %1$s ← %2$s או השתמש ב-VPN.</string>
 </resources>
