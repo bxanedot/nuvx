@@ -1,12 +1,12 @@
 # Nuvx master plan
 
-The one handoff document for this programme. The owner's standing instructions are in [`NUVX_MASTER_PROMPT.md`](NUVX_MASTER_PROMPT.md); every session follows them. Update it in the same pull request as the work it describes. Last updated 2026-11-17. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md). The repository audit lives in [`audits/FULL_REFACTOR_AUDIT.md`](audits/FULL_REFACTOR_AUDIT.md), security in [`audits/SECURITY_AUDIT.md`](audits/SECURITY_AUDIT.md). Platform support: [`architecture/PLATFORM_AND_UX_MATRIX.md`](architecture/PLATFORM_AND_UX_MATRIX.md). Decisions: [`architecture/TECHNOLOGY_DECISIONS.md`](architecture/TECHNOLOGY_DECISIONS.md). Tests: [`QUALITY_AND_TESTING.md`](QUALITY_AND_TESTING.md). Releases: [`RELEASE_READINESS.md`](RELEASE_READINESS.md).
+The one handoff document for this programme. The owner's standing instructions are in [`NUVX_MASTER_PROMPT.md`](NUVX_MASTER_PROMPT.md); every session follows them. Update it in the same pull request as the work it describes. Last updated 2026-11-18. Read-only references and the per-issue matrix live in [`audits/REFERENCE_REPOS_AUDIT.md`](audits/REFERENCE_REPOS_AUDIT.md). The repository audit lives in [`audits/FULL_REFACTOR_AUDIT.md`](audits/FULL_REFACTOR_AUDIT.md), security in [`audits/SECURITY_AUDIT.md`](audits/SECURITY_AUDIT.md). Platform support: [`architecture/PLATFORM_AND_UX_MATRIX.md`](architecture/PLATFORM_AND_UX_MATRIX.md). Decisions: [`architecture/TECHNOLOGY_DECISIONS.md`](architecture/TECHNOLOGY_DECISIONS.md). Tests: [`QUALITY_AND_TESTING.md`](QUALITY_AND_TESTING.md). Releases: [`RELEASE_READINESS.md`](RELEASE_READINESS.md).
 
 ## Released
 
 **nuvx 1.0.0** (licht line), published 2026-11-17 from `6d3126e6`. It ships 12 files: phone, TV, Auto and Wear APKs signed with the `CN=licht` key (SHA-256 `833677fb…`), the Windows installer, the Linux `.tar.gz`, one universal macOS `.dmg`, the Chrome and Firefox extensions, and `SHA256SUMS`. The website's download routes, old `mac-arm`, `mac-intel` and `foss` links included, resolve to these files; this was checked by running `core/website/api/download.js` against the published asset list. All older releases are pre-releases named "old nuvx build …", and the old 1.0.0 is at `old-nuvx-v1.0.0`.
 
-**nuvx 1.0.1** is being built: tag `v1.0.1` on `9abbddba` (PR 314), draft release, "Nuvx releases" run 44139030811. Apple builds follow it.
+**nuvx 1.0.1** and **1.0.2** (Android version code 3) are published; 1.0.2 is the latest. Tag `v1.0.3` (Tor exit switching, code 4) exists on `b45a9250`, but its release run was cancelled and nothing was published. The owner asked for no new releases until further notice (2026-11-18); later work collects under "Unreleased" in `CHANGELOG.md`.
 
 ## Session handoff (2026-11-17, Phase 0 baseline)
 
@@ -80,6 +80,27 @@ The one handoff document for this programme. The owner's standing instructions a
 
 Next session, in order: wire `SyncClient` into Android behind an off-by-default switch with a persisted outbox (needs owner item 1 for an end-to-end test); then the emulator smoke test (risk 3); then the remaining audit rows (Convx 153 stale local library, Automix loop timeouts).
 
+## Done on main, 2026-11-18
+
+Committed straight to `main` (owner's choice), each with its tests; Android items were also checked on a Galaxy phone with the dev build.
+
+| Commit | What |
+| --- | --- |
+| `e8b22767`, `37c6d4a6` | LAN Sync: nuvx playlists between Android and desktop over local Wi-Fi, encrypted, with a 6-digit match code |
+| `2714731e` … `3d9a22a2`, `1064bb0a`, `e3890901` | Android Local SOCKS5 mode, fail-closed routing, Orbot/SOCKS latency tolerance, Tor exit switching (up to four exits) |
+| `42b9a7f6`, `663ac66e`, `1e047fb5` | Desktop custom proxies resolve names remotely and fail closed; accurate proxy guidance per OS |
+| `40599b9c` | Desktop Community and Spotify Canvas in Android's source order, capped clip cache |
+| `a0a529e9`, `94c7d5b3` | Android restores the playing track after a kill past the saved window; on-device test that the saved queue survives a fresh read from disk |
+| `14d46a6d`, `1c250405` | Android crossfade stops when a call takes audio focus; the chosen output survives a replayed device list |
+| `135b60f8` | Desktop plays a YouTube video's original audio track instead of the first dub listed (Task 61) |
+| `3a5dfac1` | Android explains, once, that songs cannot play when the network blocks googlevideo.com (DNS that only proxies YouTube's pages) |
+| `9a05101b` | Real code-scanning findings fixed; false alarms closed |
+| `12c58526` | Android: import a playlist from an M3U or CSV file (round-trip tested with the export) |
+| `3bdf1d66` | Android: opt-in Settings → Miscellaneous → Copy diagnostics (redacted, clipboard only) |
+| `2e25c37b` | Android: optional downloads storage limit (off by default) |
+| `e1deefa1` | Android: songs can be removed from nuvx playlists again, with Undo |
+| `dd4b13d0` | Android, signed out: New playlist and Add to playlist work on this device |
+
 ## Checked and found healthy (2026-11-17, second session)
 
 - Desktop WebView reuse (reference audit, Metrolist PR 4615): the lyrics check and sign-in windows run in a child process that exits, so their WebViews cannot pile up.
@@ -89,7 +110,7 @@ Next session, in order: wire `SyncClient` into Android behind an off-by-default 
 1. **Oracle server preparation** (admin, once): enable lingering for `nuvxdeploy`, install Caddy, open ports 80 and 443. Steps in `ORACLE_DEPLOYMENT.md`. Then the workflow's `check` action.
 2. **Sync host name**, and whether off-server backups may run on a schedule. The `backup` action needs a `NUVX_BACKUP_PASSPHRASE` secret.
 3. **Redeploy the Cloudflare Worker.** The Listen Together fixes (283, 288) and the presence indexes (305) are not live until then.
-4. **SFStudio JitPack release:** SFStudio now sets `org.gradle.jvmargs=-Xmx6656m`, but `lylicht/SFStudio` has only tag `v1.0.0` and no JitPack build (checked 2026-11-17). Tag a release at or after the v2.0.0 API; then nuvx can switch to `com.github.lylicht:SFStudio`. Until then it uses the `bxanedot` build of v2.0.0.
+4. **SFStudio JitPack build:** `lylicht/SFStudio` tag `v1.0.1` exists, but JitPack has shown it as "Building" since 2026-11-17 (1.0.0 built fine). Once it builds, nuvx can switch to `com.github.lylicht:SFStudio`; until then it uses the `bxanedot` build of v2.0.0.
 5. **Licensing:**
    - The owner chose SFStudio's SF Symbols on every platform, knowing Apple licenses them for Apple platforms.
    - Separately, the desktop bundles Apple's SF Pro Display font files, which Apple's font license does not allow redistributing. That one is not decided. See `architecture/ICONS.md`.
@@ -97,19 +118,16 @@ Next session, in order: wire `SyncClient` into Android behind an off-by-default 
 
 ## Next, in order
 
-0. A scheduled emulator smoke test for the phone app (risk 3).
 1. **Remaining audit:**
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
-2. **First Sync client**, off by default. Done: the operation kinds and replay rules (`SyncReplay.kt`), the fixture every client must reproduce (`core/sync/fixtures/replay-v1.json`), and the transport (PR 321). Left: the persisted outbox and the settings switch on Android. It needs the Oracle server (owner item 1) to test end to end.
+2. **Sync beyond Android:** server Sync is on Android (opt-in, PR 326) and LAN Sync covers Android ↔ desktop playlists. Left: server Sync on desktop, iOS and web; it needs the Oracle server (owner item 1) to run for real.
 3. **Nuvx Connect** on top of QR pairing: one playback owner, remote control, handoff.
-4. **Smart Offline:**
-   - done: resume after a kill, a 500 MB floor;
-   - left: a user-set quota and auto-download of chosen playlists.
+4. **Smart Offline:** done on Android (resume after a kill, 500 MB floor, Wi-Fi-only, auto-sync of downloaded playlists, optional storage limit). Left: the same on iOS and desktop.
 5. **Remaining features:**
-   - Privacy & Data Center (devices and sessions once Sync exists);
-   - playlist export: done on Android as M3U and CSV (playlist menu); the full backup is JSON;
-   - diagnostics export.
+   - Privacy & Data Center: one screen for devices, sync, diagnostics and export (Android has the parts in separate places);
+   - playlist import/export and diagnostics: done on Android; iOS and desktop left; import does not yet search for entries without a YouTube link;
+   - playlist history: undo for delete and song removal on Android; no version-restore screen yet.
 6. **Visual regression tests** (Roborazzi or Paparazzi) for the icon registry and the main screens.
 
 ## Decisions that need evidence and approval first
