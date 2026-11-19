@@ -641,3 +641,20 @@ mod tests {
         assert_eq!(offer(&[n122, s101], s100, true), Some("v1.0.1"));
     }
 }
+
+#[cfg(test)]
+mod shared_contract {
+    /// The same cases the Android updater is tested against (core/contracts/update-order.json).
+    #[test]
+    fn agrees_with_the_shared_update_order_cases() {
+        let doc: serde_json::Value = serde_json::from_str(include_str!("../../../core/contracts/update-order.json")).unwrap();
+        let cases = doc["cases"].as_array().unwrap();
+        assert!(cases.len() >= 10);
+        for c in cases {
+            let s = |v: &serde_json::Value, i: usize| v[i].as_str().unwrap().to_owned();
+            let (a, b) = (&c["candidate"], &c["current"]);
+            let got = super::release_is_newer(&s(a, 0), &s(a, 1), &s(a, 2), &s(b, 0), &s(b, 1), &s(b, 2), c["allowNightly"].as_bool().unwrap());
+            assert_eq!(got, c["newer"].as_bool().unwrap(), "{}", c["name"]);
+        }
+    }
+}

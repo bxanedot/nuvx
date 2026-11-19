@@ -5,7 +5,7 @@
   "branch": "main",
   "head_sha": null,
   "current_task": "05",
-  "next_action": "Task 05: plan the canonical Cargo workspace (desktop app + app/ios/native-core) as small reversible slices; first slice: shared update/version rules used by desktop and Android.",
+  "next_action": "Task 05b: Cargo workspace + nuvx-core crate holding the update rules, desktop depends on it; Android keeps Kotlin until a JNI path exists (cases already shared).",
   "tasks": [
     {
       "id": "00",
@@ -49,10 +49,27 @@
     },
     {
       "id": "05",
-      "state": "TODO",
-      "subtargets": [],
+      "state": "IN_PROGRESS",
+      "subtargets": [
+        {
+          "id": "05a",
+          "what": "shared golden cases for update/version order (core/contracts/update-order.json)",
+          "state": "PASS",
+          "evidence": "cargo test shared_contract (desktop) and AppUpdateCheckerTest (Android): 10/10 cases agree"
+        },
+        {
+          "id": "05b",
+          "what": "workspace with a shared crate; desktop uses it",
+          "state": "TODO"
+        },
+        {
+          "id": "05c",
+          "what": "merge app/ios/native-core and desktop DSP duplicates",
+          "state": "TODO"
+        }
+      ],
       "evidence": [],
-      "last_updated": null,
+      "last_updated": "2026-11-19",
       "notes": ""
     },
     {

@@ -1,0 +1,15 @@
+{
+  "about": "Which release an installed nuvx moves to. Shared golden cases: app/desktop/src/update.rs and app/android/mobile AppUpdateChecker.kt must both agree with every case. Order: stable -> nightly -> nightly 2 -> stable 2; nightlies only with the switch on.",
+  "cases": [
+    { "name": "nightly not offered with the switch off", "candidate": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T12:00:00Z"], "current": ["1.0.0", "v1.0.0", "2026-11-17T10:00:00Z"], "allowNightly": false, "newer": false },
+    { "name": "nightly offered with the switch on", "candidate": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T12:00:00Z"], "current": ["1.0.0", "v1.0.0", "2026-11-17T10:00:00Z"], "allowNightly": true, "newer": true },
+    { "name": "nightly 2 after nightly 1", "candidate": ["1.0.0-nightly.6.1", "nightly.6.1", "2026-11-17T12:00:00Z"], "current": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T10:00:00Z"], "allowNightly": true, "newer": true },
+    { "name": "no nightly 2 with the switch off", "candidate": ["1.0.0-nightly.6.1", "nightly.6.1", "2026-11-17T12:00:00Z"], "current": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T10:00:00Z"], "allowNightly": false, "newer": false },
+    { "name": "stable 2 after the nightlies, switch off", "candidate": ["1.0.0", "v1.0.0", "2026-11-17T12:00:00Z"], "current": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T10:00:00Z"], "allowNightly": false, "newer": true },
+    { "name": "stable 2 after the nightlies, switch on", "candidate": ["1.0.0", "v1.0.0", "2026-11-17T12:00:00Z"], "current": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T10:00:00Z"], "allowNightly": true, "newer": true },
+    { "name": "an older stable of the same version is not newer", "candidate": ["1.0.0", "v1.0.0", "2026-11-17T09:00:00Z"], "current": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T10:00:00Z"], "allowNightly": false, "newer": false },
+    { "name": "a higher stable always wins", "candidate": ["1.1.0", "v1.1.0", "2026-11-17T09:00:00Z"], "current": ["1.0.0-nightly.5.1", "nightly.5.1", "2026-11-17T10:00:00Z"], "allowNightly": true, "newer": true },
+    { "name": "a lower version never wins", "candidate": ["0.9.0", "v0.9.0", "2026-11-18T09:00:00Z"], "current": ["1.0.0", "v1.0.0", "2026-11-17T10:00:00Z"], "allowNightly": true, "newer": false },
+    { "name": "the installed release itself is not newer", "candidate": ["1.0.0", "v1.0.0", "2026-11-17T12:00:00Z"], "current": ["1.0.0", "v1.0.0", "2026-11-17T10:00:00Z"], "allowNightly": false, "newer": false }
+  ]
+}

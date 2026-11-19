@@ -253,4 +253,24 @@ class AppUpdateCheckerTest {
     fun `a stable release is chosen over a newer nightly of an older version`() {
         assertEquals("v1.0.1", offered(listOf(nightly122, stable101), stable100, nightlies = true))
     }
+
+    @Test
+    fun `agrees with the shared update order cases`() {
+        // The same cases the desktop updater is tested against.
+        val file = java.io.File("../../../core/contracts/update-order.json").takeIf { it.isFile }
+            ?: java.io.File("core/contracts/update-order.json")
+        val cases = kotlinx.serialization.json.Json.parseToJsonElement(file.readText())
+            .let { (it as kotlinx.serialization.json.JsonObject)["cases"] as kotlinx.serialization.json.JsonArray }
+        assertTrue(cases.size >= 10)
+        for (case in cases) {
+            val c = case as kotlinx.serialization.json.JsonObject
+            fun part(key: String, i: Int) = ((c[key] as kotlinx.serialization.json.JsonArray)[i] as kotlinx.serialization.json.JsonPrimitive).content
+            val got = isNewerRelease(
+                part("candidate", 0), part("candidate", 1), part("candidate", 2),
+                part("current", 0), part("current", 1), part("current", 2),
+                (c["allowNightly"] as kotlinx.serialization.json.JsonPrimitive).content.toBoolean(),
+            )
+            assertEquals((c["name"] as kotlinx.serialization.json.JsonPrimitive).content, (c["newer"] as kotlinx.serialization.json.JsonPrimitive).content.toBoolean(), got)
+        }
+    }
 }
