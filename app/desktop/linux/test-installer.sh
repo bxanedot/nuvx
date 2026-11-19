@@ -49,7 +49,9 @@ EOF
         user_config="$bin/home/.config/nuvx"
         mkdir -p "$old_lib" "$user_data/downloads" "$user_config" "$bin/home/.local/bin" "$bin/home/share/applications"
         printf 'previous nuvx executable\n' > "$old_lib/nuvx"
-        printf 'saved queue: track-123\n' > "$user_data/queue.txt"
+        printf '{"track-123":{"path":"/music/track.flac","duration_ms":123000,"loudness_db":null}}\n' > "$user_data/downloads.json"
+        printf '[]\n' > "$user_data/lastfm_queue.json"
+        printf 'wgpu\n' > "$user_data/renderer"
         printf 'downloaded music fixture\n' > "$user_data/downloads/track.dat"
         printf 'reduce_motion=1\n' > "$user_config/preferences.txt"
         cp "$here/nuvx.desktop" "$bin/home/share/applications/nuvx.desktop"
@@ -72,7 +74,9 @@ EOF
     done
     if [ "$arch" = x86_64 ]; then
         # An in-place upgrade must not erase the existing user profile or alter its app identity.
-        printf 'saved queue: track-123\n' | cmp - "$user_data/queue.txt"
+        printf '{"track-123":{"path":"/music/track.flac","duration_ms":123000,"loudness_db":null}}\n' | cmp - "$user_data/downloads.json"
+        printf '[]\n' | cmp - "$user_data/lastfm_queue.json"
+        printf 'wgpu\n' | cmp - "$user_data/renderer"
         printf 'downloaded music fixture\n' | cmp - "$user_data/downloads/track.dat"
         printf 'reduce_motion=1\n' | cmp - "$user_config/preferences.txt"
         [ "$(readlink "$bin/home/.local/bin/nuvx")" = "$old_lib/nuvx" ]
