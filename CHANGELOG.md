@@ -32,6 +32,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   and background, nightly updates), done, plus window material and Windows or macOS window buttons. It is a full
   page scaled to fit any window, with the official vector nuvx mark; nothing behind it can be clicked.
   Shown once on a new install; **Set up later** skips it.
+- **Desktop: swipe the expanded player down to close it**, like on the phone (let go past a fifth of the window,
+  or flick). The intro also gets a **Your tabs** step to show or hide Radio and Podcasts.
+- **Android: Undo after renaming a playlist.**
 - **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.
 - **The creator's name is written licht** everywhere in the apps, installer and pages.
 - **Nightly builds every night.** A nightly is built each night when main has new commits, named nightly 1,

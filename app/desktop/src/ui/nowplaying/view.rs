@@ -8,19 +8,42 @@ fn lyrics_column(content: Rect, artwork_right: f32) -> Option<Rect> {
 pub fn overlay(app: &mut App, ctx: &egui::Context, now: f64) {
     use crate::preset::{BgMode, Layout};
     let t = theme::anim_bool(ctx, "np-open", app.np_open && app.current().is_some(), 0.42);
+    // Swipe down to close, like the phone: how far the card is pulled down right now.
+    let pull_id = egui::Id::unique("np-pull");
     if t <= 0.001 {
+        ctx.data_mut(|d| d.remove::<f32>(pull_id));
         return;
     }
+    let pull: f32 = ctx.data(|d| d.get_temp(pull_id)).unwrap_or(0.0);
     let screen = ctx.content_rect();
     let full = screen;
-    let rect = full.translate(vec2(0.0, full.height() * (1.0 - t)));
+    let rect = full.translate(vec2(0.0, full.height() * (1.0 - t) + pull));
     let look = app.look();
     let b = &look.background;
     egui::Area::new(egui::Id::unique("now-playing"))
         .order(egui::Order::Middle)
         .fixed_pos(rect.min)
         .show(ctx, |ui| {
-            ui.allocate_rect(rect, Sense::click_and_drag());
+            let card = ui.allocate_rect(rect, Sense::click_and_drag());
+            if card.dragged() && app.np_open {
+                let pulled = (pull + card.drag_delta().y).max(0.0);
+                ui.ctx().data_mut(|d| d.insert_temp(pull_id, pulled));
+            }
+            if card.drag_stopped() && app.np_open {
+                let fling = ui.input(|i| i.pointer.velocity().y) > 900.0;
+                if pull > rect.height() * 0.18 || fling {
+                    // Close from where it was let go; the pull is cleared once it is fully down.
+                    app.np_open = false;
+                    if app.fullscreen {
+                        app.set_fullscreen(ui.ctx(), false);
+                    }
+                } else {
+                    ui.ctx().data_mut(|d| d.insert_temp(pull_id, 0.0_f32));
+                }
+            } else if app.np_open && pull > 0.0 && !card.dragged() {
+                // Reopened while it was still sliding away.
+                ui.ctx().data_mut(|d| d.insert_temp(pull_id, 0.0_f32));
+            }
             if !app.fullscreen {
                 super::super::titlebar::drag_area(ui, Rect::from_min_size(rect.min, vec2(rect.width(), super::super::titlebar::HEIGHT)), "now-playing");
             }

@@ -14,6 +14,7 @@ pub(crate) enum Step {
     Welcome,
     SignIn,
     Look,
+    Tabs,
     Listening,
     Done,
 }
@@ -24,6 +25,7 @@ impl Step {
         match v {
             Some("signin") => Self::SignIn,
             Some("look") => Self::Look,
+            Some("tabs") => Self::Tabs,
             Some("listening") => Self::Listening,
             Some("done") => Self::Done,
             _ => Self::Welcome,
@@ -34,7 +36,8 @@ impl Step {
         match self {
             Self::Welcome => Self::SignIn,
             Self::SignIn => Self::Look,
-            Self::Look => Self::Listening,
+            Self::Look => Self::Tabs,
+            Self::Tabs => Self::Listening,
             Self::Listening | Self::Done => Self::Done,
         }
     }
@@ -43,7 +46,8 @@ impl Step {
         match self {
             Self::Welcome | Self::SignIn => Self::Welcome,
             Self::Look => Self::SignIn,
-            Self::Listening => Self::Look,
+            Self::Tabs => Self::Look,
+            Self::Listening => Self::Tabs,
             Self::Done => Self::Listening,
         }
     }
@@ -91,6 +95,7 @@ pub(super) fn page(app: &mut App, ui: &mut Ui, ctx: &egui::Context) {
             ui.add_space(28.0);
             match step {
                 Step::Look => look(app, ui),
+                Step::Tabs => tabs(app, ui),
                 Step::Listening => listening(app, ui),
                 _ => {}
             }
@@ -169,6 +174,7 @@ fn text(app: &App, step: Step) -> (&'static str, String) {
         ),
         Step::SignIn => ("Sign in to YouTube Music", "Bring your library, playlists and recommendations. You can also do this later in Settings.".into()),
         Step::Look => ("Choose a look", "Light or dark, and the window's material. You can change these later in Settings.".into()),
+        Step::Tabs => ("Your tabs", "Show or hide Radio and Podcasts in the sidebar. Settings › Appearance has them too.".into()),
         Step::Listening => ("Listening", "Turn these on or off. All of them are in Settings too.".into()),
         Step::Done => ("You're all set", "Find music in Home and Explore. Everything you save is in Library.".into()),
     }
@@ -328,6 +334,21 @@ fn look(app: &mut App, ui: &mut Ui) {
     }
 }
 
+fn tabs(app: &mut App, ui: &mut Ui) {
+    let mut radio = !app.hide_radio;
+    setting_row(ui, "Radio", Some("Live stations from around the world."), |ui| {
+        toggle(ui, &mut radio, "Radio tab");
+    });
+    let mut podcasts = !app.hide_podcasts;
+    setting_row(ui, "Podcasts", Some("Shows and episodes from YouTube Music."), |ui| {
+        toggle(ui, &mut podcasts, "Podcasts tab");
+    });
+    app.hide_radio = !radio;
+    app.hide_podcasts = !podcasts;
+    // Chosen here, so the tabs do not ask again the first time they open.
+    app.tab_intros_shown = [true, true];
+}
+
 fn listening(app: &mut App, ui: &mut Ui) {
     setting_row(ui, "Autoplay", Some("Keep playing similar songs when the queue ends."), |ui| {
         toggle(ui, &mut app.autoplay, "Autoplay");
@@ -364,7 +385,7 @@ mod tests {
             s = s.next();
             seen.push(s);
         }
-        assert_eq!(seen, [Step::Welcome, Step::SignIn, Step::Look, Step::Listening, Step::Done]);
+        assert_eq!(seen, [Step::Welcome, Step::SignIn, Step::Look, Step::Tabs, Step::Listening, Step::Done]);
         assert_eq!(Step::Done.next(), Step::Done);
         assert_eq!(Step::Look.back(), Step::SignIn);
         assert_eq!(Step::Welcome.back(), Step::Welcome);
