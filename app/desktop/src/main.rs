@@ -17,7 +17,7 @@ mod deeplink;
 mod discord;
 mod dash;
 mod downloads;
-mod eq;
+pub(crate) use nuvx_core::eq;
 mod hires;
 mod images;
 mod jam;

@@ -47,7 +47,9 @@ pub const PRESETS: [(&str, [f32; 7]); 16] = [
 ];
 
 pub fn preset_of(bands: &[f32; 7]) -> Option<usize> {
-    PRESETS.iter().position(|(_, p)| p.iter().zip(bands).all(|(a, b)| (a - b).abs() < 0.05))
+    PRESETS
+        .iter()
+        .position(|(_, p)| p.iter().zip(bands).all(|(a, b)| (a - b).abs() < 0.05))
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -58,10 +60,18 @@ pub struct Curve {
 }
 
 impl Curve {
-    pub const FLAT: Curve = Curve { gains: [0.0; N], qs: [0.707; N], preamp: 0.0 };
+    pub const FLAT: Curve = Curve {
+        gains: [0.0; N],
+        qs: [0.707; N],
+        preamp: 0.0,
+    };
 
     fn of(gains: [f32; N], qs: [f32; N]) -> Curve {
-        Curve { gains, qs, preamp: preamp_for(&gains, &qs) }
+        Curve {
+            gains,
+            qs,
+            preamp: preamp_for(&gains, &qs),
+        }
     }
 
     pub fn manual(bands: &[f32; 7]) -> Curve {
@@ -95,7 +105,9 @@ fn preamp_for(gains: &[f32; N], qs: &[f32; N]) -> f32 {
     let peak = (0..POINTS)
         .map(|p| {
             let hz = 20.0 * 1_000f64.powf(p as f64 / (POINTS - 1) as f64);
-            (0..N).map(|s| section_gain_db(SLOTS[s], gains[s], qs[s], hz as f32)).sum::<f32>()
+            (0..N)
+                .map(|s| section_gain_db(SLOTS[s], gains[s], qs[s], hz as f32))
+                .sum::<f32>()
         })
         .fold(0.0, f32::max);
     -peak * 0.5
@@ -134,7 +146,10 @@ pub struct Tuning {
 }
 
 impl Tuning {
-    pub const OFF: Tuning = Tuning { curve: Curve::FLAT, balance: 0.0 };
+    pub const OFF: Tuning = Tuning {
+        curve: Curve::FLAT,
+        balance: 0.0,
+    };
 }
 
 impl Default for Tuning {
@@ -160,15 +175,27 @@ impl Prefs {
         if !self.on {
             return Tuning::OFF;
         }
-        let curve = if self.manual { Curve::manual(&self.bands) } else { Curve::tone(self.tilt, self.contour, self.focused) };
-        Tuning { curve, balance: self.balance.clamp(-1.0, 1.0) }
+        let curve = if self.manual {
+            Curve::manual(&self.bands)
+        } else {
+            Curve::tone(self.tilt, self.contour, self.focused)
+        };
+        Tuning {
+            curve,
+            balance: self.balance.clamp(-1.0, 1.0),
+        }
     }
 }
 
 /// Audio profile per output: when playback moves to another output, the current equalizer is kept for the
 /// output it leaves, and the one saved for the new output (if any) comes back. Keyed by the output's name
 /// ("" for the system default), the same name the output picker shows.
-pub fn switch_output(saved: &mut std::collections::HashMap<String, Prefs>, from: &str, to: &str, current: Prefs) -> Prefs {
+pub fn switch_output(
+    saved: &mut std::collections::HashMap<String, Prefs>,
+    from: &str,
+    to: &str,
+    current: Prefs,
+) -> Prefs {
     saved.insert(from.to_owned(), current);
     saved.get(to).copied().unwrap_or(current)
 }
@@ -179,12 +206,25 @@ mod output_profile_tests {
     fn each_output_gets_its_own_equalizer_back() {
         let mut saved = std::collections::HashMap::new();
         let flat = super::Prefs::default();
-        let bassy = super::Prefs { on: true, tilt: 3, ..flat };
+        let bassy = super::Prefs {
+            on: true,
+            tilt: 3,
+            ..flat
+        };
         // A new output starts with whatever is set now.
-        assert_eq!(super::switch_output(&mut saved, "", "Headphones", bassy), bassy);
+        assert_eq!(
+            super::switch_output(&mut saved, "", "Headphones", bassy),
+            bassy
+        );
         // Changed on the headphones, then back to speakers: the speakers' setting returns.
-        assert_eq!(super::switch_output(&mut saved, "Headphones", "", flat), bassy);
-        assert_eq!(super::switch_output(&mut saved, "", "Headphones", bassy), flat);
+        assert_eq!(
+            super::switch_output(&mut saved, "Headphones", "", flat),
+            bassy
+        );
+        assert_eq!(
+            super::switch_output(&mut saved, "", "Headphones", bassy),
+            flat
+        );
     }
 }
 
@@ -246,15 +286,21 @@ impl Processor {
     }
 
     pub fn idle(&self, t: &Tuning) -> bool {
-        let flat = t.balance.abs() < SETTLED_BALANCE && t.curve.preamp.abs() < SETTLED_DB && t.curve.gains.iter().all(|g| g.abs() < SETTLED_DB);
+        let flat = t.balance.abs() < SETTLED_BALANCE
+            && t.curve.preamp.abs() < SETTLED_DB
+            && t.curve.gains.iter().all(|g| g.abs() < SETTLED_DB);
         let settled = (self.balance - t.balance).abs() < SETTLED_BALANCE
             && (self.preamp - t.curve.preamp).abs() < SETTLED_DB
-            && self.gain.iter().zip(&t.curve.gains).all(|(a, b)| (a - b).abs() < SETTLED_DB);
+            && self
+                .gain
+                .iter()
+                .zip(&t.curve.gains)
+                .all(|(a, b)| (a - b).abs() < SETTLED_DB);
         flat && settled
     }
 
     pub fn frame(&mut self, frame: &mut [f32], t: &Tuning) {
-        if self.frames % GLIDE_FRAMES == 0 {
+        if self.frames.is_multiple_of(GLIDE_FRAMES) {
             self.glide(t);
             self.prepare();
         }
@@ -277,7 +323,11 @@ impl Processor {
             peak = peak.max(x.abs());
         }
         let wanted = if peak > CEILING { CEILING / peak } else { 1.0 };
-        self.reduction = if wanted < self.reduction { wanted } else { self.reduction + (wanted - self.reduction) * self.release };
+        self.reduction = if wanted < self.reduction {
+            wanted
+        } else {
+            self.reduction + (wanted - self.reduction) * self.release
+        };
         if self.reduction < 1.0 {
             frame.iter_mut().for_each(|s| *s *= self.reduction);
         }
@@ -338,7 +388,8 @@ impl Processor {
             }
             Kind::HighShelf => {
                 let k = 1.0 / q;
-                (self.m0[slot], self.m1[slot], self.m2[slot]) = (a * a, k * (1.0 - a) * a, 1.0 - a * a);
+                (self.m0[slot], self.m1[slot], self.m2[slot]) =
+                    (a * a, k * (1.0 - a) * a, 1.0 - a * a);
                 (base * a.sqrt(), k)
             }
         };
@@ -380,7 +431,10 @@ mod tests {
     fn bands_boost_where_they_sit_and_the_preamp_takes_half_back() {
         let mut bands = [0.0; 7];
         bands[3] = 6.0;
-        let t = Tuning { curve: Curve::manual(&bands), balance: 0.0 };
+        let t = Tuning {
+            curve: Curve::manual(&bands),
+            balance: 0.0,
+        };
         assert!((t.curve.preamp + 3.0).abs() < 0.2, "{}", t.curve.preamp);
         assert!((measure(t, 1_000.0) - 3.0).abs() < 0.5);
         assert!((measure(t, 60.0) + 3.0).abs() < 0.5);
@@ -388,7 +442,10 @@ mod tests {
 
     #[test]
     fn tone_tilts_and_presets_are_recognised() {
-        let t = Tuning { curve: Curve::tone(TONE_STEPS, 0, false), balance: 0.0 };
+        let t = Tuning {
+            curve: Curve::tone(TONE_STEPS, 0, false),
+            balance: 0.0,
+        };
         assert!(measure(t, 10_000.0) > measure(t, 100.0) + 6.0);
         assert_eq!(preset_of(&PRESETS[4].1), Some(4));
         assert_eq!(preset_of(&[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]), None);
@@ -396,12 +453,18 @@ mod tests {
 
     #[test]
     fn balance_quietens_the_other_side_and_peaks_are_limited() {
-        let t = Tuning { curve: Curve::FLAT, balance: 1.0 };
+        let t = Tuning {
+            curve: Curve::FLAT,
+            balance: 1.0,
+        };
         let mut p = Processor::new(48_000, 2, t);
         let mut f = [0.5, 0.5];
         p.frame(&mut f, &t);
         assert!(f[0].abs() < 1e-6 && (f[1] - 0.5).abs() < 1e-6);
-        let loud = Tuning { curve: Curve::manual(&[12.0; 7]), balance: 0.0 };
+        let loud = Tuning {
+            curve: Curve::manual(&[12.0; 7]),
+            balance: 0.0,
+        };
         let mut p = Processor::new(48_000, 1, loud);
         let worst = (0..48_000).fold(0f32, |m, i| {
             let mut f = [0.9 * (2.0 * PI * 60.0 * i as f32 / 48_000.0).sin()];
