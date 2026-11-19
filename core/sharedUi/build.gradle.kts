@@ -52,7 +52,7 @@ kotlin {
             api("org.jetbrains.compose.animation:animation:$cmp")
             api("org.jetbrains.compose.ui:ui:$cmp")
             api("org.jetbrains.compose.material3:material3:1.9.0")
-            api("com.github.bxanedot.GlyphStudio:sfsymbols:v2.0.0")
+            api("com.github.lylicht.SFStudio:sfsymbols:v1.0.1")
             api("org.jetbrains.compose.components:components-resources:$cmp")
             api("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
             api("io.coil-kt.coil3:coil-compose:3.6.3")
