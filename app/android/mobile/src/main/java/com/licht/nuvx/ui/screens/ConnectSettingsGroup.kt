@@ -30,7 +30,14 @@ internal fun ConnectSettingsGroup(search: SettingsSearch) {
     // A hosting phone is joined to its own space: it is the host, never a "computer" to control or copy from.
     if (host.running && NuvxSync.isHosting) return
     val paired = status.enabled && NuvxSync.isLan
-    LaunchedEffect(paired) { if (paired) ComputerSpeaker.current?.refresh() }
+    // Recheck while this page is open, so turning on Allow remote control on the computer shows up here by itself.
+    LaunchedEffect(paired, computer.available) {
+        while (paired) {
+            ComputerSpeaker.current?.refresh()
+            if (computer.available) break
+            kotlinx.coroutines.delay(4_000)
+        }
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var copying by remember { mutableStateOf(false) }
