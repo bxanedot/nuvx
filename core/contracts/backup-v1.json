@@ -1,0 +1,22 @@
+{
+  "app": "nuvx",
+  "version": 1,
+  "versionName": "1.0.3",
+  "exportedAt": "2026-11-19T10:00:00Z",
+  "settings": {
+    "nightly_updates": { "type": "boolean", "value": "false" }
+  },
+  "listening": [],
+  "playlists": [
+    {
+      "id": "nuvx_local_a1",
+      "title": "Phone mix",
+      "songs": [
+        { "videoId": "dQw4w9WgXcQ", "title": "Never Gonna Give You Up", "artist": "Rick Astley", "thumbnailUrl": "https://lh3.googleusercontent.com/abc=w544", "durationText": "3:33", "artistId": "UCuAXFkgsw1L7xaCfnd5JJOw", "albumId": "MPREb_x", "albumName": "Whenever You Need Somebody", "isVideo": false },
+        { "videoId": "kJQP7kiw5Fk", "title": "Despacito", "artist": "Luis Fonsi", "thumbnailUrl": null, "durationText": "3:48", "artistId": null, "albumId": null, "albumName": null, "isVideo": true },
+        { "videoId": "bad", "title": "Not a YouTube id", "artist": "Nobody", "thumbnailUrl": null, "durationText": null, "artistId": null, "albumId": null, "albumName": null, "isVideo": false }
+      ]
+    },
+    { "id": "nuvx_local_b2", "title": "Empty list", "songs": [] }
+  ]
+}

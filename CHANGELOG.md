@@ -6,6 +6,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## Unreleased
 
+- **Desktop backup export and import** (Settings → Your data → Backup): saves your playlists as `nuvx-backup-<date>.json`, the same
+  file the phone's backup writes, so a backup from either one restores on the other. Importing adds playlists you don't
+  have yet and skips ones already there; files from another app or a newer nuvx are refused with a clear message.
 - **Copy diagnostics also reports the state of sync and output** (phone and computer): whether Local Wi-Fi Sync is on and
   how many devices are paired, whether remote control is allowed, system-default or chosen output, equalizer and download
   limit. Yes/no and counts only: no device names or addresses.

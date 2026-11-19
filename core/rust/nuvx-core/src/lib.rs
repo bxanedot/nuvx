@@ -2,6 +2,7 @@
 //! builds for desktop, iOS (with app/ios/native-core) and, later, Android through FFI. Each module's behaviour is
 //! pinned by shared golden cases in `core/contracts/`, which the Kotlin apps are tested against too.
 
+pub mod backup;
 pub mod eq;
 pub mod lan;
 pub mod loudness;
