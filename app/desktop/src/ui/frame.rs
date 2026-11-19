@@ -305,6 +305,7 @@ impl eframe::App for App {
         storage.set_string("video_height", self.video_height.to_string());
         storage.set_string("load_both_v2", b(self.load_both));
         let folder = crate::downloads::folder();
+        storage.set_string("download_limit_gb", crate::downloads::limit_gb().to_string());
         storage.set_string("download_dir", if folder == crate::downloads::default_folder() { String::new() } else { folder.display().to_string() });
         let (device, device_name) = self.output_device.clone().unzip();
         storage.set_string("output_device", device.unwrap_or_default());

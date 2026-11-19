@@ -176,6 +176,25 @@ fn settings_downloads(ui: &mut Ui) {
                 crate::downloads::open_folder();
             }
         });
+        let used = crate::downloads::used_bytes() as f64 / (1024.0 * 1024.0 * 1024.0);
+        let desc = format!("Downloads use {used:.1} GB. New downloads stop at the limit, and whenever less than 500 MB is free.");
+        setting_row(ui, "Storage limit", Some(&desc), |ui| {
+            let label = |gb: u32| if gb == 0 { "Off".to_owned() } else { format!("{gb} GB") };
+            let now = crate::downloads::limit_gb();
+            let btn = dropdown_button(ui, &label(now), 120.0, "Storage limit");
+            egui::Popup::menu(&btn).show(|ui| {
+                ui.set_width(120.0);
+                ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                ui.add_space(4.0);
+                for gb in crate::downloads::LIMIT_CHOICES {
+                    if option_row(ui, &label(gb), gb == now).clicked() {
+                        crate::downloads::set_limit_gb(gb);
+                        ui.close();
+                    }
+                }
+                ui.add_space(4.0);
+            });
+        });
     });
 }
 

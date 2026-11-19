@@ -19,6 +19,7 @@ impl App {
         let wgpu_renderer = crate::renderer::load(backend.data_dir()) == crate::renderer::Renderer::Wgpu;
         crate::appicon::sync_shortcuts(app_icon, backend.data_dir());
         crate::downloads::init(backend.data_dir(), &get("download_dir").unwrap_or_default());
+        crate::downloads::set_limit_gb(get("download_limit_gb").and_then(|v| v.parse().ok()).filter(|g| crate::downloads::LIMIT_CHOICES.contains(g)).unwrap_or(0));
         crate::lastfm::init(backend.data_dir());
         let logged_in = backend.is_logged_in();
         backend.set_high_quality(get("high_quality").is_none_or(|v| v == "1"));
@@ -298,6 +299,7 @@ impl App {
             Ok("lyrics-settings") => app.go(Page::Setting(SettingsPane::Lyrics)),
             Ok("account-settings") => app.go(Page::Setting(SettingsPane::Account)),
             Ok("your-data") => app.go(Page::Setting(SettingsPane::YourData)),
+            Ok("downloads-settings") => app.go(Page::Setting(SettingsPane::Downloads)),
             Ok("import-settings") => app.go(Page::Setting(SettingsPane::Import)),
             Ok("sync-settings") => app.go(Page::Setting(SettingsPane::Sync)),
             Ok("connect-settings") => app.go(Page::Setting(SettingsPane::Sync)),
