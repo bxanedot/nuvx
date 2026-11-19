@@ -21,6 +21,7 @@ import {
 import { bridgeSourceCall, resolveFallback } from '@/playback/sources/providers';
 import { useSourceSettings } from '@/playback/sources/settings';
 import { trackLog } from '@/playback/trackLog';
+import { safePlaybackError } from '@/playback/safePlaybackError';
 import type { LoadedTrack, StreamStats, YouTubeEngine } from '@/playback/youtube/engine';
 import type { AutomixGraph, AutoDJSnapshot } from '@/playback/automix';
 import { PlayerAutoplayController } from '@/playback/autoplayController';
@@ -129,7 +130,7 @@ function getDecks(): Promise<Deck[]> {
       engine.onFatal = (videoId, message) => {
         if (decks?.[active] !== deck) return;
         trackLog.e(`stopped: ${message}`, videoId);
-        usePlayer.setState({ status: 'error', error: message });
+        usePlayer.setState({ status: 'error', error: safePlaybackError(message) });
       };
       engine.onRecovered = (track) => {
         if (decks?.[active] !== deck) return;
@@ -673,12 +674,11 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
     syncAutomix();
   } catch (error) {
     if (token !== loadToken || (error instanceof Error && error.name === 'SupersededError')) return;
-    const message = error instanceof Error ? error.message : String(error);
     if (token === loadToken && !entry.track.streamUrl && (await playFromSource(entry, token, startSec, autoplay))) return;
     if (token !== loadToken) return;
-    usePlayer.setState({ status: 'error', error: message });
+    usePlayer.setState({ status: 'error', error: safePlaybackError(error) });
     if (auto && planNext(true)) {
-      trackLog.w(`skipping: ${message}`, entry.track.videoId);
+      trackLog.w('skipping after playback failure', entry.track.videoId);
       setTimeout(() => {
         if (token === loadToken) void advance(true);
       }, 1500);
