@@ -1,6 +1,6 @@
 [package]
 name = "nuvx"
-version = "1.0.3"
+version = "1.0.4"
 authors = ["licht"]
 edition = "2024"
 license = "GPL-3.0-only"

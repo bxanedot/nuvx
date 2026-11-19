@@ -1,5 +1,5 @@
-extra["nuvxVersionCode"] = providers.gradleProperty("nuvx.nightlyBaseCode").map(String::toInt).getOrElse(4)
-extra["nuvxVersionName"] = providers.gradleProperty("nuvx.nightlyBaseName").getOrElse("1.0.3")
+extra["nuvxVersionCode"] = providers.gradleProperty("nuvx.nightlyBaseCode").map(String::toInt).getOrElse(5)
+extra["nuvxVersionName"] = providers.gradleProperty("nuvx.nightlyBaseName").getOrElse("1.0.4")
 
 extra["nuvxBetaSuffix"] = providers.gradleProperty("nuvx.nightlySuffix").getOrElse("")
 
