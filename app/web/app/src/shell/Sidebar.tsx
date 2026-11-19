@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight, BookOpenText, Headphones, ListMusic } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, BookOpenText, ListMusic } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
@@ -35,7 +35,6 @@ interface NavItem {
 const PRIMARY: NavItem[] = [
   { to: '/search', label: 'Search', Icon: SearchIcon },
   { to: '/home', label: 'Home', Icon: HomeIcon },
-  { to: '/settings/listen-together', label: 'Listen Together', Icon: Headphones },
   { to: '/new', label: 'New', Icon: NewIcon },
   { to: '/podcasts', label: 'Podcasts', Icon: PodcastIcon },
   { to: '/radio', label: 'Radio', Icon: RadioIcon },

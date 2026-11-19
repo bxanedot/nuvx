@@ -12,6 +12,7 @@ export const SF_SYMBOL_ASSETS = {
   "clock.arrow.trianglehead.counterclockwise.rotate.90": "history",
   "person": "person",
   "square.stack.fill": "library",
+  "rectangle.stack.fill": "rectangle_stack_fill",
   "music.note": "music_note",
   "video": "video",
   "sparkles": "sparkles",
