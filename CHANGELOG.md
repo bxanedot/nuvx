@@ -55,9 +55,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **Contributor guide refreshed** (CONTRIBUTING.md): where everything is, the build and test commands for every app, the shared Rust core and its golden cases, and how releases and nightlies work.
 - **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.
 - **The creator's name is written licht** everywhere in the apps, installer and pages.
-- **Nightly builds every night.** A nightly is built each night when main has new commits, named nightly 1,
-  nightly 2, … after each stable release. Apps offer nightlies only with the nightly switch on, and a nightly
-  install moves on to the next stable release when it comes out (stable → nightly → nightly 2 → stable 2).
+- **A nightly every 3 hours.** When `main` has new commits since the last nightly, one is built (GitHub can start it
+  late under load) and named *nightly N*, counting on after each stable release. Only the newest nightly is kept; older
+  ones are deleted. Apps offer nightlies only with the nightly switch on and move on to the next stable release when it
+  ships (stable → nightly → nightly 2 → stable 2).
 - **Control your phone from the computer.** While a paired phone plays, the computer's Settings → Sync & Connect
   shows what it plays with Previous, Play/Pause and Next. The phone keeps its own queue; nothing to turn on.
 - **A phone that pairs again replaces its old entry** on the computer (or hosting phone) instead of showing twice.

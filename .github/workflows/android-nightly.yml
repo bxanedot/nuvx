@@ -22,9 +22,9 @@ on:
       - "gradlew"
       - "gradlew.bat"
   workflow_dispatch:
-  # A nightly every night when main has new commits.
+  # A nightly every 3 hours when main has new commits (GitHub may start it late under load).
   schedule:
-    - cron: "17 2 * * *"
+    - cron: "7 */3 * * *"
 
 permissions:
   contents: write
@@ -32,7 +32,8 @@ permissions:
 concurrency:
   # Per event: a push to main (which builds nothing) must not cancel the nightly in progress.
   group: nuvx-release-build-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: true
+  # A scheduled build waits for the one before it instead of cancelling it half done.
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 defaults:
   run:
@@ -162,8 +163,10 @@ jobs:
             done
           # Stable -> nightly 1 -> nightly 2 -> next stable: count the nightlies since the latest stable.
           since=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .published_at 2>/dev/null || echo "")
+          # Only the newest nightly is kept, so count on from its number ("... nightly N"); 1 after a new stable.
           number=$(( $(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq ".[] | select(.draft == false and .prerelease == true and (.tag_name | startswith(\"nightly.\")) and .published_at > \"$since\") | .tag_name" | wc -l) + 1 ))
+            --jq ".[] | select(.draft == false and .prerelease == true and (.tag_name | startswith(\"nightly.\")) and .published_at > \"$since\") | .name" |
+            sed -nE 's/.* nightly ([0-9]+)$/\1/p' | sort -n | tail -1) + 1 ))
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $ANDROID_VERSION nightly $number" \
@@ -716,10 +719,9 @@ jobs:
           fi
           # A finished nightly is published even if main moved on meanwhile; the next night builds the newer commit.
           gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
-          # Keep this cycle's nightlies (since the latest stable); remove the ones from before it.
-          since=$(gh api "repos/$GH_REPO/releases/latest" --jq .published_at 2>/dev/null || echo "")
+          # Only the newest nightly stays: every older one is deleted, with its tag.
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq ".[] | select(.prerelease == true and .draft == false and (.tag_name | startswith(\"nightly.\")) and .published_at < \"$since\") | .tag_name" |
+            --jq '.[] | select(.prerelease == true and .draft == false and (.tag_name | startswith("nightly."))) | .tag_name' |
             while IFS= read -r tag; do
               [[ -z "$tag" || "$tag" == "$RELEASE_TAG" ]] || gh release delete "$tag" --yes --cleanup-tag
             done
