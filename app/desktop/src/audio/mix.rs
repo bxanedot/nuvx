@@ -29,12 +29,11 @@ pub(super) fn slider_gain(status: &AudioStatus, v: f32) -> f32 {
     v * (1.0 - status.sleep_cut.load(Ordering::Relaxed).min(1000) as f32 / 1000.0)
 }
 
-pub const NORM_DEFAULT_LUFS: i32 = -14;
+pub const NORM_DEFAULT_LUFS: i32 = nuvx_core::loudness::DEFAULT_TARGET_LUFS;
 
-/// Gain in dB for a track measured `loudness_db` above YouTube's reference (-14 LUFS), same formula as Android.
-pub fn norm_gain_db(target_lufs: i32, loudness_db: f32) -> f32 {
-    ((target_lufs - NORM_DEFAULT_LUFS) as f32 - loudness_db).clamp(-15.0, 3.0)
-}
+/// Gain in dB for a track measured `loudness_db` above YouTube's reference (-14 LUFS); the formula lives in the
+/// shared core and is tested against the same cases as Android's.
+pub use nuvx_core::loudness::norm_gain_db;
 
 pub(super) fn norm_gain(status: &AudioStatus, shared: Option<&Shared>) -> f32 {
     match shared.and_then(|s| s.loudness_db) {

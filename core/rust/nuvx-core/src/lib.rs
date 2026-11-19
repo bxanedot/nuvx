@@ -4,6 +4,7 @@
 
 pub mod eq;
 pub mod lan;
+pub mod loudness;
 pub mod lyrics;
 pub mod model;
 pub mod playlist_file;

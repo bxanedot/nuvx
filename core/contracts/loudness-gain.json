@@ -1,0 +1,13 @@
+{
+  "about": "Volume normalization: the gain (dB) applied to a track whose YouTube loudnessDb is known, for a chosen target in LUFS (default -14). gain = target + 14 - loudnessDb, limited to -15..+3 dB. Rust nuvx-core::loudness and Android loudnessGainMb (in millibels, rounded) must agree.",
+  "cases": [
+    { "name": "default target, track at the reference", "targetLufs": -14, "loudnessDb": 0.0, "gainDb": 0.0 },
+    { "name": "loud track is turned down", "targetLufs": -14, "loudnessDb": 6.0, "gainDb": -6.0 },
+    { "name": "quiet track is turned up", "targetLufs": -14, "loudnessDb": -2.0, "gainDb": 2.0 },
+    { "name": "quiet track is boosted at most 3 dB", "targetLufs": -14, "loudnessDb": -10.0, "gainDb": 3.0 },
+    { "name": "very loud track is cut at most 15 dB", "targetLufs": -14, "loudnessDb": 30.0, "gainDb": -15.0 },
+    { "name": "quieter target turns everything down", "targetLufs": -18, "loudnessDb": 0.0, "gainDb": -4.0 },
+    { "name": "louder target turns everything up", "targetLufs": -11, "loudnessDb": 0.0, "gainDb": 3.0 },
+    { "name": "fractions round to a hundredth of a dB on Android", "targetLufs": -14, "loudnessDb": 1.234, "gainDb": -1.23 }
+  ]
+}
