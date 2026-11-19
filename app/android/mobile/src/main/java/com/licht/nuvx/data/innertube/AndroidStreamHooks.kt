@@ -37,6 +37,16 @@ object AndroidStreamHooks {
                 "device: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}",
                 "network: ${com.licht.nuvx.net.privacy.PrivacyNetwork.activeMode} " +
                     "(${com.licht.nuvx.net.privacy.PrivacyNetwork.state.value::class.simpleName})",
+                // Yes/no and counts only: no server addresses and no device names, which can identify a person.
+                "sync: " + com.licht.nuvx.data.sync.NuvxSync.let { sync ->
+                    when {
+                        !sync.status.value.enabled -> "off"
+                        sync.isHosting -> "hosting, ${com.licht.nuvx.data.sync.LanHost.state.value.devices.size} phones paired"
+                        sync.isLan -> "paired with a computer"
+                        else -> "server"
+                    }
+                },
+                "remote control: ${if (com.licht.nuvx.data.sync.LanHost.allowRemote.value) "allowed" else "off"}",
             )
         }
         StreamResolver.maxKbps = { AppSettings.effectiveAudioQuality.maxKbps }

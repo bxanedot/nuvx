@@ -65,6 +65,12 @@ pub(super) fn pane(app: &mut App, ui: &mut Ui) {
                 ("Renderer", format!("{:?}", crate::renderer::active())),
                 ("Network", app.proxy_saved.label().to_owned()),
                 ("Signed in", if app.logged_in { "yes" } else { "no" }.to_owned()),
+                // Sync and output state, as counts and yes/no only: no device names, which can identify a person.
+                ("Local Wi-Fi Sync", if app.lan.enabled { format!("on, {} paired", app.lan.paired_count()) } else { "off".to_owned() }),
+                ("Remote control", if app.lan.connect { "allowed" } else { "off" }.to_owned()),
+                ("Output", if app.output_device.is_some() { "chosen device" } else { "system default" }.to_owned()),
+                ("Equalizer", if app.eq.on { "on" } else { "off" }.to_owned()),
+                ("Download limit", match crate::downloads::limit_gb() { 0 => "off".to_owned(), n => format!("{n} GB") }),
             ];
             ui.ctx().copy_text(crate::logging::diagnostics(app.backend.data_dir(), &facts));
             app.toast("Diagnostics copied");

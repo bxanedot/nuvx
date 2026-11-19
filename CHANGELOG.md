@@ -6,7 +6,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## Unreleased
 
-Nothing yet.
+- **Copy diagnostics also reports the state of sync and output** (phone and computer): whether Local Wi-Fi Sync is on and
+  how many devices are paired, whether remote control is allowed, system-default or chosen output, equalizer and download
+  limit. Yes/no and counts only: no device names or addresses.
+- **Desktop code cleanup:** 40 compiler lint notes down to 11, no change in behaviour.
 
 ## 1.0.3
 
