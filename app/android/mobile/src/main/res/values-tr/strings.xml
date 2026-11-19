@@ -1419,6 +1419,7 @@
     <string name="nightly_updates">Nightly güncellemeler</string>
     <string name="nightly_updates_subtitle">Test sürümlerini yayınlanır yayınlanmaz alın. Varsayılan olarak kapalıdır; kapalıyken nuvx yalnızca kararlı sürümleri sunar.</string>
     <string name="playlist_deleted">“%1$s” silindi</string>
+    <string name="playlist_renamed">“%1$s” olarak yeniden adlandırıldı</string>
     <string name="export_playlist">Çalma listesini dışa aktar</string>
     <string name="export_playlist_csv">Çalma listesini dışa aktar (CSV)</string>
     <string name="network">Ağ</string>

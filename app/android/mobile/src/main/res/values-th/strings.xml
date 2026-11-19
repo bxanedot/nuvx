@@ -1447,6 +1447,7 @@
     <string name="nightly_updates">อัปเดตแบบ Nightly</string>
     <string name="nightly_updates_subtitle">รับบิลด์ทดสอบทันทีที่เผยแพร่ ปิดไว้เป็นค่าเริ่มต้น เมื่อปิด nuvx จะเสนอเฉพาะเวอร์ชันเสถียร</string>
     <string name="playlist_deleted">ลบ “%1$s” แล้ว</string>
+    <string name="playlist_renamed">เปลี่ยนชื่อเป็น “%1$s” แล้ว</string>
     <string name="export_playlist">ส่งออกเพลย์ลิสต์</string>
     <string name="export_playlist_csv">ส่งออกเพลย์ลิสต์ (CSV)</string>
     <string name="network">เครือข่าย</string>

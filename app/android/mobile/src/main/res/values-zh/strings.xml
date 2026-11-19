@@ -1441,6 +1441,7 @@
     <string name="nightly_updates">夜间更新</string>
     <string name="nightly_updates_subtitle">测试版一发布就获取。默认关闭；关闭时，nuvx 只提供稳定版本。</string>
     <string name="playlist_deleted">已删除“%1$s”</string>
+    <string name="playlist_renamed">已重命名为“%1$s”</string>
     <string name="export_playlist">导出歌单</string>
     <string name="export_playlist_csv">导出歌单 (CSV)</string>
     <string name="network">网络</string>

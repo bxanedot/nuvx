@@ -1313,6 +1313,7 @@
     <string name="nightly_updates">Nightly updates</string>
     <string name="nightly_updates_subtitle">Get test builds as soon as they are published. Off by default; when off, nuvx only offers stable releases.</string>
     <string name="playlist_deleted">Deleted “%1$s”</string>
+    <string name="playlist_renamed">Renamed to “%1$s”</string>
     <string name="export_playlist">Export playlist</string>
     <string name="nuvx_sync">Nuvx Sync</string>
     <string name="nuvx_sync_footer">Off unless you turn it on. Syncs only your nuvx playlists, through a Nuvx Sync server you choose. Your YouTube Music sign-in and library never leave this device.</string>

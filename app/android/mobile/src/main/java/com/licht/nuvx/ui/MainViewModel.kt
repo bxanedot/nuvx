@@ -229,7 +229,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun addSuggestedSong(browseId: String, song: Song) =
         playlistController.addSuggestedSong(browseId, song)
 
-    fun renamePlaylist(playlist: UserPlaylist, title: String) =
+    fun renamePlaylist(playlist: UserPlaylist, title: String): (() -> Unit)? =
         playlistController.renamePlaylist(playlist, title)
 
     fun setPlaylistArtwork(browseId: String, artwork: String) {

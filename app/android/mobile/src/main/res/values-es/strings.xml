@@ -1434,6 +1434,7 @@
     <string name="nightly_updates">Actualizaciones nightly</string>
     <string name="nightly_updates_subtitle">Recibe versiones de prueba en cuanto se publican. Desactivado por defecto; si está desactivado, nuvx solo ofrece versiones estables.</string>
     <string name="playlist_deleted">Se eliminó «%1$s»</string>
+    <string name="playlist_renamed">Cambiado el nombre a «%1$s»</string>
     <string name="export_playlist">Exportar lista</string>
     <string name="export_playlist_csv">Exportar lista (CSV)</string>
     <string name="network">Red</string>

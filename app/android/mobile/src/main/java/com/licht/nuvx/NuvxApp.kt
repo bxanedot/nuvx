@@ -3365,7 +3365,16 @@ internal fun NuvxApp(
                 onRename = playlist?.let { p ->
                     { name: String ->
                         browseActions = null
-                        viewModel.renamePlaylist(p, name)
+                        val restoreName: (() -> Unit)? = viewModel.renamePlaylist(p, name)
+                        if (restoreName != null) {
+                            scope.launch {
+                                val result = snackbars.showSnackbar(
+                                    message = context.getString(R.string.playlist_renamed, name.trim()),
+                                    actionLabel = context.getString(R.string.undo),
+                                )
+                                if (result == SnackbarResult.ActionPerformed) restoreName()
+                            }
+                        }
                     }
                 } ?: offlineEditable?.let { p ->
                     { name: String ->

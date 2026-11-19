@@ -1442,6 +1442,7 @@
     <string name="nightly_updates">ナイトリーアップデート</string>
     <string name="nightly_updates_subtitle">テストビルドを公開と同時に受け取ります。初期設定ではオフで、オフの間は安定版のみを案内します。</string>
     <string name="playlist_deleted">「%1$s」を削除しました</string>
+    <string name="playlist_renamed">「%1$s」に名前を変更しました</string>
     <string name="export_playlist">プレイリストを書き出す</string>
     <string name="export_playlist_csv">プレイリストを書き出す (CSV)</string>
     <string name="network">ネットワーク</string>

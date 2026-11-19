@@ -350,15 +350,17 @@ internal class MainPlaylistController(
         }
     }
 
-    fun renamePlaylist(playlist: UserPlaylist, title: String) {
+    /** Renames [playlist]; returns an undo that gives it its old name back, or null when nothing changed. */
+    fun renamePlaylist(playlist: UserPlaylist, title: String): (() -> Unit)? {
         val name = title.trim()
-        if (name.isBlank() || name == playlist.title) return
+        if (name.isBlank() || name == playlist.title) return null
+        val undo = { renamePlaylist(playlist.copy(title = name), playlist.title); Unit }
         if (playlist.browseId.startsWith("local:playlist:")) {
             com.licht.nuvx.data.spotify.LocalPlaylistStore.renamePlaylist(playlist.playlistId, name)
             setPlaylistTitle(playlist, name)
-            return
+            return undo
         }
-        if (!requireSignIn()) return
+        if (!requireSignIn()) return null
         scope.launch {
             YtMusicRepository.renamePlaylist(playlist.playlistId, name).fold(
                 onSuccess = {
@@ -368,6 +370,7 @@ internal class MainPlaylistController(
                 onFailure = {},
             )
         }
+        return undo
     }
 
     fun setArtwork(browseId: String, artwork: String) {

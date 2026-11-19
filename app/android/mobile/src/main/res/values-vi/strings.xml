@@ -1381,6 +1381,7 @@
     <string name="nightly_updates">Bản cập nhật nightly</string>
     <string name="nightly_updates_subtitle">Nhận bản dựng thử nghiệm ngay khi được phát hành. Mặc định tắt; khi tắt, nuvx chỉ đề xuất bản ổn định.</string>
     <string name="playlist_deleted">Đã xóa “%1$s”</string>
+    <string name="playlist_renamed">Đã đổi tên thành “%1$s”</string>
     <string name="export_playlist">Xuất danh sách phát</string>
     <string name="export_playlist_csv">Xuất danh sách phát (CSV)</string>
     <string name="network">Mạng</string>
