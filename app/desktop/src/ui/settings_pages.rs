@@ -203,6 +203,22 @@ fn settings_window(app: &mut App, ui: &mut Ui) {
             }
         });
         divider(ui);
+        let mut copy = false;
+        setting_row(ui, "Copy diagnostics", Some("For a bug report: version, system, network mode and this run's latest warnings and errors. No account, song history, addresses or folder names. Copied only when you press it; nothing is sent."), |ui| {
+            copy = pill(ui, "Copy", None, false).clicked();
+        });
+        if copy {
+            let facts = [
+                ("Version", crate::update::current_version().to_string()),
+                ("System", format!("{} {}", std::env::consts::OS, std::env::consts::ARCH)),
+                ("Renderer", format!("{:?}", crate::renderer::active())),
+                ("Network", app.proxy_saved.label().to_owned()),
+                ("Signed in", if app.logged_in { "yes" } else { "no" }.to_owned()),
+            ];
+            ui.ctx().copy_text(crate::logging::diagnostics(app.backend.data_dir(), &facts));
+            app.toast("Diagnostics copied");
+        }
+        divider(ui);
         setting_row(ui, "Collapse sidebar", Some("Show only icons in the sidebar, for narrow windows. The menu button at its top does the same."), |ui| {
             toggle(ui, &mut app.sidebar_collapsed, "Collapse sidebar");
         });

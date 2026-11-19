@@ -35,6 +35,8 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **Desktop: swipe the expanded player down to close it**, like on the phone (let go past a fifth of the window,
   or flick). The intro also gets a **Your tabs** step to show or hide Radio and Podcasts.
 - **Android: Undo after renaming a playlist.**
+- **Desktop: Copy diagnostics** (Settings → Window): version, system, renderer, network mode and this run's latest
+  warnings and errors, with links, tokens and your folder names removed. Copied only when you press it.
 - **Android: Radio moved next to your profile** in the top bar (when Radio is on; hidden when it is off), leaving
   more room in the tab bar.
 - **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.

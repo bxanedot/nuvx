@@ -103,6 +103,30 @@ impl Write for Tee {
     }
 }
 
+/// Privacy-safe diagnostics for a bug report, copied only when the user asks: app and system facts plus the
+/// latest warnings and errors from this run's (already redacted) log, with the home folder replaced by `~`.
+pub fn diagnostics(dir: &Path, facts: &[(&str, String)]) -> String {
+    let log = std::fs::read_to_string(dir.join("nuvx.log")).unwrap_or_default();
+    diagnostics_from(&log, facts, std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).ok().as_deref())
+}
+
+fn diagnostics_from(log: &str, facts: &[(&str, String)], home: Option<&str>) -> String {
+    let mut out = String::from("nuvx diagnostics\n");
+    for (k, v) in facts {
+        out.push_str(&format!("{k}: {v}\n"));
+    }
+    let problems: Vec<&str> = log.lines().filter(|l| l.contains(" WARN ") || l.contains(" ERROR ")).collect();
+    out.push_str(&format!("\nLatest warnings and errors ({} in this run, last 40):\n", problems.len()));
+    for l in &problems[problems.len().saturating_sub(40)..] {
+        out.push_str(&redact(l));
+        out.push('\n');
+    }
+    match home.filter(|h| h.len() > 3) {
+        Some(h) => out.replace(h, "~").replace(&h.replace('\\', "/"), "~"),
+        None => out,
+    }
+}
+
 /// The log file is what users attach to bug reports, so it never holds secrets: URL queries carry the
 /// user's IP and signed tokens, and cookie, authorization, token and password values are blanked.
 fn redact(line: &str) -> String {
@@ -190,5 +214,19 @@ mod redact_tests {
     fn ordinary_lines_are_untouched() {
         let line = "play gen 4: decoder ready at 0ns in 120ms — tokenizer ok, «ünïcode»\n";
         assert_eq!(redact(line), line);
+    }
+}
+
+#[cfg(test)]
+mod diagnostics_tests {
+    #[test]
+    fn keeps_only_problems_and_hides_the_home_folder_and_secrets() {
+        let log = "[t INFO  nuvx] started\n[t WARN  nuvx::a] cache at C:\\Users\\pat\\AppData\\nuvx\n[t ERROR nuvx::b] GET https://x.test/a?sig=1 failed token=abc\n";
+        let out = super::diagnostics_from(log, &[("Version", "1.0.3".into())], Some("C:\\Users\\pat"));
+        assert!(out.contains("Version: 1.0.3"));
+        assert!(!out.contains("started"), "info lines are left out");
+        assert!(out.contains("cache at ~\\AppData"), "{out}");
+        assert!(!out.contains("pat") && !out.contains("sig=1") && !out.contains("abc"), "{out}");
+        assert!(out.contains("(2 in this run"));
     }
 }
