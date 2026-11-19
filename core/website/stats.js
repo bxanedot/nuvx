@@ -5,7 +5,6 @@
   const endpoints = {
     downloads: 'https://nuvx-listen.lylicht.workers.dev/api/stats/downloads',
     live: 'https://nuvx-listen.lylicht.workers.dev/api/stats/live',
-    community: 'https://nuvx-listen.lylicht.workers.dev/api/community',
     stars: 'https://api.github.com/repos/lylicht/nuvx',
   };
   const write = (name, value) => {
@@ -32,18 +31,10 @@
   };
 
   const refreshLive = async () => {
-    const [live, community] = await Promise.allSettled([
-      json(endpoints.live),
-      json(endpoints.community),
-    ]);
-    if (live.status === 'fulfilled') write('together', live.value.listening);
-    if (community.status === 'fulfilled') {
-      const snapshot = community.value;
-      const age = Date.now() - Number(snapshot.updatedAt);
-      if (Number.isFinite(age) && age >= 0 && age < 5 * 60 * 1000) {
-        write('listening', snapshot.activeListeners);
-      }
-    }
+    const live = await json(endpoints.live).catch(() => null);
+    if (!live) return;
+    write('together', live.listening);
+    write('online', live.online);
   };
 
   void refreshTotals();
