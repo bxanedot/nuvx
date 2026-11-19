@@ -167,7 +167,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $ANDROID_VERSION nightly $number" \
-            --notes "![nuvx: Music in full color](https://raw.githubusercontent.com/lylicht/nuvx/main/docs/assets/nuvx-music-in-full-color.webp)"$'\n\n'"Signed desktop installers for Windows, Linux and macOS, plus one APK for each Android phone, TV, Auto and Wear target. Before stable v1.0.0, desktop and Android nightlies use 0.9.0 (Android version code 9); browser extensions use 0.9.0 with an increasing build component. Android release code is 1 for the licht app identity. Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64."
+            --notes "![nuvx: Music in full color](https://raw.githubusercontent.com/lylicht/nuvx/main/docs/assets/nuvx-music-in-full-color.webp)"$'\n\n'"Nightly $number of nuvx $ANDROID_VERSION, built from main ($SOURCE_REF). Apps offer it only with Nightly updates on, and move to the next stable release when it comes out. Signed desktop installers for Windows (x64 and ARM64), macOS and Linux; one APK each for Android phone, TV, Auto and Wear; Chrome and Firefox extensions. Cast and Wear features need Google Play Services."
       - name: Create stable release draft
         if: steps.metadata.outputs.is_stable == 'true'
         env:
