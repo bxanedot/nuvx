@@ -332,6 +332,8 @@ impl eframe::App for App {
         storage.set_string("radio_intro_shown", b(self.tab_intros_shown[0]));
         if self.setup.is_none() {
             storage.set_string("setup_done", "1".into());
+            // Which build the intro was last shown for: a new nightly shows it again (see setup::show_at_start).
+            storage.set_string("setup_seen_build", crate::update::current_release_tag());
         }
         storage.set_string("podcasts_intro_shown", b(self.tab_intros_shown[1]));
         storage.set_string("sidebar_collapsed", b(self.sidebar_collapsed));

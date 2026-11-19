@@ -143,7 +143,8 @@ impl App {
             hide_radio: get("hide_radio_tab").is_some_and(|v| v == "1"),
             hide_podcasts: get("hide_podcasts_tab").is_some_and(|v| v == "1"),
             // Fresh installs only: an existing install already has a saved volume.
-            setup: (dev_var("NUVX_SETUP").is_some() || get("setup_done").is_none() && get("volume").is_none()).then(|| setup::Step::from_dev(dev_var("NUVX_SETUP"))),
+            setup: setup::show_at_start(dev_var("NUVX_SETUP").is_some(), get("setup_done").is_some(), get("volume").is_some(), get("setup_seen_build").as_deref(), &crate::update::current_release_tag())
+                .then(|| setup::Step::from_dev(dev_var("NUVX_SETUP"))),
             tab_intros_shown: [get("radio_intro_shown").is_some_and(|v| v == "1"), get("podcasts_intro_shown").is_some_and(|v| v == "1")],
             moods: None,
             moods_asked: false,

@@ -57,6 +57,13 @@ impl Step {
 const CANVAS: egui::Vec2 = vec2(560.0, 780.0);
 
 /// The whole window while the intro runs: nothing of the app is drawn behind it, so nothing there takes input.
+/// Whether the intro opens at start. On a fresh install, always. On a nightly build, once for every new
+/// nightly (`nightly.<run>.<attempt>`), because testers get a new install each time; all saved data is kept.
+/// Stable builds show it once, on a fresh install only. `forced` is the NUVX_SETUP test switch.
+pub(super) fn show_at_start(forced: bool, done_before: bool, has_saved_data: bool, seen_build: Option<&str>, build: &str) -> bool {
+    forced || (!done_before && !has_saved_data) || (build.starts_with("nightly.") && seen_build != Some(build))
+}
+
 pub(super) fn page(app: &mut App, ui: &mut Ui, ctx: &egui::Context) {
     let Some(step) = app.setup else { return };
     let screen = ctx.content_rect();
@@ -375,7 +382,22 @@ fn listening(app: &mut App, ui: &mut Ui) {
 
 #[cfg(test)]
 mod tests {
-    use super::Step;
+    use super::{Step, show_at_start};
+
+    #[test]
+    fn the_intro_shows_on_fresh_installs_and_once_per_new_nightly() {
+        // Fresh install.
+        assert!(show_at_start(false, false, false, None, "v1.0.3"));
+        // Existing user on a stable build: not again, even if the build changes.
+        assert!(!show_at_start(false, true, true, Some("v1.0.2"), "v1.0.3"));
+        assert!(!show_at_start(false, false, true, None, "v1.0.3"), "saved data but no marker: an old install, not fresh");
+        // A nightly: shown for a build not yet seen, never twice for the same one.
+        assert!(show_at_start(false, true, true, None, "nightly.325.1"));
+        assert!(show_at_start(false, true, true, Some("nightly.319.1"), "nightly.325.1"));
+        assert!(!show_at_start(false, true, true, Some("nightly.325.1"), "nightly.325.1"));
+        // The test switch always shows it.
+        assert!(show_at_start(true, true, true, Some("v1.0.3"), "v1.0.3"));
+    }
 
     #[test]
     fn steps_go_forward_and_back_in_order() {

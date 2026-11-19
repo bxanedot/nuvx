@@ -31,7 +31,7 @@ pub fn current_version() -> String {
     std::env::var("NUVX_UPDATE_AS").unwrap_or_else(|_| option_env!("NUVX_UPDATE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")).to_owned())
 }
 
-fn current_release_tag() -> String {
+pub fn current_release_tag() -> String {
     std::env::var("NUVX_RELEASE_TAG").unwrap_or_else(|_| option_env!("NUVX_RELEASE_TAG").map_or_else(|| format!("v{}", env!("CARGO_PKG_VERSION")), str::to_owned))
 }
 
