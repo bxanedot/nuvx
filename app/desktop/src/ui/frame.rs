@@ -92,6 +92,11 @@ impl eframe::App for App {
             }
         }
         let playing = self.playing();
+        // Idle windows otherwise stop repainting and can miss a system light/dark change.
+        // Explicit Light/Dark preferences remain stable without polling.
+        if self.appearance == theme::Appearance::System && self.look().id == crate::preset::DEFAULT_ID {
+            ctx.request_repaint_after(Duration::from_secs(2));
+        }
         if self.window_hidden {
             if playing || self.buffering {
                 ctx.request_repaint_after(Duration::from_millis(250));
