@@ -40,3 +40,17 @@ if (!symbolSource.includes('SF_SYMBOL_VISUAL_SCALE = 0.8') || !symbolSource.incl
 if (!animationCSS.includes('data-sf-renderer="mask"') || !animationCSS.includes('button:not(:disabled):hover')) {
   throw new Error('SF Symbol hover and trigger animations must render without SVG layer support');
 }
+
+// Keep distinct SFStudio symbols for Albums and Playlists, and maintain the Settings-only Listen Together entry.
+const navSource = readFileSync(join(root, 'src/components/icons/NavIcons.tsx'), 'utf8');
+const sidebarSource = readFileSync(join(root, 'src/shell/Sidebar.tsx'), 'utf8');
+const settingsSource = readFileSync(join(root, 'src/pages/SettingsPage.tsx'), 'utf8');
+if (!navSource.includes("AlbumsIcon = symbol('rectangle.stack.fill'") || !navSource.includes("AllPlaylistsIcon = symbol('square.stack.fill'")) {
+  throw new Error('Albums and Playlists must have distinct SFStudio icons');
+}
+if (sidebarSource.includes("label: 'Listen Together'")) {
+  throw new Error('Listen Together must not appear as a top-level navigation item');
+}
+if (!settingsSource.includes('to="/settings/listen-together"')) {
+  throw new Error('Listen Together must remain accessible through Settings');
+}
