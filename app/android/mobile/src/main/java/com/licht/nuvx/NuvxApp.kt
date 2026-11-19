@@ -1869,11 +1869,18 @@ internal fun NuvxApp(
                                                 reorderSaving = true
                                                 viewModel.reorderPlaylist(reordering, original, reordered) { saved ->
                                                     reorderSaving = false
-                                                    showQueueNotice(
-                                                        context.getString(
-                                                            if (saved) R.string.playlist_reordered else R.string.reorder_failed,
-                                                        ),
-                                                    )
+                                                    if (!saved) {
+                                                        showQueueNotice(context.getString(R.string.reorder_failed))
+                                                    } else {
+                                                        scope.launch {
+                                                            val result = snackbars.showSnackbar(
+                                                                message = context.getString(R.string.playlist_reordered),
+                                                                actionLabel = context.getString(R.string.undo),
+                                                            )
+                                                            // Undo puts the old order back the same way it was changed.
+                                                            if (result == SnackbarResult.ActionPerformed) viewModel.reorderPlaylist(reordering, reordered, original)
+                                                        }
+                                                    }
                                                     if (saved && reorderTarget == reordering) reorderTarget = null
                                                 }
                                             },
