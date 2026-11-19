@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowUpRight, BookOpenText, Headphones, ListMusic, Settings } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, BookOpenText, Headphones, ListMusic } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
+import { SfSymbolIcon } from '@/components/icons/SfSymbol';
 import {
   AlbumsIcon,
   AllPlaylistsIcon,
@@ -231,7 +232,7 @@ export function Sidebar() {
               <ArrowUpRight size={14} strokeWidth={2} />
             </PrefetchNavLink>
             <PrefetchNavLink to="/settings" className="grid size-7 place-items-center rounded-nav text-secondary hover:bg-quinary hover:text-primary aria-[current=page]:bg-quinary aria-[current=page]:text-primary" aria-label="Settings" title="Settings" onClick={close}>
-              <Settings size={17} strokeWidth={1.9} />
+              <SfSymbolIcon name="gearshape" size={17} />
             </PrefetchNavLink>
           </div>
         </div>
