@@ -35,4 +35,18 @@ class PlaylistSongUndoTest {
             LocalPlaylistStore.deletePlaylist(id)
         }
     }
+
+    @Test
+    fun renameThroughTheMenuIdAndUndoRestoreTheName() {
+        val playlist = LocalPlaylistStore.createNuvxPlaylist("Old name", listOf(a))
+        try {
+            // The menu passes the browse id ("local:playlist:<id>"), not the bare id.
+            LocalPlaylistStore.renamePlaylist(playlist.browseId, "New name")
+            assertEquals("New name", LocalPlaylistStore.getPlaylist(playlist.id)?.title)
+            LocalPlaylistStore.renamePlaylist(playlist.browseId, "Old name")
+            assertEquals("Old name", LocalPlaylistStore.getPlaylist(playlist.id)?.title)
+        } finally {
+            LocalPlaylistStore.deletePlaylist(playlist.id)
+        }
+    }
 }
