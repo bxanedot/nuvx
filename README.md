@@ -23,7 +23,6 @@
   <a href="#build-from-source">Build</a> ·
   <a href="https://web.nuvx.lol">Web player</a> ·
   <a href="https://discord.gg/h4Wsu824Uf">Discord</a> ·
-  <a href="CONTRIBUTORS.md">Contributors</a>
 </p>
 
 ---
