@@ -22,6 +22,9 @@ on:
       - "gradlew"
       - "gradlew.bat"
   workflow_dispatch:
+  # A nightly every night when main has new commits.
+  schedule:
+    - cron: "17 2 * * *"
 
 permissions:
   contents: write
@@ -35,8 +38,30 @@ defaults:
     shell: bash
 
 jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Skip a night with nothing new
+        id: check
+        run: |
+          build=true
+          if [[ "${{ github.event_name }}" == schedule ]]; then
+            last=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" \
+              --jq '[.[] | select(.draft == false and .prerelease == true and (.tag_name | startswith("nightly.")))][0].tag_name // empty')
+            if [[ -n "$last" ]] && [[ $(gh api "repos/$GITHUB_REPOSITORY/commits/$last" --jq .sha) == "$GITHUB_SHA" ]]; then
+              echo "Nightly $last already has $GITHUB_SHA; nothing new tonight"
+              build=false
+            fi
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   prepare:
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    needs: gate
+    if: needs.gate.outputs.build == 'true' && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || ((github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-24.04
     outputs:
       release_tag: ${{ steps.metadata.outputs.release_tag }}
@@ -134,9 +159,13 @@ jobs:
                 gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag"
               fi
             done
+          # Stable -> nightly 1 -> nightly 2 -> next stable: count the nightlies since the latest stable.
+          since=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .published_at 2>/dev/null || echo "")
+          number=$(( $(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq ".[] | select(.draft == false and .prerelease == true and (.tag_name | startswith(\"nightly.\")) and .published_at > \"$since\") | .tag_name" | wc -l) + 1 ))
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
-            --title "nuvx $ANDROID_VERSION-$RELEASE_TAG" \
+            --title "nuvx $ANDROID_VERSION nightly $number" \
             --notes "Signed desktop installers for Windows, Linux and macOS, plus one APK for each Android phone, TV, Auto and Wear target. Before stable v1.0.0, desktop and Android nightlies use 0.9.0 (Android version code 9); browser extensions use 0.9.0 with an increasing build component. Android release code is 1 for the licht app identity. Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64."
       - name: Create stable release draft
         if: steps.metadata.outputs.is_stable == 'true'
@@ -692,8 +721,10 @@ jobs:
             exit 0
           fi
           gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
+          # Keep this cycle's nightlies (since the latest stable); remove the ones from before it.
+          since=$(gh api "repos/$GH_REPO/releases/latest" --jq .published_at 2>/dev/null || echo "")
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq '.[] | select(.prerelease == true and .draft == false and (.tag_name | startswith("nightly."))) | .tag_name' |
+            --jq ".[] | select(.prerelease == true and .draft == false and (.tag_name | startswith(\"nightly.\")) and .published_at < \"$since\") | .tag_name" |
             while IFS= read -r tag; do
               [[ -z "$tag" || "$tag" == "$RELEASE_TAG" ]] || gh release delete "$tag" --yes --cleanup-tag
             done

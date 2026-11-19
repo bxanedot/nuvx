@@ -25,6 +25,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   them play through this phone with the speaker button. Same Wi-Fi, encrypted. A phone that hosts cannot also sync
   with a computer at the same time. A playlist made on a paired phone shows up on the host within seconds, and the
   host no longer lists itself as a computer to control or copy from.
+- **Nightly builds every night.** A nightly is built each night when main has new commits, named nightly 1,
+  nightly 2, … after each stable release. Apps offer nightlies only with the nightly switch on, and a nightly
+  install moves on to the next stable release when it comes out (stable → nightly → nightly 2 → stable 2).
 - **Control your phone from the computer.** While a paired phone plays, the computer's Settings → Sync & Connect
   shows what it plays with Previous, Play/Pause and Next. The phone keeps its own queue; nothing to turn on.
 - **A phone that pairs again replaces its old entry** on the computer (or hosting phone) instead of showing twice.

@@ -114,9 +114,13 @@ class AppUpdateCheckerTest {
     }
 
     @Test
-    fun `nightly builds never return to the stable release of the same version`() {
-        assertFalse(
+    fun `stable then nightly then nightly 2 then stable 2`() {
+        // The stable these nightlies led up to comes next; an older stable of that version does not.
+        assertTrue(
             isNewerRelease("1.0.0", "v1.0.0", "2026-11-15T13:00:00Z", "1.0.0-nightly.1.1", "nightly.1.1", "2026-11-15T12:00:00Z"),
+        )
+        assertFalse(
+            isNewerRelease("1.0.0", "v1.0.0", "2026-11-15T11:00:00Z", "1.0.0-nightly.1.1", "nightly.1.1", "2026-11-15T12:00:00Z"),
         )
     }
 
@@ -190,11 +194,11 @@ class AppUpdateCheckerTest {
     }
 
     @Test
-    fun `a nightly install with nightlies off still moves to the stable build`() {
+    fun `a nightly install moves to the stable build of its version`() {
         val built = "2026-11-17T10:00:00Z"
         val published = "2026-11-17T12:00:00Z"
         assertTrue(isNewerRelease("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = false))
-        assertFalse(isNewerRelease("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = true))
+        assertTrue(isNewerRelease("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = true))
         assertFalse(isNewerRelease("1.0.0", "v1.0.0", "2026-11-17T09:00:00Z", "1.0.0-nightly.5.1", "nightly.5.1", built, allowNightly = false))
     }
 

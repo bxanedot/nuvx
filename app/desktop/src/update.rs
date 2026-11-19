@@ -125,10 +125,11 @@ fn release_is_newer(candidate_version: &str, candidate_tag: &str, candidate_time
                 .zip(nightly_build(current_tag))
                 .is_some_and(|(candidate, current)| candidate > current);
         }
-        // A nightly install with nightlies switched off still moves to the stable build of the same version.
+        // Stable -> nightly -> nightly 2 -> stable 2: the stable build of the version these nightlies led up to
+        // comes next, with nightlies on or off.
         let published = candidate_time.get(..19).unwrap_or(candidate_time);
         let built = current_time.get(..19).unwrap_or(current_time);
-        return !allow_nightly && !built.is_empty() && published > built;
+        return !built.is_empty() && published > built;
     }
     let published = candidate_time.get(..19).unwrap_or(candidate_time);
     let built = current_time.get(..19).unwrap_or(current_time);
@@ -573,9 +574,9 @@ mod tests {
         let nightly_time = "2026-11-13T12:00:00Z";
         let later_nightly_time = "2026-11-13T13:00:00Z";
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", stable_time));
-        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time));
+        assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.42.1", "nightly.42.1", nightly_time), "the stable these nightlies led to");
         assert!(!release_is_newer("0.9.0", "v0.9.0", stable_time, "0.9.0-nightly.43.1", "nightly.43.1", later_nightly_time));
-        assert!(!release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
+        assert!(release_is_newer("0.9.0", "v0.9.0", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
         assert!(release_is_newer("0.9.0-nightly.43.1", "nightly.43.1", stable_time, "0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time));
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", later_nightly_time, "0.9.0-nightly.43.1", "nightly.43.1", nightly_time));
         assert!(!release_is_newer("0.9.0-nightly.42.1", "nightly.42.1", nightly_time, "0.9.0", "v0.9.0", later_nightly_time));
@@ -596,9 +597,9 @@ mod tests {
         assert!(rel("1.0.0-nightly.5.1", "nightly.5.1", published, "1.0.0", "v1.0.0", built, true));
         assert!(!rel("1.0.0-nightly.6.1", "nightly.6.1", published, "1.0.0-nightly.5.1", "nightly.5.1", built, false));
         assert!(rel("1.0.0-nightly.6.1", "nightly.6.1", published, "1.0.0-nightly.5.1", "nightly.5.1", built, true));
-        // A nightly install with nightlies off still moves to the stable build of the same version.
+        // A nightly install moves to the stable build of the same version, nightlies on or off.
         assert!(rel("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, false));
-        assert!(!rel("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, true));
+        assert!(rel("1.0.0", "v1.0.0", published, "1.0.0-nightly.5.1", "nightly.5.1", built, true));
         assert!(!rel("1.0.0", "v1.0.0", "2026-11-17T09:00:00Z", "1.0.0-nightly.5.1", "nightly.5.1", built, false));
     }
 

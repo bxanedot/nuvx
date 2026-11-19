@@ -253,8 +253,9 @@ internal fun isNewerRelease(
         if (candidate != current) return candidate > current
     }
     if (currentTag.startsWith("nightly.")) {
-        // A nightly install with nightlies switched off still moves to the stable build of the same version.
-        if (!candidateTag.startsWith("nightly.")) return !allowNightly && currentBuildTime.isNotEmpty() && candidatePublishedAt > currentBuildTime
+        // Stable -> nightly -> nightly 2 -> stable 2: the stable build of the version these nightlies led up to
+        // comes next, with nightlies on or off.
+        if (!candidateTag.startsWith("nightly.")) return currentBuildTime.isNotEmpty() && candidatePublishedAt > currentBuildTime
         val candidateBuild = nightlyBuild(candidateTag) ?: return false
         val currentBuild = nightlyBuild(currentTag) ?: return false
         return candidateBuild.first > currentBuild.first ||
