@@ -210,12 +210,15 @@ fun SwipeToQueueBox(
     var boxWidth by remember { mutableFloatStateOf(0f) }
 
     val currentOnSwipeToQueue by rememberUpdatedState(onSwipeToQueue)
+    // One swipe queues the song once: the swipe box may confirm the same gesture several times (issue #328).
+    val firedThisSwipe = remember { mutableStateOf(false) }
 
     val swipeState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled && currentOnSwipeToQueue != null) {
                 val offset = try { swipeStateHolder.value?.requireOffset() ?: 0f } catch (e: Exception) { 0f }
-                if (abs(offset) >= boxWidth * 0.45f) {
+                if (abs(offset) >= boxWidth * 0.45f && !firedThisSwipe.value) {
+                    firedThisSwipe.value = true
                     haptics.play(Haptic.Select)
                     currentOnSwipeToQueue?.invoke()
                 }
@@ -240,6 +243,8 @@ fun SwipeToQueueBox(
                     }
                     armed && travelled < armAt * 0.8f -> armed = false
                 }
+                // Back at rest: the next swipe may queue again.
+                if (travelled < armAt * 0.1f) firedThisSwipe.value = false
             }
     }
 

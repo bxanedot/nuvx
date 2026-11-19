@@ -34,6 +34,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   Shown once on a new install; **Set up later** skips it.
 - **Desktop: swipe the expanded player down to close it**, like on the phone (let go past a fifth of the window,
   or flick). The intro also gets a **Your tabs** step to show or hide Radio and Podcasts.
+- **Android: swiping a song to the queue adds it once** (it could appear several times; issue #328).
 - **Android: Play starts a playlist in order again.** After a shuffled play, pressing Play on a playlist or album
   kept shuffling the next songs; now Play turns shuffle off and Shuffle turns it on (issue #329).
 - **Android: Undo after renaming or reordering a playlist.**
