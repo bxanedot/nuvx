@@ -1,12 +1,12 @@
 module_path,language,source_revision,tool_version,bridge_supported,safe_isolation,side_effect_risk,candidate_unit,decision,evidence,parity_gate,notes
-app/web/app/src/lib/artistCredits.ts,TypeScript,main,1.5.1 (not installed),yes,yes,none,artist credit splitting,CANDIDATE,NOT_VERIFIED,shared golden vectors with Android ArtistCredits tests,pure string functions
-app/web/app/src/lib/meshPalette.ts,TypeScript,main,1.5.1 (not installed),yes,yes,none,palette math,CANDIDATE,NOT_VERIFIED,numeric golden vectors,pure math
-app/web/app/src/lyrics/parse.ts,TypeScript,main,1.5.1 (not installed),yes,yes,none,LRC/word-synced parsing,DIFF_AGAINST_EXISTING_RUST,NOT_VERIFIED,diff against app/desktop/src/lyrics/lrc.rs,do not generate a second Rust parser
-core/worker/src/request-body.ts,TypeScript,main,1.5.1 (not installed),yes,yes,none,request body size/shape checks,CANDIDATE,NOT_VERIFIED,golden vectors incl. oversized and malformed bodies,security boundary: keep limits identical
-core/sync/src/server.ts,TypeScript,main,1.5.1 (not installed),app-level only,only with :memory: db and no network,database writes,HTTP routes,HAND_WRITTEN_FIXTURES,NOT_VERIFIED,extend core/sync/test/server.test.ts,app record would mutate a database per case
-core/worker/src/party.ts,TypeScript,main,1.5.1 (not installed),app-level only,no (Durable Objects),live sessions,Listen Together rooms,NOT_APPLICABLE,n/a,hand-written protocol tests,needs Cloudflare runtime
-core/native/**,C++,main,1.5.1 (not installed),no (C only),n/a,n/a,analyzer/loopmix,NOT_APPLICABLE,n/a,existing native tests,C++ is not a supported bridge
-app/android/mobile/src/main/java/androidx/media3/decoder/ffmpeg/*.java,Java,main,1.5.1 (not installed),no (JNI wrappers not public static units),n/a,native decoder,FFmpeg glue,NOT_APPLICABLE,n/a,device playback tests,vendored platform glue stays
-core/shared/**,Kotlin Multiplatform,main,1.5.1 (not installed),no,n/a,n/a,models/repositories,NOT_APPLICABLE,n/a,hand-written golden vectors + UniFFI,no Kotlin bridge
-core/apple/** app/ios/**,Swift,main,1.5.1 (not installed),no,n/a,n/a,iOS app,NOT_APPLICABLE,n/a,hand-written golden vectors + C ABI,no Swift bridge
+app/web/app/src/lib/artistCredits.ts,TypeScript,main,1.5.1,yes,yes,none,artist credit splitting,CANDIDATE,NOT_VERIFIED,shared golden vectors with Android ArtistCredits tests,pure string functions
+app/web/app/src/lib/meshPalette.ts,TypeScript,main,1.5.1,yes,yes,none,palette math,CANDIDATE,NOT_VERIFIED,numeric golden vectors,pure math
+app/web/app/src/lyrics/parse.ts,TypeScript,main,1.5.1,yes,yes,none,LRC/word-synced parsing,DIFF_AGAINST_EXISTING_RUST,NOT_VERIFIED,diff against app/desktop/src/lyrics/lrc.rs,do not generate a second Rust parser
+core/worker/src/request-body.ts,TypeScript,main,1.5.1,yes,yes,none,request body size/shape checks,CANDIDATE,NOT_VERIFIED,golden vectors incl. oversized and malformed bodies,security boundary: keep limits identical
+core/sync/src/server.ts,TypeScript,main,1.5.1,app-level only,only with :memory: db and no network,database writes,HTTP routes,HAND_WRITTEN_FIXTURES,NOT_VERIFIED,extend core/sync/test/server.test.ts,app record would mutate a database per case
+core/worker/src/party.ts,TypeScript,main,1.5.1,app-level only,no (Durable Objects),live sessions,Listen Together rooms,NOT_APPLICABLE,n/a,hand-written protocol tests,needs Cloudflare runtime
+core/native/**,C++,main,1.5.1,no (C only),n/a,n/a,analyzer/loopmix,NOT_APPLICABLE,n/a,existing native tests,C++ is not a supported bridge
+app/android/mobile/src/main/java/androidx/media3/decoder/ffmpeg/*.java,Java,main,1.5.1,no (JNI wrappers not public static units),n/a,native decoder,FFmpeg glue,NOT_APPLICABLE,n/a,device playback tests,vendored platform glue stays
+core/shared/**,Kotlin Multiplatform,main,1.5.1,no,n/a,n/a,models/repositories,NOT_APPLICABLE,n/a,hand-written golden vectors + UniFFI,no Kotlin bridge
+core/apple/** app/ios/**,Swift,main,1.5.1,no,n/a,n/a,iOS app,NOT_APPLICABLE,n/a,hand-written golden vectors + C ABI,no Swift bridge
 app/desktop/**,Rust,main,n/a,n/a,n/a,n/a,desktop app,NOT_APPLICABLE,n/a,cargo test,already Rust; consolidate into the core instead

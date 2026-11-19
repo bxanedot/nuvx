@@ -14,13 +14,30 @@ Date: 2026-11-19. Nuvx revision: `main` at the commit that adds this file. Nothi
 | License | MIT | repo metadata and `Cargo.toml` |
 | Local toolchain | `rustc 1.100.0` (meets 1.97) | `rustc --version` |
 
-## Installation: NOT VERIFIED
+## Installation and dry run: PASS (synthetic unit only)
 
-Not installed. `cargo install rust-anything` downloads and builds a crate and its dependencies from crates.io, and
-the owner had not approved a download for this run. No `--help`, `doctor` or synthetic dry run was executed, so
-no claim about the installed CLI's exact syntax is made here. When approved: install pinned into a disposable root
-(`cargo install rust-anything --version 1.5.1 --locked --root <scratch>/ra`), do **not** run `rust-anything setup`
-(it edits agent-global MCP/skill settings), and record `--help` output in this file.
+Installed 2026-11-19 with the owner's OK, pinned, into a scratch root (not on PATH, `setup` **not** run):
+`cargo install rust-anything --version 1.5.1 --locked --root <scratch>/ra` → `rust-anything 1.5.1`.
+Building WASM bridges also needed `rustup target add wasm32-unknown-unknown` and
+`cargo install wasm-bindgen-cli --version 0.2.130 --locked` (same scratch root; the version must match the
+crate's wasm-bindgen).
+
+`--help` lists: analyze, bridge, refresh, record, build, diff, bench, profile, shadow, gate, app, mcp, setup.
+There is **no `doctor` command** in 1.5.1.
+
+Dry run on a made-up 4-line TypeScript function (`clampVolume`), in a throwaway folder, no Nuvx code:
+
+| Step | Result |
+|---|---|
+| `analyze .` | 1 unit, readiness 100, bridge wasm-bindgen, "no tests found" |
+| `bridge . src/clamp.ts` | crate with `port.rs` stub (`unimplemented!`); the port is written by hand |
+| `record .` | 25 generated cases, 0 threw |
+| `build .` | first failed: missing wasm32 target, then wasm-bindgen-cli; built after both |
+| `diff .` | first failed: generated loader is CommonJS and the demo `package.json` had `"type": "module"`; **25/25 match** after removing it |
+| `gate .` | first failed on clippy (`manual_clamp`); **Gate passed** after the fix: cargo test, no unsafe, no panics, API, 25/25 |
+
+Lessons for Nuvx: packages with `"type": "module"` (the web app) need the generated loader renamed to `.cjs`
+or a CommonJS wrapper; the gate enforces clippy `-D warnings`.
 
 ## Supported language boundaries (from the README at HEAD)
 
