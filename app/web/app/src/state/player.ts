@@ -129,7 +129,7 @@ function getDecks(): Promise<Deck[]> {
       const deck: Deck = { engine, audio, gain: 1, radio: false, loudnessDb: null, live: false };
       engine.onFatal = (videoId, message) => {
         if (decks?.[active] !== deck) return;
-        trackLog.e(`stopped: ${message}`, videoId);
+        trackLog.e('playback stopped after stream recovery failed', videoId);
         usePlayer.setState({ status: 'error', error: safePlaybackError(message) });
       };
       engine.onRecovered = (track) => {
