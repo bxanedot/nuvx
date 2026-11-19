@@ -32,3 +32,11 @@ const radio = readFileSync(join(root, 'public/sf-symbols/radio.svg'), 'utf8');
 if (!radio.includes('data-variable=') || !radio.includes('data-group=')) {
   throw new Error('Radio animated layers are missing their SFStudio metadata');
 }
+
+const symbolSource = readFileSync(join(root, 'src/components/icons/SfSymbol.tsx'), 'utf8');
+if (!symbolSource.includes('SF_SYMBOL_VISUAL_SCALE = 0.8') || !symbolSource.includes("data-sf-renderer={geometry ? 'layers' : 'mask'}")) {
+  throw new Error('Web SF Symbols must render at 80% visual scale with a mask animation fallback');
+}
+if (!animationCSS.includes('data-sf-renderer="mask"') || !animationCSS.includes('button:not(:disabled):hover')) {
+  throw new Error('SF Symbol hover and trigger animations must render without SVG layer support');
+}
