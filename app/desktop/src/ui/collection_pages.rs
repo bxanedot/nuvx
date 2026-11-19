@@ -31,6 +31,25 @@ fn circle_action(ui: &mut Ui, glyph: CircleGlyph, name: &str, active: bool) -> e
     resp
 }
 
+/// Saves the playlist as M3U or CSV (the same formats the phone writes), chosen by the file name's extension.
+fn export_file(title: &str, tracks: &[Track]) {
+    let name: String = title.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' { c } else { '_' }).collect();
+    let Some(path) = rfd::FileDialog::new()
+        .set_title("Export playlist")
+        .set_file_name(format!("{}.m3u", name.trim()))
+        .add_filter("M3U playlist", &["m3u", "m3u8"])
+        .add_filter("CSV spreadsheet", &["csv"])
+        .save_file()
+    else {
+        return;
+    };
+    let csv = path.extension().is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+    let text = if csv { crate::playlist_file::csv(tracks) } else { crate::playlist_file::m3u(title, tracks) };
+    if let Err(e) = std::fs::write(&path, text) {
+        log::warn!("export playlist: {e}");
+    }
+}
+
 fn play_pill(ui: &mut Ui, acts: &mut Vec<Action>, target: &Target, tracks: &[Track]) {
     let active = widgets::active_state(ui, target);
     let (label, glyph) = if active == Some(true) { ("Pause", icon::PAUSE) } else { ("Play", icon::PLAY) };
@@ -136,6 +155,9 @@ pub(super) fn collection(app: &mut App, ui: &mut Ui, id: &str, now: f64) {
                     }
                     if app.logged_in && !auto && (save_id.is_some() || owned) {
                         ui.separator();
+                    }
+                    if !tracks.is_empty() && widgets::menu_action(ui, Some(icon::DOWNLOAD), "Export playlist…") {
+                        export_file(&c.title, tracks);
                     }
                     if !is_album && widgets::menu_action(ui, Some(icon::MUSIC), "Change playlist artwork") {
                         acts.push(Action::SetPlaylistArtwork);

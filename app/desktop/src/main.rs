@@ -29,6 +29,7 @@ mod login;
 mod lyrics;
 mod media;
 mod model;
+mod playlist_file;
 mod motion;
 mod tidal;
 mod opus;

@@ -39,7 +39,7 @@ const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 13] = {
         (Window, glyphs::MAXIMIZE_2, "Window", "Material, close to tray, sidebar, renderer"),
         (Network, glyphs::WIFI, "Network", "Proxy and connection test"),
         (Sync, glyphs::REPEAT, "Sync & Connect", "Playlists and playback with your phone over Wi-Fi"),
-        (Import, glyphs::IMPORT, "Import", "Transfer from Spotify"),
+        (Import, glyphs::IMPORT, "Import", "From Spotify, or an M3U or CSV file"),
         (Shortcuts, glyphs::KEYBOARD, "Keyboard shortcuts", "Every key the app answers to"),
     ]
 };

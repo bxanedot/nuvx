@@ -218,6 +218,39 @@ pub fn settings_section(app: &mut App, ui: &mut Ui) {
     if open {
         app.actions.push(Action::Go(Page::Transfer));
     }
+    let mut pick = false;
+    settings_card(ui, |ui| {
+        setting_row(ui, "Import a playlist file", Some("An M3U or CSV file, e.g. one exported from nuvx on your phone. Songs with a YouTube link become a nuvx playlist on this computer; other entries are counted and left out."), |ui| {
+            pick = pill(ui, "Choose file", None, false).clicked();
+        });
+    });
+    if pick {
+        import_file(app);
+    }
+}
+
+/// Reads an M3U or CSV playlist (at most 5 MB) into a new nuvx playlist on this computer.
+fn import_file(app: &mut App) {
+    let Some(path) = rfd::FileDialog::new().set_title("Import playlist").add_filter("Playlist", &["m3u", "m3u8", "csv"]).pick_file() else { return };
+    let text = match std::fs::metadata(&path) {
+        Ok(m) if m.len() > 5 * 1024 * 1024 => return app.toast("That file is too large for a playlist"),
+        _ => match std::fs::read(&path) {
+            Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+            Err(e) => return app.toast(format!("Couldn't open that file: {e}")),
+        },
+    };
+    let parsed = crate::playlist_file::parse(&text);
+    if parsed.tracks.is_empty() {
+        return app.toast("No YouTube songs in that file");
+    }
+    let title = parsed.title.unwrap_or_else(|| path.file_stem().map_or("Imported playlist".into(), |s| s.to_string_lossy().into_owned()));
+    let count = parsed.tracks.len();
+    let id = app.save_local_playlist(title.clone(), parsed.tracks);
+    app.toast(match parsed.unmatched {
+        0 => format!("Imported {count} songs into “{title}”"),
+        n => format!("Imported {count} songs into “{title}”; {n} without a YouTube link left out"),
+    });
+    app.actions.push(Action::Go(Page::Playlist(id)));
 }
 
 pub fn spotify_section(app: &mut App, ui: &mut Ui) {
