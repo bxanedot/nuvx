@@ -98,6 +98,13 @@
           "what": "Nuvx Sync replay + diff rules (lan/replay.rs) moved into nuvx-core, still pinned by core/sync/fixtures/replay-v1.json",
           "state": "PASS",
           "evidence": "nuvx-core 21 tests + desktop 262 (283 total, unchanged), clippy clean, cargo_notices.py"
+
+        },
+        {
+          "id": "05h",
+          "what": "portable playlist backup (the phone's JSON format) in nuvx-core backup.rs, shared case core/contracts/backup-v1.json; desktop Settings > Your data > Backup",
+          "state": "PASS",
+          "evidence": "nuvx-core backup tests 5 pass, clippy clean; Android BackupContractTest reads the same file; desktop compiles. Desktop file dialogs NOT_VERIFIED on screen"
         }
       ],
       "evidence": [],
