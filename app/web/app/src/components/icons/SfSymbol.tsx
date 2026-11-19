@@ -13,6 +13,7 @@ export const SF_SYMBOL_ASSETS = {
   "person": "person",
   "square.stack.fill": "library",
   "rectangle.stack.fill": "rectangle_stack_fill",
+  "square.stack.3d.up.fill": "square_stack_3d_up_fill",
   "music.note": "music_note",
   "video": "video",
   "sparkles": "sparkles",

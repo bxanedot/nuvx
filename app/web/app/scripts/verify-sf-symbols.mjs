@@ -45,7 +45,7 @@ if (!animationCSS.includes('data-sf-renderer="mask"') || !animationCSS.includes(
 const navSource = readFileSync(join(root, 'src/components/icons/NavIcons.tsx'), 'utf8');
 const sidebarSource = readFileSync(join(root, 'src/shell/Sidebar.tsx'), 'utf8');
 const settingsSource = readFileSync(join(root, 'src/pages/SettingsPage.tsx'), 'utf8');
-if (!navSource.includes("AlbumsIcon = symbol('rectangle.stack.fill'") || !navSource.includes("AllPlaylistsIcon = symbol('square.stack.fill'")) {
+if (!navSource.includes("AlbumsIcon = symbol('square.stack.3d.up.fill'") || !navSource.includes("AllPlaylistsIcon = symbol('square.stack.fill'")) {
   throw new Error('Albums and Playlists must have distinct SFStudio icons');
 }
 if (sidebarSource.includes("label: 'Listen Together'")) {
@@ -53,4 +53,11 @@ if (sidebarSource.includes("label: 'Listen Together'")) {
 }
 if (!settingsSource.includes('to="/settings/listen-together"')) {
   throw new Error('Listen Together must remain accessible through Settings');
+}
+
+// A stacked-album glyph must have three distinct, independently animatable SFStudio outlines.
+const albumSvg = readFileSync(join(root, 'public/sf-symbols/square_stack_3d_up_fill.svg'), 'utf8');
+const albumGroups = [...albumSvg.matchAll(/data-group="([0-9]+)"/g)].map((m) => Number(m[1]));
+if (albumGroups.length !== 3 || albumGroups.join(',') !== '0,1,2' || !albumSvg.includes('data-symbol="square.stack.3d.up.fill"')) {
+  throw new Error('Album glyph must use the three separate layers from SFStudio');
 }
