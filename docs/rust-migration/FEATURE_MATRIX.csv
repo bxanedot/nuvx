@@ -1,0 +1,37 @@
+platform,device_class,feature,original_source,migration_target,ui_reference,functional_test,data_compatibility_test,status,notes
+Android,Phone and tablet,Playback (Media3 service; notification; lock screen; audio focus),app/android/mobile/playback,GLUE_REQUIRED (Media3) + Rust core for queue rules,UI_PARITY.csv,device check,n/a,TODO,Media3 stays Kotlin
+Android,Phone and tablet,Queue / shuffle / repeat,app/android/mobile/playback + core/shared,Rust core,UI_PARITY.csv,unit tests,saved queue prefs,TODO,
+Android,Phone and tablet,Search / browse (YouTube Music InnerTube),core/shared/data,Rust core (network + parsing),UI_PARITY.csv,unit tests with fixtures,cache files,TODO,
+Android,Phone and tablet,Playlists (nuvx local + YouTube Music),app/android/mobile/data/spotify/LocalPlaylistStore + ui/MainPlaylistController,Rust core,UI_PARITY.csv,unit tests,nuvx_local_playlists prefs,TODO,
+Android,Phone and tablet,Playlist import/export M3U CSV,app/android/mobile/data/PlaylistImport.kt PlaylistExport.kt,Rust core,n/a,PlaylistImportTest,file formats,TODO,
+Android,Phone and tablet,Downloads (offline; resume; storage limit),app/android/mobile/download,Rust core (policy) + Kotlin service glue,UI_PARITY.csv,unit + device,files/downloads + DownloadStore,TODO,
+Android,Phone and tablet,Lyrics (synced; word-synced),app/android/mobile/data/lyrics,Rust core (shared with desktop lrc.rs),UI_PARITY.csv,unit tests,cache,TODO,
+Android,Phone and tablet,LAN Sync + Nuvx Connect + file copy + Bluetooth,app/android/mobile/data/sync,Rust core (protocol + crypto) + Kotlin socket/Bluetooth glue,UI_PARITY.csv,LanSync tests + device checks,nuvx_sync prefs + keys,TODO,protocol must stay byte-compatible with desktop
+Android,Phone and tablet,Phone hosting (LanHost),app/android/mobile/data/sync/LanHost.kt,Rust core (same host as desktop),UI_PARITY.csv,PhoneHostDeviceTest,lan_host.json,TODO,
+Android,Phone and tablet,Listen Together client,app/android/mobile + core/shared,Rust core (protocol),UI_PARITY.csv,unit tests,n/a,TODO,
+Android,Phone and tablet,Cast,app/android/mobile/playback/cast,GLUE_REQUIRED,UI_PARITY.csv,device check,n/a,RETAINED_WITH_EVIDENCE,Google Cast SDK
+Android,Phone and tablet,Equalizer / spatial / loudness DSP,app/android/mobile/playback/*Processor,Rust core DSP (shared with native-core),UI_PARITY.csv,golden audio vectors,EQ prefs,TODO,
+Android,Phone and tablet,Song recognition,app/android/mobile/recognition,TODO evaluate,UI_PARITY.csv,device check,n/a,TODO,
+Android,Phone and tablet,Update checker,app/android/mobile/data/AppUpdateChecker.kt,Rust core (version/tag rules shared with desktop update.rs),n/a,AppUpdateCheckerTest,n/a,TODO,rules duplicated today in Kotlin and Rust
+Android,Phone and tablet,Settings / backup / diagnostics,app/android/mobile/data/settings,Rust core (backup format),UI_PARITY.csv,unit tests,backup files,TODO,
+Android,TV / Google TV,TV UI + playback,app/android/tv,Native Compose for TV + Rust core,UI_PARITY.csv,emulator,TV prefs,TODO,
+Android,Auto projection,Media browse tree,app/android/mobile/playback/AutoBrowse*,GLUE_REQUIRED,n/a,AndroidAutoMediaLibraryTest,n/a,RETAINED_WITH_EVIDENCE,
+Android,Standalone Auto,Auto app flavor,app/android/tv (auto flavor),Native + Rust core,UI_PARITY.csv,emulator,n/a,NOT_VERIFIED,
+Android,Wear OS,Watch remote + standalone,app/android/wearos + gms WearCommandService,Native + Rust core,UI_PARITY.csv,emulator,n/a,NOT_VERIFIED,
+iOS,iPhone and iPad,App UI,app/ios + core/apple,SwiftUI stays,UI_PARITY.csv,Apple CI,n/a,TODO,
+iOS,iPhone and iPad,Audio engine,app/ios/native-core,Already Rust; merge into canonical workspace,n/a,cargo test,n/a,MIGRATED,existing Rust
+iOS,iPhone and iPad,Playback session / Now Playing / Keychain,core/apple,GLUE_REQUIRED,n/a,device check,Keychain items,RETAINED_WITH_EVIDENCE,
+Desktop,Windows Linux macOS,App UI (egui),app/desktop/src/ui,egui stays,UI_PARITY.csv,cargo test + screenshots,eframe storage,MIGRATED,already Rust
+Desktop,Windows Linux macOS,Playback + DSP,app/desktop/src/audio,Rust; share DSP with native-core,n/a,cargo test,n/a,MIGRATED,duplicate DSP with native-core to reconcile
+Desktop,Windows Linux macOS,LAN Sync host + Connect + Bluetooth,app/desktop/src/lan_sync,Rust; becomes the canonical protocol crate,n/a,host_tests.rs,lan_sync.json + keys,MIGRATED,
+Desktop,Windows Linux macOS,Updater,app/desktop/src/update.rs,Rust core (shared rules),n/a,update tests,n/a,MIGRATED,
+Desktop,Windows Linux macOS,First-run intro,app/desktop/src/ui/setup.rs,egui stays,setup screenshots,setup tests,setup_done key,MIGRATED,
+Web,Browser,Player UI,app/web/app,React/CSS stays; logic to Rust/WASM where parity,UI_PARITY.csv,web-checks,localStorage,TODO,
+Web,Browser,Lyrics parser,app/web/app/src/lyrics/parse.ts,Rust core lrc (WASM),n/a,golden vectors,n/a,TODO,rust-anything diff candidate
+Web,Chrome and Firefox,Extension,app/web/extension,JS glue + Rust/WASM helpers,n/a,web-checks,extension storage,TODO,
+Services,Cloudflare,Listen Together worker,core/worker,TS stays until workers-rs Durable Objects parity verified,n/a,listen-worker CI,DO storage,TODO,
+Services,Oracle VM,Sync server,core/sync,Rust (Axum) candidate,n/a,node tests,SQLite schema,TODO,schema must stay readable
+Services,Discord,Bot,core/discord-bot,TODO evaluate,n/a,none,n/a,NOT_VERIFIED,small JS bot
+Services,Static,Website,core/website,HTML/CSS stays,n/a,canvas-pages CI,n/a,RETAINED_WITH_EVIDENCE,
+Native,All Android,Analyzer / loop mix,core/native (C++),Rust core DSP candidate,n/a,existing tests,n/a,TODO,C++ not a rust-anything bridge
+Release,All,CI and packaging,.github/workflows,Unchanged until targets migrate,n/a,CI,n/a,RETAINED_WITH_EVIDENCE,nightly + stable flows

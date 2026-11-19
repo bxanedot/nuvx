@@ -1,0 +1,227 @@
+{
+  "program": "Nuvx Rust-first migration with immutable UI/UX",
+  "program_state": "IN_PROGRESS",
+  "repo": "https://github.com/lylicht/nuvx",
+  "branch": "main",
+  "head_sha": null,
+  "current_task": "05",
+  "next_action": "Task 05: plan the canonical Cargo workspace (desktop app + app/ios/native-core) as small reversible slices; first slice: shared update/version rules used by desktop and Android.",
+  "tasks": [
+    {
+      "id": "00",
+      "state": "PASS",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": "2026-11-19",
+      "notes": "Upstream inspected at 98adbe29 (v1.5.1, MIT); tool not installed (B1)."
+    },
+    {
+      "id": "01",
+      "state": "PASS",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": "2026-11-19",
+      "notes": "CONTRACT.md written from repo HEAD; no AGENTS.md in repo."
+    },
+    {
+      "id": "02",
+      "state": "PASS",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": "2026-11-19",
+      "notes": "FEATURE_MATRIX.csv: 36 rows across every platform and service; TOOL_ELIGIBILITY.csv."
+    },
+    {
+      "id": "03",
+      "state": "NOT_VERIFIED",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": "2026-11-19",
+      "notes": "14 desktop + 7 Android phone baselines with hashes (local, gitignored); TV/Wear/web/iOS missing (B2, B3)."
+    },
+    {
+      "id": "04",
+      "state": "NOT_VERIFIED",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": "2026-11-19",
+      "notes": "Published artifact sizes measured; runtime metrics missing (B4)."
+    },
+    {
+      "id": "05",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "06",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "07",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "08",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "09",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "10",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "11",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "12",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "13",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "14",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "15",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "16",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "17",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "18",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "19",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "20",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "21",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "22",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "23",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "24",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "25",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "26",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    }
+  ]
+}

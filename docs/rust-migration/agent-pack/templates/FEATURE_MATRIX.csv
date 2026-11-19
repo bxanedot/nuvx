@@ -1,0 +1,2 @@
+platform,device_class,feature,original_source,migration_target,ui_reference,functional_test,data_compatibility_test,status,notes
+Android,Phone and tablet,Example: playback queue,app/android/mobile,core/rust,,tests/queue,,TODO,Replace this example with real repository inventory

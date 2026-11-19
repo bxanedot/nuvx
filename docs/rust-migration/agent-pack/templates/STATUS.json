@@ -1,0 +1,230 @@
+{
+  "program": "Nuvx Rust-first migration with immutable UI/UX",
+  "program_state": "NOT_STARTED",
+  "repo": "https://github.com/lylicht/nuvx",
+  "branch": null,
+  "head_sha": null,
+  "current_task": "00",
+  "next_action": "Read START_HERE.md, MASTER_RULES.md, AUTORUN_PROTOCOL.md, RUST_ANYTHING_INTEGRATION.md; inspect rust-anything upstream repo and execute Task 00, then automatically continue to Task 01 through Task 26.",
+  "tasks": [
+    {
+      "id": "00",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": "Inspect rust-anything and verify side-effect-safe use before any code port"
+    },
+    {
+      "id": "01",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "02",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "03",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "04",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "05",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "06",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "07",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "08",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "09",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "10",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "11",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "12",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "13",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "14",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "15",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "16",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "17",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "18",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "19",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "20",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "21",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "22",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "23",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "24",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "25",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    },
+    {
+      "id": "26",
+      "state": "TODO",
+      "subtargets": [],
+      "evidence": [],
+      "last_updated": null,
+      "notes": ""
+    }
+  ],
+  "blockers": [],
+  "last_checkpoint": null,
+  "completion_evidence": []
+}

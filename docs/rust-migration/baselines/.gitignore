@@ -1,0 +1,3 @@
+# Visual baselines: local only (album art and personal data must not be committed).
+*
+!.gitignore

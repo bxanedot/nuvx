@@ -1,0 +1,20 @@
+metric,target,value,unit,source,measured,status,notes
+download size,Android phone APK (universal: armeabi-v7a arm64-v8a x86_64),129279760,bytes,GitHub release v1.0.2 asset nuvx-v1.0.2.apk,2026-11-19,PASS,published artifact
+download size,Android TV APK,122980079,bytes,GitHub release v1.0.2 asset NuvxTV-v1.0.2.apk,2026-11-19,PASS,
+download size,Android Auto APK,122980223,bytes,GitHub release v1.0.2 asset NuvxAuto-v1.0.2.apk,2026-11-19,PASS,
+download size,Wear OS APK,4298584,bytes,GitHub release v1.0.2 asset NuvxWear-v1.0.2.apk,2026-11-19,PASS,
+download size,Windows installer (x64 + ARM64),17548598,bytes,GitHub release v1.0.2 asset nuvx-setup-1.0.2.exe,2026-11-19,PASS,
+download size,macOS universal DMG,26978365,bytes,GitHub release v1.0.2 asset nuvx-setup-1.0.2-macos-universal.dmg,2026-11-19,PASS,
+download size,Linux universal tar.gz,29481322,bytes,GitHub release v1.0.2 asset nuvx-setup-1.0.2-linux-universal.tar.gz,2026-11-19,PASS,
+download size,Chrome extension zip,32429,bytes,GitHub release v1.0.2,2026-11-19,PASS,
+download size,Firefox extension zip,32976,bytes,GitHub release v1.0.2,2026-11-19,PASS,
+download size,iOS IPA,,bytes,,,BLOCKED,no published IPA; needs apple-builds CI artifact
+startup time,Desktop cold start,,ms,,,NOT_VERIFIED,needs a repeatable release-build harness
+memory,Desktop idle RSS,,MB,,,NOT_VERIFIED,
+memory,Android playback RSS,,MB,,,NOT_VERIFIED,dumpsys meminfo on device with release build
+cpu,Android playback CPU,,%,,,NOT_VERIFIED,
+energy,Android 1 h playback battery,,%,,,NOT_VERIFIED,
+source size,Rust (desktop + iOS native-core),~80k,lines,git ls-files + wc -l,2026-11-19,PASS,approximate
+source size,Kotlin (Android + shared),~185k,lines,git ls-files + wc -l,2026-11-19,PASS,approximate
+source size,Swift,~73k,lines,git ls-files + wc -l,2026-11-19,PASS,approximate
+source size,TypeScript/TSX/JS,~30k,lines,git ls-files + wc -l,2026-11-19,PASS,approximate
