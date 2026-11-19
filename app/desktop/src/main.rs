@@ -30,7 +30,7 @@ mod lyrics;
 mod media;
 mod model;
 mod playlist_file;
-mod recovery;
+pub(crate) use nuvx_core::recovery;
 mod motion;
 mod tidal;
 mod opus;

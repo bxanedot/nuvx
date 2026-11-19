@@ -3702,6 +3702,7 @@ dependencies = [
  "md-5",
  "memmap2",
  "mp4ameta",
+ "nuvx-core",
  "p256",
  "raw-window-handle",
  "reqwest",
@@ -3731,6 +3732,10 @@ dependencies = [
  "winresource",
  "wry",
 ]
+
+[[package]]
+name = "nuvx-core"
+version = "0.1.0"
 
 [[package]]
 name = "objc"

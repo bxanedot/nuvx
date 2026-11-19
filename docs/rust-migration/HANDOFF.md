@@ -6,7 +6,7 @@
 `UI_PARITY.csv`, `METRICS.csv`, `BLOCKERS.csv`, `STATUS.json`. Visual baselines live in `baselines/` on the
 working machine only (gitignored: album art and personal data).
 
-**Next:** Task 05b (05a done: `core/contracts/update-order.json` is checked by both the desktop and Android tests). Two Rust trees already exist (desktop app crate, `app/ios/native-core`). Do not start by
+**Next:** Task 05c. Done: 05a shared update cases, 05b `core/rust/nuvx-core` (release order, stream recovery) used by the desktop, shared stream-recovery cases. Two Rust trees already exist (desktop app crate, `app/ios/native-core`). Do not start by
 rewriting apps; start a workspace with one small shared crate whose first content is logic duplicated today in
 Kotlin and Rust (update tag/version rules in `app/desktop/src/update.rs` and `AppUpdateChecker.kt`), proven by
 shared golden vectors before either side switches.

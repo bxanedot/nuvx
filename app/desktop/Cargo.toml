@@ -9,6 +9,7 @@ homepage = "https://nuvx.lol"
 description = "nuvx for desktop: a native YouTube Music client"
 
 [dependencies]
+nuvx-core = { path = "../../core/rust/nuvx-core" }
 anyhow = "1.0.104"
 base64 = "0.23.1"
 bytes = "1.12.1"

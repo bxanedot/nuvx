@@ -97,7 +97,15 @@ def collect_target_packages(target):
     dependencies = runtime_dependency_ids(metadata)
     if dependencies - packages.keys():
         raise ValueError(f"Cargo metadata has unresolved packages for {target}")
+    # nuvx's own crates in this repository (e.g. core/rust/nuvx-core) are nuvx itself, under nuvx's license:
+    # like the app crate, they are not third-party notices.
+    dependencies = {d for d in dependencies if not first_party(packages[d])}
     return [packages[package_id] for package_id in sorted(dependencies, key=lambda item: packages[item]["name"].casefold())]
+
+
+def first_party(package):
+    repo = Path(__file__).resolve().parents[1]
+    return package.get("source") is None and Path(package["manifest_path"]).resolve().is_relative_to(repo / "core" / "rust")
 
 
 def collect_notices(target_packages):

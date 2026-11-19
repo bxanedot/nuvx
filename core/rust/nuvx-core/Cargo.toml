@@ -1,0 +1,12 @@
+[package]
+name = "nuvx-core"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+description = "The canonical nuvx core: platform-independent rules shared by every nuvx app (Rust migration, docs/rust-migration)."
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+serde_json = "1"

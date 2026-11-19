@@ -5,7 +5,7 @@
   "branch": "main",
   "head_sha": null,
   "current_task": "05",
-  "next_action": "Task 05b: Cargo workspace + nuvx-core crate holding the update rules, desktop depends on it; Android keeps Kotlin until a JNI path exists (cases already shared).",
+  "next_action": "Task 05c: move more pure desktop rules into nuvx-core (LRC lyrics parsing, playlist file formats once Track lives in the core); then plan merging app/ios/native-core DSP.",
   "tasks": [
     {
       "id": "00",
@@ -59,8 +59,15 @@
         },
         {
           "id": "05b",
-          "what": "workspace with a shared crate; desktop uses it",
-          "state": "TODO"
+          "what": "core/rust/nuvx-core crate (release order + stream recovery); desktop depends on it",
+          "state": "PASS",
+          "evidence": "cargo test in nuvx-core (2 shared-contract tests) and desktop (280 + the moved 2), cargo_notices.py run"
+        },
+        {
+          "id": "05b2",
+          "what": "shared stream-recovery cases (core/contracts/stream-recovery.json) checked by Rust and Kotlin",
+          "state": "PASS",
+          "evidence": "nuvx-core recovery test + RecoveryPolicyTest"
         },
         {
           "id": "05c",
