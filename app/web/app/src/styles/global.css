@@ -396,9 +396,62 @@
 }
 
 .play-pause { position: relative; display: inline-block; flex: none; }
-.play-pause > [data-sf-symbol] { position: absolute; inset: 0; transition: opacity 180ms ease, transform 180ms ease; }
+.play-pause > [data-sf-symbol] { position: absolute; inset: 0; transition: opacity 250ms cubic-bezier(.2, 0, .25, 1), transform 250ms cubic-bezier(.2, 0, .25, 1); }
 .play-pause[data-playing='true'] > [data-sf-symbol]:first-child,
 .play-pause[data-playing='false'] > [data-sf-symbol]:last-child { opacity: 0; transform: scale(0.6); }
 @media (prefers-reduced-motion: reduce) {
   .play-pause > [data-sf-symbol] { transition: none; }
+}
+
+/* Web approximation of SFStudio effects using the source SVG layer groups. */
+.sf-symbol-svg { width: 100%; height: 100%; color: inherit; }
+.sf-symbol-layer { transform-box: fill-box; transform-origin: center; }
+.sf-symbol-svg[data-sf-effect="bounce"] .sf-symbol-layer {
+  animation: sfstudio-bounce 701ms cubic-bezier(.25, .8, .2, 1) both;
+  animation-delay: var(--sf-delay, 0ms);
+}
+.sf-symbol-svg[data-sf-effect="wiggle"] .sf-symbol-layer {
+  animation: sfstudio-wiggle 835ms ease-in-out both;
+}
+.sf-symbol-svg[data-sf-effect="pulse"] .sf-symbol-layer {
+  animation: sfstudio-pulse 2000ms ease-in-out infinite;
+}
+.sf-symbol-svg[data-sf-effect="variableColor"] .sf-symbol-layer {
+  animation: sfstudio-variable-color 1332ms ease-in-out infinite;
+  animation-delay: var(--sf-variable-delay, 0ms);
+}
+@keyframes sfstudio-bounce {
+  0%, 100% { transform: translateY(0); }
+  31% { transform: translateY(-9%); }
+  62% { transform: translateY(3%); }
+  82% { transform: translateY(-1.5%); }
+}
+@keyframes sfstudio-wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(10deg); }
+  40% { transform: rotate(-8deg); }
+  60% { transform: rotate(6deg); }
+  80% { transform: rotate(-5deg); }
+}
+@keyframes sfstudio-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .3; }
+}
+@keyframes sfstudio-variable-color {
+  0%, 100% { opacity: .3; }
+  35%, 65% { opacity: 1; }
+}
+@keyframes sfstudio-navigation-bounce {
+  0%, 100% { transform: translateY(0); }
+  55% { transform: translateY(-8%); }
+  78% { transform: translateY(2%); }
+}
+a.group:hover > [data-sf-symbol], a.group:focus-visible > [data-sf-symbol] {
+  animation: sfstudio-navigation-bounce 360ms ease-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sf-symbol-svg[data-sf-effect] .sf-symbol-layer,
+  a.group:hover > [data-sf-symbol], a.group:focus-visible > [data-sf-symbol] {
+    animation: none !important;
+  }
 }

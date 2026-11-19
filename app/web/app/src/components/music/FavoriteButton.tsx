@@ -1,4 +1,4 @@
-import { StarFilledIcon, StarIcon } from '@/components/icons/Transport';
+import { SfSymbolIcon } from '@/components/icons/SfSymbol';
 import { useLikeStatus, useSetLiked, useSignedIn } from '@/data/music/queries';
 
 interface FavoriteButtonProps {
@@ -24,7 +24,7 @@ export function FavoriteButton({ videoId, className, size = 18 }: FavoriteButton
         setLiked.mutate({ videoId, liked: !liked });
       }}
     >
-      {liked ? <StarFilledIcon size={size} /> : <StarIcon size={size} />}
+      <SfSymbolIcon name={liked ? "star.fill" : "star"} size={size} effect="bounce" trigger={liked} />
     </button>
   );
 }

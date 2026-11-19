@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BackwardIcon, ForwardIcon, LyricsActiveIcon, LyricsIcon, RepeatIcon, RepeatOneIcon, ShuffleIcon, UpNextIcon, PlayPauseIcon } from '@/components/icons/Transport';
+import { BackwardIcon, ForwardIcon, LyricsActiveIcon, LyricsIcon, RepeatModeIcon, ShuffleIcon, UpNextIcon, PlayPauseIcon } from '@/components/icons/Transport';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { TrackMenu } from '@/components/music/TrackMenu';
 import { usePlayer } from '@/state/player';
@@ -29,6 +29,8 @@ export function PlayerBar() {
   const repeat = usePlayer((s) => s.repeat);
   const { togglePlay, next, previous, toggleShuffle, cycleRepeat } = usePlayer.getState();
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const [previousCount, setPreviousCount] = useState(0);
+  const [nextCount, setNextCount] = useState(0);
 
   return (
     <div
@@ -42,17 +44,17 @@ export function PlayerBar() {
       >
         <div className="flex items-center justify-between pr-2">
           <button className={toggle} aria-label="Shuffle" aria-pressed={shuffle} onClick={toggleShuffle}>
-            <ShuffleIcon size={28} />
+            <ShuffleIcon size={28} effect="bounce" trigger={shuffle} />
           </button>
           <div className="flex items-center gap-1.5">
-            <button className={transport} disabled={!hasTrack} aria-label="Previous" onClick={previous}>
-              <BackwardIcon size={26} />
+            <button className={transport} disabled={!hasTrack} aria-label="Previous" onClick={() => { previous(); setPreviousCount((n) => n + 1); }}>
+              <BackwardIcon size={26} effect="bounce" trigger={previousCount} />
             </button>
             <button className={transport} disabled={!hasTrack} aria-label={playing ? 'Pause' : 'Play'} onClick={togglePlay}>
               <PlayPauseIcon playing={playing} size={28} />
             </button>
-            <button className={transport} disabled={!hasTrack || !hasNext} aria-label="Next" onClick={next}>
-              <ForwardIcon size={26} />
+            <button className={transport} disabled={!hasTrack || !hasNext} aria-label="Next" onClick={() => { next(); setNextCount((n) => n + 1); }}>
+              <ForwardIcon size={26} effect="bounce" trigger={nextCount} />
             </button>
           </div>
           <button
@@ -61,7 +63,7 @@ export function PlayerBar() {
             aria-pressed={repeat !== 'off'}
             onClick={cycleRepeat}
           >
-            {repeat === 'one' ? <RepeatOneIcon size={28} /> : <RepeatIcon size={28} />}
+            <RepeatModeIcon size={28} mode={repeat} />
           </button>
         </div>
 

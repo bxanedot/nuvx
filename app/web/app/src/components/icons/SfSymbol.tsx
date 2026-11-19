@@ -1,4 +1,4 @@
-import type { CSSProperties, HTMLAttributes } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes } from 'react';
 
 /**
  * Web adapter for SFStudio's exported SF Symbols. Assets are local to the web app
@@ -47,20 +47,96 @@ export const SF_SYMBOL_ASSETS = {
 } as const;
 
 export type SfSymbolName = keyof typeof SF_SYMBOL_ASSETS;
+export type SfSymbolEffect = 'bounce' | 'pulse' | 'variableColor' | 'wiggle';
 export type SfSymbolProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
   name: SfSymbolName;
   size?: number;
+  /** Effects match SFStudio's layer groups; state-change effects replay on trigger changes. */
+  effect?: SfSymbolEffect;
+  trigger?: string | number | boolean;
+  /** For continuous pulse/variable color, stop the animation when false. */
+  active?: boolean;
 };
 
-/** Monochrome SF Symbol that inherits currentColor and supports existing icon sizing. */
-export function SfSymbolIcon({ name, size = 24, className, style, ...props }: SfSymbolProps) {
+type SymbolLayer = { path: string; group: number; opacity: number };
+type SymbolGeometry = { viewBox: string; layers: SymbolLayer[]; variable: number[] };
+const geometryCache = new Map<SfSymbolName, Promise<SymbolGeometry | null>>();
+
+function loadGeometry(name: SfSymbolName): Promise<SymbolGeometry | null> {
+  const cached = geometryCache.get(name);
+  if (cached) return cached;
+  const task = (async () => {
+    const url = `/sf-symbols/${SF_SYMBOL_ASSETS[name]}.svg`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const document = new DOMParser().parseFromString(await response.text(), 'image/svg+xml');
+    const svg = document.documentElement;
+    if (svg.localName !== 'svg' || svg.getAttribute('data-symbol') !== name) return null;
+    const viewBox = svg.getAttribute('viewBox');
+    if (!viewBox || svg.querySelector('parsererror')) return null;
+    const paths = Array.from(svg.querySelectorAll('path'));
+    // Knock-out paths require compositing. Keep those exact shapes as SVG masks instead
+    // of drawing their erase paths in currentColor.
+    if (paths.length === 0 || paths.some((path) => path.hasAttribute('data-erase'))) return null;
+    const variable = (svg.getAttribute('data-variable') ?? '')
+      .split(/\s+/).filter(Boolean).map(Number).filter(Number.isFinite);
+    return {
+      viewBox,
+      variable,
+      layers: paths.map((path) => ({
+        path: path.getAttribute('d') ?? '',
+        group: Number(path.getAttribute('data-group') ?? 0),
+        opacity: Number(path.getAttribute('fill-opacity') ?? 1),
+      })),
+    };
+  })().catch(() => null);
+  geometryCache.set(name, task);
+  return task;
+}
+
+/**
+ * SFStudio-exported symbol with the web's native SVG layer animations.
+ * Static icons retain the fast CSS-mask path. Animated icons load the local SVG's
+ * data-group / data-variable metadata and animate individual layers.
+ * Browsers do not run SFStudio's Kotlin/Compose animation engine.
+ */
+export function SfSymbolIcon({
+  name, size = 24, className, style, effect, trigger, active = true, ...props
+}: SfSymbolProps) {
+  const [loaded, setLoaded] = useState<{ name: SfSymbolName; geometry: SymbolGeometry | null } | null>(null);
+  const [cycle, setCycle] = useState(0);
+  const previousTrigger = useRef(trigger);
+
+  useEffect(() => {
+    if (!effect) return;
+    let mounted = true;
+    void loadGeometry(name).then((geometry) => {
+      if (mounted) setLoaded({ name, geometry });
+    });
+    return () => { mounted = false; };
+  }, [name, effect]);
+
+  useEffect(() => {
+    if (trigger !== undefined && !Object.is(previousTrigger.current, trigger)) {
+      previousTrigger.current = trigger;
+      setCycle((value) => value + 1);
+    }
+  }, [trigger]);
+
   const url = `/sf-symbols/${SF_SYMBOL_ASSETS[name]}.svg`;
-  const mask: CSSProperties = {
+  const geometry = loaded?.name === name ? loaded.geometry : null;
+  const isContinuous = effect === 'pulse' || effect === 'variableColor';
+  const playing = Boolean(effect && active && (isContinuous || cycle > 0));
+  const base: CSSProperties = {
     display: 'inline-block',
     width: size,
     height: size,
     flexShrink: 0,
     verticalAlign: 'middle',
+    ...style,
+  };
+  const fallback: CSSProperties = {
+    ...base,
     backgroundColor: 'currentColor',
     maskImage: `url("${url}")`,
     WebkitMaskImage: `url("${url}")`,
@@ -70,15 +146,47 @@ export function SfSymbolIcon({ name, size = 24, className, style, ...props }: Sf
     WebkitMaskSize: 'contain',
     maskPosition: 'center',
     WebkitMaskPosition: 'center',
-    ...style,
   };
+
   return (
     <span
       {...props}
       className={className}
       data-sf-symbol={name}
       aria-hidden={props['aria-label'] ? undefined : true}
-      style={mask}
-    />
+      style={geometry ? base : fallback}
+    >
+      {geometry && (
+        <svg
+          key={`${name}-${cycle}`}
+          className="sf-symbol-svg"
+          data-sf-effect={playing ? effect : undefined}
+          width={size}
+          height={size}
+          viewBox={geometry.viewBox}
+          fill="currentColor"
+          aria-hidden="true"
+          style={{ display: 'block', overflow: 'visible' }}
+        >
+          {geometry.layers.map((layer, index) => {
+            const variableOrder = geometry.variable.indexOf(layer.group);
+            const timing = {
+              '--sf-delay': `${layer.group * 80}ms`,
+              '--sf-variable-delay': `${Math.max(0, variableOrder) * 333}ms`,
+            } as CSSProperties;
+            return (
+              <path
+                key={index}
+                className="sf-symbol-layer"
+                data-sf-group={layer.group}
+                d={layer.path}
+                fillOpacity={layer.opacity}
+                style={timing}
+              />
+            );
+          })}
+        </svg>
+      )}
+    </span>
   );
 }

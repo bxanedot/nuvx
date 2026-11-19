@@ -62,7 +62,7 @@ export default function RadioPage() {
               {station.thumbnail ? <Artwork src={station.thumbnail} displayWidth={96} radius="8px" /> : <RadioIcon size={24} className="absolute inset-0 m-auto text-secondary" />}
             </div>
             <span className="min-w-0 flex-1"><span className={`block truncate type-body-emphasized ${onAir ? 'text-key' : ''}`}>{station.title}</span><span className="block truncate type-callout text-secondary">{station.artists[0]?.name ?? 'Live radio'}</span></span>
-            {onAir && playing ? <span className="type-callout-emphasized text-key">On Air</span> : <PlayIcon size={18} className="mr-2 text-secondary" />}
+            {onAir && playing ? <span className="inline-flex items-center gap-1 type-callout-emphasized text-key"><RadioIcon size={18} effect="variableColor" active />On Air</span> : <PlayIcon size={18} className="mr-2 text-secondary" />}
           </button></li>;
         })}</ul>
       </div>
