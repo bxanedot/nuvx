@@ -6,7 +6,12 @@ pub fn insert_instrumentals(lines: Vec<Line>, song_ms: i32) -> Vec<Line> {
     if lines.is_empty() {
         return lines;
     }
-    let gap = |start: i32, dur: i32| Line { start, dur, instrumental: true, ..Default::default() };
+    let gap = |start: i32, dur: i32| Line {
+        start,
+        dur,
+        instrumental: true,
+        ..Default::default()
+    };
     let mut out = Vec::with_capacity(lines.len() + 4);
     if lines[0].start > INSTRUMENTAL_GAP_MS {
         out.push(gap(0, lines[0].start));

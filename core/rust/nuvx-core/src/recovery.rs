@@ -16,7 +16,12 @@ pub enum Decision {
 }
 
 /// `attempts` counts this song's failures so far (1 on the first).
-pub fn decide(attempts: u32, permanent: bool, never_started: bool, skips_in_a_row: u32) -> Decision {
+pub fn decide(
+    attempts: u32,
+    permanent: bool,
+    never_started: bool,
+    skips_in_a_row: u32,
+) -> Decision {
     if !permanent && attempts <= MAX_RECOVERIES {
         return Decision::Retry(FIRST_DELAY_MS << attempts.saturating_sub(1).min(MAX_RECOVERIES));
     }
@@ -35,10 +40,16 @@ mod tests {
 
     #[test]
     fn agrees_with_the_shared_stream_recovery_cases() {
-        let doc: serde_json::Value = serde_json::from_str(include_str!("../../../contracts/stream-recovery.json")).unwrap();
+        let doc: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/stream-recovery.json")).unwrap();
         for c in doc["cases"].as_array().unwrap() {
             let n = |k: &str| c[k].as_u64().unwrap() as u32;
-            let got = decide(n("attempts"), c["permanent"].as_bool().unwrap(), c["neverStarted"].as_bool().unwrap(), n("skipsInARow"));
+            let got = decide(
+                n("attempts"),
+                c["permanent"].as_bool().unwrap(),
+                c["neverStarted"].as_bool().unwrap(),
+                n("skipsInARow"),
+            );
             let want = match c["decision"].as_str().unwrap() {
                 "retry" => Decision::Retry(c["delayMs"].as_u64().unwrap()),
                 "skip" => Decision::Skip,

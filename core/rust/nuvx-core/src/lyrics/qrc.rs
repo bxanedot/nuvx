@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use super::credits::{dedup, is_credit_label, writers_on};
-use super::timeline::insert_instrumentals;
 use super::model::{Line, Part};
+use super::timeline::insert_instrumentals;
 
 struct QrcLine {
     time: i32,
@@ -19,12 +19,19 @@ struct Singers {
 }
 
 fn qrc_content(t: &str) -> String {
-    let Some(i) = t.find("LyricContent=\"") else { return t.to_owned() };
+    let Some(i) = t.find("LyricContent=\"") else {
+        return t.to_owned();
+    };
     let rest = &t[i + 14..];
     let mut end = None;
     for (j, _) in rest.match_indices('"') {
         let after = rest[j + 1..].trim_start();
-        if after.starts_with("/>") || after.starts_with('>') || after.split_once('=').is_some_and(|(k, _)| !k.is_empty() && k.chars().all(|c| c.is_ascii_alphabetic())) {
+        if after.starts_with("/>")
+            || after.starts_with('>')
+            || after
+                .split_once('=')
+                .is_some_and(|(k, _)| !k.is_empty() && k.chars().all(|c| c.is_ascii_alphabetic()))
+        {
             end = Some(j);
             break;
         }
@@ -87,7 +94,10 @@ fn retime(line: &mut QrcLine) {
 }
 
 fn similarity(a: &str, b: &str) -> f32 {
-    let (a, b): (Vec<char>, Vec<char>) = (a.to_lowercase().chars().collect(), b.to_lowercase().chars().collect());
+    let (a, b): (Vec<char>, Vec<char>) = (
+        a.to_lowercase().chars().collect(),
+        b.to_lowercase().chars().collect(),
+    );
     if a.len() < 2 || b.len() < 2 {
         return 0.0;
     }
@@ -107,7 +117,12 @@ fn similarity(a: &str, b: &str) -> f32 {
     hits as f32 * 2.0 / (a.len() + b.len() - 2) as f32
 }
 
-fn keep_qrc_line(t: &mut QrcLine, st: &mut Singers, early: bool, meta: Option<(&str, &str)>) -> bool {
+fn keep_qrc_line(
+    t: &mut QrcLine,
+    st: &mut Singers,
+    early: bool,
+    meta: Option<(&str, &str)>,
+) -> bool {
     if t.syllables.is_empty() {
         if let Some(c) = &st.current {
             t.agent = Some(c.clone());
@@ -118,10 +133,23 @@ fn keep_qrc_line(t: &mut QrcLine, st: &mut Singers, early: bool, meta: Option<(&
         if let Some((title, artist)) = meta
             && (!title.is_empty() || !artist.is_empty())
         {
-            let b = |p: &str| p.to_lowercase().chars().filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || ('\u{3000}'..='\u{9fff}').contains(c) || ('\u{ac00}'..='\u{d7af}').contains(c)).collect::<String>();
+            let b = |p: &str| {
+                p.to_lowercase()
+                    .chars()
+                    .filter(|c| {
+                        c.is_ascii_lowercase()
+                            || c.is_ascii_digit()
+                            || ('\u{3000}'..='\u{9fff}').contains(c)
+                            || ('\u{ac00}'..='\u{d7af}').contains(c)
+                    })
+                    .collect::<String>()
+            };
             let (h, tt, r) = (b(&t.text), b(title), b(artist));
             if (!tt.is_empty() && h.contains(&tt) && !r.is_empty() && h.contains(&r))
-                || (!tt.is_empty() && h.contains(&tt) && r.is_empty() && h.chars().count() < tt.chars().count() + 15)
+                || (!tt.is_empty()
+                    && h.contains(&tt)
+                    && r.is_empty()
+                    && h.chars().count() < tt.chars().count() + 15)
                 || (!r.is_empty() && h == r)
             {
                 return false;
@@ -130,7 +158,11 @@ fn keep_qrc_line(t: &mut QrcLine, st: &mut Singers, early: bool, meta: Option<(&
                 return false;
             }
         }
-        if t.syllables.len() > 2 && t.syllables.iter().all(|s| (s.2 - t.syllables[0].2).abs() < 10) {
+        if t.syllables.len() > 2
+            && t.syllables
+                .iter()
+                .all(|s| (s.2 - t.syllables[0].2).abs() < 10)
+        {
             return false;
         }
     }
@@ -177,7 +209,18 @@ fn keep_qrc_line(t: &mut QrcLine, st: &mut Singers, early: bool, meta: Option<(&
     }
     let rest = after.trim_start().to_owned();
     let u = o - 1;
-    let tail = t.syllables[u].0.find([':', '：']).map(|i| t.syllables[u].0[i..].chars().skip(1).collect::<String>().trim_start().to_owned()).unwrap_or_default();
+    let tail = t.syllables[u]
+        .0
+        .find([':', '：'])
+        .map(|i| {
+            t.syllables[u].0[i..]
+                .chars()
+                .skip(1)
+                .collect::<String>()
+                .trim_start()
+                .to_owned()
+        })
+        .unwrap_or_default();
     if !tail.is_empty() {
         t.syllables[u].0 = tail;
         t.syllables.drain(..u);
@@ -197,16 +240,33 @@ pub fn parse_qrc(text: &str, song_ms: i32, meta: Option<(&str, &str)>) -> Vec<Li
     }
     let content = qrc_content(text);
     let mut r: Vec<QrcLine> = Vec::new();
-    let mut st = Singers { aliases: HashMap::new(), next: 1, current: None };
+    let mut st = Singers {
+        aliases: HashMap::new(),
+        next: 1,
+        current: None,
+    };
     for a in content.split('\n') {
         let i = a.trim();
-        if i.is_empty() || (i.starts_with('[') && i[1..].find(':').is_some_and(|c| c > 0 && i[1..1 + c].chars().all(|ch| ch.is_ascii_alphabetic()))) {
+        if i.is_empty()
+            || (i.starts_with('[')
+                && i[1..].find(':').is_some_and(|c| {
+                    c > 0 && i[1..1 + c].chars().all(|ch| ch.is_ascii_alphabetic())
+                }))
+        {
             continue;
         }
-        let Some((time, duration, rest)) = qrc_header(i) else { continue };
+        let Some((time, duration, rest)) = qrc_header(i) else {
+            continue;
+        };
         let syllables = qrc_syllables(rest);
         let text = syllables.iter().map(|s| s.0.as_str()).collect::<String>();
-        let mut g = QrcLine { time, duration, text, syllables, agent: None };
+        let mut g = QrcLine {
+            time,
+            duration,
+            text,
+            syllables,
+            agent: None,
+        };
         let early = r.len() < 5;
         if keep_qrc_line(&mut g, &mut st, early, meta) {
             r.push(g);
@@ -219,7 +279,16 @@ pub fn parse_qrc(text: &str, song_ms: i32, meta: Option<(&str, &str)>) -> Vec<Li
     let lines = (0..n)
         .map(|i| {
             let a = &r[i];
-            let mut parts: Vec<Part> = a.syllables.iter().map(|(t, s, d)| Part { start: *s, dur: *d, text: t.clone(), bg: false }).collect();
+            let mut parts: Vec<Part> = a
+                .syllables
+                .iter()
+                .map(|(t, s, d)| Part {
+                    start: *s,
+                    dur: *d,
+                    text: t.clone(),
+                    bg: false,
+                })
+                .collect();
             let mut u = a.duration;
             if u == 0 && i + 1 < n {
                 u = (r[i + 1].time - a.time).max(0);
@@ -229,9 +298,20 @@ pub fn parse_qrc(text: &str, song_ms: i32, meta: Option<(&str, &str)>) -> Vec<Li
             if let Some(f) = parts.last_mut()
                 && f.dur == 0
             {
-                f.dur = if i + 1 < n { (r[i + 1].time - f.start).max(0) } else { song_ms - f.start };
+                f.dur = if i + 1 < n {
+                    (r[i + 1].time - f.start).max(0)
+                } else {
+                    song_ms - f.start
+                };
             }
-            Line { start: a.time, dur: u, text: a.text.clone(), parts, agent: a.agent.clone(), ..Default::default() }
+            Line {
+                start: a.time,
+                dur: u,
+                text: a.text.clone(),
+                parts,
+                agent: a.agent.clone(),
+                ..Default::default()
+            }
         })
         .collect();
     insert_instrumentals(lines, song_ms)

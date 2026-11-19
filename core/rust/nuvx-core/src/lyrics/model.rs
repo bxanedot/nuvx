@@ -74,7 +74,10 @@ impl Provider {
     pub fn name(self) -> &'static str {
         match self {
             Provider::BLyricsRich | Provider::BLyricsSynced => "Better Lyrics",
-            Provider::UnisonRich | Provider::UnisonWord | Provider::UnisonSynced | Provider::UnisonPlain => "Unison",
+            Provider::UnisonRich
+            | Provider::UnisonWord
+            | Provider::UnisonSynced
+            | Provider::UnisonPlain => "Unison",
             Provider::BinimumRich | Provider::BinimumSynced => "BiniLyrics",
             Provider::PortatoRich => "Better Lyrics Portato",
             Provider::MusixmatchRich | Provider::MusixmatchSynced => "Musixmatch",
@@ -86,8 +89,13 @@ impl Provider {
 
     pub fn sync(self) -> SyncKind {
         match self {
-            Provider::BLyricsRich | Provider::UnisonRich | Provider::BinimumRich => SyncKind::Syllable,
-            Provider::UnisonWord | Provider::PortatoRich | Provider::MusixmatchRich | Provider::LrcredRich => SyncKind::Word,
+            Provider::BLyricsRich | Provider::UnisonRich | Provider::BinimumRich => {
+                SyncKind::Syllable
+            }
+            Provider::UnisonWord
+            | Provider::PortatoRich
+            | Provider::MusixmatchRich
+            | Provider::LrcredRich => SyncKind::Word,
             Provider::BLyricsSynced
             | Provider::UnisonSynced
             | Provider::BinimumSynced
@@ -144,17 +152,31 @@ pub struct Lyrics {
 }
 
 impl Lyrics {
-    pub fn new(provider: Provider, lines: Vec<Line>, language: Option<String>, songwriters: Vec<String>) -> Option<Self> {
+    pub fn new(
+        provider: Provider,
+        lines: Vec<Line>,
+        language: Option<String>,
+        songwriters: Vec<String>,
+    ) -> Option<Self> {
         if lines.is_empty() {
             return None;
         }
         let sync = derive_sync(&lines);
-        Some(Self { lines, sync, provider, language, songwriters })
+        Some(Self {
+            lines,
+            sync,
+            provider,
+            language,
+            songwriters,
+        })
     }
 }
 
 fn derive_sync(lines: &[Line]) -> Sync {
-    if lines.iter().any(|l| !l.instrumental && l.parts.iter().any(|p| p.dur != 0)) {
+    if lines
+        .iter()
+        .any(|l| !l.instrumental && l.parts.iter().any(|p| p.dur != 0))
+    {
         Sync::Word
     } else if lines.iter().all(|l| l.start == 0) {
         Sync::None

@@ -7,14 +7,23 @@ fn lrc_time(t: &str) -> i32 {
     let p: Vec<&str> = t.split(':').collect();
     let s = match p.len() {
         1 => p[0].parse::<f64>().unwrap_or(0.0) * 1000.0,
-        2 => p[0].parse::<f64>().unwrap_or(0.0).trunc() * 60_000.0 + p[1].parse::<f64>().unwrap_or(0.0) * 1000.0,
-        3 => p[0].parse::<f64>().unwrap_or(0.0).trunc() * 3_600_000.0 + p[1].parse::<f64>().unwrap_or(0.0).trunc() * 60_000.0 + p[2].parse::<f64>().unwrap_or(0.0) * 1000.0,
+        2 => {
+            p[0].parse::<f64>().unwrap_or(0.0).trunc() * 60_000.0
+                + p[1].parse::<f64>().unwrap_or(0.0) * 1000.0
+        }
+        3 => {
+            p[0].parse::<f64>().unwrap_or(0.0).trunc() * 3_600_000.0
+                + p[1].parse::<f64>().unwrap_or(0.0).trunc() * 60_000.0
+                + p[2].parse::<f64>().unwrap_or(0.0) * 1000.0
+        }
         _ => 0.0,
     };
     s.round() as i32
 }
 
-const LRC_META_TAGS: &[&str] = &["ti", "ar", "al", "au", "lr", "length", "by", "offset", "re", "tool", "ve", "#"];
+const LRC_META_TAGS: &[&str] = &[
+    "ti", "ar", "al", "au", "lr", "length", "by", "offset", "re", "tool", "ve", "#",
+];
 
 fn line_stamps(s: &str) -> Vec<(std::ops::Range<usize>, &str)> {
     stamps(s, '[', ']')
@@ -29,10 +38,18 @@ fn stamps(s: &str, open: char, close: char) -> Vec<(std::ops::Range<usize>, &str
     let mut i = 0;
     while let Some(o) = s[i..].find(open) {
         let o = i + o;
-        let Some(c) = s[o + 1..].find(close) else { break };
+        let Some(c) = s[o + 1..].find(close) else {
+            break;
+        };
         let inner = &s[o + 1..o + 1 + c];
         let is_time = inner.split_once(':').is_some_and(|(m, sec)| {
-            !m.is_empty() && m.bytes().all(|b| b.is_ascii_digit()) && sec.split_once('.').is_some_and(|(a, b)| !a.is_empty() && !b.is_empty() && a.bytes().chain(b.bytes()).all(|b| b.is_ascii_digit()))
+            !m.is_empty()
+                && m.bytes().all(|b| b.is_ascii_digit())
+                && sec.split_once('.').is_some_and(|(a, b)| {
+                    !a.is_empty()
+                        && !b.is_empty()
+                        && a.bytes().chain(b.bytes()).all(|b| b.is_ascii_digit())
+                })
         });
         if is_time {
             out.push((o..o + c + 2, inner));
@@ -96,7 +113,9 @@ pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
             _ => (g.clone(), None),
         };
         let o = split_stamps(&main);
-        let spaced = o.iter().enumerate().any(|(e, w)| e % 2 == 0 && e > 0 && e < o.len() - 1 && !w.is_empty() && w.trim().is_empty());
+        let spaced = o.iter().enumerate().any(|(e, w)| {
+            e % 2 == 0 && e > 0 && e < o.len() - 1 && !w.is_empty() && w.trim().is_empty()
+        });
         let mut parts: Vec<Part> = Vec::new();
         let mut prev: Option<i32> = None;
         let mut b = String::new();
@@ -106,7 +125,11 @@ pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
                     let mut d = seg.to_owned();
                     if spaced {
                         let t = d.trim();
-                        d = if t.is_empty() && !d.is_empty() { " ".to_owned() } else { t.to_owned() };
+                        d = if t.is_empty() && !d.is_empty() {
+                            " ".to_owned()
+                        } else {
+                            t.to_owned()
+                        };
                     }
                     b.push_str(&d);
                     if let Some(last) = parts.last_mut() {
@@ -117,7 +140,12 @@ pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
                     if let (Some(p), Some(last)) = (prev, parts.last_mut()) {
                         last.dur = d - p;
                     }
-                    parts.push(Part { start: d, dur: 0, text: String::new(), bg: is_bg });
+                    parts.push(Part {
+                        start: d,
+                        dur: 0,
+                        text: String::new(),
+                        bg: is_bg,
+                    });
                     prev = Some(d);
                 }
             }
@@ -130,7 +158,13 @@ pub fn parse_lrc(text: &str, song_ms: i32) -> Vec<Line> {
         if is_credit_line(&plain) {
             continue;
         }
-        lines.push(Line { start: c, dur: u - c, text: b.trim().to_owned(), parts, ..Default::default() });
+        lines.push(Line {
+            start: c,
+            dur: u - c,
+            text: b.trim().to_owned(),
+            parts,
+            ..Default::default()
+        });
     }
     let n = lines.len();
     for l in 0..n {
@@ -264,5 +298,10 @@ pub fn lrc_songwriters(text: &str) -> Vec<String> {
 }
 
 pub fn parse_plain(text: &str) -> Vec<Line> {
-    text.split('\n').map(|s| Line { text: s.to_owned(), ..Default::default() }).collect()
+    text.split('\n')
+        .map(|s| Line {
+            text: s.to_owned(),
+            ..Default::default()
+        })
+        .collect()
 }

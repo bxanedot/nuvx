@@ -3737,7 +3737,13 @@ dependencies = [
 name = "nuvx-core"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
+ "base64 0.23.1",
+ "p256",
  "roxmltree",
+ "serde_json",
+ "sha2",
+ "url",
 ]
 
 [[package]]

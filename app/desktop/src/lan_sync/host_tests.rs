@@ -1,4 +1,4 @@
-use super::crypto::{self, tests::PhoneKey};
+use super::crypto::{self, PhoneKey};
 use super::host::*;
 use super::replay::{self, Meta, Op, Playlist};
 use serde_json::{Value, json};
@@ -29,7 +29,7 @@ fn request(h: &mut Inner) -> (String, [u8; 32], String) {
     let (s, start) = post(h, "/lan/pair/start", json!({ "deviceName": "Galaxy S26", "commit": crypto::sha256_hex(&phone.public) }));
     assert_eq!(s, 201);
     let id = start["pairingId"].as_str().unwrap().to_owned();
-    let (key, code) = phone.agree(&crypto::unb64(start["hostKey"].as_str().unwrap()).unwrap());
+    let (key, code) = phone.agree(&crypto::unb64(start["hostKey"].as_str().unwrap()).unwrap()).unwrap();
     let (s, _) = post(h, "/lan/pair/reveal", json!({ "pairingId": id, "deviceKey": crypto::b64(&phone.public) }));
     assert_eq!(s, 200);
     (id, key, code)
