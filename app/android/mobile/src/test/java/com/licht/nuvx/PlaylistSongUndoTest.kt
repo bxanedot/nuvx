@@ -49,4 +49,18 @@ class PlaylistSongUndoTest {
             LocalPlaylistStore.deletePlaylist(playlist.id)
         }
     }
+
+    @Test
+    fun reorderingThenUndoingRestoresTheOldOrder() {
+        val id = LocalPlaylistStore.createNuvxPlaylist("Order", listOf(a, b, c)).id
+        try {
+            // What the reorder screen saves, and what Undo saves back (the old list).
+            assertEquals(true, LocalPlaylistStore.replaceSongs(id, listOf(c, a, b)))
+            assertEquals(listOf(c, a, b), LocalPlaylistStore.getPlaylist(id)?.songs)
+            assertEquals(true, LocalPlaylistStore.replaceSongs(id, listOf(a, b, c)))
+            assertEquals(listOf(a, b, c), LocalPlaylistStore.getPlaylist(id)?.songs)
+        } finally {
+            LocalPlaylistStore.deletePlaylist(id)
+        }
+    }
 }
