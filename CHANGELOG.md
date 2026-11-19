@@ -52,6 +52,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   warnings and errors, with links, tokens and your folder names removed. Copied only when you press it.
 - **Android: Radio moved next to your profile** in the top bar (when Radio is on; hidden when it is off), leaving
   more room in the tab bar.
+- **Contributor guide refreshed** (CONTRIBUTING.md): where everything is, the build and test commands for every app, the shared Rust core and its golden cases, and how releases and nightlies work.
 - **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.
 - **The creator's name is written licht** everywhere in the apps, installer and pages.
 - **Nightly builds every night.** A nightly is built each night when main has new commits, named nightly 1,
