@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowUpRight, BookOpenText, Headphones, ListMusic } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
@@ -63,12 +63,13 @@ const sectionHeader = 'mt-4 px-2 py-1 type-callout-emphasized text-secondary';
 const list = 'flex flex-col';
 
 function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate: () => void }) {
+  const [selected, setSelected] = useState({ to: '', sequence: 0 });
   return (
     <ul className={list}>
       {items.map(({ to, label, Icon }) => (
         <li key={to}>
-          <PrefetchNavLink to={to} className={item} onClick={onNavigate}>
-            <Icon size={24} className={icon} />
+          <PrefetchNavLink to={to} className={item} onClick={() => { setSelected(({ sequence }) => ({ to, sequence: sequence + 1 })); onNavigate(); }}>
+            <Icon size={24} className={icon} effect="bounce" trigger={selected.to === to ? selected.sequence : undefined} />
             <span className={navLabel}>{label}</span>
           </PrefetchNavLink>
         </li>

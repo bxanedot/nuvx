@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react';
-import { SfSymbolIcon, type SfSymbolName } from './SfSymbol';
+import { SfSymbolIcon, type SfSymbolName, type SfSymbolEffect } from './SfSymbol';
 
 /** Minimum common icon props; compatible with legacy SVG and SFStudio renderers. */
-export type NavIconProps = { size?: number; className?: string; style?: CSSProperties };
+export type NavIconProps = { size?: number; className?: string; style?: CSSProperties; effect?: SfSymbolEffect; trigger?: string | number | boolean; active?: boolean };
 
 function symbol(name: SfSymbolName, defaultSize: number) {
   return function NavIcon({ size = defaultSize, ...props }: NavIconProps) {

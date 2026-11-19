@@ -1,7 +1,7 @@
 import { Maximize, Minimize, X } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { useLocation } from 'react-router';
-import { BackwardIcon, ForwardIcon, LyricsActiveIcon, LyricsIcon, RepeatIcon, RepeatOneIcon, ShuffleIcon, UpNextIcon, PlayPauseIcon } from '@/components/icons/Transport';
+import { BackwardIcon, ForwardIcon, LyricsActiveIcon, LyricsIcon, RepeatModeIcon, ShuffleIcon, UpNextIcon, PlayPauseIcon } from '@/components/icons/Transport';
 import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { TrackMenu } from '@/components/music/TrackMenu';
@@ -82,20 +82,22 @@ function Transport() {
   const shuffle = usePlayer((s) => s.shuffle);
   const repeat = usePlayer((s) => s.repeat);
   const { togglePlay, next, previous, toggleShuffle, cycleRepeat } = usePlayer.getState();
+  const [previousCount, setPreviousCount] = useState(0);
+  const [nextCount, setNextCount] = useState(0);
 
   return (
     <div className="mx-auto mt-[clamp(8px,1.6vh,16px)] mb-0 flex h-13 w-[min(100%,315px)] items-center justify-between">
       <button className={toggle} aria-label="Shuffle" aria-pressed={shuffle} onClick={toggleShuffle}>
-        <ShuffleIcon size={30} />
+        <ShuffleIcon size={30} effect="bounce" trigger={shuffle} />
       </button>
-      <button className={skip} disabled={!hasTrack} aria-label="Previous" onClick={previous}>
-        <BackwardIcon size={40} />
+      <button className={skip} disabled={!hasTrack} aria-label="Previous" onClick={() => { previous(); setPreviousCount((n) => n + 1); }}>
+        <BackwardIcon size={40} effect="bounce" trigger={previousCount} />
       </button>
       <button className={`${transportButton} size-14 text-primary`} disabled={!hasTrack} aria-label={playing ? 'Pause' : 'Play'} onClick={togglePlay}>
         <PlayPauseIcon playing={playing} size={48} />
       </button>
-      <button className={skip} disabled={!hasTrack || !hasNext} aria-label="Next" onClick={next}>
-        <ForwardIcon size={40} />
+      <button className={skip} disabled={!hasTrack || !hasNext} aria-label="Next" onClick={() => { next(); setNextCount((n) => n + 1); }}>
+        <ForwardIcon size={40} effect="bounce" trigger={nextCount} />
       </button>
       <button
         className={toggle}
@@ -103,7 +105,7 @@ function Transport() {
         aria-pressed={repeat !== 'off'}
         onClick={cycleRepeat}
       >
-        {repeat === 'one' ? <RepeatOneIcon size={30} /> : <RepeatIcon size={30} />}
+        <RepeatModeIcon size={30} mode={repeat} />
       </button>
     </div>
   );

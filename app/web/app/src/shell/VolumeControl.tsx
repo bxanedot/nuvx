@@ -76,7 +76,7 @@ export function VolumeControl({ open, onOpen, className, iconSize = 20 }: Volume
         onPointerEnter={onOpen}
         onFocus={onOpen}
       >
-        <VolumeIcon level={level} size={iconSize} />
+        <VolumeIcon level={level} size={iconSize} effect="bounce" trigger={muted} />
       </button>
     </span>
   );

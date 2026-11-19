@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react';
-import { SfSymbolIcon, type SfSymbolName } from './SfSymbol';
+import { SfSymbolIcon, type SfSymbolName, type SfSymbolProps } from './SfSymbol';
 
-type IconProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & { size?: number };
+type IconProps = Omit<SfSymbolProps, 'name'>;
 
 function symbol(name: SfSymbolName) {
   return function PlayerIcon(props: IconProps) {
@@ -16,6 +16,10 @@ export const BackwardIcon = symbol('backward.fill');
 export const ShuffleIcon = symbol('shuffle');
 export const RepeatIcon = symbol('repeat');
 export const RepeatOneIcon = symbol('repeat.1');
+
+export function RepeatModeIcon({ mode, ...props }: IconProps & { mode: 'off' | 'all' | 'one' }) {
+  return <SfSymbolIcon name={mode === 'one' ? 'repeat.1' : 'repeat'} effect="bounce" trigger={mode} {...props} />;
+}
 export const UpNextIcon = symbol('list.bullet');
 export const LyricsIcon = symbol('quote.bubble');
 export const LyricsActiveIcon = symbol('quote.bubble.fill');
