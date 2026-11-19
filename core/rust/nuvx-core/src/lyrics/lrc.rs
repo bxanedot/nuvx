@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::credits::{dedup, is_credit_line, split_names, writers_on};
-use super::{Line, Part};
+use super::model::{Line, Part};
 
 fn lrc_time(t: &str) -> i32 {
     let p: Vec<&str> = t.split(':').collect();
@@ -239,7 +239,7 @@ pub fn lrc_fixers(lines: &mut [Line]) {
     }
 }
 
-pub(super) fn lrc_songwriters(text: &str) -> Vec<String> {
+pub fn lrc_songwriters(text: &str) -> Vec<String> {
     let mut n = Vec::new();
     for s in text.split('\n') {
         let e = s.trim();

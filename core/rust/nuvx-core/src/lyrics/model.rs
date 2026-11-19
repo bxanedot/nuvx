@@ -144,7 +144,7 @@ pub struct Lyrics {
 }
 
 impl Lyrics {
-    pub(super) fn new(provider: Provider, lines: Vec<Line>, language: Option<String>, songwriters: Vec<String>) -> Option<Self> {
+    pub fn new(provider: Provider, lines: Vec<Line>, language: Option<String>, songwriters: Vec<String>) -> Option<Self> {
         if lines.is_empty() {
             return None;
         }
