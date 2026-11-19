@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::credits::{dedup, is_credit_label, writers_on};
 use super::timeline::insert_instrumentals;
-use super::{Line, Part};
+use super::model::{Line, Part};
 
 struct QrcLine {
     time: i32,
@@ -237,7 +237,7 @@ pub fn parse_qrc(text: &str, song_ms: i32, meta: Option<(&str, &str)>) -> Vec<Li
     insert_instrumentals(lines, song_ms)
 }
 
-pub(super) fn qrc_songwriters(text: &str) -> Vec<String> {
+pub fn qrc_songwriters(text: &str) -> Vec<String> {
     let mut n = Vec::new();
     for s in qrc_content(text).split('\n') {
         if let Some((_, _, rest)) = qrc_header(s.trim()) {

@@ -3736,6 +3736,9 @@ dependencies = [
 [[package]]
 name = "nuvx-core"
 version = "0.1.0"
+dependencies = [
+ "roxmltree",
+]
 
 [[package]]
 name = "objc"

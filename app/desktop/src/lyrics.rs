@@ -1,10 +1,7 @@
 // LRC parsing, credits and the line model live in the shared Rust core (core/rust/nuvx-core).
-use nuvx_core::lyrics::{credits, lrc, model};
+use nuvx_core::lyrics::{lrc, model, qrc, ttml};
 
-mod ttml;
-mod qrc;
 mod provider;
-mod timeline;
 #[cfg(test)]
 use lrc::lrc_songwriters;
 #[allow(unused_imports)]

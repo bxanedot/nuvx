@@ -1,8 +1,8 @@
-use super::Line;
+use super::model::Line;
 
 const INSTRUMENTAL_GAP_MS: i32 = 5000;
 
-pub(super) fn insert_instrumentals(lines: Vec<Line>, song_ms: i32) -> Vec<Line> {
+pub fn insert_instrumentals(lines: Vec<Line>, song_ms: i32) -> Vec<Line> {
     if lines.is_empty() {
         return lines;
     }

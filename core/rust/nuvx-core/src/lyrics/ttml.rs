@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::credits::dedup;
 use super::timeline::insert_instrumentals;
-use super::{Line, Part};
+use super::model::{Line, Part};
 
 pub struct Ttml {
     pub lines: Vec<Line>,
