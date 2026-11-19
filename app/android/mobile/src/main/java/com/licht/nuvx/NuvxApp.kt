@@ -3310,7 +3310,10 @@ internal fun NuvxApp(
                 startRenaming = browseRenameInSheet,
                 onPlayNext = act(playSongsNext),
                 onAddToQueue = act(addSongsToQueue),
-                onPlay = act { songs -> play(songs, 0) }.takeIf { target.fromCard },
+                onPlay = act { songs ->
+                    QueueShuffle.disableForNextQueue()
+                    play(songs, 0)
+                }.takeIf { target.fromCard },
                 onShuffle = act { songs ->
                     QueueShuffle.enableForNextQueue()
                     play(songs, songs.indices.random())

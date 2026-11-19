@@ -137,6 +137,14 @@ object QueueShuffle {
         AppSettings.setShuffleEnabled(true)
     }
 
+    /** Play (not Shuffle) starts the list in order: shuffle from an earlier queue must not carry over (issue #329). */
+    fun disableForNextQueue() {
+        original = emptyList()
+        clearCanonicalContext()
+        _enabled.value = false
+        AppSettings.setShuffleEnabled(false)
+    }
+
     fun startingOrder(songs: List<Song>, startIndex: Int): List<Song> {
         original = songs.map { "${it.queueEntryId ?: it.videoId}_${it.queueTier.name}" }
         val contextSongs = songs.filter { it.queueTier == QueueTier.CONTEXT }

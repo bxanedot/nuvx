@@ -402,7 +402,7 @@ fun DetailScreen(
                         fullBleed = fullBleedSleeve,
                         canvas = canvas,
                         songs = songs,
-                        onPlay = { onSongClick(songs, 0) },
+                        onPlay = { com.licht.nuvx.playback.QueueShuffle.disableForNextQueue(); onSongClick(songs, 0) },
                         onShuffle = { onShuffle(songs) },
                         onArtistClick = onArtistClick.takeIf { folder == null },
                         onToggleLibrary = onToggleLibrary,
@@ -431,7 +431,7 @@ fun DetailScreen(
             if (songs.isNotEmpty() && isArtist) {
                 item(key = "actions") {
                     ActionRow(
-                        onPlay = { onSongClick(songs, 0) },
+                        onPlay = { com.licht.nuvx.playback.QueueShuffle.disableForNextQueue(); onSongClick(songs, 0) },
                         artistId = page.browseId,
                         onDownloadCatalog = onDownloadCatalog,
                         catalogLoading = catalogLoading,
