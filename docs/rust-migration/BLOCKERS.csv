@@ -2,6 +2,6 @@ id,task,blocker,evidence,unblock_by,status
 B1,00,rust-anything not installed (needs a crates.io download the owner had not approved),RUST_ANYTHING_EVALUATION.md,owner OK to run cargo install --version 1.5.1 --locked into a scratch root,CLOSED (installed; synthetic gate passed)
 B2,03,iOS visual baselines need macOS/Xcode,no Mac on this machine,apple-builds CI simulator screenshots,OPEN
 B3,03,TV / Wear / web baselines not captured yet,UI_PARITY.csv rows,emulator images (TV and Wear) and a browser capture,OPEN
-B4,04,startup / memory / CPU / energy not measured,METRICS.csv rows,repeatable release-build harness on device and desktop,OPEN
+B4,04,battery and iOS/TV/Wear performance not measured; phone numbers are from a debug build,METRICS.csv rows,release-build run on the phone (needs a release APK with the dev id) and a battery test,OPEN
 B5,05+,canonical workspace merges two live Rust trees (desktop app and iOS native-core) and moves Kotlin/Swift logic: weeks of work touching every shipped app,CONTRACT.md,owner decision on order and scope; done in small reversible slices,OPEN
 B6,05e,native-core test aac_region_cuts_advance_without_reseeking_preroll fails on Windows (before and after the equalizer change),cargo test --lib on Windows with Android SDK CMake,check on macOS / apple-builds CI,OPEN

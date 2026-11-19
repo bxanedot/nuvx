@@ -63,7 +63,11 @@ use crossbeam_channel::unbounded;
 pub const DEFAULT_SIZE: [f32; 2] = [1200.0, 780.0];
 pub const MIN_SIZE: [f32; 2] = [760.0, 480.0];
 
+/// When `main` started, for the first-frame time in the log.
+pub(crate) static LAUNCHED: std::sync::LazyLock<std::time::Instant> = std::sync::LazyLock::new(std::time::Instant::now);
+
 fn main() -> eframe::Result {
+    std::sync::LazyLock::force(&LAUNCHED);
     let mut args = std::env::args_os().skip(1);
     if let (Some(flag), Some(dir)) = (args.next(), args.next()) {
         proxy::init(std::path::Path::new(""));

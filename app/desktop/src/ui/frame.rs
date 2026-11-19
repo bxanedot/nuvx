@@ -108,6 +108,8 @@ impl eframe::App for App {
     }
 
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        static FIRST_FRAME: std::sync::Once = std::sync::Once::new();
+        FIRST_FRAME.call_once(|| log::info!("startup: first frame built {} ms after main started", crate::LAUNCHED.elapsed().as_millis()));
         let ctx = ui.ctx().clone();
         // The intro is the whole window: no app shortcuts behind it.
         if self.setup.is_none() {
