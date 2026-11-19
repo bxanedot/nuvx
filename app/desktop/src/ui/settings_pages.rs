@@ -25,7 +25,7 @@ pub(super) fn settings(app: &mut App, ui: &mut Ui, pane: Option<super::SettingsP
     });
 }
 
-const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 13] = {
+const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 14] = {
     use super::SettingsPane::*;
     [
         (Account, glyphs::PERSON, "Account & integrations", "YouTube Music, Spotify, Discord and Last.fm"),
@@ -40,6 +40,7 @@ const PANES: [(super::SettingsPane, glyphs::Glyph, &str, &str); 13] = {
         (Network, glyphs::WIFI, "Network", "Proxy and connection test"),
         (Sync, glyphs::REPEAT, "Sync & Connect", "Playlists and playback with your phone over Wi-Fi"),
         (Import, glyphs::IMPORT, "Import", "From Spotify, or an M3U or CSV file"),
+        (YourData, glyphs::HISTORY, "Your data", "What stays on this computer, what leaves it, diagnostics"),
         (Shortcuts, glyphs::KEYBOARD, "Keyboard shortcuts", "Every key the app answers to"),
     ]
 };
@@ -151,6 +152,7 @@ fn settings_pane(app: &mut App, ui: &mut Ui, pane: super::SettingsPane) {
             settings_card(ui, |ui| super::lan_sync::connect_settings(app, ui));
         }
         Import => super::transfer::settings_section(app, ui),
+        YourData => super::your_data::pane(app, ui),
         Shortcuts => settings_shortcuts(ui),
     }
 }
@@ -202,22 +204,6 @@ fn settings_window(app: &mut App, ui: &mut Ui) {
                 app.update_checked = None;
             }
         });
-        divider(ui);
-        let mut copy = false;
-        setting_row(ui, "Copy diagnostics", Some("For a bug report: version, system, network mode and this run's latest warnings and errors. No account, song history, addresses or folder names. Copied only when you press it; nothing is sent."), |ui| {
-            copy = pill(ui, "Copy", None, false).clicked();
-        });
-        if copy {
-            let facts = [
-                ("Version", crate::update::current_version().to_string()),
-                ("System", format!("{} {}", std::env::consts::OS, std::env::consts::ARCH)),
-                ("Renderer", format!("{:?}", crate::renderer::active())),
-                ("Network", app.proxy_saved.label().to_owned()),
-                ("Signed in", if app.logged_in { "yes" } else { "no" }.to_owned()),
-            ];
-            ui.ctx().copy_text(crate::logging::diagnostics(app.backend.data_dir(), &facts));
-            app.toast("Diagnostics copied");
-        }
         divider(ui);
         setting_row(ui, "Collapse sidebar", Some("Show only icons in the sidebar, for narrow windows. The menu button at its top does the same."), |ui| {
             toggle(ui, &mut app.sidebar_collapsed, "Collapse sidebar");

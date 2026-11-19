@@ -221,6 +221,13 @@ impl super::App {
     }
 }
 
+impl LanSync {
+    /// How many phones are paired with this computer.
+    pub(super) fn paired_count(&self) -> usize {
+        self.inner.as_ref().map_or(0, |i| i.lock().unwrap_or_else(|e| e.into_inner()).devices().len())
+    }
+}
+
 fn host_name() -> String {
     std::env::var("COMPUTERNAME").or_else(|_| std::env::var("HOSTNAME")).ok().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "This computer".into())
 }

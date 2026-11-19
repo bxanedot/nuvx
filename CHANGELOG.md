@@ -39,7 +39,8 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   (like on Android): switch from speakers to headphones and each gets its setting back.
 - **Desktop: playlist files.** A playlist's **More → Export playlist…** saves it as M3U or CSV, and **Settings → Import
   → Import a playlist file** reads one into a nuvx playlist. Same formats as the phone, so playlists move both ways.
-- **Desktop: Copy diagnostics** (Settings → Window): version, system, renderer, network mode and this run's latest
+- **Desktop: Settings → Your data.** What stays on this computer and what leaves it (per service, and when), the
+  data folder, clearing recent searches, paired phones, and **Copy diagnostics**: version, system, renderer, network mode and this run's latest
   warnings and errors, with links, tokens and your folder names removed. Copied only when you press it.
 - **Android: Radio moved next to your profile** in the top bar (when Radio is on; hidden when it is off), leaving
   more room in the tab bar.

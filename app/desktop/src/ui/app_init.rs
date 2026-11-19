@@ -297,6 +297,7 @@ impl App {
             Ok("equalizer-settings") => app.go(Page::Setting(SettingsPane::Equalizer)),
             Ok("lyrics-settings") => app.go(Page::Setting(SettingsPane::Lyrics)),
             Ok("account-settings") => app.go(Page::Setting(SettingsPane::Account)),
+            Ok("your-data") => app.go(Page::Setting(SettingsPane::YourData)),
             Ok("import-settings") => app.go(Page::Setting(SettingsPane::Import)),
             Ok("sync-settings") => app.go(Page::Setting(SettingsPane::Sync)),
             Ok("connect-settings") => app.go(Page::Setting(SettingsPane::Sync)),

@@ -46,6 +46,7 @@ mod app_playback_state;
 mod app_selection;
 mod window;
 mod setup;
+mod your_data;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -106,6 +107,7 @@ pub enum SettingsPane {
     Network,
     Sync,
     Import,
+    YourData,
     Shortcuts,
 }
 
