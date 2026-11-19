@@ -51,4 +51,27 @@ class LocalizationTest {
             )
         }
     }
+    @Test
+    fun traditionalChineseAutomixOverview_hasLocalizedString() {
+        val projectRoot = File(".").canonicalFile
+        val resDir = if (File(projectRoot, "app/src/main/res").exists()) {
+            File(projectRoot, "app/src/main/res")
+        } else {
+            File(projectRoot, "src/main/res")
+        }
+        val stringsFile = File(resDir, "values-b+zh+Hant/strings.xml")
+        assertTrue("Generic Traditional Chinese resources must exist", stringsFile.exists())
+
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(stringsFile)
+        val nodes = document.getElementsByTagName("string")
+        val translation = (0 until nodes.length)
+            .asSequence()
+            .map { nodes.item(it) }
+            .firstOrNull { node -> node.attributes?.getNamedItem("name")?.nodeValue == "automix_overview" }
+            ?.textContent
+            ?.trim()
+
+        assertEquals("Automix 概覽", translation)
+    }
+
 }
