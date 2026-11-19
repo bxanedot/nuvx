@@ -3741,6 +3741,7 @@ dependencies = [
  "base64 0.23.1",
  "p256",
  "roxmltree",
+ "serde",
  "serde_json",
  "sha2",
  "url",

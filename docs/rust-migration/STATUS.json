@@ -5,7 +5,7 @@
   "branch": "main",
   "head_sha": null,
   "current_task": "05",
-  "next_action": "Task 05c: move more pure desktop rules into nuvx-core (LRC lyrics parsing, playlist file formats once Track lives in the core); then plan merging app/ios/native-core DSP.",
+  "next_action": "Task 05e: merge app/ios/native-core DSP with the desktop audio DSP into the core, behind shared golden audio vectors.",
   "tasks": [
     {
       "id": "00",
@@ -71,7 +71,19 @@
         },
         {
           "id": "05c",
-          "what": "merge app/ios/native-core and desktop DSP duplicates",
+          "what": "lyrics (model, LRC, TTML, QRC, credits, timeline) and LAN Sync crypto + Connect formats moved into nuvx-core",
+          "state": "PASS",
+          "evidence": "nuvx-core 8 tests + desktop 274 tests (282 total, unchanged), clippy -D warnings, cargo_notices.py"
+        },
+        {
+          "id": "05d",
+          "what": "data model (Track, Link, Thumb) and playlist file formats into nuvx-core",
+          "state": "PASS",
+          "evidence": "nuvx-core 13 tests + desktop 269 (282 total, unchanged); the egui crop helper stays in the desktop (core has no UI dependency)"
+        },
+        {
+          "id": "05e",
+          "what": "merge app/ios/native-core DSP with the desktop's into the core",
           "state": "TODO"
         }
       ],

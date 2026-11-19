@@ -180,3 +180,15 @@ fn cover_xfade(ui: &Ui, site: egui::Id, rect: Rect, radius: f32, url: &str, uv: 
     let ready = matches!(egui::Image::new(url).load_for_size(ui.ctx(), rect.size()), Ok(egui::load::TexturePoll::Ready { .. }));
     dissolve(ui, site, url, uv, ready, &mut |u, uv, a| paint_remote(ui, u, rect, radius, uv, tint.gamma_multiply(a)));
 }
+
+/// `Thumb::square_crop` (in the shared core) as the egui rectangle the painter wants.
+trait SquareUv {
+    fn square_uv(&self) -> egui::Rect;
+}
+
+impl SquareUv for crate::model::Thumb {
+    fn square_uv(&self) -> egui::Rect {
+        let [x0, y0, x1, y1] = self.square_crop();
+        egui::Rect::from_min_max(egui::pos2(x0, y0), egui::pos2(x1, y1))
+    }
+}

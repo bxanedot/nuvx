@@ -4,5 +4,7 @@
 
 pub mod lan;
 pub mod lyrics;
+pub mod model;
+pub mod playlist_file;
 pub mod recovery;
 pub mod release;

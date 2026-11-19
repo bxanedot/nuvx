@@ -6,17 +6,22 @@ pub struct Thumb {
 }
 
 impl Thumb {
-    pub fn square_uv(&self) -> egui::Rect {
-        use egui::{pos2, Rect};
-        let ratio = if self.height > 0 { self.width as f32 / self.height as f32 } else { 1.0 };
+    /// The part of the image to show in a square, as `[min_x, min_y, max_x, max_y]` in 0..1: wide video
+    /// thumbnails are cropped to their centre (and letterboxed 4:3 frames to their picture).
+    pub fn square_crop(&self) -> [f32; 4] {
+        let ratio = if self.height > 0 {
+            self.width as f32 / self.height as f32
+        } else {
+            1.0
+        };
         if ratio > 1.6 {
             let w = 1.0 / ratio;
-            Rect::from_min_max(pos2(0.5 - w / 2.0, 0.0), pos2(0.5 + w / 2.0, 1.0))
+            [0.5 - w / 2.0, 0.0, 0.5 + w / 2.0, 1.0]
         } else if ratio > 1.2 {
             let w = 0.75 / ratio;
-            Rect::from_min_max(pos2(0.5 - w / 2.0, 0.125), pos2(0.5 + w / 2.0, 0.875))
+            [0.5 - w / 2.0, 0.125, 0.5 + w / 2.0, 0.875]
         } else {
-            Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))
+            [0.0, 0.0, 1.0, 1.0]
         }
     }
 }
@@ -43,12 +48,20 @@ pub struct Track {
 
 impl Track {
     pub fn artist_line(&self) -> String {
-        self.artists.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(", ")
+        self.artists
+            .iter()
+            .map(|a| a.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 
 pub fn pick_thumb(thumbs: &[Thumb], min_px: u32) -> Option<&Thumb> {
-    thumbs.iter().filter(|t| t.width >= min_px).min_by_key(|t| t.width).or_else(|| thumbs.iter().max_by_key(|t| t.width))
+    thumbs
+        .iter()
+        .filter(|t| t.width >= min_px)
+        .min_by_key(|t| t.width)
+        .or_else(|| thumbs.iter().max_by_key(|t| t.width))
 }
 
 pub fn pick(thumbs: &[Thumb], min_px: u32) -> Option<&str> {
@@ -60,7 +73,11 @@ pub fn sized(url: &str, px: u32) -> String {
         && let Some(i) = url.rfind('=')
     {
         let crop = square_crop(&url[i + 1..]);
-        return format!("{}=w{px}-h{px}{}-l90-rj", &url[..i], if crop { "-p" } else { "" });
+        return format!(
+            "{}=w{px}-h{px}{}-l90-rj",
+            &url[..i],
+            if crop { "-p" } else { "" }
+        );
     }
     url.to_owned()
 }
@@ -70,8 +87,15 @@ fn square_crop(opts: &str) -> bool {
     if !parts.iter().any(|p| *p == "p" || *p == "c") {
         return false;
     }
-    let num = |prefix: char| parts.iter().find_map(|p| p.strip_prefix(prefix)?.parse::<u32>().ok());
-    parts.iter().any(|p| p.strip_prefix('s').is_some_and(|n| n.parse::<u32>().is_ok())) || matches!((num('w'), num('h')), (Some(w), Some(h)) if w == h)
+    let num = |prefix: char| {
+        parts
+            .iter()
+            .find_map(|p| p.strip_prefix(prefix)?.parse::<u32>().ok())
+    };
+    parts.iter().any(|p| {
+        p.strip_prefix('s')
+            .is_some_and(|n| n.parse::<u32>().is_ok())
+    }) || matches!((num('w'), num('h')), (Some(w), Some(h)) if w == h)
 }
 
 #[cfg(test)]
@@ -81,10 +105,25 @@ mod sized_tests {
     #[test]
     fn square_crops_stay_cropped() {
         let base = "https://yt3.ggpht.com/abc";
-        assert_eq!(sized(&format!("{base}=w120-h120-p-l90-rj"), 544), format!("{base}=w544-h544-p-l90-rj"));
-        assert_eq!(sized(&format!("{base}=s88-c-k-c0x00ffffff-no-rj"), 544), format!("{base}=w544-h544-p-l90-rj"));
-        assert_eq!(sized("https://lh3.googleusercontent.com/x=w120-h120-l90-rj", 544), "https://lh3.googleusercontent.com/x=w544-h544-l90-rj");
-        assert_eq!(sized("https://lh3.googleusercontent.com/x=w1440-h600-p-l90-rj", 544), "https://lh3.googleusercontent.com/x=w544-h544-l90-rj");
+        assert_eq!(
+            sized(&format!("{base}=w120-h120-p-l90-rj"), 544),
+            format!("{base}=w544-h544-p-l90-rj")
+        );
+        assert_eq!(
+            sized(&format!("{base}=s88-c-k-c0x00ffffff-no-rj"), 544),
+            format!("{base}=w544-h544-p-l90-rj")
+        );
+        assert_eq!(
+            sized("https://lh3.googleusercontent.com/x=w120-h120-l90-rj", 544),
+            "https://lh3.googleusercontent.com/x=w544-h544-l90-rj"
+        );
+        assert_eq!(
+            sized(
+                "https://lh3.googleusercontent.com/x=w1440-h600-p-l90-rj",
+                544
+            ),
+            "https://lh3.googleusercontent.com/x=w544-h544-l90-rj"
+        );
     }
 }
 
