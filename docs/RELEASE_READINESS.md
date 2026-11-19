@@ -25,6 +25,9 @@ The Android key lives in four repository secrets: `NUVX_KEYSTORE_BASE64`, `NUVX_
 ## Known issues
 
 - **Mac runners:** "Apple builds" and the macOS release jobs wait for GitHub's macOS runners. A job left queued too long can be cancelled, and the stable build then fails safely; run it again.
+- **Stale CodeQL runs starve the macOS runners.** Every push to `main` queues a CodeQL run whose Swift analysis needs a macOS runner; a day of pushes left four of them running for hours, and the 1.0.3 release's last macOS job waited behind them. Before cutting a release, cancel old queued or in-progress "CodeQL Advanced" and "Apple builds" runs, and avoid pushing to `main` until the release finishes.
+- **GitHub's scheduler runs late.** Scheduled workflows (the 3-hourly nightly) can start hours after their time under load; start one by hand with `gh workflow run android-nightly.yml` when it matters.
+- **Moving a tag:** `v1.0.3` first existed on an old commit that never published. Delete the remote and local tag, then tag the intended commit and push; the release run reads the version files at the tagged commit.
 - **iPhone builds:** not attached automatically (step 3). Done for 1.0.0.
 
 ## Before the next release
