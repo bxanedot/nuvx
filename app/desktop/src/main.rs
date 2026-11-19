@@ -30,6 +30,7 @@ mod lyrics;
 mod media;
 mod model;
 mod playlist_file;
+mod recovery;
 mod motion;
 mod tidal;
 mod opus;

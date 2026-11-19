@@ -264,6 +264,10 @@ pub struct App {
     generation: u64,
     buffering: bool,
     skip_streak: u32,
+    /// Failures of the current song so far (its id and count), for `crate::recovery`.
+    play_attempts: (String, u32),
+    /// A failed song is tried again at this moment, if it is still the same playback.
+    play_retry: Option<(std::time::Instant, u64)>,
     recoveries: u32,
     autoplay: bool,
     norm_target: Option<i32>,

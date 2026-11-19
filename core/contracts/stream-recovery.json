@@ -1,0 +1,13 @@
+{
+  "about": "What playback does when a song fails. Shared golden cases: Android RecoveryPolicy (PlaybackErrorRecovery.kt) and desktop src/recovery.rs must both agree. attempts counts failures of this song so far (1 = first failure). decision: retry (with delayMs), skip, or stay.",
+  "cases": [
+    { "name": "first network failure retries after 350 ms", "attempts": 1, "permanent": false, "neverStarted": true, "skipsInARow": 0, "decision": "retry", "delayMs": 350 },
+    { "name": "second failure retries after 700 ms", "attempts": 2, "permanent": false, "neverStarted": true, "skipsInARow": 0, "decision": "retry", "delayMs": 700 },
+    { "name": "third failure skips a song that never started", "attempts": 3, "permanent": false, "neverStarted": true, "skipsInARow": 0, "decision": "skip" },
+    { "name": "a permanent error skips at once", "attempts": 1, "permanent": true, "neverStarted": true, "skipsInARow": 0, "decision": "skip" },
+    { "name": "a song that played before stays after giving up", "attempts": 3, "permanent": false, "neverStarted": false, "skipsInARow": 0, "decision": "stay" },
+    { "name": "after 4 skips in a row it stops skipping", "attempts": 3, "permanent": false, "neverStarted": true, "skipsInARow": 4, "decision": "stay" },
+    { "name": "3 skips in a row still skips", "attempts": 3, "permanent": false, "neverStarted": true, "skipsInARow": 3, "decision": "skip" },
+    { "name": "a permanent error skips even after many in a row", "attempts": 1, "permanent": true, "neverStarted": true, "skipsInARow": 9, "decision": "skip" }
+  ]
+}

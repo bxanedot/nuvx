@@ -94,6 +94,7 @@ impl App {
         if self.buffering && self.playing() {
             self.buffering = false;
             self.skip_streak = 0;
+            self.play_attempts = (String::new(), 0);
             self.prefetch_next();
             if self.generation == 1 {
                 if let Some(s) = std::env::var("NUVX_SEEK").ok().and_then(|v| v.parse::<f32>().ok()) {

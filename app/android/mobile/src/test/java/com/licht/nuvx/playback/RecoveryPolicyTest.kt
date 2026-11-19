@@ -40,4 +40,28 @@ class RecoveryPolicyTest {
         assertFalse(RecoveryPolicy.streamHostUnresolved(java.net.SocketTimeoutException("googlevideo.com timed out")))
         assertFalse(RecoveryPolicy.streamHostUnresolved(null))
     }
+
+    @Test
+    fun `agrees with the shared stream recovery cases`() {
+        // The same cases the desktop's src/recovery.rs is tested against.
+        val file = java.io.File("../../../core/contracts/stream-recovery.json").takeIf { it.isFile }
+            ?: java.io.File("core/contracts/stream-recovery.json")
+        val cases = (kotlinx.serialization.json.Json.parseToJsonElement(file.readText()) as kotlinx.serialization.json.JsonObject)["cases"]
+            as kotlinx.serialization.json.JsonArray
+        for (case in cases) {
+            val c = case as kotlinx.serialization.json.JsonObject
+            fun v(k: String) = (c[k] as kotlinx.serialization.json.JsonPrimitive).content
+            val attempts = v("attempts").toInt()
+            val permanent = if (v("permanent").toBoolean()) "permanent" else null
+            val got = if (!RecoveryPolicy.givesUp(attempts, permanent)) {
+                "retry:" + RecoveryPolicy.retryDelayMs(attempts)
+            } else if (RecoveryPolicy.skipReason(permanent, "ERROR", v("neverStarted").toBoolean(), attempts, v("skipsInARow").toInt()) != null) {
+                "skip"
+            } else {
+                "stay"
+            }
+            val want = if (v("decision") == "retry") "retry:" + v("delayMs") else v("decision")
+            org.junit.Assert.assertEquals(v("name"), want, got)
+        }
+    }
 }

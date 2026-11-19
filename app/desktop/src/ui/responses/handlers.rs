@@ -89,17 +89,46 @@ impl App {
                 msg
             };
             let has_next = !self.queue.at_end() && self.queue.index.is_some();
+            let id = self.current().map(|t| t.id.clone()).unwrap_or_default();
+            let attempts = if self.play_attempts.0 == id { self.play_attempts.1 + 1 } else { 1 };
+            self.play_attempts = (id, attempts);
             if let Some(why) = account_block(&reason, self.logged_in) {
                 self.skip_streak = 0;
                 self.toast(why.replace("{title}", &title));
-            } else if has_next && self.skip_streak < MAX_SKIPS {
-                self.skip_streak += 1;
-                self.toast(format!("Skipped \"{title}\": {reason}"));
-                self.next();
-            } else {
-                self.skip_streak = 0;
-                self.toast(format!("Can't play \"{title}\": {reason}"));
+                return;
             }
+            // Same rules as Android (core/contracts/stream-recovery.json): retry twice, then skip, at most 4 in a row.
+            let lower = reason.to_lowercase();
+            let permanent = ["unavailable", "private", "removed", "copyright", "not available"].iter().any(|w| lower.contains(w));
+            match crate::recovery::decide(attempts, permanent, true, self.skip_streak) {
+                crate::recovery::Decision::Retry(ms) => {
+                    log::info!("play: {title:?} failed ({reason}); retry {attempts} in {ms} ms");
+                    self.buffering = true;
+                    self.play_retry = Some((std::time::Instant::now() + std::time::Duration::from_millis(ms), self.generation));
+                }
+                crate::recovery::Decision::Skip if has_next => {
+                    self.skip_streak += 1;
+                    self.toast(format!("Skipped \"{title}\": {reason}"));
+                    self.next();
+                }
+                _ => {
+                    self.skip_streak = 0;
+                    self.toast(format!("Can't play \"{title}\": {reason}"));
+                }
+            }
+        }
+    }
+
+    /// Tries a failed song again once its retry delay has passed, unless playback moved on meanwhile.
+    pub(crate) fn tick_play_retry(&mut self, ctx: &egui::Context) {
+        let Some((at, generation)) = self.play_retry else { return };
+        if generation != self.generation {
+            self.play_retry = None;
+        } else if std::time::Instant::now() >= at {
+            self.play_retry = None;
+            self.play_current();
+        } else {
+            ctx.request_repaint_after(at - std::time::Instant::now());
         }
     }
 
@@ -159,7 +188,6 @@ impl App {
     }
 }
 
-const MAX_SKIPS: u32 = 3;
 
 fn account_block(msg: &str, logged_in: bool) -> Option<&'static str> {
     let m = msg.to_ascii_lowercase();

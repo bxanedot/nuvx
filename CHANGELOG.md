@@ -38,6 +38,9 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **Android: Play starts a playlist in order again.** After a shuffled play, pressing Play on a playlist or album
   kept shuffling the next songs; now Play turns shuffle off and Shuffle turns it on (issue #329).
 - **Android: Undo after renaming or reordering a playlist.**
+- **Desktop: a song that fails to start is tried again** (after 350 ms, then 700 ms) before it is skipped, and
+  skipping stops after 4 songs in a row, the same rules as Android. Both apps are tested against one shared set of
+  cases (`core/contracts/stream-recovery.json`).
 - **Desktop: smarter downloads.** They stop under 500 MB free on the download drive, and Settings → Downloads has a
   **Storage limit** (Off, 1–50 GB) with how much downloads use now, like on Android.
 - **Desktop: equalizer per output.** Each output device you pick in Settings → Playback keeps its own equalizer

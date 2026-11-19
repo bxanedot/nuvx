@@ -109,6 +109,8 @@ impl App {
             generation: 0,
             buffering: false,
             skip_streak: 0,
+            play_attempts: (String::new(), 0),
+            play_retry: None,
             recoveries: 0,
             autoplay: get("autoplay").is_none_or(|v| v == "1"),
             lib_list: get("lib_list").is_some_and(|v| v == "1"),
