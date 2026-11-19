@@ -37,6 +37,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: app/web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # Audit the pinned workspace lockfile; fail PR checks for high/critical advisories.
+      # Keep this before tests so a failing test cannot hide a dependency advisory.
+      - name: Dependency security advisories
+        run: pnpm audit --audit-level high
       - name: Tests (web app and extension)
         run: pnpm -r test
       - name: Type-check the web app
