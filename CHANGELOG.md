@@ -35,6 +35,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **Desktop: swipe the expanded player down to close it**, like on the phone (let go past a fifth of the window,
   or flick). The intro also gets a **Your tabs** step to show or hide Radio and Podcasts.
 - **Android: Undo after renaming a playlist.**
+- **Desktop: downloads stop under 500 MB free** on the download drive (like Android), so the system keeps room.
 - **Desktop: equalizer per output.** Each output device you pick in Settings → Playback keeps its own equalizer
   (like on Android): switch from speakers to headphones and each gets its setting back.
 - **Desktop: playlist files.** A playlist's **More → Export playlist…** saves it as M3U or CSV, and **Settings → Import
