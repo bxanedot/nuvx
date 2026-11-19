@@ -66,6 +66,19 @@ impl Curve {
         preamp: 0.0,
     };
 
+    /// Gain per filter slot in dB, in the slot order above (7 bands, then the 3 tone filters).
+    pub fn gains_db(&self) -> &[f32; N] {
+        &self.gains
+    }
+
+    pub fn qs(&self) -> &[f32; N] {
+        &self.qs
+    }
+
+    pub fn preamp_db(&self) -> f32 {
+        self.preamp
+    }
+
     fn of(gains: [f32; N], qs: [f32; N]) -> Curve {
         Curve {
             gains,

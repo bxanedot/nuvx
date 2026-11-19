@@ -82,6 +82,10 @@ sha2 = "0.10"
 
 
 
+[dev-dependencies]
+# Only to check the iOS equalizer against the shared core's (Rust migration Task 05e).
+nuvx-core = { path = "../../../core/rust/nuvx-core" }
+
 [target.'cfg(target_vendor = "apple")'.dependencies]
 libc = "0.2"
 

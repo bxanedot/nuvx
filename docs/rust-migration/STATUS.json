@@ -5,7 +5,7 @@
   "branch": "main",
   "head_sha": null,
   "current_task": "05",
-  "next_action": "Task 05e: merge app/ios/native-core DSP with the desktop audio DSP into the core, behind shared golden audio vectors.",
+  "next_action": "Task 05e next slice: iOS native-core takes its curves from nuvx-core (needs the Apple CI build to verify); then loudness/spatial DSP comparisons.",
   "tasks": [
     {
       "id": "00",
@@ -83,8 +83,9 @@
         },
         {
           "id": "05e",
-          "what": "merge app/ios/native-core DSP with the desktop's into the core",
-          "state": "TODO"
+          "what": "one equalizer: desktop EQ moved into nuvx-core; iOS native-core curves proven identical",
+          "state": "IN_PROGRESS",
+          "evidence": "native-core test shared_core_parity: 242 tone settings x and 16 presets, gains/Q/preamp within 1e-4 dB (built with the Android SDK CMake 3.22.1 on Windows)"
         }
       ],
       "evidence": [],

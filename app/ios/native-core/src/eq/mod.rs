@@ -780,3 +780,33 @@ mod tests {
         (sum / (buf.len() / 2) as f32).sqrt()
     }
 }
+
+#[cfg(test)]
+mod shared_core_parity {
+    use super::{manual_curve, tone_curve};
+
+    fn same(name: &str, ios: &super::EqCurve, core: &nuvx_core::eq::Curve) {
+        for i in 0..super::EqLayout::SLOTS {
+            assert!((ios.gains_db[i] - core.gains_db()[i]).abs() < 1e-4, "{name}: gain {i}: {} vs {}", ios.gains_db[i], core.gains_db()[i]);
+            assert!((ios.qs[i] - core.qs()[i]).abs() < 1e-4, "{name}: q {i}: {} vs {}", ios.qs[i], core.qs()[i]);
+        }
+        assert!((ios.preamp_db - core.preamp_db()).abs() < 1e-4, "{name}: preamp {} vs {}", ios.preamp_db, core.preamp_db());
+    }
+
+    /// The iOS equalizer and the shared core's give the same curves for every tone setting and every preset,
+    /// so iOS can switch to the core without anyone hearing a difference.
+    #[test]
+    fn matches_the_shared_core_curves() {
+        for x in -5..=5 {
+            for y in -5..=5 {
+                for focused in [false, true] {
+                    same(&format!("tone {x},{y},{focused}"), &tone_curve(x, y, focused), &nuvx_core::eq::Curve::tone(x, y, focused));
+                }
+            }
+        }
+        for (name, bands) in nuvx_core::eq::PRESETS {
+            same(name, &manual_curve(&bands), &nuvx_core::eq::Curve::manual(&bands));
+        }
+    }
+}
+
