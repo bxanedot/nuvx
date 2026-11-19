@@ -1,11 +1,12 @@
 import { party, useParty } from '@/party/listenTogether';
 import { Infinity as InfinityIcon, MoreHorizontal, X } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/components/Menu';
 import { Artwork } from '@/components/music/Artwork';
 import { formatDuration } from '@/components/music/links';
 import { autoplaySectionStart, upcomingUserQueueIndices, type QueueEntry } from '@/playback/queue/timeline';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
+import { partitionUpcomingRows } from './partitionUpcomingRows';
 
 const square = 'grid size-7 place-items-center rounded-[6px] text-secondary hover:bg-quinary aria-pressed:bg-key/20 aria-pressed:text-primary';
 const list = 'flex flex-col';
@@ -124,15 +125,15 @@ export function UpNext() {
   const [announcement, setAnnouncement] = useState('');
   const close = useCallback(() => setAnchor(null), []);
 
-  const tiers = queue.map((e) => e.tier);
-  const autoplayAt = autoplaySectionStart(tiers, index);
-  const canClear = upcomingUserQueueIndices(tiers, index).length > 0;
-  const upcoming = queue.map((entry, at) => ({ entry, at })).filter(({ at }) => at > index);
-  const beforeAutoplay = upcoming.filter(({ at }) => at < autoplayAt);
-  const afterAutoplay = upcoming.filter(({ at }) => at >= autoplayAt);
+  const { beforeAutoplay, afterAutoplay, canClear } = useMemo(() => {
+    const tiers = queue.map((e) => e.tier);
+    const autoplayAt = autoplaySectionStart(tiers, index);
+    const canClear = upcomingUserQueueIndices(tiers, index).length > 0;
+    return { ...partitionUpcomingRows(queue, index, autoplayAt), canClear };
+  }, [queue, index]);
   const playingFrom = queue[index]?.source?.title;
 
-  const rows = (items: typeof upcoming) =>
+  const rows = (items: typeof beforeAutoplay) =>
     items.map(({ entry, at }) => (
       <Row
         key={entry.entryId}
@@ -188,7 +189,7 @@ export function UpNext() {
       </div>
       {playingFrom && <p className="truncate px-5 pb-2 type-callout text-secondary">Playing from {playingFrom}</p>}
 
-      {upcoming.length === 0 ? (
+      {beforeAutoplay.length === 0 && afterAutoplay.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 pb-20 text-center type-callout text-secondary">
           <p className="type-callout-emphasized">Nothing in Up Next</p>
           <p>
