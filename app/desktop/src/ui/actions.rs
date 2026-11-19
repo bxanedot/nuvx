@@ -266,7 +266,7 @@ impl App {
                 ctrl(egui::Key::ArrowUp),
                 ctrl(egui::Key::ArrowDown),
                 i.events.iter().any(|e| matches!(e, egui::Event::Key { key: egui::Key::M, pressed: true, repeat: false, modifiers, .. } if modifiers.ctrl)),
-                i.modifiers.command && i.key_pressed(egui::Key::F),
+                search_shortcut(editing, i.modifiers, i.key_pressed(egui::Key::F)),
             )
         });
         let (space, back, fwd, next, prev, lyr, queue, full, esc, vol_up, vol_down, mini, find) = i;
@@ -342,6 +342,10 @@ impl App {
     }
 }
 
+fn search_shortcut(editing: bool, modifiers: egui::Modifiers, pressed: bool) -> bool {
+    !editing && modifiers.command && pressed
+}
+
 fn share_url(target: &Target) -> String {
     match target {
         Target::Song(t) => format!("https://music.youtube.com/watch?v={}", t.id),
@@ -354,6 +358,16 @@ fn share_url(target: &Target) -> String {
 #[cfg(test)]
 mod share_tests {
     use super::*;
+
+    #[test]
+    fn search_shortcut_does_not_steal_focus_from_text_entry() {
+        let mut command = egui::Modifiers::NONE;
+        command.command = true;
+        assert!(!search_shortcut(true, command, true));
+        assert!(search_shortcut(false, command, true));
+        assert!(!search_shortcut(false, egui::Modifiers::NONE, true));
+        assert!(!search_shortcut(false, command, false));
+    }
 
     #[test]
     fn shares_youtube_music_urls() {
