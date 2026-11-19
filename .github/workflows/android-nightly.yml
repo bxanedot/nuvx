@@ -30,7 +30,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: nuvx-release-build-${{ github.ref }}
+  # Per event: a push to main (which builds nothing) must not cancel the nightly in progress.
+  group: nuvx-release-build-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 defaults:
