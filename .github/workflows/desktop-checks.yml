@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - "app/desktop/**"
+      - "core/rust/**"
+      - "core/contracts/**"
       - ".github/workflows/desktop-checks.yml"
   workflow_dispatch:
 
@@ -42,5 +44,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: app/desktop
+          workspaces: |
+            app/desktop
+            core/rust/nuvx-core
       - run: cargo test --locked
+      # The shared core's own tests, including the shared golden cases in core/contracts.
+      - run: cargo test --locked
+        working-directory: core/rust/nuvx-core
+      - run: cargo clippy --locked --all-targets -- -D warnings
+        working-directory: core/rust/nuvx-core

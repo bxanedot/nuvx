@@ -10,6 +10,7 @@ on:
       - "app/web/app/public/models/**"
       - "core/shared/**"
       - "core/sharedUi/**"
+      - "core/contracts/**"
       - "core/sync/fixtures/**"
       - "core/sync/src/**"
       - "core/third_party/maven/**"
