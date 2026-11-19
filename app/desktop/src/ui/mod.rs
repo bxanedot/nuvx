@@ -271,6 +271,8 @@ pub struct App {
     lib_list: bool,
     spatial: bool,
     eq: crate::eq::Prefs,
+    /// Equalizer per output device name (`crate::eq::switch_output`).
+    eq_by_output: std::collections::HashMap<String, crate::eq::Prefs>,
     log_volume: bool,
     high_quality: bool,
     play_songs: bool,

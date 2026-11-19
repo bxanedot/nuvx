@@ -165,6 +165,29 @@ impl Prefs {
     }
 }
 
+/// Audio profile per output: when playback moves to another output, the current equalizer is kept for the
+/// output it leaves, and the one saved for the new output (if any) comes back. Keyed by the output's name
+/// ("" for the system default), the same name the output picker shows.
+pub fn switch_output(saved: &mut std::collections::HashMap<String, Prefs>, from: &str, to: &str, current: Prefs) -> Prefs {
+    saved.insert(from.to_owned(), current);
+    saved.get(to).copied().unwrap_or(current)
+}
+
+#[cfg(test)]
+mod output_profile_tests {
+    #[test]
+    fn each_output_gets_its_own_equalizer_back() {
+        let mut saved = std::collections::HashMap::new();
+        let flat = super::Prefs::default();
+        let bassy = super::Prefs { on: true, tilt: 3, ..flat };
+        // A new output starts with whatever is set now.
+        assert_eq!(super::switch_output(&mut saved, "", "Headphones", bassy), bassy);
+        // Changed on the headphones, then back to speakers: the speakers' setting returns.
+        assert_eq!(super::switch_output(&mut saved, "Headphones", "", flat), bassy);
+        assert_eq!(super::switch_output(&mut saved, "", "Headphones", bassy), flat);
+    }
+}
+
 const GLIDE_FRAMES: usize = 64;
 const GLIDE_RATE: f32 = 0.08;
 const SETTLED_DB: f32 = 0.01;

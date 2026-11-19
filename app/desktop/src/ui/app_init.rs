@@ -120,6 +120,7 @@ impl App {
             },
             spatial: get("spatial_audio").is_none_or(|v| v == "1"),
             eq: get("equalizer").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
+            eq_by_output: get("equalizer_by_output").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
             log_volume: get("log_volume").is_none_or(|v| v == "1"),
             high_quality: get("high_quality").is_none_or(|v| v == "1"),
             play_songs: get("play_songs").is_none_or(|v| v == "1"),

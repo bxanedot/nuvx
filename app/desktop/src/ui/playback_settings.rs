@@ -257,6 +257,9 @@ fn output_device_picker(app: &mut App, ui: &mut Ui) {
     });
     if let Some(pick) = pick {
         app.audio.send(crate::audio::AudioCmd::SetDevice(pick.as_ref().map(|(id, _)| id.clone())));
+        let name = |p: &Option<(String, String)>| p.as_ref().map_or(String::new(), |(_, n)| n.clone());
+        app.eq = crate::eq::switch_output(&mut app.eq_by_output, &name(&app.output_device), &name(&pick), app.eq);
+        app.audio.set_eq(app.eq.tuning());
         app.output_device = pick;
     }
 }
