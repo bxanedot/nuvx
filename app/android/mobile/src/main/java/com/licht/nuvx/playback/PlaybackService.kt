@@ -664,6 +664,7 @@ class PlaybackService : MediaLibraryService() {
 
         CastController.ensureStarted(this)
         CastController.attach(castPlayback)
+        com.licht.nuvx.playback.cast.PhoneReporter(scope, player = { player }, elsewhere = { computerSpeaker.active || CastController.state.value.casting }).start()
         // Other paired phones may play through this one only while hosting with remote control allowed.
         scope.launch {
             kotlinx.coroutines.flow.combine(com.licht.nuvx.data.sync.LanHost.state, com.licht.nuvx.data.sync.LanHost.allowRemote) { s, allowed -> s.running && allowed }

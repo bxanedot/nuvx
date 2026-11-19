@@ -70,6 +70,10 @@ pairing, approval and revocation.
   - `GET /v1/connect` (what the host plays) and `POST /v1/connect` (`toggle`, `play`, `pause`, `next`, `previous`,
     `seek`, `load` with 1–20 YouTube songs from a position, paused or playing). Off until the host turns on **Allow
     remote control** (403 meanwhile). Cover art only from YouTube image hosts over https.
+  - `POST /v1/connect/phone` (the other way): a phone that plays reports `{ track: { title, artist, durationMs } | null,
+    playing, positionMs }` every 1.5 s (4 s paused) and gets back `{ commands: [...] }` the computer queued for it
+    (`toggle`, `play`, `pause`, `next`, `previous`). Not behind Allow remote control, which is about controlling the
+    computer. A host without this route answers 404 and the phone stops asking for 10 s.
   - `GET /v1/files` (the host's single-file downloads), `GET /v1/files/{videoId}?offset=` (1 MB pieces),
     `POST /v1/files/{videoId}` (192 KB pieces in order from one device, 500 MB cap, at most 4 at once). Songs are
     named by video id only, never by path.
@@ -83,7 +87,7 @@ pairing, approval and revocation.
 
 ## Not built yet
 
-**Android** syncs nuvx playlists (opt-in, Settings → Your data → Nuvx Sync): `SyncEngine` (`core/shared/.../data/sync/SyncEngine.kt`) finds local changes by comparing with the last synced snapshot, keeps them in an outbox until the server stores them, replays the whole log, and the app applies the result only if the playlists were not edited meanwhile. HTTPS servers only. Pairing shows a QR and an 8-character code; the other device types the code (no camera scanner yet). Still to do: server Sync on iOS, desktop and web; LAN hosting and Bluetooth on macOS/Linux and iOS; the desktop controlling a phone (Connect is phone → host only); a camera QR scanner; favorites and settings; shared conformance tests; history compaction once a space nears its limit.
+**Android** syncs nuvx playlists (opt-in, Settings → Your data → Nuvx Sync): `SyncEngine` (`core/shared/.../data/sync/SyncEngine.kt`) finds local changes by comparing with the last synced snapshot, keeps them in an outbox until the server stores them, replays the whole log, and the app applies the result only if the playlists were not edited meanwhile. HTTPS servers only. Pairing shows a QR and an 8-character code; the other device types the code (no camera scanner yet). Still to do: server Sync on iOS, desktop and web; LAN hosting and Bluetooth on macOS/Linux and iOS; a camera QR scanner; favorites and settings; shared conformance tests; history compaction once a space nears its limit.
 
 ## Operation kinds (v1)
 

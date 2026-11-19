@@ -84,7 +84,8 @@ enum class SettingsChoiceKind(@param:StringRes val title: Int) {
 @Composable
 internal fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
     SettingsGroup {
-        SettingsCategory.entries.forEachIndexed { index, category ->
+        // Sync & Connect has its own row at the top of Settings.
+        SettingsCategory.entries.filter { it != SettingsCategory.CONNECT }.forEachIndexed { index, category ->
             if (index > 0) RowDivider()
             SettingsRow(
                 icon = category.icon,

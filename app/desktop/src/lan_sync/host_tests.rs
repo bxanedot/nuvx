@@ -200,3 +200,35 @@ fn hello_carries_a_four_digit_find_code() {
     assert!(code.len() == 4 && code.bytes().all(|c| c.is_ascii_digit()), "{code}");
     assert_eq!(code, h.find_code);
 }
+
+#[test]
+fn the_computer_sees_a_phone_playing_and_controls_it() {
+    let (mut h, _dir) = host();
+    let (device, key) = paired(&mut h);
+    let now = now_ms();
+    let report = json!({ "track": { "title": "Never", "artist": "Rick", "durationMs": 200_000 }, "playing": true, "positionMs": 1000 });
+    let (s, reply) = call(&mut h, &device, &key, "POST", "/v1/connect/phone", report.clone(), now, &fresh());
+    assert_eq!((s, reply["commands"].as_array().map(Vec::len)), (200, Some(0)), "works with Allow remote control off");
+    let phones = h.phones_playing();
+    assert_eq!((phones.len(), phones[0].1.title.as_str(), phones[0].1.playing), (1, "Never", true));
+
+    h.phone_command(&device, "toggle");
+    h.phone_command(&device, "format_disk");
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect/phone", report.clone(), now, &fresh()).1["commands"], json!(["toggle"]), "only known actions");
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect/phone", report.clone(), now, &fresh()).1["commands"], json!([]), "taken once");
+
+    call(&mut h, &device, &key, "POST", "/v1/connect/phone", json!({ "track": null }), now, &fresh());
+    assert!(h.phones_playing().is_empty(), "stopped");
+    call(&mut h, &device, &key, "POST", "/v1/connect/phone", report, now, &fresh());
+    h.revoke(&device);
+    assert!(h.phones_playing().is_empty(), "removed phone is gone");
+}
+
+#[test]
+fn a_phone_pairing_again_replaces_its_old_entry() {
+    let (mut h, _d) = host();
+    let (old, old_key) = paired(&mut h);
+    let (new, _) = paired(&mut h);
+    assert_eq!(h.devices().iter().map(|d| d.id.clone()).collect::<Vec<_>>(), vec![new]);
+    assert_eq!(call(&mut h, &old, &old_key, "GET", "/v1/ops?after=0", Value::Null, now_ms(), &fresh()).0, 401, "the old key is gone");
+}

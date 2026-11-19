@@ -335,6 +335,39 @@ pub(super) fn connect_settings(app: &mut App, ui: &mut Ui) {
         super::pages::toggle(ui, &mut on, "Allow remote control");
     });
     app.lan.connect = on;
+    // The other way round: a paired phone that plays something shows here, and this computer controls it.
+    if let Some(inner) = app.lan.inner.clone() {
+        let mut g = inner.lock().unwrap_or_else(|e| e.into_inner());
+        let phones = g.phones_playing();
+        for (d, now) in &phones {
+            let song = match (now.title.as_str(), now.artist.as_str()) {
+                ("", _) => "A song".to_owned(),
+                (t, "") => t.to_owned(),
+                (t, a) => format!("{t} · {a}"),
+            };
+            let desc = format!("{song} · {}", if now.playing { "playing" } else { "paused" });
+            let mut action = None;
+            setting_row(ui, &format!("Playing on {}", d.name), Some(&desc), |ui| {
+                if pill(ui, "Next", None, false).clicked() {
+                    action = Some("next");
+                }
+                ui.add_space(6.0);
+                if pill(ui, if now.playing { "Pause" } else { "Play" }, None, true).clicked() {
+                    action = Some("toggle");
+                }
+                ui.add_space(6.0);
+                if pill(ui, "Previous", None, false).clicked() {
+                    action = Some("previous");
+                }
+            });
+            if let Some(a) = action {
+                g.phone_command(&d.id, a);
+            }
+        }
+        if !phones.is_empty() {
+            ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
+        }
+    }
     if app.lan.connect && !app.lan.enabled {
         setting_row(ui, "Local Wi-Fi Sync is off", Some("Turn it on above and pair your phone; Nuvx Connect uses that pairing."), |_| {});
     }

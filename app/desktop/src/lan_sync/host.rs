@@ -104,6 +104,9 @@ pub struct Inner {
     uploads: HashMap<String, super::files::Upload>,
     /// This computer's Bluetooth address while the Bluetooth listener runs, told to phones in `/lan/hello`.
     pub bluetooth: Option<String>,
+    /// Nuvx Connect the other way: what each paired phone plays, and what this computer asked it to do.
+    phones: HashMap<String, super::connect::PhoneNow>,
+    phone_commands: HashMap<String, Vec<&'static str>>,
 }
 
 impl Inner {
@@ -118,7 +121,7 @@ impl Inner {
         // A device whose key is gone (credential store wiped) cannot talk to us; drop it rather than keep a ghost.
         saved.devices.retain(|d| keys.contains_key(&d.id));
         let op_ids = saved.ops.iter().map(|o| o.op_id.clone()).collect();
-        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code(), uploads: HashMap::new(), bluetooth: None };
+        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code(), uploads: HashMap::new(), bluetooth: None, phones: HashMap::new(), phone_commands: HashMap::new() };
         me.persist();
         me
     }
@@ -156,6 +159,20 @@ impl Inner {
         self.saved.devices.clone()
     }
 
+    /// Paired phones playing something right now, with what they play.
+    pub fn phones_playing(&self) -> Vec<(Device, super::connect::PhoneNow)> {
+        let fresh = now_ms() - super::connect::PHONE_FRESH_MS;
+        self.saved.devices.iter().filter_map(|d| Some((d.clone(), self.phones.get(&d.id).filter(|p| p.at_ms >= fresh)?.clone()))).collect()
+    }
+
+    /// Queues `action` (one of `connect::PHONE_ACTIONS`) for the phone, which picks it up on its next report.
+    pub fn phone_command(&mut self, device_id: &str, action: &'static str) {
+        let queue = self.phone_commands.entry(device_id.to_owned()).or_default();
+        if queue.len() < super::connect::MAX_QUEUED && super::connect::PHONE_ACTIONS.contains(&action) {
+            queue.push(action);
+        }
+    }
+
     pub fn last_sync_ms(&self) -> i64 {
         self.saved.last_sync_ms
     }
@@ -173,6 +190,12 @@ impl Inner {
     /// The user compared the codes and approved: the phone becomes a trusted device on its next claim.
     pub fn approve(&mut self, pairing_id: &str) -> Result<String, &'static str> {
         self.expire();
+        // A phone pairing again (its app data was cleared) replaces its old entry instead of leaving a dead twin.
+        let name = self.pairings.get(pairing_id).map(|p| p.name.clone()).ok_or("That request has expired.")?;
+        let twins: Vec<String> = self.saved.devices.iter().filter(|d| d.name == name).map(|d| d.id.clone()).collect();
+        for id in twins {
+            self.revoke(&id);
+        }
         if self.saved.devices.len() >= MAX_DEVICES {
             return Err("Too many paired devices. Remove one first.");
         }
@@ -196,6 +219,8 @@ impl Inner {
     /// Removes a paired device; its key stops working at once.
     pub fn revoke(&mut self, device_id: &str) -> bool {
         let had = self.keys.remove(device_id).is_some();
+        self.phones.remove(device_id);
+        self.phone_commands.remove(device_id);
         self.saved.devices.retain(|d| d.id != device_id);
         self.persist_keys();
         self.persist();
@@ -428,6 +453,16 @@ impl Inner {
                 Ok(piece) => (200, piece),
                 Err((status, e)) => err(status, e, "That download is not here."),
             },
+            // A phone reports what it plays and takes this computer's commands. Not behind Allow remote control:
+            // that switch is about phones controlling this computer.
+            ("POST", "/v1/connect/phone") => {
+                match super::connect::PhoneNow::parse(&body, now_ms()) {
+                    Some(now) => self.phones.insert(device.to_owned(), now),
+                    None => self.phones.remove(device),
+                };
+                let commands = self.phone_commands.remove(device).unwrap_or_default();
+                (200, json!({ "commands": commands }))
+            }
             ("GET" | "POST", "/v1/connect") if !self.connect_allowed => err(403, "connect_off", "Remote control is turned off on this computer."),
             ("GET", "/v1/connect") => (200, if self.connect_now.is_null() { json!({ "track": null, "playing": false }) } else { self.connect_now.clone() }),
             ("POST", "/v1/connect") => {

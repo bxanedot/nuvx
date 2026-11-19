@@ -78,6 +78,41 @@ pub(crate) fn art_host_ok(url: &str) -> bool {
         && ["ytimg.com", "googleusercontent.com", "ggpht.com"].iter().any(|h| host == *h || host.ends_with(&format!(".{h}")))
 }
 
+/// What a paired phone plays, as it last told this computer. Phones report while their player has a song, and pick
+/// up the computer's commands in the reply; the phone keeps its own queue.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PhoneNow {
+    pub title: String,
+    pub artist: String,
+    pub playing: bool,
+    pub position_ms: u64,
+    pub duration_ms: Option<u64>,
+    pub at_ms: i64,
+}
+
+/// A report older than this means the phone stopped playing or left the network.
+pub const PHONE_FRESH_MS: i64 = 8_000;
+
+/// What the computer may tell a phone to do.
+pub const PHONE_ACTIONS: [&str; 5] = ["toggle", "play", "pause", "next", "previous"];
+
+impl PhoneNow {
+    /// `{"track": {"title", "artist", "durationMs"} | null, "playing", "positionMs"}`; `None` when nothing plays.
+    pub fn parse(body: &Value, now_ms: i64) -> Option<Self> {
+        let track = body.get("track").filter(|t| t.is_object())?;
+        let text = |k: &str| track.get(k).and_then(Value::as_str).map(|t| t.trim().chars().take(MAX_TEXT).collect::<String>()).unwrap_or_default();
+        let ms = |v: Option<&Value>| v.and_then(Value::as_u64).filter(|ms| *ms <= MAX_POSITION_MS);
+        Some(Self {
+            title: text("title"),
+            artist: text("artist"),
+            playing: body.get("playing").and_then(Value::as_bool).unwrap_or(false),
+            position_ms: ms(body.get("positionMs")).unwrap_or(0),
+            duration_ms: ms(track.get("durationMs")).filter(|d| *d > 0),
+            at_ms: now_ms,
+        })
+    }
+}
+
 fn is_video_id(id: &str) -> bool {
     id.len() == 11 && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
@@ -113,6 +148,15 @@ mod tests {
         assert_eq!(Command::parse(&json!({ "action": "playTrack", "videoId": "dQw4w9WgXcQ", "title": "x".repeat(301) })), None);
         assert_eq!(Command::parse(&json!({ "action": "shutdown" })), None);
         assert_eq!(Command::parse(&json!("next")), None);
+    }
+
+    #[test]
+    fn phone_reports_are_bounded() {
+        let now = PhoneNow::parse(&json!({ "track": { "title": "x".repeat(400), "artist": "A", "durationMs": 1000 }, "playing": true, "positionMs": 5 }), 7).unwrap();
+        assert_eq!((now.title.chars().count(), now.artist.as_str(), now.playing, now.position_ms, now.duration_ms, now.at_ms), (300, "A", true, 5, Some(1000), 7));
+        assert_eq!(PhoneNow::parse(&json!({ "track": null, "playing": false }), 0), None, "nothing plays");
+        assert_eq!(PhoneNow::parse(&json!({ "track": {}, "positionMs": -4 }), 0).unwrap().position_ms, 0);
+        assert_eq!(PhoneNow::parse(&json!("x"), 0), None);
     }
 
     #[test]

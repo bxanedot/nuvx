@@ -25,6 +25,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   them play through this phone with the speaker button. Same Wi-Fi, encrypted. A phone that hosts cannot also sync
   with a computer at the same time. A playlist made on a paired phone shows up on the host within seconds, and the
   host no longer lists itself as a computer to control or copy from.
+- **Control your phone from the computer.** While a paired phone plays, the computer's Settings → Sync & Connect
+  shows what it plays with Previous, Play/Pause and Next. The phone keeps its own queue; nothing to turn on.
+- **A phone that pairs again replaces its old entry** on the computer (or hosting phone) instead of showing twice.
+- **Sync & Connect shows once in Settings** on Android (the extra row in the category list is gone).
 - **Pair with a 4-digit code.** The computer shows a 4-digit code in Nuvx Sync and Nuvx Connect; type it on the
   phone instead of an address and the phone finds the computer on your Wi-Fi. You still approve the phone on the
   computer and compare the 6-digit code. The address is shown too, and now skips VPN/proxy adapters.

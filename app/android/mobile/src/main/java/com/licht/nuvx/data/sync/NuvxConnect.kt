@@ -52,6 +52,24 @@ object NuvxConnect {
         }
     }
 
+    /**
+     * Tells the computer what this phone plays ([state]: `track` or null, `playing`, `positionMs`) and returns what
+     * the computer asked this phone to do since. A host without this route (another phone) answers 404: no commands.
+     */
+    fun report(state: JsonObject, http: OkHttpClient? = NuvxSync.lanHttp()): Result<List<String>> = runCatching {
+        val client = http ?: throw IOException("Not paired with a computer")
+        val body = state.toString().toRequestBody("application/json".toMediaType())
+        client.newCall(Request.Builder().url("$URL/phone").post(body).build()).execute().use { r ->
+            if (r.code == 404) return@use emptyList()
+            if (!r.isSuccessful) throw IOException("HTTP ${r.code}")
+            parseCommands(r.body?.string().orEmpty())
+        }
+    }
+
+    internal fun parseCommands(text: String): List<String> =
+        (Json.parseToJsonElement(text).jsonObject["commands"] as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }?.take(16).orEmpty()
+
     fun action(name: String) = buildJsonObject { put("action", name) }
 
     /** One song for [load]; null for anything that is not a YouTube song (a local file has nothing to hand over). */

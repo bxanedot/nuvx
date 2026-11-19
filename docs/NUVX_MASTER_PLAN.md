@@ -127,7 +127,7 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
    - Android crossfade internals, the rest of the iOS app, the desktop UI, the rest of the web app, native C/C++ and Gradle scripts;
    - the "Investigate" rows of the reference audit: gapless transitions, desktop WebView reuse, MPRIS, PipeWire sample rate.
 2. **Sync beyond Android:** server Sync is on Android (opt-in, PR 326) and LAN Sync covers Android ↔ desktop playlists. Left: server Sync on desktop, iOS and web; it needs the Oracle server (owner item 1) to run for real.
-3. **Nuvx Connect:** done phone → computer and phone → phone (Android). Left: the computer controlling a phone, iOS, and a check on two physical phones (done on two emulators).
+3. **Nuvx Connect:** done phone → computer and phone → phone (Android). The computer controls a playing phone (play/pause/skip). Left: iOS, and a check on two physical phones (done on two emulators).
 4. **Smart Offline:** done on Android (resume after a kill, 500 MB floor, Wi-Fi-only, auto-sync of downloaded playlists, optional storage limit). Left: the same on iOS and desktop.
 5. **Remaining features:**
    - Privacy & Data Center: one screen for devices, sync, diagnostics and export (Android has the parts in separate places);

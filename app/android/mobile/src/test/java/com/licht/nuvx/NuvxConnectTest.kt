@@ -36,4 +36,12 @@ class NuvxConnectTest {
         assertEquals(listOf("dQw4w9WgXcQ", "kJQP7kiw5Fk"), load["tracks"]!!.jsonArray.map { it.jsonObject["videoId"]!!.jsonPrimitive.content })
         assertNull(NuvxConnect.handOff("content://media/7", "Local", "Me", 0))
     }
+
+    @Test
+    fun computerCommandsForThisPhoneAreRead() {
+        assertEquals(listOf("toggle", "next"), NuvxConnect.parseCommands("""{"commands":["toggle","next"]}"""))
+        assertEquals(emptyList<String>(), NuvxConnect.parseCommands("""{"commands":[]}"""))
+        assertEquals(emptyList<String>(), NuvxConnect.parseCommands("""{}"""))
+        assertEquals(16, NuvxConnect.parseCommands("{\"commands\":[" + List(40) { "\"next\"" }.joinToString(",") + "]}").size)
+    }
 }

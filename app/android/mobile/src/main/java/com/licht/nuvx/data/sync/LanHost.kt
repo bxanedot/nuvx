@@ -249,6 +249,8 @@ object LanHost {
 
     fun approve(pairingId: String): Boolean = synchronized(lock) {
         val p = pairings[pairingId] as? Pairing.Waiting ?: return false
+        // A phone pairing again (its app data was cleared) replaces its old entry instead of leaving a dead twin.
+        devices.filter { it.name == p.name && !it.id.startsWith("self-") }.forEach { revoke(it.id) }
         if (devices.size >= MAX_DEVICES) return false
         val id = hex(LanSyncCrypto.randomBytes(12))
         keys[id] = p.deviceKey
