@@ -170,43 +170,22 @@ impl EqCurve {
 }
 
 
-pub fn manual_curve(bands_db: &[f32]) -> EqCurve {
-    let mut gains = [0.0f32; EqLayout::SLOTS];
-    let mut qs = [0.707f32; EqLayout::SLOTS];
-    for band in 0..EqLayout::MANUAL_COUNT {
-        gains[EqLayout::MANUAL_FIRST + band] = bands_db
-            .get(band)
-            .copied()
-            .unwrap_or(0.0)
-            .clamp(-EqLayout::MANUAL_RANGE_DB, EqLayout::MANUAL_RANGE_DB);
-        qs[EqLayout::MANUAL_FIRST + band] = EqLayout::MANUAL_Q;
-    }
-    EqCurve::of(&gains, &qs)
+/// The curves come from the shared core (`nuvx_core::eq`), the same code the desktop uses.
+fn from_core(c: nuvx_core::eq::Curve) -> EqCurve {
+    EqCurve { gains_db: *c.gains_db(), qs: *c.qs(), preamp_db: c.preamp_db() }
 }
 
-
+pub fn manual_curve(bands_db: &[f32]) -> EqCurve {
+    let mut bands = [0.0f32; EqLayout::MANUAL_COUNT];
+    for (band, value) in bands.iter_mut().enumerate() {
+        *value = bands_db.get(band).copied().unwrap_or(0.0);
+    }
+    from_core(nuvx_core::eq::Curve::manual(&bands))
+}
 
 pub fn tone_curve(x: i32, y: i32, focused: bool) -> EqCurve {
-    let mut gains = [0.0f32; EqLayout::SLOTS];
-    let mut qs = [0.707f32; EqLayout::SLOTS];
-    let steps = EqLayout::TONE_STEPS;
-    let tilt = x.clamp(-steps, steps) as f32 * EqLayout::TONE_DB_PER_STEP;
-    let contour = y.clamp(-steps, steps) as f32 * EqLayout::TONE_DB_PER_STEP;
-
-    gains[EqLayout::TONE_LOW] = -tilt;
-    gains[EqLayout::TONE_HIGH] = tilt;
-    gains[EqLayout::TONE_MID] = contour;
-
-    let shelf_q = if focused { 0.9 } else { 0.5 };
-    let bell_q = if focused { 2.2 } else { 0.7 };
-    qs[EqLayout::TONE_LOW] = shelf_q;
-    qs[EqLayout::TONE_HIGH] = shelf_q;
-    qs[EqLayout::TONE_MID] = bell_q;
-    EqCurve::of(&gains, &qs)
+    from_core(nuvx_core::eq::Curve::tone(x, y, focused))
 }
-
-
-
 
 fn preamp_for(gains_db: &[f32; EqLayout::SLOTS], qs: &[f32; EqLayout::SLOTS]) -> f32 {
     -response_peak_db(gains_db, qs) * MAKEUP_FRACTION

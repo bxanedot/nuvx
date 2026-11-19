@@ -83,9 +83,9 @@
         },
         {
           "id": "05e",
-          "what": "one equalizer: desktop EQ moved into nuvx-core; iOS native-core curves proven identical",
+          "what": "one equalizer: desktop EQ in nuvx-core; iOS native-core now takes its curves from nuvx-core",
           "state": "IN_PROGRESS",
-          "evidence": "native-core test shared_core_parity: 242 tone settings x and 16 presets, gains/Q/preamp within 1e-4 dB (built with the Android SDK CMake 3.22.1 on Windows)"
+          "evidence": "native-core test shared_core_parity: 242 tone settings x and 16 presets, gains/Q/preamp within 1e-4 dB (built with the Android SDK CMake 3.22.1 on Windows); after the switch native-core lib tests 318 pass, 1 fails (mixer::tests::regions::aac_region_cuts_advance_without_reseeking_preroll), which fails the same way without the change on Windows. iOS device/simulator build NOT_VERIFIED until the apple-builds CI runs."
         }
       ],
       "evidence": [],

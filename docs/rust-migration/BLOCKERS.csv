@@ -4,3 +4,4 @@ B2,03,iOS visual baselines need macOS/Xcode,no Mac on this machine,apple-builds 
 B3,03,TV / Wear / web baselines not captured yet,UI_PARITY.csv rows,emulator images (TV and Wear) and a browser capture,OPEN
 B4,04,startup / memory / CPU / energy not measured,METRICS.csv rows,repeatable release-build harness on device and desktop,OPEN
 B5,05+,canonical workspace merges two live Rust trees (desktop app and iOS native-core) and moves Kotlin/Swift logic: weeks of work touching every shipped app,CONTRACT.md,owner decision on order and scope; done in small reversible slices,OPEN
+B6,05e,native-core test aac_region_cuts_advance_without_reseeking_preroll fails on Windows (before and after the equalizer change),cargo test --lib on Windows with Android SDK CMake,check on macOS / apple-builds CI,OPEN

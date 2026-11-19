@@ -18,6 +18,8 @@ path = "uniffi-bindgen.rs"
 required-features = ["uniffi/cli"]
 
 [dependencies]
+# The shared nuvx core (equalizer curves today; docs/rust-migration).
+nuvx-core = { path = "../../../core/rust/nuvx-core" }
 
 uniffi = "0.32"
 log = "0.4"
@@ -81,10 +83,6 @@ sha2 = "0.10"
 
 
 
-
-[dev-dependencies]
-# Only to check the iOS equalizer against the shared core's (Rust migration Task 05e).
-nuvx-core = { path = "../../../core/rust/nuvx-core" }
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
 libc = "0.2"
