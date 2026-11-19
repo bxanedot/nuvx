@@ -106,9 +106,16 @@ impl Appearance {
 
     pub fn is_light(self, ctx: &egui::Context) -> bool {
         match self {
+            Self::System => self.resolve_light(system_light().unwrap_or_else(|| ctx.system_theme() == Some(egui::Theme::Light))),
+            _ => self.resolve_light(false),
+        }
+    }
+
+    fn resolve_light(self, system_is_light: bool) -> bool {
+        match self {
             Self::Light => true,
             Self::Dark => false,
-            Self::System => system_light().unwrap_or_else(|| ctx.system_theme() == Some(egui::Theme::Light)),
+            Self::System => system_is_light,
         }
     }
 }
@@ -352,3 +359,20 @@ fn visuals() -> egui::Visuals {
     v
 }
 
+
+#[cfg(test)]
+mod appearance_mode_tests {
+    use super::Appearance;
+
+    #[test]
+    fn appearance_modes_respect_overrides_and_follow_system() {
+        for system_is_light in [false, true] {
+            assert!(Appearance::Light.resolve_light(system_is_light));
+            assert!(!Appearance::Dark.resolve_light(system_is_light));
+            assert_eq!(Appearance::System.resolve_light(system_is_light), system_is_light);
+        }
+        assert_eq!(Appearance::from_key("light"), Appearance::Light);
+        assert_eq!(Appearance::from_key("dark"), Appearance::Dark);
+        assert_eq!(Appearance::from_key("system"), Appearance::System);
+    }
+}
