@@ -1,4 +1,4 @@
-# Claude handoff: Licht 1.0.0 candidate
+# Claude handoff: licht 1.0.0 candidate
 
 ## Workspace and safety
 

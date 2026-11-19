@@ -13,7 +13,7 @@ native targets.
 | Radio | The screen searches stations, lists popular stations by exact country code, prefers the device country, deduplicates stream URLs, records station clicks, and retries across Radio Browser hosts. Countries, station lists, and the selected country are cached for the process lifetime. |
 | Home visibility | Hide Top Picks, Hide Home Moods, Hide Home Videos, and Hide Recents preferences are present. |
 | Feature introductions | First visits to Radio and Podcasts offer keep/hide actions, then explain the Settings > Miscellaneous controls; completion and visibility persist. |
-| Support prompts | Launches 8, 20, 32, and so on alternate Licht profile and GitHub prompts. “Don’t show again” persists across launches. |
+| Support prompts | Launches 8, 20, 32, and so on alternate licht profile and GitHub prompts. “Don’t show again” persists across launches. |
 | Discord invite | Shown after onboarding/update notices; “Not Now” dismisses for this run and “Join Server” persists suppression. |
 
 Radio shares Android's Radio Browser endpoints and request limits without introducing another data layer. SwiftUI presentation and the playback engine remain platform-specific.

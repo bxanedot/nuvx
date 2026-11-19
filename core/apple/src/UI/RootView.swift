@@ -1425,7 +1425,7 @@ private struct AppPrompts: View {
                     case .podcastsFollowup:
                         Button("OK", role: .cancel) {}
                     case .supportTip:
-                        Button("Open Licht's profile") {
+                        Button("Open licht's profile") {
                             open("https://guns.lol/lylicht")
                         }
                         Button("Not now", role: .cancel) {}

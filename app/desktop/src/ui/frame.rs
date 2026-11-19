@@ -211,6 +211,7 @@ impl eframe::App for App {
         notes::card(self, &ctx);
         notes::dialog(self, &ctx);
         notes::tab_intro(self, &ctx);
+        setup::intro(self, &ctx);
         if let Some(url) = self.share_pending.take() { ctx.copy_text(url); }
         shell::suggestions(self, &ctx);
         shell::toast(self, &ctx, now);
@@ -314,6 +315,9 @@ impl eframe::App for App {
         storage.set_string("hide_radio_tab", b(self.hide_radio));
         storage.set_string("hide_podcasts_tab", b(self.hide_podcasts));
         storage.set_string("radio_intro_shown", b(self.tab_intros_shown[0]));
+        if self.setup.is_none() {
+            storage.set_string("setup_done", "1".into());
+        }
         storage.set_string("podcasts_intro_shown", b(self.tab_intros_shown[1]));
         storage.set_string("sidebar_collapsed", b(self.sidebar_collapsed));
         storage.set_string("window_buttons", if titlebar::mac() { "mac" } else { "windows" }.to_owned());

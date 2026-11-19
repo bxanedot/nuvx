@@ -8,7 +8,7 @@
 AppId={{469DB82D-3113-47EA-812C-36393395493F}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=Licht
+AppPublisher=licht
 AppPublisherURL=https://github.com/lylicht/nuvx
 AppSupportURL=https://github.com/lylicht/nuvx/issues
 DefaultDirName={autopf}\{#AppName}

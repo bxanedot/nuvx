@@ -45,6 +45,7 @@ mod app_notifications;
 mod app_playback_state;
 mod app_selection;
 mod window;
+mod setup;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -390,6 +391,8 @@ pub struct App {
     pub(super) hide_radio: bool,
     pub(super) hide_podcasts: bool,
     pub(super) tab_intros_shown: [bool; 2],
+    /// The first-run intro, while it shows.
+    pub(super) setup: Option<setup::Step>,
     pub(super) moods: Option<Vec<crate::model::MoodSection>>,
     moods_asked: bool,
     pub(super) mood: Option<crate::model::MoodPage>,

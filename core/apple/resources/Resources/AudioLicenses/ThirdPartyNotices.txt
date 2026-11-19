@@ -1,6 +1,6 @@
 # Third-party licenses
 
-nuvx is distributed by Licht. This document lists third-party components,
+nuvx is distributed by licht. This document lists third-party components,
 resources, and their licenses. Full license texts are consolidated below; the
 former per-license text files in
 `core/apple/resources/Resources/AudioLicenses/` have been folded into this

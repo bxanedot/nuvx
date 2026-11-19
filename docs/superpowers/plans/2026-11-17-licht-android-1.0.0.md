@@ -1,4 +1,4 @@
-# Licht Android 1.0.0 Candidate Plan
+# licht Android 1.0.0 Candidate Plan
 
 > **For agentic workers:** Execute inline with `superpowers:executing-plans`; do not publish while the owner says to hold the release.
 

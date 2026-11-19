@@ -6,7 +6,7 @@ Status: design draft (2026-11-08).
 
 nuvx is now the upstream app's code base (Android phone, Android TV, Wear OS, web player + extension), renamed. Its
 Listen Together clients speak the party protocol of the upstream Go server (`backend/` in the old tree, deployed on Render).
-Licht wants one server: the existing Cloudflare Worker `nuvx-listen` (`worker/`), which today speaks an older, smaller
+licht wants one server: the existing Cloudflare Worker `nuvx-listen` (`worker/`), which today speaks an older, smaller
 "room" protocol used only by the deleted Kotlin Multiplatform app. Nothing has been released, so the old room protocol
 has no users to keep working.
 

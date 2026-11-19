@@ -43,7 +43,7 @@ h1{font-size:24px;margin-bottom:8px}.sub{color:#999;margin-bottom:24px}
 .ambient-pause{margin-top:12px;color:#bbb}
 .licht-signature-corner{position:fixed;z-index:2;top:20px;right:24px;color:#aaa;font:italic 600 15px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.04em;text-decoration:none}
 .licht-signature-corner:hover{color:#fff}
-</style></head><body><a class="licht-signature-corner" href="https://guns.lol/lylicht" target="_blank" rel="noopener noreferrer" aria-label="Licht on Guns.lol">Licht</a><div class="nuvx-ambient" aria-hidden="true"></div><main>
+</style></head><body><a class="licht-signature-corner" href="https://guns.lol/lylicht" target="_blank" rel="noopener noreferrer" aria-label="licht on Guns.lol">licht</a><div class="nuvx-ambient" aria-hidden="true"></div><main>
 ${body}
 <label class="ambient-pause"><input id="ambient-pause" type="checkbox"> Pause background motion</label>
 </main>

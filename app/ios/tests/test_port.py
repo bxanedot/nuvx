@@ -91,7 +91,7 @@ class PortIdentityTests(unittest.TestCase):
         notices = (ROOT / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
         bundled = (ROOT.parents[1] / "core/apple/resources/Resources/AudioLicenses/ThirdPartyNotices.txt").read_text(encoding="utf-8")
         self.assertEqual(notices, bundled)
-        self.assertTrue(notices.startswith("# Third-party licenses\n\nnuvx is distributed by Licht."))
+        self.assertTrue(notices.startswith("# Third-party licenses\n\nnuvx is distributed by licht."))
         self.assertIn("## Components", notices)
         self.assertIn("libsoxr", notices)
 

@@ -138,6 +138,8 @@ impl App {
             youtube_asked: String::new(),
             hide_radio: get("hide_radio_tab").is_some_and(|v| v == "1"),
             hide_podcasts: get("hide_podcasts_tab").is_some_and(|v| v == "1"),
+            // Fresh installs only: an existing install already has a saved volume.
+            setup: (dev_var("NUVX_SETUP").is_some() || get("setup_done").is_none() && get("volume").is_none()).then_some(setup::Step::Welcome),
             tab_intros_shown: [get("radio_intro_shown").is_some_and(|v| v == "1"), get("podcasts_intro_shown").is_some_and(|v| v == "1")],
             moods: None,
             moods_asked: false,

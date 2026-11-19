@@ -27,4 +27,4 @@ Contributions follow the SPDX license declared by the file or component being ch
 
 ## Security
 
-Don't open a public issue for a vulnerability. Email Licht on Guns.lol instead.
+Don't open a public issue for a vulnerability. Email licht on Guns.lol instead.

@@ -1,7 +1,7 @@
 [package]
 name = "nuvx"
 version = "1.0.3"
-authors = ["Licht"]
+authors = ["licht"]
 edition = "2024"
 license = "GPL-3.0-only"
 repository = "https://github.com/lylicht/nuvx"

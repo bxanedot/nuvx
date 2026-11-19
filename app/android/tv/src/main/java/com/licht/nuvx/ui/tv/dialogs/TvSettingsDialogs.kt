@@ -114,7 +114,7 @@ fun TvAboutDialog(onDismiss: () -> Unit) {
     TvDialog(title = "nuvx", message = "Version ${BuildConfig.VERSION_NAME}", onDismissRequest = onDismiss) {
         TvAppMark(size = 77.dp, modifier = Modifier.padding(bottom = 21.dp))
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            TvListRow(title = "Licht", value = "Creator", enabled = false, onClick = {})
+            TvListRow(title = "licht", value = "Creator", enabled = false, onClick = {})
             TvListRow(title = "Nithyanantha", value = "TV App", enabled = false, onClick = {})
             TvListRow(title = "Telegram", value = "@nuvxserver", onClick = {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppSettings.TELEGRAM_URL)))
