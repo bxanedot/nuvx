@@ -729,6 +729,7 @@
     <string name="advanced_automix">進階 AutoMix</string>
     <string name="advanced_automix_subtitle">節拍對齊、依樂句轉場。關閉則使用簡單交叉淡化。</string>
     <string name="automix_performance">Automix 效能</string>
+    <string name="automix_overview">Automix 概覽</string>
 
     <string name="automix_performance_subtitle">設定後臺分析可使用的 CPU 上限</string>
 
