@@ -31,7 +31,7 @@ The one handoff document for this programme. The owner's standing instructions a
 
 1. **Most tests did not run on pull requests.** The 1,378 Android unit tests ran only after merge, inside the release build. The 247 web tests and the web type-check never ran in CI. *Addressed by the "Android checks" and "Web checks" workflows (PR in "Open").*
 2. **Desktop tests run in CI only on macOS.** Windows- and Linux-only code paths (audio output, tray, updater, installer) compile in the release but were never unit-tested in CI, including the Windows and Linux saved-login vault tests. *Addressed by "Desktop checks" (PR in "Open").*
-3. **No device or emulator tests.** TV, Wear, nuvx Auto and Android Auto are compile-only; `androidTest` needs an emulator.
+3. **Few device tests.** TV and Wear were run on emulators on 2026-11-19 (start, onboarding, Home, playback with the remote; Wear shows "Phone not connected"), see `docs/rust-migration/UI_PARITY.csv`. nuvx Auto and Android Auto are still compile-only (they need an Automotive image), and no physical TV or watch has been tried.
 4. **Server fixes may not be live.** The Listen Together workflow only tests; it does not deploy. Whether the Worker was redeployed after PRs 283, 288 and 305 was not verified (owner item 3).
 5. **Licensing:** the desktop still bundles Apple's SF Pro Display fonts (owner item 5).
 
