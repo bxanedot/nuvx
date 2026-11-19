@@ -4,3 +4,15 @@ The Shaka SABR adapter and helpers in app/src/playback/youtube/ are adapted
 from Kira at commit 7a41cdc (https://github.com/LuanRT/kira).
 Copyright (c) 2025 LuanRT; MIT License. The full license text is in
 LICENSE-MIT-Kira.txt.
+
+Bundled AutoMix audio-analysis model assets under /models/:
+- beat_this_final0_q8.onnx: Beat This! final0 checkpoint by the Institute of
+  Computational Perception, JKU Linz. Copyright (c) 2024 Institute of
+  Computational Perception, JKU Linz, Austria; MIT.
+  Upstream: https://github.com/CPJKU/beat_this.
+- vocals_umxhq_int8.onnx: open-unmix umxhq vocals checkpoint by
+  Fabian-Robert Stöter and Antoine Liutkus.
+  Copyright (c) 2019 Inria (Fabian-Robert Stöter, Antoine Liutkus); MIT.
+  Upstream: https://zenodo.org/records/3370489.
+The complete MIT notices for these model weights are served as
+LICENSE-MIT-Model-Weights.txt in this directory.
