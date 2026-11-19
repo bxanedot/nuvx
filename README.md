@@ -19,7 +19,6 @@
 <p align="center">
   <a href="#download"><strong>Download</strong></a> ·
   <a href="#features">Features</a> ·
-  <a href="#screenshots">Screenshots</a> ·
   <a href="#build-from-source">Build</a> ·
   <a href="https://web.nuvx.lol">Web player</a> ·
   <a href="https://discord.gg/h4Wsu824Uf">Discord</a> ·
@@ -29,18 +28,6 @@
 ---
 
 ![Music in full color. nuvx Now Playing framed by cobalt and copper panels.](docs/nuvx-banner-now-playing.png)
-
-![Your music takes the stage. nuvx Now Playing with Encore artwork.](docs/nuvx-banner-encore.png)
-
-<p align="center">
-  <a href="docs/nuvx-banner-amber.png"><img src="docs/nuvx-banner-amber.png" width="49%" alt="Follow every word. Synced lyrics in nuvx, with a copper record-groove backdrop."></a>
-  <a href="docs/nuvx-banner-lyrics-motion.png"><img src="docs/nuvx-banner-lyrics-motion.png" width="49%" alt="Lyrics in motion. An illustration of the active lyric line lighting up in nuvx."></a>
-</p>
-
-<p align="center">
-  <a href="docs/nuvx-banner-desktop.png"><img src="docs/nuvx-banner-desktop.png" width="49%" alt="Make room for music. nuvx Desktop showing Home with the lyrics panel open."></a>
-  <a href="docs/nuvx-banner-desktop-lyrics.png"><img src="docs/nuvx-banner-desktop-lyrics.png" width="49%" alt="Lyrics, full screen. nuvx Desktop with red album artwork beside synced lyrics."></a>
-</p>
 
 ## Features
 
