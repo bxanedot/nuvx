@@ -9,8 +9,8 @@ download size,Linux universal tar.gz,29481322,bytes,GitHub release v1.0.2 asset 
 download size,Chrome extension zip,32429,bytes,GitHub release v1.0.2,2026-11-19,PASS,
 download size,Firefox extension zip,32976,bytes,GitHub release v1.0.2,2026-11-19,PASS,
 download size,iOS IPA,,bytes,,,BLOCKED,no published IPA; needs apple-builds CI artifact
-startup time,Desktop cold start,,ms,,,NOT_VERIFIED,needs a repeatable release-build harness
-memory,Desktop idle RSS,,MB,,,NOT_VERIFIED,
+startup time,Desktop cold start,,ms,,2026-11-19,NOT_VERIFIED,"First drawn frame not measured. Window creation only: 31-153 ms over 5 runs (median 46), which is not content."
+memory,Desktop idle RSS,107-109 working set; 95-96 private,MB,"Get-Process WorkingSet64 / PrivateMemorySize64 at 3, 10, 20, 30 s",2026-11-19,PASS,"Windows 11, release build (cargo build --release, 4m58s), empty data dir, signed out, NUVX_BACKGROUND=1 (window off screen), muted"
 memory,Android playback RSS,,MB,,,NOT_VERIFIED,dumpsys meminfo on device with release build
 cpu,Android playback CPU,,%,,,NOT_VERIFIED,
 energy,Android 1 h playback battery,,%,,,NOT_VERIFIED,
@@ -22,3 +22,6 @@ startup time,Android phone cold start,"1672-1731 (5 runs, median 1704)",ms,adb s
 memory,Android phone idle PSS (home screen),449,MB,"adb shell dumpsys meminfo (TOTAL PSS), RSS 625 MB",2026-11-19,PASS,"Galaxy SM-S942B, dev DEBUG build com.licht.nuvx.dev (not a release build), Wi-Fi, USB-powered"
 memory,"Android playback PSS (song playing, screen on)",453,MB,"adb shell dumpsys meminfo (TOTAL PSS), RSS 632 MB",2026-11-19,PASS,"Galaxy SM-S942B, dev DEBUG build com.licht.nuvx.dev (not a release build), Wi-Fi, USB-powered"
 cpu,"Android playback CPU (screen on, home screen)",93-175 of one core,%,"adb shell top (3 samples, 4 s apart)",2026-11-19,PASS,"Galaxy SM-S942B, dev DEBUG build com.licht.nuvx.dev (not a release build), Wi-Fi, USB-powered. High because debug build and animated home screen; repeat with a release build and a static screen before comparing."
+startup time,Desktop window created,"31-153 (5 runs, median 46)",ms,PowerShell stopwatch until MainWindowHandle exists,2026-11-19,PASS,"Windows 11, release build (cargo build --release, 4m58s), empty data dir, signed out, NUVX_BACKGROUND=1 (window off screen), muted. Window exists, not necessarily drawn."
+cpu,Desktop idle CPU,0.4 s CPU in 30 s (about 0.3% of one core),s,Get-Process TotalProcessorTime,2026-11-19,PASS,"Windows 11, release build (cargo build --release, 4m58s), empty data dir, signed out, NUVX_BACKGROUND=1 (window off screen), muted; 22-25 threads"
+download size,"Desktop release executable (this machine, Windows x64)",32556032,bytes,target/release/nuvx.exe,2026-11-19,PASS,Not the installer; the published installer is 17548598 bytes
