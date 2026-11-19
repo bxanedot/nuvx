@@ -6,7 +6,7 @@ The one handoff document for this programme. The owner's standing instructions a
 
 **nuvx 1.0.0** (licht line), published 2026-11-17 from `6d3126e6`. It ships 12 files: phone, TV, Auto and Wear APKs signed with the `CN=licht` key (SHA-256 `833677fb…`), the Windows installer, the Linux `.tar.gz`, one universal macOS `.dmg`, the Chrome and Firefox extensions, and `SHA256SUMS`. The website's download routes, old `mac-arm`, `mac-intel` and `foss` links included, resolve to these files; this was checked by running `core/website/api/download.js` against the published asset list. All older releases are pre-releases named "old nuvx build …", and the old 1.0.0 is at `old-nuvx-v1.0.0`.
 
-**nuvx 1.0.1** and **1.0.2** (Android version code 3) are published; 1.0.2 is the latest. Tag `v1.0.3` (Tor exit switching, code 4) exists on `b45a9250`, but its release run was cancelled and nothing was published. The owner asked for no new releases until further notice (2026-11-18); later work collects under "Unreleased" in `CHANGELOG.md`.
+**nuvx 1.0.1** and **1.0.2** (Android version code 3) are published; 1.0.2 is the latest. Tag `v1.0.3` (Tor exit switching, code 4) exists on `b45a9250`, but its release run was cancelled and nothing was published. The owner asked for no new releases until further notice (2026-11-18); later work collects under "Unreleased" in `CHANGELOG.md`. Nightlies are automatic since 2026-11-19 (`android-nightly.yml`, 02:17 UTC when `main` changed): "nuvx 1.0.3 nightly 1" is published; apps offer nightlies only with the nightly switch on and move to the next stable release when it ships. Network guides: `docs/NETWORK_RESILIENCE.md`, `docs/CONNECTING_FROM_RESTRICTED_NETWORKS.md` (Tor and SOCKS5).
 
 ## Session handoff (2026-11-17, Phase 0 baseline)
 
@@ -105,6 +105,14 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
 | `0c8e582a` | Desktop: downloaded WebM/Opus songs play instead of skipping (opened as AAC before) |
 | `756916f1`, `b1e8a29c` | Bluetooth (RFCOMM) as a second link, Android ↔ Windows: hello, sealed requests and a full song copy checked over Bluetooth only |
 | `b55385e3` | Phone to phone: an Android phone can host other phones (pairing, sync, Connect, file copy); checked between two Android emulators: pairing with approval, playlists both ways, hand-off and pause, song copy both ways byte-identical; not yet on two physical phones |
+
+## Done on main, 2026-11-19
+
+- Nuvx Connect both ways: the computer shows a playing phone and controls it; phone-to-phone checked on two emulators.
+- Desktop: TV-style first-run intro (full scaled page, vector mark, look, tabs, listening, nightly), swipe the expanded player down to close, Settings → Your data, Copy diagnostics, M3U/CSV playlist export and import, equalizer per output, downloads stop under 500 MB free plus a storage limit.
+- Android: Radio next to the profile button, undo after renaming or reordering a playlist, one Sync & Connect entry.
+- Build: SF symbols from `lylicht/SFStudio` v1.0.1 (the old v2.0.0 tag is gone upstream). Sync server reads the bearer header without a regex. Code scanning: 0 open.
+- Rust migration pack: tasks 00–04 and the first Task 05 slice (`core/contracts/update-order.json`), see `docs/rust-migration/`.
 
 ## Checked and found healthy (2026-11-17, second session)
 
