@@ -35,6 +35,8 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **Desktop: swipe the expanded player down to close it**, like on the phone (let go past a fifth of the window,
   or flick). The intro also gets a **Your tabs** step to show or hide Radio and Podcasts.
 - **Android: Undo after renaming a playlist.**
+- **Android: Radio moved next to your profile** in the top bar (when Radio is on; hidden when it is off), leaving
+  more room in the tab bar.
 - **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.
 - **The creator's name is written licht** everywhere in the apps, installer and pages.
 - **Nightly builds every night.** A nightly is built each night when main has new commits, named nightly 1,

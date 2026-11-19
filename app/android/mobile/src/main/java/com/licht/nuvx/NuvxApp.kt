@@ -955,8 +955,9 @@ internal fun NuvxApp(
         if (!youtubeSearch && viewModel.filter.value == SearchFilter.YOUTUBE) viewModel.onFilterChange(SearchFilter.ALL)
     }
     val navTabIds = remember(hideRadioTab, hidePodcastsTab) {
-        listOf(TAB_HOME, TAB_LIBRARY, TAB_RADIO, TAB_PODCASTS, TAB_EXPLORE, TAB_SEARCH)
-            .filter { (it != TAB_RADIO || !hideRadioTab) && (it != TAB_PODCASTS || !hidePodcastsTab) }
+        // Radio sits next to the profile button at the top (when it is on), not in the tab bar.
+        listOf(TAB_HOME, TAB_LIBRARY, TAB_PODCASTS, TAB_EXPLORE, TAB_SEARCH)
+            .filter { it != TAB_PODCASTS || !hidePodcastsTab }
     }
     val navTabs = remember(tabs, navTabIds) { navTabIds.map { tabs[it] } }
 
@@ -2580,6 +2581,15 @@ internal fun NuvxApp(
                             TopBarRecognizeButton(visible = route == null && detail == null) { showRecognizer = true }
                             if (route != AppRoute.Downloads) {
                                 TopBarDownloadButton(onClick = { navigator.push(AppRoute.Downloads) })
+                            }
+                            if (!hideRadioTab && route == null && detail == null) {
+                                IconButton(onClick = { navigator.clear(); viewModel.closeMoodGenre(); selectedTab = TAB_RADIO }) {
+                                    Icon(
+                                        SfIcons.Radio,
+                                        contentDescription = radioLabel,
+                                        tint = if (selectedTab == TAB_RADIO) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
                             }
                             if (!isReleaseDetail) TopBarAccountButton(
                                 account = account,
