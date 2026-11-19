@@ -404,7 +404,7 @@
 }
 
 /* Web approximation of SFStudio effects using the source SVG layer groups. */
-.sf-symbol-svg { width: 100%; height: 100%; color: inherit; }
+.sf-symbol-svg { width: 80%; height: 80%; color: inherit; }
 .sf-symbol-layer { transform-box: fill-box; transform-origin: center; }
 .sf-symbol-svg[data-sf-effect="bounce"] .sf-symbol-layer {
   animation: sfstudio-bounce 701ms cubic-bezier(.25, .8, .2, 1) both;
@@ -454,4 +454,18 @@ a.group:hover > [data-sf-symbol], a.group:focus-visible > [data-sf-symbol] {
   a.group:hover > [data-sf-symbol], a.group:focus-visible > [data-sf-symbol] {
     animation: none !important;
   }
+}
+
+/* Animate the mask fallback while layered SVG metadata loads or is unavailable. */
+[data-sf-symbol][data-sf-renderer="mask"][data-sf-effect="bounce"] { animation: sfstudio-bounce 701ms cubic-bezier(.25, .8, .2, 1) both; }
+[data-sf-symbol][data-sf-renderer="mask"][data-sf-effect="wiggle"] { animation: sfstudio-wiggle 835ms ease-in-out both; }
+[data-sf-symbol][data-sf-renderer="mask"][data-sf-effect="pulse"] { animation: sfstudio-pulse 2000ms ease-in-out infinite; }
+[data-sf-symbol][data-sf-renderer="mask"][data-sf-effect="variableColor"] { animation: sfstudio-variable-color 1332ms ease-in-out infinite; }
+/* Small SF Symbols still move visibly on pointer and keyboard focus. */
+button:not(:disabled):hover > [data-sf-symbol]:not([data-sf-effect]),
+button:not(:disabled):focus-visible > [data-sf-symbol]:not([data-sf-effect]) { animation: sfstudio-navigation-bounce 360ms ease-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  [data-sf-symbol][data-sf-renderer="mask"][data-sf-effect],
+  button:not(:disabled):hover > [data-sf-symbol],
+  button:not(:disabled):focus-visible > [data-sf-symbol] { animation: none !important; }
 }

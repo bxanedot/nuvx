@@ -46,6 +46,9 @@ export const SF_SYMBOL_ASSETS = {
   "arrow.up.left.and.arrow.down.right": "maximize2"
 } as const;
 
+/** Smaller artwork; preserve icon boxes and button hit targets. */
+export const SF_SYMBOL_VISUAL_SCALE = 0.8;
+
 export type SfSymbolName = keyof typeof SF_SYMBOL_ASSETS;
 export type SfSymbolEffect = 'bounce' | 'pulse' | 'variableColor' | 'wiggle';
 export type SfSymbolProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
@@ -124,11 +127,13 @@ export function SfSymbolIcon({
   }, [trigger]);
 
   const url = `/sf-symbols/${SF_SYMBOL_ASSETS[name]}.svg`;
+  const visualSize = `${SF_SYMBOL_VISUAL_SCALE * 100}%`;
   const geometry = loaded?.name === name ? loaded.geometry : null;
   const isContinuous = effect === 'pulse' || effect === 'variableColor';
   const playing = Boolean(effect && active && (isContinuous || cycle > 0));
   const base: CSSProperties = {
-    display: 'inline-block',
+    display: 'inline-grid',
+    placeItems: 'center',
     width: size,
     height: size,
     flexShrink: 0,
@@ -142,17 +147,20 @@ export function SfSymbolIcon({
     WebkitMaskImage: `url("${url}")`,
     maskRepeat: 'no-repeat',
     WebkitMaskRepeat: 'no-repeat',
-    maskSize: 'contain',
-    WebkitMaskSize: 'contain',
+    maskSize: `${visualSize} ${visualSize}`,
+    WebkitMaskSize: `${visualSize} ${visualSize}`,
     maskPosition: 'center',
     WebkitMaskPosition: 'center',
   };
 
   return (
     <span
+      key={`${name}-${cycle}`}
       {...props}
       className={className}
       data-sf-symbol={name}
+      data-sf-renderer={geometry ? 'layers' : 'mask'}
+      data-sf-effect={playing ? effect : undefined}
       aria-hidden={props['aria-label'] ? undefined : true}
       style={geometry ? base : fallback}
     >
@@ -166,7 +174,7 @@ export function SfSymbolIcon({
           viewBox={geometry.viewBox}
           fill="currentColor"
           aria-hidden="true"
-          style={{ display: 'block', overflow: 'visible' }}
+          style={{ display: 'block', overflow: 'visible', width: visualSize, height: visualSize }}
         >
           {geometry.layers.map((layer, index) => {
             const variableOrder = geometry.variable.indexOf(layer.group);
