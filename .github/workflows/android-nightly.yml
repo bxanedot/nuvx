@@ -25,6 +25,9 @@ on:
   # A nightly every night when main has new commits.
   schedule:
     - cron: "17 2 * * *"
+    # One-off: 15:00 Zürich time (14:00 UTC) on 2026-11-19, asked for by the owner. Fires again each 19 November
+    # until removed, so delete this line after it has run.
+    - cron: "0 14 19 11 *"
 
 permissions:
   contents: write
