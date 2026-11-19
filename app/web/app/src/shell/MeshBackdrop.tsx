@@ -8,6 +8,10 @@ const FRAME_MS = 1000 / 30;
 const FADE_MS = 1200;
 const FALLBACK: Rgb[] = Array.from({ length: GRID * GRID }, () => [52, 52, 56]);
 
+export function meshFadeProgress(now: number, start: number, reduceMotion: boolean): number {
+  return reduceMotion ? 1 : Math.min(1, Math.max(0, (now - start) / FADE_MS));
+}
+
 const reducedMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 function useReducedMotion(): boolean {
   return useSyncExternalStore(
@@ -214,7 +218,7 @@ export function MeshBackdrop({ artworkUrl, playing }: { artworkUrl: string | nul
       frame = 0;
       if (animate) s.seconds += Math.min(now - last, 100) / 1000;
       last = now;
-      const fade = Math.min(1, (now - s.fadeStart) / FADE_MS);
+      const fade = meshFadeProgress(now, s.fadeStart, still);
       if (now - drawn >= FRAME_MS - 1) {
         drawn = now;
         renderer.draw(fade < 1 ? mix(s.from, s.to, 1 - (1 - fade) ** 3) : s.to, s.seconds);
@@ -242,7 +246,7 @@ export function MeshBackdrop({ artworkUrl, playing }: { artworkUrl: string | nul
       renderer.dispose();
       s.wake = () => {};
     };
-  }, [animate, generation, fallback]);
+  }, [animate, still, generation, fallback]);
 
   return (
     <div className={backdrop} aria-hidden="true" data-fallback={fallback || undefined}>
