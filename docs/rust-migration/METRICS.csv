@@ -18,3 +18,7 @@ source size,Rust (desktop + iOS native-core),~80k,lines,git ls-files + wc -l,202
 source size,Kotlin (Android + shared),~185k,lines,git ls-files + wc -l,2026-11-19,PASS,approximate
 source size,Swift,~73k,lines,git ls-files + wc -l,2026-11-19,PASS,approximate
 source size,TypeScript/TSX/JS,~30k,lines,git ls-files + wc -l,2026-11-19,PASS,approximate
+startup time,Android phone cold start,"1672-1731 (5 runs, median 1704)",ms,adb shell am start -W after force-stop,2026-11-19,PASS,"Galaxy SM-S942B, dev DEBUG build com.licht.nuvx.dev (not a release build), Wi-Fi, USB-powered"
+memory,Android phone idle PSS (home screen),449,MB,"adb shell dumpsys meminfo (TOTAL PSS), RSS 625 MB",2026-11-19,PASS,"Galaxy SM-S942B, dev DEBUG build com.licht.nuvx.dev (not a release build), Wi-Fi, USB-powered"
+memory,"Android playback PSS (song playing, screen on)",453,MB,"adb shell dumpsys meminfo (TOTAL PSS), RSS 632 MB",2026-11-19,PASS,"Galaxy SM-S942B, dev DEBUG build com.licht.nuvx.dev (not a release build), Wi-Fi, USB-powered"
+cpu,"Android playback CPU (screen on, home screen)",93-175 of one core,%,"adb shell top (3 samples, 4 s apart)",2026-11-19,PASS,"Galaxy SM-S942B, dev DEBUG build com.licht.nuvx.dev (not a release build), Wi-Fi, USB-powered. High because debug build and animated home screen; repeat with a release build and a static screen before comparing."
