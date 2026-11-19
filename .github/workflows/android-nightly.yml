@@ -714,15 +714,7 @@ jobs:
             gh release delete "$RELEASE_TAG" --yes --cleanup-tag || true
             exit 0
           fi
-          current=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
-          if [[ "$current" != "$SOURCE_REF" ]]; then
-            echo "Discarding stale nightly for $SOURCE_REF; main is $current"
-            gh release delete "$RELEASE_TAG" --yes
-            if gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-              gh api --method DELETE "repos/$GH_REPO/git/refs/tags/$RELEASE_TAG"
-            fi
-            exit 0
-          fi
+          # A finished nightly is published even if main moved on meanwhile; the next night builds the newer commit.
           gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
           # Keep this cycle's nightlies (since the latest stable); remove the ones from before it.
           since=$(gh api "repos/$GH_REPO/releases/latest" --jq .published_at 2>/dev/null || echo "")
