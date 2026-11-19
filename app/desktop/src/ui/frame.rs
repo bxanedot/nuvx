@@ -108,7 +108,10 @@ impl eframe::App for App {
 
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
-        self.shortcuts(&ctx);
+        // The intro is the whole window: no app shortcuts behind it.
+        if self.setup.is_none() {
+            self.shortcuts(&ctx);
+        }
         let now = ctx.input(|i| i.time);
         let screen = ctx.content_rect();
 
@@ -126,6 +129,16 @@ impl eframe::App for App {
         }
         let accent = self.accent_color();
         ctx.data_mut(|d| d.insert_temp(egui::Id::unique("accent"), accent));
+        if self.setup.is_some() {
+            if !self.fullscreen {
+                titlebar::drag_area(ui, egui::Rect::from_min_size(screen.min, egui::vec2(screen.width(), titlebar::HEIGHT)), "main");
+            }
+            setup::page(self, ui, &ctx);
+            titlebar::window_buttons(&ctx);
+            titlebar::resize_edges(&ctx);
+            dev_screenshot(&ctx, now);
+            return;
+        }
         let app_style = &look.app;
         let covered = !self.fullscreen && np >= 1.0;
         let bar_strip = egui::Rect::from_min_size(screen.min, egui::vec2(screen.width(), titlebar::HEIGHT));
@@ -211,7 +224,6 @@ impl eframe::App for App {
         notes::card(self, &ctx);
         notes::dialog(self, &ctx);
         notes::tab_intro(self, &ctx);
-        setup::intro(self, &ctx);
         if let Some(url) = self.share_pending.take() { ctx.copy_text(url); }
         shell::suggestions(self, &ctx);
         shell::toast(self, &ctx, now);

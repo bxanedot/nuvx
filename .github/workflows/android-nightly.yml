@@ -167,7 +167,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_REF" --draft --prerelease --latest=false \
             --title "nuvx $ANDROID_VERSION nightly $number" \
-            --notes "Signed desktop installers for Windows, Linux and macOS, plus one APK for each Android phone, TV, Auto and Wear target. Before stable v1.0.0, desktop and Android nightlies use 0.9.0 (Android version code 9); browser extensions use 0.9.0 with an increasing build component. Android release code is 1 for the licht app identity. Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64."
+            --notes "![nuvx: Music in full color](https://raw.githubusercontent.com/lylicht/nuvx/main/docs/assets/nuvx-music-in-full-color.webp)"$'\n\n'"Signed desktop installers for Windows, Linux and macOS, plus one APK for each Android phone, TV, Auto and Wear target. Before stable v1.0.0, desktop and Android nightlies use 0.9.0 (Android version code 9); browser extensions use 0.9.0 with an increasing build component. Android release code is 1 for the licht app identity. Cast and Wear features are available when Google Play Services is installed. Desktop installers include x64 and ARM64 builds; phone, TV and Auto APKs include armeabi-v7a, arm64-v8a and x86_64."
       - name: Create stable release draft
         if: steps.metadata.outputs.is_stable == 'true'
         env:
@@ -181,6 +181,8 @@ jobs:
           else
             notes=$(awk -v heading="## $STABLE_VERSION" '$0 == heading || $0 == heading " (Unreleased)" { found=1; next } found && /^## / { exit } found { print }' CHANGELOG.md)
             [[ -n "$notes" ]]
+            # Every release opens with the nuvx picture; the apps show it in their update notes too.
+            notes="![nuvx: Music in full color](https://raw.githubusercontent.com/lylicht/nuvx/main/docs/assets/nuvx-music-in-full-color.webp)"$'\n\n'"$notes"
             gh release create "$RELEASE_TAG" \
               --target "$SOURCE_REF" --draft --title "nuvx $STABLE_VERSION" --notes "$notes"
           fi

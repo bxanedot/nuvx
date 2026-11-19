@@ -39,6 +39,7 @@ private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 fun TvUpdateDialog(update: AppUpdateChecker.UpdateInfo, onDismiss: () -> Unit) {
     val state by AppUpdateChecker.download.collectAsState()
     val notes = remember(update.notes) { update.notes?.let(::plainNotes) }
+    val picture = remember(update.notes) { update.notes?.let(::firstPicture) }
 
     TvDialog(
         title = "nuvx ${update.version} Is Available",
@@ -56,6 +57,15 @@ fun TvUpdateDialog(update: AppUpdateChecker.UpdateInfo, onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(21.dp))
             TvDialogButton(text = "OK", onClick = onDismiss, initialFocus = true)
         } else {
+            if (picture != null && state is DownloadState.Idle) {
+                coil3.compose.AsyncImage(
+                    model = picture,
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(14.dp)),
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             TvUpdateControls(state, notes, onDismiss)
         }
     }
@@ -152,6 +162,10 @@ private fun TvDownloadProgress(fraction: Float) {
         color = TvGlass.TextSecondary,
     )
 }
+
+/** The release's picture: the first `![…](https://…)` in the notes, like the phone and computer show. */
+internal fun firstPicture(markdown: String): String? =
+    Regex("""!\[[^\]]*]\((https://[^)\s]+)""").find(markdown)?.groupValues?.get(1)
 
 private fun plainNotes(markdown: String): String =
     markdown.lineSequence()

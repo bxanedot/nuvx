@@ -1,5 +1,7 @@
 # Changelog
 
+![nuvx: Music in full color](https://raw.githubusercontent.com/lylicht/nuvx/main/docs/assets/nuvx-music-in-full-color.webp)
+
 Every nuvx release, newest first. Downloads and checksums are on each version's [GitHub release](https://github.com/lylicht/nuvx/releases).
 
 ## Unreleased
@@ -27,7 +29,10 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   host no longer lists itself as a computer to control or copy from.
 - **Desktop: a first-run intro** like the Android TV app's, on the same navy background: welcome, sign in to
   YouTube Music, choose a look (System, Light, Dark), listening options (autoplay, spatial audio, animated artwork
-  and background), done. Shown once on a new install; **Set up later** skips it.
+  and background, nightly updates), done, plus window material and Windows or macOS window buttons. It is a full
+  page scaled to fit any window, with the official vector nuvx mark; nothing behind it can be clicked.
+  Shown once on a new install; **Set up later** skips it.
+- **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.
 - **The creator's name is written licht** everywhere in the apps, installer and pages.
 - **Nightly builds every night.** A nightly is built each night when main has new commits, named nightly 1,
   nightly 2, … after each stable release. Apps offer nightlies only with the nightly switch on, and a nightly
