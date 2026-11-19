@@ -223,7 +223,7 @@ impl Backend {
     async fn prefetch(&self, video_id: String, song_of: Option<Track>, track: Option<Track>) -> anyhow::Result<()> {
         let generation = self.audio.status.wanted_gen.load(Ordering::Relaxed);
         let song = self.song_version(&video_id, song_of.as_ref(), PREFETCH_SONG_WAIT).await;
-        let meta = song.clone().or_else(|| song_of.clone()).or_else(|| track);
+        let meta = song.clone().or_else(|| song_of.clone()).or(track);
         let video_id = song.map_or(video_id, |s| s.id);
         let playing = self.current.lock().unwrap().as_ref().map(|(_, s)| s.clone());
         if let Some(s) = playing {

@@ -332,11 +332,10 @@ pub fn poll(app: &mut App, ctx: &egui::Context, now: f64) {
             None => (None, String::new(), 0),
         }
     };
-    if let Some(t) = app.xfer.done_at.filter(|_| phase == Some(Phase::Done)) {
-        if now - t < DONE_LINGER {
+    if let Some(t) = app.xfer.done_at.filter(|_| phase == Some(Phase::Done))
+        && now - t < DONE_LINGER {
             ctx.request_repaint_after(std::time::Duration::from_secs_f64(DONE_LINGER - (now - t) + 0.05));
         }
-    }
     if phase == app.xfer.seen {
         return;
     }

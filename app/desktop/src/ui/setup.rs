@@ -225,19 +225,19 @@ fn mark_polygons() -> Vec<Vec<[f32; 2]>> {
     let flush = |cmd: char, nums: &mut Vec<f32>, out: &mut Vec<Vec<[f32; 2]>>, at: &mut [f32; 2]| {
         match cmd {
             'M' => {
-                for p in nums.chunks_exact(2) {
+                for p in nums.as_chunks::<2>().0 {
                     *at = [p[0], p[1]];
                     out.push(vec![*at]);
                 }
             }
             'L' => {
-                for p in nums.chunks_exact(2) {
+                for p in nums.as_chunks::<2>().0 {
                     *at = [p[0], p[1]];
                     if let Some(poly) = out.last_mut() { poly.push(*at); }
                 }
             }
             'C' => {
-                for c in nums.chunks_exact(6) {
+                for c in nums.as_chunks::<6>().0 {
                     let (p0, p1, p2, p3) = (*at, [c[0], c[1]], [c[2], c[3]], [c[4], c[5]]);
                     if let Some(poly) = out.last_mut() {
                         for i in 1..=12 {
@@ -291,7 +291,7 @@ fn rasterize(polys: &[Vec<[f32; 2]>], px: usize) -> egui::ColorImage {
             }
         }
         xs.sort_by(f32::total_cmp);
-        for span in xs.chunks_exact(2) {
+        for span in xs.as_chunks::<2>().0 {
             let from = ((span[0] * k * SS as f32).round().max(0.0) as usize).min(px * SS);
             let to = ((span[1] * k * SS as f32).round().max(0.0) as usize).min(px * SS);
             for sx in from..to {

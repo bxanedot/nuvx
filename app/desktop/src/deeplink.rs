@@ -163,13 +163,12 @@ mod win {
     fn serve(pipe: Pipe, wake: impl Fn()) {
         loop {
             let connected = unsafe { ConnectNamedPipe(pipe.0, None) };
-            if let Err(e) = connected {
-                if e.code() != ERROR_PIPE_CONNECTED.to_hresult() {
+            if let Err(e) = connected
+                && e.code() != ERROR_PIPE_CONNECTED.to_hresult() {
                     log::warn!("invite link pipe: {e}");
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     continue;
                 }
-            }
             let mut msg = Vec::new();
             let mut buf = [0u8; 64];
             loop {

@@ -52,7 +52,7 @@ pub(super) fn cover_column(app: &mut App, ui: &mut Ui, col: Rect, track: &crate:
         widgets::paint_cover_xfade_px(ui, egui::Id::unique("np-art"), art, &track.thumbs, radius, 1.0, px);
         if let Some(s) = &video {
             widgets::paint_motion(ui, art, radius, s);
-        } else if let Some(s) = app.song_canvas(ui.ctx(), &track, px) {
+        } else if let Some(s) = app.song_canvas(ui.ctx(), track, px) {
             widgets::paint_motion(ui, art, radius, &s);
         }
         if cs.brightness < 0.99 {

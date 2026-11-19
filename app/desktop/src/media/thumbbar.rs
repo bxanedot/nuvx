@@ -127,13 +127,12 @@ unsafe extern "system" fn subclass(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM,
     if shown {
         let _ = unsafe { KillTimer(Some(hwnd), SHOWN_TIMER) };
     }
-    if shown || msg == hook.created {
-        if let Ok(bar) = unsafe { &*hook.bar }.try_borrow()
+    if (shown || msg == hook.created)
+        && let Ok(bar) = unsafe { &*hook.bar }.try_borrow()
             && let Some(bar) = bar.as_ref()
         {
             bar.add();
         }
-    }
     unsafe { DefSubclassProc(hwnd, msg, wp, lp) }
 }
 

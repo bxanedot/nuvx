@@ -9,7 +9,7 @@ impl eframe::App for App {
         crate::material::set_dark(!theme::light());
         self.lyric_view.release_hidden(ctx.cumulative_pass_nr());
         let now = ctx.input(|i| i.time);
-        self.tick_play_retry(&ctx);
+        self.tick_play_retry(ctx);
         self.sync_look();
         self.pump(now);
         self.skip_segments(ctx, now);

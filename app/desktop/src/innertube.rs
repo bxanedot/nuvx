@@ -132,6 +132,26 @@ fn is_original_audio(f: &Value) -> bool {
     tagged || f["audioTrack"]["displayName"].as_str().is_some_and(|n| n.to_lowercase().contains("original"))
 }
 
+pub async fn audio_stream(http: &reqwest::Client, video_id: &str, visitor_data: &str, opus: bool) -> anyhow::Result<Stream> {
+    let resp = vision_player(http, video_id, visitor_data).await?;
+    let formats = resp["streamingData"]["adaptiveFormats"].as_array().map(Vec::as_slice).unwrap_or_default();
+    let itags: &[u64] = if opus { &[251, 140, 139] } else { &[140, 139] };
+    itags
+        .iter()
+        .find_map(|itag| {
+            let f = audio_format(formats, *itag)?;
+            log::info!("visionOS: {video_id} itag {itag} ({} kbps)", f["averageBitrate"].as_u64().or(f["bitrate"].as_u64()).unwrap_or(0) / 1000);
+            Some(Stream {
+                url: f["url"].as_str()?.to_owned(),
+                size: f["contentLength"].as_str()?.parse().ok()?,
+                duration_ms: f["approxDurationMs"].as_str().and_then(|d| d.parse().ok()).unwrap_or(0),
+                loudness_db: loudness(&resp, f),
+                opus: *itag == 251,
+            })
+        })
+        .ok_or_else(|| anyhow::anyhow!("no audio stream in visionOS player response"))
+}
+
 #[cfg(test)]
 mod audio_track_tests {
     use super::audio_format;
@@ -167,24 +187,4 @@ mod audio_track_tests {
         assert_eq!(audio_format(&single, 251).unwrap()["url"], "https://x/only");
         assert!(audio_format(&single, 140).is_none());
     }
-}
-
-pub async fn audio_stream(http: &reqwest::Client, video_id: &str, visitor_data: &str, opus: bool) -> anyhow::Result<Stream> {
-    let resp = vision_player(http, video_id, visitor_data).await?;
-    let formats = resp["streamingData"]["adaptiveFormats"].as_array().map(Vec::as_slice).unwrap_or_default();
-    let itags: &[u64] = if opus { &[251, 140, 139] } else { &[140, 139] };
-    itags
-        .iter()
-        .find_map(|itag| {
-            let f = audio_format(formats, *itag)?;
-            log::info!("visionOS: {video_id} itag {itag} ({} kbps)", f["averageBitrate"].as_u64().or(f["bitrate"].as_u64()).unwrap_or(0) / 1000);
-            Some(Stream {
-                url: f["url"].as_str()?.to_owned(),
-                size: f["contentLength"].as_str()?.parse().ok()?,
-                duration_ms: f["approxDurationMs"].as_str().and_then(|d| d.parse().ok()).unwrap_or(0),
-                loudness_db: loudness(&resp, f),
-                opus: *itag == 251,
-            })
-        })
-        .ok_or_else(|| anyhow::anyhow!("no audio stream in visionOS player response"))
 }

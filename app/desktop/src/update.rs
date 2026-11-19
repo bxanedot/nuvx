@@ -231,12 +231,11 @@ impl Updater {
             }
             std::fs::rename(&part, &path)?;
         }
-        if let Some(want) = asset["digest"].as_str().and_then(|d| d.strip_prefix("sha256:")) {
-            if !sha256_matches(&path, want)? {
+        if let Some(want) = asset["digest"].as_str().and_then(|d| d.strip_prefix("sha256:"))
+            && !sha256_matches(&path, want)? {
                 let _ = std::fs::remove_file(&path);
                 anyhow::bail!("download of {version} is damaged (SHA-256 mismatch)");
             }
-        }
         if let Ok(rd) = std::fs::read_dir(&self.dir) {
             for e in rd.flatten() {
                 let p = e.path();

@@ -89,7 +89,7 @@ pub async fn lookup(http: &reqwest::Client, endpoint: &str, name: &str) -> Optio
         }
     };
     let img = if img.width() > 720 {
-        let h = (u32::from(img.height()) * 720 / img.width()).max(1) as u32;
+        let h = (img.height() * 720 / img.width()).max(1) as u32;
         image::imageops::resize(&img, 720, h, image::imageops::FilterType::Lanczos3)
     } else {
         img
@@ -121,8 +121,8 @@ fn append_limited(body: &mut Vec<u8>, chunk: &[u8], max_bytes: usize) -> bool {
 
 fn ink(img: &image::RgbaImage) -> Signature {
     let mut rgba = img.as_raw().clone();
-    let transparent = rgba.chunks_exact(4).any(|p| p[3] < 250);
-    for p in rgba.chunks_exact_mut(4) {
+    let transparent = rgba.as_chunks::<4>().0.iter().any(|p| p[3] < 250);
+    for p in rgba.as_chunks_mut::<4>().0 {
         let a = if transparent {
             p[3]
         } else {

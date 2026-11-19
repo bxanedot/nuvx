@@ -69,11 +69,10 @@ async fn get(http: &reqwest::Client, url: &str, bearer: Option<&str>) -> anyhow:
 
 async fn token(http: &reqwest::Client) -> Option<String> {
     let now = now_secs();
-    if let Some(t) = TOKEN.lock().ok().and_then(|t| t.as_ref().map(|t| (t.jwt.clone(), t.expires))) {
-        if now < t.1 - TOKEN_TTL_MARGIN {
+    if let Some(t) = TOKEN.lock().ok().and_then(|t| t.as_ref().map(|t| (t.jwt.clone(), t.expires)))
+        && now < t.1 - TOKEN_TTL_MARGIN {
             return Some(t.0);
         }
-    }
     if RETRY_AFTER.lock().ok().and_then(|r| *r).is_some_and(|at| Instant::now() < at) {
         return None;
     }
@@ -185,11 +184,10 @@ fn reject(jwt: &str) {
     if let Ok(mut set) = REJECTED.lock() {
         set.insert(jwt.to_owned());
     }
-    if let Ok(mut slot) = TOKEN.lock() {
-        if slot.as_ref().is_some_and(|t| t.jwt == jwt) {
+    if let Ok(mut slot) = TOKEN.lock()
+        && slot.as_ref().is_some_and(|t| t.jwt == jwt) {
             *slot = None;
         }
-    }
 }
 
 async fn api(http: &reqwest::Client, path_and_query: &str) -> Option<Value> {
@@ -395,7 +393,7 @@ fn artist_logo(html: &str) -> Option<LogoSrc> {
     let block = &html[at..(at + 1400).min(html.len())];
     let template = url_after_key(block, "{", "url")?.replace("\\/", "/");
     let (w, h) = (number_after(block, "\"width\"")?, number_after(block, "\"height\"")?);
-    (w > 0 && h > 0 && template.contains("{w}")).then(|| LogoSrc { template, w, h })
+    (w > 0 && h > 0 && template.contains("{w}")).then_some(LogoSrc { template, w, h })
 }
 
 fn number_after(s: &str, key: &str) -> Option<u32> {

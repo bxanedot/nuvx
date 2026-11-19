@@ -99,19 +99,6 @@ pub(crate) fn metadata_matches(
     score(&candidate, title, artist, duration, false).is_some()
 }
 
-#[cfg(test)]
-mod metadata_match_tests {
-    use super::metadata_matches;
-
-    #[test]
-    fn accepts_a_close_duration_and_rejects_wrong_song_or_artist() {
-        assert!(metadata_matches("Song", "Artist", Some(180), "Song", "Artist", Some(200)));
-        assert!(!metadata_matches("Song", "Artist", Some(180), "Other song", "Artist", Some(180)));
-        assert!(!metadata_matches("Song", "Artist", Some(180), "Song", "Unrelated", Some(180)));
-        assert!(!metadata_matches("Song", "Artist", Some(180), "Song", "Artist", Some(220)));
-    }
-}
-
 pub(super) fn searchable_title(title: &str, artist: &str) -> String {
     let (words, versions) = title_parts(title, artist);
     let mut out = words;
@@ -146,9 +133,6 @@ fn title_parts(raw: &str, artist: &str) -> TitleParts {
         if is_artist_name(&head, artist) {
             classify(&head, &mut versions);
             text = tail;
-        } else if is_artist_name(&tail, artist) {
-            classify(&tail, &mut versions);
-            text = head;
         } else {
             classify(&tail, &mut versions);
             text = head;
@@ -252,3 +236,16 @@ const VERSION_WORDS: &[&str] = &[
     "acapella", "acappella", "backing", "stems", "stem", "cover", "demo", "reprise", "remake", "rework", "extended", "edit", "version", "mix", "dub", "vip", "session",
     "sessions", "sped", "slowed", "reverb", "nightcore", "lofi", "orchestral", "symphonic", "part", "pt", "chapter",
 ];
+
+#[cfg(test)]
+mod metadata_match_tests {
+    use super::metadata_matches;
+
+    #[test]
+    fn accepts_a_close_duration_and_rejects_wrong_song_or_artist() {
+        assert!(metadata_matches("Song", "Artist", Some(180), "Song", "Artist", Some(200)));
+        assert!(!metadata_matches("Song", "Artist", Some(180), "Other song", "Artist", Some(180)));
+        assert!(!metadata_matches("Song", "Artist", Some(180), "Song", "Unrelated", Some(180)));
+        assert!(!metadata_matches("Song", "Artist", Some(180), "Song", "Artist", Some(220)));
+    }
+}

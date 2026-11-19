@@ -287,7 +287,7 @@ mod tests {
         let mut all = Vec::new();
         r.read_to_end(&mut all).unwrap();
         assert_eq!(all, b"abcde");
-        assert_eq!(r.seek(SeekFrom::Current(0)).unwrap(), 5);
+        assert_eq!(r.stream_position().unwrap(), 5);
         assert!(r.seek(SeekFrom::Start(0)).is_err());
     }
 

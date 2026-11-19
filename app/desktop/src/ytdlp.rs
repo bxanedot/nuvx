@@ -121,11 +121,10 @@ fn run(bin: &Path, data_dir: &Path, video_id: &str, cookie: &str) -> anyhow::Res
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
-        if let Some(path) = std::env::var_os("PATH") {
-            if let Some(path) = usable_path(&path, |d| std::fs::canonicalize(d).is_ok()) {
+        if let Some(path) = std::env::var_os("PATH")
+            && let Some(path) = usable_path(&path, |d| std::fs::canonicalize(d).is_ok()) {
                 cmd.env("PATH", path);
             }
-        }
     }
     #[cfg(unix)]
     {

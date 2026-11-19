@@ -40,37 +40,6 @@ impl VideoState {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{MotionView, VideoState};
-    use std::path::PathBuf;
-
-    #[test]
-    fn a_video_without_a_confident_alignment_is_not_started() {
-        assert!(matches!(VideoState::from_aligned(None), VideoState::Failed));
-    }
-
-    #[test]
-    fn a_video_with_a_confident_zero_offset_can_be_started() {
-        let path = PathBuf::from("video.mp4");
-        assert!(matches!(
-            VideoState::from_aligned(Some((path.clone(), 0))),
-            VideoState::Saved { path: saved, offset_ms: 0 } if saved == path
-        ));
-    }
-
-    #[test]
-    fn dropping_one_of_two_views_does_not_stop_the_shared_motion() {
-        let motion = std::sync::Arc::new(crate::motion::Motion::test_new());
-        let first = MotionView::new(motion.clone(), 256);
-        let second = MotionView::new(motion.clone(), 256);
-        drop(first);
-        assert!(!motion.is_stopped());
-        drop(second);
-        assert!(motion.is_stopped());
-    }
-}
-
 impl Drop for MotionView {
     fn drop(&mut self) {
         self.motion.release_view();
@@ -221,7 +190,7 @@ impl App {
     }
 
     pub(super) fn motion_sprite(&mut self, ctx: &egui::Context, key: String, url: &str, max_width: u32) -> Option<widgets::MotionSprite> {
-        let stale = self.apple_motion.get(&key).map_or(true, |v| v.width < max_width);
+        let stale = self.apple_motion.get(&key).is_none_or(|v| v.width < max_width);
         if stale {
             if self.apple_motion.len() >= 8 {
                 self.apple_motion.clear();
@@ -230,5 +199,36 @@ impl App {
         }
         let tex = self.apple_motion.get_mut(&key)?.texture(ctx)?;
         Some(widgets::MotionSprite { id: tex.id(), size: tex.size_vec2() })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MotionView, VideoState};
+    use std::path::PathBuf;
+
+    #[test]
+    fn a_video_without_a_confident_alignment_is_not_started() {
+        assert!(matches!(VideoState::from_aligned(None), VideoState::Failed));
+    }
+
+    #[test]
+    fn a_video_with_a_confident_zero_offset_can_be_started() {
+        let path = PathBuf::from("video.mp4");
+        assert!(matches!(
+            VideoState::from_aligned(Some((path.clone(), 0))),
+            VideoState::Saved { path: saved, offset_ms: 0 } if saved == path
+        ));
+    }
+
+    #[test]
+    fn dropping_one_of_two_views_does_not_stop_the_shared_motion() {
+        let motion = std::sync::Arc::new(crate::motion::Motion::test_new());
+        let first = MotionView::new(motion.clone(), 256);
+        let second = MotionView::new(motion.clone(), 256);
+        drop(first);
+        assert!(!motion.is_stopped());
+        drop(second);
+        assert!(motion.is_stopped());
     }
 }

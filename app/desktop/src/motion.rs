@@ -418,13 +418,13 @@ fn layout(w: usize, h: usize, len: usize, reported: i32) -> (usize, bool) {
     let row = w * 4;
     let bottom_up = reported < 0;
     let reported = if reported == 0 { row as i32 } else { reported }.unsigned_abs() as usize;
-    let fits = |s: usize| s >= row && len % s == 0 && (h..h + 64).contains(&(len / s));
+    let fits = |s: usize| s >= row && len.is_multiple_of(s) && (h..h + 64).contains(&(len / s));
     if fits(reported) {
         return (reported, bottom_up);
     }
     for rows in h..h + 64 {
         let s = len / rows;
-        if len % rows == 0 && s >= row && s <= row + 256 {
+        if len.is_multiple_of(rows) && s >= row && s <= row + 256 {
             return (s, bottom_up);
         }
     }

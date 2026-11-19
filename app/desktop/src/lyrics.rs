@@ -5,7 +5,6 @@ mod provider;
 #[cfg(test)]
 use lrc::lrc_songwriters;
 #[allow(unused_imports)]
-#[allow(unused_imports)]
 pub use ttml::{Ttml, parse_ttml, ttml_time};
 #[allow(unused_imports)]
 pub use qrc::parse_qrc;
