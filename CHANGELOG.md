@@ -6,11 +6,20 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## Unreleased
 
-### Phone and computer
+Nothing yet.
+
+## 1.0.3
+
+Android version code 4 (phone, TV, Auto and Wear OS). iOS build 4. Desktop 1.0.3 for Windows, macOS and Linux. Browser extensions 1.0.3.
+
+**Highlights:** Nuvx Connect (play on, and control, your computer or another phone), copying downloads between your devices over Wi-Fi or Bluetooth, a first-run intro on the computer, and faster, more reliable playback over Tor. How to set up Tor or a VLESS/REALITY app on each device:
+**[Connecting from restricted networks](https://github.com/lylicht/nuvx/blob/main/docs/CONNECTING_FROM_RESTRICTED_NETWORKS.md)**.
+
+### Your phone and your computer, together (Android and Windows, macOS, Linux)
 
 - **Nuvx Connect (new).** Control nuvx on your computer from your phone: see what plays there, play/pause,
-  skip, and **Play this song on the computer** to move the phone's song (at the same moment) over. Each app has its
-  own **Settings → Nuvx Connect** tab. On the computer, turn on **Allow remote control** there (off by default);
+  skip, and **Play this song on the computer** to move the phone's song (at the same moment) over. Both apps have it in
+  **Settings → Sync & Connect**. On the computer, turn on **Allow remote control** there (off by default);
   only phones you paired and approved in Local Wi-Fi Sync can use it, encrypted, on your own network.
 - **Copy downloads between your phone and computer.** **Settings → Sync & Connect → Copy downloads from …** copies
   the songs your paired computer downloaded onto the phone, and **Send downloads to …** sends the phone's
@@ -27,38 +36,6 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   them play through this phone with the speaker button. Same Wi-Fi, encrypted. A phone that hosts cannot also sync
   with a computer at the same time. A playlist made on a paired phone shows up on the host within seconds, and the
   host no longer lists itself as a computer to control or copy from.
-- **Desktop: a first-run intro** like the Android TV app's, on the same navy background: welcome, sign in to
-  YouTube Music, choose a look (System, Light, Dark), listening options (autoplay, spatial audio, animated artwork
-  and background, nightly updates), done, plus window material and Windows or macOS window buttons. It is a full
-  page scaled to fit any window, with the official vector nuvx mark; nothing behind it can be clicked.
-  Shown once on a new install; **Set up later** skips it. A **nightly** build shows it once for every new nightly you install, with all your saved data kept.
-- **Desktop: swipe the expanded player down to close it**, like on the phone (let go past a fifth of the window,
-  or flick). The intro also gets a **Your tabs** step to show or hide Radio and Podcasts.
-- **Android: swiping a song to the queue adds it once** (it could appear several times; issue #328).
-- **Android: Play starts a playlist in order again.** After a shuffled play, pressing Play on a playlist or album
-  kept shuffling the next songs; now Play turns shuffle off and Shuffle turns it on (issue #329).
-- **Android: Undo after renaming or reordering a playlist.**
-- **Desktop: a song that fails to start is tried again** (after 350 ms, then 700 ms) before it is skipped, and
-  skipping stops after 4 songs in a row, the same rules as Android. Both apps are tested against one shared set of
-  cases (`core/contracts/stream-recovery.json`).
-- **Desktop: smarter downloads.** They stop under 500 MB free on the download drive, and Settings → Downloads has a
-  **Storage limit** (Off, 1–50 GB) with how much downloads use now, like on Android.
-- **Desktop: equalizer per output.** Each output device you pick in Settings → Playback keeps its own equalizer
-  (like on Android): switch from speakers to headphones and each gets its setting back.
-- **Desktop: playlist files.** A playlist's **More → Export playlist…** saves it as M3U or CSV, and **Settings → Import
-  → Import a playlist file** reads one into a nuvx playlist. Same formats as the phone, so playlists move both ways.
-- **Desktop: Settings → Your data.** What stays on this computer and what leaves it (per service, and when), the
-  data folder, clearing recent searches, paired phones, and **Copy diagnostics**: version, system, renderer, network mode and this run's latest
-  warnings and errors, with links, tokens and your folder names removed. Copied only when you press it.
-- **Android: Radio moved next to your profile** in the top bar (when Radio is on; hidden when it is off), leaving
-  more room in the tab bar.
-- **Contributor guide refreshed** (CONTRIBUTING.md): where everything is, the build and test commands for every app, the shared Rust core and its golden cases, and how releases and nightlies work.
-- **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.
-- **The creator's name is written licht** everywhere in the apps, installer and pages.
-- **A nightly every 3 hours.** When `main` has new commits since the last nightly, one is built (GitHub can start it
-  late under load) and named *nightly N*, counting on after each stable release. Only the newest nightly is kept; older
-  ones are deleted. Apps offer nightlies only with the nightly switch on and move on to the next stable release when it
-  ships (stable → nightly → nightly 2 → stable 2).
 - **Control your phone from the computer.** While a paired phone plays, the computer's Settings → Sync & Connect
   shows what it plays with Previous, Play/Pause and Next. The phone keeps its own queue; nothing to turn on.
 - **A phone that pairs again replaces its old entry** on the computer (or hosting phone) instead of showing twice.
@@ -67,8 +44,14 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
   phone instead of an address and the phone finds the computer on your Wi-Fi. You still approve the phone on the
   computer and compare the 6-digit code. The address is shown too, and now skips VPN/proxy adapters.
 
-### Android phone and tablet
+### Android phone and tablet (also Android Auto)
 
+- **Swiping a song to the queue adds it once** (it could appear several times; issue #328).
+- **Play starts a playlist in order again.** After a shuffled play, pressing Play on a playlist or album
+  kept shuffling the next songs; now Play turns shuffle off and Shuffle turns it on (issue #329).
+- **Undo after renaming or reordering a playlist.**
+- **Radio moved next to your profile** in the top bar (when Radio is on; hidden when it is off), leaving
+  more room in the tab bar.
 - **A clear message when your network blocks YouTube's audio.** Some DNS services (for example 87.107.206.10 /
   87.107.206.11) let search, home and covers through but not googlevideo.com, the servers the songs play from, so
   songs showed up but never played, with no explanation. nuvx now tells you once, then points you to
@@ -93,26 +76,6 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 - **Playlists work without signing in.** Signed out, **New playlist** now creates a playlist on this device
   (before, nothing happened), says "Saved on this device", and **Add to playlist** shows in the song menu so you
   can fill it. Signed-in behaviour is unchanged.
-
-### Desktop (Windows, macOS, Linux)
-
-- **Downloaded WebM songs play again.** Songs saved as WebM/Opus (downloaded on the computer or sent from a phone)
-  were opened as AAC, failed at once and skipped to the next song. The format is now read from the file.
-- **YouTube videos keep their original language.** Videos dubbed into other languages list every dub next to the
-  original. nuvx used to take the first one listed, which could be a dub (Arabic, German, ...). It now plays the
-  track YouTube marks as the original, and falls back to YouTube's default track when no original is marked.
-- **How to use it:** turn on **Settings → Enable YouTube Search**, switch the search results to **YouTube**, and
-  play any video. Nothing else to set.
-
-## 1.0.3
-
-Android version code 4 (phone, TV, Auto and Wear OS). iOS build 4. Desktop 1.0.3 for Windows, macOS and Linux.
-
-This release makes nuvx faster and more reliable over Tor. How to set up Tor or a VLESS/REALITY app on each device:
-**[Connecting from restricted networks](https://github.com/lylicht/nuvx/blob/main/docs/CONNECTING_FROM_RESTRICTED_NETWORKS.md)**.
-
-### Android phone and tablet (also Android Auto)
-
 - **Songs start much faster over Tor.** YouTube turns away many Tor exits. nuvx now notices that straight away and
   moves to a fresh exit instead of retrying the blocked one for about half a minute, and it tries up to four exits
   per song instead of two. In testing over Orbot, 8 of 8 songs played, most within 3 to 9 seconds (before: up to a
@@ -125,7 +88,7 @@ This release makes nuvx faster and more reliable over Tor. How to set up Tor or 
 
 ### Android TV and Google TV
 
-- New version (code 4) with the shared fixes. Use a VPN app on the TV for a protected connection.
+- New version (code 4) with the shared fixes. The update window shows the release picture. Use a VPN app on the TV for a protected connection.
 
 ### Wear OS
 
@@ -133,16 +96,50 @@ This release makes nuvx faster and more reliable over Tor. How to set up Tor or 
 
 ### Windows, macOS and Linux
 
-- New version (1.0.3). No changes since 1.0.2; the desktop already switches Tor exits by itself
-  (**Settings → Network → Proxy → Privacy Connection (Tor)**).
+- **A first-run intro** like the Android TV app's, on the same navy background: welcome, sign in to
+  YouTube Music, choose a look (System, Light, Dark), listening options (autoplay, spatial audio, animated artwork
+  and background, nightly updates), done, plus window material and Windows or macOS window buttons. It is a full
+  page scaled to fit any window, with the official vector nuvx mark; nothing behind it can be clicked.
+  Shown once on a new install; **Set up later** skips it. A **nightly** build shows it once for every new nightly you install, with all your saved data kept.
+- **Swipe the expanded player down to close it**, like on the phone (let go past a fifth of the window,
+  or flick). The intro also gets a **Your tabs** step to show or hide Radio and Podcasts.
+- **A song that fails to start is tried again** (after 350 ms, then 700 ms) before it is skipped, and
+  skipping stops after 4 songs in a row, the same rules as Android. Both apps are tested against one shared set of
+  cases (`core/contracts/stream-recovery.json`).
+- **Smarter downloads.** They stop under 500 MB free on the download drive, and Settings → Downloads has a
+  **Storage limit** (Off, 1–50 GB) with how much downloads use now, like on Android.
+- **Equalizer per output.** Each output device you pick in Settings → Playback keeps its own equalizer
+  (like on Android): switch from speakers to headphones and each gets its setting back.
+- **Playlist files.** A playlist's **More → Export playlist…** saves it as M3U or CSV, and **Settings → Import
+  → Import a playlist file** reads one into a nuvx playlist. Same formats as the phone, so playlists move both ways.
+- **Settings → Your data.** What stays on this computer and what leaves it (per service, and when), the
+  data folder, clearing recent searches, paired phones, and **Copy diagnostics**: version, system, renderer, network mode and this run's latest
+  warnings and errors, with links, tokens and your folder names removed. Copied only when you press it.
+- **Downloaded WebM songs play again.** Songs saved as WebM/Opus (downloaded on the computer or sent from a phone)
+  were opened as AAC, failed at once and skipped to the next song. The format is now read from the file.
+- **YouTube videos keep their original language.** Videos dubbed into other languages list every dub next to the
+  original. nuvx used to take the first one listed, which could be a dub (Arabic, German, ...). It now plays the
+  track YouTube marks as the original, and falls back to YouTube's default track when no original is marked.
+- **How to use it:** turn on **Settings → Enable YouTube Search**, switch the search results to **YouTube**, and
+  play any video. Nothing else to set.
 
 ### iPhone and iPad
 
-- Build 4. Use a VPN app for the whole device for a protected connection.
+- Build 4. The audio engine now takes its equalizer curves from nuvx's shared core; they are identical, so nothing sounds different. Use a VPN app for the whole device for a protected connection.
 
 ### Web player and browser extension
 
-- Extension 1.0.3. Use your device's or browser's VPN/proxy for a protected connection.
+- Web player: SFStudio icons with animations, a corrected Albums icon, and Listen Together kept in Settings. Extension 1.0.3. Use your device's or browser's VPN/proxy for a protected connection.
+
+### For testers and contributors
+
+- **Contributor guide refreshed** (CONTRIBUTING.md): where everything is, the build and test commands for every app, the shared Rust core and its golden cases, and how releases and nightlies work.
+- **Release notes open with the nuvx picture**, on GitHub and in the update notes inside the phone, TV and desktop apps.
+- **The creator's name is written licht** everywhere in the apps, installer and pages.
+- **A nightly every 3 hours.** When `main` has new commits since the last nightly, one is built (GitHub can start it
+  late under load) and named *nightly N*, counting on after each stable release. Only the newest nightly is kept; older
+  ones are deleted. Apps offer nightlies only with the nightly switch on and move on to the next stable release when it
+  ships (stable → nightly → nightly 2 → stable 2).
 
 ## 1.0.2
 
