@@ -42,7 +42,11 @@ pub struct Meta {
     pub title: String,
     #[serde(default)]
     pub artist: String,
-    #[serde(default, rename = "thumbnailUrl", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "thumbnailUrl",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub thumbnail: Option<String>,
 }
 
@@ -58,13 +62,24 @@ pub fn replay(ops: &[Op]) -> Vec<Playlist> {
     let mut lists: HashMap<String, Playlist> = HashMap::new();
     let mut deleted: HashSet<String> = HashSet::new();
     for op in sorted {
-        let target = op.entity.split_once(':').map_or(op.entity.as_str(), |(_, t)| t).to_owned();
+        let target = op
+            .entity
+            .split_once(':')
+            .map_or(op.entity.as_str(), |(_, t)| t)
+            .to_owned();
         let p = &op.payload;
         match op.kind.as_str() {
             "playlist.create" => {
                 if !deleted.contains(&target) && !lists.contains_key(&target) {
                     order.push(target.clone());
-                    lists.insert(target.clone(), Playlist { id: target, title: s(p, "title").unwrap_or("").to_owned(), tracks: vec![] });
+                    lists.insert(
+                        target.clone(),
+                        Playlist {
+                            id: target,
+                            title: s(p, "title").unwrap_or("").to_owned(),
+                            tracks: vec![],
+                        },
+                    );
                 }
             }
             "playlist.rename" => {
@@ -79,16 +94,28 @@ pub fn replay(ops: &[Op]) -> Vec<Playlist> {
                 }
             }
             "playlist.addTrack" | "playlist.moveTrack" => {
-                let (Some(list), Some(track)) = (lists.get_mut(&target), s(p, "videoId")) else { continue };
+                let (Some(list), Some(track)) = (lists.get_mut(&target), s(p, "videoId")) else {
+                    continue;
+                };
                 let present = list.tracks.iter().any(|t| t == track);
-                if (op.kind == "playlist.addTrack" && present) || (op.kind == "playlist.moveTrack" && !present) {
+                if (op.kind == "playlist.addTrack" && present)
+                    || (op.kind == "playlist.moveTrack" && !present)
+                {
                     continue;
                 }
-                let mut rest: Vec<String> = list.tracks.iter().filter(|t| *t != track).cloned().collect();
+                let mut rest: Vec<String> = list
+                    .tracks
+                    .iter()
+                    .filter(|t| *t != track)
+                    .cloned()
+                    .collect();
                 let at = match p.get("after") {
                     None => rest.len(),
                     Some(Value::Null) => 0,
-                    Some(a) => a.as_str().and_then(|a| rest.iter().position(|t| t == a)).map_or(rest.len(), |i| i + 1),
+                    Some(a) => a
+                        .as_str()
+                        .and_then(|a| rest.iter().position(|t| t == a))
+                        .map_or(rest.len(), |i| i + 1),
                 };
                 rest.insert(at, track.to_owned());
                 list.tracks = rest;
@@ -101,13 +128,22 @@ pub fn replay(ops: &[Op]) -> Vec<Playlist> {
             _ => {} // unknown kinds are skipped, so an older client never corrupts a newer one's state
         }
     }
-    order.into_iter().filter_map(|id| lists.remove(&id)).collect()
+    order
+        .into_iter()
+        .filter_map(|id| lists.remove(&id))
+        .collect()
 }
 
 /// Ops that turn `before` into `after`; replaying them on `before` gives `after` (same rules as `SyncEngine.diff`).
 pub fn diff(before: &[Playlist], after: &[(Playlist, HashMap<String, Meta>)]) -> Vec<NewOp> {
     let mut ops = Vec::new();
-    let mut op = |kind: &'static str, playlist: &str, payload: Value| ops.push(NewOp { kind, entity: format!("playlist:{playlist}"), payload });
+    let mut op = |kind: &'static str, playlist: &str, payload: Value| {
+        ops.push(NewOp {
+            kind,
+            entity: format!("playlist:{playlist}"),
+            payload,
+        })
+    };
     let old: HashMap<&str, &Playlist> = before.iter().map(|p| (p.id.as_str(), p)).collect();
     let keep: HashSet<&str> = after.iter().map(|(p, _)| p.id.as_str()).collect();
     for p in before {
@@ -119,7 +155,9 @@ pub fn diff(before: &[Playlist], after: &[(Playlist, HashMap<String, Meta>)]) ->
         let was = old.get(p.id.as_str());
         match was {
             None => op("playlist.create", &p.id, json!({ "title": p.title })),
-            Some(w) if w.title != p.title => op("playlist.rename", &p.id, json!({ "title": p.title })),
+            Some(w) if w.title != p.title => {
+                op("playlist.rename", &p.id, json!({ "title": p.title }))
+            }
             _ => {}
         }
         let mut target: Vec<&str> = Vec::new();
@@ -129,7 +167,11 @@ pub fn diff(before: &[Playlist], after: &[(Playlist, HashMap<String, Meta>)]) ->
             }
         }
         let mut work: Vec<String> = was.map(|w| w.tracks.clone()).unwrap_or_default();
-        for gone in work.clone().iter().filter(|t| !target.contains(&t.as_str())) {
+        for gone in work
+            .clone()
+            .iter()
+            .filter(|t| !target.contains(&t.as_str()))
+        {
             work.retain(|t| t != gone);
             op("playlist.removeTrack", &p.id, json!({ "videoId": gone }));
         }
@@ -145,7 +187,10 @@ pub fn diff(before: &[Playlist], after: &[(Playlist, HashMap<String, Meta>)]) ->
             }
             let to = match want_after {
                 None => 0,
-                Some(w) => work.iter().position(|t| t == w).map_or(work.len(), |x| x + 1),
+                Some(w) => work
+                    .iter()
+                    .position(|t| t == w)
+                    .map_or(work.len(), |x| x + 1),
             };
             work.insert(to, (*id).to_owned());
             let mut payload = Map::new();
@@ -159,7 +204,15 @@ pub fn diff(before: &[Playlist], after: &[(Playlist, HashMap<String, Meta>)]) ->
                     payload.insert("thumbnailUrl".into(), json!(t));
                 }
             }
-            op(if at.is_some() { "playlist.moveTrack" } else { "playlist.addTrack" }, &p.id, Value::Object(payload));
+            op(
+                if at.is_some() {
+                    "playlist.moveTrack"
+                } else {
+                    "playlist.addTrack"
+                },
+                &p.id,
+                Value::Object(payload),
+            );
         }
     }
     ops
@@ -170,45 +223,87 @@ mod tests {
     use super::*;
 
     fn logged(ops: Vec<NewOp>, from: u64) -> Vec<Op> {
-        ops.into_iter().enumerate().map(|(i, o)| Op {
-            seq: from + i as u64, op_id: format!("o{}", from + i as u64), device_id: "d".into(),
-            kind: o.kind.into(), entity: o.entity, payload: o.payload, client_ms: 0,
-        }).collect()
+        ops.into_iter()
+            .enumerate()
+            .map(|(i, o)| Op {
+                seq: from + i as u64,
+                op_id: format!("o{}", from + i as u64),
+                device_id: "d".into(),
+                kind: o.kind.into(),
+                entity: o.entity,
+                payload: o.payload,
+                client_ms: 0,
+            })
+            .collect()
     }
 
     #[test]
     fn replays_the_shared_fixture_exactly() {
-        let fixture: Value = serde_json::from_str(include_str!("../../../../core/sync/fixtures/replay-v1.json")).unwrap();
-        let ops: Vec<Op> = fixture["ops"].as_array().unwrap().iter().map(|o| Op {
-            seq: o["seq"].as_u64().unwrap(), op_id: String::new(), device_id: String::new(),
-            kind: o["kind"].as_str().unwrap().into(), entity: o["entity"].as_str().unwrap().into(),
-            payload: o["payload"].clone(), client_ms: 0,
-        }).collect();
+        let fixture: Value =
+            serde_json::from_str(include_str!("../../../../sync/fixtures/replay-v1.json")).unwrap();
+        let ops: Vec<Op> = fixture["ops"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|o| Op {
+                seq: o["seq"].as_u64().unwrap(),
+                op_id: String::new(),
+                device_id: String::new(),
+                kind: o["kind"].as_str().unwrap().into(),
+                entity: o["entity"].as_str().unwrap().into(),
+                payload: o["payload"].clone(),
+                client_ms: 0,
+            })
+            .collect();
         let got = replay(&ops);
         let want = fixture["expected"]["playlists"].as_object().unwrap();
         assert_eq!(got.len(), want.len());
         for p in &got {
             let w = &want[&p.id];
             assert_eq!(p.title, w["title"].as_str().unwrap(), "{}", p.id);
-            let tracks: Vec<&str> = w["tracks"].as_array().unwrap().iter().map(|t| t.as_str().unwrap()).collect();
+            let tracks: Vec<&str> = w["tracks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|t| t.as_str().unwrap())
+                .collect();
             assert_eq!(p.tracks, tracks, "{}", p.id);
         }
     }
 
     #[test]
     fn diff_then_replay_reaches_the_edited_library() {
-        let pl = |id: &str, title: &str, t: &[&str]| Playlist { id: id.into(), title: title.into(), tracks: t.iter().map(|s| s.to_string()).collect() };
+        let pl = |id: &str, title: &str, t: &[&str]| Playlist {
+            id: id.into(),
+            title: title.into(),
+            tracks: t.iter().map(|s| s.to_string()).collect(),
+        };
         let no = HashMap::new;
-        let start = vec![(pl("a", "Road", &["1", "2", "3"]), no()), (pl("b", "Gone", &["9"]), no())];
+        let start = vec![
+            (pl("a", "Road", &["1", "2", "3"]), no()),
+            (pl("b", "Gone", &["9"]), no()),
+        ];
         let mut log = logged(diff(&[], &start), 1);
         let before = replay(&log);
         // Reorder, remove, add, rename, delete one list, create another, and a duplicate that must collapse.
-        let edited = vec![(pl("a", "Road 2", &["3", "1", "4", "4"]), no()), (pl("c", "New", &["5"]), no())];
+        let edited = vec![
+            (pl("a", "Road 2", &["3", "1", "4", "4"]), no()),
+            (pl("c", "New", &["5"]), no()),
+        ];
         let more = diff(&before, &edited);
         log.extend(logged(more, 100));
         let after = replay(&log);
-        assert_eq!(after, vec![pl("a", "Road 2", &["3", "1", "4"]), pl("c", "New", &["5"])]);
+        assert_eq!(
+            after,
+            vec![pl("a", "Road 2", &["3", "1", "4"]), pl("c", "New", &["5"])]
+        );
         // Nothing changed: no ops, so a repeated sync never writes duplicates.
-        assert!(diff(&after, &[(after[0].clone(), no()), (after[1].clone(), no())]).is_empty());
+        assert!(
+            diff(
+                &after,
+                &[(after[0].clone(), no()), (after[1].clone(), no())]
+            )
+            .is_empty()
+        );
     }
 }

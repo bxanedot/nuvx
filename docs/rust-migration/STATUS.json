@@ -92,6 +92,12 @@
           "what": "volume normalization gain in nuvx-core, shared cases in core/contracts/loudness-gain.json",
           "state": "PASS",
           "evidence": "nuvx-core 19 tests, desktop 264, Android LoudnessGainTest 4 (8 shared cases agree)"
+        },
+        {
+          "id": "05g",
+          "what": "Nuvx Sync replay + diff rules (lan/replay.rs) moved into nuvx-core, still pinned by core/sync/fixtures/replay-v1.json",
+          "state": "PASS",
+          "evidence": "nuvx-core 21 tests + desktop 262 (283 total, unchanged), clippy clean, cargo_notices.py"
         }
       ],
       "evidence": [],
