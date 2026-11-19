@@ -42,6 +42,19 @@ for arch in x86_64 aarch64; do
 printf '%s\n' '$arch'
 EOF
     chmod 755 "$bin/uname"
+    if [ "$arch" = x86_64 ]; then
+        # Representative previous per-user install: executable, launcher, settings and downloads.
+        old_lib="$bin/home/.local/lib/nuvx"
+        user_data="$bin/home/share/nuvx"
+        user_config="$bin/home/.config/nuvx"
+        mkdir -p "$old_lib" "$user_data/downloads" "$user_config" "$bin/home/.local/bin" "$bin/home/share/applications"
+        printf 'previous nuvx executable\n' > "$old_lib/nuvx"
+        printf 'saved queue: track-123\n' > "$user_data/queue.txt"
+        printf 'downloaded music fixture\n' > "$user_data/downloads/track.dat"
+        printf 'reduce_motion=1\n' > "$user_config/preferences.txt"
+        cp "$here/nuvx.desktop" "$bin/home/share/applications/nuvx.desktop"
+        ln -s "$old_lib/nuvx" "$bin/home/.local/bin/nuvx"
+    fi
     PATH="$bin:$root/stubs:$PATH" HOME="$bin/home" XDG_DATA_HOME="$bin/home/share" sh "$package/install.sh"
     file -b "$bin/home/.local/lib/nuvx/nuvx" | grep -F "$machine" >/dev/null
     cmp "$package/LICENSE" "$bin/home/.local/lib/nuvx/LICENSE"
@@ -57,4 +70,17 @@ EOF
     for license in LICENSE COPYRIGHT; do
         cmp "$here/../vendor/glib/$license" "$bin/home/.local/lib/nuvx/licenses/glib-$license.txt"
     done
+    if [ "$arch" = x86_64 ]; then
+        # An in-place upgrade must not erase the existing user profile or alter its app identity.
+        printf 'saved queue: track-123\n' | cmp - "$user_data/queue.txt"
+        printf 'downloaded music fixture\n' | cmp - "$user_data/downloads/track.dat"
+        printf 'reduce_motion=1\n' | cmp - "$user_config/preferences.txt"
+        [ "$(readlink "$bin/home/.local/bin/nuvx")" = "$old_lib/nuvx" ]
+        [ ! -e "$old_lib/nuvx.new" ]
+        upgraded="$bin/home/share/applications/nuvx.desktop"
+        grep -Fx 'Name=nuvx' "$upgraded" >/dev/null
+        grep -Fx 'Icon=nuvx' "$upgraded" >/dev/null
+        grep -Fx 'StartupWMClass=nuvx' "$upgraded" >/dev/null
+        grep -Fx "Exec=$old_lib/nuvx" "$upgraded" >/dev/null
+    fi
 done
