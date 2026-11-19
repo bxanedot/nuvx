@@ -85,7 +85,9 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now, maxDbB
   const FULL = fail(507, "server_full", "This sync server is out of space. Try again later.");
 
   function auth(header: string | undefined): Device | null {
-    const bearer = header?.match(/^bearer\s+(\S.*)$/i)?.[1].trim();
+    // Plain string checks, no regex: a crafted long header must not cost more than one pass.
+    if (!header || header.length > 512 || header.slice(0, 7).toLowerCase() !== "bearer ") return null;
+    const bearer = header.slice(7).trim();
     if (!bearer) return null;
     const device = db.prepare("SELECT id, space_id FROM devices WHERE token_hash = ?").get(hash(bearer)) as Device | undefined;
     // At most one write a minute per device, so reads stay reads.

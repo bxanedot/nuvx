@@ -174,5 +174,6 @@ test("a huge whitespace-padded bearer header is refused quickly", () => {
   const a = app();
   const started = performance.now();
   assert.equal(a.call("GET", "/v1/devices", `${" ".repeat(50_000)}\n`).status, 401);
+  assert.equal(a.call("GET", "/v1/devices", `Bearer ${" 	".repeat(50_000)}x`).status, 401, "over the length cap");
   assert.ok(performance.now() - started < 1_000, "the auth pattern must not backtrack on long headers");
 });
