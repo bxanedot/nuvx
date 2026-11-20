@@ -517,6 +517,9 @@ impl Inner {
                 // Capabilities travel with the authenticated state response. Old peers omit
                 // this field; new peers must never advertise queue mutation while disabled.
                 let mut actions = super::connect::LEGACY_ACTIONS.to_vec();
+                if self.connect_now.get("track").is_none_or(|track| !track.is_object()) {
+                    actions.retain(|action| *action != "seek");
+                }
                 if self.queue_mutation_allowed {
                     actions.push("enqueue");
                 }
@@ -529,6 +532,15 @@ impl Inner {
                 };
                 if matches!(&command, super::connect::Command::Enqueue(_)) && !self.queue_mutation_allowed {
                     return err(403, "queue_off", "Remote queue edits are unavailable in this playback mode.");
+                }
+                if let super::connect::Command::Seek { track_id, .. } = &command {
+                    let current = self.connect_now.get("track").filter(|track| track.is_object());
+                    if current.is_none() {
+                        return err(409, "no_track", "Nothing is playing on this device to seek.");
+                    }
+                    if track_id.as_deref().is_some_and(|id| current.unwrap().get("id").and_then(Value::as_str) != Some(id)) {
+                        return err(409, "stale_track", "The current track changed; refresh playback state before seeking.");
+                    }
                 }
                 if self.connect_commands.len() >= super::connect::MAX_QUEUED {
                     return err(429, "busy", "Too many commands at once.");
