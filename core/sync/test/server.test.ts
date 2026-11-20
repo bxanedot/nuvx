@@ -193,6 +193,20 @@ test("a space stops at its storage limit, and export pages like a pull", () => {
   assert.equal(rest.more, false);
 });
 
+test("versioned Sync pushes reject incompatible requests without mutating stored ops", () => {
+  const a = app();
+  const owner = newSpace(a);
+  assert.equal(a.call("POST", "/v1/ops", owner.token, { api: 1, ops: [op("v1")] }).status, 200);
+  assert.equal(a.call("POST", "/v1/ops", owner.token, { ops: [op("legacy")] }).status, 200);
+  for (const api of [2, "1", null, -1]) {
+    const denied = a.call("POST", "/v1/ops", owner.token, { api, ops: [op("rejected")] });
+    assert.equal(denied.status, 422);
+    assert.equal(denied.body.error, "unsupported_api");
+  }
+  const saved = a.call("GET", "/v1/ops", owner.token).body.ops;
+  assert.deepEqual(saved.map((o: { id: string }) => o.id), ["v1", "legacy"]);
+});
+
 test("bad input is refused: oversize payloads, empty and oversize batches, missing fields", () => {
   const a = app();
   const me = newSpace(a);
