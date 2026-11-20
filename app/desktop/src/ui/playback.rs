@@ -232,7 +232,7 @@ impl App {
     }
 
     pub(super) fn restore_session(&mut self, json: &str) {
-        let Ok(s) = serde_json::from_str::<Session>(json) else { return };
+        let Some(s) = Session::parse(json) else { return };
         let Some(index) = s.restored_index() else { return };
         let track = s.queue[index].clone();
         self.queue.adopt(s.queue, index);
