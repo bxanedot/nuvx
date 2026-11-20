@@ -26,6 +26,16 @@ class DownloadStoreTest {
         Song(videoId = videoId, title = title, artist = artist, thumbnailUrl = null)
 
     @Test
+    fun `stream with known size is only usable when every expected byte arrived`() {
+        assertFalse(Downloader.completeLength(0, null))
+        assertFalse(Downloader.completeLength(0, 100))
+        assertFalse(Downloader.completeLength(99, 100), "truncated data")
+        assertFalse(Downloader.completeLength(101, 100), "overlong or corrupted data")
+        assertTrue(Downloader.completeLength(100, 100))
+        assertTrue(Downloader.completeLength(100, null), "legacy source without a length")
+    }
+
+    @Test
     fun `zero length and in-progress files are never presented as complete downloads`() {
         val folder = kotlin.io.path.createTempDirectory("nuvx-integrity").toFile()
         try {
