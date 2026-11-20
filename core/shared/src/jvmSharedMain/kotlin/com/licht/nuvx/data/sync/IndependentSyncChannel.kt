@@ -12,13 +12,13 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.util.UUID
 
-internal enum class IndependentCategory { FAVORITES, HISTORY, THEME }
+enum class IndependentCategory { FAVORITES, HISTORY, THEME }
 
 @Serializable
-internal data class SyncedListen(val id: String, val videoId: String, val playedAtMs: Long)
+data class SyncedListen(val id: String, val videoId: String, val playedAtMs: Long)
 
 @Serializable
-internal data class IndependentState(
+data class IndependentState(
     val cursor: Long = 0,
     val pending: List<StoredOp> = emptyList(),
     val favorites: Map<String, Boolean> = emptyMap(),
@@ -26,7 +26,7 @@ internal data class IndependentState(
     val themeMode: String? = null,
 )
 
-internal sealed interface IndependentResult {
+sealed interface IndependentResult {
     data class Applied(val state: IndependentState) : IndependentResult
     data class Failed(val cause: SyncResult) : IndependentResult
     data object Disabled : IndependentResult
@@ -37,7 +37,7 @@ internal sealed interface IndependentResult {
  * No local file paths, sign-in cookies, account data or library metadata are sent.
  * The saved cursor, pending IDs and current values share a single atomic store.
  */
-internal class IndependentSyncChannel(
+class IndependentSyncChannel(
     private val client: SyncClient,
     private val store: SyncStore,
     private val enabled: () -> Boolean = { false },
