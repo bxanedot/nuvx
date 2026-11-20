@@ -1,3 +1,4 @@
+import { isCurrentPartySocket } from './socketGuard';
 import { create } from 'zustand';
 import { config } from '@/config';
 import { ytAuthSnapshot } from '@/extension/useYtAuth';
@@ -388,7 +389,7 @@ function connect(): void {
     socket = ws;
     let opened = false;
     ws.onopen = () => {
-      if (id !== loopId) return;
+      if (!isCurrentPartySocket(id, loopId, ws, socket)) return;
       opened = true;
       failures = 0;
       backoff = 1000;
@@ -398,7 +399,7 @@ function connect(): void {
       timers.push(setInterval(report, REPORT_INTERVAL_MS) as unknown as ReturnType<typeof setTimeout>);
     };
     ws.onmessage = (event) => {
-      if (id === loopId) onFrame(String(event.data));
+      if (isCurrentPartySocket(id, loopId, ws, socket)) onFrame(String(event.data));
     };
     ws.onclose = () => {
       if (id !== loopId || socket !== ws) return;
