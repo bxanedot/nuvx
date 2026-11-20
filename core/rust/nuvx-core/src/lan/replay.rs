@@ -88,10 +88,10 @@ pub fn replay(ops: &[Op]) -> Vec<Playlist> {
                 }
             }
             "playlist.delete" => {
-                if lists.remove(&target).is_some() {
-                    order.retain(|id| id != &target);
-                    deleted.insert(target);
-                }
+                lists.remove(&target);
+                order.retain(|id| id != &target);
+                // A stale or delayed create cannot resurrect a deleted ID.
+                deleted.insert(target);
             }
             "playlist.addTrack" | "playlist.moveTrack" => {
                 let (Some(list), Some(track)) = (lists.get_mut(&target), s(p, "videoId")) else {
@@ -235,6 +235,23 @@ mod tests {
                 client_ms: 0,
             })
             .collect()
+    }
+
+    #[test]
+    fn deletion_before_delayed_create_keeps_tombstone() {
+        let mk = |kind: &'static str, id: &str, payload: Value| NewOp {
+            kind,
+            entity: format!("playlist:{id}"),
+            payload,
+        };
+        let log = logged(vec![
+            mk("playlist.delete", "gone", json!({})),
+            mk("playlist.create", "gone", json!({"title": "Stale"})),
+            mk("playlist.create", "kept", json!({"title": "Alive"})),
+        ], 1);
+        let got = replay(&log);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].id, "kept");
     }
 
     #[test]
