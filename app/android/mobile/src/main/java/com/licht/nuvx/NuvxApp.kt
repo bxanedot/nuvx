@@ -1877,8 +1877,25 @@ internal fun NuvxApp(
                                                                 message = context.getString(R.string.playlist_reordered),
                                                                 actionLabel = context.getString(R.string.undo),
                                                             )
-                                                            // Undo puts the old order back the same way it was changed.
-                                                            if (result == SnackbarResult.ActionPerformed) viewModel.reorderPlaylist(reordering, reordered, original)
+                                                            // The local redo checkpoint is available only after Undo succeeds.
+                                                            // Expected-order checks prevent replacing later local edits.
+                                                            if (result == SnackbarResult.ActionPerformed) {
+                                                                if (reordering.browseId.startsWith("local:playlist:")) {
+                                                                    viewModel.reorderPlaylist(reordering, reordered, original) { undone ->
+                                                                        if (undone) scope.launch {
+                                                                            val redo = snackbars.showSnackbar(
+                                                                                message = context.getString(R.string.playlist_reordered),
+                                                                                actionLabel = context.getString(R.string.redo),
+                                                                            )
+                                                                            if (redo == SnackbarResult.ActionPerformed) {
+                                                                                viewModel.reorderPlaylist(reordering, original, reordered)
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    viewModel.reorderPlaylist(reordering, reordered, original)
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                     if (saved && reorderTarget == reordering) reorderTarget = null
