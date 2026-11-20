@@ -50,6 +50,16 @@ pub struct Parsed {
     pub unmatched: usize,
 }
 
+/// Keep the first occurrence of a YouTube video when importing a file.
+/// Source track order is preserved; no existing playlist is changed.
+pub fn deduplicate(tracks: Vec<Track>) -> (Vec<Track>, usize) {
+    let mut ids = std::collections::HashSet::new();
+    let original = tracks.len();
+    let unique: Vec<_> = tracks.into_iter().filter(|track| ids.insert(track.id.clone())).collect();
+    let removed = original - unique.len();
+    (unique, removed)
+}
+
 pub fn parse(text: &str) -> Parsed {
     let text = text.trim_start_matches('\u{feff}');
     if text.trim_start().starts_with("#EXTM3U")
@@ -282,6 +292,19 @@ mod tests {
             (back.tracks[0].title.as_str(), back.tracks[0].artist_line()),
             ("=HYPERLINK(\"x\")", "A, B".to_owned())
         );
+    }
+
+    #[test]
+    fn imported_duplicate_ids_keep_the_first_track_and_original_order() {
+        let first = t("dQw4w9WgXcQ", "Original metadata", "Artist");
+        let duplicate = t("dQw4w9WgXcQ", "Different metadata", "Other");
+        let next = t("kJQP7kiw5Fk", "Next", "Artist");
+        let (tracks, duplicates) = deduplicate(vec![first.clone(), next.clone(), duplicate]);
+        assert_eq!(duplicates, 1);
+        assert_eq!(tracks, vec![first, next]);
+        let (empty, duplicates) = deduplicate(Vec::new());
+        assert!(empty.is_empty());
+        assert_eq!(duplicates, 0);
     }
 
     #[test]
