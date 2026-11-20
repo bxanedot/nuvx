@@ -233,8 +233,9 @@ impl App {
 
     pub(super) fn restore_session(&mut self, json: &str) {
         let Ok(s) = serde_json::from_str::<Session>(json) else { return };
-        let Some(track) = s.queue.get(s.index).cloned() else { return };
-        self.queue.adopt(s.queue, s.index);
+        let Some(index) = s.restored_index() else { return };
+        let track = s.queue[index].clone();
+        self.queue.adopt(s.queue, index);
         let shown = s.playing_as.clone().unwrap_or_else(|| track.clone());
         self.playing_as = s.playing_as.map(|song| PlayingAs { generation: self.generation, listed: track.id.clone(), song });
         let dur = shown.duration.map_or(s.duration_ms, |d| d as u64 * 1000);
