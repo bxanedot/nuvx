@@ -79,12 +79,13 @@ export function AppShell() {
   useEffect(() => {
     const pathname = location.pathname.replace(/\/+$/, '') || '/';
     const meta = publicPages[pathname];
-    const title = meta?.title ?? 'nuvx Web Player — YouTube Music in your browser';
-    const description = meta?.description ?? 'Play YouTube Music in your browser with nuvx: synced lyrics, Listen Together, Spotify playlists and Discord status. Free and open source.';
+    const indexable = Boolean(meta) || pathname === '/';
+    const title = meta?.title ?? 'nuvx Web Player — YouTube Music in your browser by licht';
+    const description = meta?.description ?? 'Play YouTube Music in your browser with nuvx, a free, open-source music player by licht, with synced lyrics, Listen Together, Spotify playlists and Discord status.';
     const canonical = `https://web.nuvx.lol${pathname === '/' ? '/' : pathname}`;
     document.title = title;
     document.querySelector('meta[name="description"]')?.setAttribute('content', description);
-    document.querySelector('meta[name="robots"]')?.setAttribute('content', meta ? 'index,follow' : 'noindex,follow');
+    document.querySelector('meta[name="robots"]')?.setAttribute('content', indexable ? 'index,follow' : 'noindex,follow');
     document.querySelector('meta[name="author"]')?.setAttribute('content', 'licht');
     document.querySelector('link[rel="canonical"]')?.setAttribute('href', canonical);
     document.querySelector('meta[property="og:url"]')?.setAttribute('content', canonical);
