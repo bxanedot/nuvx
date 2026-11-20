@@ -139,9 +139,11 @@ impl Queue {
     }
 
     pub fn add_radio(&mut self, seed: &str, tracks: Vec<Track>) -> bool {
-        let have: std::collections::HashSet<String> = self.tracks.iter().map(|t| t.id.clone()).collect();
+        let mut have: std::collections::HashSet<String> = self.tracks.iter().map(|t| t.id.clone()).collect();
         let was_at_end = self.at_end();
-        self.tracks.extend(tracks.into_iter().filter(|t| t.id != seed && !have.contains(&t.id)));
+        // The incoming page may itself repeat an ID. Insert into the set as
+        // tracks are appended so neither old nor same-page duplicates enter.
+        self.tracks.extend(tracks.into_iter().filter(|t| t.id != seed && have.insert(t.id.clone())));
         was_at_end
     }
 
@@ -290,6 +292,22 @@ mod tests {
         assert!(q.add_radio("seed", vec![track("seed"), track("a"), track("b"), track("c")]));
         assert_eq!(ids(&q), ["seed", "a", "b", "c"]);
         assert!(!q.add_radio("seed", vec![track("d")]));
+    }
+
+    #[test]
+    fn radio_pages_preserve_first_seen_order_and_skip_incoming_duplicates() {
+        let mut q = queue(&["seed", "existing"], 1, Repeat::Off);
+        assert!(q.add_radio("seed", vec![
+            track("new"), track("new"), track("existing"),
+            track("other"), track("new"), track("seed"),
+        ]));
+        assert_eq!(ids(&q), ["seed", "existing", "new", "other"]);
+        assert_eq!(q.current().unwrap().id, "existing");
+        assert!(!q.add_radio("seed", vec![track("other"), track("last"), track("last")]));
+        assert_eq!(ids(&q), ["seed", "existing", "new", "other", "last"]);
+        let mut empty = Queue::new(Repeat::Off);
+        assert!(!empty.add_radio("seed", vec![]));
+        assert!(empty.tracks.is_empty());
     }
 
     #[test]
