@@ -292,6 +292,18 @@ mod tests {
     }
 
     #[test]
+    fn empty_local_playlist_export_contains_no_other_private_categories() {
+        let out = export(&[], "1.0.4", "2026-11-20T00:00:00Z");
+        let value: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(value["app"], "nuvx");
+        assert_eq!(value["version"], 1);
+        assert_eq!(value["playlists"].as_array().unwrap().len(), 0);
+        assert!(value["listening"].as_array().unwrap().is_empty());
+        assert!(value["settings"].as_object().unwrap().is_empty());
+        assert!(import(&out).unwrap().is_empty());
+    }
+
+    #[test]
     fn reads_the_shared_android_format_case() {
         let fixture = include_str!("../../../contracts/backup-v1.json");
         let list = import(fixture).unwrap();
