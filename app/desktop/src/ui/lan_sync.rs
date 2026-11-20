@@ -176,6 +176,7 @@ impl super::App {
             "playing": self.playing() && self.resume_at.is_none(),
             "ended": self.playback_ended(),
             "positionMs": self.audio.status.position().as_millis() as u64,
+            "volume": self.audio.volume(),
         })
     }
 
@@ -202,6 +203,10 @@ impl super::App {
                 if track_id.as_deref().is_some_and(|id| self.current_id() != Some(id)) { return; }
                 self.seek_to(std::time::Duration::from_millis(position_ms));
             },
+            Command::Volume(gain) => {
+                if !self.lan.connect { return; }
+                self.audio.set_volume(gain.clamp(0.0, 1.0));
+            }
             Command::Enqueue(item) => {
                 // Keep existing playback and all prior/next queue entries in their original order.
                 if self.jam.guest() { return; }
