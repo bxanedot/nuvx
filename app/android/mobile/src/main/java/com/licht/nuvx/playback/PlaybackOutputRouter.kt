@@ -53,7 +53,14 @@ internal class PlaybackOutputRouter(
         }
         override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
             removedDevices.forEach { knownOutputs.removed(it.id) }
-            if (removedDevices.any { it.id == AudioRouting.selectedId.value }) {
+            val selected = AudioRouting.selectedId.value
+            if (removedDevices.any { shouldPauseForLostBluetooth(selected, it.id, it.type) }) {
+                // Pause before rebuilding the players. Otherwise a snapshot of
+                // playWhenReady=true can unexpectedly resume through speakers.
+                player()?.pause()
+                spare()?.pause()
+            }
+            if (removedDevices.any { it.id == selected }) {
                 AudioRouting.forget()
             }
             requestOutputReconfiguration()
@@ -339,6 +346,11 @@ internal class PlaybackOutputRouter(
         return telemetry.bitDepth.takeIf { telemetry.isConnected && telemetry.isAuthoritative }
     }
 }
+
+/** Only a removed, explicitly selected Bluetooth output should force a pause. */
+internal fun shouldPauseForLostBluetooth(selectedId: Int?, removedId: Int, removedType: Int): Boolean =
+    selectedId != null && selectedId == removedId &&
+        AudioRouting.kindOf(removedType) == AudioRouting.Kind.BLUETOOTH
 
 /** Output devices already seen, so a replayed or non-output "added" event doesn't reset the chosen route. */
 internal class OutputRouteMemory {
