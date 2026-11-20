@@ -25,6 +25,21 @@ class DownloadStoreTest {
         Song(videoId = videoId, title = title, artist = artist, thumbnailUrl = null)
 
     @Test
+    fun `zero length and in-progress files are never presented as complete downloads`() {
+        val folder = kotlin.io.path.createTempDirectory("nuvx-integrity").toFile()
+        try {
+            val empty = java.io.File(folder, "cut-off.m4a").apply { writeBytes(byteArrayOf()) }
+            val partial = java.io.File(folder, ".partial.m4a.nonce.part").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+            val valid = java.io.File(folder, "complete.m4a").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+            assertFalse(DownloadStore.validFinishedFile(empty))
+            assertFalse(DownloadStore.validFinishedFile(partial))
+            assertTrue(DownloadStore.validFinishedFile(valid))
+        } finally {
+            folder.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `old download metadata remains readable without an added date`() {
         val old = Json.decodeFromString<SavedSongMetadata>(
             """{"videoId":"abc","title":"Song","artist":"Artist","uri":"file:///song.webm"}""",
