@@ -1336,8 +1336,10 @@ class PlaybackService : MediaLibraryService() {
         partySync?.stop()
         partySync = null
         player?.let {
-            saveQueueSnapshot(it)
-            savePlaybackState(it)
+            // Persist queue, current item and position in one synchronous checkpoint
+            // before releasing the playback service. The periodic async snapshot
+            // is not guaranteed to reach disk before process teardown.
+            saveQueueSnapshotImmediately(it)
         }
         publishWidgetState(playing = false)
         lyricsController.release()
