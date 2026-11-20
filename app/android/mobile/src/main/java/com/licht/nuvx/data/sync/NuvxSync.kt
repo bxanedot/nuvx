@@ -204,7 +204,12 @@ object NuvxSync {
         client(server, null).claim(code, secret).also { if (it is SyncResult.Joined) join(server, it) }
     fun approve(code: String): SyncResult = client().approve(code)
     fun devices(): SyncResult = client().devices()
-    fun revoke(deviceId: String): SyncResult = client().revoke(deviceId)
+    fun revoke(deviceId: String): SyncResult = client().revoke(deviceId).also { result ->
+        // Revoking this device invalidates its token immediately; do not wait for a worker's 401.
+        if (result is SyncResult.Done && deviceId == _status.value.deviceId) {
+            invalidateRevokedAuthority("This device was removed from sync.")
+        }
+    }
     /** Cloud Sync only: LAN peers use a separate pairing protocol. */
     fun revokeOthers(): SyncResult =
         if (isLan) SyncResult.Stop("This action is unavailable for local Wi-Fi Sync.") else client().revokeOthers()
@@ -298,13 +303,7 @@ object NuvxSync {
             }
             is SyncOutcome.Stop -> {
                 if (outcome.authorizationLost) {
-                    // The server has revoked this credential. Keep the offline-first outbox
-                    // and local playlists, but remove cached authority and cancel all retries.
-                    secure.edit().remove(KEY_TOKEN).commit()
-                    prefs.edit().putBoolean("enabled", false).putString("error", outcome.why).commit()
-                    WorkManager.getInstance(app).cancelUniqueWork(PERIODIC)
-                    WorkManager.getInstance(app).cancelUniqueWork(ONE_OFF)
-                    _status.value = _status.value.copy(enabled = false, syncing = false, error = outcome.why)
+                    invalidateRevokedAuthority(outcome.why)
                 } else {
                     prefs.edit().putString("error", outcome.why).apply()
                     _status.value = _status.value.copy(syncing = false, error = outcome.why)
@@ -312,6 +311,15 @@ object NuvxSync {
             }
         }
         outcome
+    }
+
+    /** Keep the Sync outbox and local playlists for explicit future re-pairing. */
+    private fun invalidateRevokedAuthority(reason: String) {
+        secure.edit().remove(KEY_TOKEN).commit()
+        prefs.edit().putBoolean("enabled", false).putString("error", reason).commit()
+        WorkManager.getInstance(app).cancelUniqueWork(PERIODIC)
+        WorkManager.getInstance(app).cancelUniqueWork(ONE_OFF)
+        _status.value = _status.value.copy(enabled = false, syncing = false, error = reason)
     }
 
     /** Keeps the richer local copy of a song (duration, album, artist ids) when this device already has it. */
