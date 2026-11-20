@@ -41,6 +41,8 @@ internal class ComputerSpeaker(
     private var loading = false
     private var finished = false
     private var sentIds: List<String> = emptyList()
+    private var queueAppendPending = false
+    private var queueAppendJob: Job? = null
     private var requestedPositionMs = 0L
     private var requestedAt = 0L
     private var poll: Job? = null
@@ -100,6 +102,9 @@ internal class ComputerSpeaker(
         send(NuvxConnect.action("pause"))
         active = false
         poll?.cancel()
+        queueAppendJob?.cancel()
+        queueAppendJob = null
+        queueAppendPending = false
         remote = null
         loading = false
         finished = false
@@ -149,7 +154,36 @@ internal class ComputerSpeaker(
         load(item, 0L, play = wantsPlay || reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
     }
 
-    override fun onLocalQueueChanged() = Unit
+    override fun onLocalQueueChanged() {
+        if (!active || loading || queueAppendPending || remote?.capabilities?.contains("enqueue") != true) return
+        val player = localPlayer() ?: return
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex !in 0 until player.mediaItemCount) return
+        val ids = (currentIndex until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
+        val appendedId = NuvxConnect.appendedItem(sentIds, ids) ?: return
+        val added = player.getMediaItemAt(player.mediaItemCount - 1)
+        val command = NuvxConnect.enqueue(
+            appendedId,
+            added.mediaMetadata.title?.toString().orEmpty(),
+            added.mediaMetadata.artist?.toString().orEmpty(),
+            added.mediaMetadata.artworkUri?.toString(),
+        ) ?: return
+
+        // One network mutation at a time. A newer or reordered phone queue must
+        // never be acknowledged as the same append.
+        val before = sentIds
+        queueAppendPending = true
+        queueAppendJob = scope.launch {
+            try {
+                val sent = withContext(Dispatchers.IO) { NuvxConnect.send(command) }.isSuccess
+                if (sent && active && sentIds == before) {
+                    sentIds = ids
+                }
+            } finally {
+                queueAppendPending = false
+            }
+        }
+    }
 
     override fun onLocalRepeatChanged(repeatMode: Int) = Unit
 
@@ -226,6 +260,7 @@ internal class ComputerSpeaker(
         if (!loading && r.ended) onComputerFinished()
         sink?.onRemotePlaybackChanged()
         onChanged()
+        onLocalQueueChanged() // capture a single safe tail addition missed while loading
     }
 
     private fun onComputerFinished() {
