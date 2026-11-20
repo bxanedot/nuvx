@@ -10,6 +10,7 @@ import com.licht.nuvx.download.DownloadStore
 import com.licht.nuvx.download.Downloader
 import com.licht.nuvx.download.Downloads
 import com.licht.nuvx.download.SavedSongMetadata
+import com.licht.nuvx.download.metadataForSavedRecord
 import com.licht.nuvx.download.resolvedDownloadDates
 import com.licht.nuvx.download.youtubeDownloadBadge
 import kotlinx.serialization.json.Json
@@ -37,6 +38,29 @@ class DownloadStoreTest {
         } finally {
             folder.deleteRecursively()
         }
+    }
+
+    @Test
+    fun `older saved downloads remain visible when the metadata record is absent`() {
+        val uri = "file:///older-song.webm"
+        val recovered = metadataForSavedRecord(
+            "legacy-video", uri, emptyMap(), emptyMap(),
+        )
+        assertEquals("legacy-video", recovered.videoId)
+        assertEquals("legacy-video", recovered.title)
+        assertEquals("", recovered.artist)
+        assertEquals(uri, recovered.uri)
+        assertNull(recovered.downloadFormat)
+        assertNull(recovered.dateAddedSeconds)
+
+        val linked = SavedSongMetadata("first-id", "Old title", "Artist", uri = uri, downloadFormat = "OPUS")
+        val fromUri = metadataForSavedRecord(
+            "other-id", uri, emptyMap(), mapOf(uri to linked),
+        )
+        assertEquals("other-id", fromUri.videoId)
+        assertEquals("Old title", fromUri.title)
+        assertEquals("OPUS", fromUri.downloadFormat)
+        assertEquals(linked, metadataForSavedRecord("first-id", uri, mapOf("first-id" to linked), emptyMap()))
     }
 
     @Test
