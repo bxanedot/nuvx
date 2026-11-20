@@ -205,6 +205,9 @@ object NuvxSync {
     fun approve(code: String): SyncResult = client().approve(code)
     fun devices(): SyncResult = client().devices()
     fun revoke(deviceId: String): SyncResult = client().revoke(deviceId)
+    /** Cloud Sync only: LAN peers use a separate pairing protocol. */
+    fun revokeOthers(): SyncResult =
+        if (isLan) SyncResult.Stop("This action is unavailable for local Wi-Fi Sync.") else client().revokeOthers()
 
     /** Leaves sync on this device. With [deleteServerData], first deletes the whole space on the server. */
     /** True while this phone hosts other phones (and syncs with itself over loopback). */
