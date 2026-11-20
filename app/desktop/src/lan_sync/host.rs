@@ -71,6 +71,8 @@ struct Pairing {
     name: String,
     expires_ms: i64,
     state: PairState,
+    /// A proof submitted while waiting must not be replayable after owner approval.
+    seen_proofs: HashSet<String>,
 }
 
 /// A pairing waiting for the user to compare codes and approve it here.
@@ -306,7 +308,7 @@ impl Inner {
                 let id = hex(&crypto::random_bytes::<16>());
                 let key = HostKey::new();
                 let host_key = crypto::b64(&key.public);
-                self.pairings.insert(id.clone(), Pairing { name: name.to_owned(), expires_ms: now_ms() + PAIRING_TTL_MS, state: PairState::Committed { commit: commit.to_lowercase(), key } });
+                self.pairings.insert(id.clone(), Pairing { name: name.to_owned(), expires_ms: now_ms() + PAIRING_TTL_MS, state: PairState::Committed { commit: commit.to_lowercase(), key }, seen_proofs: HashSet::new() });
                 (201, json!({ "pairingId": id, "hostKey": host_key, "hostId": self.saved.host_id, "hostName": self.host_name }).to_string())
             }
             ("POST", "/lan/pair/reveal") => {
@@ -345,6 +347,14 @@ impl Inner {
                 if crypto::open(&key, aad.as_bytes(), proof).as_deref() != Some(&b"claim"[..]) {
                     return fail(401, "bad_proof", "The claiming device did not prove possession of its pairing key.");
                 }
+                let seen = &mut self.pairings.get_mut(id).unwrap().seen_proofs;
+                if seen.contains(proof) {
+                    return fail(401, "replayed_proof", "This pairing proof has already been used.");
+                }
+                if seen.len() >= 128 {
+                    return fail(429, "too_many_claims", "Too many pairing claims. Start pairing again.");
+                }
+                seen.insert(proof.to_owned());
                 if !approved {
                     return (202, json!({ "pending": true }).to_string());
                 }
