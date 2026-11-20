@@ -69,6 +69,10 @@ object NuvxSync {
     val status = _status.asStateFlow()
     private val _syncFavorites = MutableStateFlow(false)
     val syncFavorites = _syncFavorites.asStateFlow()
+    private val _syncHistory = MutableStateFlow(false)
+    val syncHistory = _syncHistory.asStateFlow()
+    private val _syncedHistory = MutableStateFlow<List<SyncedListen>>(emptyList())
+    internal val syncedHistory = _syncedHistory.asStateFlow()
 
     val deviceName: String get() = listOf(Build.MANUFACTURER.replaceFirstChar(Char::uppercase), Build.MODEL).distinct().joinToString(" ").take(80)
 
@@ -86,6 +90,7 @@ object NuvxSync {
             error = prefs.getString("error", null),
         )
         _syncFavorites.value = prefs.getBoolean("sync_favorites", false)
+        _syncHistory.value = prefs.getBoolean("sync_listening_history", false)
         LikeState.onChanged = { id, state -> recordLocalFavorite(id, state == LikeStatus.LIKE) }
         if (prefs.getBoolean(KEY_HOSTING, false)) startHosting()
         if (_status.value.enabled) {
@@ -263,6 +268,7 @@ object NuvxSync {
         secure.edit().putString(KEY_TOKEN, joined.token).commit()
         engine("").reset() // a new space starts from an empty log
         favoritesChannel().resetForNewSpace()
+        historyChannel().resetForNewSpace()
         prefs.edit().putBoolean("enabled", true).putString("server", server).putString("device", joined.deviceId).remove("error").apply()
         _status.value = Status(enabled = true, server = server, deviceId = joined.deviceId)
         schedulePeriodic()
@@ -284,6 +290,25 @@ object NuvxSync {
 
     private fun recordLocalFavorite(videoId: String, liked: Boolean) {
         if (favoritesChannel().setFavorite(videoId, liked)) requestSync()
+    }
+
+    /** Off by default. Only counted plays of eligible 11-character video IDs may leave. */
+    fun setSyncHistory(enabled: Boolean) {
+        _syncHistory.value = enabled
+        prefs.edit().putBoolean("sync_listening_history", enabled).apply()
+        if (enabled && _status.value.enabled) requestSync()
+    }
+
+    private fun historyChannel(): IndependentSyncChannel =
+        IndependentSyncChannel(
+            client(), FileStore(File(app.filesDir, "nuvx-sync-history.json")),
+            enabled = { _status.value.enabled && _syncHistory.value },
+            category = IndependentCategory.HISTORY,
+        )
+
+    fun recordCountedPlay(videoId: String) {
+        if (!_syncHistory.value || !_status.value.enabled) return
+        if (historyChannel().recordPlay(videoId)) requestSync()
     }
 
     fun requestSync() {
@@ -323,6 +348,17 @@ object NuvxSync {
                     is SyncResult.Stop -> SyncOutcome.Stop(cause.why, cause.authorizationLost)
                     is SyncResult.RetryLater -> SyncOutcome.RetryLater(cause.why)
                     else -> SyncOutcome.RetryLater("Favorites sync could not finish")
+                }
+                IndependentResult.Disabled -> Unit
+            }
+        }
+        if (outcome is SyncOutcome.Apply && _syncHistory.value) {
+            when (val extra = historyChannel().sync()) {
+                is IndependentResult.Applied -> if (_syncHistory.value) _syncedHistory.value = extra.state.history
+                is IndependentResult.Failed -> outcome = when (val cause = extra.cause) {
+                    is SyncResult.Stop -> SyncOutcome.Stop(cause.why, cause.authorizationLost)
+                    is SyncResult.RetryLater -> SyncOutcome.RetryLater(cause.why)
+                    else -> SyncOutcome.RetryLater("Listening-history sync could not finish")
                 }
                 IndependentResult.Disabled -> Unit
             }
