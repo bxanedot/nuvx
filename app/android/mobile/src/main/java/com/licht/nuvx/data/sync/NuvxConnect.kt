@@ -147,7 +147,7 @@ object NuvxConnect {
             id = track?.get("id")?.jsonPrimitive?.contentOrNull,
             ended = json["ended"]?.jsonPrimitive?.booleanOrNull == true,
             capabilities = capabilities,
-            volume = json["volume"]?.jsonPrimitive?.floatOrNull?.takeIf { it.isFinite() && it in 0f..1f },
+            volume = (json["volume"] as? JsonPrimitive)?.floatOrNull?.takeIf { it.isFinite() && it in 0f..1f },
         )
     }
 }
