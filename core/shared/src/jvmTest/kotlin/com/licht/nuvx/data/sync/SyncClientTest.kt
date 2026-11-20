@@ -48,17 +48,30 @@ class SyncClientTest {
 
     @Test
     fun aBatchStaysUnderTheServerLimits() {
-        reply(200, "{}")
+        reply(200, """{"seqs":[${(1..SyncClient.MAX_OPS_PER_PUSH).joinToString(",")}]}""")
         val result = assertIs<SyncResult.Pushed>(sync.push((1..500).map { op(it) }))
         assertEquals(SyncClient.MAX_OPS_PER_PUSH, result.ids.size)
-        reply(200, "{}")
+        // The size-limited batch holds seven 30 KB payloads plus the request envelope.
+        reply(200, """{"seqs":[1,2,3,4,5,6,7]}""")
         val big = assertIs<SyncResult.Pushed>(sync.push((1..20).map { op(it, size = 30_000) }))
         assertTrue(big.ids.size * 30_000 < SyncClient.MAX_BODY_BYTES, "sent ${big.ids.size} ops of 30 KB")
     }
 
     @Test
-    fun anOversizedChangeStopsOnlyOnceItIsFirst() {
+    fun outboxCannotBeClearedOnSuccessWithoutMatchingDurableReceipts() {
         reply(200, "{}")
+        assertIs<SyncResult.RetryLater>(sync.push(listOf(op(1))))
+        reply(200, """{"seqs":[]}""")
+        assertIs<SyncResult.RetryLater>(sync.push(listOf(op(1))))
+        reply(200, """{"seqs":[0]}""")
+        assertIs<SyncResult.RetryLater>(sync.push(listOf(op(1))))
+        reply(200, """{"seqs":[4]}""")
+        assertEquals(SyncResult.Pushed(listOf("op1")), sync.push(listOf(op(1))))
+    }
+
+    @Test
+    fun anOversizedChangeStopsOnlyOnceItIsFirst() {
+        reply(200, """{"seqs":[1]}""")
         assertEquals(SyncResult.Pushed(listOf("op1")), sync.push(listOf(op(1), op(2, size = 40_000))))
         assertIs<SyncResult.Stop>(sync.push(listOf(op(2, size = 40_000))))
     }
