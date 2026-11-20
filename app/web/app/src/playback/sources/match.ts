@@ -1,4 +1,5 @@
 // Port of app/desktop/src/hires/matching.rs `metadata_matches`: same title/version/artist/duration rules.
+import { isSevereMismatch } from '@/data/match/trackMatcher';
 const VERSION_WORDS = new Set(
   ('remix remixes rmx refix flip bootleg mashup medley live concert unplugged acoustic instrumental karaoke vocals vocal acapella acappella backing stems stem cover demo reprise remake rework extended edit version mix dub vip session sessions sped slowed reverb nightcore lofi orchestral symphonic part pt chapter').split(' '),
 );
@@ -104,6 +105,6 @@ export function metadataMatches(want: Described, got: Described): boolean {
   const wanted = artistNames(want.artist);
   const found = artistNames(got.artist);
   if (wanted.length && (!found.length || !wanted.some((w) => found.some((g) => sameArtist(w, g))))) return false;
-  if (want.durationSec && got.durationSec && Math.abs(want.durationSec - got.durationSec) > 30) return false;
+  if (want.durationSec && got.durationSec && isSevereMismatch(want.durationSec, got.durationSec)) return false;
   return true;
 }
