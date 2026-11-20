@@ -27,6 +27,12 @@ impl Session {
     pub(super) fn restored_index(&self) -> Option<usize> {
         (!self.queue.is_empty()).then(|| self.index.min(self.queue.len() - 1))
     }
+
+    /// The stream may have been replaced with a shorter version since the
+    /// session was saved. An unknown duration (0) must not erase the position.
+    pub(super) fn resume_position_ms(&self, duration_ms: u64) -> u64 {
+        if duration_ms == 0 { self.position_ms } else { self.position_ms.min(duration_ms) }
+    }
 }
 
 #[cfg(test)]
@@ -99,6 +105,19 @@ mod session_tests {
         assert_eq!(s.restored_index(), Some(2));
         s.queue.clear();
         assert_eq!(s.restored_index(), None);
+    }
+
+    #[test]
+    fn resume_position_is_bounded_by_known_duration_and_kept_if_unknown() {
+        let mut s = Session {
+            queue: vec![], index: 0, position_ms: 42_000,
+            duration_ms: 120_000, listened_at: 0, playing_as: None,
+        };
+        assert_eq!(s.resume_position_ms(s.duration_ms), 42_000);
+        assert_eq!(s.resume_position_ms(15_000), 15_000, "a shorter replacement must clamp seek");
+        assert_eq!(s.resume_position_ms(0), 42_000, "unknown duration preserves a valid seek");
+        s.position_ms = 0;
+        assert_eq!(s.resume_position_ms(30_000), 0, "never force playback on restore");
     }
 
     #[test]
