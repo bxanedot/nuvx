@@ -18,6 +18,21 @@ function app(start = 1_000_000, maxDbBytes?: number) {
 const newSpace = (a: ReturnType<typeof app>, name = "Phone") => a.call("POST", "/v1/spaces", undefined, { deviceName: name }).body;
 const op = (id: string, payload: unknown = { n: 1 }) => ({ id, kind: "playlist.addTrack", entity: "playlist:1", payload });
 
+test("health detects unavailable SQLite rather than reporting HTTP-only liveness", () => {
+  const live = openDb(":memory:");
+  const service = createApp(live);
+  const health = () => service.handle("GET", "/healthz", new URLSearchParams(), undefined, {}) as { status: number; body: any };
+  assert.equal(health().status, 200);
+  live.close();
+  assert.equal(health().status, 503, "closed SQLite handle must be unhealthy");
+  assert.equal(health().body.error, "database_unavailable");
+
+  const missingSchema = new DatabaseSync(":memory:");
+  const broken = createApp(missingSchema).handle("GET", "/healthz", new URLSearchParams(), undefined, {}) as { status: number };
+  assert.equal(broken.status, 503, "the health check must query the actual spaces table");
+  missingSchema.close();
+});
+
 test("everything except health, new spaces and pairing needs a device token", () => {
   const a = app();
   assert.equal(a.call("GET", "/healthz").status, 200);
