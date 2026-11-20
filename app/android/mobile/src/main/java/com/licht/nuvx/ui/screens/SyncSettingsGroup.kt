@@ -64,6 +64,7 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
     val status by NuvxSync.status.collectAsStateWithLifecycle()
     val syncFavorites by NuvxSync.syncFavorites.collectAsStateWithLifecycle()
     val syncHistory by NuvxSync.syncHistory.collectAsStateWithLifecycle()
+    val syncTheme by NuvxSync.syncTheme.collectAsStateWithLifecycle()
     val playlists by LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var dialog by remember { mutableStateOf<SyncDialog?>(null) }
@@ -119,6 +120,16 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                     subtitle = if (syncHistory) stringResource(R.string.nuvx_sync_history_on)
                         else stringResource(R.string.nuvx_sync_history_off),
                     onClick = { NuvxSync.setSyncHistory(!syncHistory) },
+                )
+            }
+            val themeTitle = stringResource(R.string.nuvx_sync_theme)
+            row(themeTitle, "appearance", "theme", "optional", "privacy") {
+                SettingsRow(
+                    icon = SfIcons.CloudDone,
+                    title = themeTitle,
+                    subtitle = if (syncTheme) stringResource(R.string.nuvx_sync_theme_on)
+                        else stringResource(R.string.nuvx_sync_theme_off),
+                    onClick = { NuvxSync.setSyncTheme(!syncTheme) },
                 )
             }
             val devicesTitle = stringResource(R.string.nuvx_sync_devices)
