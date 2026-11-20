@@ -478,6 +478,7 @@
     <string name="dislike">Dislike</string>
     <string name="disliked">Disliked</string>
     <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
     <string name="done">Done</string>
     <string name="download">Download</string>
     <string name="download_quality_dialog_subtitle">For files kept on this device</string>
