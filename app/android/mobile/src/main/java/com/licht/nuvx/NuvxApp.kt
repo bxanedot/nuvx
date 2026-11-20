@@ -651,6 +651,7 @@ internal fun NuvxApp(
     }
     val pinnedToOriginal by OriginalVersion.pinned.collectAsStateWithLifecycle()
     val qualityUpgradesInFlight by NerdStats.racingLossless.collectAsStateWithLifecycle()
+    val reorderCheckpoint = remember { com.licht.nuvx.ui.SingleReorderCheckpoint() }
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val playlistsLoading by viewModel.playlistsLoading.collectAsStateWithLifecycle()
 
@@ -1872,6 +1873,9 @@ internal fun NuvxApp(
                                                     if (!saved) {
                                                         showQueueNotice(context.getString(R.string.reorder_failed))
                                                     } else {
+                                                        val checkpoint = if (reordering.browseId.startsWith("local:playlist:")) {
+                                                            reorderCheckpoint.issue()
+                                                        } else null
                                                         scope.launch {
                                                             val result = snackbars.showSnackbar(
                                                                 message = context.getString(R.string.playlist_reordered),
@@ -1880,21 +1884,24 @@ internal fun NuvxApp(
                                                             // The local redo checkpoint is available only after Undo succeeds.
                                                             // Expected-order checks prevent replacing later local edits.
                                                             if (result == SnackbarResult.ActionPerformed) {
-                                                                if (reordering.browseId.startsWith("local:playlist:")) {
+                                                                if (checkpoint != null && reorderCheckpoint.isCurrent(checkpoint)) {
                                                                     viewModel.reorderPlaylist(reordering, reordered, original) { undone ->
                                                                         if (undone) scope.launch {
                                                                             val redo = snackbars.showSnackbar(
                                                                                 message = context.getString(R.string.playlist_reordered),
                                                                                 actionLabel = context.getString(R.string.redo),
                                                                             )
-                                                                            if (redo == SnackbarResult.ActionPerformed) {
+                                                                            if (redo == SnackbarResult.ActionPerformed && reorderCheckpoint.isCurrent(checkpoint)) {
                                                                                 viewModel.reorderPlaylist(reordering, original, reordered)
                                                                             }
+                                                                            reorderCheckpoint.complete(checkpoint)
                                                                         }
                                                                     }
-                                                                } else {
+                                                                } else if (checkpoint == null) {
                                                                     viewModel.reorderPlaylist(reordering, reordered, original)
                                                                 }
+                                                            } else if (checkpoint != null) {
+                                                                reorderCheckpoint.complete(checkpoint)
                                                             }
                                                         }
                                                     }
