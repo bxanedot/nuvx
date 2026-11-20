@@ -232,6 +232,29 @@ fn hello_carries_a_four_digit_find_code() {
 }
 
 #[test]
+fn remote_enqueue_requires_paired_permission_and_valid_song_before_queueing() {
+    let (mut h, _dir) = host();
+    let (device, key) = paired(&mut h);
+    let now = now_ms();
+    let valid = json!({ "action": "enqueue", "videoId": "dQw4w9WgXcQ", "title": "Later" });
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", valid.clone(), now, &fresh()).0, 403, "remote control is opt-in");
+    h.connect_allowed = true;
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", valid.clone(), now, &fresh()).0, 403, "queue modifications also require permission");
+    h.queue_mutation_allowed = true;
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "enqueue", "videoId": "invalid" }), now, &fresh()).0, 422);
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({ "action": "reorderQueue", "index": 0 }), now, &fresh()).0, 422, "unsupported actions fail closed");
+    assert!(h.connect_commands.is_empty());
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", valid.clone(), now, &fresh()).0, 202);
+    assert!(matches!(&h.connect_commands[..], [super::connect::Command::Enqueue(item)] if item.id == "dQw4w9WgXcQ"));
+    assert_eq!(h.handle("POST", "/v1/connect", None, valid.to_string().as_bytes()).0, 404, "plain requests bypass neither authentication nor routing");
+    let stranger = crypto::random_bytes::<32>();
+    assert_eq!(call(&mut h, "not-paired", &stranger, "POST", "/v1/connect", valid.clone(), now, &fresh()).0, 401);
+    assert_eq!(h.connect_commands.len(), 1, "unauthorized requests cannot mutate the pending queue");
+    assert!(h.revoke(&device));
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", valid, now, &fresh()).0, 401);
+}
+
+#[test]
 fn the_computer_sees_a_phone_playing_and_controls_it() {
     let (mut h, _dir) = host();
     let (device, key) = paired(&mut h);
