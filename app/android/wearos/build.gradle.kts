@@ -132,4 +132,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
 
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+
+    testImplementation("junit:junit:4.13.2")
 }
