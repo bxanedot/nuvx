@@ -258,6 +258,34 @@ class DownloadStoreTest {
     }
 
     @Test
+    fun `private cleanup previews without writes and deletes only bounded stale temporary files`() {
+        val folder = kotlin.io.path.createTempDirectory("nuvx-cleanup").toFile()
+        val now = 10_000_000_000L
+        fun file(name: String, size: Int, ageMs: Long) = java.io.File(folder, name).apply {
+            writeBytes(ByteArray(size) { 1 })
+            setLastModified(now - ageMs)
+        }
+        try {
+            val old = file(".old.m4a.random.part", 3, 48L * 60 * 60 * 1000)
+            val tooLarge = file(".large.m4a.random.part", 15, 48L * 60 * 60 * 1000)
+            val fresh = file(".running.m4a.random.part", 2, 1_000L)
+            val manual = file("manual-pinned.m4a", 10, 72L * 60 * 60 * 1000)
+            val preview = DownloadStore.cleanupPrivateParts(folder, execute = false, now = now, maxBytes = 4)
+            assertEquals(DownloadStore.CleanupReport(1, 3L), preview)
+            assertTrue(old.exists(), "cancelling after preview must not delete a file")
+            assertTrue(manual.exists())
+            val reclaimed = DownloadStore.cleanupPrivateParts(folder, execute = true, now = now, maxBytes = 4)
+            assertEquals(preview, reclaimed)
+            assertFalse(old.exists())
+            assertTrue(tooLarge.exists(), "full storage/cap limits cleanup to its declared budget")
+            assertTrue(fresh.exists(), "an active partial stays available to its download")
+            assertTrue(manual.exists(), "completed manual or pinned downloads are never candidates")
+        } finally {
+            folder.deleteRecursively()
+        }
+    }
+
+    @Test
     fun startingADownloadSweepsOnlyStalePartFiles() {
         val folder = kotlin.io.path.createTempDirectory("nuvx-parts").toFile()
         val now = 10_000_000_000L
