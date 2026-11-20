@@ -72,6 +72,10 @@ internal fun musicVideoNeedsSeek(driftMs: Long): Boolean =
 internal fun musicVideoShouldResumeAfterEnd(targetMs: Long, durationMs: Long): Boolean =
     durationMs > 0L && targetMs >= 0L && targetMs < durationMs - 250L
 
+/** Restriction/content errors are not repeated blindly; network failures allow an explicit retry. */
+internal fun musicVideoCanRetry(reason: StreamResolveException.Reason): Boolean =
+    reason == StreamResolveException.Reason.NETWORK
+
 @OptIn(UnstableApi::class)
 object MusicVideoEngine {
 
@@ -392,7 +396,7 @@ object MusicVideoEngine {
                 TrackLog.w(TAG, "video: no picture (${e.reason}): ${e.message}", about = videoId)
                 if (loadedId != videoId) return@launch
                 loadedId = null
-                val retryable = e.reason == StreamResolveException.Reason.NETWORK
+                val retryable = musicVideoCanRetry(e.reason)
                 if (!retryable) noPicture += videoId
                 _problem.value = VideoProblem(videoId,
                     if (retryable) "Video connection interrupted" else "Video unavailable or restricted", retryable)
