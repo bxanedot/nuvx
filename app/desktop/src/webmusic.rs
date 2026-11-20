@@ -41,6 +41,19 @@ impl std::fmt::Display for Revoked {
 
 impl std::error::Error for Revoked {}
 
+/// Never attach YouTube account cookies to arbitrary, downgraded or redirected initial targets.
+/// The resumable upload endpoint is a separate YouTube host but signs for Music.
+fn credential_target_allowed(url: &Url, origin: &str) -> bool {
+    if url.scheme() != "https" || url.port_or_known_default() != Some(443)
+        || !url.username().is_empty() || url.password().is_some()
+    {
+        return false;
+    }
+    matches!((origin, url.host_str()),
+        ("https://music.youtube.com", Some("music.youtube.com" | "upload.youtube.com"))
+        | ("https://www.youtube.com", Some("www.youtube.com")))
+}
+
 const VAULT: &str = "google session";
 const FILE: &str = "account.json";
 const LEGACY: &str = "rustypipe_cache.json";
@@ -127,6 +140,8 @@ impl Session {
     }
 
     pub fn sign(&self, req: reqwest::RequestBuilder, origin: &str) -> anyhow::Result<reqwest::RequestBuilder> {
+        let target = req.try_clone().ok_or_else(|| anyhow::anyhow!("cannot verify signed request target"))?.build()?;
+        anyhow::ensure!(credential_target_allowed(target.url(), origin), "Refusing to send account credentials to this endpoint");
         let mut req = req
             .header("Cookie", &self.cookie)
             .header("Authorization", self.authorization(origin)?)
@@ -326,6 +341,31 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refuses_cookie_transmission_to_wrong_origins_or_insecure_urls() {
+        let http = reqwest::Client::new();
+        let session = Session::new("SAPISID=private".into(), 0, None);
+        let accept = [
+            ("https://music.youtube.com/youtubei/v1/browse", "https://music.youtube.com"),
+            ("https://upload.youtube.com/upload/usermusic/http", "https://music.youtube.com"),
+            ("https://www.youtube.com/youtubei/v1/browse", "https://www.youtube.com"),
+        ];
+        for (url, origin) in accept {
+            assert!(session.sign(http.get(url), origin).is_ok(), "{url}");
+        }
+        for url in [
+            "http://music.youtube.com/youtubei/v1/browse",
+            "https://music.youtube.com:444/youtubei/v1/browse",
+            "https://music.youtube.com.evil.example/youtubei/v1/browse",
+            "https://evil.example/youtubei/v1/browse",
+            "https://user:password@music.youtube.com/youtubei/v1/browse",
+        ] {
+            assert!(session.sign(http.get(url), "https://music.youtube.com").is_err(), "{url}");
+        }
+        assert!(session.sign(http.get("https://www.youtube.com"), "https://music.youtube.com").is_err());
+        assert!(session.sign(http.get("https://music.youtube.com"), "https://evil.example").is_err());
+    }
 
     #[test]
     fn channels_of_one_sign_in_share_its_cookies() {
