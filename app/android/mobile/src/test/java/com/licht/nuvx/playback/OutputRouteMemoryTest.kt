@@ -33,6 +33,19 @@ class OutputRouteMemoryTest {
     }
 
     @Test
+    fun disconnectedSelectedBluetoothPausesButUnrelatedAndReconnectedDevicesDoNot() {
+        val bluetooth = AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+        val phone = AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+        assertTrue(shouldPauseForLostBluetooth(7, 7, bluetooth))
+        assertFalse(shouldPauseForLostBluetooth(null, 7, bluetooth))
+        assertFalse(shouldPauseForLostBluetooth(7, 8, bluetooth))
+        assertFalse(shouldPauseForLostBluetooth(7, 7, phone))
+        // After the router forgets a removed choice, an added output never
+        // restores playWhenReady; only the user can explicitly resume.
+        assertFalse(shouldPauseForLostBluetooth(null, 7, bluetooth))
+    }
+
+    @Test
     fun clearForgetsEverythingOnStop() {
         memory.added(9, AudioDeviceInfo.TYPE_WIRED_HEADPHONES, isSink = true)
         memory.clear()
