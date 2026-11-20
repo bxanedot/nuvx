@@ -132,6 +132,7 @@ impl App {
         let commands = {
             let mut g = inner.lock().unwrap_or_else(|e| e.into_inner());
             g.connect_allowed = self.lan.connect;
+            g.queue_mutation_allowed = !self.jam.guest();
             g.connect_now = if self.lan.connect { self.connect_snapshot() } else { serde_json::Value::Null };
             std::mem::take(&mut g.connect_commands)
         };
