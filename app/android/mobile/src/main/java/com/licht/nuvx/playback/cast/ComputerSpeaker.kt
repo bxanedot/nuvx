@@ -66,7 +66,7 @@ internal class ComputerSpeaker(
         }
 
     override val durationMs: Long get() = remote?.durationMs?.takeIf { it > 0 } ?: C.TIME_UNSET
-    override val deviceVolume: Int get() = 0
+    override val deviceVolume: Int get() = ((remote?.volume ?: 0f) * 100).toInt().coerceIn(0, 100)
 
     /** Checks whether the paired computer is reachable, finding it again by itself if its address changed. */
     fun refresh() {
@@ -139,14 +139,18 @@ internal class ComputerSpeaker(
     }
 
     override fun seekTo(positionMs: Long) {
-        if (!active) return
+        if (!active || remote?.capabilities?.contains("seek") != true) return
         requestedPositionMs = positionMs.coerceAtLeast(0L)
         requestedAt = SystemClock.elapsedRealtime()
-        send(NuvxConnect.seek(requestedPositionMs))
+        send(NuvxConnect.seek(requestedPositionMs, remote?.id))
         onChanged()
     }
 
-    override fun setVolume(fraction: Float) = Unit
+    override fun setVolume(fraction: Float) {
+        // An older host cannot accept this command. Do not pretend that it applied.
+        if (!active || remote?.capabilities?.contains("volume") != true) return
+        NuvxConnect.volume(fraction)?.let(::send)
+    }
 
     override fun onLocalTransition(item: MediaItem?, reason: Int) {
         if (!active || item == null) return
@@ -247,7 +251,9 @@ internal class ComputerSpeaker(
 
     private fun onRemote(r: NuvxConnect.Remote) {
         if (!active) return
+        val previousVolume = remote?.volume
         remote = r
+        if (previousVolume != r.volume) sink?.onRemoteVolumeChanged()
         remoteAt = SystemClock.elapsedRealtime()
         requestedAt = 0L
         if (loading && r.id != null && r.id in sentIds) loading = false
