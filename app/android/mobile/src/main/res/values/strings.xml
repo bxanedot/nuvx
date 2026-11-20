@@ -1262,6 +1262,8 @@
     <string name="signed_by">Signed by %1$s</string>
     <string name="find_your_mood">Find Your Mood</string>
     <string name="no_audio_version">No audio version found for this video</string>
+    <string name="music_video_retry">Video interrupted · Retry</string>
+    <string name="music_video_unavailable">Video unavailable or restricted · Audio continues</string>
     <string name="no_video_version">No video version found for this song</string>
     <string name="version_switch_in_party">Everyone in Listen Together hears the same version</string>
     <string name="diwali_title">nuvx wishes you a Happy Diwali</string>
