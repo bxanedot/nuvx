@@ -285,6 +285,9 @@ class PlaybackService : MediaLibraryService() {
             val text = getString(R.string.stream_host_unreachable, getString(R.string.network), getString(R.string.privacy_connection))
             Toast.makeText(applicationContext, text, Toast.LENGTH_LONG).show()
         },
+        onNetworkOffline = {
+            Toast.makeText(applicationContext, "No connection. Reconnect, then press Play to retry.", Toast.LENGTH_LONG).show()
+        },
     )
 
     private val directSourceWindow = PlaybackDirectSourceWindowController(
