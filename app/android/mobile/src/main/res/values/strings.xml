@@ -663,6 +663,9 @@
     <string name="reorder_songs">Reorder songs</string>
     <string name="reorder_failed">Couldn\'t save the new order</string>
     <string name="playlist_reordered">Playlist order saved</string>
+    <string name="restore_playlist_order">Restore previous order</string>
+    <string name="restore_playlist_confirm">Restore the previous order of this local playlist? This will not change any other playlist.</string>
+    <string name="restore_playlist_action">Restore</string>
     <string name="reset_to_default">Reset to default</string>
     <string name="rich_presence_footer">Show what you are playing on your Discord profile.</string>
     <string name="save_name">Save name</string>
