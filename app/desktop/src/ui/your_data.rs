@@ -2,6 +2,37 @@
 //! (the desktop side of the master prompt's Privacy & Data Center, like Android's Settings → Your data).
 
 use egui::Ui;
+use std::sync::Arc;
+
+#[derive(Clone)]
+struct PendingBackup {
+    lists: Vec<nuvx_core::backup::Playlist>,
+}
+
+fn backup_preview_id() -> egui::Id {
+    egui::Id::unique("pending-backup-import")
+}
+
+/// Prepare the complete replacement in memory; do not mutate an existing playlist.
+fn planned_restore(
+    current: &[super::LocalPlaylist],
+    incoming: &[nuvx_core::backup::Playlist],
+) -> (Vec<super::LocalPlaylist>, Vec<String>) {
+    let mut next = current.to_vec();
+    let mut seen: std::collections::HashSet<String> = current.iter().map(|p| p.id.clone()).collect();
+    let mut added = Vec::new();
+    for p in incoming {
+        if !seen.insert(p.id.clone()) {
+            continue;
+        }
+        next.push(super::LocalPlaylist {
+            id: p.id.clone(), title: p.title.clone(), tracks: p.tracks.clone(), artwork: None,
+        });
+        added.push(p.id.clone());
+    }
+    (next, added)
+}
+
 
 use super::pages::{section_label, setting_row, settings_card};
 use super::widgets::pill;
@@ -29,7 +60,7 @@ pub(super) fn pane(app: &mut App, ui: &mut Ui) {
             export_backup(app);
         }
         if import {
-            import_backup(app);
+            import_backup(app, ui.ctx());
         }
         let n = app.recent_searches.len();
         let mut clear = false;
@@ -42,6 +73,7 @@ pub(super) fn pane(app: &mut App, ui: &mut Ui) {
             app.toast("Recent searches cleared");
         }
     });
+    restore_preview(app, ui);
     ui.add_space(18.0);
     section_label(ui, "What leaves it, and when", None);
     settings_card(ui, |ui| {
@@ -104,7 +136,7 @@ fn export_backup(app: &mut App) {
     }
 }
 
-fn import_backup(app: &mut App) {
+fn import_backup(app: &mut App, ctx: &egui::Context) {
     let Some(path) = rfd::FileDialog::new().set_title("Import backup").add_filter("nuvx backup", &["json"]).pick_file() else { return };
     // Read at most one byte over the limit so a huge file is refused without loading it all.
     let mut bytes = Vec::new();
@@ -112,22 +144,70 @@ fn import_backup(app: &mut App) {
     if let Err(e) = read {
         return app.toast(&format!("Couldn't read that file: {e}"));
     }
-    let lists = match nuvx_core::backup::import(&String::from_utf8_lossy(&bytes)) {
+    let text = match String::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => return app.toast("That backup is not valid UTF-8"),
+    };
+    let lists = match nuvx_core::backup::import(&text) {
         Ok(lists) => lists,
         Err(why) => return app.toast(&why),
     };
-    let mut added = 0;
-    for list in lists {
-        if app.local_playlists.iter().any(|p| p.id == list.id) {
-            continue;
-        }
-        app.local_playlists.push(super::LocalPlaylist { id: list.id.clone(), title: list.title, tracks: list.tracks, artwork: None });
-        app.refresh_local_playlist(&list.id);
-        added += 1;
-    }
-    app.toast(&match added {
-        0 => "Nothing new in that backup".to_owned(),
-        1 => "Added 1 playlist".to_owned(),
-        n => format!("Added {n} playlists"),
-    });
+    ctx.data_mut(|d| d.insert_temp(backup_preview_id(), Arc::new(PendingBackup { lists })));
 }
+
+fn restore_preview(app: &mut App, ui: &mut Ui) {
+    let Some(preview) = ui.ctx().data(|d| d.get_temp::<Arc<PendingBackup>>(backup_preview_id())) else { return };
+    let mut seen: std::collections::HashSet<&str> = app.local_playlists.iter().map(|p| p.id.as_str()).collect();
+    let additions: Vec<_> = preview.lists.iter().filter(|p| seen.insert(p.id.as_str())).collect();
+    let skipped = preview.lists.len() - additions.len();
+    let mut cancel = false;
+    let mut apply = false;
+    egui::Window::new("Restore playlists from backup")
+        .collapsible(false)
+        .resizable(false)
+        .show(ui.ctx(), |ui| {
+            ui.set_min_width(340.0);
+            ui.label(format!("{} new playlists, {} already present or repeated. Existing playlists will not be replaced.", additions.len(), skipped));
+            for list in additions.iter().take(5) {
+                ui.label(format!("• {} ({} songs)", list.title, list.tracks.len()));
+            }
+            if additions.len() > 5 { ui.label(format!("…and {} more", additions.len() - 5)); }
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                cancel = ui.button("Cancel").clicked();
+                apply = ui.add_enabled(!additions.is_empty(), egui::Button::new("Restore playlists")).clicked();
+            });
+        });
+    if cancel || apply {
+        ui.ctx().data_mut(|d| { d.remove_temp::<Arc<PendingBackup>>(backup_preview_id()); });
+    }
+    if apply {
+        // All parsing and deduplication was completed before any state change. Commit together.
+        let (updated, ids) = planned_restore(&app.local_playlists, &preview.lists);
+        app.local_playlists = updated;
+        for id in &ids { app.refresh_local_playlist(id); }
+        app.toast(format!("Restored {} playlists", ids.len()));
+    }
+}
+
+#[cfg(test)]
+mod backup_restore_tests {
+    use super::*;
+
+    #[test]
+    fn valid_backups_are_previewed_and_corrupt_backups_leave_data_intact() {
+        let existing = vec![super::super::LocalPlaylist {
+            id: "already".into(), title: "Kept".into(), tracks: vec![], artwork: None,
+        }];
+        let valid = r#"{"app":"nuvx","version":1,"playlists":[{"id":"already","title":"Replace?"},{"id":"new","title":"Fresh"},{"id":"new","title":"Again"}]}"#;
+        let parsed = nuvx_core::backup::import(valid).unwrap();
+        let (restored, ids) = planned_restore(&existing, &parsed);
+        assert_eq!(ids, ["new"]);
+        assert_eq!(restored.len(), 2);
+        assert_eq!(restored[0].title, "Kept");
+        assert_eq!(restored[1].title, "Fresh");
+        assert!(nuvx_core::backup::import("{broken").is_err());
+        assert_eq!(existing.len(), 1, "a preview or invalid backup never mutates original data");
+    }
+}
+
