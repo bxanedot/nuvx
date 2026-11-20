@@ -258,6 +258,7 @@ object NuvxSync {
     }
 
     fun requestSync() {
+        if (!_status.value.enabled) return // a revoked session must never schedule fresh work
         val request = OneTimeWorkRequestBuilder<NuvxSyncWorker>()
             .setConstraints(online())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
@@ -296,8 +297,18 @@ object NuvxSync {
                 _status.value = _status.value.copy(syncing = false)
             }
             is SyncOutcome.Stop -> {
-                prefs.edit().putString("error", outcome.why).apply()
-                _status.value = _status.value.copy(syncing = false, error = outcome.why)
+                if (outcome.authorizationLost) {
+                    // The server has revoked this credential. Keep the offline-first outbox
+                    // and local playlists, but remove cached authority and cancel all retries.
+                    secure.edit().remove(KEY_TOKEN).commit()
+                    prefs.edit().putBoolean("enabled", false).putString("error", outcome.why).commit()
+                    WorkManager.getInstance(app).cancelUniqueWork(PERIODIC)
+                    WorkManager.getInstance(app).cancelUniqueWork(ONE_OFF)
+                    _status.value = _status.value.copy(enabled = false, syncing = false, error = outcome.why)
+                } else {
+                    prefs.edit().putString("error", outcome.why).apply()
+                    _status.value = _status.value.copy(syncing = false, error = outcome.why)
+                }
             }
         }
         outcome
