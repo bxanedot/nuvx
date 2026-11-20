@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +68,7 @@ fun ReorderPlaylistPage(
     palette: ArtworkPalette,
     onSave: (List<Song>) -> Unit,
     onClose: () -> Unit,
+    onRestore: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
@@ -102,6 +104,11 @@ fun ReorderPlaylistPage(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+            if (onRestore != null) {
+                TextButton(onClick = onRestore, enabled = !saving && !changed) {
+                    Text(stringResource(R.string.restore_playlist_order))
+                }
             }
             Button(
                 onClick = { onSave(order.toList()) },
