@@ -130,6 +130,10 @@ class SyncClient(
     /** Removes a device from the space; its token stops working at once. */
     fun revoke(deviceId: String): SyncResult = call(Request.Builder().url("$baseUrl/v1/devices/$deviceId").delete()) { SyncResult.Done }
 
+    /** Revokes all other devices while keeping this caller's session and local data intact. */
+    fun revokeOthers(): SyncResult =
+        call(post("/v1/devices/revoke-others", buildJsonObject { put("confirm", true) })) { SyncResult.Done }
+
     /** Deletes the whole space on the server: every device, every op. Local data stays. */
     fun deleteSpace(): SyncResult = call(Request.Builder().url("$baseUrl/v1/space").delete()) { SyncResult.Done }
 
