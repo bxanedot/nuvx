@@ -76,7 +76,11 @@ fn pairing_needs_the_approval_on_this_computer_and_the_same_code() {
     assert!(h.approve(&id, "0000").is_err(), "wrong code cannot authorize");
     assert_eq!(h.devices().len(), 0, "wrong code cannot establish trust");
     assert_eq!(post(&mut h, "/lan/pair/claim", json!({ "pairingId": id })).0, 401, "pairing id alone is not proof");
+    let pending_proof = crypto::seal(&key, format!("nuvx-pair-claim:{id}").as_bytes(), b"claim");
+    let pending_claim = json!({ "pairingId": id, "proof": pending_proof });
+    assert_eq!(post(&mut h, "/lan/pair/claim", pending_claim.clone()).0, 202);
     h.approve(&id, &phone_code).unwrap();
+    assert_eq!(post(&mut h, "/lan/pair/claim", pending_claim).0, 401, "pending proof cannot replay after approval");
     assert_eq!(claim(&mut h, &id, &[99; 32]).0, 401, "wrong key cannot claim");
     assert_eq!(claim(&mut h, &id, &key).0, 200);
     assert_eq!(claim(&mut h, &id, &key).0, 404, "single use");
@@ -93,7 +97,8 @@ fn wrong_pairing_code_cannot_revoke_an_existing_device_with_the_same_name() {
     let (mut h, _d) = host();
     let (old, old_key) = paired(&mut h);
     let (id, new_key, code) = request(&mut h);
-    assert!(h.approve(&id, "999999").is_err());
+    let wrong = if code == "999999" { "000000" } else { "999999" };
+    assert!(h.approve(&id, wrong).is_err());
     assert_eq!(h.devices().len(), 1);
     assert_eq!(call(&mut h, &old, &old_key, "GET", "/v1/devices", Value::Null, now_ms(), &fresh()).0, 200);
     h.approve(&id, &code).unwrap();
