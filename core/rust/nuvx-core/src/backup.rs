@@ -113,6 +113,13 @@ pub fn import(text: &str) -> Result<Vec<Playlist>, String> {
     if file.version > SCHEMA_VERSION {
         return Err("That backup was written by a newer version of nuvx".into());
     }
+    // Never silently drop playlists or songs by truncating an imported backup.
+    // Reject the entire file before any caller can apply a partial restore.
+    if file.playlists.len() > MAX_PLAYLISTS
+        || file.playlists.iter().any(|p| p.songs.len() > MAX_SONGS_PER_PLAYLIST)
+    {
+        return Err("That backup exceeds the supported playlist or song limit".into());
+    }
     Ok(file
         .playlists
         .into_iter()
@@ -326,6 +333,26 @@ mod tests {
         assert_eq!(first.tracks[0].duration, Some(213));
         assert_eq!(first.tracks[0].artist_line(), "Rick Astley");
         // The settings and listening parts of the phone's backup are ignored, not an error.
+    }
+
+    #[test]
+    fn oversized_imports_are_rejected_instead_of_truncated() {
+        let too_many_songs = serde_json::json!({
+            "app": "nuvx", "version": 1, "playlists": [{
+                "id": "large", "title": "Large",
+                "songs": (0..=MAX_SONGS_PER_PLAYLIST)
+                    .map(|_| serde_json::json!({"videoId": "abcdefghijk"}))
+                    .collect::<Vec<_>>()
+            }]
+        });
+        assert!(import(&too_many_songs.to_string()).unwrap_err().contains("limit"));
+        let too_many_playlists = serde_json::json!({
+            "app": "nuvx", "version": 1,
+            "playlists": (0..=MAX_PLAYLISTS)
+                .map(|i| serde_json::json!({"id": format!("p{i}"), "title": "T"}))
+                .collect::<Vec<_>>()
+        });
+        assert!(import(&too_many_playlists.to_string()).unwrap_err().contains("limit"));
     }
 
     #[test]
