@@ -279,14 +279,29 @@ function PermissionNotice({ origins }: { origins: string[] }) {
 function CanvasBackdrop({ url }: { url: string }) {
   const video = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
   const playing = usePlayer((s) => s.status === 'playing' || s.status === 'buffering');
-  useEffect(() => setReady(false), [url]);
+
   useEffect(() => {
     const el = video.current;
-    if (!el || !ready) return;
-    if (playing) void el.play().catch(() => undefined);
+    return () => {
+      // Releases decoder and network resources on track change/navigation.
+      if (!el) return;
+      el.pause();
+      el.removeAttribute('src');
+      el.load();
+    };
+  }, []);
+
+  useEffect(() => {
+    const el = video.current;
+    if (!el || !ready || failed) return;
+    if (playing) void el.play().catch(() => setFailed(true));
     else el.pause();
-  }, [playing, ready]);
+  }, [playing, ready, failed]);
+
+  // Invalid/unsupported playback leaves the existing static artwork untouched.
+  if (failed) return null;
   return (
     <video
       ref={video}
@@ -297,10 +312,10 @@ function CanvasBackdrop({ url }: { url: string }) {
       muted
       loop
       playsInline
-      preload="auto"
+      preload="metadata"
       aria-hidden="true"
       onCanPlay={() => setReady(true)}
-      onError={() => setReady(false)}
+      onError={() => setFailed(true)}
     />
   );
 }
@@ -326,7 +341,7 @@ export function LyricsPanel({ variant = 'panel' }: { variant?: 'panel' | 'full' 
 
   return (
     <div className={full ? `${panel} ${fullSizes}` : panel}>
-      {canvas && variant === 'panel' && <CanvasBackdrop url={canvas} />}
+      {canvas && variant === 'panel' && <CanvasBackdrop key={canvas} url={canvas} />}
       <ProviderPicker current={result?.source ?? null} full={full} />
       {ungranted.length > 0 && !result && !lyrics.isFetching && <PermissionNotice origins={ungranted} />}
       {!hasTrack ? (
