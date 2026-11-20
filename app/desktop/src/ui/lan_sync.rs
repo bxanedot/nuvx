@@ -195,7 +195,13 @@ impl super::App {
             Command::Pause => if self.playing() { self.toggle() },
             Command::Next => self.next(),
             Command::Prev => self.prev(),
-            Command::Seek(ms) => self.seek_to(std::time::Duration::from_millis(ms)),
+            Command::Seek { position_ms, track_id } => {
+                // Commands may sit in the UI queue for one frame. Never seek a new
+                // song with a command meant for the track that just ended.
+                if !self.lan.connect || self.current().is_none() { return; }
+                if track_id.as_deref().is_some_and(|id| self.current_id() != Some(id)) { return; }
+                self.seek_to(std::time::Duration::from_millis(position_ms));
+            },
             Command::Enqueue(item) => {
                 // Keep existing playback and all prior/next queue entries in their original order.
                 if self.jam.guest() { return; }
