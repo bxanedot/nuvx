@@ -1,6 +1,7 @@
 package com.licht.nuvx.playback
 
 import com.licht.nuvx.FakeSharedPreferences
+import android.content.SharedPreferences
 import com.licht.nuvx.data.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -57,6 +58,31 @@ class LastPlayedTest {
         assertEquals("t0", restored.songs.first().videoId)
         assertEquals("t0", restored.songs[restored.index].videoId)
         assertEquals(0L, restored.positionMs)
+    }
+
+    @Test
+    fun `an interrupted synchronous queue write keeps the previous durable snapshot`() {
+        LastPlayed.saveQueueImmediately(queue.take(3), 1, 12_000L)
+        val before = LastPlayed.load()!!
+        // Abort an editor before commit: no queue, index, or position key may
+        // become visible, rather than partially updating the three keys.
+        val aborted = object : SharedPreferences by prefs {
+            override fun edit(): SharedPreferences.Editor =
+                object : SharedPreferences.Editor by prefs.edit() {
+                    override fun putString(key: String?, value: String?): SharedPreferences.Editor = this
+                    override fun putInt(key: String?, value: Int): SharedPreferences.Editor = this
+                    override fun putLong(key: String?, value: Long): SharedPreferences.Editor = this
+                    override fun commit(): Boolean = false
+                    override fun apply() = Unit
+                }
+        }
+        LastPlayed.initForTesting(aborted)
+        LastPlayed.saveQueueImmediately(queue.drop(10).take(3), 0, 99_000L)
+        LastPlayed.initForTesting(prefs)
+        val after = LastPlayed.load()!!
+        assertEquals(before.songs.map(Song::videoId), after.songs.map(Song::videoId))
+        assertEquals(before.index, after.index)
+        assertEquals(before.positionMs, after.positionMs)
     }
 
     @Test
