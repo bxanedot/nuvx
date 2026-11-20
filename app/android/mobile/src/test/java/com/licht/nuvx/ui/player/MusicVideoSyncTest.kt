@@ -1,5 +1,6 @@
 package com.licht.nuvx.ui.player
 
+import com.metrolist.innertubex.extraction.StreamResolveException
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,6 +15,13 @@ class MusicVideoSyncTest {
         assertFalse(musicVideoShouldResumeAfterEnd(fullDuration - 100, fullDuration))
         assertFalse(musicVideoShouldResumeAfterEnd(-1, fullDuration))
         assertFalse(musicVideoShouldResumeAfterEnd(1_000, -1))
+    }
+
+    @Test
+    fun unavailableVideoIsNotRetriedForeverButNetworkFailuresCanBeRetried() {
+        assertTrue(musicVideoCanRetry(StreamResolveException.Reason.NETWORK))
+        assertFalse(musicVideoCanRetry(StreamResolveException.Reason.AGE_RESTRICTED))
+        assertFalse(musicVideoCanRetry(StreamResolveException.Reason.NO_PLAYABLE_STREAM))
     }
 
     @Test
