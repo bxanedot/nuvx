@@ -121,9 +121,13 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
         send(P.CMD_TOGGLE)
     }
 
-    fun next() = send(P.CMD_NEXT)
+    fun next() {
+        if (_nowPlaying.value?.hasNext == true && _link.value == Link.Connected) send(P.CMD_NEXT)
+    }
 
-    fun previous() = send(P.CMD_PREVIOUS)
+    fun previous() {
+        if (_nowPlaying.value?.hasPrevious == true && _link.value == Link.Connected) send(P.CMD_PREVIOUS)
+    }
 
     fun toggleLike() {
         if (_nowPlaying.value?.canLike != true) return
