@@ -16,6 +16,8 @@ import androidx.work.WorkerParameters
 import com.licht.nuvx.auth.EncryptedPrefs
 import com.licht.nuvx.data.DebugLog
 import com.licht.nuvx.data.LikeState
+import com.licht.nuvx.data.settings.AppSettings
+import com.licht.nuvx.data.settings.ThemeMode
 import com.licht.nuvx.data.model.LikeStatus
 import com.licht.nuvx.data.model.Song
 import com.licht.nuvx.data.spotify.LocalPlaylist
@@ -73,6 +75,9 @@ object NuvxSync {
     val syncHistory = _syncHistory.asStateFlow()
     private val _syncedHistory = MutableStateFlow<List<SyncedListen>>(emptyList())
     internal val syncedHistory = _syncedHistory.asStateFlow()
+    private val _syncTheme = MutableStateFlow(false)
+    val syncTheme = _syncTheme.asStateFlow()
+    @Volatile private var applyingRemoteTheme = false
 
     val deviceName: String get() = listOf(Build.MANUFACTURER.replaceFirstChar(Char::uppercase), Build.MODEL).distinct().joinToString(" ").take(80)
 
@@ -91,6 +96,7 @@ object NuvxSync {
         )
         _syncFavorites.value = prefs.getBoolean("sync_favorites", false)
         _syncHistory.value = prefs.getBoolean("sync_listening_history", false)
+        _syncTheme.value = prefs.getBoolean("sync_theme_mode", false)
         LikeState.onChanged = { id, state -> recordLocalFavorite(id, state == LikeStatus.LIKE) }
         if (prefs.getBoolean(KEY_HOSTING, false)) startHosting()
         if (_status.value.enabled) {
@@ -269,6 +275,7 @@ object NuvxSync {
         engine("").reset() // a new space starts from an empty log
         favoritesChannel().resetForNewSpace()
         historyChannel().resetForNewSpace()
+        themeChannel().resetForNewSpace()
         prefs.edit().putBoolean("enabled", true).putString("server", server).putString("device", joined.deviceId).remove("error").apply()
         _status.value = Status(enabled = true, server = server, deviceId = joined.deviceId)
         schedulePeriodic()
@@ -310,6 +317,25 @@ object NuvxSync {
         if (!_syncHistory.value || !_status.value.enabled) return
         if (historyChannel().recordPlay(videoId)) requestSync()
     }
+
+    /** Opt-in only: the cross-device theme, not device performance or secure settings. */
+    fun setSyncTheme(enabled: Boolean) {
+        _syncTheme.value = enabled
+        prefs.edit().putBoolean("sync_theme_mode", enabled).apply()
+        if (enabled && _status.value.enabled) requestSync()
+    }
+
+    fun onThemeSelected(mode: ThemeMode) {
+        if (applyingRemoteTheme || !_syncTheme.value || !_status.value.enabled) return
+        if (themeChannel().setThemeMode(mode.name)) requestSync()
+    }
+
+    private fun themeChannel(): IndependentSyncChannel =
+        IndependentSyncChannel(
+            client(), FileStore(File(app.filesDir, "nuvx-sync-theme.json")),
+            enabled = { _status.value.enabled && _syncTheme.value },
+            category = IndependentCategory.THEME,
+        )
 
     fun requestSync() {
         if (!_status.value.enabled) return // a revoked session must never schedule fresh work
@@ -359,6 +385,23 @@ object NuvxSync {
                     is SyncResult.Stop -> SyncOutcome.Stop(cause.why, cause.authorizationLost)
                     is SyncResult.RetryLater -> SyncOutcome.RetryLater(cause.why)
                     else -> SyncOutcome.RetryLater("Listening-history sync could not finish")
+                }
+                IndependentResult.Disabled -> Unit
+            }
+        }
+        if (outcome is SyncOutcome.Apply && _syncTheme.value) {
+            when (val extra = themeChannel().sync()) {
+                is IndependentResult.Applied -> {
+                    val mode = extra.state.themeMode?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
+                    if (_syncTheme.value && mode != null && AppSettings.themeMode.value != mode) {
+                        applyingRemoteTheme = true
+                        try { AppSettings.setThemeMode(mode) } finally { applyingRemoteTheme = false }
+                    }
+                }
+                is IndependentResult.Failed -> outcome = when (val cause = extra.cause) {
+                    is SyncResult.Stop -> SyncOutcome.Stop(cause.why, cause.authorizationLost)
+                    is SyncResult.RetryLater -> SyncOutcome.RetryLater(cause.why)
+                    else -> SyncOutcome.RetryLater("Theme preference sync could not finish")
                 }
                 IndependentResult.Disabled -> Unit
             }
