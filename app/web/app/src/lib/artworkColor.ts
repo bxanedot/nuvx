@@ -73,5 +73,5 @@ export function useArtworkColor(url: string | null | undefined): ArtworkColor | 
     return () => controller.abort();
   }, [url]);
   // Reject the previous page's tint during render, even before effect cleanup runs.
-  return current?.url === url ? current.color : (url ? cache.get(url) ?? null : null);
+  return current && current.url === url ? current.color : (url ? cache.get(url) ?? null : null);
 }
