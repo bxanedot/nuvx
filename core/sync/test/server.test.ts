@@ -214,6 +214,27 @@ test("reopening a database keeps its data and does not rerun migrations", () => 
   db.close();
 });
 
+test("schema rollback guard preserves a newer database while v1 remains readable", () => {
+  const path = join(mkdtempSync(join(tmpdir(), "nuvx-sync-schema-")), "compat.db");
+  let db = openDb(path);
+  db.prepare("INSERT INTO spaces (id, created_ms) VALUES ('existing', 7)").run();
+  assert.equal((db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 1);
+  db.close();
+
+  // This is a persisted v1 fixture: reopen as a regular older deployment.
+  db = openDb(path);
+  assert.equal((db.prepare("SELECT created_ms FROM spaces WHERE id='existing'").get() as { created_ms: number }).created_ms, 7);
+  // Simulate a later migration; older code must refuse, not rewrite that database.
+  db.exec("PRAGMA user_version = 2");
+  db.close();
+  assert.throws(() => openDb(path), /schema v2 is newer than supported v1/);
+
+  const raw = new DatabaseSync(path);
+  assert.equal((raw.prepare("SELECT created_ms FROM spaces WHERE id='existing'").get() as { created_ms: number }).created_ms, 7);
+  assert.equal((raw.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 2);
+  raw.close();
+});
+
 test("a full server refuses new spaces and pushes, but still serves reads", () => {
   const a = app(1_000_000, 1);
   assert.equal(a.call("POST", "/v1/spaces", undefined, { deviceName: "Phone" }).status, 507);
