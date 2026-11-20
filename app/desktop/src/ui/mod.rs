@@ -271,6 +271,8 @@ pub struct App {
     recoveries: u32,
     autoplay: bool,
     norm_target: Option<i32>,
+    /// Loudness overrides by stable output device ID; absent IDs use the existing global target.
+    norm_by_output: std::collections::HashMap<String, Option<i32>>,
     sleep: sleep_timer::SleepTimer,
     sleep_cut: u32,
     /// Library playlists and albums as rows instead of a cover grid.
