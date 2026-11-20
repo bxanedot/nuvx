@@ -270,25 +270,38 @@ pub(super) fn settings(app: &mut App, ui: &mut Ui) {
     let mut g = inner.lock().unwrap_or_else(|e| e.into_inner());
     pair_row(ui, &g.find_code, &address);
     for p in g.pending() {
-        let desc = format!("Check that the phone shows the same code before you approve: {} {}", &p.code[..3], &p.code[3..]);
+        // The code is deliberately not displayed on this computer before confirmation:
+        // the owner must read it on the joining phone and enter it here.
+        let code_id = egui::Id::new(("lan-pair-confirmation", &p.id));
+        let mut entered = ui.ctx().data(|d| d.get_temp::<String>(code_id)).unwrap_or_default();
         let mut choice = None;
-        setting_row(ui, &format!("{} wants to sync", p.name), Some(&desc), |ui| {
-            if pill(ui, "Approve", None, true).clicked() {
-                choice = Some(true);
-            }
-            ui.add_space(6.0);
-            if pill(ui, "Decline", None, false).clicked() {
-                choice = Some(false);
-            }
-        });
+        setting_row(ui, &format!("{} wants to sync", p.name),
+            Some("Enter the six-digit code shown on the joining phone before approving."), |ui| {
+                ui.add(egui::TextEdit::singleline(&mut entered)
+                    .hint_text("6-digit phone code")
+                    .char_limit(6)
+                    .desired_width(125.0));
+                if pill(ui, "Approve", None, true).clicked() {
+                    choice = Some(true);
+                }
+                ui.add_space(6.0);
+                if pill(ui, "Decline", None, false).clicked() {
+                    choice = Some(false);
+                }
+            });
         match choice {
             Some(true) => {
-                if let Err(e) = g.approve(&p.id) {
+                if let Err(e) = g.approve(&p.id, &entered) {
                     app.toast(e.to_owned());
+                } else {
+                    ui.ctx().data_mut(|d| d.remove_temp::<String>(code_id));
                 }
             }
-            Some(false) => g.deny(&p.id),
-            None => {}
+            Some(false) => {
+                g.deny(&p.id);
+                ui.ctx().data_mut(|d| d.remove_temp::<String>(code_id));
+            }
+            None => ui.ctx().data_mut(|d| d.insert_temp(code_id, entered)),
         }
     }
     let devices = g.devices();
