@@ -76,11 +76,16 @@ internal class MainAccountController(
 
     private val listenerCache = mutableMapOf<String, ListenerSnapshot>()
 
+    // Logout invalidates all account requests started before it, including a
+    // sign-in response that returns from the network after the user signed out.
+    private var sessionEpoch = 0L
+
     fun loadAccount() {
         val identity = listenerKey()
+        val epoch = sessionEpoch
         scope.launch {
             val account = YtMusicRepository.account().getOrNull()
-            if (identity != listenerKey()) return@launch
+            if (epoch != sessionEpoch || identity != listenerKey()) return@launch
             _account.value = account
             if (account != null && _selectedChannelKey.value != null) {
                 _selectedChannelName.value = account.name
@@ -107,14 +112,20 @@ internal class MainAccountController(
         if (!signedIn.value) return
         if (_channelsLoading.value) return
         if (!force && _channels.value.isNotEmpty()) return
+        val identity = listenerKey()
+        val epoch = sessionEpoch
         scope.launch {
             _channelsLoading.value = true
-            YtMusicRepository.accountChannels()
-                .onSuccess {
-                    _channels.value = it
-                    persistDetectedProfiles(it)
+            try {
+                YtMusicRepository.accountChannels().onSuccess {
+                    if (epoch == sessionEpoch && signedIn.value && identity == listenerKey()) {
+                        _channels.value = it
+                        persistDetectedProfiles(it)
+                    }
                 }
-            _channelsLoading.value = false
+            } finally {
+                if (epoch == sessionEpoch) _channelsLoading.value = false
+            }
         }
     }
 
@@ -140,7 +151,9 @@ internal class MainAccountController(
         }
         val oldAccountId = _activeAccountId.value
         val oldProfileId = _activeProfileId.value
+        val epoch = sessionEpoch
         scope.launch {
+            if (epoch != sessionEpoch) { onComplete(false); return@launch }
             Innertube.cookie = session.cookie
             Innertube.adoptSessionScope(
                 pageId = session.pageId,
@@ -159,6 +172,10 @@ internal class MainAccountController(
                     result = YtMusicRepository.account()
                 }
                 result.getOrNull()
+            }
+            if (epoch != sessionEpoch) {
+                onComplete(false)
+                return@launch
             }
             if (account == null) {
                 restoreActiveSession(oldAccountId, oldProfileId)
@@ -341,6 +358,8 @@ internal class MainAccountController(
     }
 
     fun signOut() {
+        sessionEpoch++
+        _channelsLoading.value = false
         val current = _activeAccountId.value
         if (current != null && authStore.sessions.size > 1) {
             removeAccount(current)
