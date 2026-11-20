@@ -564,7 +564,12 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_LISTEN_TOGETHER_BUTTON, value).apply()
     }
 
-    fun setThemeMode(value: ThemeMode) = appearanceSettings.setThemeMode(value)
+    fun setThemeMode(value: ThemeMode) {
+        if (themeMode.value == value) return
+        appearanceSettings.setThemeMode(value)
+        // The opt-in Sync engine only sees this one non-sensitive, user-selected value.
+        com.licht.nuvx.data.sync.NuvxSync.onThemeSelected(value)
+    }
 
     fun setAppFont(value: AppFont) = appearanceSettings.setAppFont(value)
 
