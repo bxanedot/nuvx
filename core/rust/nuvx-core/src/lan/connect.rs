@@ -17,6 +17,8 @@ pub enum Command {
     Next,
     Prev,
     Seek { position_ms: u64, track_id: Option<String> },
+    /// Normalized audio gain, bounded to [0, 1] before reaching the output.
+    Volume(f32),
     /// Append one validated YouTube track without moving or replacing the existing queue.
     Enqueue(Item),
     /// The phone moved playback here: these songs (the current one first, then what follows in its queue),
@@ -67,6 +69,11 @@ impl Command {
                 Command::Seek { position_ms: position()?, track_id }
             },
             "enqueue" => Command::Enqueue(item(body)?),
+            "volume" => {
+                let value = body.get("volume")?.as_f64()?;
+                if !value.is_finite() || !(0.0..=1.0).contains(&value) { return None; }
+                Command::Volume(value as f32)
+            },
             "playTrack" => Command::Load {
                 tracks: vec![item(body)?],
                 position_ms: position().unwrap_or(0),
@@ -292,6 +299,16 @@ mod tests {
         assert_eq!(Command::parse(&json!({ "action": "enqueue", "videoId": "file:///local.wav" })), None);
         assert_eq!(Command::parse(&json!({ "action": "enqueue", "tracks": [{ "videoId": "dQw4w9WgXcQ" }] })), None);
         assert_eq!(Command::parse(&json!({ "action": "enqueue", "videoId": "dQw4w9WgXcQ", "title": "x".repeat(301) })), None);
+    }
+
+    #[test]
+    fn volume_only_accepts_finite_normalized_gain() {
+        assert_eq!(Command::parse(&json!({ "action": "volume", "volume": 0.0 })), Some(Command::Volume(0.0)));
+        assert_eq!(Command::parse(&json!({ "action": "volume", "volume": 0.5 })), Some(Command::Volume(0.5)));
+        assert_eq!(Command::parse(&json!({ "action": "volume", "volume": 1.0 })), Some(Command::Volume(1.0)));
+        for value in [json!(-0.1), json!(1.0001), json!("0.5"), json!(null)] {
+            assert_eq!(Command::parse(&json!({ "action": "volume", "volume": value })), None);
+        }
     }
 
     #[test]
