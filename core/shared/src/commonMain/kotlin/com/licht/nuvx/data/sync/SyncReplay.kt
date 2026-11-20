@@ -44,7 +44,11 @@ fun replay(ops: List<SyncOp>, upTo: Long = Long.MAX_VALUE): SyncState {
                 playlists[target] = SyncedPlaylist(target, str("title").orEmpty(), emptyList())
             }
             "playlist.rename" -> playlists[target]?.let { playlists[target] = it.copy(title = str("title") ?: it.title) }
-            "playlist.delete" -> if (playlists.remove(target) != null) deleted += target
+            "playlist.delete" -> {
+                playlists.remove(target)
+                // A deletion must reserve its ID even if the create event arrived late.
+                deleted += target
+            }
             "playlist.addTrack", "playlist.moveTrack" -> playlists[target]?.let { list ->
                 val track = str("videoId") ?: return@let
                 if (op.kind == "playlist.addTrack" && track in list.tracks) return@let
