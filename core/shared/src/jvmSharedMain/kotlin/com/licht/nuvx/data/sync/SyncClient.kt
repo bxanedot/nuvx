@@ -84,7 +84,9 @@ class SyncClient(
     }
 
     /** One page of the server's log after [cursor] (0 for everything). */
-    fun pull(cursor: Long): SyncResult = call(Request.Builder().url("$baseUrl/v1/ops?after=$cursor").get()) { json ->
+    fun pull(cursor: Long): SyncResult {
+        if (cursor < 0) return SyncResult.Stop("Invalid sync cursor")
+        return call(Request.Builder().url("$baseUrl/v1/ops?after=$cursor").get()) { json ->
         val api = json["api"]?.jsonPrimitive?.intOrNull ?: 0
         if (api > API_VERSION) return@call SyncResult.Stop("This sync server is newer than the app. Update nuvx to keep syncing.")
         val ops = json.getValue("ops").jsonArray.map { it.jsonObject }.map {
@@ -95,7 +97,17 @@ class SyncClient(
                 payload = it["payload"] as? JsonObject ?: JsonObject(emptyMap()),
             )
         }
-        SyncResult.Pulled(ops, ops.lastOrNull()?.seq ?: cursor, json["more"]?.jsonPrimitive?.booleanOrNull == true)
+        val more = json["more"]?.jsonPrimitive?.booleanOrNull == true
+        // Never replay rows already recorded, move the durable cursor backwards,
+        // or spin forever on a page that says "more" but makes no progress.
+        var last = cursor
+        for (op in ops) {
+            if (op.seq <= last) return@call SyncResult.RetryLater("Stale or out-of-order sync cursor page")
+            last = op.seq
+        }
+        if (more && last == cursor) return@call SyncResult.RetryLater("Sync page made no cursor progress")
+        SyncResult.Pulled(ops, last, more)
+        }
     }
 
     /** Starts a new space with this device as its first member. */
