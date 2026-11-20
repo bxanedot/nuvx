@@ -355,7 +355,7 @@ impl Inner {
                 // The public pairing id alone cannot claim a credential. Only the phone that
                 // derived the ECDH key can prove possession; AAD also binds it to this attempt.
                 let aad = format!("nuvx-pair-claim:{id}");
-                if crypto::open(key, aad.as_bytes(), proof).as_deref() != Some(b"claim" as &[u8]) {
+                if crypto::open(key, aad.as_bytes(), proof).as_deref() != Some(&b"claim"[..]) {
                     return fail(401, "bad_proof", "The claiming device did not prove possession of its pairing key.");
                 }
                 match &p.state {
@@ -710,10 +710,10 @@ mod phone_presence_timeout_tests {
         h.phone_command(&device, "toggle");
         assert!(h.phone_commands.is_empty(), "offline phones cannot queue actions");
 
-        let mut send = |h: &mut Inner| {
+        let send = |h: &mut Inner| {
             let envelope = json!({
                 "m": "POST", "p": "/v1/connect/phone", "t": now_ms(),
-                "n": crypto::b64(&crypto::random_bytes::<16>()), "b": report,
+                "n": crypto::b64(&crypto::random_bytes::<16>()), "b": report.clone(),
             });
             let sealed = crypto::seal(&key, device.as_bytes(), envelope.to_string().as_bytes());
             let (status, reply) = h.handle("POST", "/lan/v1", Some(&device), sealed.as_bytes());
