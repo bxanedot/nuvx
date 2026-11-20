@@ -682,3 +682,50 @@ content-length: {}
     Ok(true)
 }
 
+
+#[cfg(test)]
+mod phone_presence_timeout_tests {
+    use super::*;
+
+    #[test]
+    fn expired_phone_commands_are_discarded_and_authenticated_reconnect_starts_clean() {
+        let dir = std::env::temp_dir().join(format!("nuvx-phone-presence-{}", crypto::b64(&crypto::random_bytes::<8>())));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut h = Inner::load(&dir, "Test PC".into(), Some(HashMap::new()));
+        let device = "test-phone".to_owned();
+        let key = crypto::random_bytes::<32>();
+        h.keys.insert(device.clone(), key);
+        h.saved.devices.push(Device { id: device.clone(), name: "Phone".into(), created_ms: now_ms(), seen_ms: now_ms() });
+        let report = json!({ "track": { "title": "Song", "artist": "Artist" }, "playing": true, "positionMs": 1000 });
+        let phone = super::super::connect::PhoneNow::parse(&report, now_ms()).unwrap();
+        h.phones.insert(device.clone(), phone);
+        h.phone_command(&device, "pause");
+        assert_eq!(h.phone_commands.get(&device).map(Vec::len), Some(1));
+
+        h.phones.get_mut(&device).unwrap().at_ms = now_ms() - super::super::connect::PHONE_FRESH_MS - 1;
+        assert!(h.phones_playing().is_empty(), "stale phone is hidden");
+        h.expire();
+        assert!(h.phones.is_empty(), "expired presence is purged");
+        assert!(h.phone_commands.is_empty(), "old remote commands cannot replay on reconnect");
+        h.phone_command(&device, "toggle");
+        assert!(h.phone_commands.is_empty(), "offline phones cannot queue actions");
+
+        let mut send = |h: &mut Inner| {
+            let envelope = json!({
+                "m": "POST", "p": "/v1/connect/phone", "t": now_ms(),
+                "n": crypto::b64(&crypto::random_bytes::<16>()), "b": report,
+            });
+            let sealed = crypto::seal(&key, device.as_bytes(), envelope.to_string().as_bytes());
+            let (status, reply) = h.handle("POST", "/lan/v1", Some(&device), sealed.as_bytes());
+            assert_eq!(status, 200);
+            let opened = crypto::open(&key, format!("resp:{device}").as_bytes(), &reply).unwrap();
+            serde_json::from_slice::<Value>(&opened).unwrap()["b"]["commands"].clone()
+        };
+        assert_eq!(send(&mut h), json!([]), "authenticated reconnect must not receive stale actions");
+        h.phone_command(&device, "next");
+        assert_eq!(send(&mut h), json!(["next"]), "fresh paired phone receives only fresh allowed control");
+
+        drop(h);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
