@@ -108,6 +108,20 @@ object LocalPlaylistStore {
         return true
     }
 
+    /** Undo/redo only if no newer edit has changed this playlist in the meantime. */
+    @Synchronized
+    fun replaceSongsIfUnchanged(id: String, expected: List<Song>, replacement: List<Song>): Boolean {
+        val current = getPlaylist(id) ?: return false
+        if (current.songs != expected) return false
+        if (replacement == expected) return true
+        val updated = _playlists.value.map {
+            if (it.id == current.id) it.copy(songs = replacement) else it
+        }
+        _playlists.value = updated
+        persist(updated)
+        return true
+    }
+
     fun replaceSongs(id: String, songs: List<Song>): Boolean {
         val current = getPlaylist(id) ?: return false
         val updated = _playlists.value.map { if (it.id == current.id) it.copy(songs = songs) else it }
