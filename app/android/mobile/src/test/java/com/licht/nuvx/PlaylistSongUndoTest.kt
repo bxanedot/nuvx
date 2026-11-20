@@ -37,6 +37,27 @@ class PlaylistSongUndoTest {
     }
 
     @Test
+    fun redoReappliesExactOrderAndRefusesToOverwriteInterveningEdit() {
+        val id = LocalPlaylistStore.createNuvxPlaylist("Redo", listOf(a, b, c)).id
+        try {
+            val original = listOf(a, b, c)
+            val reordered = listOf(c, a, b)
+            assertEquals(true, LocalPlaylistStore.replaceSongsIfUnchanged(id, original, reordered))
+            assertEquals(true, LocalPlaylistStore.replaceSongsIfUnchanged(id, reordered, original))
+            assertEquals(original, LocalPlaylistStore.getPlaylist(id)?.songs)
+            assertEquals(true, LocalPlaylistStore.replaceSongsIfUnchanged(id, original, reordered))
+            assertEquals(reordered, LocalPlaylistStore.getPlaylist(id)?.songs)
+
+            assertEquals(true, LocalPlaylistStore.replaceSongsIfUnchanged(id, reordered, original))
+            LocalPlaylistStore.addSong(id, Song("ddddddddddd", "D", "x", null))
+            assertFalse(LocalPlaylistStore.replaceSongsIfUnchanged(id, original, reordered))
+            assertEquals(listOf(a, b, c, Song("ddddddddddd", "D", "x", null)), LocalPlaylistStore.getPlaylist(id)?.songs)
+        } finally {
+            LocalPlaylistStore.deletePlaylist(id)
+        }
+    }
+
+    @Test
     fun renameThroughTheMenuIdAndUndoRestoreTheName() {
         val playlist = LocalPlaylistStore.createNuvxPlaylist("Old name", listOf(a))
         try {
