@@ -119,7 +119,11 @@ object LocalPlaylistStore {
         val after = current.copy(songs = replacement)
         // Standalone JVM playlist tests construct the in-memory store before init;
         // real initialized installations require a durable checkpoint.
-        val checkpoint = if (this::prefs.isInitialized) createCheckpoint(current, after) ?: return false else null
+        val checkpoint = if (this::prefs.isInitialized) {
+            createCheckpoint(current, after) ?: return false
+        } else {
+            null
+        }
         val updated = _playlists.value.map {
             if (it.id == current.id) after else it
         }
