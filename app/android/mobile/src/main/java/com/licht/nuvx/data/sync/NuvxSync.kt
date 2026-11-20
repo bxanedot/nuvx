@@ -15,6 +15,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.licht.nuvx.auth.EncryptedPrefs
 import com.licht.nuvx.data.DebugLog
+import com.licht.nuvx.data.LikeState
+import com.licht.nuvx.data.model.LikeStatus
 import com.licht.nuvx.data.model.Song
 import com.licht.nuvx.data.spotify.LocalPlaylist
 import com.licht.nuvx.data.spotify.LocalPlaylistStore
@@ -65,6 +67,8 @@ object NuvxSync {
     private val running = Mutex()
     private val _status = MutableStateFlow(Status())
     val status = _status.asStateFlow()
+    private val _syncFavorites = MutableStateFlow(false)
+    val syncFavorites = _syncFavorites.asStateFlow()
 
     val deviceName: String get() = listOf(Build.MANUFACTURER.replaceFirstChar(Char::uppercase), Build.MODEL).distinct().joinToString(" ").take(80)
 
@@ -81,6 +85,8 @@ object NuvxSync {
             lastSyncMs = prefs.getLong("last", 0),
             error = prefs.getString("error", null),
         )
+        _syncFavorites.value = prefs.getBoolean("sync_favorites", false)
+        LikeState.onChanged = { id, state -> recordLocalFavorite(id, state == LikeStatus.LIKE) }
         if (prefs.getBoolean(KEY_HOSTING, false)) startHosting()
         if (_status.value.enabled) {
             schedulePeriodic()
@@ -256,10 +262,27 @@ object NuvxSync {
     private fun join(server: String, joined: SyncResult.Joined) {
         secure.edit().putString(KEY_TOKEN, joined.token).commit()
         engine("").reset() // a new space starts from an empty log
+        favoritesChannel().resetForNewSpace()
         prefs.edit().putBoolean("enabled", true).putString("server", server).putString("device", joined.deviceId).remove("error").apply()
         _status.value = Status(enabled = true, server = server, deviceId = joined.deviceId)
         schedulePeriodic()
         requestSync()
+    }
+
+    /** Favorites are a separate, default-off opt-in from playlist Sync. */
+    fun setSyncFavorites(enabled: Boolean) {
+        _syncFavorites.value = enabled
+        prefs.edit().putBoolean("sync_favorites", enabled).apply()
+        if (enabled && _status.value.enabled) requestSync()
+    }
+
+    private fun favoritesChannel(): IndependentSyncChannel =
+        IndependentSyncChannel(client(), FileStore(File(app.filesDir, "nuvx-sync-favorites.json"))) {
+            _status.value.enabled && _syncFavorites.value
+        }
+
+    private fun recordLocalFavorite(videoId: String, liked: Boolean) {
+        if (favoritesChannel().setFavorite(videoId, liked)) requestSync()
     }
 
     fun requestSync() {
@@ -287,9 +310,22 @@ object NuvxSync {
         if (!s.enabled) return SyncOutcome.Stop("Sync is off")
         _status.value = s.copy(syncing = true)
         val before = LocalPlaylistStore.playlists.value
-        val outcome = runCatching {
+        var outcome: SyncOutcome = runCatching {
             engine(s.server).syncOnce(before.map { LibraryPlaylist(it.id, it.title, it.songs) })
         }.getOrElse { SyncOutcome.RetryLater(it.javaClass.simpleName) }
+        if (outcome is SyncOutcome.Apply && _syncFavorites.value) {
+            when (val extra = favoritesChannel().sync()) {
+                is IndependentResult.Applied -> if (_syncFavorites.value) extra.state.favorites.forEach { (id, liked) ->
+                    LikeState.applySynced(id, if (liked) LikeStatus.LIKE else LikeStatus.INDIFFERENT)
+                }
+                is IndependentResult.Failed -> outcome = when (val cause = extra.cause) {
+                    is SyncResult.Stop -> SyncOutcome.Stop(cause.why, cause.authorizationLost)
+                    is SyncResult.RetryLater -> SyncOutcome.RetryLater(cause.why)
+                    else -> SyncOutcome.RetryLater("Favorites sync could not finish")
+                }
+                IndependentResult.Disabled -> Unit
+            }
+        }
         // A self-revocation can complete while this network call is in flight.
         // Do not apply its reply or re-enable a session that is no longer authorized.
         val stillAuthorized = _status.value.enabled &&
