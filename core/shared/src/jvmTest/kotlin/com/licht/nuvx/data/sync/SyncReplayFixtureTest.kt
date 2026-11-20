@@ -53,6 +53,19 @@ class SyncReplayFixtureTest {
     }
 
     @Test
+    fun deletionBeforeDelayedCreateNeverResurrectsAPlaylist() {
+        val empty = JsonObject(emptyMap())
+        val title = Json.parseToJsonElement("""{"title":"Late"}""") as JsonObject
+        val log = listOf(
+            SyncOp(1, "playlist.delete", "playlist:gone", empty),
+            SyncOp(2, "playlist.create", "playlist:gone", title),
+            SyncOp(3, "playlist.create", "playlist:kept", title),
+        )
+        assertEquals(setOf("kept"), replay(log).playlists.keys)
+        assertEquals(setOf("kept"), replay(log.reversed()).playlists.keys)
+    }
+
+    @Test
     fun theOrderOpsArriveInDoesNotMatterOnlyTheirSeq() {
         assertEquals(replay(ops), replay(ops.shuffled(kotlin.random.Random(7))))
     }
