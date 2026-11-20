@@ -111,6 +111,28 @@ class LastPlayedTest {
     }
 
     @Test
+    fun `shared queue entry aliases preserve identity order and optional metadata`() {
+        // The bounded queue and the older LastPlayed store use different names
+        // for the same queue-entry facts. Both forms must remain readable.
+        prefs.edit().putString("queue", """
+            {"tracks":[
+              {"videoId":"abcdefghijk","title":"Modern","artist":"A","thumbnailUrl":"https://img.test/a.jpg",
+               "queueTier":"USER_QUEUE","queueEntryId":"entry-1","unknown":"future-value"},
+              {"id":"legacy12345","title":"Legacy","artist":"B","tier":"AUTOPLAY","entryId":"entry-2"},
+              {"id":"plain12345","title":"Optional","artist":"C"}
+            ],"index":1,"positionMs":5000}
+        """.trimIndent()).commit()
+        val restored = LastPlayed.load()!!
+        assertEquals(listOf("abcdefghijk", "legacy12345", "plain12345"), restored.songs.map { it.videoId })
+        assertEquals(listOf("entry-1", "entry-2", null), restored.songs.map { it.queueEntryId })
+        assertEquals(com.licht.nuvx.data.model.QueueTier.USER_QUEUE, restored.songs[0].queueTier)
+        assertEquals(com.licht.nuvx.data.model.QueueTier.AUTOPLAY, restored.songs[1].queueTier)
+        assertEquals("https://img.test/a.jpg", restored.songs[0].thumbnailUrl)
+        assertEquals(1, restored.index)
+        assertEquals(5000L, restored.positionMs)
+    }
+
+    @Test
     fun `older snapshots with index and position inside the json still restore`() {
         prefs.edit().putString(
             "queue",
