@@ -7,6 +7,12 @@ use super::lists::LIKED_MUSIC;
 use super::queue::QueueFill;
 use super::{Action, App, Dialog, LibTab, NpTab, Page, jam, transfer};
 
+/// Local-only playlist IDs may be displayed alongside server library items,
+/// but must never be sent to a remote mutation endpoint.
+fn can_mutate_remote_collection(id: &str) -> bool {
+    !id.starts_with("nuvx-local:")
+}
+
 impl App {
     pub(super) fn apply(&mut self, a: Action) {
         let a = if self.jam.guest() {
@@ -208,8 +214,13 @@ impl App {
                 }
             }
             Action::SaveCollection(id, save) => {
-                if self.logged_in { self.backend.request(Req::SaveCollection { id, save }); }
-                else { self.toast("Sign in to save to library"); }
+                if !can_mutate_remote_collection(&id) {
+                    self.toast("This playlist is saved on this device only");
+                } else if self.logged_in {
+                    self.backend.request(Req::SaveCollection { id, save });
+                } else {
+                    self.toast("Sign in to save to library");
+                }
             }
             Action::OpenNowPlaying(open) => {
                 if self.current().is_some() {
@@ -376,5 +387,20 @@ mod share_tests {
         assert_eq!(share_url(&Target::Playlist("PL123".into())), "https://music.youtube.com/playlist?list=PL123");
         assert_eq!(share_url(&Target::Album("MPRE123".into())), "https://music.youtube.com/browse/MPRE123");
         assert_eq!(share_url(&Target::Artist("UC123".into())), "https://music.youtube.com/channel/UC123");
+    }
+}
+
+#[cfg(test)]
+mod local_playlist_isolation_tests {
+    use super::can_mutate_remote_collection;
+
+    #[test]
+    fn local_mutation_targets_never_reach_server_actions() {
+        for local in ["nuvx-local:1", "nuvx-local:private", "nuvx-local:"] {
+            assert!(!can_mutate_remote_collection(local), "{local}");
+        }
+        for remote in ["PLremote", "VLremote", "MPREb_album"] {
+            assert!(can_mutate_remote_collection(remote), "{remote}");
+        }
     }
 }
