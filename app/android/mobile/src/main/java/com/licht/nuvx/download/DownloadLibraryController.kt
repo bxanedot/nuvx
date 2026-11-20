@@ -15,6 +15,17 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.io.File
 
+/** Recover a legacy saved URI even when its metadata row was never written. */
+internal fun metadataForSavedRecord(
+    videoId: String,
+    uri: String,
+    byId: Map<String, SavedSongMetadata>,
+    byUri: Map<String, SavedSongMetadata>,
+): SavedSongMetadata =
+    byId[videoId]?.takeIf { it.uri == uri }
+        ?: byUri[uri]?.copy(videoId = videoId)
+        ?: SavedSongMetadata(videoId = videoId, title = videoId, artist = "", uri = uri)
+
 internal class DownloadLibraryController {
     private lateinit var prefs: SharedPreferences
     private val json = Json { ignoreUnknownKeys = true }
@@ -225,12 +236,17 @@ internal class DownloadLibraryController {
 
     suspend fun getDownloadedSongs(context: Context): List<Song> = withContext(Dispatchers.IO) {
         val metaMap = _savedMetadata.value
+        val savedMap = _saved.value
+        val metadataByUri = metaMap.values.associateBy { it.uri }
+        val records = savedMap.map { (id, uri) -> metadataForSavedRecord(id, uri, metaMap, metadataByUri) } +
+            metaMap.filterKeys { it !in savedMap }.values
+        val recoveredMetadata = mutableMapOf<String, SavedSongMetadata>()
         val result = mutableListOf<Song>()
         val seenUris = mutableSetOf<String>()
         val migratedAddedByUri = mutableMapOf<String, Long>()
         val migratedFormatByUri = mutableMapOf<String, String>()
 
-        for ((_, meta) in metaMap) {
+        for (meta in records) {
             if (!seenUris.add(meta.uri)) continue
             val uri = meta.uri.toUri()
             if (DownloadStore.exists(context, uri)) {
@@ -245,6 +261,9 @@ internal class DownloadLibraryController {
                 )
                 if (meta.dateAddedSeconds == null && dateAddedSeconds != null) {
                     migratedAddedByUri[meta.uri] = dateAddedSeconds
+                }
+                if (metaMap[meta.videoId] != meta) {
+                    recoveredMetadata[meta.videoId] = meta.copy(dateAddedSeconds = dateAddedSeconds)
                 }
                 val downloadFormat = meta.downloadFormat
                     ?: legacyYoutubeDownloadBadge(context, uri)?.also {
@@ -268,11 +287,11 @@ internal class DownloadLibraryController {
                 metaMap.filterValues { it.uri == meta.uri }.keys.forEach(::forget)
             }
         }
-        if (migratedAddedByUri.isNotEmpty() || migratedFormatByUri.isNotEmpty()) {
+        if (migratedAddedByUri.isNotEmpty() || migratedFormatByUri.isNotEmpty() || recoveredMetadata.isNotEmpty()) {
             record(
                 saved = { it },
                 meta = { current ->
-                    current.mapValues { (_, saved) ->
+                    (current + recoveredMetadata).mapValues { (_, saved) ->
                         saved.copy(
                             dateAddedSeconds = saved.dateAddedSeconds
                                 ?: migratedAddedByUri[saved.uri],
@@ -303,7 +322,7 @@ internal class DownloadLibraryController {
                     return@mapNotNull null
                 }
 
-                val meta = metadata[videoId] ?: metadataByUri[uriString] ?: return@mapNotNull null
+                val meta = metadataForSavedRecord(videoId, uriString, metadata, metadataByUri)
                 val fileModifiedMillis = uri.takeIf { it.scheme == "file" }
                     ?.path
                     ?.let(::File)
