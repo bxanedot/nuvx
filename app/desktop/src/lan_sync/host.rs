@@ -342,6 +342,7 @@ impl Inner {
                     }
                     PairState::Committed { .. } => return (202, json!({ "pending": true }).to_string()),
                 };
+                let name = p.name.clone();
                 // The pairing ID is public; the phone must prove possession of its ECDH key.
                 let aad = format!("nuvx-pair-claim:{id}");
                 if crypto::open(&key, aad.as_bytes(), proof).as_deref() != Some(&b"claim"[..]) {
@@ -359,7 +360,6 @@ impl Inner {
                     return (202, json!({ "pending": true }).to_string());
                 }
                 // Nothing becomes permanently trusted before this authenticated, single-use claim.
-                let name = p.name.clone();
                 let twins: Vec<String> = self.saved.devices.iter()
                     .filter(|d| d.name == name).map(|d| d.id.clone()).collect();
                 if self.saved.devices.len() - twins.len() >= MAX_DEVICES {
