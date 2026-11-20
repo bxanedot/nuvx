@@ -16,10 +16,10 @@ async function measure(url: string, signal: AbortSignal): Promise<ArtworkColor> 
   const abort = () => { image.src = ''; };
   signal.addEventListener('abort', abort, { once: true });
   try {
-    if (signal.aborted) return Promise.reject(new DOMException('Artwork request cancelled', 'AbortError'));
+    if (signal.aborted) throw new DOMException('Artwork request cancelled', 'AbortError');
     image.src = artworkAtPixels(url, 60);
     await image.decode();
-    if (signal.aborted) return Promise.reject(new DOMException('Artwork request cancelled', 'AbortError'));
+    if (signal.aborted) throw new DOMException('Artwork request cancelled', 'AbortError');
   } finally {
     signal.removeEventListener('abort', abort);
   }
