@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   best,
   hasConflictingAlbums,
+  isSevereMismatch,
   matches,
   queries,
   romajiOf,
@@ -15,6 +16,14 @@ const song = (title: string, artist: string, duration?: string, album: string | 
   artist,
   durationSec: secs(duration),
   album,
+});
+
+describe('shared recording-duration mismatch', () => {
+  it('treats 30 seconds as compatible and more than 30 as severe', () => {
+    expect(isSevereMismatch(180, 210)).toBe(false);
+    expect(isSevereMismatch(180, 211)).toBe(true);
+    expect(isSevereMismatch(null, 211)).toBe(false);
+  });
 });
 
 describe('TrackMatcher', () => {
