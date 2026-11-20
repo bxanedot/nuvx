@@ -98,6 +98,11 @@ object NuvxSync {
         _syncHistory.value = prefs.getBoolean("sync_listening_history", false)
         _syncTheme.value = prefs.getBoolean("sync_theme_mode", false)
         LikeState.onChanged = { id, state -> recordLocalFavorite(id, state == LikeStatus.LIKE) }
+        // Restore opted-in local states even when the app restarts completely offline.
+        if (_syncFavorites.value) favoritesChannel().current().favorites.forEach { (id, liked) ->
+            LikeState.applySynced(id, if (liked) LikeStatus.LIKE else LikeStatus.INDIFFERENT)
+        }
+        if (_syncHistory.value) _syncedHistory.value = historyChannel().current().history
         if (prefs.getBoolean(KEY_HOSTING, false)) startHosting()
         if (_status.value.enabled) {
             schedulePeriodic()
