@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -18,7 +19,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
 private val LEGACY_CONNECT_ACTIONS = setOf("toggle", "play", "pause", "next", "previous", "seek", "load", "playTrack")
-private val KNOWN_CONNECT_ACTIONS = LEGACY_CONNECT_ACTIONS + "enqueue"
+private val KNOWN_CONNECT_ACTIONS = LEGACY_CONNECT_ACTIONS + setOf("enqueue", "volume")
 
 /**
  * Nuvx Connect: control nuvx on the paired computer, or hand this phone's song over to it. It only works through
@@ -35,6 +36,7 @@ object NuvxConnect {
         val ended: Boolean = false,
         /** Absent from old hosts; those support only the original Connect actions. */
         val capabilities: Set<String> = LEGACY_CONNECT_ACTIONS,
+        val volume: Float? = null,
     )
 
     private const val URL = "http://lan.invalid/v1/connect"
@@ -54,8 +56,8 @@ object NuvxConnect {
     fun send(command: JsonObject, http: OkHttpClient? = NuvxSync.lanHttp()): Result<Unit> = runCatching {
         val client = http ?: throw IOException("Not paired with a computer")
         val action = (command["action"] as? JsonPrimitive)?.contentOrNull
-        if (action == "enqueue" && "enqueue" !in state(client).getOrThrow().capabilities) {
-            throw IOException("The paired computer does not support remote queue edits")
+        if (action in setOf("enqueue", "volume", "seek") && action !in state(client).getOrThrow().capabilities) {
+            throw IOException("The paired computer does not support $action")
         }
         val body = command.toString().toRequestBody("application/json".toMediaType())
         client.newCall(Request.Builder().url(URL).post(body).build()).execute().use { r ->
@@ -99,7 +101,17 @@ object NuvxConnect {
         put("tracks", kotlinx.serialization.json.JsonArray(tracks.take(20)))
     }
 
-    fun seek(positionMs: Long) = buildJsonObject { put("action", "seek"); put("positionMs", positionMs.coerceAtLeast(0)) }
+    fun seek(positionMs: Long, trackId: String? = null) = buildJsonObject {
+        put("action", "seek")
+        put("positionMs", positionMs.coerceIn(0, 24L * 60 * 60 * 1000))
+        trackId?.takeIf { it.isNotEmpty() && it.length <= 200 }?.let { put("trackId", it) }
+    }
+
+    /** Remote volume is not supported unless advertised; invalid gains are rejected before networking. */
+    fun volume(fraction: Float): JsonObject? =
+        fraction.takeIf { it.isFinite() && it in 0f..1f }?.let {
+            buildJsonObject { put("action", "volume"); put("volume", it) }
+        }
 
     /** Append one YouTube song when the paired computer explicitly advertises `enqueue`. */
     fun enqueue(videoId: String, title: String, artist: String, art: String? = null): JsonObject? =
@@ -135,6 +147,7 @@ object NuvxConnect {
             id = track?.get("id")?.jsonPrimitive?.contentOrNull,
             ended = json["ended"]?.jsonPrimitive?.booleanOrNull == true,
             capabilities = capabilities,
+            volume = json["volume"]?.jsonPrimitive?.floatOrNull?.takeIf { it.isFinite() && it in 0f..1f },
         )
     }
 }
