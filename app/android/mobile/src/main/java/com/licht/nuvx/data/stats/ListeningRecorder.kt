@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 import com.licht.nuvx.data.model.isLiveRadio
+import com.licht.nuvx.data.sync.NuvxSync
 
 object ListeningRecorder {
 
@@ -45,6 +46,9 @@ object ListeningRecorder {
         if (counts) playCounted = true
 
         ListeningStats.record(enriched(song), step, counts)
+        // This is the already-counted local play threshold. Sync is separately
+        // opted-in and persists a minimal event; never transmit play samples.
+        if (counts) NuvxSync.recordCountedPlay(song.videoId)
 
         if (++samplesSinceFlush >= FLUSH_EVERY) {
             samplesSinceFlush = 0
