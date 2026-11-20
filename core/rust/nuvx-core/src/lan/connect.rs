@@ -16,7 +16,7 @@ pub enum Command {
     Pause,
     Next,
     Prev,
-    Seek(u64),
+    Seek { position_ms: u64, track_id: Option<String> },
     /// Append one validated YouTube track without moving or replacing the existing queue.
     Enqueue(Item),
     /// The phone moved playback here: these songs (the current one first, then what follows in its queue),
@@ -58,7 +58,14 @@ impl Command {
             "pause" => Command::Pause,
             "next" => Command::Next,
             "previous" => Command::Prev,
-            "seek" => Command::Seek(position()?),
+            "seek" => {
+                let track_id = match body.get("trackId") {
+                    None | Some(Value::Null) => None, // original controllers do not bind a track
+                    Some(Value::String(id)) if !id.is_empty() && id.len() <= 200 => Some(id.clone()),
+                    _ => return None,
+                };
+                Command::Seek { position_ms: position()?, track_id }
+            },
             "enqueue" => Command::Enqueue(item(body)?),
             "playTrack" => Command::Load {
                 tracks: vec![item(body)?],
@@ -185,7 +192,7 @@ mod tests {
         );
         assert_eq!(
             Command::parse(&json!({ "action": "seek", "positionMs": 61_000 })),
-            Some(Command::Seek(61_000))
+            Some(Command::Seek { position_ms: 61_000, track_id: None })
         );
         let thumb = |id: &str| format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg");
         let never = Item {
@@ -242,6 +249,11 @@ mod tests {
             None,
             "bounded"
         );
+        assert_eq!(
+            Command::parse(&json!({ "action": "seek", "positionMs": 1234, "trackId": "dQw4w9WgXcQ" })),
+            Some(Command::Seek { position_ms: 1234, track_id: Some("dQw4w9WgXcQ".into()) })
+        );
+        assert_eq!(Command::parse(&json!({ "action": "seek", "positionMs": 1, "trackId": "x".repeat(201) })), None);
         assert_eq!(
             Command::parse(&json!({ "action": "seek" })),
             None,
