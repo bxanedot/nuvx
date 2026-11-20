@@ -16,6 +16,7 @@ import { authState, invalidateAccounts, isSessionCookie, selectChannel, setConne
 import * as spotify from '../lib/spotify';
 import { sourceFetch } from '../lib/sourceFetch';
 import { ytFetch } from '../lib/ytFetch';
+import { authorizedSenderOrigin } from '../lib/senderAuth';
 
 declare const __SITE_ORIGINS__: string[];
 declare const __DISCORD_PRESENCE__: boolean;
@@ -26,17 +27,11 @@ const OWN_ORIGIN = new URL(browser.runtime.getURL('/')).origin;
 const CAPABILITIES: Capability[] = ['yt', 'yt.auth', 'yt.stats', 'lyrics', 'sources', 'spotify', ...(__DISCORD_PRESENCE__ ? (['discord'] as const) : [])];
 
 function originOf(sender: Browser.runtime.MessageSender): string | null {
-  if (sender.origin) return sender.origin;
-  try {
-    return sender.url ? new URL(sender.url).origin : null;
-  } catch {
-    return null;
-  }
+  return authorizedSenderOrigin(sender, ALLOWED_ORIGINS, OWN_ORIGIN, browser.runtime.id);
 }
 
 function allowed(sender: Browser.runtime.MessageSender): boolean {
-  const origin = originOf(sender);
-  return !!origin && (ALLOWED_ORIGINS.has(origin) || (origin === OWN_ORIGIN && sender.id === browser.runtime.id));
+  return originOf(sender) !== null;
 }
 
 function failure(id: string, error: unknown): BridgeResponse {
