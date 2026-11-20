@@ -241,6 +241,8 @@ internal fun VolumeRow(
 }
 
 private const val CIRCLE_DISC_DODGE_GAIN = 2.5f
+internal const val CIRCLE_GLYPH_TOUCH_SIZE_DP = 48
+private val CIRCLE_GLYPH_DISC_SIZE = 34.dp
 
 @Composable
 internal fun CircleGlyph(
@@ -259,11 +261,13 @@ internal fun CircleGlyph(
     val chrome = LocalPlayerChrome.current
     Box(
         modifier = modifier
-            .size(34.dp)
+            // Give the controls a 48dp keyboard/screen-reader/touch target.
+            // Keep the visual disc at its original size inside that target.
+            .size(CIRCLE_GLYPH_TOUCH_SIZE_DP.dp)
             .clip(CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = LocalIndication.current,
             ) {
                 haptics.play(haptic)
                 onClick()
@@ -272,7 +276,8 @@ internal fun CircleGlyph(
     ) {
         Box(
             Modifier
-                .matchParentSize()
+                .size(CIRCLE_GLYPH_DISC_SIZE)
+                .clip(CircleShape)
                 .vibrantChrome(chrome)
                 .background(
                     if (chrome) {
