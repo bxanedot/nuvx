@@ -165,8 +165,13 @@ impl Inner {
         self.saved.devices.iter().filter_map(|d| Some((d.clone(), self.phones.get(&d.id).filter(|p| p.at_ms >= fresh)?.clone()))).collect()
     }
 
-    /// Queues `action` (one of `connect::PHONE_ACTIONS`) for the phone, which picks it up on its next report.
+    /// Only a recently reporting, still-paired phone may receive a playback command.
+    /// In particular, commands issued before a network outage must not play on reconnect.
     pub fn phone_command(&mut self, device_id: &str, action: &'static str) {
+        self.expire();
+        if !self.keys.contains_key(device_id) || !self.phones.contains_key(device_id) {
+            return;
+        }
         let queue = self.phone_commands.entry(device_id.to_owned()).or_default();
         if queue.len() < super::connect::MAX_QUEUED && super::connect::PHONE_ACTIONS.contains(&action) {
             queue.push(action);
@@ -229,8 +234,11 @@ impl Inner {
 
     fn expire(&mut self) {
         let now = now_ms();
-        self.pairings.retain(|_, p| p.expires_ms >= now);
+        self.pairings.retain(|_, p| p.expires_ms > now);
         self.nonces.retain(|_, until| *until >= now);
+        // A disconnected phone has no current playback state and no pending remote actions.
+        self.phones.retain(|id, p| self.keys.contains_key(id) && p.at_ms >= now - super::connect::PHONE_FRESH_MS);
+        self.phone_commands.retain(|id, _| self.phones.contains_key(id));
     }
 
     /// This computer's turn: record its own edits in the log, replay everything, and return the playlists
