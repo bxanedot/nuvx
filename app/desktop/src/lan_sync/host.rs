@@ -201,7 +201,7 @@ impl Inner {
         let PairState::Waiting { device_key, code } = &p.state else {
             return Err("That request is not waiting for approval.");
         };
-        if entered_code.trim() != code {
+        if entered_code.trim() != code.as_str() {
             return Err("The code does not match the joining device. Check both screens.");
         }
         let twins = self.saved.devices.iter().filter(|d| d.name == p.name).count();
