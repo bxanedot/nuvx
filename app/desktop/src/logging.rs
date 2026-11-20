@@ -61,7 +61,7 @@ fn setup(dir: &Path, kind: Kind) {
         next(info);
     }));
 
-    let args: Vec<String> = std::env::args().collect();
+    let arg_count = std::env::args_os().count().saturating_sub(1);
     log::info!(
         "=== nuvx {} ({}/{}) ===",
         env!("CARGO_PKG_VERSION"),
@@ -69,7 +69,9 @@ fn setup(dir: &Path, kind: Kind) {
         std::env::consts::ARCH
     );
     log::info!("log: {path_note}; data: {}", dir.display());
-    log::info!("args: {args:?}");
+    // Never persist raw launch arguments: deep links and file URLs may contain
+    // signed tokens or personally identifying values.
+    log::info!("startup: {arg_count} command-line arguments (values omitted)");
 }
 
 struct Tee {
@@ -80,11 +82,11 @@ struct Tee {
 
 impl Write for Tee {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let line = safe_log_chunk(buf);
         if self.stderr {
-            let _ = std::io::stderr().write_all(buf);
+            let _ = std::io::stderr().write_all(line.as_bytes());
             let _ = std::io::stderr().flush();
         }
-        let line = redact(&String::from_utf8_lossy(buf));
         match self.file.write_all(line.as_bytes()).and_then(|_| self.file.flush()) {
             Ok(()) => self.complained = false,
             Err(e) => {
@@ -101,6 +103,11 @@ impl Write for Tee {
         let _ = self.file.flush();
         Ok(())
     }
+}
+
+/// Apply identical redaction before *either* log sink, including debug stderr.
+fn safe_log_chunk(buf: &[u8]) -> String {
+    redact(&String::from_utf8_lossy(buf))
 }
 
 /// Privacy-safe diagnostics for a bug report, copied only when the user asks: app and system facts plus the
@@ -202,6 +209,17 @@ mod redact_tests {
             redact("403 for https://rr3.googlevideo.com/videoplayback?ip=203.0.113.7&sig=AbC range=0-1\n"),
             "403 for https://rr3.googlevideo.com/videoplayback?… range=0-1\n"
         );
+    }
+
+    #[test]
+    fn the_shared_file_and_stderr_log_line_removes_signed_urls_and_credentials() {
+        let raw = b"request failed: https://cdn.example/path?sig=PrivateValue Cookie: SID=bad; Authorization: Bearer secret123 token=abc";
+        let line = super::safe_log_chunk(raw);
+        assert!(line.contains("request failed: https://cdn.example/path?…"), "{line}");
+        for secret in ["PrivateValue", "secret123", "abc"] {
+            assert!(!line.contains(secret), "leaked {secret}: {line}");
+        }
+        assert!(line.contains("request failed"), "useful status is retained");
     }
 
     #[test]
