@@ -257,6 +257,31 @@ mod normalization_output_tests {
     }
 }
 
+fn output_key(device: &Option<(String, String)>) -> &str {
+    device.as_ref().map_or("", |(id, _)| id.as_str())
+}
+
+#[cfg(test)]
+mod stable_eq_output_tests {
+    use super::output_key;
+    use std::collections::HashMap;
+
+    #[test]
+    fn equalizer_profiles_are_isolated_by_stable_device_identity() {
+        let left = Some(("headset-1".to_owned(), "USB Headset".to_owned()));
+        let right = Some(("headset-2".to_owned(), "USB Headset".to_owned()));
+        let flat = crate::eq::Prefs::default();
+        let bass = crate::eq::Prefs { on: true, manual: true, bands: crate::eq::PRESETS[2].1, ..flat };
+        let mut profiles = HashMap::new();
+        assert_eq!(crate::eq::switch_output(&mut profiles, "", output_key(&left), bass), bass);
+        assert_eq!(crate::eq::switch_output(&mut profiles, output_key(&left), output_key(&right), flat), flat);
+        assert_eq!(crate::eq::switch_output(&mut profiles, output_key(&right), output_key(&left), flat), flat);
+        assert_eq!(crate::eq::switch_output(&mut profiles, output_key(&left), "", bass), bass);
+        assert_ne!(output_key(&left), output_key(&right));
+        assert_eq!(output_key(&None), "");
+    }
+}
+
 const SYSTEM_DEFAULT: &str = "Windows default";
 
 fn output_device_picker(app: &mut App, ui: &mut Ui) {
@@ -293,8 +318,17 @@ fn output_device_picker(app: &mut App, ui: &mut Ui) {
     });
     if let Some(pick) = pick {
         app.audio.send(crate::audio::AudioCmd::SetDevice(pick.as_ref().map(|(id, _)| id.clone())));
-        let name = |p: &Option<(String, String)>| p.as_ref().map_or(String::new(), |(_, n)| n.clone());
-        app.eq = crate::eq::switch_output(&mut app.eq_by_output, &name(&app.output_device), &name(&pick), app.eq);
+        // The saved EQ map used display names in older versions. Migrate only the
+        // selected output's legacy profile, then use stable IDs (two devices may share a name).
+        let from = output_key(&app.output_device).to_owned();
+        let to = output_key(&pick).to_owned();
+        if let Some((id, name)) = &pick
+            && !app.eq_by_output.contains_key(id)
+            && let Some(legacy) = app.eq_by_output.get(name).copied()
+        {
+            app.eq_by_output.insert(id.clone(), legacy);
+        }
+        app.eq = crate::eq::switch_output(&mut app.eq_by_output, &from, &to, app.eq);
         app.audio.set_eq(app.eq.tuning());
         app.output_device = pick;
         app.audio.set_normalize(effective_norm(app.norm_target, &app.norm_by_output, app.output_device.as_ref().map(|(id, _)| id.as_str())));
