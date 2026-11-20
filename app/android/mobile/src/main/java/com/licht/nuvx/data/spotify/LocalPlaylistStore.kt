@@ -19,6 +19,8 @@ data class LocalPlaylist(
 object LocalPlaylistStore {
     private const val PREF_NAME = "nuvx_local_playlists"
     private const val KEY_PLAYLISTS = "playlists_json"
+    private const val KEY_REORDER_CHECKPOINT = "reorder_checkpoint_v1"
+    private const val MAX_CHECKPOINT_BYTES = 4 * 1024 * 1024
 
     private lateinit var prefs: SharedPreferences
 
@@ -114,12 +116,14 @@ object LocalPlaylistStore {
         val current = getPlaylist(id) ?: return false
         if (current.songs != expected) return false
         if (replacement == expected) return true
+        val after = current.copy(songs = replacement)
+        val checkpoint = createCheckpoint(current, after) ?: return false
         val updated = _playlists.value.map {
-            if (it.id == current.id) it.copy(songs = replacement) else it
+            if (it.id == current.id) after else it
         }
-        // Only publish the edit after the synchronous durable commit succeeds.
-        // A rejected/partial write leaves the old playlist available to retry.
-        if (!persistCommitted(updated)) return false
+        // Commit the prior version and new playlist in the *same* transaction.
+        // On failure, neither the old data nor the checkpoint is replaced.
+        if (!persistCommitted(updated, checkpoint)) return false
         _playlists.value = updated
         return true
     }
@@ -186,9 +190,87 @@ object LocalPlaylistStore {
         return _playlists.value.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }
     }
 
-    private fun persistCommitted(list: List<LocalPlaylist>): Boolean {
+    private fun persistCommitted(list: List<LocalPlaylist>, checkpoint: String? = null): Boolean {
         if (!this::prefs.isInitialized) return true
-        return runCatching { prefs.edit().putString(KEY_PLAYLISTS, encode(list)).commit() }.getOrDefault(false)
+        return runCatching {
+            prefs.edit().putString(KEY_PLAYLISTS, encode(list)).apply {
+                if (checkpoint != null) putString(KEY_REORDER_CHECKPOINT, checkpoint)
+            }.commit()
+        }.getOrDefault(false)
+    }
+
+    /** One previous-version checkpoint only, in the legacy playlist JSON format. */
+    private fun createCheckpoint(before: LocalPlaylist, after: LocalPlaylist): String? = runCatching {
+        if (before.id != after.id || before.id.isBlank()) return@runCatching null
+        val raw = JSONObject()
+            .put("version", 1)
+            .put("playlistId", before.id)
+            .put("before", encode(listOf(before)))
+            .put("after", encode(listOf(after)))
+            .toString()
+        raw.takeIf { it.toByteArray(Charsets.UTF_8).size <= MAX_CHECKPOINT_BYTES }
+    }.getOrNull()
+
+    private fun decodePlaylistList(raw: String): List<LocalPlaylist>? = runCatching {
+        if (raw.toByteArray(Charsets.UTF_8).size > MAX_CHECKPOINT_BYTES) return@runCatching null
+        val array = JSONArray(raw)
+        if (array.length() != 1) return@runCatching null
+        val item = array.getJSONObject(0)
+        val songs = item.getJSONArray("songs")
+        if (songs.length() > 20_000) return@runCatching null
+        val playlist = LocalPlaylist(
+            id = item.getString("id"),
+            title = item.getString("title"),
+            songs = (0 until songs.length()).map { index ->
+                val s = songs.getJSONObject(index)
+                Song(
+                    videoId = s.optString("videoId", ""),
+                    title = s.optString("title", ""),
+                    artist = s.optString("artist", ""),
+                    thumbnailUrl = s.optString("thumbnailUrl", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                    durationText = s.optString("durationText", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                    artistId = s.optString("artistId", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                    albumId = s.optString("albumId", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                    albumName = s.optString("albumName", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                    isVideo = s.optBoolean("isVideo", false),
+                )
+            },
+        )
+        listOf(playlist)
+    }.getOrNull()
+
+    /** Returns the previous playlist only if no later edit changed that playlist. */
+    @Synchronized
+    fun previousReorderVersion(id: String): LocalPlaylist? {
+        if (!this::prefs.isInitialized) return null
+        val current = getPlaylist(id) ?: return null
+        val raw = runCatching { prefs.getString(KEY_REORDER_CHECKPOINT, null) }.getOrNull() ?: return null
+        if (raw.toByteArray(Charsets.UTF_8).size > MAX_CHECKPOINT_BYTES) return null
+        return runCatching {
+            val data = JSONObject(raw)
+            if (data.getInt("version") != 1 || data.getString("playlistId") != current.id) return@runCatching null
+            val beforeText = data.getString("before")
+            val afterText = data.getString("after")
+            if (decodePlaylistList(afterText)?.singleOrNull()?.id != current.id) return@runCatching null
+            val before = decodePlaylistList(beforeText)?.singleOrNull() ?: return@runCatching null
+            if (before.id != current.id || encode(listOf(current)) != afterText) return@runCatching null
+            before
+        }.getOrNull()
+    }
+
+    /** Restore only one playlist, refusing concurrent edits, corruption and replay. */
+    @Synchronized
+    fun restoreLastReorderVersion(id: String): Boolean {
+        val before = previousReorderVersion(id) ?: return false
+        val updated = _playlists.value.map { if (it.id == before.id) before else it }
+        if (!runCatching {
+                prefs.edit()
+                    .putString(KEY_PLAYLISTS, encode(updated))
+                    .remove(KEY_REORDER_CHECKPOINT)
+                    .commit()
+            }.getOrDefault(false)) return false
+        _playlists.value = updated
+        return true
     }
 
     internal fun initForTesting(preferences: SharedPreferences) {
