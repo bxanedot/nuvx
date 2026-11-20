@@ -298,7 +298,7 @@ object StreamResolver {
                 TrackLog.w(TAG, "InnerTubeX failed for $videoId: ${e.javaClass.simpleName}: ${e.message}")
                 return null
             } ?: return null
-            val verdict = timed("$videoId InnerTubeX ${found.profileId} probe") { probe(found.url) }
+            val verdict = timed("$videoId InnerTubeX ${found.profileId} probe") { probe(found.url, found.mimeType) }
             if (verdict == Probe.OK) {
                 TrackLog.d(TAG, "resolved $videoId via InnerTubeX ${found.profileId} @ ${found.kbps}kbps")
                 return Stream(found.url, found.kbps, found.mimeType, found.loudnessDb)
@@ -334,7 +334,7 @@ object StreamResolver {
             TrackLog.w(TAG, "no stream for $videoId when asked as an upload")
             return null
         }
-        val verdict = timed("$videoId InnerTubeX ${found.profileId} upload probe") { probe(found.url) }
+        val verdict = timed("$videoId InnerTubeX ${found.profileId} upload probe") { probe(found.url, found.mimeType) }
         if (verdict != Probe.OK) {
             TrackLog.w(TAG, "InnerTubeX ${found.profileId} as an upload for $videoId: $verdict")
             return null
@@ -371,7 +371,7 @@ object StreamResolver {
             TrackLog.w(TAG, "fallback engine failed for $videoId: ${e.javaClass.name}: ${e.message}")
             null
         } ?: return null
-        val verdict = timed("$videoId fallback engine probe") { probe(found.url) }
+        val verdict = timed("$videoId fallback engine probe") { probe(found.url, found.mimeType) }
         if (verdict != Probe.OK) {
             TrackLog.w(TAG, "fallback engine's stream for $videoId failed its probe: $verdict")
             return null
@@ -429,7 +429,7 @@ object StreamResolver {
             var offered = false
 
             val found = innerTubeXStreamAllowingUploads(videoId, maxKbps, requireM4a)
-                ?.takeIf { if (requireM4a) it.downloadExtension == "m4a" else it.downloadExtension == "webm" }
+                ?.takeIf { !requireM4a || it.downloadExtension == "m4a" }
             if (found != null) {
                 offered = true
                 if (found.kbps <= maxKbps) return@withContext found
@@ -493,7 +493,7 @@ object StreamResolver {
         UNREACHABLE,
     }
 
-    private fun probe(url: String): Probe {
+    private fun probe(url: String, expectedMimeType: String): Probe {
         val length = url.toHttpUrlOrNull()?.queryParameter("clen")?.toLongOrNull()
         val start = if (length != null && length > AUTH_BOUNDARY_BYTES + PROBE_READ_BYTES) AUTH_BOUNDARY_BYTES else 0L
         val window = PlayerClient.rangeBytesFor(url)
@@ -509,10 +509,13 @@ object StreamResolver {
         return try {
             prober.newCall(builder.build()).execute().use { response ->
                 val contentType = response.header("Content-Type")
+                val audioOnly = contentType?.startsWith("audio/") == true
+                val muxedAac = expectedMimeType.startsWith("video/mp4") &&
+                    expectedMimeType.contains("mp4a", ignoreCase = true) && contentType?.startsWith("video/mp4") == true
                 val verdict = when {
                     response.code in REFUSAL_CODES -> Probe.REFUSED
                     response.code !in 200..299 && response.code != 416 -> Probe.UNREACHABLE
-                    contentType?.startsWith("audio/") != true -> Probe.REFUSED
+                    !audioOnly && !muxedAac -> Probe.REFUSED
                     response.body?.source()?.request(PROBE_READ_BYTES) != true -> Probe.UNREACHABLE
                     else -> Probe.OK
                 }

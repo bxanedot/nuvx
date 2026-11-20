@@ -297,7 +297,7 @@ internal object UpstreamPlaybackExtractor {
         val stream = session.extractor.extract(
             videoId = videoId,
             hints = ContentHints(wantVideo = false)
-                .withStreamCapabilities(allowHls = false, allowSabr = false, allowBoundedRange = true),
+                .withStreamCapabilities(allowHls = false, allowSabr = false, allowBoundedRange = true, allowProgressive = true),
             excludedClients = excludedProfiles(session.generation, videoId) - CleanVisionClient.PROFILE,
             audioQuality = if (maxKbps <= 64) AudioQuality.LOW else AudioQuality.AUTO,
             clientPlaybackNonce = generateClientPlaybackNonce()) ?: return null

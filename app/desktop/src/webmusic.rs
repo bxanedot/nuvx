@@ -319,7 +319,15 @@ impl Session {
             pairs.push((sp, sig));
         }
         url.query_pairs_mut().clear().extend_pairs(pairs);
-        Ok(Stream { url: url.into(), size, duration_ms, loudness_db, opus: false })
+        Ok(Stream {
+            url: url.into(),
+            size,
+            duration_ms,
+            loudness_db,
+            opus: false,
+            user_agent: UA,
+            ranging: crate::stream::Ranging::Query,
+        })
     }
 }
 

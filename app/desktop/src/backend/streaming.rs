@@ -199,22 +199,22 @@ impl Backend {
     }
 
     pub(super) async fn resolve_from(&self, source: Source, video_id: &str, format: stream::Format, track: Option<&Track>) -> anyhow::Result<ResolvedStream> {
-        let plain = |s: innertube::Stream, ua: &str| ResolvedStream {
+        let plain = |s: innertube::Stream| ResolvedStream {
             url: s.url,
             size: s.size,
             duration_ms: s.duration_ms,
-            user_agent: ua.to_owned(),
+            user_agent: s.user_agent.to_owned(),
             loudness_db: s.loudness_db,
             format: stream::Format::from_opus(s.opus),
             info: None,
-            ranging: stream::Ranging::Query,
+            ranging: s.ranging,
             data: None,
         };
         Ok(match source {
-            Source::VisionOs => plain(self.visionos_stream(video_id, format == stream::Format::Opus).await?, innertube::UA),
+            Source::VisionOs => plain(self.visionos_stream(video_id, format == stream::Format::Opus).await?),
             Source::WebMusic => {
                 let session = self.api.account().ok_or_else(|| anyhow::anyhow!("signed out"))?;
-                plain(session.audio_stream(&self.http(), &self.jsc, video_id).await?, webmusic::UA)
+                plain(session.audio_stream(&self.http(), &self.jsc, video_id).await?)
             }
             Source::YtDlp => {
                 let session = self.api.account().ok_or_else(|| anyhow::anyhow!("sign in to play this song"))?;

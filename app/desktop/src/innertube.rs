@@ -1,5 +1,7 @@
 use serde_json::{Value, json};
 
+const IOS_PRODUCER_UA: &str = "com.google.ios.youtubeproducer/0.10 (iPhone16,2; U; CPU iOS 18_6_2 like Mac OS X;)";
+
 pub const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 
 pub struct Stream {
@@ -8,6 +10,8 @@ pub struct Stream {
     pub duration_ms: u64,
     pub loudness_db: Option<f32>,
     pub opus: bool,
+    pub user_agent: &'static str,
+    pub ranging: crate::stream::Ranging,
 }
 
 pub fn loudness(resp: &Value, format: &Value) -> Option<f32> {
@@ -147,9 +151,93 @@ pub async fn audio_stream(http: &reqwest::Client, video_id: &str, visitor_data: 
                 duration_ms: f["approxDurationMs"].as_str().and_then(|d| d.parse().ok()).unwrap_or(0),
                 loudness_db: loudness(&resp, f),
                 opus: *itag == 251,
+                user_agent: UA,
+                ranging: crate::stream::Ranging::Query,
             })
         })
         .ok_or_else(|| anyhow::anyhow!("no audio stream in visionOS player response"))
+}
+
+pub async fn ios_producer_audio_stream(http: &reqwest::Client, video_id: &str, visitor_data: &str) -> anyhow::Result<Stream> {
+    let body = json!({
+        "context": {"client": {
+            "clientName": "IOS_PRODUCER",
+            "clientVersion": "0.10",
+            "deviceMake": "Apple",
+            "deviceModel": "iPhone16,2",
+            "userAgent": IOS_PRODUCER_UA,
+            "osName": "iPhone",
+            "osVersion": "18.6.2.22G100",
+            "hl": "en",
+            "gl": "US",
+            "visitorData": visitor_data,
+        }},
+        "videoId": video_id,
+        "contentCheckOk": true,
+        "racyCheckOk": true,
+    });
+    let resp: Value = http
+        .post("https://www.youtube.com/youtubei/v1/player?prettyPrint=false")
+        .header("User-Agent", IOS_PRODUCER_UA)
+        .header("X-Goog-Api-Format-Version", "1")
+        .header("X-YouTube-Client-Name", "92")
+        .header("X-YouTube-Client-Version", "0.10")
+        .header("X-Goog-Visitor-Id", visitor_data)
+        .header("Origin", "https://www.youtube.com")
+        .header("X-Origin", "https://www.youtube.com")
+        .header("Referer", "https://www.youtube.com/")
+        .header("Accept-Language", "en-US,en;q=0.9")
+        .timeout(std::time::Duration::from_secs(8))
+        .json(&body)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    let status = &resp["playabilityStatus"];
+    anyhow::ensure!(
+        status["status"] == "OK",
+        "{}: {}",
+        status["status"].as_str().unwrap_or("UNPLAYABLE"),
+        status["reason"].as_str().unwrap_or("no reason given")
+    );
+    let format = resp["streamingData"]["formats"]
+        .as_array()
+        .and_then(|formats| formats.iter().find(|f| {
+            f["itag"] == 18
+                && f["mimeType"].as_str().is_some_and(|mime| mime.starts_with("video/mp4") && mime.contains("mp4a"))
+        }))
+        .ok_or_else(|| anyhow::anyhow!("no progressive AAC stream for {video_id}"))?;
+    let parsed_url = reqwest::Url::parse(format["url"].as_str().ok_or_else(|| anyhow::anyhow!("progressive stream has no URL"))?)?;
+    anyhow::ensure!(
+        parsed_url.scheme() == "https"
+            && parsed_url.port_or_known_default() == Some(443)
+            && parsed_url.path() == "/videoplayback"
+            && parsed_url.host_str().is_some_and(|host| host == "googlevideo.com" || host.ends_with(".googlevideo.com")),
+        "progressive stream URL is not a YouTube media URL"
+    );
+    let size = format["contentLength"]
+        .as_str()
+        .and_then(|n| n.parse().ok())
+        .or_else(|| format["contentLength"].as_u64())
+        .or_else(|| parsed_url.query_pairs().find_map(|(key, value)| (key == "clen").then(|| value.parse().ok()).flatten()))
+        .ok_or_else(|| anyhow::anyhow!("progressive stream has no content length"))?;
+    let duration_ms = format["approxDurationMs"]
+        .as_str()
+        .and_then(|n| n.parse().ok())
+        .or_else(|| resp["videoDetails"]["lengthSeconds"].as_str().and_then(|n| n.parse::<u64>().ok()).map(|seconds| seconds.saturating_mul(1000)))
+        .unwrap_or(0);
+    log::info!("iOS Producer: {video_id} itag 18 progressive AAC ({:.1} MB)", size as f64 / 1e6);
+    Ok(Stream {
+        url: parsed_url.to_string(),
+        size,
+        duration_ms,
+        loudness_db: loudness(&resp, format),
+        opus: false,
+        user_agent: IOS_PRODUCER_UA,
+        ranging: crate::stream::Ranging::Header,
+    })
 }
 
 #[cfg(test)]

@@ -352,15 +352,22 @@ impl Backend {
     }
 
     async fn visionos_stream(&self, video_id: &str, opus: bool) -> anyhow::Result<innertube::Stream> {
-        let vd = self.api.visitor_data(false).await?;
-        match innertube::audio_stream(&self.http(), video_id, &vd, opus).await {
-            Ok(s) => Ok(s),
-            Err(e) if needs_account(&e) => Err(e),
+        let mut visitor_data = self.api.visitor_data(false).await?;
+        let error = match innertube::audio_stream(&self.http(), video_id, &visitor_data, opus).await {
+            Ok(s) => return Ok(s),
+            Err(e) if needs_account(&e) => e,
             Err(e) => {
                 log::info!("visionOS player: {e:#}; retrying with new visitor data");
-                let vd = self.api.visitor_data(true).await?;
-                innertube::audio_stream(&self.http(), video_id, &vd, opus).await
+                visitor_data = self.api.visitor_data(true).await?;
+                match innertube::audio_stream(&self.http(), video_id, &visitor_data, opus).await {
+                    Ok(s) => return Ok(s),
+                    Err(retry) => retry,
+                }
             }
+        };
+        match innertube::ios_producer_audio_stream(&self.http(), video_id, &visitor_data).await {
+            Ok(s) => Ok(s),
+            Err(fallback) => Err(anyhow::anyhow!("{error:#}; IOS_PRODUCER fallback failed: {fallback:#}")),
         }
     }
 
@@ -485,7 +492,7 @@ struct ResolvedStream {
 
 fn needs_account(e: &anyhow::Error) -> bool {
     let msg = e.to_string();
-    msg.contains("LOGIN_REQUIRED") || msg.contains("Premium")
+    msg.contains("Premium") || (msg.contains("LOGIN_REQUIRED") && !msg.to_ascii_lowercase().contains("not a bot"))
 }
 
 fn popular_new_albums(albums: &[Card], ranked_artists: &[String], preferred_artists: &[String]) -> Vec<Card> {

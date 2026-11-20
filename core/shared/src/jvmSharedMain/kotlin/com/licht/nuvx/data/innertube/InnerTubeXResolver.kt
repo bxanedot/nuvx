@@ -193,7 +193,7 @@ object InnerTubeXResolver {
         val stream = extractor.extract(
             videoId = videoId,
             hints = ContentHints(isUploaded = true.takeIf { uploaded })
-                .withStreamCapabilities(allowHls = false, allowSabr = false, allowBoundedRange = true),
+                .withStreamCapabilities(allowHls = false, allowSabr = false, allowBoundedRange = true, allowProgressive = true),
             excludedClients = excludedFor(videoId) + skipClients,
             audioQuality = when {
                 requireM4a -> AudioQuality.MP4
