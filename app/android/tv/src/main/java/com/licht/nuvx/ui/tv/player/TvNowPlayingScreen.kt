@@ -55,6 +55,20 @@ private const val ScrubCommitDelayMs = 650L
 
 private enum class PlayerSheet { Menu }
 
+internal enum class TvFocusTarget { Stage, Scrubber, UpNext }
+
+/** Modal overlays retain focus; when they close, restore the last useful control. */
+internal fun tvFocusTarget(
+    controlsVisible: Boolean,
+    upNextOpen: Boolean,
+    sheetOpen: Boolean,
+): TvFocusTarget? = when {
+    sheetOpen -> null
+    upNextOpen && controlsVisible -> TvFocusTarget.UpNext
+    controlsVisible -> TvFocusTarget.Scrubber
+    else -> TvFocusTarget.Stage
+}
+
 @Composable
 fun TvNowPlayingScreen(
     viewModel: MainViewModel,
@@ -157,16 +171,18 @@ fun TvNowPlayingScreen(
             hideControls()
         }
     }
-    LaunchedEffect(controlsVisible) {
+    // A single focus owner avoids races between transport/queue effects. Closing
+    // a modal retriggers focus restoration even when visibility did not change.
+    LaunchedEffect(controlsVisible, upNextOpen, sheet) {
+        val target = tvFocusTarget(controlsVisible, upNextOpen, sheet != null)
+            ?: return@LaunchedEffect
         delay(60)
-        runCatching { if (controlsVisible) scrubberFocus.requestFocus() else stageFocus.requestFocus() }
-    }
-    LaunchedEffect(upNextOpen) {
-        if (upNextOpen) {
-            delay(60)
-            runCatching { upNextFocus.requestFocus() }
-        } else if (controlsVisible) {
-            runCatching { scrubberFocus.requestFocus() }
+        runCatching {
+            when (target) {
+                TvFocusTarget.Stage -> stageFocus.requestFocus()
+                TvFocusTarget.Scrubber -> scrubberFocus.requestFocus()
+                TvFocusTarget.UpNext -> upNextFocus.requestFocus()
+            }
         }
     }
 
