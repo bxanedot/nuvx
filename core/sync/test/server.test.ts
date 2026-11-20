@@ -109,6 +109,27 @@ test("a revoked device loses access at once; others keep theirs", () => {
   assert.equal(a.call("GET", "/v1/ops", phone.token).status, 200);
 });
 
+test("revoke all other sessions leaves current device authenticated and invalidates others", () => {
+  const a = app();
+  const phone = newSpace(a), laptop = pair(a, phone.token, "Laptop"), tv = pair(a, phone.token, "TV");
+  const stranger = newSpace(a, "Other space");
+  const approved = a.call("POST", "/v1/pairings", undefined, { deviceName: "Pending" }).body;
+  assert.equal(a.call("POST", `/v1/pairings/${approved.code}/approve`, phone.token).status, 200);
+  assert.equal(a.call("POST", "/v1/devices/revoke-others", undefined, { confirm: true }).status, 401);
+  assert.equal(a.call("POST", "/v1/devices/revoke-others", stranger.token, { confirm: false }).status, 422);
+  assert.equal(a.call("POST", "/v1/devices/revoke-others", phone.token).status, 422);
+  assert.equal(a.call("GET", "/v1/devices", laptop.token).status, 200);
+  const revoked = a.call("POST", "/v1/devices/revoke-others", phone.token, { confirm: true });
+  assert.deepEqual(revoked, { status: 200, body: { ok: true, revoked: 2 } });
+  assert.equal(a.call("GET", "/v1/ops", laptop.token).status, 401);
+  assert.equal(a.call("GET", "/v1/ops", tv.token).status, 401);
+  assert.equal(a.call("GET", "/v1/ops", phone.token).status, 200);
+  assert.equal(a.call("GET", "/v1/devices", phone.token).body.devices.length, 1);
+  assert.equal(a.call("GET", "/v1/ops", stranger.token).status, 200);
+  assert.equal(a.call("POST", `/v1/pairings/${approved.code}/claim`, undefined, { secret: approved.secret }).status, 404);
+  assert.equal(a.call("POST", "/v1/devices/revoke-others", phone.token, { confirm: true }).body.revoked, 0);
+});
+
 test("export returns everything; deleting the space removes data and access", () => {
   const a = app();
   const me = newSpace(a);
