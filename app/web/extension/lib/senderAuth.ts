@@ -6,8 +6,18 @@ export interface MessageSenderIdentity {
 
 function parsedOrigin(url: string): string | null {
   try {
-    const origin = new URL(url).origin;
-    return origin === 'null' ? null : origin;
+    const parsed = new URL(url);
+    if (parsed.origin !== 'null') return parsed.origin;
+    // Some runtimes treat extension schemes as opaque even though browsers
+    // assign extension pages their own origin. Only these two scheme/host
+    // combinations may be reconstructed; data/file/javascript remain denied.
+    if (
+      (parsed.protocol === 'chrome-extension:' || parsed.protocol === 'moz-extension:') &&
+      parsed.hostname && !parsed.username && !parsed.password && !parsed.port
+    ) {
+      return `${parsed.protocol}//${parsed.hostname}`;
+    }
+    return null;
   } catch {
     return null;
   }
