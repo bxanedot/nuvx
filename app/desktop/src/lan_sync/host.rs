@@ -192,24 +192,31 @@ impl Inner {
         out
     }
 
-    /// The user compared the codes and approved: the phone becomes a trusted device on its next claim.
-    pub fn approve(&mut self, pairing_id: &str) -> Result<String, &'static str> {
+    /// Approval requires the six digits shown on the joining phone, not merely clicking a name.
+    /// Verify the code and pending state *before* revoking a previous device with the same name.
+    pub fn approve(&mut self, pairing_id: &str, entered_code: &str) -> Result<String, &'static str> {
         self.expire();
+        let p = self.pairings.get(pairing_id).ok_or("That request has expired.")?;
+        let PairState::Waiting { device_key, code } = &p.state else {
+            return Err("That request is not waiting for approval.");
+        };
+        if !entered_code.trim().eq(code) {
+            return Err("The code does not match the joining device. Check both screens.");
+        }
+        let name = p.name.clone();
+        let device_key = *device_key;
         // A phone pairing again (its app data was cleared) replaces its old entry instead of leaving a dead twin.
-        let name = self.pairings.get(pairing_id).map(|p| p.name.clone()).ok_or("That request has expired.")?;
         let twins: Vec<String> = self.saved.devices.iter().filter(|d| d.name == name).map(|d| d.id.clone()).collect();
+        if self.saved.devices.len() - twins.len() >= MAX_DEVICES {
+            return Err("Too many paired devices. Remove one first.");
+        }
         for id in twins {
             self.revoke(&id);
         }
-        if self.saved.devices.len() >= MAX_DEVICES {
-            return Err("Too many paired devices. Remove one first.");
-        }
-        let p = self.pairings.get_mut(pairing_id).ok_or("That request has expired.")?;
-        let PairState::Waiting { device_key, .. } = &p.state else { return Err("That request is not waiting for approval.") };
         let device_id = hex(&crypto::random_bytes::<12>());
-        self.keys.insert(device_id.clone(), *device_key);
-        self.saved.devices.push(Device { id: device_id.clone(), name: p.name.clone(), created_ms: now_ms(), seen_ms: now_ms() });
-        p.state = PairState::Approved { device_id: device_id.clone() };
+        self.keys.insert(device_id.clone(), device_key);
+        self.saved.devices.push(Device { id: device_id.clone(), name, created_ms: now_ms(), seen_ms: now_ms() });
+        self.pairings.get_mut(pairing_id).unwrap().state = PairState::Approved { device_id: device_id.clone() };
         self.persist_keys();
         self.persist();
         Ok(device_id)
