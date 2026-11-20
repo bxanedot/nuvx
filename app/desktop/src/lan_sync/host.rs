@@ -100,6 +100,8 @@ pub struct Inner {
     pub connect_commands: Vec<super::connect::Command>,
     /// Nuvx Connect is its own opt-in: a phone paired for playlists cannot control playback until this is on.
     pub connect_allowed: bool,
+    /// Whether remote queue edits are permitted in the current playback mode (never for jam guests).
+    pub queue_mutation_allowed: bool,
     /// Four digits shown on this computer so a phone can find it on the Wi-Fi without typing an address. Not a
     /// secret: pairing still needs the approval here and the matching six-digit code.
     pub find_code: String,
@@ -123,7 +125,7 @@ impl Inner {
         // A device whose key is gone (credential store wiped) cannot talk to us; drop it rather than keep a ghost.
         saved.devices.retain(|d| keys.contains_key(&d.id));
         let op_ids = saved.ops.iter().map(|o| o.op_id.clone()).collect();
-        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, find_code: new_find_code(), uploads: HashMap::new(), bluetooth: None, phones: HashMap::new(), phone_commands: HashMap::new() };
+        let me = Self { path, data_dir: data_dir.to_owned(), saved, keys, op_ids, pairings: HashMap::new(), nonces: HashMap::new(), remote_changed: false, host_name, connect_now: Value::Null, connect_commands: Vec::new(), connect_allowed: false, queue_mutation_allowed: false, find_code: new_find_code(), uploads: HashMap::new(), bluetooth: None, phones: HashMap::new(), phone_commands: HashMap::new() };
         me.persist();
         me
     }
@@ -511,6 +513,9 @@ impl Inner {
                 let Some(command) = super::connect::Command::parse(&body) else {
                     return err(422, "bad_command", "Unknown or invalid command.");
                 };
+                if matches!(command, super::connect::Command::Enqueue(_)) && !self.queue_mutation_allowed {
+                    return err(403, "queue_off", "Remote queue edits are unavailable in this playback mode.");
+                }
                 if self.connect_commands.len() >= super::connect::MAX_QUEUED {
                     return err(429, "busy", "Too many commands at once.");
                 }
