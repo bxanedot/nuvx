@@ -6,12 +6,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.util.UUID
 
-internal enum class IndependentCategory { FAVORITES, HISTORY }
+internal enum class IndependentCategory { FAVORITES, HISTORY, THEME }
 
 @Serializable
 internal data class SyncedListen(val id: String, val videoId: String, val playedAtMs: Long)
@@ -22,6 +23,7 @@ internal data class IndependentState(
     val pending: List<StoredOp> = emptyList(),
     val favorites: Map<String, Boolean> = emptyMap(),
     val history: List<SyncedListen> = emptyList(),
+    val themeMode: String? = null,
 )
 
 internal sealed interface IndependentResult {
@@ -103,6 +105,26 @@ internal class IndependentSyncChannel(
         }
     }
 
+    /** Only one versioned presentation preference is permitted. No key/value passthrough. */
+    fun setThemeMode(mode: String): Boolean {
+        if (category != IndependentCategory.THEME || !enabled() ||
+            mode !in setOf("SYSTEM", "LIGHT", "DARK")) return false
+        return synchronized(lock) {
+            val state = read()
+            if (state.pending.size >= MAX_PENDING) return@synchronized false
+            if (state.themeMode == mode) return@synchronized true
+            val payload = buildJsonObject {
+                put("value", buildJsonObject {
+                    put("v", 1)
+                    put("mode", mode)
+                })
+            }
+            val op = StoredOp(newId(), "setting.set", "setting:theme_mode", payload.toString(), now())
+            write(state.copy(themeMode = mode, pending = state.pending + op))
+            true
+        }
+    }
+
     fun sync(): IndependentResult {
         if (!enabled()) return IndependentResult.Disabled
         while (true) {
@@ -161,6 +183,23 @@ internal class IndependentSyncChannel(
                             }
                             write(state.copy(cursor = pulled.cursor, history = seen.values.toList().takeLast(MAX_HISTORY)))
                         }
+                        IndependentCategory.THEME -> {
+                            var mode = state.themeMode
+                            fun apply(op: StoredOp) {
+                                if (op.kind != "setting.set" || op.entity != "setting:theme_mode") return
+                                val payload = runCatching { Json.parseToJsonElement(op.payload) as JsonObject }.getOrNull() ?: return
+                                val value = payload["value"] as? JsonObject ?: return
+                                if (value["v"]?.jsonPrimitive?.intOrNull != 1) return
+                                val updated = value["mode"]?.jsonPrimitive?.contentOrNull
+                                if (updated in setOf("SYSTEM", "LIGHT", "DARK")) mode = updated
+                            }
+                            for (event in pulled.ops) {
+                                apply(StoredOp(event.seq.toString(), event.kind, event.entity, event.payload.toString(), 0))
+                            }
+                            // Later local edits awaiting acknowledgement must stay visible.
+                            state.pending.forEach(::apply)
+                            write(state.copy(cursor = pulled.cursor, themeMode = mode))
+                        }
                     }
                 }
             }
@@ -171,6 +210,6 @@ internal class IndependentSyncChannel(
     /** Reset server-bound state when changing spaces; local favorites/history remain on this device. */
     fun resetForNewSpace() = synchronized(lock) {
         val local = read()
-        write(IndependentState(favorites = local.favorites, history = local.history))
+        write(IndependentState(favorites = local.favorites, history = local.history, themeMode = local.themeMode))
     }
 }
