@@ -729,3 +729,32 @@ mod phone_presence_timeout_tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+#[cfg(test)]
+mod pairing_expiration_tests {
+    use super::*;
+
+    #[test]
+    fn an_expired_pairing_cannot_be_revealed_approved_or_claimed() {
+        let dir = std::env::temp_dir().join(format!("nuvx-pair-expiry-{}", crypto::b64(&crypto::random_bytes::<8>())));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut host = Inner::load(&dir, "Test PC".into(), Some(HashMap::new()));
+        let phone = crypto::PhoneKey::new();
+        let start = json!({ "deviceName": "Phone", "commit": crypto::sha256_hex(&phone.public) }).to_string();
+        let (status, response) = host.handle("POST", "/lan/pair/start", None, start.as_bytes());
+        assert_eq!(status, 201);
+        let value: Value = serde_json::from_str(&response).unwrap();
+        let id = value["pairingId"].as_str().unwrap().to_owned();
+        host.pairings.get_mut(&id).unwrap().expires_ms = now_ms() - 1;
+
+        assert!(host.approve(&id, "123456").is_err());
+        let reveal = json!({ "pairingId": id, "deviceKey": crypto::b64(&phone.public) }).to_string();
+        assert_eq!(host.handle("POST", "/lan/pair/reveal", None, reveal.as_bytes()).0, 404);
+        let claim = json!({ "pairingId": id }).to_string();
+        assert_eq!(host.handle("POST", "/lan/pair/claim", None, claim.as_bytes()).0, 404);
+        assert!(host.devices().is_empty());
+        assert!(host.keys.is_empty(), "expired pairing cannot create any permanent device key");
+        drop(host);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
