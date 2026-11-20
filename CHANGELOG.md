@@ -6,6 +6,7 @@ Every nuvx release, newest first. Downloads and checksums are on each version's 
 
 ## Unreleased
 
+- Update InnerTubeX to v0.12.0 across Android and Apple builds.
 - **Desktop backup export and import** (Settings → Your data → Backup): saves your playlists as `nuvx-backup-<date>.json`, the same
   file the phone's backup writes, so a backup from either one restores on the other. Importing adds playlists you don't
   have yet and skips ones already there; files from another app or a newer nuvx are refused with a clear message.

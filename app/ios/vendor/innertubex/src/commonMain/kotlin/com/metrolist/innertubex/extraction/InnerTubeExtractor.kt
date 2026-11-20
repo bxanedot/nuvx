@@ -518,6 +518,30 @@ class InnerTubeExtractor internal constructor(
         excludedClients: Set<String>,
         audioQuality: AudioQuality,
         clientPlaybackNonce: String,
+    ): ExtractedStream? =
+        try {
+            extractVideo(videoId, hints, excludedClients, audioQuality, clientPlaybackNonce)
+        } catch (e: StreamResolveException) {
+            if (e.reason != StreamResolveException.Reason.UNAVAILABLE || hints.playbackClientOverrideId != null) throw e
+            // YouTube Music web plays a re-released track under its new ID, so do the same.
+            val currentId =
+                try {
+                    innerTube.currentMusicVideoId(videoId)
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (_: Exception) {
+                    null
+                } ?: throw e
+            logger.i(TAG, "unavailable video replaced by its current YouTube Music ID")
+            extractVideo(currentId, hints, excludedClients, audioQuality, clientPlaybackNonce)
+        }
+
+    private suspend fun extractVideo(
+        videoId: String,
+        hints: ContentHints,
+        excludedClients: Set<String>,
+        audioQuality: AudioQuality,
+        clientPlaybackNonce: String,
     ): ExtractedStream? {
         val terminalKey =
             if (hints.playbackClientOverrideId == null) {
@@ -1345,6 +1369,54 @@ class InnerTubeExtractor internal constructor(
                 continue
             }
 
+            if (PlaybackClientCatalog
+                    .manifestIdFromProfileId(result.profileId)
+                    ?.let(PlaybackClientCatalog::findManifest)
+                    ?.isProgressiveOnly() == true
+            ) {
+                val progressive =
+                    streamingData.formats
+                        .orEmpty()
+                        .filter { format ->
+                            format.carriesProgressiveAudio() &&
+                                format.url?.let { isAllowedMediaUrl(it) && !it.hasNParameter() } == true
+                        }.maxByOrNull { it.bitrate }
+                if (!hints.allowProgressive || hints.wantVideo || progressive == null) {
+                    logger.d(TAG, "progressive client skipped", details = mapOf("client" to result.clientName))
+                    continue
+                }
+                val progressiveUrl = appendClientPlaybackNonce(checkNotNull(progressive.url), clientPlaybackNonce)
+                logger.i(TAG, "progressive stream selected", details = mapOf("client" to result.clientName, "profile" to result.profileId))
+                return ExtractedStream(
+                    videoId = videoId,
+                    audioUrl = progressiveUrl,
+                    headers =
+                        buildHeaders(
+                            diagnostics,
+                            result.clientName,
+                            result.userAgent,
+                            progressiveUrl,
+                            hints.isUploaded == true && !result.bearerAuthenticated,
+                        ),
+                    loudnessDb = response.playerConfig?.audioConfig?.loudnessDb ?: progressive.loudnessDb,
+                    expiresAt = streamExpiry(streamingData, progressiveUrl),
+                    contentLengthBytes = progressive.contentLength,
+                    itag = progressive.itag,
+                    mimeType = progressive.mimeType.substringBefore(";").trim(),
+                    codecs = progressive.mimeType.extractCodecs(),
+                    bitrate = progressive.bitrate,
+                    sampleRate = progressive.audioSampleRate,
+                    clientName = result.clientName,
+                    profileId = result.profileId,
+                    requireBoundedRange = false,
+                    useRangeChunks = false,
+                    rangeChunkSizeBytes = mediaRangeChunkSize(result.clientName),
+                    playbackTracking = playbackTracking,
+                    streamDiagnostics = diagnostics.snapshot(),
+                    availableVideoHeights = availableVideoHeights,
+                ).withResponseMetadata(response).also { diagnostics.ensureSessionCurrent() }
+            }
+
             val directAudioItags =
                 allFormats
                     .asSequence()
@@ -1966,6 +2038,9 @@ class InnerTubeExtractor internal constructor(
                 it.encodedPath == "/videoplayback" && it.user == null && it.password == null
         } == true
 }
+
+/** True for muxed progressive formats, whose audio track arrives alongside video. */
+internal fun Format.carriesProgressiveAudio(): Boolean = width != null && audioSampleRate != null
 
 internal fun requiresBoundedMediaRange(clientName: String): Boolean =
     clientName == "ANDROID_VR" || clientName == "IOS" || clientName == "TVHTML5_SIMPLY"

@@ -99,8 +99,9 @@ class ContentAwareFallbackStrategy(
                         PlaybackTransportPreference.AUTO -> {
                             when {
 
-                                it.manifest?.id in healthDemoted -> 3
+                                it.manifest?.id in healthDemoted -> 4
 
+                                it.manifest?.isProgressiveOnly() == true -> 3
 
                                 it.client.useSabr -> 2
 
@@ -111,7 +112,11 @@ class ContentAwareFallbackStrategy(
                         }
 
                         PlaybackTransportPreference.SABR -> {
-                            if (it.client.useSabr) 0 else 1
+                            when {
+                                it.client.useSabr -> 0
+                                it.manifest?.isProgressiveOnly() == true -> 2
+                                else -> 1
+                            }
                         }
 
                         else -> {
@@ -185,6 +190,10 @@ class ContentAwareFallbackStrategy(
                         PlaybackTransport.DIRECT, PlaybackTransport.DASH -> {
                             request.hints.allowBoundedRange || !requiresBoundedMediaRange(manifest.client.clientName)
                         }
+
+                        PlaybackTransport.PROGRESSIVE -> {
+                            request.hints.allowProgressive && !request.hints.wantVideo
+                        }
                     }
                 }
             ) {
@@ -213,6 +222,7 @@ class ContentAwareFallbackStrategy(
             }
 
             if (request.fastPathOnly) {
+                if (manifest.isProgressiveOnly()) add("progressive fallback excluded from fast path")
                 if (manifest.request.signatureTimestamp) add("watch config excluded from fast path")
                 val requiresToken =
                     listOf(manifest.poTokens.player, manifest.poTokens.gvs).any {

@@ -1,12 +1,12 @@
 # InnerTubeX Apple integration
 
 Source: https://github.com/MetrolistGroup/innertubex
-Pinned revision: e4fb0003ce092beb71f3de464c661bf9f3f54c7f (v0.11.7)
+Pinned revision: 45ba5a2092be87f5d185e61358b9bbc6377f056a (v0.12.0)
 
 `src/` contains upstream's `commonMain`, `nativeMain`, `commonTest` and
-`nativeTest` at that revision, with the v0.11.7 audio-token preference merged
-into the existing local source. The original vendored tree also has local
-comment cleanup; preserve it when updating instead of replacing `src/` blindly.
+`nativeTest` at that revision, merged into the existing local source. The tree
+also has nuvx-specific Apple playback/token adaptations and local comment
+cleanup; preserve them when updating instead of replacing `src/` blindly.
 Upstream's Android, JVM and Windows source sets are not copied. `LICENSE`,
 `README.md`, `SECURITY.md` and `CHANGELOG.md` are upstream's.
 
