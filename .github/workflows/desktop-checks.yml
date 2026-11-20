@@ -47,6 +47,9 @@ jobs:
           workspaces: |
             app/desktop
             core/rust/nuvx-core
+      # Formatting is checked on the same supported runners as desktop compilation.
+      - name: Verify desktop Rust formatting
+        run: cargo fmt --all -- --check
       - run: cargo test --locked
       # The shared core's own tests, including the shared golden cases in core/contracts.
       - run: cargo test --locked
