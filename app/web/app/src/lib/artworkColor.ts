@@ -8,13 +8,21 @@ export interface ArtworkColor {
 
 const cache = new Map<string, ArtworkColor>();
 
-async function measure(url: string): Promise<ArtworkColor> {
+async function measure(url: string, signal: AbortSignal): Promise<ArtworkColor> {
   const image = new Image();
   image.crossOrigin = 'anonymous';
   image.referrerPolicy = 'no-referrer';
   image.decoding = 'async';
-  image.src = artworkAtPixels(url, 60);
-  await image.decode();
+  const abort = () => { image.src = ''; };
+  signal.addEventListener('abort', abort, { once: true });
+  try {
+    if (signal.aborted) return Promise.reject(new DOMException('Artwork request cancelled', 'AbortError'));
+    image.src = artworkAtPixels(url, 60);
+    await image.decode();
+    if (signal.aborted) return Promise.reject(new DOMException('Artwork request cancelled', 'AbortError'));
+  } finally {
+    signal.removeEventListener('abort', abort);
+  }
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 8;
   const context = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -38,22 +46,32 @@ async function measure(url: string): Promise<ArtworkColor> {
 }
 
 export function useArtworkColor(url: string | null | undefined): ArtworkColor | null {
-  const [color, setColor] = useState<ArtworkColor | null>(() => (url ? cache.get(url) ?? null : null));
+  const [current, setCurrent] = useState<{ url: string; color: ArtworkColor } | null>(() => {
+    const known = url ? cache.get(url) : null;
+    return url && known ? { url, color: known } : null;
+  });
   useEffect(() => {
-    if (!url) return setColor(null);
+    if (!url) {
+      setCurrent(null);
+      return;
+    }
     const known = cache.get(url);
-    if (known) return setColor(known);
-    let live = true;
-    measure(url)
+    if (known) {
+      setCurrent({ url, color: known });
+      return;
+    }
+    const controller = new AbortController();
+    void measure(url, controller.signal)
       .then((measured) => {
+        if (controller.signal.aborted) return;
         cache.set(url, measured);
-        if (live) setColor(measured);
+        setCurrent({ url, color: measured });
       })
       .catch(() => {
+        // An obsolete or failed thumbnail must not overwrite the current page.
       });
-    return () => {
-      live = false;
-    };
+    return () => controller.abort();
   }, [url]);
-  return color;
+  // Reject the previous page's tint during render, even before effect cleanup runs.
+  return current?.url === url ? current.color : (url ? cache.get(url) ?? null : null);
 }
