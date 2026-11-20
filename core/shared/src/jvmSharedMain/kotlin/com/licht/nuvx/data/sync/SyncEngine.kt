@@ -36,7 +36,7 @@ internal data class TrackMeta(val title: String = "", val artist: String = "", v
 internal data class SnapshotPlaylist(val id: String, val title: String, val tracks: List<String>)
 
 @Serializable
-internal data class StoredOp(val id: String, val kind: String, val entity: String, val payload: String, val clientMs: Long)
+data class StoredOp(val id: String, val kind: String, val entity: String, val payload: String, val clientMs: Long)
 
 @Serializable
 internal data class LoggedOp(val seq: Long, val kind: String, val entity: String, val payload: String)
