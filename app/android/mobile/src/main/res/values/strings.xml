@@ -1333,6 +1333,9 @@
     <string name="nuvx_sync_approve">Approve</string>
     <string name="nuvx_sync_added">Added “%1$s”. If that is not your device, remove it under Devices.</string>
     <string name="nuvx_sync_devices">Devices</string>
+    <string name="nuvx_sync_revoke_others">Revoke other devices</string>
+    <string name="nuvx_sync_revoke_others_body">Disconnect every other device from Nuvx Sync? They will need to pair again. This device remains signed in.</string>
+    <string name="nuvx_sync_revoke_others_done">Other devices were revoked.</string>
     <string name="nuvx_sync_this_device">this device</string>
     <string name="nuvx_sync_turn_off">Turn off sync</string>
     <string name="nuvx_sync_turn_off_body">This device stops syncing. Your playlists stay on this device.</string>
