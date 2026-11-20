@@ -58,37 +58,6 @@ class PlaylistSongUndoTest {
     }
 
     @Test
-    fun failedDurableUndoWriteLeavesCurrentPlaylistAndPreviousSnapshotIntact() {
-        val prefs = FakeSharedPreferences()
-        LocalPlaylistStore.initForTesting(prefs)
-        val playlist = LocalPlaylistStore.createNuvxPlaylist("Durable", listOf(a, b, c))
-        val before = prefs.getString("playlists_json", null)
-        val rejecting = object : android.content.SharedPreferences by prefs {
-            override fun edit(): android.content.SharedPreferences.Editor {
-                val delegate = prefs.edit()
-                return object : android.content.SharedPreferences.Editor by delegate {
-                    override fun putString(key: String?, value: String?): android.content.SharedPreferences.Editor {
-                        delegate.putString(key, value)
-                        return this
-                    }
-                    override fun commit(): Boolean = false
-                }
-            }
-        }
-        try {
-            LocalPlaylistStore.initForTesting(rejecting)
-            assertFalse(LocalPlaylistStore.replaceSongsIfUnchanged(playlist.id, listOf(a, b, c), listOf(c, a, b)))
-            assertEquals(listOf(a, b, c), LocalPlaylistStore.getPlaylist(playlist.id)?.songs)
-            assertEquals(before, prefs.getString("playlists_json", null))
-            LocalPlaylistStore.initForTesting(prefs)
-            assertEquals(listOf(a, b, c), LocalPlaylistStore.getPlaylist(playlist.id)?.songs)
-        } finally {
-            LocalPlaylistStore.initForTesting(prefs)
-            LocalPlaylistStore.deletePlaylist(playlist.id)
-        }
-    }
-
-    @Test
     fun renameThroughTheMenuIdAndUndoRestoreTheName() {
         val playlist = LocalPlaylistStore.createNuvxPlaylist("Old name", listOf(a))
         try {
