@@ -3,7 +3,7 @@ use crossbeam_channel::Sender;
 use rodio::cpal::traits::{DeviceTrait, HostTrait};
 use rodio::mixer::{Mixer, MixerSource};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 pub(super) struct Output {
@@ -12,7 +12,10 @@ pub(super) struct Output {
     pub(super) sink: Option<MixerDeviceSink>,
     pub(super) device: Option<String>,
     pub(super) preferred: Option<String>,
-    pub(super) lost: Arc<AtomicBool>,
+    /// Each sink has a generation; retired callbacks cannot disrupt its replacement.
+    pub(super) generation: Arc<AtomicU64>,
+    /// Highest generation for which the error callback has notified the engine.
+    pub(super) lost: Arc<AtomicU64>,
     pub(super) checked: Instant,
 }
 
@@ -22,13 +25,16 @@ impl Output {
         let channels = config.as_ref().and_then(|c| std::num::NonZero::new(c.channels())).unwrap_or(std::num::NonZero::new(2).unwrap());
         let rate = config.as_ref().and_then(|c| std::num::NonZero::new(c.sample_rate())).unwrap_or(std::num::NonZero::new(48_000).unwrap());
         let (mixer, source) = rodio::mixer::mixer(channels, rate);
-        let lost = Arc::new(AtomicBool::new(false));
-        let mut out = Self { mixer, slot: Arc::new(std::sync::Mutex::new(Some(source))), sink: None, device: None, preferred, lost, checked: Instant::now() };
+        let generation = Arc::new(AtomicU64::new(0));
+        let lost = Arc::new(AtomicU64::new(0));
+        let mut out = Self { mixer, slot: Arc::new(std::sync::Mutex::new(Some(source))), sink: None, device: None, preferred, generation, lost, checked: Instant::now() };
         out.open(tx, status);
         out
     }
 
     pub(super) fn open(&mut self, tx: Sender<AudioCmd>, status: &AudioStatus) -> bool {
+        // Retire the old callback before the old sink is dropped.
+        let gen = self.generation.fetch_add(1, Ordering::AcqRel) + 1;
         self.sink = None;
         self.device = None;
         self.checked = Instant::now();
@@ -37,11 +43,10 @@ impl Output {
         };
         let id = device.id().map(|i| i.to_string()).ok();
         let lost = self.lost.clone();
-        lost.store(false, Ordering::Relaxed);
+        let active = self.generation.clone();
         let on_error = move |e: rodio::CpalError| {
-            log::warn!("audio: output device error: {e}");
-            if !lost.swap(true, Ordering::Relaxed) {
-                let _ = tx.send(AudioCmd::DeviceLost);
+            if notify_device_error(gen, &active, &lost, &tx) {
+                log::warn!("audio: output device error: {e}");
             }
         };
         let sink = match DeviceSinkBuilder::from_device(device).and_then(|b| b.with_error_callback(on_error).open_sink_or_fallback()) {
@@ -93,6 +98,22 @@ fn target(preferred: Option<&str>) -> Option<rodio::cpal::Device> {
         return Some(d);
     }
     host.default_output_device()
+}
+
+/// A retired sink must never change the state of a newer output connection.
+fn notify_device_error(
+    generation: u64,
+    active: &AtomicU64,
+    reported: &AtomicU64,
+    tx: &Sender<AudioCmd>,
+) -> bool {
+    if active.load(Ordering::Acquire) != generation {
+        return false;
+    }
+    if reported.fetch_max(generation, Ordering::AcqRel) >= generation {
+        return false;
+    }
+    tx.send(AudioCmd::DeviceLost(generation)).is_ok()
 }
 
 #[derive(Clone, PartialEq)]
@@ -154,6 +175,43 @@ impl Drop for Bridge {
             }
             *self.slot.lock().unwrap() = Some(source);
         }
+    }
+}
+
+#[cfg(test)]
+mod generation_tests {
+    use super::*;
+    use crossbeam_channel::unbounded;
+
+    #[test]
+    fn retired_device_callback_is_ignored_after_switch() {
+        let active = AtomicU64::new(1);
+        let reported = AtomicU64::new(0);
+        let (tx, rx) = unbounded();
+        assert!(notify_device_error(1, &active, &reported, &tx));
+        assert!(!notify_device_error(1, &active, &reported, &tx));
+        active.store(2, Ordering::Release);
+        assert!(!notify_device_error(1, &active, &reported, &tx));
+        assert!(notify_device_error(2, &active, &reported, &tx));
+        assert!(matches!(rx.try_recv(), Ok(AudioCmd::DeviceLost(1))));
+        assert!(matches!(rx.try_recv(), Ok(AudioCmd::DeviceLost(2))));
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn rapid_output_switches_keep_only_latest_generation_eligible() {
+        let active = AtomicU64::new(1);
+        let reported = AtomicU64::new(0);
+        let (tx, rx) = unbounded();
+        active.store(2, Ordering::Release);
+        active.store(3, Ordering::Release);
+        assert!(!notify_device_error(1, &active, &reported, &tx));
+        assert!(!notify_device_error(2, &active, &reported, &tx));
+        assert!(notify_device_error(3, &active, &reported, &tx));
+        assert!(!notify_device_error(3, &active, &reported, &tx));
+        assert_eq!(reported.load(Ordering::Acquire), 3);
+        assert!(matches!(rx.try_recv(), Ok(AudioCmd::DeviceLost(3))));
+        assert!(rx.try_recv().is_err());
     }
 }
 
