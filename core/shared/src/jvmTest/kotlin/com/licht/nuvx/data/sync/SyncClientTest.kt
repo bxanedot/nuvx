@@ -51,8 +51,8 @@ class SyncClientTest {
         reply(200, """{"seqs":[${(1..SyncClient.MAX_OPS_PER_PUSH).joinToString(",")}]}""")
         val result = assertIs<SyncResult.Pushed>(sync.push((1..500).map { op(it) }))
         assertEquals(SyncClient.MAX_OPS_PER_PUSH, result.ids.size)
-        // The size-limited batch holds seven 30 KB payloads plus the request envelope.
-        reply(200, """{"seqs":[1,2,3,4,5,6,7]}""")
+        // The size-limited batch holds eight 30 KB payloads plus the request envelope.
+        reply(200, """{"seqs":[1,2,3,4,5,6,7,8]}""")
         val big = assertIs<SyncResult.Pushed>(sync.push((1..20).map { op(it, size = 30_000) }))
         assertTrue(big.ids.size * 30_000 < SyncClient.MAX_BODY_BYTES, "sent ${big.ids.size} ops of 30 KB")
     }
