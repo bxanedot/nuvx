@@ -35,10 +35,17 @@ fn request(h: &mut Inner) -> (String, [u8; 32], String) {
     (id, key, code)
 }
 
+fn claim(h: &mut Inner, id: &str, key: &[u8; 32]) -> (u16, Value) {
+    post(h, "/lan/pair/claim", json!({
+        "pairingId": id,
+        "proof": crypto::seal(key, format!("nuvx-pair-claim:{id}").as_bytes(), b"claim")
+    }))
+}
+
 fn paired(h: &mut Inner) -> (String, [u8; 32]) {
-    let (id, key, _) = request(h);
-    h.approve(&id).unwrap();
-    let (s, joined) = post(h, "/lan/pair/claim", json!({ "pairingId": id }));
+    let (id, key, code) = request(h);
+    h.approve(&id, &code).unwrap();
+    let (s, joined) = claim(h, &id, &key);
     assert_eq!(s, 200);
     (joined["deviceId"].as_str().unwrap().to_owned(), key)
 }
@@ -63,18 +70,36 @@ fn fresh() -> String {
 #[test]
 fn pairing_needs_the_approval_on_this_computer_and_the_same_code() {
     let (mut h, _d) = host();
-    let (id, _, phone_code) = request(&mut h);
-    assert_eq!(h.pending(), vec![PendingApproval { id: id.clone(), name: "Galaxy S26".into(), code: phone_code }]);
-    assert_eq!(post(&mut h, "/lan/pair/claim", json!({ "pairingId": id })).0, 202, "not before approval");
-    h.approve(&id).unwrap();
-    assert_eq!(post(&mut h, "/lan/pair/claim", json!({ "pairingId": id })).0, 200);
-    assert_eq!(post(&mut h, "/lan/pair/claim", json!({ "pairingId": id })).0, 404, "single use");
+    let (id, key, phone_code) = request(&mut h);
+    assert_eq!(h.pending(), vec![PendingApproval { id: id.clone(), name: "Galaxy S26".into(), code: phone_code.clone() }]);
+    assert_eq!(claim(&mut h, &id, &key).0, 202, "not before approval");
+    assert!(h.approve(&id, "0000").is_err(), "wrong code cannot authorize");
+    assert_eq!(h.devices().len(), 0, "wrong code cannot establish trust");
+    assert_eq!(post(&mut h, "/lan/pair/claim", json!({ "pairingId": id })).0, 401, "pairing id alone is not proof");
+    h.approve(&id, &phone_code).unwrap();
+    assert_eq!(claim(&mut h, &id, &[99; 32]).0, 401, "wrong key cannot claim");
+    assert_eq!(claim(&mut h, &id, &key).0, 200);
+    assert_eq!(claim(&mut h, &id, &key).0, 404, "single use");
     assert_eq!(h.devices().len(), 1);
 
-    let (denied, _, _) = request(&mut h);
+    let (denied, key, _) = request(&mut h);
     h.deny(&denied);
-    assert_eq!(post(&mut h, "/lan/pair/claim", json!({ "pairingId": denied })).0, 403);
+    assert_eq!(claim(&mut h, &denied, &key).0, 403);
     assert_eq!(h.devices().len(), 1);
+}
+
+#[test]
+fn wrong_pairing_code_cannot_revoke_an_existing_device_with_the_same_name() {
+    let (mut h, _d) = host();
+    let (old, old_key) = paired(&mut h);
+    let (id, new_key, code) = request(&mut h);
+    assert!(h.approve(&id, "999999").is_err());
+    assert_eq!(h.devices().len(), 1);
+    assert_eq!(call(&mut h, &old, &old_key, "GET", "/v1/devices", Value::Null, now_ms(), &fresh()).0, 200);
+    h.approve(&id, &code).unwrap();
+    assert_eq!(claim(&mut h, &id, &new_key).0, 200);
+    assert_eq!(h.devices().len(), 1);
+    assert_eq!(call(&mut h, &old, &old_key, "GET", "/v1/devices", Value::Null, now_ms(), &fresh()).0, 401);
 }
 
 #[test]
