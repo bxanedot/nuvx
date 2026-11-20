@@ -196,7 +196,10 @@ fn connect_commands_need_a_paired_phone_and_are_queued_for_the_window() {
     assert!(h.connect_commands.is_empty());
     h.connect_allowed = true;
     let (s, state) = call(&mut h, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh());
-    assert_eq!((s, state), (200, json!({ "track": null, "playing": false })));
+    assert_eq!(s, 200);
+    assert_eq!(state["track"], Value::Null);
+    assert_eq!(state["playing"], false);
+    assert!(state["capabilities"].as_array().is_some(), "Connect advertises capabilities");
 
     h.connect_now = json!({ "track": { "id": "dQw4w9WgXcQ", "title": "Never" }, "playing": true, "positionMs": 1000 });
     assert_eq!(call(&mut h, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1["track"]["id"], "dQw4w9WgXcQ");
@@ -263,8 +266,10 @@ fn capability_advertisement_matches_current_permissions_and_legacy_actions() {
     host.connect_allowed = true;
     let capabilities = call(&mut host, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1["capabilities"].as_array().unwrap().clone();
     for action in super::connect::LEGACY_ACTIONS {
-        assert!(capabilities.iter().any(|c| c.as_str() == Some(action)), "legacy action {action} must stay supported");
+        let supported = capabilities.iter().any(|c| c.as_str() == Some(action));
+        assert_eq!(supported, action != "seek", "seek is not supported without a current track");
     }
+    assert!(capabilities.iter().any(|c| c == "volume"), "volume works without an active song");
     assert!(!capabilities.iter().any(|c| c == "enqueue"), "a guest or disabled queue cannot advertise append");
     assert_eq!(call(&mut host, &device, &key, "POST", "/v1/connect", json!({
         "action": "enqueue", "videoId": "dQw4w9WgXcQ"
@@ -275,6 +280,37 @@ fn capability_advertisement_matches_current_permissions_and_legacy_actions() {
     host.queue_mutation_allowed = false;
     let downgraded = call(&mut host, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1;
     assert!(!downgraded["capabilities"].as_array().unwrap().iter().any(|c| c == "enqueue"));
+}
+
+#[test]
+fn remote_seek_and_volume_require_authentication_capability_and_valid_bounds() {
+    let (mut h, _dir) = host();
+    let (device, key) = paired(&mut h);
+    let now = now_ms();
+    let seek = json!({ "action": "seek", "positionMs": 5_000, "trackId": "dQw4w9WgXcQ" });
+    let volume = json!({ "action": "volume", "volume": 0.65 });
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", seek.clone(), now, &fresh()).0, 403);
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", volume.clone(), now, &fresh()).0, 403);
+    h.connect_allowed = true;
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", seek.clone(), now, &fresh()).0, 409, "trackless host cannot seek");
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({"action":"volume","volume":1.1}), now, &fresh()).0, 422);
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", json!({"action":"volume","volume":-0.1}), now, &fresh()).0, 422);
+    h.connect_now = json!({ "track": { "id": "dQw4w9WgXcQ" }, "playing": true, "positionMs": 0, "volume": 0.4 });
+    let capabilities = call(&mut h, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1;
+    let actions = capabilities["capabilities"].as_array().unwrap();
+    assert!(actions.iter().any(|a| a == "seek"));
+    assert!(actions.iter().any(|a| a == "volume"));
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect",
+        json!({"action":"seek","positionMs":9000,"trackId":"old-song"}), now, &fresh()).0, 409, "stale track cannot seek");
+    assert!(h.connect_commands.is_empty());
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", seek, now, &fresh()).0, 202);
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect", volume, now, &fresh()).0, 202);
+    assert!(matches!(&h.connect_commands[..],
+        [super::connect::Command::Seek { position_ms: 5000, track_id: Some(id) }, super::connect::Command::Volume(value)]
+        if id == "dQw4w9WgXcQ" && (*value - 0.65).abs() < 0.0001));
+    assert!(h.revoke(&device));
+    assert_eq!(call(&mut h, &device, &key, "POST", "/v1/connect",
+        json!({"action":"volume","volume":0.5}), now, &fresh()).0, 401);
 }
 
 #[test]
