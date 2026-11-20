@@ -46,9 +46,19 @@ pub(super) fn youtube_videos(v: &Value) -> Vec<Track> {
     let sections = &v["contents"]["twoColumnSearchResultsRenderer"]["primaryContents"]["sectionListRenderer"]["contents"];
     arr(sections)
         .iter()
-        .flat_map(|s| arr(&s["itemSectionRenderer"]["contents"]))
+        // Classic search results are item sections; newer video-only results can
+        // arrive as rich-grid items. Both are ordinary, user-selectable videos.
+        .flat_map(|s| {
+            arr(&s["itemSectionRenderer"]["contents"])
+                .iter()
+                .chain(arr(&s["richGridRenderer"]["contents"]).iter())
+        })
         .filter_map(|i| {
-            let r = &i["videoRenderer"];
+            let r = if i["videoRenderer"].is_object() {
+                &i["videoRenderer"]
+            } else {
+                &i["richItemRenderer"]["content"]["videoRenderer"]
+            };
             let id = r["videoId"].as_str()?.to_owned();
             let duration = r["lengthText"]["simpleText"].as_str().and_then(clock_secs)?;
             let owner = &r["ownerText"]["runs"][0];
