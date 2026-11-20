@@ -232,6 +232,37 @@ object DownloadStore {
             ?.forEach { it.delete() }
     }
 
+    data class CleanupReport(val files: Int, val bytes: Long)
+
+    /** Preview first (execute=false), then recheck each file's age before a confirmed cleanup.
+     * Only old hidden .part files in the app-private download folder are eligible.
+     * Manual/pinned tracks and MediaStore exports are never passed to this operation.
+     */
+    internal fun cleanupPrivateParts(
+        folder: File,
+        execute: Boolean,
+        now: Long = System.currentTimeMillis(),
+        maxBytes: Long = 256L * 1024 * 1024,
+        maxFiles: Int = 32,
+    ): CleanupReport {
+        var files = 0
+        var bytes = 0L
+        val candidates = folder.listFiles()?.asSequence()
+            ?.filter { it.isFile && it.name.startsWith(".") && it.name.endsWith(".part") }
+            ?.filter { now - it.lastModified() > 24L * 60 * 60 * 1000 }
+            ?.sortedBy { it.name }
+            .orEmpty()
+        for (file in candidates) {
+            if (files >= maxFiles) break
+            val size = file.length()
+            if (size < 0L || size > maxBytes - bytes) continue
+            if (execute && !file.delete()) continue
+            files++
+            bytes += size
+        }
+        return CleanupReport(files, bytes)
+    }
+
     @Suppress("DEPRECATION")
     private fun legacyFile(name: String) = File(
         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), FOLDER),
