@@ -82,7 +82,7 @@ test("party bearer identity is isolated, revoked, and host capability is enforce
   assert.equal(P.authenticate(first.p, first.guest.token)?.memberId, first.guest.memberId);
 
   assert.ok(P.applyControl(first.p, first.host, { action: "setHostOnlyControl", enabled: true }, 2).ok);
-  assert.equal((P.applyControl(first.p, first.guest, { action: "play" }, 3) as P.Fail).error, "host_only");
+  assert.equal((P.applyControl(first.p, first.guest, { action: "play" }, 3) as { error: string }).error, "host_only");
   assert.ok(P.applyControl(first.p, first.host, { action: "play" }, 4).ok);
   P.remove(first.p, first.guest.memberId);
   assert.equal(P.authenticate(first.p, first.guest.token), null, "revoked member's next request is rejected");
