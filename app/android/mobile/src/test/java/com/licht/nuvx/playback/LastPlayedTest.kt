@@ -31,6 +31,21 @@ class LastPlayedTest {
     }
 
     @Test
+    fun `service teardown checkpoint survives reread without duplicating queue entries`() {
+        val trackList = queue.take(5)
+        LastPlayed.saveQueueImmediately(trackList, index = 3, positionMs = 15_250)
+        // Teardown may be invoked after an ordinary async checkpoint. The
+        // synchronous write must leave one ordered copy, with the last position.
+        LastPlayed.saveQueue(trackList, index = 3)
+        LastPlayed.saveQueueImmediately(trackList, index = 3, positionMs = 15_750)
+        LastPlayed.initForTesting(prefs) // Fresh instance loading persisted preferences
+        val recovered = LastPlayed.load()!!
+        assertEquals(trackList.map { it.videoId }, recovered.songs.map { it.videoId })
+        assertEquals(3, recovered.index)
+        assertEquals(15_750L, recovered.positionMs)
+    }
+
+    @Test
     fun `playing past the saved window still restores the playing track after a kill`() {
         playThrough(to = 120)
 
