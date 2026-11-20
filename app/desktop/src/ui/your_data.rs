@@ -145,7 +145,7 @@ fn confirm_recent_searches_clear(app: &mut App, ui: &mut Ui) {
         .resizable(false)
         .show(ui.ctx(), |ui| {
             ui.label(format!(
-                "Delete {} recent searches stored on this computer? This does not delete                  YouTube Music account history, playlists, or Sync/cloud data.",
+                "Delete {} recent searches stored on this computer? This does not delete YouTube Music account history, playlists, or Sync/cloud data.",
                 app.recent_searches.len()
             ));
             ui.horizontal(|ui| {
