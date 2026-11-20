@@ -14,7 +14,8 @@ pub enum AudioCmd {
     Seek(Duration),
     SeekLive { pos: Duration, at: std::time::Instant },
     Volume(f32),
-    DeviceLost,
+    /// Generation of the output sink that reported a loss.
+    DeviceLost(u64),
     SetDevice(Option<String>),
 }
 
