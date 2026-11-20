@@ -52,6 +52,25 @@ test("upload route rejects a wrong passcode before contacting providers", async 
   assert.equal(requests, 0);
 });
 
+test("canvas upload rate limit returns 429 for a burst and recovers predictably", async () => {
+  let attempts = 0;
+  const gated = {
+    ...env("correct", "token"),
+    CANVAS_LIMIT: { limit: async ({ key }: { key: string }) => {
+      assert.equal(key, "local");
+      return { success: ++attempts > 2 };
+    } },
+  };
+  const fail1 = await handleCanvasUpload(request("wrong"), gated);
+  const fail2 = await handleCanvasUpload(request("wrong"), gated);
+  assert.equal(fail1.status, 429);
+  assert.equal(fail2.status, 429);
+  assert.match(JSON.stringify(await fail1.json()), /Too many tries/);
+  // After the limiter permits a request, normal passcode validation still applies.
+  assert.equal((await handleCanvasUpload(request("wrong"), gated)).status, 403);
+  assert.equal(attempts, 3);
+});
+
 test("upload route cancels oversized multipart bodies without content-length", async () => {
   const boundary = "nuvx-test";
   const prefix = new TextEncoder().encode(`--${boundary}\r\nContent-Disposition: form-data; name="link"\r\n\r\nhttps://music.youtube.com/watch?v=${ID}\r\n--${boundary}\r\nContent-Disposition: form-data; name="passcode"\r\n\r\ncorrect\r\n--${boundary}\r\nContent-Disposition: form-data; name="video"; filename="canvas.mp4"\r\nContent-Type: video/mp4\r\n\r\n`);
