@@ -201,8 +201,8 @@ impl Prefs {
 }
 
 /// Audio profile per output: when playback moves to another output, the current equalizer is kept for the
-/// output it leaves, and the one saved for the new output (if any) comes back. Keyed by the output's name
-/// ("" for the system default), the same name the output picker shows.
+/// output it leaves, and the one saved for the new output (if any) comes back. The desktop
+/// supplies stable device IDs as keys ("" represents the system default); display names are not unique.
 pub fn switch_output(
     saved: &mut std::collections::HashMap<String, Prefs>,
     from: &str,
@@ -215,6 +215,25 @@ pub fn switch_output(
 
 #[cfg(test)]
 mod output_profile_tests {
+    #[test]
+    fn distinct_ids_survive_restart_and_missing_devices_keep_the_safe_fallback() {
+        let flat = super::Prefs::default();
+        let bass = super::Prefs { on: true, tilt: 4, ..flat };
+        let mut profiles = std::collections::HashMap::new();
+        profiles.insert("headset-A-id".to_owned(), bass);
+        profiles.insert("headset-B-id".to_owned(), flat);
+        // The app saves the map as JSON in eframe persistence.
+        let stored = serde_json::to_string(&profiles).unwrap();
+        let mut restarted: std::collections::HashMap<String, super::Prefs> = serde_json::from_str(&stored).unwrap();
+        let restored = super::switch_output(&mut restarted, "", "headset-A-id", flat);
+        assert_eq!(restored, bass);
+        let other = super::switch_output(&mut restarted, "headset-A-id", "headset-B-id", bass);
+        assert_eq!(other, flat, "identical display labels must not mix profiles");
+        let no_permission_or_missing_device = super::switch_output(&mut restarted, "headset-B-id", "", flat);
+        assert_eq!(no_permission_or_missing_device, flat, "the default output remains usable");
+        assert_eq!(super::switch_output(&mut restarted, "", "unavailable-device-id", flat), flat);
+    }
+
     #[test]
     fn each_output_gets_its_own_equalizer_back() {
         let mut saved = std::collections::HashMap::new();
