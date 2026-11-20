@@ -2,6 +2,8 @@ package com.licht.nuvx.data.sources.addon
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import com.licht.nuvx.BuildConfig
@@ -70,16 +72,67 @@ object AddonAuth {
     private val proofs = ConcurrentHashMap<String, Pair<Long, String>>()
 
     fun init(context: Context) {
-        testerPrefs = context.getSharedPreferences("nuvx_tester", Context.MODE_PRIVATE)
-        val p = context.getSharedPreferences("nuvx_addon_auth", Context.MODE_PRIVATE)
-        prefs = p
-        val token = p.getString("token", null)
-        val alias = p.getString("alias", null)
-        val expiresAt = p.getLong("expiresAt", 0L)
-        clockOffsetMs = p.getLong("clockOffset", 0L)
+        val app = context.applicationContext
+        testerPrefs = app.getSharedPreferences("nuvx_tester", Context.MODE_PRIVATE)
+        // Tokens must not fall back to a plaintext store when the Keystore is
+        // unavailable. An in-memory token can still be used for this process.
+        val secure = try {
+            EncryptedSharedPreferences.create(
+                app,
+                "nuvx_addon_auth_secure",
+                MasterKey.Builder(app).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        } catch (error: Exception) {
+            TrackLog.w(TAG, "addon auth: encrypted credential store unavailable (${error.javaClass.simpleName})")
+            null
+        }
+        prefs = secure
+        session = null
+        clockOffsetMs = 0L
+        if (secure == null) return
+
+        val legacy = app.getSharedPreferences("nuvx_addon_auth", Context.MODE_PRIVATE)
+        if (migrateLegacyTokenPrefs(legacy, secure)) {
+            // Delete the old file (and its .bak) only after an encrypted write
+            // has been committed and read back successfully.
+            app.deleteSharedPreferences("nuvx_addon_auth")
+        } else {
+            TrackLog.w(TAG, "addon auth: token migration incomplete; retaining legacy data for retry")
+        }
+
+        val token = secure.getString("token", null)
+        val alias = secure.getString("alias", null)
+        val expiresAt = secure.getLong("expiresAt", 0L)
+        clockOffsetMs = secure.getLong("clockOffset", 0L)
         if (token != null && alias != null && expiresAt > System.currentTimeMillis()) {
             session = Session(token, expiresAt, alias)
         }
+    }
+
+    /** Copy only the credential tuple; never delete the legacy file until verified. */
+    internal fun migrateLegacyTokenPrefs(legacy: SharedPreferences, secure: SharedPreferences): Boolean {
+        if (secure.contains("token")) {
+            // A newer authenticated session takes precedence over any stale legacy token.
+            return secure.getString("token", null) != null
+        }
+        val token = legacy.getString("token", null) ?: return true
+        val alias = legacy.getString("alias", null) ?: return false
+        val expiresAt = legacy.getLong("expiresAt", 0L)
+        if (alias.isBlank() || expiresAt <= 0L) return false
+        val clockOffset = legacy.getLong("clockOffset", 0L)
+        val written = secure.edit()
+            .putString("token", token)
+            .putString("alias", alias)
+            .putLong("expiresAt", expiresAt)
+            .putLong("clockOffset", clockOffset)
+            .commit()
+        return written &&
+            secure.getString("token", null) == token &&
+            secure.getString("alias", null) == alias &&
+            secure.getLong("expiresAt", 0L) == expiresAt &&
+            secure.getLong("clockOffset", 0L) == clockOffset
     }
 
     suspend fun headersFor(host: String, rejectedToken: String? = null): Map<String, String> {
