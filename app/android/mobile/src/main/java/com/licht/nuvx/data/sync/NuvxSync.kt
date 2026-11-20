@@ -381,7 +381,10 @@ object NuvxSync {
             val applied = LocalPlaylistStore.replaceAllIfUnchanged(before, toLocal(outcome.playlists, before))
             if (!applied) requestSync()
         }
-        if (outcome is SyncOutcome.Apply && _syncFavorites.value) {
+        // These channels are independent of playlist reconciliation. A retryable playlist
+        // failure must not strand already-persisted favorite, history, or theme edits.
+        // A terminal failure still stops all transfers (for example revoked authorization).
+        if (outcome !is SyncOutcome.Stop && _syncFavorites.value) {
             when (val extra = favoritesChannel().sync()) {
                 is IndependentResult.Applied -> if (_syncFavorites.value) extra.state.favorites.forEach { (id, liked) ->
                     LikeState.applySynced(id, if (liked) LikeStatus.LIKE else LikeStatus.INDIFFERENT)
@@ -394,7 +397,7 @@ object NuvxSync {
                 IndependentResult.Disabled -> Unit
             }
         }
-        if (outcome is SyncOutcome.Apply && _syncHistory.value) {
+        if (outcome !is SyncOutcome.Stop && _syncHistory.value) {
             when (val extra = historyChannel().sync()) {
                 is IndependentResult.Applied -> if (_syncHistory.value) _syncedHistory.value = extra.state.history
                 is IndependentResult.Failed -> outcome = when (val cause = extra.cause) {
@@ -405,7 +408,7 @@ object NuvxSync {
                 IndependentResult.Disabled -> Unit
             }
         }
-        if (outcome is SyncOutcome.Apply && _syncTheme.value) {
+        if (outcome !is SyncOutcome.Stop && _syncTheme.value) {
             when (val extra = themeChannel().sync()) {
                 is IndependentResult.Applied -> {
                     val mode = extra.state.themeMode?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
