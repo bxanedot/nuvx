@@ -94,6 +94,54 @@ class NuvxConnectTest {
     }
 
     @Test
+    fun seekAndVolumeHonorNegotiatedCapabilitiesAndStayWithinBounds() {
+        val seek = NuvxConnect.seek(3_000, "dQw4w9WgXcQ")
+        assertEquals("seek", seek["action"]!!.jsonPrimitive.content)
+        assertEquals("3000", seek["positionMs"]!!.jsonPrimitive.content)
+        assertEquals("dQw4w9WgXcQ", seek["trackId"]!!.jsonPrimitive.content)
+        assertNull(NuvxConnect.volume(-0.01f))
+        assertNull(NuvxConnect.volume(1.1f))
+        assertNull(NuvxConnect.volume(Float.NaN))
+        val volume = NuvxConnect.volume(0.6f)!!
+        assertEquals("volume", volume["action"]!!.jsonPrimitive.content)
+
+        val snapshot = NuvxConnect.parse("""{"track":{"id":"dQw4w9WgXcQ"},"volume":0.4,"capabilities":["seek","volume"]}""")
+        assertEquals(0.4f, snapshot.volume)
+        assertTrue("volume" in snapshot.capabilities)
+        assertNull(NuvxConnect.parse("""{"track":null,"volume":1.5}""").volume)
+
+        fun host(response: String, seen: MutableList<String>): OkHttpClient =
+            OkHttpClient.Builder().addInterceptor { chain ->
+                val method = chain.request().method
+                seen += method
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(if (method == "GET") 200 else 202)
+                    .message("OK")
+                    .body((if (method == "GET") response else """{"queued":true}""")
+                        .toResponseBody("application/json".toMediaType()))
+                    .build()
+            }.build()
+
+        val legacyVolume = mutableListOf<String>()
+        assertTrue(NuvxConnect.send(volume, host("""{"track":null}""", legacyVolume)).isFailure)
+        assertEquals(listOf("GET"), legacyVolume, "never send a volume command to an older host")
+
+        val deniedSeek = mutableListOf<String>()
+        assertTrue(NuvxConnect.send(seek, host("""{"capabilities":["play"],"track":null}""", deniedSeek)).isFailure)
+        assertEquals(listOf("GET"), deniedSeek, "seek must be advertised by an upgraded host")
+
+        val capableVolume = mutableListOf<String>()
+        assertTrue(NuvxConnect.send(volume, host("""{"capabilities":["seek","volume"],"track":null}""", capableVolume)).isSuccess)
+        assertEquals(listOf("GET", "POST"), capableVolume)
+
+        val legacySeek = mutableListOf<String>()
+        assertTrue(NuvxConnect.send(seek, host("""{"track":null}""", legacySeek)).isSuccess)
+        assertEquals(listOf("GET", "POST"), legacySeek, "legacy seek remains wire compatible")
+    }
+
+    @Test
     fun phoneMirrorsOnlyOneNewTailEntryWithoutReorderingTheRemoteQueue() {
         val sent = listOf("current", "next", "later")
         assertEquals("added", NuvxConnect.appendedItem(sent, sent + "added"))
