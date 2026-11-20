@@ -122,11 +122,11 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     }
 
     fun next() {
-        if (_nowPlaying.value?.hasNext == true && _link.value == Link.Connected) send(P.CMD_NEXT)
+        if (canIssueSkip(_nowPlaying.value?.hasNext == true, _link.value)) send(P.CMD_NEXT)
     }
 
     fun previous() {
-        if (_nowPlaying.value?.hasPrevious == true && _link.value == Link.Connected) send(P.CMD_PREVIOUS)
+        if (canIssueSkip(_nowPlaying.value?.hasPrevious == true, _link.value)) send(P.CMD_PREVIOUS)
     }
 
     fun toggleLike() {
