@@ -73,6 +73,22 @@ test("join: a known deviceId without its token cannot take over the membership",
   assert.ok(host.isHost);
 });
 
+test("party bearer identity is isolated, revoked, and host capability is enforced", () => {
+  const first = party();
+  const second = party();
+  assert.equal(P.authenticate(first.p, ""), null, "unauthenticated caller");
+  assert.equal(P.authenticate(first.p, second.host.token), null, "other party token");
+  assert.equal(P.authenticate(first.p, first.host.token)?.memberId, first.host.memberId);
+  assert.equal(P.authenticate(first.p, first.guest.token)?.memberId, first.guest.memberId);
+
+  assert.ok(P.applyControl(first.p, first.host, { action: "setHostOnlyControl", enabled: true }, 2).ok);
+  assert.equal((P.applyControl(first.p, first.guest, { action: "play" }, 3) as P.Fail).error, "host_only");
+  assert.ok(P.applyControl(first.p, first.host, { action: "play" }, 4).ok);
+  P.remove(first.p, first.guest.memberId);
+  assert.equal(P.authenticate(first.p, first.guest.token), null, "revoked member's next request is rejected");
+  assert.equal(P.authenticate(first.p, first.host.token)?.memberId, first.host.memberId);
+});
+
 test("remove hands host to the longest-present member", () => {
   const { p, host, guest } = party();
   const third = P.join(p, req("t"), random, 5000) as P.Member;
