@@ -26,7 +26,7 @@ sealed interface SyncOutcome {
     /** Make the library exactly [playlists] (same order), unless the user changed it since this sync began. */
     data class Apply(val playlists: List<LibraryPlaylist>) : SyncOutcome
     data class RetryLater(val why: String) : SyncOutcome
-    data class Stop(val why: String) : SyncOutcome
+    data class Stop(val why: String, val authorizationLost: Boolean = false) : SyncOutcome
 }
 
 @Serializable
@@ -90,7 +90,7 @@ class SyncEngine(
                     state = state.copy(outbox = state.outbox.filterNot { it.id in sent })
                     save(state)
                 }
-                is SyncResult.Stop -> return SyncOutcome.Stop(r.why)
+                is SyncResult.Stop -> return SyncOutcome.Stop(r.why, authorizationLost = r.authorizationLost)
                 is SyncResult.RetryLater -> return SyncOutcome.RetryLater(r.why)
                 else -> return SyncOutcome.RetryLater("Unexpected reply")
             }
@@ -109,7 +109,7 @@ class SyncEngine(
                     save(state)
                     if (!r.more) break
                 }
-                is SyncResult.Stop -> return SyncOutcome.Stop(r.why)
+                is SyncResult.Stop -> return SyncOutcome.Stop(r.why, authorizationLost = r.authorizationLost)
                 is SyncResult.RetryLater -> return SyncOutcome.RetryLater(r.why)
                 else -> return SyncOutcome.RetryLater("Unexpected reply")
             }
