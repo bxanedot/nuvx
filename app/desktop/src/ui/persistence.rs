@@ -22,6 +22,16 @@ pub(super) struct Session {
 }
 
 impl Session {
+    /// Sessions contain at most a bounded window of tracks. Reject oversized
+    /// payloads before allocating nested JSON objects during a corrupt restore.
+    pub(super) fn parse(json: &str) -> Option<Self> {
+        const MAX_SESSION_BYTES: usize = 8 * 1024 * 1024;
+        if json.len() > MAX_SESSION_BYTES { return None; }
+        let session: Self = serde_json::from_str(json).ok()?;
+        session.restored_index()?;
+        Some(session)
+    }
+
     /// Restore a valid queue even if an older/corrupt session saved an out-of-range
     /// cursor. Empty queues cannot select a current song.
     pub(super) fn restored_index(&self) -> Option<usize> {
@@ -118,6 +128,32 @@ mod session_tests {
         assert_eq!(s.resume_position_ms(0), 42_000, "unknown duration preserves a valid seek");
         s.position_ms = 0;
         assert_eq!(s.resume_position_ms(30_000), 0, "never force playback on restore");
+    }
+
+    #[test]
+    fn malformed_truncated_and_unbounded_sessions_are_rejected_without_side_effects() {
+        let valid = r#"{"queue":[{"id":"old","title":"Older","artists":[],"album":null,"duration":null,"thumbs":[],"track_nr":null,"plays":null}],"index":0,"position_ms":500,"duration_ms":0}"#;
+        assert_eq!(Session::parse(valid).unwrap().queue[0].id, "old");
+        for bad in [
+            r#"{"queue":["#,
+            r#"{"queue":[],"index":0,"position_ms":1,"duration_ms":0}"#,
+            r#"{"queue":"not an array","index":0,"position_ms":1,"duration_ms":0}"#,
+            r#"{"queue":[],"index":0,"position_ms":1,"duration_ms":0,"unknown":"old"}"#,
+        ] {
+            assert!(Session::parse(bad).is_none(), "corrupt session accepted: {bad}");
+        }
+        assert!(Session::parse(&" ".repeat(8 * 1024 * 1024 + 1)).is_none());
+        // The caller only changes the current queue for Some(session).
+        let mut active = super::super::queue::Queue::new(super::super::Repeat::Off);
+        active.replace(vec![Track {
+            id: "active".into(), title: "Current".into(), artists: vec![],
+            album: None, duration: None, thumbs: vec![], track_nr: None,
+            plays: None, music_video: false,
+        }], 0, None);
+        if let Some(invalid) = Session::parse("{truncated") {
+            active.adopt(invalid.queue, invalid.index);
+        }
+        assert_eq!(active.current().unwrap().id, "active");
     }
 
     #[test]
