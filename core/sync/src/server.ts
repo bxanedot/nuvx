@@ -193,6 +193,11 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now, maxDbB
     }
 
     if (route === "POST /v1/ops") {
+      // Old clients omit api. Explicit versioning must reject incompatible
+      // requests before writing any operations to this space.
+      if (body.api !== undefined && body.api !== API_VERSION) {
+        return fail(422, "unsupported_api", "This sync client uses an unsupported request version.");
+      }
       if (!Array.isArray(body.ops) || body.ops.length === 0 || body.ops.length > MAX_OPS_PER_PUSH) {
         return fail(422, "invalid_ops", `ops must hold 1 to ${MAX_OPS_PER_PUSH} operations.`);
       }
