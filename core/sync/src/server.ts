@@ -104,7 +104,15 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now, maxDbB
 
   function handle(method: string, path: string, query: URLSearchParams, authHeader: string | undefined, body: Record<string, unknown>): Reply {
     const route = `${method} ${path}`;
-    if (route === "GET /healthz") return { status: 200, body: { ok: true, api: API_VERSION, schema: MIGRATIONS.length } };
+    if (route === "GET /healthz") {
+      // An HTTP listener alone is not healthy if its SQLite handle or tables are lost.
+      try {
+        db.prepare("SELECT 1 FROM spaces LIMIT 1").get();
+        return { status: 200, body: { ok: true, api: API_VERSION, schema: MIGRATIONS.length } };
+      } catch {
+        return fail(503, "database_unavailable", "Sync storage is temporarily unavailable.");
+      }
+    }
 
     if (route === "POST /v1/spaces") {
       const name = str(body.deviceName, 80);
