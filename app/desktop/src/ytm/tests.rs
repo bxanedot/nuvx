@@ -511,6 +511,30 @@ fn youtube_rows_become_tracks_and_live_streams_drop() {
 }
 
 #[test]
+fn general_youtube_rich_grid_tutorial_is_discoverable_as_a_selectable_video() {
+    // Unlike YouTube Music search, the general YouTube API may wrap non-music
+    // videos in richItemRenderer. The UI accepts returned Track IDs for Play.
+    let v = json!({"contents": {"twoColumnSearchResultsRenderer": {"primaryContents":
+        {"sectionListRenderer": {"contents": [
+            {"richGridRenderer": {"contents": [
+                {"richItemRenderer": {"content": {"videoRenderer": {
+                    "videoId": "rfscVS0vtbw",
+                    "title": {"runs": [{"text": "Learn Python - Full Course for Beginners"}]},
+                    "lengthText": {"simpleText": "4:26:52"},
+                    "ownerText": {"runs": [{"text": "freeCodeCamp.org"}]},
+                    "thumbnail": {"thumbnails": [{"url": "https://i.ytimg.com/vi/rfscVS0vtbw/hqdefault.jpg", "width": 480, "height": 360}]}
+                }}}}
+            ]}}
+        ]}}}}});
+    let videos = youtube_videos(&v);
+    assert_eq!(videos.len(), 1);
+    assert_eq!(videos[0].id, "rfscVS0vtbw");
+    assert_eq!(videos[0].duration, Some(16012));
+    assert_eq!(videos[0].artists[0].name, "freeCodeCamp.org");
+    assert!(!videos[0].music_video, "general video must not be recategorized as music");
+}
+
+#[test]
 fn spoken_lengths_become_seconds() {
     assert_eq!(spoken_secs(" • 42 min"), Some(2520));
     assert_eq!(spoken_secs("1 hr 5 min"), Some(3900));
