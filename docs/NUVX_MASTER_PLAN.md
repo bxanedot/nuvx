@@ -114,6 +114,13 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
 - Build: SF symbols from `lylicht/SFStudio` v1.0.1 (the old v2.0.0 tag is gone upstream). Sync server reads the bearer header without a regex. Code scanning: 0 open.
 - Rust migration pack: tasks 00–04 and the first Task 05 slice (`core/contracts/update-order.json`), see `docs/rust-migration/`.
 
+## Daily engineer run, 2026-11-20
+
+- **Opened:** `claude/web-playpause-test-stale`: the web `PlayPauseIcon` test still expected two inline `<svg>` elements, but static SF symbols render as CSS-mask spans since #332, so `pnpm -r test` failed on `main` (1 of 247). Test updated; no app code changed.
+- **Checked and healthy (read plus tests):** `core/sync` (13 tests pass; pairing, caps, auth, rate limit read through, no defect found) and `core/worker` (29 tests pass; canvas upload, invite page escaping, community token, presence read through, no defect found).
+- **Not run:** shared Kotlin, Android, desktop `cargo test`.
+- **Exact next step:** run `./gradlew :shared:jvmTest :sharedUi:jvmTest` and `cargo test` in `app/desktop`, then continue "Next, in order" item 1 (Android crossfade internals audit).
+
 ## Checked and found healthy (2026-11-17, second session)
 
 - Desktop WebView reuse (reference audit, Metrolist PR 4615): the lyrics check and sign-in windows run in a child process that exits, so their WebViews cannot pile up.

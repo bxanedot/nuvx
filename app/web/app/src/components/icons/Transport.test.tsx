@@ -6,7 +6,8 @@ describe('PlayPauseIcon', () => {
   it('keeps both glyphs so CSS can morph between them, and marks which one shows', () => {
     const playing = renderToStaticMarkup(<PlayPauseIcon playing size={20} />);
     expect(playing).toContain('data-playing="true"');
-    expect(playing.match(/<svg/g)).toHaveLength(2);
+    // Static symbols render as CSS-mask spans (the <svg> layers only load for animated effects).
+    expect(playing.match(/data-sf-symbol="(?:play|pause)\.fill"/g)).toHaveLength(2);
     expect(renderToStaticMarkup(<PlayPauseIcon playing={false} />)).toContain('data-playing="false"');
   });
 });
