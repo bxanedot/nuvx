@@ -63,7 +63,7 @@ struct Saved {
 enum PairState {
     Committed { commit: String, key: HostKey },
     Waiting { device_key: [u8; 32], code: String },
-    Approved { device_id: String },
+    Approved { device_key: [u8; 32] },
     Denied,
 }
 
@@ -192,34 +192,25 @@ impl Inner {
         out
     }
 
-    /// Approval requires the six digits shown on the joining phone, not merely clicking a name.
-    /// Verify the code and pending state *before* revoking a previous device with the same name.
-    pub fn approve(&mut self, pairing_id: &str, entered_code: &str) -> Result<String, &'static str> {
+    /// Approval confirms the six digits shown on the joining phone.
+    /// Do not persist a device key or revoke an existing session until the phone proves possession.
+    /// An approved pairing that expires without being claimed must leave no trusted credentials.
+    pub fn approve(&mut self, pairing_id: &str, entered_code: &str) -> Result<(), &'static str> {
         self.expire();
         let p = self.pairings.get(pairing_id).ok_or("That request has expired.")?;
         let PairState::Waiting { device_key, code } = &p.state else {
             return Err("That request is not waiting for approval.");
         };
-        if !entered_code.trim().eq(code) {
+        if entered_code.trim() != code {
             return Err("The code does not match the joining device. Check both screens.");
         }
-        let name = p.name.clone();
-        let device_key = *device_key;
-        // A phone pairing again (its app data was cleared) replaces its old entry instead of leaving a dead twin.
-        let twins: Vec<String> = self.saved.devices.iter().filter(|d| d.name == name).map(|d| d.id.clone()).collect();
-        if self.saved.devices.len() - twins.len() >= MAX_DEVICES {
+        let twins = self.saved.devices.iter().filter(|d| d.name == p.name).count();
+        if self.saved.devices.len() - twins >= MAX_DEVICES {
             return Err("Too many paired devices. Remove one first.");
         }
-        for id in twins {
-            self.revoke(&id);
-        }
-        let device_id = hex(&crypto::random_bytes::<12>());
-        self.keys.insert(device_id.clone(), device_key);
-        self.saved.devices.push(Device { id: device_id.clone(), name, created_ms: now_ms(), seen_ms: now_ms() });
-        self.pairings.get_mut(pairing_id).unwrap().state = PairState::Approved { device_id: device_id.clone() };
-        self.persist_keys();
-        self.persist();
-        Ok(device_id)
+        let device_key = *device_key;
+        self.pairings.get_mut(pairing_id).unwrap().state = PairState::Approved { device_key };
+        Ok(())
     }
 
     pub fn deny(&mut self, pairing_id: &str) {
@@ -340,32 +331,42 @@ impl Inner {
                 let id = b.get("pairingId").and_then(Value::as_str).unwrap_or("");
                 let proof = b.get("proof").and_then(Value::as_str).filter(|s| s.len() <= 128).unwrap_or("");
                 let Some(p) = self.pairings.get(id) else { return fail(404, "no_such_pairing", "That pairing request is unknown or has expired.") };
-                let key = match &p.state {
-                    PairState::Waiting { device_key, .. } => device_key,
-                    PairState::Approved { device_id } => match self.keys.get(device_id) {
-                        Some(k) => k,
-                        None => return fail(401, "unauthorized", "This pairing is no longer authorized."),
-                    },
+                let (key, approved) = match &p.state {
+                    PairState::Waiting { device_key, .. } => (*device_key, false),
+                    PairState::Approved { device_key } => (*device_key, true),
                     PairState::Denied => {
                         self.pairings.remove(id);
                         return fail(403, "denied", "The computer declined this device.");
                     }
                     PairState::Committed { .. } => return (202, json!({ "pending": true }).to_string()),
                 };
-                // The public pairing id alone cannot claim a credential. Only the phone that
-                // derived the ECDH key can prove possession; AAD also binds it to this attempt.
+                // The pairing ID is public; the phone must prove possession of its ECDH key.
                 let aad = format!("nuvx-pair-claim:{id}");
-                if crypto::open(key, aad.as_bytes(), proof).as_deref() != Some(&b"claim"[..]) {
+                if crypto::open(&key, aad.as_bytes(), proof).as_deref() != Some(&b"claim"[..]) {
                     return fail(401, "bad_proof", "The claiming device did not prove possession of its pairing key.");
                 }
-                match &p.state {
-                    PairState::Approved { device_id } => {
-                        let reply = json!({ "deviceId": device_id, "spaceId": self.saved.space_id, "hostId": self.saved.host_id, "hostName": self.host_name });
-                        self.pairings.remove(id); // single use, even if proof replayed
-                        ok(reply)
-                    }
-                    _ => (202, json!({ "pending": true }).to_string()),
+                if !approved {
+                    return (202, json!({ "pending": true }).to_string());
                 }
+                // Nothing becomes permanently trusted before this authenticated, single-use claim.
+                let name = p.name.clone();
+                let twins: Vec<String> = self.saved.devices.iter()
+                    .filter(|d| d.name == name).map(|d| d.id.clone()).collect();
+                if self.saved.devices.len() - twins.len() >= MAX_DEVICES {
+                    return fail(409, "too_many_devices", "Too many paired devices. Remove one first.");
+                }
+                for old_id in twins {
+                    self.revoke(&old_id);
+                }
+                let device_id = hex(&crypto::random_bytes::<12>());
+                self.keys.insert(device_id.clone(), key);
+                self.saved.devices.push(Device {
+                    id: device_id.clone(), name, created_ms: now_ms(), seen_ms: now_ms(),
+                });
+                self.pairings.remove(id);
+                self.persist_keys();
+                self.persist();
+                ok(json!({ "deviceId": device_id, "spaceId": self.saved.space_id, "hostId": self.saved.host_id, "hostName": self.host_name }))
             }
             ("POST", "/lan/v1") => self.sealed(device_header.unwrap_or(""), body),
             _ => fail(404, "not_found", "Not found."),
