@@ -47,6 +47,7 @@ private sealed interface SyncDialog {
     data class Pairing(val server: String, val code: String, val secret: String, val expiresAtMs: Long) : SyncDialog
     data object Approve : SyncDialog
     data class Devices(val devices: List<SyncDevice>, val you: String) : SyncDialog
+    data object RevokeOthers : SyncDialog
     data object Leave : SyncDialog
     data object LanSetup : SyncDialog
     data class LanWaiting(val pairing: LanPairing) : SyncDialog
@@ -267,6 +268,42 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                 }
             },
             confirmButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(android.R.string.ok)) } },
+            dismissButton = {
+                if (!NuvxSync.isLan && d.devices.any { it.id != d.you }) {
+                    TextButton(enabled = !busy, onClick = { dialog = SyncDialog.RevokeOthers }) {
+                        Text(stringResource(R.string.nuvx_sync_revoke_others))
+                    }
+                }
+            },
+        )
+        SyncDialog.RevokeOthers -> AlertDialog(
+            onDismissRequest = { if (!busy) dialog = null },
+            title = { Text(stringResource(R.string.nuvx_sync_revoke_others)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.nuvx_sync_revoke_others_body))
+                    message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                val success = stringResource(R.string.nuvx_sync_revoke_others_done)
+                TextButton(enabled = !busy, onClick = {
+                    io {
+                        when (val result = withContext(Dispatchers.IO) { NuvxSync.revokeOthers() }) {
+                            SyncResult.Done -> {
+                                dialog = null
+                                message = success
+                            }
+                            else -> message = result.problem()
+                        }
+                    }
+                }) { Text(stringResource(R.string.remove), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(enabled = !busy, onClick = { dialog = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
         )
         SyncDialog.LanSetup -> {
             var address by remember { mutableStateOf("") }
