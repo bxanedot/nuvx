@@ -9,9 +9,15 @@ A native YouTube Music client for Windows, Linux and macOS, written in Rust (egu
 
 ## Build
 
+From the repository root, build and test the desktop crate:
+
 ```bash
+cd app/desktop
 cargo build --release
+cargo test
 ```
+
+The manifest is `app/desktop/Cargo.toml`; this command does not build the Android, iOS or web apps.
 
 Each system has its own folder: `windows/` (the Inno Setup installer, `windows/nuvx.iss`), `linux/` and `macos/`. Desktop packages include the app license and bundled font notices in a `licenses/` folder. The Linux package also includes notices for its vendored GLib crate. Last.fm needs `LASTFM_API_KEY` and
 `LASTFM_SECRET` set at build time; without them that sign-in is off.
