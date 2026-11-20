@@ -143,6 +143,47 @@ class AddonAuthTest {
     }
 
     @Test
+    fun `legacy addon token migrates only after verified encrypted commit`() {
+        val legacy = FakeSharedPreferences().apply {
+            edit().putString("token", "old-private-bearer")
+                .putString("alias", "hardware-key")
+                .putLong("expiresAt", 9_999_999_999_999L)
+                .putLong("clockOffset", 700L)
+                .commit()
+        }
+        val secure = FakeSharedPreferences()
+        assertTrue(AddonAuth.migrateLegacyTokenPrefs(legacy, secure))
+        assertEquals("old-private-bearer", secure.getString("token", null))
+        assertEquals("hardware-key", secure.getString("alias", null))
+        assertEquals(700L, secure.getLong("clockOffset", -1))
+        assertTrue(legacy.contains("token"), "copy alone cannot erase legacy until verified")
+        // Re-running migration must not replace an already encrypted newer token.
+        secure.edit().putString("token", "newer-secure-token").commit()
+        assertTrue(AddonAuth.migrateLegacyTokenPrefs(legacy, secure))
+        assertEquals("newer-secure-token", secure.getString("token", null))
+    }
+
+    @Test
+    fun `failed encrypted commit leaves the legacy token recoverable`() {
+        val legacy = FakeSharedPreferences().apply {
+            edit().putString("token", "keep-me")
+                .putString("alias", "hardware-key")
+                .putLong("expiresAt", 9_999_999_999_999L)
+                .commit()
+        }
+        val backing = FakeSharedPreferences()
+        val refusing = object : android.content.SharedPreferences by backing {
+            override fun edit(): android.content.SharedPreferences.Editor =
+                object : android.content.SharedPreferences.Editor by backing.edit() {
+                    override fun commit(): Boolean = false
+                }
+        }
+        assertTrue(!AddonAuth.migrateLegacyTokenPrefs(legacy, refusing))
+        assertEquals("keep-me", legacy.getString("token", null))
+        assertNull(backing.getString("token", null))
+    }
+
+    @Test
     fun `tester codes ignore case, spaces and dashes like the auth service does`() {
         val code = "K7Q2M-9XW4T-ZD3HP-RN8CV-JB6YF"
         assertEquals("K7Q2M9XW4TZD3HPRN8CVJB6YF", AddonAuth.normalizeTesterCode(code))
