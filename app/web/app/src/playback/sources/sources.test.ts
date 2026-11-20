@@ -16,6 +16,16 @@ describe('metadataMatches (same rules as desktop)', () => {
   });
 });
 
+describe('metadataMatches shared duration boundary', () => {
+  it('preserves the same exact threshold as the catalog matcher', () => {
+    const candidate = { title: 'Song', artist: 'Artist' };
+    expect(metadataMatches(want, { ...candidate, durationSec: 210 })).toBe(true);
+    expect(metadataMatches(want, { ...candidate, durationSec: 211 })).toBe(false);
+    expect(metadataMatches(want, { ...candidate, durationSec: null })).toBe(true);
+    expect(metadataMatches(want, { ...candidate, durationSec: 0 })).toBe(true);
+  });
+});
+
 describe('mediaUrl / seconds', () => {
   it('allows only https mp3/m4a/mp4 without credentials', () => {
     expect(mediaUrl('https://m.example/a.mp3?x=1')).not.toBeNull();
