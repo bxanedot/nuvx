@@ -247,6 +247,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         onResult: (Boolean) -> Unit = {},
     ) = playlistController.reorderPlaylist(playlist, original, reordered, onResult)
 
+    fun restoreLastLocalReorderVersion(browseId: String): Boolean =
+        playlistController.restoreLastLocalReorderVersion(browseId)
+
     fun deletePlaylist(playlist: UserPlaylist): (() -> Unit)? = playlistController.deletePlaylist(playlist)
 
     fun editablePlaylist(browseId: String?): UserPlaylist? =
