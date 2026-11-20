@@ -63,6 +63,7 @@ private fun SyncResult.problem(): String? = when (this) {
 internal fun SyncSettingsGroup(search: SettingsSearch) {
     val status by NuvxSync.status.collectAsStateWithLifecycle()
     val syncFavorites by NuvxSync.syncFavorites.collectAsStateWithLifecycle()
+    val syncHistory by NuvxSync.syncHistory.collectAsStateWithLifecycle()
     val playlists by LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var dialog by remember { mutableStateOf<SyncDialog?>(null) }
@@ -108,6 +109,16 @@ internal fun SyncSettingsGroup(search: SettingsSearch) {
                     title = favoriteTitle,
                     subtitle = if (syncFavorites) stringResource(R.string.nuvx_sync_favorites_on) else stringResource(R.string.nuvx_sync_favorites_off),
                     onClick = { NuvxSync.setSyncFavorites(!syncFavorites) },
+                )
+            }
+            val historyTitle = stringResource(R.string.nuvx_sync_history)
+            row(historyTitle, "listening", "history", "privacy", "optional") {
+                SettingsRow(
+                    icon = SfIcons.CloudDone,
+                    title = historyTitle,
+                    subtitle = if (syncHistory) stringResource(R.string.nuvx_sync_history_on)
+                        else stringResource(R.string.nuvx_sync_history_off),
+                    onClick = { NuvxSync.setSyncHistory(!syncHistory) },
                 )
             }
             val devicesTitle = stringResource(R.string.nuvx_sync_devices)
