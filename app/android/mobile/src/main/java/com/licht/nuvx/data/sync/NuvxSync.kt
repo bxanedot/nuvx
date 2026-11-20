@@ -290,6 +290,11 @@ object NuvxSync {
         val outcome = runCatching {
             engine(s.server).syncOnce(before.map { LibraryPlaylist(it.id, it.title, it.songs) })
         }.getOrElse { SyncOutcome.RetryLater(it.javaClass.simpleName) }
+        // A self-revocation can complete while this network call is in flight.
+        // Do not apply its reply or re-enable a session that is no longer authorized.
+        val stillAuthorized = _status.value.enabled &&
+            _status.value.server == s.server && _status.value.deviceId == s.deviceId
+        if (!stillAuthorized) return SyncOutcome.Stop("Sync authorization changed during request")
         when (outcome) {
             is SyncOutcome.Apply -> {
                 val applied = LocalPlaylistStore.replaceAllIfUnchanged(before, toLocal(outcome.playlists, before))
