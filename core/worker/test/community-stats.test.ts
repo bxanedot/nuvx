@@ -7,7 +7,7 @@ import { MAX_BYTES } from "../src/party.ts";
 test("publisher stats accept a bounded, typed snapshot without changing valid counts", () => {
   const published = communitySnapshot({
     memberCount: 125, activeListeners: 3,
-    listeners: [{ displayName: " Speaker ", minutes: 4 }, { displayName: "Guest", minutes: 8 }],
+    listeners: [{ displayName: " Speaker ", minutes: 4 }, { displayName: "Guest", minutes: 8 }, { displayName: "New", minutes: 0 }],
   }, 1234);
   assert.deepEqual(published, {
     memberCount: 125, activeListeners: 3,
