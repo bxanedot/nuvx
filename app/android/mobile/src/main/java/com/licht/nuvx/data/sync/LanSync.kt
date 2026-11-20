@@ -275,7 +275,11 @@ object LanPairingClient {
 
     /** [SyncResult.Waiting] until the computer approves, then [SyncResult.Joined] once (its token is the device key). */
     fun claim(p: LanPairing): SyncResult = try {
-        val (s, reply) = LanHttp.exchange(p.to, "POST", "/lan/pair/claim", buildJsonObject { put("pairingId", p.pairingId) }.toString())
+        val proof = LanSyncCrypto.seal(p.key, "nuvx-pair-claim:${p.pairingId}".toByteArray(), "claim".toByteArray())
+        val (s, reply) = LanHttp.exchange(p.to, "POST", "/lan/pair/claim", buildJsonObject {
+            put("pairingId", p.pairingId)
+            put("proof", proof)
+        }.toString())
         val json = runCatching { Json.parseToJsonElement(reply).jsonObject }.getOrNull()
         when (s) {
             200 -> SyncResult.Joined(json!!.str("spaceId"), json.str("deviceId"), LanSyncCrypto.b64(p.key))
