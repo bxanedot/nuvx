@@ -194,6 +194,7 @@ fun NowPlayingScreen(
                     description = stringResource(R.string.previous),
                     size = w * 0.2f,
                     iconSize = w * 0.105f,
+                    enabled = np.hasPrevious,
                     onClick = actions.previous,
                 )
                 Spacer(Modifier.width(w * 0.015f))
