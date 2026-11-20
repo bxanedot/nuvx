@@ -117,8 +117,10 @@ object LocalPlaylistStore {
         val updated = _playlists.value.map {
             if (it.id == current.id) it.copy(songs = replacement) else it
         }
+        // Only publish the edit after the synchronous durable commit succeeds.
+        // A rejected/partial write leaves the old playlist available to retry.
+        if (!persistCommitted(updated)) return false
         _playlists.value = updated
-        persist(updated)
         return true
     }
 
@@ -184,9 +186,22 @@ object LocalPlaylistStore {
         return _playlists.value.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }
     }
 
+    private fun persistCommitted(list: List<LocalPlaylist>): Boolean {
+        if (!this::prefs.isInitialized) return true
+        return runCatching { prefs.edit().putString(KEY_PLAYLISTS, encode(list)).commit() }.getOrDefault(false)
+    }
+
+    internal fun initForTesting(preferences: SharedPreferences) {
+        prefs = preferences
+        load()
+    }
+
     private fun persist(list: List<LocalPlaylist>) {
         if (!this::prefs.isInitialized) return
-        runCatching {
+        runCatching { prefs.edit().putString(KEY_PLAYLISTS, encode(list)).apply() }
+    }
+
+    private fun encode(list: List<LocalPlaylist>): String {
             val jsonArray = JSONArray()
             for (playlist in list) {
                 val pObj = JSONObject()
@@ -209,7 +224,6 @@ object LocalPlaylistStore {
                 pObj.put("songs", songsArray)
                 jsonArray.put(pObj)
             }
-            prefs.edit().putString(KEY_PLAYLISTS, jsonArray.toString()).apply()
-        }
+            return jsonArray.toString()
     }
 }
