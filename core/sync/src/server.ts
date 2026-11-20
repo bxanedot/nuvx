@@ -37,6 +37,12 @@ export function openDb(path: string): DatabaseSync {
   const db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
   const version = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  // A rollback must not silently operate on a database written by a newer,
+  // potentially incompatible schema. Leave the bytes intact for the newer build.
+  if (version > MIGRATIONS.length) {
+    db.close();
+    throw new Error(`Sync database schema v${version} is newer than supported v${MIGRATIONS.length}.`);
+  }
   for (let i = version; i < MIGRATIONS.length; i++) {
     db.exec("BEGIN");
     try {
