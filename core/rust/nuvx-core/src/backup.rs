@@ -311,6 +311,23 @@ mod tests {
     }
 
     #[test]
+    fn one_playlist_export_round_trips_without_private_categories() {
+        let empty = Playlist { id: "local_empty".into(), title: "Ø Empty 🧭".into(), tracks: vec![] };
+        assert_eq!(import(&export(&[empty.clone()], "1.0.4", "2026-11-20T00:00:00Z")).unwrap(), vec![empty]);
+        let tracks: Vec<_> = (0..2500).map(|i| {
+            track(&format!("{i:011}"), "Emoji 🎵 \"quoted\" and newline", "Artiste é", Some(123))
+        }).collect();
+        let single = Playlist { id: "local_unicode".into(), title: "Tést 🦊 Road".into(), tracks };
+        let encoded = export(&[single.clone()], "1.0.4", "2026-11-20T00:00:00Z");
+        assert!(encoded.len() < MAX_BYTES);
+        assert_eq!(import(&encoded).unwrap(), vec![single]);
+        let v: Value = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(v["playlists"].as_array().unwrap().len(), 1);
+        assert!(v["settings"].as_object().unwrap().is_empty());
+        assert!(v["listening"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
     fn reads_the_shared_android_format_case() {
         let fixture = include_str!("../../../contracts/backup-v1.json");
         let list = import(fixture).unwrap();
