@@ -42,6 +42,34 @@ class LyricFocusTest {
         assertEquals(listOf(1), activeLyricRows(lines, 2_500))
     }
 
+    @Test fun firstAndLastLineBoundariesRemainStableAcrossSeeks() {
+        val lines = listOf(
+            LyricLine(1_000, "first", sungUntilMs = 1_800),
+            LyricLine(2_000, "middle", sungUntilMs = 2_800),
+            LyricLine(3_000, "last", sungUntilMs = 3_900),
+        )
+        assertEquals(emptyList<Int>(), activeLyricRows(lines, 999))
+        assertEquals(listOf(0), activeLyricRows(lines, 1_000))
+        assertEquals(listOf(1), activeLyricRows(lines, 2_000))
+        assertEquals(listOf(2), activeLyricRows(lines, 3_000))
+        assertEquals(listOf(2), activeLyricRows(lines, 4_500), "last line stays selected after its end")
+        assertEquals(listOf(0), activeLyricRows(lines, 1_100), "backwards seeking must reset focus")
+        assertEquals(listOf(2), activeLyricRows(lines, 3_500), "forwards seeking must select last line")
+    }
+
+    @Test fun emptyUntimedAndSameTimestampLyricsHaveDeterministicFocus() {
+        assertEquals(emptyList<Int>(), activeLyricRows(emptyList(), 1_000))
+        val untimed = listOf(LyricLine(0, "first"), LyricLine(0, "second"))
+        assertEquals(listOf(1), activeLyricRows(untimed, 0))
+        assertEquals(listOf(1), activeLyricRows(untimed, 10_000))
+        val mixed = listOf(
+            LyricLine(0, "unknown"), LyricLine(0, "other"),
+            LyricLine(2_000, "known"),
+        )
+        assertEquals(listOf(1), activeLyricRows(mixed, 1_000))
+        assertEquals(listOf(2), activeLyricRows(mixed, 2_000))
+    }
+
     @Test fun backwardSeekRecomputesTheAnchor() {
         assertEquals(listOf(2), activeLyricRows(overlap, 5_500))
         assertEquals(listOf(0), activeLyricRows(overlap, 1_500))
