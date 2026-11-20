@@ -304,6 +304,7 @@ impl eframe::App for App {
         storage.set_string("nuvx_connect", b(self.lan.connect));
         storage.set_string("lib_list", b(self.lib_list));
         storage.set_string("norm_target", self.norm_target.map_or("off".into(), |t| t.to_string()));
+        storage.set_string("norm_by_output", serde_json::to_string(&self.norm_by_output).unwrap_or_default());
         storage.set_string("spatial_audio", b(self.spatial));
         storage.set_string("equalizer", serde_json::to_string(&self.eq).unwrap_or_default());
         storage.set_string("equalizer_by_output", serde_json::to_string(&self.eq_by_output).unwrap_or_default());
