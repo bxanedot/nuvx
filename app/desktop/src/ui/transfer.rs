@@ -247,9 +247,9 @@ fn import_file(app: &mut App) {
     let (tracks, duplicates) = crate::playlist_file::deduplicate(parsed.tracks);
     let count = tracks.len();
     let summary = format!(
-        "Playlist: {title}\\nSongs to import: {count}\\nDuplicate YouTube songs skipped: {duplicates}\\nEntries without a usable YouTube link: {}\\n\\nImport into a new local playlist?",
+        "Playlist: {title}\nSongs to import: {count}\nDuplicate YouTube songs skipped: {duplicates}\nEntries without a usable YouTube link: {}\n\nImport into a new local playlist?",
         parsed.unmatched
-    ).replace("\\n", "\n");
+    );
     let confirmed = rfd::MessageDialog::new()
         .set_title("Preview playlist import")
         .set_description(summary)
