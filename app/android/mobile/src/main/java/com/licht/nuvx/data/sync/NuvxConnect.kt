@@ -89,6 +89,10 @@ object NuvxConnect {
         art?.takeIf { it.startsWith("https://") && it.length <= 300 }?.let { put("art", it) }
     }
 
+    /** Only a single tail append is safe to mirror: reorders and replacements require a full load. */
+    internal fun appendedItem(previous: List<String>, current: List<String>): String? =
+        current.lastOrNull()?.takeIf { current.size == previous.size + 1 && current.dropLast(1) == previous }
+
     /** Plays [tracks] on the computer (the first from [positionMs]), or gets them ready there when [paused]. */
     fun load(tracks: List<JsonObject>, positionMs: Long, paused: Boolean) = buildJsonObject {
         put("action", "load"); put("positionMs", positionMs.coerceAtLeast(0)); put("paused", paused)
