@@ -14,6 +14,7 @@ import com.licht.nuvx.data.innertube.StreamResolver
 import com.licht.nuvx.download.Downloads
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +25,7 @@ internal class PlaybackErrorRecovery(
     private val player: () -> ExoPlayer?,
     private val onSwapping: (String) -> Unit,
     private val onStreamHostUnreachable: () -> Unit = {},
+    private val onNetworkOffline: () -> Unit = {},
 ) {
     private var audibleMediaId: String? = null
 
@@ -34,14 +36,25 @@ internal class PlaybackErrorRecovery(
     private val recoveries = mutableMapOf<String, Int>()
 
     private var retryingMediaId: String? = null
+    private var pendingRetry: Job? = null
+    private var offlineNoticeShown = false
+
+    private fun cancelPendingRetry() {
+        pendingRetry?.cancel()
+        pendingRetry = null
+    }
 
     fun onAudible(mediaId: String?) {
+        cancelPendingRetry() // Playback succeeded; never replay a delayed failed attempt.
         audibleMediaId = mediaId
         consecutiveErrorSkips = 0
         hostNoticeShown = false
+        offlineNoticeShown = false
     }
 
     fun onTrackChanged(becameCurrent: String?) {
+        cancelPendingRetry() // Also handles a different queue entry with the same media ID.
+        offlineNoticeShown = false
         if (becameCurrent == null || becameCurrent != retryingMediaId) {
             recoveries.clear()
         }
@@ -55,6 +68,7 @@ internal class PlaybackErrorRecovery(
             AudioCache.isOffline()
 
     fun recoverFrom(error: PlaybackException, player: ExoPlayer) {
+        cancelPendingRetry() // A newer error supersedes any scheduled retry.
         val item = player.currentMediaItem ?: return
         val mediaId = item.mediaId
         val uri = item.localConfiguration?.uri
@@ -112,8 +126,17 @@ internal class PlaybackErrorRecovery(
             }
         uri?.getQueryParameter("v")?.let(StreamChoice::forget)
         val networkFault = isNetworkFault(error)
-        scope.launch(TrackLog.about(mediaId)) {
-            delay(if (givingUp) RECOVERY_DELAY_MS else RecoveryPolicy.retryDelayMs(attempts))
+        if (AudioCache.isOffline()) {
+            // Retrying an uncached stream without connectivity only creates a
+            // retry storm; leave the current track in place for manual recovery.
+            if (!offlineNoticeShown) {
+                offlineNoticeShown = true
+                onNetworkOffline()
+            }
+            return
+        }
+        pendingRetry = scope.launch(TrackLog.about(mediaId)) {
+            delay(if (givingUp) RECOVERY_DELAY_MS else RecoveryPolicy.retryDelayWithJitterMs(attempts, mediaId))
             uri?.let { withContext(Dispatchers.IO) { AudioCache.discard(it, keepComplete = networkFault) } }
             if (givingUp) {
                 skipReason(verdict, error, neverStarted, attempts)?.let { reason ->
@@ -123,7 +146,11 @@ internal class PlaybackErrorRecovery(
             }
             withContext(Dispatchers.Main) {
                 val player = this@PlaybackErrorRecovery.player() ?: return@withContext
-                if (player.currentMediaItem?.mediaId != mediaId) return@withContext
+                if (!RecoveryPolicy.retryStillApplicable(
+                    mediaId, uri?.toString(),
+                    player.currentMediaItem?.mediaId, player.currentMediaItem?.localConfiguration?.uri?.toString(),
+                    player.playWhenReady,
+                )) return@withContext
                 TrackLog.d("nuvx", "retrying $mediaId from ${position}ms")
                 retryingMediaId = mediaId
                 player.seekTo(player.currentMediaItemIndex, position)
@@ -281,7 +308,7 @@ internal class PlaybackErrorRecovery(
 
     private fun skipPastUnplayable(mediaId: String, reason: String) {
         val exoPlayer = player() ?: return
-        if (exoPlayer.currentMediaItem?.mediaId != mediaId) return
+        if (exoPlayer.currentMediaItem?.mediaId != mediaId || !exoPlayer.playWhenReady) return
         if (!exoPlayer.hasNextMediaItem()) {
             TrackLog.w("nuvx", "$reason — and nothing after it in the queue", about = mediaId)
             return
@@ -317,6 +344,16 @@ internal object RecoveryPolicy {
 
     /** Doubles per attempt: 350 ms, 700 ms, so a brief network drop has time to recover. */
     fun retryDelayMs(attempts: Int): Long = RECOVERY_DELAY_MS shl (attempts - 1).coerceIn(0, MAX_RECOVERIES)
+
+    /** Spread simultaneous reconnects over 100 ms without changing the shared base policy. */
+    fun retryDelayWithJitterMs(attempts: Int, mediaId: String): Long =
+        retryDelayMs(attempts) + ((mediaId.hashCode().toLong() and 0x7fff_ffffL) % 101L)
+
+    /** A stale error must not seek a different queue item, source, or manually paused player. */
+    fun retryStillApplicable(
+        failedId: String, failedUri: String?,
+        currentId: String?, currentUri: String?, playWhenReady: Boolean,
+    ): Boolean = playWhenReady && failedId == currentId && failedUri == currentUri
 
     /** Null means stay on the track: it played before (a mid-song failure), or too many tracks in a row failed. */
     fun skipReason(permanent: String?, errorName: String, neverStarted: Boolean, attempts: Int, skipsInARow: Int): String? = when {
