@@ -336,17 +336,33 @@ impl Inner {
                 ok(json!({ "ok": true }))
             }
             ("POST", "/lan/pair/claim") => {
-                let id = json_body().and_then(|b| b.get("pairingId").and_then(Value::as_str).map(str::to_owned)).unwrap_or_default();
-                let Some(p) = self.pairings.get(&id) else { return fail(404, "no_such_pairing", "That pairing request is unknown or has expired.") };
+                let Some(b) = json_body() else { return fail(422, "invalid_json", "Body must be one JSON object.") };
+                let id = b.get("pairingId").and_then(Value::as_str).unwrap_or("");
+                let proof = b.get("proof").and_then(Value::as_str).filter(|s| s.len() <= 128).unwrap_or("");
+                let Some(p) = self.pairings.get(id) else { return fail(404, "no_such_pairing", "That pairing request is unknown or has expired.") };
+                let key = match &p.state {
+                    PairState::Waiting { device_key, .. } => device_key,
+                    PairState::Approved { device_id } => match self.keys.get(device_id) {
+                        Some(k) => k,
+                        None => return fail(401, "unauthorized", "This pairing is no longer authorized."),
+                    },
+                    PairState::Denied => {
+                        self.pairings.remove(id);
+                        return fail(403, "denied", "The computer declined this device.");
+                    }
+                    PairState::Committed { .. } => return (202, json!({ "pending": true }).to_string()),
+                };
+                // The public pairing id alone cannot claim a credential. Only the phone that
+                // derived the ECDH key can prove possession; AAD also binds it to this attempt.
+                let aad = format!("nuvx-pair-claim:{id}");
+                if crypto::open(key, aad.as_bytes(), proof).as_deref() != Some(b"claim" as &[u8]) {
+                    return fail(401, "bad_proof", "The claiming device did not prove possession of its pairing key.");
+                }
                 match &p.state {
                     PairState::Approved { device_id } => {
                         let reply = json!({ "deviceId": device_id, "spaceId": self.saved.space_id, "hostId": self.saved.host_id, "hostName": self.host_name });
-                        self.pairings.remove(&id); // single use
+                        self.pairings.remove(id); // single use, even if proof replayed
                         ok(reply)
-                    }
-                    PairState::Denied => {
-                        self.pairings.remove(&id);
-                        fail(403, "denied", "The computer declined this device.")
                     }
                     _ => (202, json!({ "pending": true }).to_string()),
                 }
