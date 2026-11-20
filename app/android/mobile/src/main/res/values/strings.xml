@@ -1335,6 +1335,9 @@
     <string name="nuvx_sync_approve">Approve</string>
     <string name="nuvx_sync_added">Added “%1$s”. If that is not your device, remove it under Devices.</string>
     <string name="nuvx_sync_devices">Devices</string>
+    <string name="nuvx_sync_history">Sync listening history separately</string>
+    <string name="nuvx_sync_history_off">Off · Listening history stays on this device</string>
+    <string name="nuvx_sync_history_on">On · Share counted track IDs and play times with paired devices</string>
     <string name="nuvx_sync_favorites">Sync favorites separately</string>
     <string name="nuvx_sync_favorites_off">Off · Like activity stays on this device</string>
     <string name="nuvx_sync_favorites_on">On · Share liked track IDs with your paired Sync devices</string>
