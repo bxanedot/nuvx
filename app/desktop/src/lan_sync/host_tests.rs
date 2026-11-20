@@ -255,6 +255,29 @@ fn remote_enqueue_requires_paired_permission_and_valid_song_before_queueing() {
 }
 
 #[test]
+fn capability_advertisement_matches_current_permissions_and_legacy_actions() {
+    let (mut host, _dir) = host();
+    let (device, key) = paired(&mut host);
+    let now = now_ms();
+    assert_eq!(call(&mut host, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).0, 403);
+    host.connect_allowed = true;
+    let capabilities = call(&mut host, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1["capabilities"].as_array().unwrap().clone();
+    for action in super::connect::LEGACY_ACTIONS {
+        assert!(capabilities.iter().any(|c| c.as_str() == Some(action)), "legacy action {action} must stay supported");
+    }
+    assert!(!capabilities.iter().any(|c| c == "enqueue"), "a guest or disabled queue cannot advertise append");
+    assert_eq!(call(&mut host, &device, &key, "POST", "/v1/connect", json!({
+        "action": "enqueue", "videoId": "dQw4w9WgXcQ"
+    }), now, &fresh()).0, 403);
+    host.queue_mutation_allowed = true;
+    let upgraded = call(&mut host, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1;
+    assert!(upgraded["capabilities"].as_array().unwrap().iter().any(|c| c == "enqueue"));
+    host.queue_mutation_allowed = false;
+    let downgraded = call(&mut host, &device, &key, "GET", "/v1/connect", Value::Null, now, &fresh()).1;
+    assert!(!downgraded["capabilities"].as_array().unwrap().iter().any(|c| c == "enqueue"));
+}
+
+#[test]
 fn the_computer_sees_a_phone_playing_and_controls_it() {
     let (mut h, _dir) = host();
     let (device, key) = paired(&mut h);
