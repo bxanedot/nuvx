@@ -219,6 +219,13 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now, maxDbB
         .all(space, after, limit) as { payload: string }[]).map((op) => ({ ...op, payload: JSON.parse(op.payload) }));
       return { status: 200, body: { api: API_VERSION, ops, more: ops.length === limit } };
     }
+    // Explicit server-side erasure of a Sync space's operation history, not a local opt-out.
+    // The authenticated caller must repeat the category in the confirmation.
+    if (route === "DELETE /v1/ops") {
+      if (body.confirm !== "delete-operations") return fail(422, "confirmation_required", "Confirm removal of synced operations.");
+      const removed = db.prepare("DELETE FROM ops WHERE space_id = ?").run(space);
+      return { status: 200, body: { ok: true, deleted: removed.changes } };
+    }
     if (route === "DELETE /v1/space") {
       db.prepare("DELETE FROM pairings WHERE space_id = ?").run(space);
       db.prepare("DELETE FROM spaces WHERE id = ?").run(space); // cascades to devices and ops
