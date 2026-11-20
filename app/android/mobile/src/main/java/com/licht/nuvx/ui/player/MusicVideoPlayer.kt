@@ -6,6 +6,10 @@ import android.view.ViewGroup
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import com.licht.nuvx.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -132,6 +136,19 @@ object MusicVideoEngine {
         }
     }
 
+    internal data class VideoProblem(val videoId: String, val message: String, val retryable: Boolean)
+    private val _problem = MutableStateFlow<VideoProblem?>(null)
+    internal val problem: StateFlow<VideoProblem?> = _problem.asStateFlow()
+
+    /** Explicit retry only. A failed stream must not spin in an automatic reload loop. */
+    internal fun retry(videoId: String) {
+        if (_problem.value?.videoId != videoId || topSurface()?.videoId != videoId) return
+        _problem.value = null
+        noPicture.remove(videoId)
+        streams.remove(videoId)
+        load(videoId)
+    }
+
     private val _shownVideoId = MutableStateFlow<String?>(null)
 
     val shownVideoId: StateFlow<String?> = _shownVideoId.asStateFlow()
@@ -215,8 +232,10 @@ object MusicVideoEngine {
                 load(id)
                 return
             }
+            val reason = if (isRefusal(error)) "Video unavailable or restricted" else "Video playback interrupted"
             noPicture += id
             unload()
+            _problem.value = VideoProblem(id, reason, retryable = !isRefusal(error))
         }
     }
 
@@ -357,6 +376,7 @@ object MusicVideoEngine {
     private fun load(videoId: String) {
         unload()
         loadedId = videoId
+        _problem.value = null
         val audioId = controller?.currentMediaItem?.mediaId
         loadedAudioId = audioId
         alignmentOffsetMs = audioId?.let { MusicVideoAlignment.cached(it, videoId) } ?: 0L
@@ -372,17 +392,24 @@ object MusicVideoEngine {
                 TrackLog.w(TAG, "video: no picture (${e.reason}): ${e.message}", about = videoId)
                 if (loadedId != videoId) return@launch
                 loadedId = null
-                if (e.reason != StreamResolveException.Reason.NETWORK) noPicture += videoId
+                val retryable = e.reason == StreamResolveException.Reason.NETWORK
+                if (!retryable) noPicture += videoId
+                _problem.value = VideoProblem(videoId,
+                    if (retryable) "Video connection interrupted" else "Video unavailable or restricted", retryable)
                 return@launch
             } catch (e: Exception) {
                 TrackLog.w(TAG, "video: couldn't resolve the picture: ${e.message}", about = videoId)
-                if (loadedId == videoId) loadedId = null
+                if (loadedId == videoId) {
+                    loadedId = null
+                    _problem.value = VideoProblem(videoId, "Video connection interrupted", retryable = true)
+                }
                 return@launch
             }
             if (loadedId != videoId) return@launch
             if (stream == null || stream.aspect < MIN_VIDEO_ASPECT) {
                 noPicture += videoId
                 loadedId = null
+                _problem.value = VideoProblem(videoId, "Video format unavailable", retryable = false)
                 return@launch
             }
             val exo = player ?: return@launch
@@ -541,6 +568,7 @@ internal fun AndroidMusicVideo(
     val aspect by MusicVideoEngine.aspect.collectAsStateWithLifecycle()
     val rendered = view != null && frameOn === view && shown == videoId
     val playing by MusicVideoEngine.playing.collectAsStateWithLifecycle()
+    val problem by MusicVideoEngine.problem.collectAsStateWithLifecycle()
 
     val awake = rendered && playing
     LaunchedEffect(view, awake) { view?.keepScreenOn = awake }
@@ -590,5 +618,14 @@ internal fun AndroidMusicVideo(
                 }
             },
         )
+        if (!rendered && problem?.videoId == videoId) {
+            if (problem?.retryable == true) {
+                TextButton(onClick = { MusicVideoEngine.retry(videoId) }) {
+                    Text(stringResource(R.string.music_video_retry))
+                }
+            } else {
+                Text(stringResource(R.string.music_video_unavailable))
+            }
+        }
     }
 }
