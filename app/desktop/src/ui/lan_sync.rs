@@ -195,12 +195,14 @@ impl super::App {
             Command::Next => self.next(),
             Command::Prev => self.prev(),
             Command::Seek(ms) => self.seek_to(std::time::Duration::from_millis(ms)),
+            Command::Enqueue(item) => {
+                // Keep existing playback and all prior/next queue entries in their original order.
+                if self.jam.guest() { return; }
+                let start = self.queue.enqueue(connect_track(item));
+                if start { self.play_current(); }
+            }
             Command::Load { tracks, position_ms, paused } => {
-                let tracks: Vec<crate::model::Track> = tracks.into_iter().map(|i| crate::model::Track {
-                    id: i.id, title: i.title, artists: vec![crate::model::Link { name: i.artist, id: None }],
-                    album: None, duration: None, thumbs: vec![crate::model::Thumb { url: i.art, width: 544, height: 544 }],
-                    track_nr: None, plays: None, music_video: false,
-                }).collect();
+                let tracks: Vec<crate::model::Track> = tracks.into_iter().map(connect_track).collect();
                 let at = std::time::Duration::from_millis(position_ms);
                 if !self.queue.replace(tracks, 0, None) {
                     return;
@@ -218,6 +220,20 @@ impl super::App {
                 }
             }
         }
+    }
+}
+
+fn connect_track(i: crate::lan_sync::connect::Item) -> crate::model::Track {
+    crate::model::Track {
+        id: i.id,
+        title: i.title,
+        artists: vec![crate::model::Link { name: i.artist, id: None }],
+        album: None,
+        duration: None,
+        thumbs: vec![crate::model::Thumb { url: i.art, width: 544, height: 544 }],
+        track_nr: None,
+        plays: None,
+        music_video: false,
     }
 }
 
@@ -396,6 +412,21 @@ pub(super) fn connect_settings(app: &mut App, ui: &mut Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn remote_enqueue_appends_without_replacing_playback_or_reordering_queue() {
+        use crate::lan_sync::connect::Command;
+        let mut queue = super::super::queue::Queue::new(super::super::queue::Repeat::Off);
+        assert!(queue.replace(vec![track("current", "Current"), track("next", "Next")], 0, None));
+        let parsed = Command::parse(&serde_json::json!({
+            "action": "enqueue", "videoId": "dQw4w9WgXcQ", "title": "Later", "artist": "Artist"
+        })).unwrap();
+        let Command::Enqueue(item) = parsed else { panic!("invalid remote operation"); };
+        assert!(!queue.enqueue(connect_track(item)), "existing playback is not restarted");
+        assert_eq!(queue.index, Some(0));
+        assert_eq!(queue.tracks.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(),
+            vec!["current", "next", "dQw4w9WgXcQ"]);
+    }
 
     fn track(id: &str, title: &str) -> Track {
         Track { id: id.into(), title: title.into(), artists: vec![], album: Some(Link { name: "Album".into(), id: None }), duration: Some(200), thumbs: vec![], track_nr: None, plays: None, music_video: false }
