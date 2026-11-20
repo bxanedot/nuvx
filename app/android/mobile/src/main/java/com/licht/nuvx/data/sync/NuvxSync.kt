@@ -277,9 +277,10 @@ object NuvxSync {
     }
 
     private fun favoritesChannel(): IndependentSyncChannel =
-        IndependentSyncChannel(client(), FileStore(File(app.filesDir, "nuvx-sync-favorites.json"))) {
-            _status.value.enabled && _syncFavorites.value
-        }
+        IndependentSyncChannel(
+            client(), FileStore(File(app.filesDir, "nuvx-sync-favorites.json")),
+            enabled = { _status.value.enabled && _syncFavorites.value },
+        )
 
     private fun recordLocalFavorite(videoId: String, liked: Boolean) {
         if (favoritesChannel().setFavorite(videoId, liked)) requestSync()
