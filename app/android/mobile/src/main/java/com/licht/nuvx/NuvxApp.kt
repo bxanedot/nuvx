@@ -1865,6 +1865,28 @@ internal fun NuvxApp(
                                                 bottom = listPadding.calculateBottomPadding(),
                                             ),
                                             onClose = { reorderTarget = null },
+                                            onRestore = if (
+                                                reordering.browseId.startsWith("local:playlist:") &&
+                                                com.licht.nuvx.data.spotify.LocalPlaylistStore
+                                                    .previousReorderVersion(reordering.playlistId) != null
+                                            ) {
+                                                {
+                                                    scope.launch {
+                                                        val result = snackbars.showSnackbar(
+                                                            message = context.getString(R.string.restore_playlist_confirm),
+                                                            actionLabel = context.getString(R.string.restore_playlist_action),
+                                                        )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            val restored = viewModel.restoreLastLocalReorderVersion(reordering.browseId)
+                                                            if (restored) {
+                                                                reorderTarget = null
+                                                            } else {
+                                                                showQueueNotice(context.getString(R.string.reorder_failed))
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else null,
                                             onSave = { reordered ->
                                                 val original = (reorderEntries as? UiState.Success)?.data.orEmpty()
                                                 reorderSaving = true
