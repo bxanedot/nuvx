@@ -79,6 +79,10 @@ data class QueueRow(
 @Immutable
 data class Queue(val rows: List<QueueRow>, val currentIndex: Int, val mediaId: String)
 
+/** An unavailable target or disconnected phone must not receive a skip command. */
+internal fun canIssueSkip(targetAvailable: Boolean, link: Link): Boolean =
+    targetAvailable && link == Link.Connected
+
 enum class Link {
     Connecting,
 
