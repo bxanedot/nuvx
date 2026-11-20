@@ -1,6 +1,6 @@
 # Icons and motion
 
-nuvx draws its symbols with [SFStudio](https://github.com/lylicht/SFStudio) (formerly GlyphStudio; the build in use is still published as `com.github.bxanedot.GlyphStudio:sfsymbols`, v2.0.0, until SFStudio has a tagged JitPack release) on every Compose surface: Android phone, TV, Wear, Auto and the shared UI. iOS uses Apple's built-in SF Symbols through SwiftUI. Both use the same symbol names, so a meaning looks the same everywhere.
+nuvx draws its symbols with [SFStudio](https://github.com/lylicht/SFStudio) (formerly GlyphStudio; the current Compose dependency is `com.github.lylicht.SFStudio:sfsymbols:v1.0.1`; the historical `bxanedot/GlyphStudio` coordinates remain relevant to older builds) on every Compose surface: Android phone, TV, Wear, Auto and the shared UI. iOS uses Apple's built-in SF Symbols through SwiftUI. Both use the same symbol names, so a meaning looks the same everywhere.
 
 ## Registry
 
