@@ -139,6 +139,26 @@ test("export returns everything; deleting the space removes data and access", ()
   assert.equal(a.call("GET", "/v1/export", me.token).status, 401);
 });
 
+test("confirmed Sync operation deletion removes only the owner's remote history", () => {
+  const a = app();
+  const owner = newSpace(a), companion = pair(a, owner.token, "Laptop"), outsider = newSpace(a, "Other space");
+  assert.equal(a.call("POST", "/v1/ops", owner.token, { ops: [op("owner1"), op("owner2")] }).status, 200);
+  assert.equal(a.call("POST", "/v1/ops", outsider.token, { ops: [op("foreign")] }).status, 200);
+  assert.equal(a.call("DELETE", "/v1/ops", undefined, { confirm: "delete-operations" }).status, 401);
+  assert.equal(a.call("DELETE", "/v1/ops", "unknown", { confirm: "delete-operations" }).status, 401);
+  assert.equal(a.call("DELETE", "/v1/ops", owner.token).status, 422);
+  assert.equal(a.call("DELETE", "/v1/ops", owner.token, { confirm: true }).status, 422);
+  assert.equal(a.call("GET", "/v1/export", owner.token).body.ops.length, 2);
+  assert.deepEqual(a.call("DELETE", "/v1/ops", owner.token, { confirm: "delete-operations" }), {
+    status: 200, body: { ok: true, deleted: 2 },
+  });
+  assert.deepEqual(a.call("GET", "/v1/export", companion.token).body.ops, []);
+  assert.deepEqual(a.call("GET", "/v1/export", outsider.token).body.ops.map((o: any) => o.id), ["foreign"]);
+  assert.equal(a.call("GET", "/v1/devices", owner.token).body.devices.length, 2, "device sessions must remain");
+  assert.equal(a.call("POST", "/v1/ops", companion.token, { ops: [op("after")] }).status, 200);
+  assert.deepEqual(a.call("GET", "/v1/export", owner.token).body.ops.map((o: any) => o.id), ["after"]);
+});
+
 test("a space stops at its storage limit, and export pages like a pull", () => {
   const a = app();
   const me = newSpace(a);
