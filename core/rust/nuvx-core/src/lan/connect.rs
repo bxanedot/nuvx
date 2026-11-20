@@ -39,6 +39,11 @@ pub struct Item {
 
 pub const MAX_TRACKS: usize = 20;
 
+/// Commands implemented by pre-enqueue Connect peers. Advertise these for legacy interop.
+pub const LEGACY_ACTIONS: [&str; 8] = [
+    "toggle", "play", "pause", "next", "previous", "seek", "load", "playTrack",
+];
+
 impl Command {
     /// `{"action": "toggle" | "play" | "pause" | "next" | "previous" | "seek" | "playTrack" | "enqueue", ...}`; anything else is refused.
     pub fn parse(body: &Value) -> Option<Self> {
