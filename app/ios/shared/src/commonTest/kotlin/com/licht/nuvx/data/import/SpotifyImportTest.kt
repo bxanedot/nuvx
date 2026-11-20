@@ -65,6 +65,23 @@ class SpotifyImportTest {
     ) = SpotifyImport.Candidate(videoId, title, artist, duration, null)
 
     @Test
+    fun importMappingKeepsOriginalSpotifyPlaylistAndSkipsUnavailableRows() {
+        val original = SpotifyImport.Playlist(
+            id = "37i9dQZF1DXcBWIGoYBM5M",
+            name = "Road trip",
+            tracks = listOf(track(), track(title = "Unavailable", artists = "Unknown")),
+        )
+        val savedSource = original.copy(tracks = original.tracks.toList())
+        val mapped = original.tracks.map { row ->
+            val candidates = if (row.title == "Yellow") listOf(candidate(videoId = "dQw4w9WgXcQ")) else emptyList()
+            SpotifyImport.bestMatch(row, candidates)
+        }
+        assertEquals(listOf(SpotifyImport.Status.MATCHED, SpotifyImport.Status.MISSING), mapped.map { it.status })
+        assertEquals(listOf("dQw4w9WgXcQ"), mapped.mapNotNull { it.videoId })
+        assertEquals(savedSource, original, "mapping must leave the Spotify source playlist unchanged")
+    }
+
+    @Test
     fun anExactRowMatches() {
         val match = SpotifyImport.bestMatch(track(), listOf(candidate()))
         assertEquals(SpotifyImport.Status.MATCHED, match.status)
