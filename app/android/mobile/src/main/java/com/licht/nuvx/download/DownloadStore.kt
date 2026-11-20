@@ -62,13 +62,17 @@ object DownloadStore {
         else -> null
     }
 
+    /** An interrupted zero-byte file or hidden partial must never be adopted as a finished download. */
+    internal fun validFinishedFile(file: File): Boolean =
+        file.isFile && file.length() > 0L && !file.name.endsWith(".part")
+
     fun existing(context: Context, name: String): Uri? =
         if (!AppSettings.exportDownloads.value) {
-            privateFile(context, name).takeIf { it.exists() }?.let(Uri::fromFile)
+            privateFile(context, name).takeIf(::validFinishedFile)?.let(Uri::fromFile)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            mediaStoreEntry(context, name)
+            mediaStoreEntry(context, name)?.takeIf { exists(context, it) }
         } else {
-            legacyFile(name).takeIf { it.exists() }?.let(Uri::fromFile)
+            legacyFile(name).takeIf(::validFinishedFile)?.let(Uri::fromFile)
         }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -91,8 +95,14 @@ object DownloadStore {
     }.onFailure { Log.w(TAG, "media store lookup failed for $name: ${it.message}") }.getOrNull()
 
     fun exists(context: Context, uri: Uri): Boolean = runCatching {
-        if (uri.scheme == "file") return uri.path?.let { File(it).exists() } == true
-        context.contentResolver.openFileDescriptor(uri, "r")?.use { true } == true
+        if (uri.scheme == "file") return uri.path?.let { validFinishedFile(File(it)) } == true
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+            when (val size = descriptor.statSize) {
+                0L -> false
+                in 1L..Long.MAX_VALUE -> true
+                else -> context.contentResolver.openInputStream(uri)?.use { it.read() != -1 } == true
+            }
+        } == true
     }.getOrDefault(false)
 
     fun delete(context: Context, uri: Uri): Boolean = runCatching {
@@ -123,6 +133,12 @@ object DownloadStore {
                 ?: error("Could not open $name for writing")
 
         fun commit(): Uri {
+            // The downloaded bytes must exist before the file becomes visible as a completed track.
+            if (part != null) {
+                if (!part.isFile || part.length() <= 0L) error("Download produced an empty or incomplete file")
+            } else if (!exists(context, uri)) {
+                error("Download produced an empty or incomplete file")
+            }
             if (part != null && target != null) {
                 if (!part.renameTo(target)) error("Could not finish writing $name")
                 MediaScannerConnection.scanFile(
