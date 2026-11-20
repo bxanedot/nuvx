@@ -22,6 +22,10 @@ import kotlin.coroutines.resumeWithException
 
 object Downloader {
 
+    /** Compare a completed transfer against its declared length when known. */
+    internal fun completeLength(written: Long, expected: Long?): Boolean =
+        written > 0 && (expected == null || written == expected)
+
     private const val TAG = "nuvx"
 
     private const val CHUNK_BYTES = 2L * 1024 * 1024
@@ -141,10 +145,9 @@ object Downloader {
             }
             sink.flush()
 
-            if (total != null && written < total) {
-                error("Download stopped at ${written}B of $total — try again")
+            if (!completeLength(written, total)) {
+                error("Download returned ${written}B instead of the expected ${total ?: "nonempty"} — try again")
             }
-            if (written == 0L) error("Download failed: nothing was sent")
             Log.d(TAG, "fetched ${written}B directly")
             written
         }
