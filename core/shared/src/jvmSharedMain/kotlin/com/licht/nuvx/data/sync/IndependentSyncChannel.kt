@@ -159,7 +159,7 @@ internal class IndependentSyncChannel(
                                     youtubeId.matches(videoId) && playedAt != null && playedAt > 0L
                                 ) seen.putIfAbsent(id, SyncedListen(id, videoId, playedAt))
                             }
-                            write(state.copy(cursor = pulled.cursor, history = seen.values.takeLast(MAX_HISTORY)))
+                            write(state.copy(cursor = pulled.cursor, history = seen.values.toList().takeLast(MAX_HISTORY)))
                         }
                     }
                 }
