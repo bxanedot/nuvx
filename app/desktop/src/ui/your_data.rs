@@ -17,6 +17,10 @@ fn clear_searches_preview_id() -> egui::Id {
     egui::Id::new("confirm-local-recent-searches-clear")
 }
 
+fn one_playlist_export_id() -> egui::Id {
+    egui::Id::new("export-one-local-playlist")
+}
+
 /// Only the local recent-search category is mutated; remote and Sync data are untouched.
 fn clear_recent_searches(searches: &mut Vec<super::RecentSearch>, confirmed: bool) -> usize {
     if !confirmed { return 0; }
@@ -63,16 +67,20 @@ pub(super) fn pane(app: &mut App, ui: &mut Ui) {
         }
         let n = app.local_playlists.len();
         let desc = format!("Your {n} playlist{} as a file the phone's backup can read, and the other way round. Importing adds playlists you don't have yet.", if n == 1 { "" } else { "s" });
-        let (mut export, mut import) = (false, false);
+        let (mut export, mut import, mut one) = (false, false, false);
         setting_row(ui, "Backup", Some(&desc), |ui| {
             import = pill(ui, "Import…", None, false).clicked();
             export = pill(ui, "Export…", None, false).clicked();
+            ui.add_enabled_ui(n > 0, |ui| one = pill(ui, "One playlist…", None, false).clicked());
         });
         if export {
             export_backup(app);
         }
         if import {
             import_backup(app, ui.ctx());
+        }
+        if one {
+            ui.ctx().data_mut(|d| d.insert_temp(one_playlist_export_id(), true));
         }
         let n = app.recent_searches.len();
         let mut clear = false;
@@ -85,6 +93,7 @@ pub(super) fn pane(app: &mut App, ui: &mut Ui) {
         }
     });
     confirm_recent_searches_clear(app, ui);
+    choose_one_playlist_export(app, ui);
     restore_preview(app, ui);
     ui.add_space(18.0);
     section_label(ui, "What leaves it, and when", None);
@@ -162,17 +171,59 @@ fn confirm_recent_searches_clear(app: &mut App, ui: &mut Ui) {
     }
 }
 
-fn export_backup(app: &mut App) {
+fn choose_one_playlist_export(app: &mut App, ui: &mut Ui) {
+    if !ui.ctx().data(|d| d.get_temp::<bool>(one_playlist_export_id()).unwrap_or(false)) {
+        return;
+    }
+    let mut selected = None;
+    let mut cancel = false;
+    egui::Window::new("Export one local playlist")
+        .collapsible(false)
+        .resizable(false)
+        .show(ui.ctx(), |ui| {
+            ui.label("Only the selected local playlist is included. No data is uploaded.");
+            egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                for p in &app.local_playlists {
+                    if ui.button(format!("{} ({} songs)", p.title, p.tracks.len())).clicked() {
+                        selected = Some(p.id.clone());
+                    }
+                }
+            });
+            cancel = ui.button("Cancel").clicked();
+        });
+    if cancel || selected.is_some() {
+        ui.ctx().data_mut(|d| d.remove_temp::<bool>(one_playlist_export_id()));
+    }
+    if let Some(id) = selected {
+        let lists: Vec<_> = app.local_playlists.iter().filter(|p| p.id == id).take(1).map(|p| nuvx_core::backup::Playlist {
+            id: p.id.clone(), title: p.title.clone(), tracks: p.tracks.clone(),
+        }).collect();
+        save_backup(app, &lists, "nuvx-playlist");
+    }
+}
+
+fn save_backup(app: &mut App, lists: &[nuvx_core::backup::Playlist], prefix: &str) {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
     let stamp = nuvx_core::backup::iso_utc(now);
-    let name = format!("nuvx-backup-{}.json", &stamp[..10]);
-    let Some(path) = rfd::FileDialog::new().set_title("Export backup").set_file_name(name).add_filter("nuvx backup", &["json"]).save_file() else { return };
-    let lists: Vec<_> = app.local_playlists.iter().map(|p| nuvx_core::backup::Playlist { id: p.id.clone(), title: p.title.clone(), tracks: p.tracks.clone() }).collect();
-    let text = nuvx_core::backup::export(&lists, &crate::update::current_version().to_string(), &stamp);
+    let name = format!("{prefix}-{}.json", &stamp[..10]);
+    let text = nuvx_core::backup::export(lists, &crate::update::current_version().to_string(), &stamp);
+    if text.len() > nuvx_core::backup::MAX_BYTES {
+        app.toast("That playlist exceeds the supported backup size");
+        return;
+    }
+    // Cancellation never creates files, uploads data, or edits local playlists.
+    let Some(path) = rfd::FileDialog::new().set_title("Export nuvx playlists").set_file_name(name).add_filter("nuvx backup", &["json"]).save_file() else { return };
     match std::fs::write(&path, text) {
         Ok(()) => app.toast("Backup saved"),
         Err(e) => app.toast(&format!("Couldn't save the backup: {e}")),
     }
+}
+
+fn export_backup(app: &mut App) {
+    let lists: Vec<_> = app.local_playlists.iter().map(|p| nuvx_core::backup::Playlist {
+        id: p.id.clone(), title: p.title.clone(), tracks: p.tracks.clone(),
+    }).collect();
+    save_backup(app, &lists, "nuvx-backup");
 }
 
 fn import_backup(app: &mut App, ctx: &egui::Context) {
