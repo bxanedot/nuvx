@@ -9,7 +9,17 @@ object LikeState {
     private val _overrides = MutableStateFlow<Map<String, LikeStatus>>(emptyMap())
     val overrides: StateFlow<Map<String, LikeStatus>> = _overrides.asStateFlow()
 
+    /** Optional app-owned listener for explicit local like/unlike changes. No transport here. */
+    var onChanged: ((String, LikeStatus) -> Unit)? = null
+
     fun set(videoId: String, status: LikeStatus) {
+        if (_overrides.value[videoId] == status) return
+        _overrides.value += (videoId to status)
+        onChanged?.invoke(videoId, status)
+    }
+
+    /** Remote state updates never generate an echo operation. */
+    fun applySynced(videoId: String, status: LikeStatus) {
         _overrides.value += (videoId to status)
     }
 
