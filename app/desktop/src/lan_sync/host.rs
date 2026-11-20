@@ -527,7 +527,7 @@ impl Inner {
                 let Some(command) = super::connect::Command::parse(&body) else {
                     return err(422, "bad_command", "Unknown or invalid command.");
                 };
-                if matches!(command, super::connect::Command::Enqueue(_)) && !self.queue_mutation_allowed {
+                if matches!(&command, super::connect::Command::Enqueue(_)) && !self.queue_mutation_allowed {
                     return err(403, "queue_off", "Remote queue edits are unavailable in this playback mode.");
                 }
                 if self.connect_commands.len() >= super::connect::MAX_QUEUED {
