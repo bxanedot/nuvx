@@ -145,6 +145,26 @@ class SpotifyImportTest {
     }
 
     @Test
+    fun validAndUnavailableServiceRowsDoNotModifyTheSourceCollection() {
+        val source = SpotifyImport.Playlist(
+            "37i9dQZF1DXcBWIGoYBM5M",
+            "Imported privately",
+            listOf(track(title = "Yellow"), track(title = "Unavailable", artists = "Unknown")),
+        )
+        val original = source.copy(tracks = source.tracks.toList())
+        val matches = source.tracks.map { entry ->
+            SpotifyImport.bestMatch(
+                entry,
+                if (entry.title == "Yellow") listOf(candidate()) else emptyList(),
+            )
+        }
+        assertEquals(listOf(SpotifyImport.Status.MATCHED, SpotifyImport.Status.MISSING), matches.map { it.status })
+        assertEquals("vid", matches[0].videoId)
+        assertNull(matches[1].videoId)
+        assertEquals(original, source, "Mapping rows must never alter the Spotify source playlist")
+    }
+
+    @Test
     fun anEmptySearchIsMissing() {
         val match = SpotifyImport.bestMatch(track(), emptyList())
         assertEquals(SpotifyImport.Status.MISSING, match.status)
