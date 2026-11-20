@@ -78,14 +78,14 @@ internal class MainAccountController(
 
     // Logout invalidates all account requests started before it, including a
     // sign-in response that returns from the network after the user signed out.
-    private var sessionEpoch = 0L
+    private val requestEpoch = AccountRequestEpoch()
 
     fun loadAccount() {
         val identity = listenerKey()
-        val epoch = sessionEpoch
+        val epoch = requestEpoch.capture()
         scope.launch {
             val account = YtMusicRepository.account().getOrNull()
-            if (epoch != sessionEpoch || identity != listenerKey()) return@launch
+            if (!requestEpoch.isCurrent(epoch) || identity != listenerKey()) return@launch
             _account.value = account
             if (account != null && _selectedChannelKey.value != null) {
                 _selectedChannelName.value = account.name
@@ -113,18 +113,18 @@ internal class MainAccountController(
         if (_channelsLoading.value) return
         if (!force && _channels.value.isNotEmpty()) return
         val identity = listenerKey()
-        val epoch = sessionEpoch
+        val epoch = requestEpoch.capture()
         scope.launch {
             _channelsLoading.value = true
             try {
                 YtMusicRepository.accountChannels().onSuccess {
-                    if (epoch == sessionEpoch && signedIn.value && identity == listenerKey()) {
+                    if (requestEpoch.isCurrent(epoch) && signedIn.value && identity == listenerKey()) {
                         _channels.value = it
                         persistDetectedProfiles(it)
                     }
                 }
             } finally {
-                if (epoch == sessionEpoch) _channelsLoading.value = false
+                if (requestEpoch.isCurrent(epoch)) _channelsLoading.value = false
             }
         }
     }
@@ -151,9 +151,9 @@ internal class MainAccountController(
         }
         val oldAccountId = _activeAccountId.value
         val oldProfileId = _activeProfileId.value
-        val epoch = sessionEpoch
+        val epoch = requestEpoch.capture()
         scope.launch {
-            if (epoch != sessionEpoch) { onComplete(false); return@launch }
+            if (!requestEpoch.isCurrent(epoch)) { onComplete(false); return@launch }
             Innertube.cookie = session.cookie
             Innertube.adoptSessionScope(
                 pageId = session.pageId,
@@ -173,7 +173,7 @@ internal class MainAccountController(
                 }
                 result.getOrNull()
             }
-            if (epoch != sessionEpoch) {
+            if (!requestEpoch.isCurrent(epoch)) {
                 onComplete(false)
                 return@launch
             }
@@ -358,7 +358,7 @@ internal class MainAccountController(
     }
 
     fun signOut() {
-        sessionEpoch++
+        requestEpoch.invalidate()
         _channelsLoading.value = false
         val current = _activeAccountId.value
         if (current != null && authStore.sessions.size > 1) {
@@ -386,4 +386,12 @@ internal class MainAccountController(
         _songMenu.value = null
         homeFeed.loadHome()
     }
+}
+
+/** Captured by async account requests; explicit sign-out invalidates prior completions. */
+internal class AccountRequestEpoch {
+    private var generation = 0L
+    fun capture(): Long = generation
+    fun isCurrent(captured: Long): Boolean = captured == generation
+    fun invalidate() { generation++ }
 }
