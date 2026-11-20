@@ -17,6 +17,36 @@ class RecoveryPolicyTest {
     }
 
     @Test
+    fun staleRetryGuardRejectsTrackChangesSourceChangesAndUserPause() {
+        assertTrue(RecoveryPolicy.retryStillApplicable(
+            "song1", "https://source/a", "song1", "https://source/a", true,
+        ))
+        assertFalse(RecoveryPolicy.retryStillApplicable(
+            "song1", "https://source/a", "song2", "https://source/a", true,
+        ))
+        assertFalse(RecoveryPolicy.retryStillApplicable(
+            "song1", "https://source/a", "song1", "https://source/b", true,
+        ))
+        assertFalse(RecoveryPolicy.retryStillApplicable(
+            "song1", "https://source/a", "song1", "https://source/a", false,
+        ))
+        assertFalse(RecoveryPolicy.retryStillApplicable(
+            "song1", null, null, null, true,
+        ))
+    }
+
+    @Test
+    fun jitterStaysBoundedAndDeterministicOverBaseBackoff() {
+        for (attempt in 1..RecoveryPolicy.MAX_RECOVERIES) {
+            val base = RecoveryPolicy.retryDelayMs(attempt)
+            val jittered = RecoveryPolicy.retryDelayWithJitterMs(attempt, "song")
+            assertTrue(jittered >= base)
+            assertTrue(jittered <= base + 100L)
+            assertEquals(jittered, RecoveryPolicy.retryDelayWithJitterMs(attempt, "song"))
+        }
+    }
+
+    @Test
     fun aPermanentFailureIsNeverRetried() {
         assertTrue(RecoveryPolicy.givesUp(1, "removed"))
         assertEquals("removed", RecoveryPolicy.skipReason("removed", "E", neverStarted = false, attempts = 1, skipsInARow = 9))
