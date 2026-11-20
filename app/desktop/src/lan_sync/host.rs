@@ -523,6 +523,8 @@ impl Inner {
                 if self.queue_mutation_allowed {
                     actions.push("enqueue");
                 }
+                // Desktop output exposes a real normalized volume control.
+                actions.push("volume");
                 state["capabilities"] = json!(actions);
                 (200, state)
             },
