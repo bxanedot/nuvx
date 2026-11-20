@@ -21,7 +21,10 @@ export function communitySnapshot(value: unknown, now: number = Date.now()): Com
     const row = item as Record<string, unknown>;
     if (typeof row.displayName !== "string" || typeof row.minutes !== "number") return null;
     const displayName = row.displayName.trim();
-    if (!displayName || displayName.length > 80 || !Number.isFinite(row.minutes) || row.minutes <= 0) return null;
+    if (!displayName || displayName.length > 80 || !Number.isFinite(row.minutes) || row.minutes < 0) return null;
+    // The bot may report a new listener with fewer than 60 accumulated seconds.
+    // Keep the previous behavior: omit a zero-minute row, but accept the snapshot.
+    if (row.minutes === 0) continue;
     listeners.push({ displayName, minutes: Math.min(10_000_000, Math.floor(row.minutes)) });
   }
   listeners.sort((a, b) => b.minutes - a.minutes);
