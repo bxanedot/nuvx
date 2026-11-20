@@ -397,6 +397,16 @@ internal class MainPlaylistController(
         }
     }
 
+    /** Restore a local reorder checkpoint only when its expected version is still current. */
+    fun restoreLastLocalReorderVersion(browseId: String): Boolean {
+        if (!browseId.startsWith("local:playlist:")) return false
+        val store = com.licht.nuvx.data.spotify.LocalPlaylistStore
+        if (!store.restoreLastReorderVersion(browseId)) return false
+        val restored = store.getPlaylist(browseId) ?: return false
+        showLocalSongs(browseId, restored.songs)
+        return true
+    }
+
     fun reorderPlaylist(
         playlist: UserPlaylist,
         original: List<Song>,
