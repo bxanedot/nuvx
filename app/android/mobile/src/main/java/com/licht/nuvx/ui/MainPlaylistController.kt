@@ -404,7 +404,7 @@ internal class MainPlaylistController(
         onResult: (Boolean) -> Unit = {},
     ) {
         if (playlist.browseId.startsWith("local:playlist:")) {
-            val saved = com.licht.nuvx.data.spotify.LocalPlaylistStore.replaceSongs(playlist.playlistId, reordered)
+            val saved = com.licht.nuvx.data.spotify.LocalPlaylistStore.replaceSongsIfUnchanged(playlist.playlistId, original, reordered)
             if (saved) _detailStack.value = _detailStack.value.map { page ->
                 if (page.browseId == playlist.browseId) page.copy(songs = UiState.Success(withArtwork(reordered, page.thumbnailUrl))) else page
             }
