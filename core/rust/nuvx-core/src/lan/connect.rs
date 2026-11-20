@@ -17,6 +17,8 @@ pub enum Command {
     Next,
     Prev,
     Seek(u64),
+    /// Append one validated YouTube track without moving or replacing the existing queue.
+    Enqueue(Item),
     /// The phone moved playback here: these songs (the current one first, then what follows in its queue),
     /// the current one from `position_ms`, playing or ready to play.
     Load {
@@ -38,7 +40,7 @@ pub struct Item {
 pub const MAX_TRACKS: usize = 20;
 
 impl Command {
-    /// `{"action": "toggle" | "play" | "pause" | "next" | "previous" | "seek" | "playTrack", ...}`; anything else is refused.
+    /// `{"action": "toggle" | "play" | "pause" | "next" | "previous" | "seek" | "playTrack" | "enqueue", ...}`; anything else is refused.
     pub fn parse(body: &Value) -> Option<Self> {
         let position = || {
             body.get("positionMs")
@@ -52,6 +54,7 @@ impl Command {
             "next" => Command::Next,
             "previous" => Command::Prev,
             "seek" => Command::Seek(position()?),
+            "enqueue" => Command::Enqueue(item(body)?),
             "playTrack" => Command::Load {
                 tracks: vec![item(body)?],
                 position_ms: position().unwrap_or(0),
@@ -255,6 +258,23 @@ mod tests {
         );
         assert_eq!(Command::parse(&json!({ "action": "shutdown" })), None);
         assert_eq!(Command::parse(&json!("next")), None);
+    }
+
+    #[test]
+    fn enqueue_only_accepts_one_valid_youtube_track() {
+        let expected = Item {
+            id: "dQw4w9WgXcQ".into(),
+            title: "First".into(),
+            artist: "Artist".into(),
+            art: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg".into(),
+        };
+        assert_eq!(
+            Command::parse(&json!({ "action": "enqueue", "videoId": "dQw4w9WgXcQ", "title": "First", "artist": "Artist" })),
+            Some(Command::Enqueue(expected))
+        );
+        assert_eq!(Command::parse(&json!({ "action": "enqueue", "videoId": "file:///local.wav" })), None);
+        assert_eq!(Command::parse(&json!({ "action": "enqueue", "tracks": [{ "videoId": "dQw4w9WgXcQ" }] })), None);
+        assert_eq!(Command::parse(&json!({ "action": "enqueue", "videoId": "dQw4w9WgXcQ", "title": "x".repeat(301) })), None);
     }
 
     #[test]
