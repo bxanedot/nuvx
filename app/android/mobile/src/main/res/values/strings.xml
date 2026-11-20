@@ -1335,6 +1335,9 @@
     <string name="nuvx_sync_approve">Approve</string>
     <string name="nuvx_sync_added">Added “%1$s”. If that is not your device, remove it under Devices.</string>
     <string name="nuvx_sync_devices">Devices</string>
+    <string name="nuvx_sync_theme">Sync appearance theme separately</string>
+    <string name="nuvx_sync_theme_off">Off · Theme stays on this device</string>
+    <string name="nuvx_sync_theme_on">On · Share only System, Light or Dark · No secrets or audio-device preferences</string>
     <string name="nuvx_sync_history">Sync listening history separately</string>
     <string name="nuvx_sync_history_off">Off · Listening history stays on this device</string>
     <string name="nuvx_sync_history_on">On · Share counted track IDs and play times with paired devices</string>
