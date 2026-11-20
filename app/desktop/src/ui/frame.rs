@@ -307,6 +307,9 @@ impl eframe::App for App {
         storage.set_string("norm_by_output", serde_json::to_string(&self.norm_by_output).unwrap_or_default());
         storage.set_string("spatial_audio", b(self.spatial));
         storage.set_string("equalizer", serde_json::to_string(&self.eq).unwrap_or_default());
+        // Persist edits to the selected device even if the user never switched outputs.
+        let active_output_key = self.output_device.as_ref().map_or("", |(id, _)| id.as_str());
+        self.eq_by_output.insert(active_output_key.to_owned(), self.eq);
         storage.set_string("equalizer_by_output", serde_json::to_string(&self.eq_by_output).unwrap_or_default());
         storage.set_string("log_volume", b(self.log_volume));
         storage.set_string("high_quality", b(self.high_quality));
