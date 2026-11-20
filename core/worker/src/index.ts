@@ -4,6 +4,7 @@ import { handleCanvasUpload } from "./canvas-route.ts";
 import { countReleaseDownloads } from "./downloads.ts";
 import { invitePage } from "./invite.ts";
 import { readRequestBytes } from "./request-body.ts";
+import { communitySnapshot, type CommunitySnapshot } from "./community-stats.ts";
 
 export interface Env {
   PARTIES: DurableObjectNamespace<Party>;
@@ -30,13 +31,6 @@ const COUNTS_CACHE_MS = 5_000;
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
 type Reply = { status: number; body: unknown };
-type CommunityListener = { displayName: string; minutes: number };
-type CommunitySnapshot = {
-  memberCount: number;
-  activeListeners: number;
-  listeners: CommunityListener[];
-  updatedAt: number;
-};
 const EMPTY_COMMUNITY: CommunitySnapshot = { memberCount: 0, activeListeners: 0, listeners: [], updatedAt: 0 };
 const err = (f: P.Fail): Reply => ({ status: f.status, body: { error: f.error, message: f.message } });
 const isFail = (v: unknown): v is P.Fail => !!v && typeof v === "object" && "error" in v && "status" in v;
@@ -48,25 +42,6 @@ function constantTimeEqual(a: string, b: string): boolean {
   let difference = 0;
   for (let i = 0; i < a.length; i++) difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return difference === 0;
-}
-
-function communitySnapshot(value: unknown): CommunitySnapshot | null {
-  if (!value || typeof value !== "object") return null;
-  const body = value as Record<string, unknown>;
-  const memberCount = Number(body.memberCount), activeListeners = Number(body.activeListeners);
-  if (!Number.isInteger(memberCount) || memberCount < 0 || memberCount > 1_000_000) return null;
-  if (!Number.isInteger(activeListeners) || activeListeners < 0 || activeListeners > 100_000) return null;
-  if (!Array.isArray(body.listeners)) return null;
-  const listeners = body.listeners.slice(0, 10).flatMap((item): CommunityListener[] => {
-    if (!item || typeof item !== "object") return [];
-    const row = item as Record<string, unknown>;
-    const displayName = typeof row.displayName === "string" ? row.displayName.trim().slice(0, 80) : "";
-    const minutes = Number(row.minutes);
-    return displayName && Number.isFinite(minutes) && minutes > 0
-      ? [{ displayName, minutes: Math.min(10_000_000, Math.floor(minutes)) }]
-      : [];
-  }).sort((a, b) => b.minutes - a.minutes);
-  return { memberCount, activeListeners, listeners, updatedAt: Date.now() };
 }
 
 function json(body: unknown, status: number, origin: string | null, extra: Record<string, string> = {}) {
