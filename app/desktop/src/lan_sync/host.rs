@@ -508,7 +508,21 @@ impl Inner {
                 (200, json!({ "commands": commands }))
             }
             ("GET" | "POST", "/v1/connect") if !self.connect_allowed => err(403, "connect_off", "Remote control is turned off on this computer."),
-            ("GET", "/v1/connect") => (200, if self.connect_now.is_null() { json!({ "track": null, "playing": false }) } else { self.connect_now.clone() }),
+            ("GET", "/v1/connect") => {
+                let mut state = if self.connect_now.is_null() {
+                    json!({ "track": null, "playing": false })
+                } else {
+                    self.connect_now.clone()
+                };
+                // Capabilities travel with the authenticated state response. Old peers omit
+                // this field; new peers must never advertise queue mutation while disabled.
+                let mut actions = super::connect::LEGACY_ACTIONS.to_vec();
+                if self.queue_mutation_allowed {
+                    actions.push("enqueue");
+                }
+                state["capabilities"] = json!(actions);
+                (200, state)
+            },
             ("POST", "/v1/connect") => {
                 let Some(command) = super::connect::Command::parse(&body) else {
                     return err(422, "bad_command", "Unknown or invalid command.");
