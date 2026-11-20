@@ -20,7 +20,10 @@ internal class TimedArtworkCache(
         if (cacheable) {
             synchronized(entries) {
                 val entry = entries[key]
-                if (entry != null && nowMs() - entry.atMs in 0 until ttlMs) return entry.asset
+                if (entry != null) {
+                    val age = nowMs() - entry.atMs
+                    if (age >= 0 && age < ttlMs) return entry.asset
+                }
                 entries.remove(key)
             }
         }
