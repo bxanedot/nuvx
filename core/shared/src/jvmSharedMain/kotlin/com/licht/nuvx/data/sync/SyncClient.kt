@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -78,8 +79,16 @@ class SyncClient(
             bytes += size
         }
         val body = buildJsonObject { put("ops", buildJsonArray { batch.forEach { add(it) } }) }.toString()
-        return call(Request.Builder().url("$baseUrl/v1/ops").post(body.toRequestBody(JSON))) {
-            SyncResult.Pushed(batch.map { it.getValue("id").jsonPrimitive.content })
+        return call(Request.Builder().url("$baseUrl/v1/ops").post(body.toRequestBody(JSON))) { json ->
+            // HTTP 200 alone is not a durable acknowledgement. A proxy or incompatible
+            // server may return success without having stored the operations.
+            val receipts = (json["seqs"] as? kotlinx.serialization.json.JsonArray)
+                ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.longOrNull }
+            if (receipts == null || receipts.size != batch.size || receipts.any { it <= 0L }) {
+                SyncResult.RetryLater("Sync server did not confirm durable operation receipts")
+            } else {
+                SyncResult.Pushed(batch.map { it.getValue("id").jsonPrimitive.content })
+            }
         }
     }
 
