@@ -207,7 +207,7 @@ pub(super) fn run(
                     }
                 }
             }
-            Ok(AudioCmd::DeviceLost) => {
+            Ok(AudioCmd::DeviceLost(gen)) if gen == output.generation.load(Ordering::Acquire) => {
                 let was = output.device.clone();
                 output.open(tx.clone(), &status);
                 if output.device != was && !player.is_paused() && (current != 0 || !fading.is_empty()) {
@@ -218,6 +218,8 @@ pub(super) fn run(
                     wake();
                 }
             }
+            // Retired sink callbacks may be queued after a rapid route change.
+            Ok(AudioCmd::DeviceLost(_)) => {}
             Ok(AudioCmd::SetDevice(id)) => {
                 log::info!("audio: output device set to {id:?}");
                 output.preferred = id;
@@ -241,13 +243,14 @@ pub(super) fn run(
             log::info!("audio: dev hook: output device lost");
             output.sink = None;
             output.device = Some("dev-hook-gone".into());
-            output.lost.store(true, Ordering::Relaxed);
-            let _ = tx.send(AudioCmd::DeviceLost);
+            let gen = output.generation.load(Ordering::Acquire);
+            output.lost.store(gen, Ordering::Release);
+            let _ = tx.send(AudioCmd::DeviceLost(gen));
         }
         if (current != 0 || !fading.is_empty())
             && !player.is_paused()
             && output.checked.elapsed() >= DEVICE_CHECK
-            && !output.lost.load(Ordering::Relaxed)
+            && output.lost.load(Ordering::Acquire) != output.generation.load(Ordering::Acquire)
             && (output.sink.is_none() || output.default_changed())
         {
             output.open(tx.clone(), &status);
