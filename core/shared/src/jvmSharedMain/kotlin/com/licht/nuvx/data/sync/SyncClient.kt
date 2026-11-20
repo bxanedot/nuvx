@@ -30,7 +30,7 @@ sealed interface SyncResult {
     /** Nothing was lost; try again after [retryDelayMs] for this attempt. */
     data class RetryLater(val why: String) : SyncResult
     /** Retrying will not help (device revoked, space full, newer server, invalid op). Keep the outbox and tell the user. */
-    data class Stop(val why: String) : SyncResult
+    data class Stop(val why: String, val authorizationLost: Boolean = false) : SyncResult
     /** This device now belongs to [spaceId]. Store [token] in secure storage; it is shown once. */
     data class Joined(val spaceId: String, val deviceId: String, val token: String) : SyncResult
     /** Show [code] as a QR on this device and keep [secret] private; poll [SyncClient.claim] until [expiresAtMs]. */
@@ -153,7 +153,10 @@ class SyncClient(
             val error = runCatching { Json.parseToJsonElement(it.body.string()).jsonObject }.getOrNull()
             return when {
                 code in 200..202 && error != null -> runCatching { ok(error) }.getOrElse { SyncResult.RetryLater("Unreadable reply") }
-                code == 401 -> SyncResult.Stop(if (token == null) error?.get("message")?.jsonPrimitive?.contentOrNull ?: "Unauthorized" else "This device was removed from sync.")
+                code == 401 -> SyncResult.Stop(
+                    if (token == null) error?.get("message")?.jsonPrimitive?.contentOrNull ?: "Unauthorized" else "This device was removed from sync.",
+                    authorizationLost = token != null,
+                )
                 code == 404 || code == 409 || code == 413 || code == 422 -> SyncResult.Stop(error?.get("message")?.jsonPrimitive?.contentOrNull ?: "HTTP $code")
                 else -> SyncResult.RetryLater("HTTP $code") // 429, 507 server_full, 5xx, proxies
             }
