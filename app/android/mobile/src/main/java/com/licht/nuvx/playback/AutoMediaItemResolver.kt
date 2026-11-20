@@ -21,6 +21,10 @@ internal const val MEDIA_LIKED_ID = "liked"
 internal const val MEDIA_DOWNLOADS_ID = "downloads"
 internal const val MEDIA_LOCAL_MUSIC_ID = "local_music"
 
+/** Browse-only information must never be converted into a playable audio ID. */
+internal fun isAutoInformationItem(mediaId: String): Boolean =
+    mediaId.startsWith("msg:")
+
 @UnstableApi
 internal class AutoMediaItemResolver(
     private val context: Context,
@@ -31,6 +35,9 @@ internal class AutoMediaItemResolver(
         val resolved = mutableListOf<MediaItem>()
         for (item in mediaItems) {
             val id = item.mediaId
+            // Android Auto uses these items as non-interactive information
+            // cards. Do not synthesize a Song or request a stream for them.
+            if (isAutoInformationItem(id)) continue
             val searchQuery = item.requestMetadata.searchQuery
             when {
                 !searchQuery.isNullOrBlank() -> {
@@ -148,6 +155,6 @@ internal class AutoMediaItemResolver(
                 }
             }
         }
-        return if (resolved.isEmpty()) mediaItems else resolved
+        return if (resolved.isEmpty()) mediaItems.filterNot { isAutoInformationItem(it.mediaId) } else resolved
     }
 }
