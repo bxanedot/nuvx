@@ -1356,6 +1356,11 @@
     <string name="playlist_import_empty">No songs in that file could be found.</string>
     <string name="copy_diagnostics">Copy diagnostics</string>
     <string name="copy_diagnostics_subtitle">Recent errors with app, phone and network versions. Links, cookies and tokens are removed. Only copied to your clipboard; nothing is sent.</string>
+    <string name="download_cleanup_title">Clean up incomplete downloads</string>
+    <string name="download_cleanup_desc">Preview old temporary files. Saved, pinned and manual downloads are never removed.</string>
+    <string name="download_cleanup_preview">%1$d old temporary files can be removed, reclaiming up to %2$d MB. No completed songs will be deleted.</string>
+    <string name="download_cleanup_confirm">Clean up</string>
+    <string name="download_cleanup_done">Removed %1$d temporary files (%2$d MB)</string>
     <string name="download_limit">Storage limit</string>
     <string name="download_limit_footer">When your downloads take up this much space, new downloads stop. Songs already saved stay.</string>
     <string name="song_removed_from_playlist">Removed “%1$s”</string>
