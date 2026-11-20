@@ -244,12 +244,25 @@ fn import_file(app: &mut App) {
         return app.toast("No YouTube songs in that file");
     }
     let title = parsed.title.unwrap_or_else(|| path.file_stem().map_or("Imported playlist".into(), |s| s.to_string_lossy().into_owned()));
-    let count = parsed.tracks.len();
-    let id = app.save_local_playlist(title.clone(), parsed.tracks);
-    app.toast(match parsed.unmatched {
-        0 => format!("Imported {count} songs into “{title}”"),
-        n => format!("Imported {count} songs into “{title}”; {n} without a YouTube link left out"),
-    });
+    let (tracks, duplicates) = crate::playlist_file::deduplicate(parsed.tracks);
+    let count = tracks.len();
+    let summary = format!(
+        "Playlist: {title}\\nSongs to import: {count}\\nDuplicate YouTube songs skipped: {duplicates}\\nEntries without a usable YouTube link: {}\\n\\nImport into a new local playlist?",
+        parsed.unmatched
+    ).replace("\\n", "\n");
+    let confirmed = rfd::MessageDialog::new()
+        .set_title("Preview playlist import")
+        .set_description(summary)
+        .set_buttons(rfd::MessageButtons::OkCancel)
+        .show();
+    if confirmed != rfd::MessageDialogResult::Ok {
+        return;
+    }
+    let id = app.save_local_playlist(title.clone(), tracks);
+    app.toast(format!(
+        "Imported {count} songs into “{title}”; {duplicates} duplicates and {} unmatched entries skipped",
+        parsed.unmatched
+    ));
     app.actions.push(Action::Go(Page::Playlist(id)));
 }
 
