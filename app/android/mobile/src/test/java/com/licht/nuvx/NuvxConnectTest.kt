@@ -96,6 +96,16 @@ class NuvxConnectTest {
     }
 
     @Test
+    fun phoneMirrorsOnlyOneNewTailEntryWithoutReorderingTheRemoteQueue() {
+        val sent = listOf("current", "next", "later")
+        assertEquals("added", NuvxConnect.appendedItem(sent, sent + "added"))
+        assertNull(NuvxConnect.appendedItem(sent, sent), "nothing changed")
+        assertNull(NuvxConnect.appendedItem(sent, listOf("current", "added", "next", "later")), "insertions are not tail appends")
+        assertNull(NuvxConnect.appendedItem(sent, listOf("current", "later", "next", "added")), "reordered entries are not appended")
+        assertNull(NuvxConnect.appendedItem(sent, sent + listOf("first", "second")), "multiple edits must not be applied as one")
+    }
+
+    @Test
     fun computerCommandsForThisPhoneAreRead() {
         assertEquals(listOf("toggle", "next"), NuvxConnect.parseCommands("""{"commands":["toggle","next"]}"""))
         assertEquals(emptyList<String>(), NuvxConnect.parseCommands("""{"commands":[]}"""))
