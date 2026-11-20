@@ -23,6 +23,7 @@ import com.licht.nuvx.ui.player.PlayerSettings
 enum class NuvxGlyph(val sfName: String) {
     Play("play.fill"),
     Pause("pause.fill"),
+    Previous("backward.end.fill"),
     Downloading("arrow.down"),
     Downloaded("arrow.down.circle.fill"),
     DownloadFailed("exclamationmark.circle"),
