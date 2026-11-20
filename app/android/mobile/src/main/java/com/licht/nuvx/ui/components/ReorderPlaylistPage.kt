@@ -107,7 +107,7 @@ fun ReorderPlaylistPage(
             }
             if (onRestore != null) {
                 TextButton(onClick = onRestore, enabled = !saving && !changed) {
-                    Text(stringResource(R.string.restore_playlist_order))
+                    Text(stringResource(R.string.restore_playlist_action))
                 }
             }
             Button(
