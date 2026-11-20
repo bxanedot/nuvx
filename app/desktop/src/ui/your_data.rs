@@ -13,6 +13,18 @@ fn backup_preview_id() -> egui::Id {
     egui::Id::unique("pending-backup-import")
 }
 
+fn clear_searches_preview_id() -> egui::Id {
+    egui::Id::new("confirm-local-recent-searches-clear")
+}
+
+/// Only the local recent-search category is mutated; remote and Sync data are untouched.
+fn clear_recent_searches(searches: &mut Vec<super::RecentSearch>, confirmed: bool) -> usize {
+    if !confirmed { return 0; }
+    let removed = searches.len();
+    searches.clear();
+    removed
+}
+
 /// Prepare the complete replacement in memory; do not mutate an existing playlist.
 fn planned_restore(
     current: &[super::LocalPlaylist],
@@ -69,10 +81,10 @@ pub(super) fn pane(app: &mut App, ui: &mut Ui) {
             ui.add_enabled_ui(n > 0, |ui| clear = pill(ui, "Clear", None, false).clicked());
         });
         if clear {
-            app.recent_searches.clear();
-            app.toast("Recent searches cleared");
+            ui.ctx().data_mut(|d| d.insert_temp(clear_searches_preview_id(), true));
         }
     });
+    confirm_recent_searches_clear(app, ui);
     restore_preview(app, ui);
     ui.add_space(18.0);
     section_label(ui, "What leaves it, and when", None);
@@ -121,6 +133,33 @@ pub(super) fn pane(app: &mut App, ui: &mut Ui) {
             app.toast("Diagnostics copied");
         }
     });
+}
+
+fn confirm_recent_searches_clear(app: &mut App, ui: &mut Ui) {
+    if !ui.ctx().data(|d| d.get_temp::<bool>(clear_searches_preview_id()).unwrap_or(false)) {
+        return;
+    }
+    let (mut cancel, mut confirm) = (false, false);
+    egui::Window::new("Clear recent searches?")
+        .collapsible(false)
+        .resizable(false)
+        .show(ui.ctx(), |ui| {
+            ui.label(format!(
+                "Delete {} recent searches stored on this computer? This does not delete                  YouTube Music account history, playlists, or Sync/cloud data.",
+                app.recent_searches.len()
+            ));
+            ui.horizontal(|ui| {
+                cancel = ui.button("Cancel").clicked();
+                confirm = ui.button("Delete local searches").clicked();
+            });
+        });
+    if cancel || confirm {
+        ui.ctx().data_mut(|d| d.remove_temp::<bool>(clear_searches_preview_id()));
+    }
+    if confirm {
+        let removed = clear_recent_searches(&mut app.recent_searches, true);
+        app.toast(format!("Deleted {removed} local recent searches"));
+    }
 }
 
 fn export_backup(app: &mut App) {
@@ -193,6 +232,23 @@ fn restore_preview(app: &mut App, ui: &mut Ui) {
 #[cfg(test)]
 mod backup_restore_tests {
     use super::*;
+
+    #[test]
+    fn recent_searches_are_untouched_until_explicit_confirmation() {
+        let mut searches = vec![super::super::RecentSearch {
+            query: "private query".into(),
+            target: None,
+            title: "private query".into(),
+            subtitle: String::new(),
+            thumb: None,
+            round: false,
+        }];
+        assert_eq!(clear_recent_searches(&mut searches, false), 0);
+        assert_eq!(searches.len(), 1, "cancel must preserve the local category");
+        assert_eq!(clear_recent_searches(&mut searches, true), 1);
+        assert!(searches.is_empty());
+        assert_eq!(clear_recent_searches(&mut searches, true), 0);
+    }
 
     #[test]
     fn valid_backups_are_previewed_and_corrupt_backups_leave_data_intact() {
