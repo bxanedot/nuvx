@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 import { useSpotifySignedIn } from '@/extension/useSpotifyAuth';
 import { usePlayer } from '@/state/player';
 import { fetchCanvas } from './api';
+import { safeCanvasUrl } from './canvasUrl';
 
 export const useSpotifySettings = create<{ canvas: boolean; setCanvas: (on: boolean) => void }>()(
   persist((set) => ({ canvas: true, setCanvas: (canvas) => set({ canvas }) }), { name: 'nuvx:spotify', version: 1 }),
@@ -40,5 +41,5 @@ export function useCanvas(): string | null {
     gcTime: 30 * 60_000,
     retry: false,
   });
-  return allowed && track ? (query.data ?? null) : null;
+  return allowed && track ? safeCanvasUrl(query.data ?? null) : null;
 }
