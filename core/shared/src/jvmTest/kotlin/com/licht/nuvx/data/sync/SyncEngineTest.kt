@@ -91,6 +91,28 @@ class SyncEngineTest {
     }
 
     @Test
+    fun revokedDeviceStopsWithoutDiscardingItsOfflineOutboxOrChangingLocalPlaylists() {
+        val http = OkHttpClient()
+        val owner = assertIs<SyncResult.Joined>(SyncClient(server.url, null, http).createSpace("Owner"))
+        val pairing = assertIs<SyncResult.PairingStarted>(SyncClient(server.url, null, http).startPairing("Revoked"))
+        assertIs<SyncResult.Approved>(SyncClient(server.url, owner.token, http).approve(pairing.code))
+        val joined = assertIs<SyncResult.Joined>(SyncClient(server.url, null, http).claim(pairing.code, pairing.secret))
+        val store = MemoryStore()
+        val device = SyncEngine(SyncClient(server.url, joined.token, http), store)
+        val initial = listOf(playlist("road", "Road", "a"))
+        assertIs<SyncOutcome.Apply>(device.syncOnce(initial))
+        assertEquals(SyncResult.Done, SyncClient(server.url, owner.token, http).revoke(joined.deviceId))
+
+        val edited = listOf(playlist("road", "Road", "a", "b"))
+        val stopped = assertIs<SyncOutcome.Stop>(device.syncOnce(edited))
+        assertTrue(stopped.authorizationLost)
+        val pending = Json.decodeFromString(EngineState.serializer(), store.state!!)
+        assertTrue(pending.outbox.isNotEmpty(), "revocation must preserve unsent local edits")
+        assertEquals(listOf("a", "b"), edited.single().songs.map(Song::videoId))
+        assertIs<SyncOutcome.Stop>(device.syncOnce(edited), "the server never accepts stale credentials")
+    }
+
+    @Test
     fun offlineChangesWaitInTheOutboxAndNothingIsApplied() {
         val join = assertIs<SyncResult.Joined>(SyncClient(server.url, null, OkHttpClient()).createSpace("Phone"))
         val store = MemoryStore()
