@@ -160,7 +160,8 @@ internal fun TransportRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TransportGlyph(
-            icon = Res.drawable.ic_player_previous,
+            icon = Res.drawable.ic_player_previous, // fallback for a legacy SFStudio bundle
+            glyph = com.licht.nuvx.ui.icons.NuvxGlyph.Previous,
             contentDescription = stringResource(Res.string.widget_previous),
             size = skipSize,
             touchSize = PLAYER_SKIP_TOUCH_SIZE,
@@ -326,7 +327,7 @@ private fun TransportGlyph(
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (glyph != null) {
+        if (glyph != null && (icon == null || com.composables.sfsymbols.SfSymbol.named(glyph.sfName) != null)) {
             com.licht.nuvx.ui.icons.NuvxSymbol(glyph, contentDescription, Color.White.copy(alpha = alpha), size)
         } else if (icon != null) {
             Icon(
