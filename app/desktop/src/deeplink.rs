@@ -10,7 +10,11 @@ pub const RELAUNCH_FLAG: &str = "--relaunch";
 pub const SHOW_FLAG: &str = "--show";
 pub const NO_TRAY_FLAG: &str = "--no-tray";
 
+const MAX_INVITE_LINK_BYTES: usize = 2_048;
+
 pub fn parse(arg: &str) -> Option<String> {
+    // A launch argument or forwarded deep link is untrusted input.
+    if arg.len() > MAX_INVITE_LINK_BYTES { return None; }
     let arg = arg.trim().trim_matches('"');
     let (scheme, rest) = arg.split_once("://")?;
     let rest = rest.split('#').next().unwrap_or("");
@@ -19,7 +23,7 @@ pub fn parse(arg: &str) -> Option<String> {
     let (host, code) = path.split_once('/').unwrap_or((path, ""));
     let code = if scheme.eq_ignore_ascii_case("nuvx") && host.eq_ignore_ascii_case("party") {
         if code.is_empty() { query_param(query, "code")? } else { code }
-    } else if (scheme.eq_ignore_ascii_case("https") || scheme.eq_ignore_ascii_case("http"))
+    } else if scheme.eq_ignore_ascii_case("https")
         && (host.eq_ignore_ascii_case("nuvx.lol") || host.eq_ignore_ascii_case("www.nuvx.lol"))
     {
         code.strip_prefix("invite/")?
@@ -31,10 +35,13 @@ pub fn parse(arg: &str) -> Option<String> {
 }
 
 fn query_param<'a>(query: &'a str, name: &str) -> Option<&'a str> {
-    query.split('&').find_map(|kv| {
+    let mut values = query.split('&').filter_map(|kv| {
         let (k, v) = kv.split_once('=').unwrap_or((kv, ""));
         (k == name).then_some(v)
-    })
+    });
+    let first = values.next()?;
+    // Ambiguous duplicate invite parameters are rejected, not resolved by order.
+    values.next().is_none().then_some(first)
 }
 
 pub fn from_args() -> Option<String> {
@@ -277,6 +284,26 @@ mod tests {
         ] {
             assert_eq!(parse(bad), None, "{bad}");
         }
+    }
+
+    #[test]
+    fn untrusted_links_have_strict_origin_length_and_unique_code() {
+        for bad in [
+            "http://nuvx.lol/invite/ABC234", // insecure share origin
+            "https://nuvx.lol.evil.test/invite/ABC234",
+            "https://nuvx.lol@evil.test/invite/ABC234",
+            "https://nuvx.lol:444/invite/ABC234",
+            "https://nuvx.lol/invite/%2e%2e/ABC234",
+            "nuvx://party?code=ABC234&code=XYZ789",
+            "nuvx://party?code=%41BC234",
+            "nuvx://party/ABC234/../../",
+            "file://nuvx.lol/invite/ABC234",
+        ] {
+            assert_eq!(parse(bad), None, "should reject {bad}");
+        }
+        assert!(parse(&format!("nuvx://party/ABC234?{}", "x".repeat(MAX_INVITE_LINK_BYTES))).is_none());
+        assert_eq!(parse("https://nuvx.lol/invite/ABC234?server=https%3A%2F%2Fx").as_deref(), Some("ABC234"));
+        assert_eq!(parse("nuvx://party?code=abc234").as_deref(), Some("ABC234"));
     }
 
     #[test]
