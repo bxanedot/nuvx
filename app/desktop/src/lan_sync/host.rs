@@ -736,6 +736,36 @@ mod pairing_expiration_tests {
     use super::*;
 
     #[test]
+    fn approved_but_unclaimed_pairing_expires_without_creating_permanent_credentials() {
+        let dir = std::env::temp_dir().join(format!("nuvx-approved-expiry-{}", crypto::b64(&crypto::random_bytes::<8>())));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut host = Inner::load(&dir, "Test PC".into(), Some(HashMap::new()));
+        let phone = crypto::PhoneKey::new();
+        let start = json!({ "deviceName": "Phone", "commit": crypto::sha256_hex(&phone.public) }).to_string();
+        let (status, reply) = host.handle("POST", "/lan/pair/start", None, start.as_bytes());
+        assert_eq!(status, 201);
+        let value: Value = serde_json::from_str(&reply).unwrap();
+        let id = value["pairingId"].as_str().unwrap().to_owned();
+        let host_pub = crypto::unb64(value["hostKey"].as_str().unwrap()).unwrap();
+        let (key, code) = phone.agree(&host_pub).unwrap();
+        let reveal = json!({ "pairingId": id, "deviceKey": crypto::b64(&phone.public) }).to_string();
+        assert_eq!(host.handle("POST", "/lan/pair/reveal", None, reveal.as_bytes()).0, 200);
+        host.approve(&id, &code).unwrap();
+        assert!(host.keys.is_empty(), "approval alone must not persist credentials");
+        assert!(host.devices().is_empty(), "approval alone must not trust a device");
+
+        host.pairings.get_mut(&id).unwrap().expires_ms = now_ms() - 1;
+        let proof = crypto::seal(&key, format!("nuvx-pair-claim:{id}").as_bytes(), b"claim");
+        let claim = json!({ "pairingId": id, "proof": proof }).to_string();
+        assert_eq!(host.handle("POST", "/lan/pair/claim", None, claim.as_bytes()).0, 404);
+        assert!(host.keys.is_empty());
+        assert!(host.devices().is_empty());
+        assert_eq!(host.handle("POST", "/lan/pair/claim", None, claim.as_bytes()).0, 404, "cannot replay after expiry");
+        drop(host);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn an_expired_pairing_cannot_be_revealed_approved_or_claimed() {
         let dir = std::env::temp_dir().join(format!("nuvx-pair-expiry-{}", crypto::b64(&crypto::random_bytes::<8>())));
         std::fs::create_dir_all(&dir).unwrap();
