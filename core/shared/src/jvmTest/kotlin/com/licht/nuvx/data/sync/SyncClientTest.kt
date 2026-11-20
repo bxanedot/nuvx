@@ -106,6 +106,31 @@ class SyncClientTest {
     }
 
     @Test
+    fun staleAndStalledPullPagesRetryWithoutAdvancingTheDurableCursor() {
+        assertIs<SyncResult.Stop>(sync.pull(-1))
+        reply(200, """{"api":1,"more":true,"ops":[]}""")
+        assertIs<SyncResult.RetryLater>(sync.pull(4), "no-progress page must not loop forever")
+        reply(200, """{"api":1,"more":false,"ops":[
+            {"seq":4,"kind":"playlist.create","entity":"playlist:p","payload":{"title":"stale"}}
+        ]}""")
+        assertIs<SyncResult.RetryLater>(sync.pull(4), "replayed row must not be applied twice")
+        reply(200, """{"api":1,"more":true,"ops":[
+            {"seq":6,"kind":"playlist.create","entity":"playlist:p","payload":{"title":"First"}},
+            {"seq":6,"kind":"playlist.create","entity":"playlist:q","payload":{"title":"duplicate"}}
+        ]}""")
+        assertIs<SyncResult.RetryLater>(sync.pull(4), "duplicates within a page are rejected")
+        reply(503, """{"error":"unavailable"}""")
+        assertIs<SyncResult.RetryLater>(sync.pull(4), "temporary failure must retain cursor")
+        reply(200, """{"api":1,"more":false,"ops":[
+            {"seq":5,"kind":"playlist.create","entity":"playlist:p","payload":{"title":"Recovered"}}
+        ]}""")
+        val recovered = assertIs<SyncResult.Pulled>(sync.pull(4))
+        assertEquals(5, recovered.cursor)
+        assertEquals(listOf("Recovered"), replay(recovered.ops).playlists.values.map { it.title })
+        assertEquals(30 * 60_000L, retryDelayMs(99), "retry backoff remains capped")
+    }
+
+    @Test
     fun aNewerServerStopsTheClient() {
         reply(200, """{"api":2,"more":false,"ops":[]}""")
         assertIs<SyncResult.Stop>(sync.pull(0))
