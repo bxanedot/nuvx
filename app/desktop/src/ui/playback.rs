@@ -239,9 +239,10 @@ impl App {
         let shown = s.playing_as.clone().unwrap_or_else(|| track.clone());
         self.playing_as = s.playing_as.map(|song| PlayingAs { generation: self.generation, listed: track.id.clone(), song });
         let dur = shown.duration.map_or(s.duration_ms, |d| d as u64 * 1000);
+        let resume_ms = s.resume_position_ms(dur);
         self.audio.status.duration_ms.store(dur, Ordering::Relaxed);
-        self.audio.status.position_ms.store(s.position_ms, Ordering::Relaxed);
-        self.resume_at = Some(Duration::from_millis(s.position_ms));
+        self.audio.status.position_ms.store(resume_ms, Ordering::Relaxed);
+        self.resume_at = Some(Duration::from_millis(resume_ms));
         self.listened_at = s.listened_at;
         self.request_art();
         self.backend.request(Req::Lyrics(shown));
