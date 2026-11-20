@@ -143,13 +143,18 @@ object LastPlayed {
 
     @Serializable
     private data class StoredTrack(
-        val id: String,
+        val id: String = "",
+        // BoundedContextPersistence uses "videoId", not the old "id" key.
+        val videoId: String? = null,
         val title: String,
         val artist: String,
         val artwork: String? = null,
+        val thumbnailUrl: String? = null,
         val auto: Boolean = false,
         val tier: String? = null,
+        val queueTier: String? = null,
         val entryId: String? = null,
+        val queueEntryId: String? = null,
         val local: String? = null,
         val path: String? = null,
         val duration: String? = null,
@@ -162,23 +167,23 @@ object LastPlayed {
         val sourceId: String? = null,
     ) {
         fun toSong(): Song {
-            val resolvedTier = when (tier) {
+            val resolvedTier = when (tier ?: queueTier) {
                 "USER_QUEUE" -> com.licht.nuvx.data.model.QueueTier.USER_QUEUE
                 "CONTEXT" -> com.licht.nuvx.data.model.QueueTier.CONTEXT
                 "AUTOPLAY" -> com.licht.nuvx.data.model.QueueTier.AUTOPLAY
                 else -> if (auto) com.licht.nuvx.data.model.QueueTier.AUTOPLAY else com.licht.nuvx.data.model.QueueTier.CONTEXT
             }
             return Song(
-                videoId = id,
+                videoId = id.ifBlank { videoId.orEmpty() },
                 title = title,
                 artist = artist,
-                thumbnailUrl = artwork,
+                thumbnailUrl = artwork ?: thumbnailUrl,
                 durationText = duration,
                 albumName = album,
                 isExplicit = explicit,
                 isVideo = video,
                 queueTier = resolvedTier,
-                queueEntryId = entryId,
+                queueEntryId = entryId ?: queueEntryId,
                 radioName = radio,
                 playbackSource = source,
                 playbackSourceType = sourceType?.let {
