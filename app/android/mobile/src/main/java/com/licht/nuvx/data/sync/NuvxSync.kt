@@ -365,6 +365,11 @@ object NuvxSync {
         var outcome: SyncOutcome = runCatching {
             engine(s.server).syncOnce(before.map { LibraryPlaylist(it.id, it.title, it.songs) })
         }.getOrElse { SyncOutcome.RetryLater(it.javaClass.simpleName) }
+        // A session may be revoked while the playlist request is in flight.
+        // Do not start any optional data transfer using that obsolete authority.
+        if (!_status.value.enabled || _status.value.server != s.server || _status.value.deviceId != s.deviceId) {
+            return SyncOutcome.Stop("Sync authorization changed during request")
+        }
         if (outcome is SyncOutcome.Apply && _syncFavorites.value) {
             when (val extra = favoritesChannel().sync()) {
                 is IndependentResult.Applied -> if (_syncFavorites.value) extra.state.favorites.forEach { (id, liked) ->
