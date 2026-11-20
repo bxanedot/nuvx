@@ -62,6 +62,12 @@ internal const val MUSIC_VIDEO_SEEK_DRIFT_MS = 50L
 internal fun musicVideoNeedsSeek(driftMs: Long): Boolean =
     driftMs > MUSIC_VIDEO_SEEK_DRIFT_MS || driftMs < -MUSIC_VIDEO_SEEK_DRIFT_MS
 
+/** An ended video can be re-seeked only if the audio transport moved back before its real end.
+ * Never invent a preview cutoff or repeatedly restart a genuinely finished video.
+ */
+internal fun musicVideoShouldResumeAfterEnd(targetMs: Long, durationMs: Long): Boolean =
+    durationMs > 0L && targetMs >= 0L && targetMs < durationMs - 250L
+
 @OptIn(UnstableApi::class)
 object MusicVideoEngine {
 
@@ -454,10 +460,19 @@ object MusicVideoEngine {
     private fun sync() {
         val audio = controller ?: return
         val exo = player ?: return
-        if (loadedId == null || exo.playbackState == Player.STATE_IDLE || exo.playbackState == Player.STATE_ENDED) return
+        if (loadedId == null || exo.playbackState == Player.STATE_IDLE) return
         val speed = audio.playbackParameters.speed
         val target = musicVideoTargetMs(audio.currentPosition, alignmentOffsetMs)
         val now = System.currentTimeMillis()
+        if (exo.playbackState == Player.STATE_ENDED) {
+            // Pause at the true duration; if the user scrubs backwards or repeats the
+            // same song, bring the side-video back without touching the music queue.
+            if (musicVideoShouldResumeAfterEnd(target, exo.duration)) {
+                seek(exo, target)
+                exo.playWhenReady = audio.isPlaying
+            }
+            return
+        }
         if (!audio.isPlaying) {
             exo.playWhenReady = false
             setSpeed(exo, speed)
