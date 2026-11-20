@@ -13,7 +13,8 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
         });
         divider(ui);
         setting_row(ui, "Loudness target", Some("Level songs are brought to: lower is quieter, -14 matches YouTube Music."), |ui| {
-            let label = app.norm_target.map_or("Off".to_string(), |t| format!("{t} LUFS"));
+            let active = effective_norm(app.norm_target, &app.norm_by_output, app.output_device.as_ref().map(|(id, _)| id.as_str()));
+            let label = active.map_or("Off".to_string(), |t| format!("{t} LUFS"));
             let btn = dropdown_button(ui, &label, 150.0, "Loudness target");
             let mut pick = None;
             egui::Popup::menu(&btn).show(|ui| {
@@ -22,7 +23,7 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
                 ui.add_space(4.0);
                 for t in std::iter::once(None).chain((-20..=-10).map(Some)) {
                     let name = t.map_or("Off".to_string(), |t| format!("{t} LUFS"));
-                    if option_row(ui, &name, app.norm_target == t).clicked() {
+                    if option_row(ui, &name, active == t).clicked() {
                         pick = Some(t);
                         ui.close();
                     }
@@ -30,7 +31,11 @@ pub(super) fn settings_playback(app: &mut App, ui: &mut Ui) {
                 ui.add_space(4.0);
             });
             if let Some(t) = pick {
-                app.norm_target = t;
+                if let Some((id, _)) = &app.output_device {
+                    app.norm_by_output.insert(id.clone(), t);
+                } else {
+                    app.norm_target = t;
+                }
                 app.audio.set_normalize(t);
             }
         });
@@ -221,6 +226,37 @@ fn live_sources(app: &App) -> String {
     app.hires_sources.iter().map(|s| s.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n")
 }
 
+/// An explicit per-device Off override is distinct from no override.
+pub(super) fn effective_norm(
+    global: Option<i32>,
+    outputs: &std::collections::HashMap<String, Option<i32>>,
+    id: Option<&str>,
+) -> Option<i32> {
+    id.and_then(|key| outputs.get(key).copied()).unwrap_or(global)
+}
+
+#[cfg(test)]
+mod normalization_output_tests {
+    use super::effective_norm;
+    use std::collections::HashMap;
+
+    #[test]
+    fn device_targets_are_isolated_and_unknown_outputs_keep_global_default() {
+        let mut saved = HashMap::new();
+        let global = Some(-14);
+        saved.insert("headphones-id".to_owned(), Some(-17));
+        saved.insert("speaker-id".to_owned(), None);
+        assert_eq!(effective_norm(global, &saved, Some("headphones-id")), Some(-17));
+        assert_eq!(effective_norm(global, &saved, Some("speaker-id")), None);
+        assert_eq!(effective_norm(global, &saved, None), Some(-14));
+        assert_eq!(effective_norm(global, &saved, Some("not-connected")), Some(-14));
+        saved.insert("headphones-id".to_owned(), Some(-19));
+        assert_eq!(effective_norm(global, &saved, Some("speaker-id")), None);
+        let decoded: HashMap<String, Option<i32>> = serde_json::from_str(&serde_json::to_string(&saved).unwrap()).unwrap();
+        assert_eq!(effective_norm(global, &decoded, Some("headphones-id")), Some(-19));
+    }
+}
+
 const SYSTEM_DEFAULT: &str = "Windows default";
 
 fn output_device_picker(app: &mut App, ui: &mut Ui) {
@@ -261,6 +297,7 @@ fn output_device_picker(app: &mut App, ui: &mut Ui) {
         app.eq = crate::eq::switch_output(&mut app.eq_by_output, &name(&app.output_device), &name(&pick), app.eq);
         app.audio.set_eq(app.eq.tuning());
         app.output_device = pick;
+        app.audio.set_normalize(effective_norm(app.norm_target, &app.norm_by_output, app.output_device.as_ref().map(|(id, _)| id.as_str())));
     }
 }
 
