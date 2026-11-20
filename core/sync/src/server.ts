@@ -158,6 +158,20 @@ export function createApp(db: DatabaseSync, now: () => number = Date.now, maxDbB
       const devices = db.prepare("SELECT id, name, created_ms AS createdMs, seen_ms AS seenMs FROM devices WHERE space_id = ? ORDER BY created_ms").all(space);
       return { status: 200, body: { devices, you: device.id } };
     }
+    if (route === "POST /v1/devices/revoke-others") {
+      if (body.confirm !== true) return fail(422, "confirmation_required", "Confirm revocation of all other devices.");
+      // Remove pending approved pairing grants as well: they must not restore access later.
+      db.exec("BEGIN");
+      try {
+        db.prepare("DELETE FROM pairings WHERE space_id = ?").run(space);
+        const revoked = db.prepare("DELETE FROM devices WHERE space_id = ? AND id <> ?").run(space, device.id);
+        db.exec("COMMIT");
+        return { status: 200, body: { ok: true, revoked: revoked.changes } };
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    }
     const revoke = path.match(/^\/v1\/devices\/([0-9a-f]{24})$/);
     if (method === "DELETE" && revoke) {
       const done = db.prepare("DELETE FROM devices WHERE id = ? AND space_id = ?").run(revoke[1], space);
