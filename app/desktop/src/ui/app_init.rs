@@ -121,6 +121,7 @@ impl App {
                 Some(v) => v.parse().ok().filter(|t| (-20..=-10).contains(t)).or(Some(crate::audio::NORM_DEFAULT_LUFS)),
                 None => get("normalize").is_none_or(|v| v == "1").then_some(crate::audio::NORM_DEFAULT_LUFS),
             },
+            norm_by_output: get("norm_by_output").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
             spatial: get("spatial_audio").is_none_or(|v| v == "1"),
             eq: get("equalizer").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
             eq_by_output: get("equalizer_by_output").and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default(),
@@ -340,7 +341,9 @@ impl App {
             app.queue_open = true;
         }
         jam::dev_hooks(&mut app);
-        app.audio.set_normalize(app.norm_target);
+        app.audio.set_normalize(super::playback_settings::effective_norm(
+            app.norm_target, &app.norm_by_output, app.output_device.as_ref().map(|(id, _)| id.as_str()),
+        ));
         app.audio.set_spatial(app.spatial);
         app.audio.set_eq(app.eq.tuning());
         app.set_crossfade();
