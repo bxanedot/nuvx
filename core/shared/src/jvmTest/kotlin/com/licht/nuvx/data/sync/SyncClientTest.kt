@@ -78,6 +78,18 @@ class SyncClientTest {
     }
 
     @Test
+    fun revokedTokenIsDistinguishedFromOrdinaryPermanentFailureForPushAndPull() {
+        reply(401, """{"error":"unauthorized"}""")
+        val pushed = assertIs<SyncResult.Stop>(sync.push(listOf(op(1))))
+        assertTrue(pushed.authorizationLost)
+        reply(401, """{"error":"unauthorized"}""")
+        val pulled = assertIs<SyncResult.Stop>(sync.pull(0))
+        assertTrue(pulled.authorizationLost)
+        reply(422, """{"error":"invalid_ops"}""")
+        assertTrue(!assertIs<SyncResult.Stop>(sync.push(listOf(op(2)))).authorizationLost)
+    }
+
+    @Test
     fun pullReturnsOpsReadyForReplayAndTheNextCursor() {
         reply(200, """{"api":1,"more":true,"ops":[
             {"seq":7,"id":"a","kind":"playlist.create","entity":"playlist:p","payload":{"title":"Mix"}},
