@@ -1,5 +1,15 @@
 use super::*;
 
+/// Only selectable video heights are restorable. A corrupt/old unsupported
+/// preference must not cause unbounded playback bandwidth or a bogus UI value.
+fn restored_video_height(value: Option<&str>) -> u32 {
+    let height = value.and_then(|v| v.parse::<u32>().ok());
+    match height {
+        Some(360 | 480 | 720 | 1080) => height.unwrap_or(480),
+        _ => 480,
+    }
+}
+
 impl App {
     pub fn new(
         backend: Backend,
@@ -194,7 +204,7 @@ impl App {
             video_of: None,
             video_wanted: false,
             video_mode: false,
-            video_height: get("video_height").and_then(|v| v.parse().ok()).unwrap_or(480),
+            video_height: restored_video_height(get("video_height").as_deref()),
             // The old key stored the former default, so it cannot distinguish an opt-out from an untouched setting.
             load_both: get("load_both_v2").is_none_or(|v| v == "1"),
             apple_missed: Default::default(),
@@ -348,5 +358,22 @@ impl App {
         app.audio.set_eq(app.eq.tuning());
         app.set_crossfade();
         app
+    }
+}
+
+#[cfg(test)]
+mod saved_video_height_tests {
+    use super::restored_video_height;
+
+    #[test]
+    fn video_preference_defaults_survives_restart_and_recovers_from_bad_values() {
+        assert_eq!(restored_video_height(None), 480, "fresh install");
+        for (stored, expected) in [("360", 360), ("480", 480), ("720", 720), ("1080", 1080)] {
+            assert_eq!(restored_video_height(Some(stored)), expected, "stored selection {stored}");
+        }
+        for invalid in ["", "not-a-number", "-1", "0", "3600", "65535", "18446744073709551616"] {
+            assert_eq!(restored_video_height(Some(invalid)), 480, "corrupt setting {invalid}");
+        }
+        assert_eq!(restored_video_height(Some("720")), 720, "existing valid settings remain readable");
     }
 }
