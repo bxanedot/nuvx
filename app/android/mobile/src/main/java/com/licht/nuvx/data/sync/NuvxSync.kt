@@ -370,6 +370,12 @@ object NuvxSync {
         if (!_status.value.enabled || _status.value.server != s.server || _status.value.deviceId != s.deviceId) {
             return SyncOutcome.Stop("Sync authorization changed during request")
         }
+        // Commit the playlist result before optional entity transfers. A favorites/history/theme
+        // network failure must never make the next diff interpret remote playlists as local edits.
+        if (outcome is SyncOutcome.Apply) {
+            val applied = LocalPlaylistStore.replaceAllIfUnchanged(before, toLocal(outcome.playlists, before))
+            if (!applied) requestSync()
+        }
         if (outcome is SyncOutcome.Apply && _syncFavorites.value) {
             when (val extra = favoritesChannel().sync()) {
                 is IndependentResult.Applied -> if (_syncFavorites.value) extra.state.favorites.forEach { (id, liked) ->
@@ -418,8 +424,6 @@ object NuvxSync {
         if (!stillAuthorized) return SyncOutcome.Stop("Sync authorization changed during request")
         when (outcome) {
             is SyncOutcome.Apply -> {
-                val applied = LocalPlaylistStore.replaceAllIfUnchanged(before, toLocal(outcome.playlists, before))
-                if (!applied) requestSync() // edited during the run: go again with the new edits
                 prefs.edit().putLong("last", System.currentTimeMillis()).remove("error").apply()
                 _status.value = _status.value.copy(syncing = false, lastSyncMs = System.currentTimeMillis(), error = null)
             }
