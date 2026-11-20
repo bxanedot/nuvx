@@ -125,13 +125,20 @@ object PlaylistSync {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    internal suspend fun check(context: Context, approved: Boolean) {
-        if (approved) running.lock() else if (!running.tryLock()) return
+    /** Returns false when the network policy deferred work; WorkManager must retry later. */
+    internal suspend fun check(context: Context, approved: Boolean): Boolean {
+        if (approved) running.lock() else if (!running.tryLock()) return true
         try {
-            if (!storageWritable(context)) return
+            if (!AppSettings.syncDownloadedPlaylists.value || !storageWritable(context)) return true
+            if (!automaticNetworkAllowed(context)) return false
             var whole = true
+            var deferred = false
             Downloads.collections.value.keys.forEach { id ->
-                if (!AppSettings.syncDownloadedPlaylists.value || !AppSettings.downloadsAllowedNow) return
+                if (!AppSettings.syncDownloadedPlaylists.value) return true
+                if (!automaticNetworkAllowed(context)) {
+                    deferred = true
+                    return@forEach
+                }
                 val record = Downloads.collections.value[id] ?: return@forEach
                 val browseId = syncableBrowseId(record) ?: return@forEach
                 val listing = readWholePlaylist(
@@ -139,13 +146,32 @@ object PlaylistSync {
                     more = { YtMusicRepository.moreSongs(it) },
                 )
                 if (!listing.complete) whole = false
+                if (!automaticNetworkAllowed(context)) {
+                    deferred = true
+                    return@forEach
+                }
                 update(context, record, listing, approved)
+                if (!automaticNetworkAllowed(context)) deferred = true
                 delay(PAUSE_MILLIS)
             }
-            if (whole) prefs(context).edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
+            if (whole && !deferred) prefs(context).edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
+            return !deferred
         } finally {
             running.unlock()
         }
+    }
+
+    private fun automaticNetworkAllowed(context: Context): Boolean {
+        val manager = context.getSystemService(android.net.ConnectivityManager::class.java) ?: return false
+        val network = manager.activeNetwork ?: return false
+        val caps = manager.getNetworkCapabilities(network) ?: return false
+        return automaticDownloadAllowed(
+            enabled = AppSettings.syncDownloadedPlaylists.value,
+            wifiOnly = AppSettings.wifiOnlyDownloads.value,
+            connected = caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED),
+            isWifi = caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI),
+            isMetered = manager.isActiveNetworkMetered,
+        )
     }
 
     private suspend fun update(context: Context, record: SavedCollection, listing: Listing, approved: Boolean) {
@@ -280,8 +306,11 @@ class PlaylistSyncWorker(context: Context, params: WorkerParameters) : Coroutine
             PlaylistSync.cancel(applicationContext)
             return Result.success()
         }
-        PlaylistSync.check(applicationContext, inputData.getBoolean(PlaylistSync.KEY_APPROVED, false))
-        return Result.success()
+        return if (PlaylistSync.check(applicationContext, inputData.getBoolean(PlaylistSync.KEY_APPROVED, false))) {
+            Result.success()
+        } else {
+            Result.retry()
+        }
     }
 }
 
