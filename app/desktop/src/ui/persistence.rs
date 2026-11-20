@@ -21,6 +21,14 @@ pub(super) struct Session {
     pub(super) playing_as: Option<Track>,
 }
 
+impl Session {
+    /// Restore a valid queue even if an older/corrupt session saved an out-of-range
+    /// cursor. Empty queues cannot select a current song.
+    pub(super) fn restored_index(&self) -> Option<usize> {
+        (!self.queue.is_empty()).then(|| self.index.min(self.queue.len() - 1))
+    }
+}
+
 #[cfg(test)]
 mod session_tests {
     use super::*;
@@ -71,6 +79,26 @@ mod session_tests {
         );
         assert_eq!(restored.index, Some(2));
         assert_eq!(restored.current().unwrap().id, "third");
+    }
+
+    #[test]
+    fn restored_index_selects_middle_last_and_clamps_stale_cursor() {
+        let track = |id: &str| Track {
+            id: id.into(), title: id.into(), artists: vec![], album: None,
+            duration: None, thumbs: vec![], track_nr: None, plays: None, music_video: false,
+        };
+        let mut s = Session {
+            queue: vec![track("a"), track("b"), track("c")],
+            index: 1, position_ms: 0, duration_ms: 0,
+            listened_at: 0, playing_as: None,
+        };
+        assert_eq!(s.queue[s.restored_index().unwrap()].id, "b");
+        s.index = 2;
+        assert_eq!(s.queue[s.restored_index().unwrap()].id, "c");
+        s.index = usize::MAX;
+        assert_eq!(s.restored_index(), Some(2));
+        s.queue.clear();
+        assert_eq!(s.restored_index(), None);
     }
 
     #[test]
