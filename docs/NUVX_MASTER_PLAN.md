@@ -121,6 +121,14 @@ Committed straight to `main` (owner's choice), each with its tests; Android item
 - **Not run:** shared Kotlin, Android, desktop `cargo test`.
 - **Exact next step:** run `./gradlew :shared:jvmTest :sharedUi:jvmTest` and `cargo test` in `app/desktop`, then continue "Next, in order" item 1 (Android crossfade internals audit).
 
+## Daily engineer run, 2026-11-21
+
+- **Opened:** this docs-only handoff PR. No defect was found that I could prove with a failing test, so no code PR.
+- **Checked and healthy (tests run):** `core/sync` 13 passed, `core/worker` 29 passed, web `pnpm -r test` 247 passed (36 files). Open PRs are only Dependabot 337 and 338 (Android Gradle plugin 9.5.2).
+- **Read, no defect proven:** commit `2abbd7f3` (progressive itag 18 fallback): the IOS_PRODUCER URL host/path/port checks, the `needs_account` change and the probe's muxed-AAC check read correctly. One thing to confirm on a device: `StreamResolver` now accepts any extension when `requireM4a` is false (it required `webm` before), so check that a download in that path is saved with the extension `downloadExtension` reports.
+- **Not run (this container):** desktop `cargo test` (needs system `gdk-3.0`), shared Kotlin and Android Gradle tests (Kotlin Compose plugin 2.4.21 could not be resolved through the proxy), iOS.
+- **Exact next step:** on a machine with the Android SDK, run `./gradlew :shared:jvmTest :sharedUi:jvmTest` and add a `StreamResolver` test for the non-M4A download path; then continue "Next, in order" item 1.
+
 ## Checked and found healthy (2026-11-17, second session)
 
 - Desktop WebView reuse (reference audit, Metrolist PR 4615): the lyrics check and sign-in windows run in a child process that exits, so their WebViews cannot pile up.
